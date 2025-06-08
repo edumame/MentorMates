@@ -42,7 +42,8 @@ export function InviteOrganizersTab({ eventId }: InviteOrganizersTabProps) {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 p-4 border rounded-lg bg-card">
+      <h3 className="text-lg font-semibold">Invite Organizers</h3>
       <div className="flex gap-2">
         <Input
           placeholder="Organizer email"

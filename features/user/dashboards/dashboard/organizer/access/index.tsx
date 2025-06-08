@@ -16,12 +16,12 @@ interface AccessTabProps {
   setSaving: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-export function AccessTab({ 
+export function AccessTab({
   eventId,
   event,
   setEvent,
   saving,
-  setSaving
+  setSaving,
 }: AccessTabProps) {
   const [activeTab, setActiveTab] = useState("password");
 
@@ -30,33 +30,35 @@ export function AccessTab({
       <CardHeader>
         <CardTitle>Access Controls</CardTitle>
       </CardHeader>
-      <CardContent>
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid grid-cols-3 mb-6">
-          <TabsTrigger value="password">Password</TabsTrigger>
-          <TabsTrigger value="role-labels">Role Labels</TabsTrigger>
-          <TabsTrigger value="invite-organizers">Invite Organizers</TabsTrigger>
-        </TabsList>
+      <CardContent className="space-y-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid-cols-3">
+            <TabsTrigger value="password">Password</TabsTrigger>
+            <TabsTrigger value="role-labels">Role Labels</TabsTrigger>
+            <TabsTrigger value="invite-organizers">
+              Invite Organizers
+            </TabsTrigger>
+          </TabsList>
 
-          <TabsContent value="password">
+          <TabsContent value="password" className="mt-6">
             <PasswordTab eventId={eventId} roleLabels={event.role_labels} />
           </TabsContent>
 
-        <TabsContent value="role-labels">
-          <RoleLabelsTab
-            eventId={eventId}
-            event={event}
-            setEvent={setEvent}
-            saving={saving}
-            setSaving={setSaving}
-          />
-        </TabsContent>
+          <TabsContent value="role-labels" className="mt-6">
+            <RoleLabelsTab
+              eventId={eventId}
+              event={event}
+              setEvent={setEvent}
+              saving={saving}
+              setSaving={setSaving}
+            />
+          </TabsContent>
 
-        <TabsContent value="invite-organizers">
-          <InviteOrganizersTab eventId={eventId} />
-        </TabsContent>
-      </Tabs>
+          <TabsContent value="invite-organizers" className="mt-6">
+            <InviteOrganizersTab eventId={eventId} />
+          </TabsContent>
+        </Tabs>
       </CardContent>
     </Card>
   );
-} 
+}

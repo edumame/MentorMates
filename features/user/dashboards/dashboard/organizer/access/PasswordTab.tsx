@@ -3,11 +3,10 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { toast } from "@/lib/hooks/use-toast";
+import { useToast } from "@/lib/hooks/use-toast";
 import { EventRole, EventVisibility } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
 import { getRoleLabel } from "@/features/user/roles/roles";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -27,6 +26,7 @@ export function PasswordTab({ eventId, roleLabels }: PasswordTabProps) {
   );
   const [isLoading, setIsLoading] = useState(false);
   const [visibility, setVisibility] = useState<EventVisibility | null>(null);
+  const { toast } = useToast();
 
   // List of available roles from the EventRole enum, excluding Admin
   const availableRoles = Object.values(EventRole).filter(
@@ -145,72 +145,62 @@ export function PasswordTab({ eventId, roleLabels }: PasswordTabProps) {
 
   return (
     <div className="space-y-6">
-      <Card className="p-4 border-2 border-blue-400">
-        <CardHeader>
-          <CardTitle>Event Visibility</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Event Visibility</label>
-              <Select
-                value={visibility || ""}
-                onValueChange={(value) =>
-                  handleVisibilityChange(value as EventVisibility)
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select visibility" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={EventVisibility.Public}>Public</SelectItem>
-                  <SelectItem value={EventVisibility.Private}>
-                    Private (Password Protected)
-                  </SelectItem>
-                  <SelectItem value={EventVisibility.Draft}>Draft</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="space-y-4 p-4 border rounded-lg bg-card">
+        <h3 className="text-lg font-semibold">Event Visibility</h3>
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Event Visibility</label>
+          <Select
+            value={visibility || ""}
+            onValueChange={(value) =>
+              handleVisibilityChange(value as EventVisibility)
+            }
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select visibility" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={EventVisibility.Public}>Public</SelectItem>
+              <SelectItem value={EventVisibility.Private}>
+                Private (Password Protected)
+              </SelectItem>
+              <SelectItem value={EventVisibility.Draft}>Draft</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
 
-      <Card className="p-4 border-2 border-blue-400">
-        <CardHeader>
-          <CardTitle>Role Passwords</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {availableRoles.map((role) => {
-              const label = getRoleLabel(role, roleLabels);
-              return (
-                <div key={role} className="space-y-2">
-                  <label className="text-sm font-medium">
-                    {label} Password
-                  </label>
-                  <div className="flex gap-2">
-                    <Input
-                      type="password"
-                      value={rolePasswords[role] || ""}
-                      onChange={(e) => handlePasswordChange(role, e.target.value)}
-                      placeholder={`Set ${label.toLowerCase()} password`}
-                    />
-                    <Button
-                      onClick={() => handleSetPassword(role)}
-                      disabled={isLoading || !rolePasswords[role]}
-                    >
-                      Save
-                    </Button>
-                  </div>
-                  <p className="text-xs text-gray-500">
-                    This password will be used by {label.toLowerCase()}s to join the event.
-                  </p>
+      <div className="space-y-4 p-4 border rounded-lg bg-card">
+        <h3 className="text-lg font-semibold">Role Passwords</h3>
+        <div className="space-y-4">
+          {availableRoles.map((role) => {
+            const label = getRoleLabel(role, roleLabels);
+            return (
+              <div key={role} className="space-y-2">
+                <label className="text-sm font-medium">
+                  {label} Password
+                </label>
+                <div className="flex gap-2">
+                  <Input
+                    type="password"
+                    value={rolePasswords[role] || ""}
+                    onChange={(e) => handlePasswordChange(role, e.target.value)}
+                    placeholder={`Set ${label.toLowerCase()} password`}
+                  />
+                  <Button
+                    onClick={() => handleSetPassword(role)}
+                    disabled={isLoading || !rolePasswords[role]}
+                  >
+                    Save
+                  </Button>
                 </div>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
+                <p className="text-xs text-gray-500">
+                  This password will be used by {label.toLowerCase()}s to join the event.
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }
