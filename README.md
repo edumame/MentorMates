@@ -160,10 +160,11 @@ components/                   # Shared components
 ```sql
 -- User profiles (extends Supabase auth.users)
 user_profiles (
-    uid UUID PRIMARY KEY,           -- References auth.users.id
-    display_name TEXT,              -- User's display name
-    email TEXT UNIQUE,              -- User's email
-    links JSON,                     -- Personal social links
+    uid UUID PRIMARY KEY,
+    display_name TEXT,
+    email TEXT,
+    links JSON,
+    pulse BIGINT,
     created_at TIMESTAMPTZ
 )
 
@@ -172,18 +173,20 @@ user_event_roles (
     id UUID PRIMARY KEY,
     user_id UUID REFERENCES user_profiles(uid),
     event_id UUID REFERENCES events(event_id),
-    role event_role,                -- 'participant' | 'mentor' | 'judge' | 'organizer' | 'admin'
+    role event_role,
     created_at TIMESTAMPTZ,
-    UNIQUE(user_id, event_id)       -- One role per user per event
+    updated_at TIMESTAMPTZ,
+    UNIQUE(user_id, event_id)
 )
 
 -- Role-based passwords for protected access
 role_passwords (
     id UUID PRIMARY KEY,
-    event_id UUID REFERENCES events(id),
-    role TEXT,                      -- 'judge' | 'organizer'
+    event_id UUID REFERENCES events(event_id),
+    role event_role,
     password_hash TEXT,
-    UNIQUE(event_id, role)
+    created_at TIMESTAMPTZ,
+    updated_at TIMESTAMPTZ
 )
 ```
 
@@ -193,26 +196,36 @@ role_passwords (
 events (
     event_id UUID PRIMARY KEY,
     event_name TEXT,
+    event_date TEXT,
+    location TEXT,
     event_description TEXT,
-    slug TEXT UNIQUE,               -- URL-friendly identifier
-    event_start_date TIMESTAMPTZ,
-    event_end_date TIMESTAMPTZ,
-    submission_deadline TIMESTAMPTZ,
+    event_schedule JSONB,
+    event_prizes JSONB,
+    event_resources JSONB,
+    created_at TIMESTAMPTZ,
+    rules JSONB,
     cover_image_url TEXT,
-    password TEXT,                  -- Event access password
-    is_public BOOLEAN,              -- Event visibility
-    submission_time_blurb TEXT,     -- Submission instructions
-    role_labels JSONB,              -- Custom role labels
-    created_at TIMESTAMPTZ
+    scoring_config JSONB,
+    event_blurb TEXT,
+    submission_time_start TIMESTAMPTZ,
+    submission_time_cutoff TIMESTAMPTZ,
+    visibility event_visibility,
+    role_labels JSONB,
+    slug TEXT
 )
 
 -- Event tracks/categories
 event_tracks (
     track_id UUID PRIMARY KEY,
     event_id UUID REFERENCES events(event_id),
-    track_name TEXT,
-    track_description TEXT,
-    scoring_config JSONB           -- Custom scoring criteria
+    name TEXT,
+    description TEXT,
+    label TEXT,
+    prize_amount TEXT,
+    prize_description TEXT,
+    scoring_criteria JSONB,
+    created_at TIMESTAMPTZ,
+    updated_at TIMESTAMPTZ
 )
 
 -- Track prizes
@@ -220,7 +233,9 @@ prizes (
     id UUID PRIMARY KEY,
     track_id UUID REFERENCES event_tracks(track_id),
     prize_amount TEXT,
-    prize_description TEXT
+    prize_description TEXT,
+    created_at TIMESTAMPTZ,
+    updated_at TIMESTAMPTZ
 )
 ```
 
@@ -233,12 +248,11 @@ projects (
     lead_name TEXT,
     lead_email TEXT,
     project_description TEXT,
-    teammates TEXT[],               -- Array of teammate emails
-    project_url TEXT,               -- Live project URL
-    additional_materials_url TEXT,  -- Additional resources
+    teammates TEXT[],
+    project_url TEXT,
+    additional_materials_url TEXT,
     cover_image_url TEXT,
-    event_id UUID REFERENCES events(event_id),
-    track_id UUID REFERENCES event_tracks(track_id),
+    event_id UUID,
     created_at TIMESTAMPTZ
 )
 
@@ -246,13 +260,52 @@ projects (
 project_scores (
     id UUID PRIMARY KEY,
     project_id UUID REFERENCES projects(id),
-    judge_id UUID REFERENCES user_profiles(uid),
-    track_id UUID REFERENCES event_tracks(track_id),
-    event_id UUID REFERENCES events(event_id),
-    scores JSONB,                   -- Flexible scoring data
+    judge_id UUID,
+    scores JSONB,
     comments TEXT,
     created_at TIMESTAMPTZ,
-    updated_at TIMESTAMPTZ
+    updated_at TIMESTAMPTZ,
+    track_id UUID,
+    event_id UUID
+)
+
+-- Project to track relationship
+project_tracks (
+    project_id UUID REFERENCES projects(id),
+    track_id UUID REFERENCES event_tracks(track_id),
+    created_at TIMESTAMPTZ
+)
+
+-- Mentor feedback
+feedback (
+    id UUID PRIMARY KEY,
+    mentor_id UUID,
+    mentor_email TEXT,
+    mentor_name TEXT,
+    feedback_text TEXT,
+    modifier_field TEXT[],
+    specific_ai_suggestion TEXT,
+    positive_ai_suggestion TEXT,
+    actionable_ai_suggestion TEXT,
+    original_feedback_text TEXT,
+    project_id UUID,
+    event_id UUID,
+    created_at TIMESTAMPTZ
+)
+
+-- Journaling and goals
+platform_engagement (
+    id UUID PRIMARY KEY,
+    user_id UUID,
+    event_id UUID,
+    type TEXT,
+    content TEXT,
+    created_at TIMESTAMPTZ,
+    updated_at TIMESTAMPTZ,
+    display_name TEXT,
+    status TEXT,
+    is_private BOOLEAN,
+    tags TEXT[]
 )
 ```
 
