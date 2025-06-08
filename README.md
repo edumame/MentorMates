@@ -76,10 +76,6 @@ app/
     ├── middleware.ts          # Session management middleware
     └── server.ts              # Server-side Supabase config
 
-🗂️ Legacy routes (maintained for compatibility):
-├── join-project/[projectId]/[hash]/    # → Redirects to /projects/join/[id]/[token]
-├── my-project-gallery/[projectId]/    # → Redirects to /projects/[id]
-└── public-project-details/[id]/       # → Redirects to /projects/public/[id]
 ```
 
 ### **Library Structure**
