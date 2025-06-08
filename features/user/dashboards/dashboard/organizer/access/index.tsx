@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PasswordTab } from "./PasswordTab";
 import { RoleLabelsTab } from "./RoleLabelsTab";
+import { InviteOrganizersTab } from "./InviteOrganizersTab";
 import { EventDetails } from "@/lib/types";
 
 interface AccessTabProps {
@@ -31,25 +32,30 @@ export function AccessTab({
       </CardHeader>
       <CardContent>
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid grid-cols-2 mb-6">
-            <TabsTrigger value="password">Password</TabsTrigger>
-            <TabsTrigger value="role-labels">Role Labels</TabsTrigger>
-          </TabsList>
+        <TabsList className="grid grid-cols-3 mb-6">
+          <TabsTrigger value="password">Password</TabsTrigger>
+          <TabsTrigger value="role-labels">Role Labels</TabsTrigger>
+          <TabsTrigger value="invite-organizers">Invite Organizers</TabsTrigger>
+        </TabsList>
 
           <TabsContent value="password">
             <PasswordTab eventId={eventId} roleLabels={event.role_labels} />
           </TabsContent>
 
-          <TabsContent value="role-labels">
-            <RoleLabelsTab
-              eventId={eventId}
-              event={event}
-              setEvent={setEvent}
-              saving={saving}
-              setSaving={setSaving}
-            />
-          </TabsContent>
-        </Tabs>
+        <TabsContent value="role-labels">
+          <RoleLabelsTab
+            eventId={eventId}
+            event={event}
+            setEvent={setEvent}
+            saving={saving}
+            setSaving={setSaving}
+          />
+        </TabsContent>
+
+        <TabsContent value="invite-organizers">
+          <InviteOrganizersTab eventId={eventId} />
+        </TabsContent>
+      </Tabs>
       </CardContent>
     </Card>
   );
