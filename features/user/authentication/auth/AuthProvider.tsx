@@ -20,6 +20,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       "/auth/auth-code-error",
       "/about",
       "/teams",
+      "/privacy",
+      "/terms",
     ];
     return [
       ...BASE_PUBLIC_PATHS,
