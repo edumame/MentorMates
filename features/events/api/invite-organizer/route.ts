@@ -3,6 +3,8 @@ import { NextResponse } from 'next/server';
 import { EventRole } from '@/lib/types';
 
 export async function POST(request: Request) {
+  // TODO: Consider implementing rate limiting to prevent invite spam
+  // Example: Allow max 10 invites per organizer per hour
   const supabase = await createSupabaseClient();
   const { data: auth } = await supabase.auth.getUser();
 
@@ -14,6 +16,12 @@ export async function POST(request: Request) {
 
   if (!eventId || !email) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+  }
+
+  // Validate email format server-side
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email.trim())) {
+    return NextResponse.json({ error: 'Invalid email format' }, { status: 400 });
   }
 
   const { data: role } = await supabase
@@ -30,7 +38,7 @@ export async function POST(request: Request) {
   const { data: user } = await supabase
     .from('user_profiles')
     .select('uid')
-    .eq('email', email)
+    .eq('email', email.trim().toLowerCase())
     .maybeSingle();
 
   if (!user) {
