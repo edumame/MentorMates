@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseClient } from '@/app/utils/supabase/server';
-import { EventRole } from '@/lib/types';
+import { EventRole, Prize, ProjectFromDatabase, ProjectWithPrizes } from '@/lib/types';
 
 export async function GET(request: NextRequest) {
   try {
@@ -50,25 +50,7 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Failed to fetch projects' }, { status: 500 });
       }
 
-      const projects = (allProjects || []).map((item: { 
-        id: string;
-        project_name: string;
-        lead_name: string;
-        lead_email: string;
-        project_description: string;
-        teammates: string[];
-        project_url?: string;
-        additional_materials_url?: string;
-        cover_image_url?: string;
-        event_id: string;
-        created_at: string;
-        project_tracks?: Array<{
-          event_tracks?: Array<{
-            track_id: string;
-            [key: string]: unknown;
-          }>;
-        }>;
-      }) => ({
+      const projects = (allProjects || []).map((item: ProjectFromDatabase) => ({
         id: item.id,
         project_name: item.project_name,
         lead_name: item.lead_name,
@@ -107,8 +89,8 @@ export async function GET(request: NextRequest) {
             return acc;
           }, {} as Record<string, typeof prizesData>);
 
-          projects.forEach((project: { id: string; [key: string]: unknown }) => {
-            (project as { prizes_won?: unknown[] }).prizes_won = prizesByProject[project.id] || [];
+          projects.forEach((project: ProjectWithPrizes) => {
+            project.prizes_won = (prizesByProject[project.id] || []) as Prize[];
           });
         }
       }
@@ -191,7 +173,7 @@ export async function GET(request: NextRequest) {
         .eq("winning_project_id", projectId);
 
       if (prizesData) {
-        (transformedProject as { prizes_won?: unknown[] }).prizes_won = prizesData;
+        (transformedProject as ProjectWithPrizes).prizes_won = prizesData as Prize[];
       }
 
       return NextResponse.json({ project: transformedProject });

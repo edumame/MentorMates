@@ -173,7 +173,7 @@ export async function GET(
 
       // Add prizes to projects
       allProjects.forEach((project: { id: string; [key: string]: unknown }) => {
-        (project as { prizes_won?: unknown[] }).prizes_won = prizesByProject[project.id] || [];
+        (project as { prizes_won?: Record<string, unknown>[] }).prizes_won = prizesByProject[project.id] || [];
       });
     }
 

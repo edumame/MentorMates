@@ -223,3 +223,31 @@ export interface PrizeWithTrack {
 export interface ProjectWithPrizes extends Project {
   prizes_won: Prize[];
 }
+
+// API Response Types for Supabase joins
+export interface ProjectFromDatabase {
+  id: string;
+  project_name: string;
+  lead_name: string;
+  lead_email: string;
+  project_description: string;
+  teammates: string[];
+  project_url?: string;
+  additional_materials_url?: string;
+  cover_image_url?: string;
+  event_id: string;
+  created_at: string;
+  project_tracks?: Array<{
+    event_tracks?: EventTrack[];
+  }>;
+}
+
+export interface PrizeFromDatabase {
+  id: string;
+  track_id: string;
+  prize_amount: string;
+  prize_description: string;
+  assigned_at?: string;
+  winning_project_id?: string;
+}
+
