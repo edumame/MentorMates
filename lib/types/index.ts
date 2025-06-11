@@ -44,8 +44,15 @@ export interface ScheduleDay {
 
 export interface Prize {
   id: string;
+  track_id: string;
   prize_amount: string;
   prize_description: string;
+  winning_project_id?: string | null;
+  assigned_by?: string | null;
+  assigned_at?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  winning_project?: Project;
 }
 
 export interface Resource {
@@ -99,6 +106,7 @@ export interface Project {
   additional_materials_url?: string;
   cover_image_url?: string;
   event_name?: string;
+  prizes_won?: Prize[];
 }
 
 export enum ProjectBoardContext {
@@ -163,4 +171,55 @@ export interface ProjectTrack {
   project_id: string;
   track_id: string;
   created_at: string;
+}
+
+// API Response Types
+export interface ProjectTrackRelation {
+  track_id: string;
+  event_tracks?: EventTrack[];
+}
+
+export interface SupabaseProjectData {
+  id: string;
+  project_name: string;
+  lead_name: string;
+  lead_email: string;
+  project_description: string;
+  teammates: string[];
+  project_url?: string;
+  additional_materials_url?: string;
+  cover_image_url?: string;
+  event_id: string;
+  created_at: string;
+  project_tracks?: Array<{
+    track_id: string;
+    event_tracks?: Array<{
+      track_id: string;
+      event_id: string;
+      name: string;
+      description: string;
+      label?: string;
+      prize_amount?: string;
+      prize_description?: string;
+      scoring_criteria?: unknown;
+      created_at: string;
+      updated_at: string;
+    }>;
+  }>;
+  [key: string]: unknown;
+}
+
+export interface PrizeWithTrack {
+  id: string;
+  track_id: string;
+  prize_amount: string;
+  prize_description: string;
+  winning_project_id?: string | null;
+  assigned_by?: string | null;
+  assigned_at?: string | null;
+  event_tracks?: Array<{ event_id: string }>;
+}
+
+export interface ProjectWithPrizes extends Project {
+  prizes_won: Prize[];
 }

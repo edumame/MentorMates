@@ -227,28 +227,37 @@ export type Database = {
       }
       prizes: {
         Row: {
+          assigned_at: string | null
+          assigned_by: string | null
           created_at: string | null
           id: string
           prize_amount: string
           prize_description: string
           track_id: string
           updated_at: string | null
+          winning_project_id: string | null
         }
         Insert: {
+          assigned_at?: string | null
+          assigned_by?: string | null
           created_at?: string | null
           id?: string
           prize_amount: string
           prize_description: string
           track_id: string
           updated_at?: string | null
+          winning_project_id?: string | null
         }
         Update: {
+          assigned_at?: string | null
+          assigned_by?: string | null
           created_at?: string | null
           id?: string
           prize_amount?: string
           prize_description?: string
           track_id?: string
           updated_at?: string | null
+          winning_project_id?: string | null
         }
         Relationships: [
           {
@@ -257,6 +266,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "event_tracks"
             referencedColumns: ["track_id"]
+          },
+          {
+            foreignKeyName: "prizes_winning_project_id_fkey"
+            columns: ["winning_project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prizes_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["uid"]
           },
         ]
       }

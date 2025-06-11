@@ -47,16 +47,17 @@ export default function GalleryPage() {
     if (!eventId) return;
     const fetchProjects = async () => {
       setIsLoading(true);
-      const { data, error } = await supabase
-        .from("projects")
-        .select("*")
-        .eq("event_id", eventId)
-        .order("created_at", { ascending: false });
-
-      if (error) {
+      try {
+        // Use the consolidated API route with public flag
+        const response = await fetch(`/api/projects?eventId=${eventId}&public=true`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch projects');
+        }
+        const data = await response.json();
+        setProjects(data.projects || []);
+      } catch (error) {
         console.error("Error fetching projects:", error);
-      } else {
-        setProjects(data || []);
+        setProjects([]);
       }
       setIsLoading(false);
     };
