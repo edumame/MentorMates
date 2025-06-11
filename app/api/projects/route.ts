@@ -50,7 +50,25 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Failed to fetch projects' }, { status: 500 });
       }
 
-      const projects = (allProjects || []).map((item: any) => ({
+      const projects = (allProjects || []).map((item: { 
+        id: string;
+        project_name: string;
+        lead_name: string;
+        lead_email: string;
+        project_description: string;
+        teammates: string[];
+        project_url?: string;
+        additional_materials_url?: string;
+        cover_image_url?: string;
+        event_id: string;
+        created_at: string;
+        project_tracks?: Array<{
+          event_tracks?: Array<{
+            track_id: string;
+            [key: string]: unknown;
+          }>;
+        }>;
+      }) => ({
         id: item.id,
         project_name: item.project_name,
         lead_name: item.lead_name,
@@ -61,8 +79,8 @@ export async function GET(request: NextRequest) {
         additional_materials_url: item.additional_materials_url,
         cover_image_url: item.cover_image_url,
         event_id: item.event_id,
-        tracks: item.project_tracks?.map((pt: any) => pt.event_tracks?.[0]).filter(Boolean) || [],
-        track_ids: item.project_tracks?.map((pt: any) => pt.event_tracks?.[0]?.track_id).filter(Boolean) || [],
+        tracks: item.project_tracks?.map((pt) => pt.event_tracks?.[0]).filter(Boolean) || [],
+        track_ids: item.project_tracks?.map((pt) => pt.event_tracks?.[0]?.track_id).filter(Boolean) || [],
         created_at: item.created_at,
       }));
 

@@ -6,7 +6,7 @@ export async function GET(
   { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
-    const supabase = createSupabaseClient();
+    const supabase = await createSupabaseClient();
     const { userId } = await params;
 
     if (!userId) {
@@ -172,8 +172,8 @@ export async function GET(
       }, {} as Record<string, typeof prizesData>);
 
       // Add prizes to projects
-      allProjects.forEach(project => {
-        project.prizes_won = prizesByProject[project.id] || [];
+      allProjects.forEach((project: { id: string; [key: string]: unknown }) => {
+        (project as { prizes_won?: unknown[] }).prizes_won = prizesByProject[project.id] || [];
       });
     }
 

@@ -30,7 +30,7 @@ export async function fetchEventTracks(
     .eq("event_id", eventId)
     .order("name");
 
-  return { data, error };
+  return { data: data as EventTrack[] | null, error };
 }
 
 // Fetch current tracks for a project

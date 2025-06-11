@@ -60,17 +60,21 @@ export function PrizesTab({
       setLoadingProjects(true);
       try {
         // Fetch projects using API route
-        const projectsResponse = await fetch(`/api/projects?eventId=${event.event_id}`);
+        const projectsResponse = await fetch(
+          `/api/projects?eventId=${event.event_id}`
+        );
         if (!projectsResponse.ok) {
-          throw new Error('Failed to fetch projects');
+          throw new Error("Failed to fetch projects");
         }
         const projectsData = await projectsResponse.json();
         setProjects(projectsData.projects || []);
 
         // Fetch prizes using API route
-        const prizesResponse = await fetch(`/api/prizes?eventId=${event.event_id}`);
+        const prizesResponse = await fetch(
+          `/api/prizes?eventId=${event.event_id}`
+        );
         if (!prizesResponse.ok) {
-          throw new Error('Failed to fetch prizes');
+          throw new Error("Failed to fetch prizes");
         }
         const prizesData = await prizesResponse.json();
         setPrizesWithWinners(prizesData.prizes || []);
@@ -164,28 +168,25 @@ export function PrizesTab({
       }
 
       // Send prizes to API route
-      const response = await fetch('/api/prizes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+      const response = await fetch("/api/prizes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           prizes: allPrizes,
-          eventId: event.event_id 
+          eventId: event.event_id,
         }),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to save prizes');
+        throw new Error(errorData.error || "Failed to save prizes");
       }
 
-      // Refresh the event data by fetching updated tracks
-      const tracksResponse = await fetch(`/api/events/${event.event_id}/tracks`);
-      if (tracksResponse.ok) {
-        const tracksData = await tracksResponse.json();
-        setEvent({
-          ...event,
-          event_tracks: tracksData.tracks,
-        });
+      // Refresh the prizes data
+      const updatedPrizesResponse = await fetch(`/api/prizes?eventId=${event.event_id}`);
+      if (updatedPrizesResponse.ok) {
+        const updatedPrizesData = await updatedPrizesResponse.json();
+        setPrizesWithWinners(updatedPrizesData.prizes || []);
       }
 
       toast({
@@ -196,7 +197,8 @@ export function PrizesTab({
       console.error("Error updating prizes:", error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to update prizes",
+        description:
+          error instanceof Error ? error.message : "Failed to update prizes",
         variant: "destructive",
       });
     } finally {
@@ -240,13 +242,18 @@ export function PrizesTab({
                           if (prize.id) {
                             try {
                               setSaving(true);
-                              const response = await fetch(`/api/prizes?prizeId=${prize.id}`, {
-                                method: 'DELETE',
-                              });
+                              const response = await fetch(
+                                `/api/prizes?prizeId=${prize.id}`,
+                                {
+                                  method: "DELETE",
+                                }
+                              );
 
                               if (!response.ok) {
                                 const errorData = await response.json();
-                                throw new Error(errorData.error || 'Failed to delete prize');
+                                throw new Error(
+                                  errorData.error || "Failed to delete prize"
+                                );
                               }
 
                               const newTracks = [...event.event_tracks!];
@@ -275,7 +282,10 @@ export function PrizesTab({
                               console.error("Error deleting prize:", error);
                               toast({
                                 title: "Error",
-                                description: error instanceof Error ? error.message : "Failed to delete prize",
+                                description:
+                                  error instanceof Error
+                                    ? error.message
+                                    : "Failed to delete prize",
                                 variant: "destructive",
                               });
                             } finally {
