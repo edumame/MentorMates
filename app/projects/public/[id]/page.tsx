@@ -23,6 +23,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { ProjectScoringForm } from "@/components/project-scoring/project-scoring-form";
 import { EventTrack, TrackScoringConfig } from "@/lib/types";
 import { ProjectQRCodeSection } from "@/features/projects/components/displays/project-dashboard/ProjectQRCodeSection";
+import { VideoEmbed, canEmbed } from "@/components/utils";
 
 
 //REFACTOR this to use the Project type from the lib/types.ts file
@@ -51,6 +52,8 @@ export default function PublicProjectPage() {
   const [isCheckingJudgeStatus, setIsCheckingJudgeStatus] = useState(false);
   const [projectTracks, setProjectTracks] = useState<EventTrack[]>([]);
   const [selectedTrackId, setSelectedTrackId] = useState<string>("");
+  const [eventName, setEventName] = useState<string>("");
+  const [eventSlug, setEventSlug] = useState<string>("");
 
   // QR Code functionality
   const { handleCopyQR, handleDownloadQR } = useQRCodeActions(
@@ -77,6 +80,32 @@ export default function PublicProjectPage() {
 
     fetchProject();
   }, [projectId]);
+
+  // Fetch event details when project is loaded
+  useEffect(() => {
+    const fetchEventDetails = async () => {
+      if (!project?.event_id) return;
+
+      try {
+        const { data: eventData, error } = await supabase
+          .from("events")
+          .select("event_name, slug")
+          .eq("event_id", project.event_id)
+          .single();
+
+        if (error) {
+          console.error("Error fetching event details:", error);
+        } else {
+          setEventName(eventData?.event_name || "");
+          setEventSlug(eventData?.slug || project.event_id);  
+        }
+      } catch (error) {
+        console.error("Error fetching event details:", error);
+      }
+    };
+
+    fetchEventDetails();
+  }, [project?.event_id]);
 
   // Check if user is a judge for this event
   useEffect(() => {
@@ -208,7 +237,6 @@ export default function PublicProjectPage() {
 
   const totalMembers = (project.teammates?.length || 0) + 1;
   const feedbackUrl = typeof window !== "undefined" ? window.location.href : "";
-  
   const selectedTrack = projectTracks.find(
     (track) => track.track_id === selectedTrackId
   );
@@ -225,9 +253,21 @@ export default function PublicProjectPage() {
               Back
             </Button>
           </Link>
-          <Badge variant="outline">Public Project</Badge>
+          <Badge variant="outline" className="px-4 py-2 text-sm font-medium">
+            Public Project
+          </Badge>
+          {eventName && project?.event_id && (
+            <Link href={`/events/${eventSlug}/overview`}>
+              <Badge 
+                variant="secondary" 
+                className="bg-green-100 text-green-800 hover:bg-green-200 px-4 py-2 text-sm font-medium cursor-pointer transition-colors"
+              >
+                {eventName}
+              </Badge>
+            </Link>
+          )}
           {isJudge && (
-            <Badge variant="default" className="bg-purple-600">
+            <Badge variant="default" className="bg-purple-600 px-4 py-2 text-sm font-medium">
               Judge View
             </Badge>
           )}
@@ -291,6 +331,9 @@ export default function PublicProjectPage() {
                     Watch Video
                   </Button>
                 </a>
+              )}
+              {project.video_url && canEmbed(project.video_url) && (
+                <VideoEmbed url={project.video_url} />
               )}
               {project.additional_materials_url && (
                 <a

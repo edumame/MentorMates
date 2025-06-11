@@ -62,6 +62,7 @@ import { TrackSelector } from "@/features/projects/components/tracks/TrackSelect
 import { ProjectQRCodeSection } from "@/features/projects/components/displays/project-dashboard/ProjectQRCodeSection";
 import { FileUpload } from "@/components/db/fileUpload";
 import { ImageUpload } from "@/components/db/imageUpload";
+import { VideoEmbed, canEmbed } from "@/components/utils";
 
 interface EventParticipant {
   user_id: string;
@@ -69,37 +70,7 @@ interface EventParticipant {
   email: string;
 }
 
-// Utility function to convert video URLs to embed URLs
-const getEmbedUrl = (url: string): string | null => {
-  if (!url) return null;
 
-  // YouTube patterns
-  const youtubeRegex = /(?:youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
-  const youtubeMatch = url.match(youtubeRegex);
-  if (youtubeMatch) {
-    return `https://www.youtube.com/embed/${youtubeMatch[1]}`;
-  }
-
-  // Vimeo patterns
-  const vimeoRegex = /(?:vimeo\.com\/)(\d+)/;
-  const vimeoMatch = url.match(vimeoRegex);
-  if (vimeoMatch) {
-    return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
-  }
-
-  // Already an embed URL
-  if (
-    url.includes('youtube.com/embed/') || 
-    url.includes('player.vimeo.com/video/') ||
-    url.includes('dailymotion.com/embed/') ||
-    url.includes('twitch.tv/videos/') ||
-    url.includes('facebook.com/plugins/video.php')
-  ) {
-    return url;
-  }
-
-  return null;
-};
 
 export default function ProjectPage() {
   const params = useParams();
@@ -124,6 +95,10 @@ export default function ProjectPage() {
   const [isLoadingParticipants, setIsLoadingParticipants] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
+
+  // Event details state
+  const [eventName, setEventName] = useState<string>("");
+  const [eventSlug, setEventSlug] = useState<string>("");
 
   // QR Code functionality
   const { handleCopyQR, handleDownloadQR } = useQRCodeActions(
@@ -150,6 +125,32 @@ export default function ProjectPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session, projectId]);
+
+  // Fetch event details when project is loaded
+  useEffect(() => {
+    const fetchEventDetails = async () => {
+      if (!project?.event_id) return;
+
+      try {
+        const { data: eventData, error } = await supabase
+          .from("events")
+          .select("event_name, slug")
+          .eq("event_id", project.event_id)
+          .single();
+
+        if (error) {
+          console.error("Error fetching event details:", error);
+        } else {
+          setEventName(eventData?.event_name || "");
+          setEventSlug(eventData?.slug || project.event_id);
+        }
+      } catch (error) {
+        console.error("Error fetching event details:", error);
+      }
+    };
+
+    fetchEventDetails();
+  }, [project?.event_id]);
 
   const fetchProject = async () => {
     const { data, error } = await supabase
@@ -917,21 +918,33 @@ export default function ProjectPage() {
       <div className="mb-8">
         <div className="flex justify-between items-start mb-4">
           <div className="flex-1">
-            {/* Editable Title */}
-            <EditableField
-              value={project.project_name}
-              onSave={handleUpdateTitle}
-              canEdit={canEdit}
-              isLoading={isUpdating}
-              className="mb-2"
-              displayClassName="text-3xl font-bold text-gray-900"
-              inputClassName="text-3xl font-bold text-gray-900"
-              renderDisplay={(value) => (
-                <h1 className="text-3xl font-bold text-gray-900 hover:text-blue-600">
-                  {value}
-                </h1>
+            {/* Editable Title with Event Badge */}
+            <div className="flex items-center gap-3 mb-2">
+              <EditableField
+                value={project.project_name}
+                onSave={handleUpdateTitle}
+                canEdit={canEdit}
+                isLoading={isUpdating}
+                displayClassName="text-3xl font-bold text-gray-900"
+                inputClassName="text-3xl font-bold text-gray-900"
+                renderDisplay={(value) => (
+                  <h1 className="text-3xl font-bold text-gray-900 hover:text-blue-600">
+                    {value}
+                  </h1>
+                )}
+              />
+              {/* Event Badge */}
+              {eventName && project?.event_id && (
+                <Link href={`/events/${eventSlug}/overview`}>
+                  <Badge 
+                    variant="secondary" 
+                    className="bg-green-100 text-green-800 hover:bg-green-200 px-4 py-2 text-sm font-medium cursor-pointer transition-colors"
+                  >
+                    {eventName}
+                  </Badge>
+                </Link>
               )}
-            />
+            </div>
 
             <div className="flex items-center gap-4 text-sm text-gray-600">
               <div className="flex items-center gap-1">
@@ -1202,22 +1215,12 @@ export default function ProjectPage() {
               </div>
               
               {/* Video Embed */}
-              {project.video_url && (() => {
-                const embedUrl = getEmbedUrl(project.video_url);
-                return embedUrl ? (
-                  <div className="w-full">
-                    <div className="relative w-full h-0 pb-[56.25%] rounded-lg overflow-hidden shadow-md">
-                      <frames
-                        src={embedUrl}
-                        className="absolute top-0 left-0 w-full h-full"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        allowFullScreen
-                        title="Project Video"
-                      />
-                    </div>
-                  </div>
-                ) : null;
-              })()}
+              {project.video_url && canEmbed(project.video_url) && (
+                <VideoEmbed 
+                  url={project.video_url} 
+                  title="Project Video" 
+                />
+              )}
             </div>
           </CardContent>
         </Card>
