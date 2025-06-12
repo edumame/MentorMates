@@ -47,18 +47,6 @@ export default function ConfirmationPage() {
               </ul>
             </div>
 
-            {/* Resend email button */}
-            <button
-              type="button"
-              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 mb-4"
-              onClick={() => {
-                // Add your resend email logic here
-                alert('Confirmation email resent!');
-              }}
-            >
-              Resend Confirmation Email
-            </button>
-
             {/* Back to home link */}
             <Link
               href="/"
