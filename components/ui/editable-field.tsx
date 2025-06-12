@@ -43,7 +43,7 @@ export function EditableField({
   };
 
   const handleSave = async () => {
-    if (editedValue.trim() && editedValue !== value) {
+    if (editedValue.trim() !== value) {
       setIsSaving(true);
       const success = await onSave(editedValue.trim());
       if (success) {

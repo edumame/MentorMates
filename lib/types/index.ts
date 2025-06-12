@@ -95,7 +95,7 @@ export interface Project {
   tracks?: EventTrack[];
   created_at: string;
   project_url?: string;
-  video_url?: string;
+  video_url?: string | null;
   additional_materials_url?: string;
   cover_image_url?: string;
   event_name?: string;

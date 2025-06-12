@@ -64,10 +64,13 @@ function LoginContent() {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          emailRedirectTo: `${cleanBaseUrl}/${cleanReturnUrl || ""}`,
+        },
       });
 
       if (error) {
-        const errorMessage = error.message.includes("unique")
+        const errorMessage = error.message.includes("unique") 
           ? "This email is already registered. Please sign in instead."
           : error.message;
         setError(errorMessage);
@@ -85,13 +88,17 @@ function LoginContent() {
             created_at: new Date().toISOString(),
           });
 
+
         if (profileError) {
-          console.error("Error creating user profile:", profileError);
+          const message = "Error signing up. Please sign in instead or try again."
+          setError(message);
+          setLoading(false);
+          return;
         }
       }
 
       setLoading(false);
-      router.push(`${cleanBaseUrl}/${cleanReturnUrl || ""}`);
+      router.push(`${cleanBaseUrl}/confirmation`);
       return;
     } else {
       const { error } = await supabase.auth.signInWithPassword({
@@ -233,7 +240,7 @@ function LoginContent() {
                 <button
                   onClick={handleForgotPassword}
                   disabled={loading}
-                  className="font-semibold text-blue-900 hover:text-blue-500 disabled:opacity-50"
+                  className="font-semibold text-blue-900 hover:text-blue-500 disabled:opacity-50 min-w-[120px]"
                 >
                   {loading ? "Sending..." : "Forgot password?"}
                 </button>

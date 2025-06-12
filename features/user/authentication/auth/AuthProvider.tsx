@@ -22,6 +22,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       "/teams",
       "/privacy",
       "/terms",
+      "/confirmation",
     ];
     return [
       ...BASE_PUBLIC_PATHS,

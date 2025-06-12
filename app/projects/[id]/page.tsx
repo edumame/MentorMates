@@ -22,9 +22,9 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { 
-  Users, 
-  MessageSquare, 
+import {
+  Users,
+  MessageSquare,
   Calendar,
   ArrowLeft,
   QrCode,
@@ -36,7 +36,7 @@ import {
   X,
   UserPlus,
   Check,
-  ChevronsUpDown
+  ChevronsUpDown,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -50,7 +50,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Session } from "@supabase/supabase-js";
 import FeedbackDisplay from "@/features/projects/components/feedback/FeedbackDisplay";
-import { QRCodeSection } from "@/features/projects/components/management/project-dashboard/components/QRCodeSection";
 import { useQRCodeActions } from "@/features/projects/components/management/project-dashboard/hooks/useQRCodeActions";
 import { toast } from "@/lib/hooks/use-toast";
 import { Toaster } from "@/components/ui/toaster";
@@ -60,6 +59,10 @@ import { updateProjectClient } from "@/features/projects/client-actions/client-u
 import { updateProjectTeamClient } from "@/features/projects/client-actions/client-update";
 import { deleteProjectClient } from "@/features/projects/client-actions/client-delete";
 import { TrackSelector } from "@/features/projects/components/tracks/TrackSelector";
+import { ProjectQRCodeSection } from "@/features/projects/components/displays/project-dashboard/ProjectQRCodeSection";
+import { FileUpload } from "@/components/db/fileUpload";
+import { ImageUpload } from "@/components/db/imageUpload";
+import { VideoEmbed, canEmbed } from "@/components/utils";
 
 interface EventParticipant {
   user_id: string;
@@ -67,17 +70,19 @@ interface EventParticipant {
   email: string;
 }
 
+
+
 export default function ProjectPage() {
   const params = useParams();
   const router = useRouter();
   const projectId = params.id as string;
-  
+
   const [session, setSession] = useState<Session | null>(null);
   const [project, setProject] = useState<Project | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [canEdit, setCanEdit] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  
+
   // Loading state for updates
   const [isUpdating, setIsUpdating] = useState(false);
 
@@ -91,11 +96,9 @@ export default function ProjectPage() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
 
-  // Selected file for cover image upload
-  const [selectedCoverImageFile, setSelectedCoverImageFile] = useState<File | null>(null);
-
-  // Selected file for additional materials upload
-  const [selectedAdditionalMaterialsFile, setSelectedAdditionalMaterialsFile] = useState<File | null>(null);
+  // Event details state
+  const [eventName, setEventName] = useState<string>("");
+  const [eventSlug, setEventSlug] = useState<string>("");
 
   // QR Code functionality
   const { handleCopyQR, handleDownloadQR } = useQRCodeActions(
@@ -106,7 +109,9 @@ export default function ProjectPage() {
 
   useEffect(() => {
     const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       setSession(session);
       setIsLoading(false);
     };
@@ -121,6 +126,32 @@ export default function ProjectPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session, projectId]);
 
+  // Fetch event details when project is loaded
+  useEffect(() => {
+    const fetchEventDetails = async () => {
+      if (!project?.event_id) return;
+
+      try {
+        const { data: eventData, error } = await supabase
+          .from("events")
+          .select("event_name, slug")
+          .eq("event_id", project.event_id)
+          .single();
+
+        if (error) {
+          console.error("Error fetching event details:", error);
+        } else {
+          setEventName(eventData?.event_name || "");
+          setEventSlug(eventData?.slug || project.event_id);
+        }
+      } catch (error) {
+        console.error("Error fetching event details:", error);
+      }
+    };
+
+    fetchEventDetails();
+  }, [project?.event_id]);
+
   const fetchProject = async () => {
     const { data, error } = await supabase
       .from("projects")
@@ -134,7 +165,7 @@ export default function ProjectPage() {
     }
 
     setProject(data);
-    
+
     // Check if user can edit (is lead or teammate)
     if (session?.user?.email) {
       const userEmail = session.user.email;
@@ -148,8 +179,8 @@ export default function ProjectPage() {
   const handleUpdateTitle = async (newTitle: string): Promise<boolean> => {
     setIsUpdating(true);
     try {
-      const { data, error } = await updateProjectClient(projectId, { 
-        project_name: newTitle 
+      const { data, error } = await updateProjectClient(projectId, {
+        project_name: newTitle,
       });
 
       if (error) {
@@ -182,11 +213,13 @@ export default function ProjectPage() {
     }
   };
 
-  const handleUpdateDescription = async (newDescription: string): Promise<boolean> => {
+  const handleUpdateDescription = async (
+    newDescription: string
+  ): Promise<boolean> => {
     setIsUpdating(true);
     try {
-      const { data, error } = await updateProjectClient(projectId, { 
-        project_description: newDescription 
+      const { data, error } = await updateProjectClient(projectId, {
+        project_description: newDescription,
       });
 
       if (error) {
@@ -227,9 +260,9 @@ export default function ProjectPage() {
         try {
           // This will throw if the URL is invalid
           new URL(newUrl);
-          
+
           // Check if URL starts with http:// or https://
-          if (!newUrl.startsWith('http://') && !newUrl.startsWith('https://')) {
+          if (!newUrl.startsWith("http://") && !newUrl.startsWith("https://")) {
             toast({
               title: "Invalid URL",
               description: "URL must start with http:// or https://",
@@ -247,8 +280,8 @@ export default function ProjectPage() {
         }
       }
 
-      const { data, error } = await updateProjectClient(projectId, { 
-        project_url: newUrl.trim() || undefined 
+      const { data, error } = await updateProjectClient(projectId, {
+        project_url: newUrl.trim() || undefined,
       });
 
       if (error) {
@@ -265,7 +298,9 @@ export default function ProjectPage() {
       setProject(data);
       toast({
         title: "Success",
-        description: newUrl.trim() ? "Project URL updated successfully" : "Project URL cleared successfully",
+        description: newUrl.trim()
+          ? "Project URL updated successfully"
+          : "Project URL cleared successfully",
       });
       return true;
     } catch (error) {
@@ -289,9 +324,9 @@ export default function ProjectPage() {
         try {
           // This will throw if the URL is invalid
           new URL(newUrl);
-          
+
           // Check if URL starts with http:// or https://
-          if (!newUrl.startsWith('http://') && !newUrl.startsWith('https://')) {
+          if (!newUrl.startsWith("http://") && !newUrl.startsWith("https://")) {
             toast({
               title: "Invalid URL",
               description: "URL must start with http:// or https://",
@@ -302,15 +337,16 @@ export default function ProjectPage() {
         } catch {
           toast({
             title: "Invalid URL",
-            description: "Please enter a valid image URL (e.g., https://example.com/image.jpg)",
+            description:
+              "Please enter a valid image URL (e.g., https://example.com/image.jpg)",
             variant: "destructive",
           });
           return false;
         }
       }
 
-      const { data, error } = await updateProjectClient(projectId, { 
-        cover_image_url: newUrl.trim() || undefined 
+      const { data, error } = await updateProjectClient(projectId, {
+        cover_image_url: newUrl.trim() || undefined,
       });
 
       if (error) {
@@ -327,7 +363,9 @@ export default function ProjectPage() {
       setProject(data);
       toast({
         title: "Success",
-        description: newUrl.trim() ? "Cover image updated successfully" : "Cover image cleared successfully",
+        description: newUrl.trim()
+          ? "Cover image updated successfully"
+          : "Cover image cleared successfully",
       });
       return true;
     } catch (error) {
@@ -348,9 +386,7 @@ export default function ProjectPage() {
     try {
       // Generate unique filename
       const fileExt = file.name.split(".").pop();
-      const fileName = `${Math.random()
-        .toString(36)
-        .substring(2)}.${fileExt}`;
+      const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
       const filePath = `project-covers/${fileName}`;
 
       // Upload to Supabase storage
@@ -374,8 +410,8 @@ export default function ProjectPage() {
       } = supabase.storage.from("project-materials").getPublicUrl(filePath);
 
       // Update project with new URL
-      const { data, error } = await updateProjectClient(projectId, { 
-        cover_image_url: publicUrl 
+      const { data, error } = await updateProjectClient(projectId, {
+        cover_image_url: publicUrl,
       });
 
       if (error) {
@@ -408,7 +444,9 @@ export default function ProjectPage() {
     }
   };
 
-  const handleUpdateAdditionalMaterials = async (newUrl: string): Promise<boolean> => {
+  const handleUpdateAdditionalMaterials = async (
+    newUrl: string
+  ): Promise<boolean> => {
     setIsUpdating(true);
     try {
       // Basic URL validation
@@ -416,9 +454,9 @@ export default function ProjectPage() {
         try {
           // This will throw if the URL is invalid
           new URL(newUrl);
-          
+
           // Check if URL starts with http:// or https://
-          if (!newUrl.startsWith('http://') && !newUrl.startsWith('https://')) {
+          if (!newUrl.startsWith("http://") && !newUrl.startsWith("https://")) {
             toast({
               title: "Invalid URL",
               description: "URL must start with http:// or https://",
@@ -436,8 +474,8 @@ export default function ProjectPage() {
         }
       }
 
-      const { data, error } = await updateProjectClient(projectId, { 
-        additional_materials_url: newUrl.trim() || undefined 
+      const { data, error } = await updateProjectClient(projectId, {
+        additional_materials_url: newUrl.trim() || undefined,
       });
 
       if (error) {
@@ -454,7 +492,9 @@ export default function ProjectPage() {
       setProject(data);
       toast({
         title: "Success",
-        description: newUrl.trim() ? "Additional materials URL updated successfully" : "Additional materials URL cleared successfully",
+        description: newUrl.trim()
+          ? "Additional materials URL updated successfully"
+          : "Additional materials URL cleared successfully",
       });
       return true;
     } catch (error) {
@@ -478,9 +518,9 @@ export default function ProjectPage() {
         try {
           // This will throw if the URL is invalid
           new URL(newUrl);
-          
+
           // Check if URL starts with http:// or https://
-          if (!newUrl.startsWith('http://') && !newUrl.startsWith('https://')) {
+          if (!newUrl.startsWith("http://") && !newUrl.startsWith("https://")) {
             toast({
               title: "Invalid URL",
               description: "URL must start with http:// or https://",
@@ -491,15 +531,16 @@ export default function ProjectPage() {
         } catch {
           toast({
             title: "Invalid URL",
-            description: "Please enter a valid video URL (e.g., https://youtube.com/watch?v=...)",
+            description:
+              "Please enter a valid video URL (e.g., https://youtube.com/watch?v=...)",
             variant: "destructive",
           });
           return false;
         }
       }
 
-      const { data, error } = await updateProjectClient(projectId, { 
-        video_url: newUrl.trim() || undefined 
+      const { data, error } = await updateProjectClient(projectId, {
+        video_url: newUrl.trim() || null
       });
 
       if (error) {
@@ -516,7 +557,9 @@ export default function ProjectPage() {
       setProject(data);
       toast({
         title: "Success",
-        description: newUrl.trim() ? "Video URL updated successfully" : "Video URL cleared successfully",
+        description: newUrl.trim()
+          ? "Video URL updated successfully"
+          : "Video URL cleared successfully",
       });
       return true;
     } catch (error) {
@@ -532,14 +575,14 @@ export default function ProjectPage() {
     }
   };
 
-  const handleAdditionalMaterialsFileUpload = async (file: File): Promise<boolean> => {
+  const handleAdditionalMaterialsFileUpload = async (
+    file: File
+  ): Promise<boolean> => {
     setIsUpdating(true);
     try {
       // Generate unique filename
       const fileExt = file.name.split(".").pop();
-      const fileName = `${Math.random()
-        .toString(36)
-        .substring(2)}.${fileExt}`;
+      const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
       const filePath = `project-materials/${fileName}`;
 
       // Upload to Supabase storage
@@ -563,8 +606,8 @@ export default function ProjectPage() {
       } = supabase.storage.from("project-materials").getPublicUrl(filePath);
 
       // Update project with new URL
-      const { data, error } = await updateProjectClient(projectId, { 
-        additional_materials_url: publicUrl 
+      const { data, error } = await updateProjectClient(projectId, {
+        additional_materials_url: publicUrl,
       });
 
       if (error) {
@@ -634,26 +677,28 @@ export default function ProjectPage() {
 
   const fetchEventParticipants = async () => {
     if (!project?.event_id) return;
-    
+
     setIsLoadingParticipants(true);
     try {
       const { data, error } = await supabase
         .from("user_event_roles")
-        .select(`
+        .select(
+          `
           user_id,
           profiles:user_id (
             display_name,
             email
           )
-        `)
+        `
+        )
         .eq("event_id", project.event_id)
         .overrideTypes<
           Array<{
-            user_id: string,
+            user_id: string;
             profiles: {
-              display_name: string | null,
-              email: string | null
-            }
+              display_name: string | null;
+              email: string | null;
+            };
           }>
         >();
 
@@ -666,7 +711,8 @@ export default function ProjectPage() {
         .filter((role) => role.profiles?.email) // Filter out entries without email
         .map((role) => ({
           user_id: role.user_id,
-          display_name: role.profiles?.display_name || role.profiles?.email || "",
+          display_name:
+            role.profiles?.display_name || role.profiles?.email || "",
           email: role.profiles?.email || "",
         }));
 
@@ -686,7 +732,7 @@ export default function ProjectPage() {
 
   const handleAddTeammate = async (email?: string) => {
     const emailToAdd = email || newTeammateEmail.trim();
-    
+
     if (!emailToAdd) {
       toast({
         title: "Invalid email",
@@ -721,7 +767,11 @@ export default function ProjectPage() {
 
     // Check if email is already a teammate
     const currentTeammates = project?.teammates || [];
-    if (currentTeammates.some(teammate => teammate.toLowerCase() === normalizedEmail)) {
+    if (
+      currentTeammates.some(
+        (teammate) => teammate.toLowerCase() === normalizedEmail
+      )
+    ) {
       toast({
         title: "Already a teammate",
         description: "This person is already a member of the team",
@@ -733,7 +783,10 @@ export default function ProjectPage() {
     setIsAddingTeammate(true);
     try {
       const updatedTeammates = [...currentTeammates, normalizedEmail];
-      const { data, error } = await updateProjectTeamClient(projectId, updatedTeammates);
+      const { data, error } = await updateProjectTeamClient(
+        projectId,
+        updatedTeammates
+      );
 
       if (error) {
         console.error("Error adding teammate:", error);
@@ -770,8 +823,13 @@ export default function ProjectPage() {
     setIsUpdating(true);
     try {
       const currentTeammates = project?.teammates || [];
-      const updatedTeammates = currentTeammates.filter(email => email !== teammateEmail);
-      const { data, error } = await updateProjectTeamClient(projectId, updatedTeammates);
+      const updatedTeammates = currentTeammates.filter(
+        (email) => email !== teammateEmail
+      );
+      const { data, error } = await updateProjectTeamClient(
+        projectId,
+        updatedTeammates
+      );
 
       if (error) {
         console.error("Error removing teammate:", error);
@@ -824,7 +882,9 @@ export default function ProjectPage() {
 
   const isLead = session?.user?.email === project.lead_email;
   const totalMembers = (project.teammates?.length || 0) + 1;
-  const feedbackUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/projects/public/${project.id}`;
+  const feedbackUrl = `${
+    typeof window !== "undefined" ? window.location.origin : ""
+  }/projects/public/${project.id}`;
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -837,7 +897,7 @@ export default function ProjectPage() {
             Back to Projects
           </Button>
         </Link>
-        
+
         {/* Delete Button - Only show for project lead */}
         {isLead && (
           <div className="ml-auto">
@@ -858,20 +918,34 @@ export default function ProjectPage() {
       <div className="mb-8">
         <div className="flex justify-between items-start mb-4">
           <div className="flex-1">
-            {/* Editable Title */}
-            <EditableField
-              value={project.project_name}
-              onSave={handleUpdateTitle}
-              canEdit={canEdit}
-              isLoading={isUpdating}
-              className="mb-2"
-              displayClassName="text-3xl font-bold text-gray-900"
-              inputClassName="text-3xl font-bold text-gray-900"
-              renderDisplay={(value) => (
-                <h1 className="text-3xl font-bold text-gray-900 hover:text-blue-600">{value}</h1>
+            {/* Editable Title with Event Badge */}
+            <div className="flex items-center gap-3 mb-2">
+              <EditableField
+                value={project.project_name}
+                onSave={handleUpdateTitle}
+                canEdit={canEdit}
+                isLoading={isUpdating}
+                displayClassName="text-3xl font-bold text-gray-900"
+                inputClassName="text-3xl font-bold text-gray-900"
+                renderDisplay={(value) => (
+                  <h1 className="text-3xl font-bold text-gray-900 hover:text-blue-600">
+                    {value}
+                  </h1>
+                )}
+              />
+              {/* Event Badge */}
+              {eventName && project?.event_id && (
+                <Link href={`/events/${eventSlug}/overview`}>
+                  <Badge 
+                    variant="secondary" 
+                    className="bg-green-100 text-green-800 hover:bg-green-200 px-4 py-2 text-sm font-medium cursor-pointer transition-colors"
+                  >
+                    {eventName}
+                  </Badge>
+                </Link>
               )}
-            />
-            
+            </div>
+
             <div className="flex items-center gap-4 text-sm text-gray-600">
               <div className="flex items-center gap-1">
                 <Users className="h-4 w-4" />
@@ -879,7 +953,9 @@ export default function ProjectPage() {
               </div>
               <div className="flex items-center gap-1">
                 <Calendar className="h-4 w-4" />
-                <span>Created {new Date(project.created_at).toLocaleDateString()}</span>
+                <span>
+                  Created {new Date(project.created_at).toLocaleDateString()}
+                </span>
               </div>
               <Badge variant={isLead ? "default" : "secondary"}>
                 {isLead ? "Project Lead" : "Team Member"}
@@ -890,10 +966,12 @@ export default function ProjectPage() {
 
         {/* Header Image */}
         <div className="w-full h-56 mb-6 rounded-lg overflow-hidden shadow-md">
-          <div 
+          <div
             className="w-full h-full bg-cover bg-center bg-no-repeat"
             style={{
-              backgroundImage: `url(${project.cover_image_url || '/img/placeholder.png'})`
+              backgroundImage: `url(${
+                project.cover_image_url || "/img/placeholder.png"
+              })`,
             }}
           ></div>
         </div>
@@ -924,220 +1002,82 @@ export default function ProjectPage() {
             <CardTitle>Project Links</CardTitle>
           </CardHeader>
           <CardContent>
-            {/* Cover Image URL - Only show for editors */}
-            {canEdit && (
-              <div className="mb-6">
-                <div className="flex items-center gap-2 mb-3">
-                  <ExternalLink className="h-4 w-4 text-gray-500" />
-                  <label className="text-sm font-medium text-gray-700">Cover Image:</label>
-                </div>
-                
-                {/* URL Input */}
-                <div className="mb-4">
-                  <label className="text-xs font-medium text-gray-600 mb-1 block">Image URL:</label>
-                  <div className="flex gap-2">
-                    <div className="flex-1">
-                      <EditableField
-                        value={project.cover_image_url || ""}
-                        onSave={handleUpdateCoverImage}
-                        canEdit={canEdit}
-                        isLoading={isUpdating}
-                        placeholder="https://example.com/image.jpg"
-                        displayClassName="text-blue-600 underline"
-                        renderDisplay={(value) => (
-                          value ? (
-                            <span className="text-blue-600 hover:text-blue-800 cursor-pointer">
-                              {value}
-                            </span>
-                          ) : (
-                            <span className="text-gray-400 italic">No cover image URL set</span>
-                          )
-                        )}
-                      />
-                    </div>
-                    {project.cover_image_url && (
-                      <a
-                        href={project.cover_image_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex-shrink-0"
-                      >
-                        <Button variant="outline" size="sm">
-                          <ExternalLink className="h-4 w-4 mr-1" />
-                          View
-                        </Button>
-                      </a>
-                    )}
-                  </div>
-                </div>
+            
+            {/* Cover Image URL */}
+            <div className=" mb-6">
+              <div className="flex items-center gap-2 mb-3">
+                <ExternalLink className="h-4 w-4 text-gray-500" />
+                <label className="text-sm font-medium text-gray-700">
+                  Cover Image:
+                </label>
+              </div>
 
-                {/* File Upload */}
-                <div className="mb-2">
-                  <label className="text-xs font-medium text-gray-600 mb-1 block">Or upload an image file:</label>
-                  
-                  {!selectedCoverImageFile ? (
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          setSelectedCoverImageFile(file);
-                        }
-                      }}
-                      disabled={isUpdating}
-                      className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 disabled:opacity-50"
+              {/* URL Input */}
+              <div className="mb-4">
+                <label className="text-xs font-medium text-gray-600 mb-1 block">
+                  Image URL:
+                </label>
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <EditableField
+                      value={project.cover_image_url || ""}
+                      onSave={handleUpdateCoverImage}
+                      canEdit={canEdit}
+                      isLoading={isUpdating}
+                      placeholder="https://example.com/image.jpg"
+                      displayClassName="text-blue-600 underline"
+                      renderDisplay={(value) =>
+                        value ? (
+                          <span className="text-blue-600 hover:text-blue-800 cursor-pointer">
+                            {value}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400 italic">
+                            No cover image URL set
+                          </span>
+                        )
+                      }
                     />
-                  ) : (
-                    <div className="space-y-3">
-                      {/* File Preview */}
-                      <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-gray-900">{selectedCoverImageFile.name}</p>
-                          <p className="text-xs text-gray-500">
-                            {(selectedCoverImageFile.size / 1024 / 1024).toFixed(2)} MB
-                          </p>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            onClick={async () => {
-                              const success = await handleCoverImageFileUpload(selectedCoverImageFile);
-                              if (success) {
-                                setSelectedCoverImageFile(null);
-                              }
-                            }}
-                            disabled={isUpdating}
-                          >
-                            {isUpdating ? "Uploading..." : "Upload"}
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setSelectedCoverImageFile(null)}
-                            disabled={isUpdating}
-                          >
-                            Cancel
-                          </Button>
-                        </div>
-                      </div>
-                      
-                      {/* Image Preview */}
-                      <div className="w-full h-32 rounded-lg overflow-hidden bg-gray-100">
-                        <img
-                          src={URL.createObjectURL(selectedCoverImageFile)}
-                          alt="Cover image preview"
-                          className="w-full h-full object-cover"
-                          onLoad={(e) => {
-                            // Clean up the object URL to prevent memory leaks
-                            URL.revokeObjectURL((e.target as HTMLImageElement).src);
-                          }}
-                        />
-                      </div>
-                    </div>
+                  </div>
+                  {project.cover_image_url && (
+                    <a
+                      href={project.cover_image_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-shrink-0"
+                    >
+                      <Button variant="outline" size="sm">
+                        <ExternalLink className="h-4 w-4 mr-1" />
+                        View
+                      </Button>
+                    </a>
                   )}
                 </div>
+              </div>
 
-                <p className="text-xs text-gray-500">
-                  Note: Changes to the cover image will be reflected in the header image above.
-                </p>
-              </div>
-            )}
+              {/* File Upload */}
+              {canEdit && (
+                <ImageUpload
+                  handleUpload={handleCoverImageFileUpload}
+                  noteText="Note: Changes to the cover image will be reflected in the header image above."
+                />
+              )}
+            </div>
 
-            {/* Project URL */}
-            <div className={canEdit ? "border-t pt-4" : ""}>
-              <div className="flex items-center gap-2 mb-2">
-                <ExternalLink className="h-4 w-4 text-gray-500" />
-                <label className="text-sm font-medium text-gray-700">Project URL:</label>
-              </div>
-              <div className="flex gap-2">
-                <div className="flex-1">
-                  <EditableField
-                    value={project.project_url || ""}
-                    onSave={handleUpdateProjectUrl}
-                    canEdit={canEdit}
-                    isLoading={isUpdating}
-                    placeholder="https://your-project-url.com"
-                    displayClassName="text-blue-600 underline"
-                    renderDisplay={(value) => (
-                      value ? (
-                        <span className="text-blue-600 hover:text-blue-800 cursor-pointer">
-                          {value}
-                        </span>
-                      ) : (
-                        <span className="text-gray-400 italic">No project URL set</span>
-                      )
-                    )}
-                  />
-                </div>
-                {project.project_url && (
-                  <a
-                    href={project.project_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-shrink-0"
-                  >
-                    <Button variant="outline" size="sm">
-                      <ExternalLink className="h-4 w-4 mr-1" />
-                      Visit
-                    </Button>
-                  </a>
-                )}
-              </div>
-            </div>
-            
-            {/* Video URL */}
-            <div className="border-t pt-4 mt-4">
-              <div className="flex items-center gap-2 mb-2">
-                <ExternalLink className="h-4 w-4 text-gray-500" />
-                <label className="text-sm font-medium text-gray-700">Video URL:</label>
-              </div>
-              <div className="flex gap-2">
-                <div className="flex-1">
-                  <EditableField
-                    value={project.video_url || ""}
-                    onSave={handleUpdateVideoUrl}
-                    canEdit={canEdit}
-                    isLoading={isUpdating}
-                    placeholder="https://youtube.com/watch?v=... or https://vimeo.com/..."
-                    displayClassName="text-blue-600 underline"
-                    renderDisplay={(value) => (
-                      value ? (
-                        <span className="text-blue-600 hover:text-blue-800 cursor-pointer">
-                          {value}
-                        </span>
-                      ) : (
-                        <span className="text-gray-400 italic">No video URL set</span>
-                      )
-                    )}
-                  />
-                </div>
-                {project.video_url && (
-                  <a
-                    href={project.video_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-shrink-0"
-                  >
-                    <Button variant="outline" size="sm">
-                      <ExternalLink className="h-4 w-4 mr-1" />
-                      Watch
-                    </Button>
-                  </a>
-                )}
-              </div>
-            </div>
-            
-            {/* Additional Materials URL */}
+            {/* Additional Materials */}
             <div className="border-t pt-4 mt-4">
               <div className="flex items-center gap-2 mb-3">
                 <ExternalLink className="h-4 w-4 text-gray-500" />
-                <label className="text-sm font-medium text-gray-700">Additional Materials:</label>
+                <label className="text-sm font-medium text-gray-700">
+                  Additional Materials:
+                </label>
               </div>
-              
+
               {/* URL Input */}
               <div className="mb-4">
-                <label className="text-xs font-medium text-gray-600 mb-1 block">Materials URL:</label>
+                <label className="text-xs font-medium text-gray-600 mb-1 block">
+                  Additional Materials URL:
+                </label>
                 <div className="flex gap-2">
                   <div className="flex-1">
                     <EditableField
@@ -1147,15 +1087,17 @@ export default function ProjectPage() {
                       isLoading={isUpdating}
                       placeholder="https://github.com/your-repo or https://docs.google.com/..."
                       displayClassName="text-blue-600 underline"
-                      renderDisplay={(value) => (
+                      renderDisplay={(value) =>
                         value ? (
                           <span className="text-blue-600 hover:text-blue-800 cursor-pointer">
                             {value}
                           </span>
                         ) : (
-                          <span className="text-gray-400 italic">No additional materials URL set</span>
+                          <span className="text-gray-400 italic">
+                            No additional materials URL set
+                          </span>
                         )
-                      )}
+                      }
                     />
                   </div>
                   {project.additional_materials_url && (
@@ -1173,62 +1115,112 @@ export default function ProjectPage() {
                   )}
                 </div>
               </div>
-
-              {/* File Upload - Only show for editors */}
               {canEdit && (
-                <div className="mb-2">
-                  <label className="text-xs font-medium text-gray-600 mb-1 block">Or upload a file:</label>
-                  
-                  {!selectedAdditionalMaterialsFile ? (
-                    <input
-                      type="file"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          setSelectedAdditionalMaterialsFile(file);
-                        }
-                      }}
-                      disabled={isUpdating}
-                      className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 disabled:opacity-50"
-                    />
-                  ) : (
-                    <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-900">{selectedAdditionalMaterialsFile.name}</p>
-                        <p className="text-xs text-gray-500">
-                          {(selectedAdditionalMaterialsFile.size / 1024 / 1024).toFixed(2)} MB
-                        </p>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          onClick={async () => {
-                            const success = await handleAdditionalMaterialsFileUpload(selectedAdditionalMaterialsFile);
-                            if (success) {
-                              setSelectedAdditionalMaterialsFile(null);
-                            }
-                          }}
-                          disabled={isUpdating}
-                        >
-                          {isUpdating ? "Uploading..." : "Upload"}
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setSelectedAdditionalMaterialsFile(null)}
-                          disabled={isUpdating}
-                        >
-                          Cancel
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                <FileUpload
+                  handleUpload={handleAdditionalMaterialsFileUpload}
+                  noteText="Examples: GitHub repository, documentation, slides, design files, PDFs, etc."
+                />
               )}
+            </div>
 
-              <p className="text-xs text-gray-500">
-                Examples: GitHub repository, documentation, slides, design files, PDFs, etc.
-              </p>
+            {/* Project URL */}
+            <div className="border-t pt-4 mt-4">
+              <div className="flex items-center gap-2 mb-2">
+                <ExternalLink className="h-4 w-4 text-gray-500" />
+                <label className="text-sm font-medium text-gray-700">
+                  Project URL:
+                </label>
+              </div>
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <EditableField
+                    value={project.project_url || ""}
+                    onSave={handleUpdateProjectUrl}
+                    canEdit={canEdit}
+                    isLoading={isUpdating}
+                    placeholder="https://your-project-url.com"
+                    displayClassName="text-blue-600 underline"
+                    renderDisplay={(value) =>
+                      value ? (
+                        <span className="text-blue-600 hover:text-blue-800 cursor-pointer">
+                          {value}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400 italic">
+                          No project URL set
+                        </span>
+                      )
+                    }
+                  />
+                </div>
+                {project.project_url && (
+                  <a
+                    href={project.project_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-shrink-0"
+                  >
+                    <Button variant="outline" size="sm">
+                      <ExternalLink className="h-4 w-4 mr-1" />
+                      Visit
+                    </Button>
+                  </a>
+                )}
+              </div>
+            </div>
+
+            {/* Video URL */}
+            <div className="border-t pt-4 mt-4">
+              <div className="flex items-center gap-2 mb-2">
+                <ExternalLink className="h-4 w-4 text-gray-500" />
+                <label className="text-sm font-medium text-gray-700">
+                  Video URL:
+                </label>
+              </div>
+              <div className="flex gap-2 mb-4">
+                <div className="flex-1">
+                  <EditableField
+                    value={project.video_url || ""}
+                    onSave={handleUpdateVideoUrl}
+                    canEdit={canEdit}
+                    isLoading={isUpdating}
+                    placeholder="https://youtube.com/watch?v=... or https://vimeo.com/..."
+                    displayClassName="text-blue-600 underline"
+                    renderDisplay={(value) =>
+                      value ? (
+                        <span className="text-blue-600 hover:text-blue-800 cursor-pointer">
+                          {value}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400 italic">
+                          No video URL set
+                        </span>
+                      )
+                    }
+                  />
+                </div>
+                {project.video_url && (
+                  <a
+                    href={project.video_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-shrink-0"
+                  >
+                    <Button variant="outline" size="sm">
+                      <ExternalLink className="h-4 w-4 mr-1" />
+                      Watch
+                    </Button>
+                  </a>
+                )}
+              </div>
+              
+              {/* Video Embed */}
+              {project.video_url && canEmbed(project.video_url) && (
+                <VideoEmbed 
+                  url={project.video_url} 
+                  title="Project Video" 
+                />
+              )}
             </div>
           </CardContent>
         </Card>
@@ -1261,22 +1253,32 @@ export default function ProjectPage() {
             <CardHeader>
               <CardTitle>Project Details</CardTitle>
             </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div>
-                    <label className="text-sm font-medium text-gray-500">Project Lead</label>
-                    <p className="text-gray-900">{project.lead_name} ({project.lead_email})</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-500">Team Size</label>
-                    <p className="text-gray-900">{totalMembers} members</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-500">Created</label>
-                    <p className="text-gray-900">{new Date(project.created_at).toLocaleDateString()}</p>
-                  </div>
+            <CardContent>
+              <div className="space-y-3">
+                <div>
+                  <label className="text-sm font-medium text-gray-500">
+                    Project Lead
+                  </label>
+                  <p className="text-gray-900">
+                    {project.lead_name} ({project.lead_email})
+                  </p>
                 </div>
-              </CardContent>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">
+                    Team Size
+                  </label>
+                  <p className="text-gray-900">{totalMembers} members</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">
+                    Created
+                  </label>
+                  <p className="text-gray-900">
+                    {new Date(project.created_at).toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
           </Card>
         </TabsContent>
 
@@ -1290,13 +1292,18 @@ export default function ProjectPage() {
                 <div className="flex items-center justify-between p-3 border rounded">
                   <div>
                     <p className="font-medium">{project.lead_name}</p>
-                    <p className="text-sm text-gray-500">{project.lead_email}</p>
+                    <p className="text-sm text-gray-500">
+                      {project.lead_email}
+                    </p>
                   </div>
                   <Badge>Lead</Badge>
                 </div>
-                
+
                 {project.teammates?.map((teammate, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 border rounded">
+                  <div
+                    key={index}
+                    className="flex items-center justify-between p-3 border rounded"
+                  >
                     <div>
                       <p className="font-medium">{teammate}</p>
                       <p className="text-sm text-gray-500">Team Member</p>
@@ -1318,14 +1325,16 @@ export default function ProjectPage() {
                   </div>
                 ))}
               </div>
-              
+
               {canEdit && isLead && (
                 <div className="mt-6 pt-4 border-t">
                   <div className="flex items-center gap-2 mb-3">
                     <UserPlus className="h-4 w-4 text-gray-500" />
-                    <h4 className="font-medium text-gray-900">Add Team Member</h4>
+                    <h4 className="font-medium text-gray-900">
+                      Add Team Member
+                    </h4>
                   </div>
-                  
+
                   <div className="space-y-3">
                     {/* Search through event participants */}
                     <div>
@@ -1343,26 +1352,33 @@ export default function ProjectPage() {
                               disabled={isAddingTeammate}
                             >
                               {searchValue
-                                ? participants.find((participant) => participant.email === searchValue)?.display_name || searchValue
+                                ? participants.find(
+                                    (participant) =>
+                                      participant.email === searchValue
+                                  )?.display_name || searchValue
                                 : "Search participants..."}
                               <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                             </Button>
                           </PopoverTrigger>
                           <PopoverContent className="p-0" align="start">
                             <Command>
-                              <CommandInput 
-                                placeholder="Search participants..." 
+                              <CommandInput
+                                placeholder="Search participants..."
                                 disabled={isLoadingParticipants}
                               />
                               <CommandList>
                                 <CommandEmpty>
-                                  {isLoadingParticipants ? "Loading..." : "No participants found."}
+                                  {isLoadingParticipants
+                                    ? "Loading..."
+                                    : "No participants found."}
                                 </CommandEmpty>
                                 <CommandGroup>
                                   {participants.map((participant) => {
                                     const isAlreadyTeammate = [
                                       project?.lead_email?.toLowerCase(),
-                                      ...(project?.teammates || []).map(t => t.toLowerCase())
+                                      ...(project?.teammates || []).map((t) =>
+                                        t.toLowerCase()
+                                      ),
                                     ].includes(participant.email.toLowerCase());
 
                                     return (
@@ -1380,14 +1396,18 @@ export default function ProjectPage() {
                                       >
                                         <div className="flex flex-col flex-1">
                                           <span className="font-medium">
-                                            {participant.display_name || participant.email}
+                                            {participant.display_name ||
+                                              participant.email}
                                           </span>
                                           <span className="text-sm text-gray-500">
                                             {participant.email}
                                           </span>
                                         </div>
                                         {isAlreadyTeammate && (
-                                          <Badge variant="secondary" className="ml-2">
+                                          <Badge
+                                            variant="secondary"
+                                            className="ml-2"
+                                          >
                                             Team Member
                                           </Badge>
                                         )}
@@ -1421,7 +1441,9 @@ export default function ProjectPage() {
                         />
                         <Button
                           onClick={() => handleAddTeammate()}
-                          disabled={isAddingTeammate || !newTeammateEmail.trim()}
+                          disabled={
+                            isAddingTeammate || !newTeammateEmail.trim()
+                          }
                         >
                           {isAddingTeammate ? (
                             "Adding..."
@@ -1435,9 +1457,10 @@ export default function ProjectPage() {
                       </div>
                     </div>
                   </div>
-                  
+
                   <p className="text-xs text-gray-500 mt-3">
-                    Team members will be able to edit this project and receive notifications.
+                    Team members will be able to edit this project and receive
+                    notifications.
                   </p>
                 </div>
               )}
@@ -1459,13 +1482,16 @@ export default function ProjectPage() {
             <CardHeader>
               <CardTitle>Project Feedback</CardTitle>
               <p className="text-sm text-gray-600">
-                View feedback received for this project. Share the public link below for others to provide feedback.
+                View feedback received for this project. Share the public link
+                below for others to provide feedback.
               </p>
             </CardHeader>
             <CardContent>
               <div className="mb-6">
                 <div className="flex items-center gap-2 mb-2">
-                  <label className="text-sm font-medium text-gray-700">Public Feedback URL:</label>
+                  <label className="text-sm font-medium text-gray-700">
+                    Public Feedback URL:
+                  </label>
                 </div>
                 <div className="flex gap-2">
                   <input
@@ -1489,69 +1515,18 @@ export default function ProjectPage() {
                   </Button>
                 </div>
               </div>
-              
-              <FeedbackDisplay
-                projectId={project.id}
-                showTitle={false}
-              />
+
+              <FeedbackDisplay projectId={project.id} showTitle={false} />
             </CardContent>
           </Card>
         </TabsContent>
 
         <TabsContent value="qr-code">
-          <Card>
-            <CardHeader>
-              <CardTitle>QR Code for Feedback</CardTitle>
-              <p className="text-sm text-gray-600">
-                Share this QR code to allow others to quickly access your project and provide feedback.
-              </p>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-col md:flex-row items-start gap-6">
-                <div className="flex flex-col items-center md:w-64">
-                  <QRCodeSection
-                    fullUrl={feedbackUrl}
-                    onCopyQR={handleCopyQR}
-                    onDownloadQR={handleDownloadQR}
-                  />
-                </div>
-                
-                <div className="flex-1 md:flex-2">
-                  <div className="space-y-4">
-                    <div>
-                      <h4 className="font-medium text-gray-900 mb-3">How to use:</h4>
-                      <ul className="text-sm text-gray-600 space-y-2">
-                        <li>• <strong>At presentations:</strong> Display this QR code on your slides so audience members can quickly access your project</li>
-                        <li>• <strong>Mobile scanning:</strong> People can scan it with their phone camera app (no special app needed)</li>
-                        <li>• <strong>Direct access:</strong> They&apos;ll be taken directly to your project&apos;s feedback page</li>
-                        <li>• <strong>No typing required:</strong> Eliminates the need to type long URLs or search for your project</li>
-                        <li>• <strong>Print friendly:</strong> Works great on business cards, flyers, or handouts</li>
-                      </ul>
-                    </div>
-                    
-                    <div className="p-4 bg-blue-50 rounded-lg">
-                      <h5 className="font-medium text-blue-900 mb-2">💡 Pro Tips:</h5>
-                      <div className="text-sm text-blue-800 space-y-1">
-                        <p>• Download the QR code and include it in your presentation slides</p>
-                        <p>• Add it to your project documentation or README files</p>
-                        <p>• Print it on handouts for easy feedback collection at events</p>
-                        <p>• Share it on social media to gather broader feedback</p>
-                      </div>
-                    </div>
-                    
-                    <div className="p-4 bg-green-50 rounded-lg">
-                      <h5 className="font-medium text-green-900 mb-2">📱 Best Practices:</h5>
-                      <div className="text-sm text-green-800 space-y-1">
-                        <p>• Ensure QR code is large enough to scan (minimum 2cm x 2cm when printed)</p>
-                        <p>• Test the QR code before your presentation</p>
-                        <p>• Provide the direct link as a backup option</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <ProjectQRCodeSection
+            fullUrl={feedbackUrl}
+            onCopyQR={handleCopyQR}
+            onDownloadQR={handleDownloadQR}
+          />
         </TabsContent>
       </Tabs>
 
@@ -1561,9 +1536,12 @@ export default function ProjectPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the project
-              <strong> &quot;{project?.project_name}&quot;</strong> and all associated data including:
-              <br /><br />
+              This action cannot be undone. This will permanently delete the
+              project
+              <strong> &quot;{project?.project_name}&quot;</strong> and all
+              associated data including:
+              <br />
+              <br />
               • Project details and description
               <br />
               • Team member assignments
@@ -1571,8 +1549,7 @@ export default function ProjectPage() {
               • Track selections
               <br />
               • All feedback received
-              <br />
-              • Uploaded materials
+              <br />• Uploaded materials
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
