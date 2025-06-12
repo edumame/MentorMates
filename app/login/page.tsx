@@ -240,7 +240,7 @@ function LoginContent() {
                 <button
                   onClick={handleForgotPassword}
                   disabled={loading}
-                  className="font-semibold text-blue-900 hover:text-blue-500 disabled:opacity-50"
+                  className="font-semibold text-blue-900 hover:text-blue-500 disabled:opacity-50 min-w-[120px]"
                 >
                   {loading ? "Sending..." : "Forgot password?"}
                 </button>

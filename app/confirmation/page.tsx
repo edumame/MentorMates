@@ -1,16 +1,16 @@
-import React from 'react';
-import Link from 'next/link';
+import React from "react";
+import Link from "next/link";
 
 export default function ConfirmationPage() {
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+    <div className="max-h-screen bg-white flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+        <div className="bg-gray-100 py-8 px-4 shadow sm:rounded-lg sm:px-10">
           <div className="text-center">
             {/* Email icon */}
-            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
+            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 mb-4">
               <svg
-                className="h-6 w-6 text-green-600"
+                className="h-6 w-6 text-blue-600"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -32,7 +32,8 @@ export default function ConfirmationPage() {
 
             {/* Subheading */}
             <p className="text-sm text-gray-600 mb-6">
-              We&apos;ve sent a confirmation email to your inbox. Please click the link in the email to verify your account.
+              We&apos;ve sent a confirmation email to your inbox. Please click
+              the link in the email to verify your account.
             </p>
 
             {/* Additional instructions */}
