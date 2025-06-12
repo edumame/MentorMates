@@ -74,6 +74,7 @@
     "react-remove-scroll": "^2.6.3",
     "react-textarea-autosize": "^8.5.5",
     "recharts": "^2.15.1",
+    "resend": "^4.5.2",
     "sonner": "^2.0.1",
     "supabase": "^2.6.8",
     "tailwind-merge": "^2.5.5",
