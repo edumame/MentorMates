@@ -540,7 +540,7 @@ export default function ProjectPage() {
       }
 
       const { data, error } = await updateProjectClient(projectId, {
-        video_url: newUrl.trim() || undefined,
+        video_url: newUrl.trim() || null
       });
 
       if (error) {
