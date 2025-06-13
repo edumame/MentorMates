@@ -3,7 +3,6 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle, CardDescription } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Loader2, QrCode, MessageSquare, Copy, Trophy } from "lucide-react";
 import { motion } from "framer-motion";
 import QRCode from "react-qr-code";

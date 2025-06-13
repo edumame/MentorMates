@@ -40,19 +40,32 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Fetch prizes with winner information
+    // Fetch prizes
     const { data: prizesData, error: prizesError } = await supabase
       .from("prizes")
-      .select(`
+      .select(
+        `
         *,
-        event_tracks!inner(event_id),
-        projects:winning_project_id(
+        event_tracks!inner (
+          event_id
+        ),
+        prize_winners (
           id,
-          project_name,
-          lead_name
+          project_id,
+          assigned_at,
+          assigned_by,
+          projects (
+            id,
+            project_name,
+            lead_name,
+            event_id
+          )
         )
-      `)
+      `
+      )
       .eq("event_tracks.event_id", eventId);
+
+    console.log("prizesData", prizesData);
 
     if (prizesError) {
       return NextResponse.json(
@@ -67,11 +80,10 @@ export async function GET(request: NextRequest) {
       track_id: prize.track_id,
       prize_amount: prize.prize_amount,
       prize_description: prize.prize_description,
-      winning_project_id: prize.winning_project_id,
-      assigned_by: prize.assigned_by,
-      assigned_at: prize.assigned_at,
-      winning_project: prize.projects,
+      prize_winners: prize.prize_winners || null
     }));
+
+    console.log("transformedPrizes", transformedPrizes);
 
     return NextResponse.json({ 
       prizes: transformedPrizes 
@@ -227,7 +239,14 @@ export async function DELETE(request: Request) {
         event_tracks!inner(event_id)
       `)
       .eq("id", prizeId)
-      .single();
+      .single()
+      .overrideTypes<{
+        id: string;
+        track_id: string;
+        event_tracks: {
+          event_id: string;
+        };
+      }>();
 
     if (prizeError || !prize) {
       return NextResponse.json(
@@ -236,7 +255,7 @@ export async function DELETE(request: Request) {
       );
     }
 
-    const eventId = (prize.event_tracks as unknown as { event_id: string }[])[0]?.event_id;
+    const eventId = prize.event_tracks.event_id;
 
     // Check if current user is an organizer of this event
     const { data: currentUserRole, error: roleError } = await supabase

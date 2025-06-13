@@ -24,7 +24,13 @@ import { TrashIcon, Trophy, X } from "lucide-react";
 import { EventDetails, Prize, Project } from "@/lib/types";
 
 interface ExtendedPrize extends Prize {
-  winning_project?: Project;
+  prize_winners?: {
+    id: string;
+    project_id: string;
+    assigned_at: string;
+    assigned_by: string;
+    projects: Project;
+  }[];
 }
 
 interface PrizesTabProps {
@@ -114,18 +120,25 @@ export function PrizesTab({
 
       // Update local state
       setPrizesWithWinners((prev) =>
-        prev.map((prize) =>
-          prize.id === prizeId
-            ? {
+        prev.map((prize) => {
+          if (prize.id === prizeId) {
+            if (projectId) {
+              // Add new winner
+              const newWinner = {
+                id: data.winnerId,
+                project_id: projectId,
+                assigned_at: new Date().toISOString(),
+                assigned_by: data.assignedBy,
+                projects: projects.find((p) => p.id === projectId)!
+              };
+              return {
                 ...prize,
-                winning_project_id: projectId,
-                winning_project: projectId
-                  ? projects.find((p) => p.id === projectId)
-                  : undefined,
-                assigned_at: projectId ? new Date().toISOString() : null,
-              }
-            : prize
-        )
+                prize_winners: [...(prize.prize_winners || []), newWinner]
+              };
+            }
+          }
+          return prize;
+        })
       );
 
       toast({
@@ -146,6 +159,52 @@ export function PrizesTab({
       setSaving(false);
     }
   };
+
+  const handleRemoveWinner = async (prizeId: string, projectId: string) => {
+    try {
+      setSaving(true);
+
+      const response = await fetch("/api/prizes/assign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prizeId, projectId: null }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to remove winner");
+      }
+
+      // Update local state to remove the specific winner
+      setPrizesWithWinners((prev) =>
+        prev.map((prize) => {
+          if (prize.id === prizeId) {
+            return {
+              ...prize,
+              prize_winners: prize.prize_winners?.filter(w => w.project_id !== projectId) || []
+            };
+          }
+          return prize;
+        })
+      );
+
+      toast({
+        title: "Success",
+        description: "Winner removed successfully",
+      });
+    } catch (error) {
+      console.error("Error removing winner:", error);
+      toast({
+        title: "Error",
+        description:
+          error instanceof Error ? error.message : "Failed to remove winner",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
   const handlePrizesUpdate = async () => {
     if (!event || !event.event_tracks || event.event_tracks.length === 0)
       return;
@@ -153,36 +212,110 @@ export function PrizesTab({
     try {
       setSaving(true);
 
-      // Collect all prizes from all tracks
-      const allPrizes: any[] = [];
+      // Separate local prizes (new) from database prizes (existing)
+      const databasePrizes: Prize[] = [];
+      const localPrizes: Prize[] = [];
+      const localPrizeTrackMap: Record<string, string> = {}; // Map local prize ID to track ID
+
       for (const track of event.event_tracks) {
         if (track.prizes && track.prizes.length > 0) {
-          const trackPrizes = track.prizes.map((prize) => ({
-            id: prize.id,
-            track_id: track.track_id,
-            prize_amount: prize.prize_amount,
-            prize_description: prize.prize_description,
-          }));
-          allPrizes.push(...trackPrizes);
+          for (const prize of track.prizes) {
+            const prizeData = {
+              id: prize.id,
+              track_id: track.track_id,
+              prize_amount: prize.prize_amount,
+              prize_description: prize.prize_description,
+            };
+
+            if (isDatabasePrize(prize.id)) {
+              databasePrizes.push(prizeData);
+            } else {
+              localPrizes.push({
+                ...prizeData,
+                id: crypto.randomUUID(), // Let database generate new ID
+              });
+              localPrizeTrackMap[prize.id] = track.track_id;
+            }
+          }
         }
       }
 
-      // Send prizes to API route
-      const response = await fetch("/api/prizes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          prizes: allPrizes,
-          eventId: event.event_id,
-        }),
-      });
+      // Save database prizes (updates)
+      if (databasePrizes.length > 0) {
+        const updateResponse = await fetch("/api/prizes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            prizes: databasePrizes,
+            eventId: event.event_id,
+          }),
+        });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to save prizes");
+        if (!updateResponse.ok) {
+          const errorData = await updateResponse.json();
+          throw new Error(errorData.error || "Failed to update existing prizes");
+        }
       }
 
-      // Refresh the prizes data
+      // Save local prizes (creates)
+      if (localPrizes.length > 0) {
+        const createResponse = await fetch("/api/prizes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            prizes: localPrizes,
+            eventId: event.event_id,
+          }),
+        });
+
+        if (!createResponse.ok) {
+          const errorData = await createResponse.json();
+          throw new Error(errorData.error || "Failed to create new prizes");
+        }
+
+        const createData = await createResponse.json();
+        const newPrizes = createData.prizes || [];
+
+        // Update local state to replace local IDs with database IDs
+        const newTracks = [...event.event_tracks!];
+        const localPrizeIds = Object.keys(localPrizeTrackMap);
+        
+        // Create a mapping of track_id to new prizes for that track
+        const newPrizesByTrack: Record<string, Prize[]> = {};
+        newPrizes.forEach((newPrize: Prize) => {
+          if (!newPrizesByTrack[newPrize.track_id]) {
+            newPrizesByTrack[newPrize.track_id] = [];
+          }
+          newPrizesByTrack[newPrize.track_id].push(newPrize);
+        });
+
+        // Replace local prizes with database prizes in each track
+        for (const trackId of Object.keys(newPrizesByTrack)) {
+          const trackIndex = newTracks.findIndex(t => t.track_id === trackId);
+          if (trackIndex > -1 && newTracks[trackIndex].prizes) {
+            // Find local prizes for this track
+            const localPrizesForTrack = localPrizeIds.filter(id => localPrizeTrackMap[id] === trackId);
+            let newPrizeIndex = 0;
+
+            // Replace local prizes with new database prizes
+            newTracks[trackIndex].prizes = newTracks[trackIndex].prizes!.map(prize => {
+              if (localPrizesForTrack.includes(prize.id)) {
+                const newPrize = newPrizesByTrack[trackId][newPrizeIndex];
+                newPrizeIndex++;
+                return {
+                  ...prize,
+                  id: newPrize.id,
+                };
+              }
+              return prize;
+            });
+          }
+        }
+
+        setEvent({ ...event, event_tracks: newTracks });
+      }
+
+      // Refresh the prizes data to get the latest state
       const updatedPrizesResponse = await fetch(`/api/prizes?eventId=${event.event_id}`);
       if (updatedPrizesResponse.ok) {
         const updatedPrizesData = await updatedPrizesResponse.json();
@@ -205,6 +338,9 @@ export function PrizesTab({
       setSaving(false);
     }
   };
+
+  // Helper function to check if a prize is saved to database
+  const isDatabasePrize = (prizeId: string) => !prizeId.startsWith('local-');
 
   return (
     <div className="space-y-6">
@@ -239,7 +375,7 @@ export function PrizesTab({
                         variant="ghost"
                         size="sm"
                         onClick={async () => {
-                          if (prize.id) {
+                          if (isDatabasePrize(prize.id)) {
                             try {
                               setSaving(true);
                               const response = await fetch(
@@ -292,7 +428,7 @@ export function PrizesTab({
                               setSaving(false);
                             }
                           } else {
-                            // Just remove from local state if no ID (not saved to DB yet)
+                            // Just remove from local state if local prize (not saved to DB yet)
                             const newTracks = [...event.event_tracks!];
                             const trackIndex = newTracks.findIndex(
                               (t) => t.track_id === track.track_id
@@ -370,30 +506,26 @@ export function PrizesTab({
                     </div>
 
                     {/* Winner Assignment Section */}
-                    {prize.id && (
+                    {isDatabasePrize(prize.id) && (
                       <div className="space-y-2 border-t pt-4 mt-4">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <Trophy className="h-4 w-4 text-yellow-500" />
                             <Label>Winner Assignment</Label>
                           </div>
-                          {prizesWithWinners.find((p) => p.id === prize.id)
-                            ?.winning_project && (
+                          {prizesWithWinners.find((p) => p.id === prize.id)?.prize_winners && prizesWithWinners.find((p) => p.id === prize.id)!.prize_winners!.length > 0 && (
                             <Badge
                               variant="secondary"
                               className="bg-yellow-100 text-yellow-800"
                             >
-                              Winner Assigned
+                              {prizesWithWinners.find((p) => p.id === prize.id)?.prize_winners?.length} Winners
                             </Badge>
                           )}
                         </div>
 
                         <div className="flex gap-2">
                           <Select
-                            value={
-                              prizesWithWinners.find((p) => p.id === prize.id)
-                                ?.winning_project_id || "none"
-                            }
+                            value="none"
                             onValueChange={(value) =>
                               handleAssignPrize(
                                 prize.id,
@@ -420,63 +552,52 @@ export function PrizesTab({
                                   .filter((project) =>
                                     project.track_ids?.includes(track.track_id)
                                   )
+                                  .filter(project => 
+                                    !prizesWithWinners
+                                      .find(p => p.id === prize.id)
+                                      ?.prize_winners?.some(w => w.project_id === project.id)
+                                  )
                                   .map((project) => (
                                     <SelectItem
                                       key={project.id}
                                       value={project.id}
                                     >
-                                      {project.project_name} -{" "}
-                                      {project.lead_name}
+                                      {project.project_name} - {project.lead_name}
                                     </SelectItem>
                                   ))
                               )}
                             </SelectContent>
                           </Select>
-
-                          {prizesWithWinners.find((p) => p.id === prize.id)
-                            ?.winning_project_id && (
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              onClick={() => handleAssignPrize(prize.id, null)}
-                              disabled={saving}
-                              title="Remove winner"
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          )}
                         </div>
 
-                        {prizesWithWinners.find((p) => p.id === prize.id)
-                          ?.winning_project && (
-                          <div className="p-3 bg-green-50 rounded-lg border border-green-200">
-                            <div className="text-sm font-medium text-green-800">
-                              🏆{" "}
-                              {
-                                prizesWithWinners.find((p) => p.id === prize.id)
-                                  ?.winning_project?.project_name
-                              }
-                            </div>
-                            <div className="text-xs text-green-600">
-                              Led by{" "}
-                              {
-                                prizesWithWinners.find((p) => p.id === prize.id)
-                                  ?.winning_project?.lead_name
-                              }
-                            </div>
-                            {prizesWithWinners.find((p) => p.id === prize.id)
-                              ?.assigned_at && (
-                              <div className="text-xs text-green-500 mt-1">
-                                Assigned{" "}
-                                {new Date(
-                                  prizesWithWinners.find(
-                                    (p) => p.id === prize.id
-                                  )!.assigned_at!
-                                ).toLocaleDateString()}
+                        {/* Display current winners */}
+                        {prizesWithWinners.find((p) => p.id === prize.id)?.prize_winners?.map((winner) => (
+                          <div key={winner.id} className="p-3 bg-green-50 rounded-lg border border-green-200">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <div className="text-sm font-medium text-green-800">
+                                  🏆 {winner.projects.project_name}
+                                </div>
+                                <div className="text-xs text-green-600">
+                                  Led by {winner.projects.lead_name}
+                                </div>
+                                <div className="text-xs text-green-500 mt-1">
+                                  Assigned {new Date(winner.assigned_at).toLocaleDateString()}
+                                </div>
                               </div>
-                            )}
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleRemoveWinner(prize.id, winner.project_id)}
+                                disabled={saving}
+                                title="Remove winner"
+                                className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </div>
-                        )}
+                        ))}
                       </div>
                     )}
                   </div>
@@ -494,7 +615,7 @@ export function PrizesTab({
                       newTracks[trackIndex].prizes = [];
                     }
                     newTracks[trackIndex].prizes!.push({
-                      id: crypto.randomUUID(),
+                      id: `local-${crypto.randomUUID()}`,
                       track_id: track.track_id,
                       prize_amount: "",
                       prize_description: "",

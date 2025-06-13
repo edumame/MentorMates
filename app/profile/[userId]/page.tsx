@@ -33,6 +33,15 @@ interface SocialLinks {
   portfolio?: string;
 }
 
+interface ProjectWithTracks extends Project {
+  project_tracks: {
+    event_tracks: {
+      track_id: string;
+      name: string;
+    }[];
+  }[];
+}
+
 //changes to the profile page are causing the projectboard to not load properly. Need to investigate.
 
 export default function ProfilePage() {
@@ -82,60 +91,16 @@ export default function ProfilePage() {
         setNewSocialLinks(profile.links || {});
 
         // Fetch projects where user is lead or teammate
-        const { data: leadProjects, error: leadError } = await supabase
-          .from("projects")
-          .select(
-            `
-            id,
-            project_name,
-            project_description,
-            lead_name,
-            lead_email,
-            teammates,
-            project_url,
-            cover_image_url,
-            event_id,
-            created_at,
-            project_tracks (
-              event_tracks (
-                track_id,
-                name
-              )
-            )
-          `
-          )
-          .eq("lead_email", profile.email);
 
-        if (leadError) throw leadError;
-
-        const { data: teamProjects, error: teamError } = await supabase
-          .from("projects")
-          .select(
-            `
-            id,
-            project_name,
-            project_description,
-            lead_name,
-            lead_email,
-            teammates,
-            project_url,
-            cover_image_url,
-            event_id,
-            created_at,
-            project_tracks (
-              event_tracks (
-                track_id,
-                name
-              )
-            )
-          `
-          )
-          .contains("teammates", [profile.email]);
-
-        if (teamError) throw teamError;
+        const response = await fetch("/api/projects/user");
+        if (!response.ok) {
+          throw new Error("Failed to fetch projects");
+        }
+        const projectsData: { projects: ProjectWithTracks[] } =
+          await response.json();
 
         // Combine and deduplicate projects
-        const allProjects = [...(leadProjects || []), ...(teamProjects || [])]
+        const allProjects = [...(projectsData.projects || [])]
           .filter(
             (project, index, self) =>
               index === self.findIndex((p) => p.id === project.id)
@@ -151,6 +116,7 @@ export default function ProfilePage() {
             cover_image_url: project.cover_image_url,
             event_id: project.event_id,
             created_at: project.created_at,
+            prizes_won: project.prizes_won,
             track_ids:
               project.project_tracks
                 ?.map((pt) => pt.event_tracks?.[0]?.track_id)
