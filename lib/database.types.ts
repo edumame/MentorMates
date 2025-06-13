@@ -532,7 +532,7 @@ export type Database = {
         | "organizer"
         | "admin"
         | "event"
-      event_visibility: "test" | "demo" | "private" | "public" | "draft"
+      event_visibility: "test" | "demo" | "private" | "public" | "draft" | "archived"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -656,7 +656,7 @@ export const Constants = {
         "admin",
         "event",
       ],
-      event_visibility: ["test", "demo", "private", "public", "draft"],
+      event_visibility: ["test", "demo", "private", "public", "draft", "archived"],
     },
   },
 } as const

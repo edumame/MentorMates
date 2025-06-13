@@ -31,6 +31,13 @@ export async function POST(request: Request) {
       );
     }
 
+    if (event?.visibility === EventVisibility.Archived) {
+      return NextResponse.json(
+        { error: "Event is archived" },
+        { status: 400 }
+      );
+    }
+
     // First check if the event is private, which means all roles need a password
     if (
       event?.visibility === EventVisibility.Private &&

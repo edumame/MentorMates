@@ -160,7 +160,7 @@ export function JoinEventButton({ eventId, eventName }: JoinEventButtonProps) {
     }
   };
 
-  if (hasJoined) {
+  if (hasJoined || event?.visibility === EventVisibility.Archived) {
     return null;
   }
 
