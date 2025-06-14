@@ -65,8 +65,6 @@ export async function GET(request: NextRequest) {
       )
       .eq("event_tracks.event_id", eventId);
 
-    console.log("prizesData", prizesData);
-
     if (prizesError) {
       return NextResponse.json(
         { error: "Failed to fetch prizes" },
@@ -82,8 +80,6 @@ export async function GET(request: NextRequest) {
       prize_description: prize.prize_description,
       prize_winners: prize.prize_winners || null
     }));
-
-    console.log("transformedPrizes", transformedPrizes);
 
     return NextResponse.json({ 
       prizes: transformedPrizes 
