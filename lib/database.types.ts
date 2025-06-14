@@ -227,37 +227,28 @@ export type Database = {
       }
       prizes: {
         Row: {
-          assigned_at: string | null
-          assigned_by: string | null
           created_at: string | null
           id: string
           prize_amount: string
           prize_description: string
           track_id: string
           updated_at: string | null
-          winning_project_id: string | null
         }
         Insert: {
-          assigned_at?: string | null
-          assigned_by?: string | null
           created_at?: string | null
           id?: string
           prize_amount: string
           prize_description: string
           track_id: string
           updated_at?: string | null
-          winning_project_id?: string | null
         }
         Update: {
-          assigned_at?: string | null
-          assigned_by?: string | null
           created_at?: string | null
           id?: string
           prize_amount?: string
           prize_description?: string
           track_id?: string
           updated_at?: string | null
-          winning_project_id?: string | null
         }
         Relationships: [
           {
@@ -267,15 +258,47 @@ export type Database = {
             referencedRelation: "event_tracks"
             referencedColumns: ["track_id"]
           },
+        ]
+      }
+      prize_winners: {
+        Row: {
+          assigned_at: string | null
+          assigned_by: string | null
+          id: string
+          prize_id: string
+          project_id: string
+        }
+        Insert: {
+          assigned_at?: string | null
+          assigned_by?: string | null
+          id?: string
+          prize_id: string
+          project_id: string
+        }
+        Update: {
+          assigned_at?: string | null
+          assigned_by?: string | null
+          id?: string
+          prize_id?: string
+          project_id?: string
+        }
+        Relationships: [
           {
-            foreignKeyName: "prizes_winning_project_id_fkey"
-            columns: ["winning_project_id"]
+            foreignKeyName: "prize_winners_prize_id_fkey"
+            columns: ["prize_id"]
+            isOneToOne: false
+            referencedRelation: "prizes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prize_winners_project_id_fkey"
+            columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "prizes_assigned_by_fkey"
+            foreignKeyName: "prize_winners_assigned_by_fkey"
             columns: ["assigned_by"]
             isOneToOne: false
             referencedRelation: "user_profiles"
