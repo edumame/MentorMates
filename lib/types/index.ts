@@ -247,7 +247,5 @@ export interface PrizeFromDatabase {
   track_id: string;
   prize_amount: string;
   prize_description: string;
-  assigned_at?: string;
-  winning_project_id?: string;
 }
 
