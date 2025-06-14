@@ -85,7 +85,7 @@ export async function GET(request: NextRequest) {
       // Fetch prizes for all projects
       if (projects.length > 0) {
         const projectIds = projects.map((p) => p.id);
-        const { data: prizesData } = await supabase
+        const { data: prizesData, error: prizesError } = await supabase
           .from("prizes")
           .select(
             `
@@ -98,6 +98,14 @@ export async function GET(request: NextRequest) {
           `
           )
           .in("winning_project_id", projectIds);
+
+        if (prizesError) {
+          console.error("Error fetching prizes:", prizesError);
+          return NextResponse.json(
+            { error: "Failed to fetch prizes" },
+            { status: 500 }
+          );
+        }
 
         if (prizesData) {
           const prizesByProject = prizesData.reduce((acc, prize) => {
