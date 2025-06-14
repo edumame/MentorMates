@@ -260,6 +260,52 @@ export type Database = {
           },
         ]
       }
+      prize_winners: {
+        Row: {
+          assigned_at: string | null
+          assigned_by: string | null
+          id: string
+          prize_id: string
+          project_id: string
+        }
+        Insert: {
+          assigned_at?: string | null
+          assigned_by?: string | null
+          id?: string
+          prize_id: string
+          project_id: string
+        }
+        Update: {
+          assigned_at?: string | null
+          assigned_by?: string | null
+          id?: string
+          prize_id?: string
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prize_winners_prize_id_fkey"
+            columns: ["prize_id"]
+            isOneToOne: false
+            referencedRelation: "prizes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prize_winners_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prize_winners_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["uid"]
+          },
+        ]
+      }
       project_scores: {
         Row: {
           comments: string | null

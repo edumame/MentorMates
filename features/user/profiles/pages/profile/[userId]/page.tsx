@@ -69,133 +69,18 @@ export default function ProfilePage() {
         if (sessionError) throw sessionError;
         setSession(session);
 
-        // Fetch user profile
-        const { data: profile, error: profileError } = await supabase
-          .from("user_profiles")
-          .select("display_name, email, links")
-          .eq("uid", userId)
-          .single();
-
-        if (profileError) throw profileError;
-        setUserProfile(profile);
-        setNewSocialLinks(profile.links || {});
-
-        // Fetch projects where user is lead or teammate
-        const { data: leadProjects, error: leadError } = await supabase
-          .from("projects")
-          .select(
-            `
-            id,
-            project_name,
-            project_description,
-            lead_name,
-            lead_email,
-            teammates,
-            project_url,
-            cover_image_url,
-            event_id,
-            created_at,
-            project_tracks (
-              event_tracks (
-                track_id,
-                name
-              )
-            )
-          `
-          )
-          .eq("lead_email", profile.email);
-
-        if (leadError) throw leadError;
-
-        const { data: teamProjects, error: teamError } = await supabase
-          .from("projects")
-          .select(
-            `
-            id,
-            project_name,
-            project_description,
-            lead_name,
-            lead_email,
-            teammates,
-            project_url,
-            cover_image_url,
-            event_id,
-            created_at,
-            project_tracks (
-              event_tracks (
-                track_id,
-                name
-              )
-            )
-          `
-          )
-          .contains("teammates", [profile.email]);
-
-        if (teamError) throw teamError;
-
-        // Combine and deduplicate projects
-        const allProjects = [...(leadProjects || []), ...(teamProjects || [])]
-          .filter(
-            (project, index, self) =>
-              index === self.findIndex((p) => p.id === project.id)
-          )
-          .map((project) => ({
-            id: project.id,
-            project_name: project.project_name,
-            project_description: project.project_description,
-            lead_name: project.lead_name,
-            lead_email: project.lead_email,
-            teammates: project.teammates,
-            project_url: project.project_url,
-            cover_image_url: project.cover_image_url,
-            event_id: project.event_id,
-            created_at: project.created_at,
-            track_ids:
-              project.project_tracks
-                ?.map((pt) => pt.event_tracks?.[0]?.track_id)
-                .filter(Boolean) || [],
-            tracks:
-              project.project_tracks
-                ?.map((pt) => ({
-                  track_id: pt.event_tracks?.[0]?.track_id || "",
-                  name: pt.event_tracks?.[0]?.name || "",
-                  event_id: project.event_id,
-                  description: "",
-                  scoring_criteria: {
-                    name: pt.event_tracks?.[0]?.name || "",
-                    criteria: [],
-                  },
-                  created_at: new Date().toISOString(),
-                  updated_at: new Date().toISOString(),
-                }))
-                .filter(Boolean) || [],
-          }));
-
-        // Fetch events for each role
-        const { data: events, error } = await supabase
-          .from("events")
-          .select(
-            `
-                event_id,
-                event_name,
-                slug,
-                event_date,
-                location,
-                visibility,
-                cover_image_url,
-                scoring_config,
-                user_event_roles!inner (
-                    role
-                )
-        `
-          )
-          .eq("user_event_roles.user_id", userId)
-          .in("visibility", ["public", "private"]);
-
-        if (error) throw error;
-
-        setEvents(events);
-        setProjects(allProjects);
+        // Fetch user profile data using API
+        const response = await fetch(`/api/users/${userId}/profile`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch profile data');
+        }
+        
+        const data = await response.json();
+        setUserProfile(data.profile);
+        setNewSocialLinks(data.profile.links || {});
+        setProjects(data.projects);
+        setEvents(data.events);
+        
       } catch (error) {
         console.error("Error fetching data:", error);
       } finally {
@@ -210,12 +95,16 @@ export default function ProfilePage() {
     if (!newDisplayName.trim()) return;
 
     try {
-      const { error } = await supabase
-        .from("user_profiles")
-        .update({ display_name: newDisplayName })
-        .eq("uid", userId);
+      const response = await fetch(`/api/users/${userId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ display_name: newDisplayName }),
+      });
 
-      if (error) throw error;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update display name');
+      }
 
       toast({
         title: "Display name updated",
@@ -228,7 +117,7 @@ export default function ProfilePage() {
     } catch (error) {
       toast({
         title: "Error updating display name",
-        description: "Please try again later",
+        description: error instanceof Error ? error.message : "Please try again later",
         variant: "destructive",
       });
       console.error("Error updating display name:", error);
@@ -237,12 +126,16 @@ export default function ProfilePage() {
 
   const handleUpdateSocialLinks = async () => {
     try {
-      const { error } = await supabase
-        .from("user_profiles")
-        .update({ links: newSocialLinks })
-        .eq("uid", userId);
+      const response = await fetch(`/api/users/${userId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ links: newSocialLinks }),
+      });
 
-      if (error) throw error;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update social links');
+      }
 
       toast({
         title: "Social links updated",
@@ -255,7 +148,7 @@ export default function ProfilePage() {
     } catch (error) {
       toast({
         title: "Error updating social links",
-        description: "Please try again later",
+        description: error instanceof Error ? error.message : "Please try again later",
         variant: "destructive",
       });
       console.error("Error updating social links:", error);

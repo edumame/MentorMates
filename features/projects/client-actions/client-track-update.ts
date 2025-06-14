@@ -30,7 +30,7 @@ export async function fetchEventTracks(
     .eq("event_id", eventId)
     .order("name");
 
-  return { data, error };
+  return { data: data as EventTrack[] | null, error };
 }
 
 // Fetch current tracks for a project
@@ -63,7 +63,7 @@ export async function fetchProjectTracks(
   }
 
   // Extract the event_tracks from the nested structure and properly type it
-  const tracks = data?.flatMap((item: ProjectTrackResponse) => item.event_tracks).filter(Boolean) || [];
+  const tracks = data?.flatMap((item: unknown) => (item as { event_tracks: EventTrack[] }).event_tracks).filter(Boolean) || [];
   return { data: tracks, error: null };
 }
 

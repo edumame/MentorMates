@@ -21,7 +21,7 @@ export default function ProjectsPage() {
       setSession(session);
       
       if (session?.user?.email) {
-        await fetchProjects(session.user.email);
+        await fetchProjects();
       }
       setIsLoading(false);
     };
@@ -29,28 +29,18 @@ export default function ProjectsPage() {
     getSession();
   }, []);
 
-  const fetchProjects = async (userEmail: string) => {
-    // Get projects where user is lead
-    const { data: leadProjects } = await supabase
-      .from("projects")
-      .select("*")
-      .eq("lead_email", userEmail);
-
-    // Get projects where user is teammate
-    const { data: teamProjects } = await supabase
-      .from("projects")
-      .select("*")
-      .contains("teammates", [userEmail]);
-
-    // Combine and deduplicate
-    const allProjects = [
-      ...(leadProjects || []),
-      ...(teamProjects || []),
-    ].filter(
-      (proj, idx, arr) => idx === arr.findIndex((p) => p.id === proj.id)
-    );
-
-    setProjects(allProjects);
+  const fetchProjects = async () => {
+    try {
+      const response = await fetch('/api/projects/user');
+      if (!response.ok) {
+        throw new Error('Failed to fetch projects');
+      }
+      const data = await response.json();
+      setProjects(data.projects || []);
+    } catch (error) {
+      console.error('Error fetching projects:', error);
+      setProjects([]);
+    }
   };
 
   if (isLoading) {
