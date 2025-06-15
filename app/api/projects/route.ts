@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import {
   EventRole,
+  EventTrack,
   Prize,
   ProjectFromDatabase,
   ProjectWithPrizes,
@@ -50,7 +51,10 @@ export async function GET(request: NextRequest) {
         `
         )
         .eq("event_id", eventId)
-        .order("project_name");
+        .order("project_name")
+        .overrideTypes<
+          Array<{ project_tracks: Array<{ event_tracks: EventTrack }> }>
+        >();
 
       if (error) {
         console.error("Error fetching projects:", error);
@@ -72,12 +76,11 @@ export async function GET(request: NextRequest) {
         cover_image_url: item.cover_image_url,
         event_id: item.event_id,
         tracks:
-          item.project_tracks
-            ?.map((pt) => pt.event_tracks?.[0])
-            .filter(Boolean) || [],
+          item.project_tracks?.map((pt) => pt.event_tracks).filter(Boolean) ||
+          [],
         track_ids:
           item.project_tracks
-            ?.map((pt) => pt.event_tracks?.[0]?.track_id)
+            ?.map((pt) => pt.event_tracks?.track_id)
             .filter(Boolean) || [],
         created_at: item.created_at,
       }));
@@ -85,7 +88,7 @@ export async function GET(request: NextRequest) {
       // Fetch prizes for all projects
       if (projects.length > 0) {
         const projectIds = projects.map((p) => p.id);
-        const { data: prizesData, error: prizesError } = await supabase
+        const { data: prizesData } = await supabase
           .from("prizes")
           .select(
             `
@@ -93,27 +96,46 @@ export async function GET(request: NextRequest) {
             track_id,
             prize_amount,
             prize_description,
-            assigned_at,
-            winning_project_id
+            prize_winners (
+              id,
+              project_id,
+              assigned_at,
+              assigned_by,
+              projects (
+                id,
+                project_name,
+                lead_name,
+                event_id
+              )
+            )
           `
           )
-          .in("winning_project_id", projectIds);
-
-        if (prizesError) {
-          console.error("Error fetching prizes:", prizesError);
-          return NextResponse.json(
-            { error: "Failed to fetch prizes" },
-            { status: 500 }
-          );
-        }
+          .in("prize_winners.project_id", projectIds);
 
         if (prizesData) {
-          const prizesByProject = prizesData.reduce((acc, prize) => {
-            const projectId = prize.winning_project_id!;
-            if (!acc[projectId]) acc[projectId] = [];
-            acc[projectId].push(prize);
-            return acc;
-          }, {} as Record<string, typeof prizesData>);
+          const prizesByProject: Record<string, Prize[]> = {};
+
+          // Iterate through each prize and its winners
+          prizesData.forEach((prize) => {
+            if (prize.prize_winners && prize.prize_winners.length > 0) {
+              prize.prize_winners.forEach((winner) => {
+                const projectId = winner.project_id;
+                if (projectId) {
+                  if (!prizesByProject[projectId]) {
+                    prizesByProject[projectId] = [];
+                  }
+                  prizesByProject[projectId].push({
+                    id: prize.id,
+                    track_id: prize.track_id,
+                    prize_amount: prize.prize_amount,
+                    prize_description: prize.prize_description,
+                    assigned_at: winner.assigned_at,
+                    assigned_by: winner.assigned_by,
+                  });
+                }
+              });
+            }
+          });
 
           projects.forEach(
             (project: { id: string; [key: string]: unknown }) => {
@@ -170,7 +192,10 @@ export async function GET(request: NextRequest) {
         `
         )
         .eq("id", projectId)
-        .single();
+        .single()
+        .overrideTypes<{
+          project_tracks: Array<{ event_tracks: EventTrack }>;
+        }>();
 
       if (error) {
         console.error("Error fetching project:", error);
@@ -194,32 +219,51 @@ export async function GET(request: NextRequest) {
         event_id: project.event_id,
         tracks:
           project.project_tracks
-            ?.map((pt) => pt.event_tracks?.[0])
+            ?.map((pt) => pt.event_tracks)
             .filter(Boolean) || [],
         track_ids:
           project.project_tracks
-            ?.map((pt) => pt.event_tracks?.[0]?.track_id)
+            ?.map((pt) => pt.event_tracks?.track_id)
             .filter(Boolean) || [],
         created_at: project.created_at,
       };
 
-      // Fetch prizes for this project
-      const { data: prizesData } = await supabase
-        .from("prizes")
+      // Fetch prizes for this project by starting from prize_winners
+      const { data: prizeWinnersData } = await supabase
+        .from("prize_winners")
         .select(
           `
-          id,
-          track_id,
-          prize_amount,
-          prize_description,
-          assigned_at
-        `
+            id,
+            project_id,
+            assigned_at,
+            assigned_by,
+            prizes (
+              id,
+              track_id,
+              prize_amount,
+              prize_description
+            )
+          `
         )
-        .eq("winning_project_id", projectId);
+        .eq("project_id", transformedProject.id)
+        .overrideTypes<
+          Array<{
+            id: string;
+            project_id: string;
+            assigned_at: string;
+            assigned_by: string;
+            prizes: {
+              id: string;
+              track_id: string;
+              prize_amount: number;
+              prize_description: string;
+            };
+          }>
+        >();
 
-      if (prizesData) {
+      if (prizeWinnersData) {
         (transformedProject as unknown as ProjectWithPrizes).prizes_won =
-          prizesData as Prize[];
+          prizeWinnersData as unknown as Prize[];
       }
 
       return NextResponse.json({ project: transformedProject });
