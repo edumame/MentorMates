@@ -238,7 +238,7 @@ export interface ProjectFromDatabase {
   event_id: string;
   created_at: string;
   project_tracks?: Array<{
-    event_tracks?: EventTrack[];
+    event_tracks?: EventTrack;
   }>;
 }
 
