@@ -161,7 +161,7 @@ export function BasicInfoTab({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="event_description">Description</Label>
+        <Label htmlFor="event_description">Description (Markdown Supported)</Label>
         <Textarea
           id="event_description"
           value={event.event_description}

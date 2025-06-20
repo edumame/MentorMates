@@ -35,6 +35,7 @@ export type EventItem = {
 export interface ScheduleEvent {
   name: string;
   time: string;
+  description?: string;
 }
 
 export interface ScheduleDay {
@@ -87,6 +88,7 @@ export interface EventDetails extends EventItem {
   rules: Rule[];
   event_tracks?: EventTrack[];
   role_labels?: Record<string, string>;
+  faq?: string; // Optional markdown FAQ content
 }
 
 // Project Types

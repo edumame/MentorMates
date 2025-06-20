@@ -171,14 +171,21 @@ export default async function EventOverviewPage({ params }: PageProps) {
                     {day.events.map((event: ScheduleEvent, eIdx: number) => (
                       <div
                         key={eIdx}
-                        className="flex justify-between items-center border-b pb-2 last:border-0"
+                        className="border-b pb-3 last:border-0 last:pb-0"
                       >
-                        <span className="font-medium text-gray-800">
-                          {event.name}
-                        </span>
-                        <span className="text-gray-500 whitespace-nowrap">
-                          {event.time}
-                        </span>
+                        <div className="flex justify-between items-start mb-1">
+                          <span className="font-medium text-gray-800">
+                            {event.name}
+                          </span>
+                          <span className="text-gray-500 whitespace-nowrap">
+                            {event.time}
+                          </span>
+                        </div>
+                        {event.description && (
+                          <div className="prose prose-sm prose-blue max-w-none text-gray-600 mt-2">
+                            <ReactMarkdown>{event.description}</ReactMarkdown>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -262,6 +269,22 @@ export default async function EventOverviewPage({ params }: PageProps) {
                   </span>
                 </a>
               ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* FAQ */}
+      {typedEvent.faq && (
+        <Card className="shadow-lg rounded-lg mb-8">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-2xl font-semibold text-gray-800">
+              Frequently Asked Questions
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="prose prose-blue max-w-none">
+              <ReactMarkdown>{typedEvent.faq}</ReactMarkdown>
             </div>
           </CardContent>
         </Card>

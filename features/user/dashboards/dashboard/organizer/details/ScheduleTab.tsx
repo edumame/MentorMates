@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { TrashIcon } from "lucide-react";
 import { EventDetails } from "@/lib/types";
 import { toast as ToastType } from "@/lib/hooks/use-toast";
@@ -91,55 +92,75 @@ export function ScheduleTab({
           {day.events.map((scheduleEvent, eventIndex) => (
             <div
               key={eventIndex}
-              className="grid grid-cols-[1fr_1fr_auto] gap-4"
+              className="space-y-4 border p-4 rounded-lg bg-gray-50"
             >
-              <div className="space-y-2">
-                <Label>Event Name</Label>
-                <Input
-                  value={scheduleEvent.name}
-                  onChange={(e) => {
+              <div className="grid grid-cols-[1fr_1fr_auto] gap-4">
+                <div className="space-y-2">
+                  <Label>Event Name</Label>
+                  <Input
+                    value={scheduleEvent.name}
+                    onChange={(e) => {
+                      const newSchedule = [...event.event_schedule];
+                      newSchedule[dayIndex].events[eventIndex].name =
+                        e.target.value;
+                      setEvent({
+                        ...event,
+                        event_schedule: newSchedule,
+                      });
+                    }}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Time</Label>
+                  <Input
+                    value={scheduleEvent.time}
+                    onChange={(e) => {
+                      const newSchedule = [...event.event_schedule];
+                      newSchedule[dayIndex].events[eventIndex].time =
+                        e.target.value;
+                      setEvent({
+                        ...event,
+                        event_schedule: newSchedule,
+                      });
+                    }}
+                  />
+                </div>
+                <Button
+                  variant="destructive"
+                  size="icon"
+                  className="self-end"
+                  onClick={() => {
                     const newSchedule = [...event.event_schedule];
-                    newSchedule[dayIndex].events[eventIndex].name =
-                      e.target.value;
+                    newSchedule[dayIndex].events = newSchedule[
+                      dayIndex
+                    ].events.filter((_, i) => i !== eventIndex);
                     setEvent({
                       ...event,
                       event_schedule: newSchedule,
                     });
                   }}
-                />
+                >
+                  <TrashIcon className="h-4 w-4" />
+                </Button>
               </div>
+              
               <div className="space-y-2">
-                <Label>Time</Label>
-                <Input
-                  value={scheduleEvent.time}
+                <Label>Description (Optional - Markdown Supported)</Label>
+                <Textarea
+                  value={scheduleEvent.description || ""}
                   onChange={(e) => {
                     const newSchedule = [...event.event_schedule];
-                    newSchedule[dayIndex].events[eventIndex].time =
-                      e.target.value;
+                    newSchedule[dayIndex].events[eventIndex].description =
+                      e.target.value || undefined;
                     setEvent({
                       ...event,
                       event_schedule: newSchedule,
                     });
                   }}
+                  placeholder="Add optional markdown description for this event..."
+                  rows={3}
                 />
               </div>
-              <Button
-                variant="destructive"
-                size="icon"
-                className="self-end"
-                onClick={() => {
-                  const newSchedule = [...event.event_schedule];
-                  newSchedule[dayIndex].events = newSchedule[
-                    dayIndex
-                  ].events.filter((_, i) => i !== eventIndex);
-                  setEvent({
-                    ...event,
-                    event_schedule: newSchedule,
-                  });
-                }}
-              >
-                <TrashIcon className="h-4 w-4" />
-              </Button>
             </div>
           ))}
 
@@ -150,6 +171,7 @@ export function ScheduleTab({
               newSchedule[dayIndex].events.push({
                 name: "",
                 time: "",
+                description: undefined,
               });
               setEvent({ ...event, event_schedule: newSchedule });
             }}
@@ -166,7 +188,7 @@ export function ScheduleTab({
             ...event,
             event_schedule: [
               ...event.event_schedule,
-              { time: "", events: [{ name: "", time: "" }] },
+              { time: "", events: [{ name: "", time: "", description: undefined }] },
             ],
           });
         }}
