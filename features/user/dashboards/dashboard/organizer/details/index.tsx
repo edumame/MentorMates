@@ -12,6 +12,7 @@ import { BasicInfoTab } from "./BasicInfoTab";
 import { ScheduleTab } from "./ScheduleTab";
 import { ResourcesTab } from "./ResourcesTab";
 import { RulesTab } from "./RulesTab";
+import { FAQTab } from "./FAQTab";
 
 interface EventDetailsTabProps {
   event: EventDetails;
@@ -39,11 +40,12 @@ export function EventDetailsTab({
       </CardHeader>
       <CardContent>
         <Tabs value={activeSubTab} onValueChange={setActiveSubTab}>
-          <TabsList className="grid grid-cols-2 md:grid-cols-4 mb-6 gap-4 w-full h-auto">
+          <TabsList className="grid grid-cols-2 md:grid-cols-5 mb-6 gap-4 w-full h-auto">
             <TabsTrigger value="basic-info" className="flex-1">Basic Information</TabsTrigger>
             <TabsTrigger value="schedule" className="flex-1">Schedule</TabsTrigger>
             <TabsTrigger value="resources" className="flex-1">Resources</TabsTrigger>
             <TabsTrigger value="rules" className="flex-1">Rules</TabsTrigger>
+            <TabsTrigger value="faq" className="flex-1">FAQ</TabsTrigger>
           </TabsList>
 
           {/* Basic Information */}
@@ -83,6 +85,17 @@ export function EventDetailsTab({
           {/* Rules */}
           <TabsContent value="rules">
             <RulesTab
+              event={event}
+              setEvent={setEvent}
+              saving={saving}
+              setSaving={setSaving}
+              toast={toast}
+            />
+          </TabsContent>
+
+          {/* FAQ */}
+          <TabsContent value="faq">
+            <FAQTab
               event={event}
               setEvent={setEvent}
               saving={saving}
