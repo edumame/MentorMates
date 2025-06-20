@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { EventRole, EventItem, EventVisibility } from "@/lib/types";
 import { toast } from "@/lib/hooks/use-toast";
 import { getRoleLabel } from "@/features/user/roles/roles";
+import { fetchPrice } from "@/app/actions/stripe";
 
 export interface JoinEventButtonProps {
   eventId: string;
@@ -43,6 +44,8 @@ export function JoinEventButton({ eventId, eventName }: JoinEventButtonProps) {
     null
   );
   const router = useRouter();
+  const [price, setPrice] = useState<number | null>(null);
+  const [isLoadingPrice, setIsLoadingPrice] = useState(false);
 
   useEffect(() => {
     async function init() {
@@ -65,6 +68,11 @@ export function JoinEventButton({ eventId, eventName }: JoinEventButtonProps) {
         // Set initial password visibility based on event settings
         if (eventData?.visibility === EventVisibility.Private) {
           setShowPasswordInput(true);
+        }
+
+        // Fetch price if event is paid
+        if (eventData?.paid && eventData?.stripe_price_id) {
+          getPrice(eventData.stripe_price_id);
         }
 
         const {
@@ -106,6 +114,18 @@ export function JoinEventButton({ eventId, eventName }: JoinEventButtonProps) {
     }
   };
 
+  const getPrice = async (priceId: string) => {
+    try {
+      setIsLoadingPrice(true);
+      const fetchedPrice = await fetchPrice(priceId);
+      setPrice(fetchedPrice);
+    } catch (error) {
+      console.error("Error fetching price:", error);
+    } finally {
+      setIsLoadingPrice(false);
+    }
+  };
+
   const handleJoinEvent = async () => {
     try {
       setIsLoading(true);
@@ -116,6 +136,28 @@ export function JoinEventButton({ eventId, eventName }: JoinEventButtonProps) {
       if (!session) {
         localStorage.setItem("returnUrl", window.location.pathname);
         router.push("/login");
+        return;
+      }
+
+      // Check if event is paid and redirect to checkout
+      if (event?.paid) {
+
+        // Store the event join intent in localStorage for after payment
+        localStorage.setItem("joinEventIntent", JSON.stringify({
+          eventId,
+          role: selectedRole,
+          password: showPasswordInput ? password : undefined,
+          userId: session.user.id,
+        }));
+        
+        // Redirect to checkout with event information
+        const searchParams = new URLSearchParams({
+          eventId: event.slug || eventId,
+          eventName: event.event_name,
+          ...(event.stripe_price_id && { stripePriceId: event.stripe_price_id })
+        });
+        
+        router.push(`/checkout?${searchParams.toString()}`);
         return;
       }
 
@@ -168,7 +210,17 @@ export function JoinEventButton({ eventId, eventName }: JoinEventButtonProps) {
     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
       <DialogTrigger asChild>
         <Button className="bg-blue-700 hover:bg-blue-800">
-          Join {eventName}
+          {event?.paid ? (
+            isLoadingPrice ? (
+              `Join ${eventName} - Loading...`
+            ) : price !== null ? (
+              `Join ${eventName} - $${price.toFixed(2)}`
+            ) : (
+              `Join ${eventName} - Paid Event`
+            )
+          ) : (
+            `Join ${eventName} - Free Event`
+          )}
         </Button>
       </DialogTrigger>
       <DialogContent>

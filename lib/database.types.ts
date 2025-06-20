@@ -69,10 +69,12 @@ export type Database = {
           event_resources: Json | null
           event_schedule: Json | null
           location: string | null
+          paid: boolean | null
           role_labels: Json | null
           rules: Json
           scoring_config: Json | null
           slug: string | null
+          stripe_price_id: string | null
           submission_time_cutoff: string | null
           submission_time_start: string | null
           visibility: Database["public"]["Enums"]["event_visibility"]
@@ -89,10 +91,12 @@ export type Database = {
           event_resources?: Json | null
           event_schedule?: Json | null
           location?: string | null
+          paid?: boolean | null
           role_labels?: Json | null
           rules: Json
           scoring_config?: Json | null
           slug?: string | null
+          stripe_price_id?: string | null
           submission_time_cutoff?: string | null
           submission_time_start?: string | null
           visibility?: Database["public"]["Enums"]["event_visibility"]
@@ -109,10 +113,12 @@ export type Database = {
           event_resources?: Json | null
           event_schedule?: Json | null
           location?: string | null
+          paid?: boolean | null
           role_labels?: Json | null
           rules?: Json
           scoring_config?: Json | null
           slug?: string | null
+          stripe_price_id?: string | null
           submission_time_cutoff?: string | null
           submission_time_start?: string | null
           visibility?: Database["public"]["Enums"]["event_visibility"]
@@ -523,6 +529,7 @@ export type Database = {
           email: string | null
           links: Json | null
           pulse: number
+          stripe_customer_id: string | null
           uid: string
         }
         Insert: {
@@ -531,6 +538,7 @@ export type Database = {
           email?: string | null
           links?: Json | null
           pulse?: number
+          stripe_customer_id?: string | null
           uid: string
         }
         Update: {
@@ -539,6 +547,7 @@ export type Database = {
           email?: string | null
           links?: Json | null
           pulse?: number
+          stripe_customer_id?: string | null
           uid?: string
         }
         Relationships: []

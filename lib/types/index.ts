@@ -29,6 +29,8 @@ export type EventItem = {
   visibility?: EventVisibility;
   cover_image_url?: string;
   scoring_config?: EventScoringConfig;
+  paid?: boolean; 
+  stripe_price_id?: string; // Stripe price ID for paid events
 };
 
 // Event Overview Types
