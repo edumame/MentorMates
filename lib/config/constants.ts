@@ -1,3 +1,4 @@
+import Stripe from "stripe";
 import { ScoringCriterion } from "../types";
 
 // Admin User IDs type
@@ -79,3 +80,21 @@ export const ADMIN_USER_IDS: AdminUserId[] = [
   "e4182548-e05d-4201-bc61-fe5d76a7a7ce", // Matthew dev
   "a91610aa-5324-4978-b75d-2994ba3e15fd" // Chinat dev
 ];
+
+
+export const STRIPE_SUCCESSFUL_EVENT_TYPES: Stripe.Event.Type[] = [
+    "checkout.session.completed",
+    "customer.subscription.created",
+    "customer.subscription.resumed",
+    "invoice.paid",
+    "invoice.payment_succeeded",
+    "payment_intent.succeeded",
+];
+
+export const STRIPE_FAILED_EVENT_TYPES: Stripe.Event.Type[] = [
+    "customer.subscription.deleted",
+    "customer.subscription.paused",
+    "invoice.payment_failed",
+    "payment_intent.payment_failed",
+    "payment_intent.canceled",
+  ];

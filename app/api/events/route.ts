@@ -11,12 +11,14 @@ export async function GET() {
     const {
       data: { user },
     } = await supabase.auth.getUser();
-    
+
     if (!user) {
       // If not authenticated, only return public and private events
       const { data: visibleEvents, error: visibleError } = await supabase
         .from("events")
-        .select("*")
+        .select(
+          "event_id, event_name, event_slug, event_blurb"
+        )
         .in("visibility", [EventVisibility.Public, EventVisibility.Private]);
 
       if (visibleError) throw visibleError;
@@ -35,11 +37,11 @@ export async function GET() {
 
     // Check if user is an admin in any event
     const isAdmin = ADMIN_USER_IDS.includes(userId);
-    
+
     // Get event IDs where user is an organizer
     const organizerEventIds = userRoles
-      .filter(role => role.role === EventRole.Organizer)
-      .map(role => role.event_id);
+      .filter((role) => role.role === EventRole.Organizer)
+      .map((role) => role.event_id);
 
     // Build query for events based on visibility and user role
     let query = supabase.from("events").select("*");
@@ -53,12 +55,15 @@ export async function GET() {
       // - Draft events where user is an organizer
       // - No demo or test events
       query = query.or(
-        `visibility.in.(${[EventVisibility.Public, EventVisibility.Private].join(",")}),` + 
-        `and(visibility.eq.${EventVisibility.Draft},event_id.in.(${organizerEventIds.join(",")}))`
+        `visibility.in.(${[EventVisibility.Public, EventVisibility.Private].join(",")}),` +
+          `and(visibility.eq.${EventVisibility.Draft},event_id.in.(${organizerEventIds.join(",")}))`
       );
     } else {
       // Regular users only see public and private events
-      query = query.in("visibility", [EventVisibility.Public, EventVisibility.Private]);
+      query = query.in("visibility", [
+        EventVisibility.Public,
+        EventVisibility.Private,
+      ]);
     }
 
     const { data: events, error: eventsError } = await query;
@@ -66,8 +71,10 @@ export async function GET() {
     if (eventsError) throw eventsError;
 
     // Include user role with each event
-    const eventsWithRole = events.map(event => {
-      const userRole = userRoles.find(role => role.event_id === event.event_id)?.role || null;
+    const eventsWithRole = events.map((event) => {
+      const userRole =
+        userRoles.find((role) => role.event_id === event.event_id)?.role ||
+        null;
       return { ...event, userRole };
     });
 
@@ -79,4 +86,4 @@ export async function GET() {
       { status: 500 }
     );
   }
-} 
+}

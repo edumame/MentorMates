@@ -7,7 +7,9 @@ export const dynamic = "force-dynamic";
 
 export default async function EventsPage() {
   const supabase = await createSupabaseClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   const isAuthenticated = !!user;
 
   async function fetchAuthenticatedUserEvents() {
@@ -94,14 +96,14 @@ export default async function EventsPage() {
       // Only fetch public and private events
       const { data: events, error } = await supabase
         .from("events")
-        .select("*")
+        .select("event_id, event_name, event_slug, event_blurb, event_overview")
         .in("visibility", [EventVisibility.Public, EventVisibility.Private])
         .order("event_date", { ascending: false });
 
       if (error) throw error;
 
       // For non-authenticated users, userRole is always null
-      return events.map(event => ({ ...event, userRole: null }));
+      return events.map((event) => ({ ...event, userRole: null }));
     } catch (error) {
       console.error("Error fetching public events:", error);
       return [];
@@ -109,10 +111,10 @@ export default async function EventsPage() {
   }
 
   // Fetch events based on authentication status
-  const events = isAuthenticated 
-    ? await fetchAuthenticatedUserEvents() 
+  const events = isAuthenticated
+    ? await fetchAuthenticatedUserEvents()
     : await fetchPublicEvents();
-  
+
   const eventsList = events || [];
 
   return (

@@ -1,5 +1,11 @@
 import { stripe } from "@/lib/stripe/stripe";
 import { NextResponse } from "next/server";
+import { createSupabaseClient } from "@/app/utils/supabase/server";
+import {
+  STRIPE_FAILED_EVENT_TYPES,
+  STRIPE_SUCCESSFUL_EVENT_TYPES,
+} from "@/lib/config/constants";
+import Stripe from "stripe";
 
 export async function POST(req: Request) {
   const body = await req.text();
@@ -9,20 +15,65 @@ export async function POST(req: Request) {
     return new Response("Missing Stripe signature", { status: 400 });
   }
 
-  const event = stripe.webhooks.constructEvent(
-    body,
-    signature,
-    process.env.STRIPE_WEBHOOK_SECRET!
-  );
+  async function doEventHandling() {
+    if (typeof signature !== "string") {
+      throw new Error("Invalid Stripe signature");
+    }
 
-  if (!event) {
-    return new Response("Invalid Stripe event", { status: 400 });
+    const event = stripe.webhooks.constructEvent(
+      body,
+      signature,
+      process.env.STRIPE_WEBHOOK_SECRET!
+    );
+
+    await handleEvent(event);
   }
 
-  if (event.type === "payment_intent.succeeded") {
-    console.log("Payment intent succeeded");
+  try {
+    await doEventHandling();
+  } catch (error) {
+    console.error("Stripe processing error: ", error);
   }
 
   return NextResponse.json({ received: true }, { status: 200 });
+}
 
+async function handleEvent(event: Stripe.Event) {
+  const supabase = await createSupabaseClient();
+  if (
+    !STRIPE_SUCCESSFUL_EVENT_TYPES.includes(event.type) &&
+    !STRIPE_FAILED_EVENT_TYPES.includes(event.type)
+  ) {
+    return;
+  }
+
+  const stripeCustomerId = event.data.object as { customer: string };
+  console.log("stripeCustomerId", stripeCustomerId);
+
+  console.log(`Processing Stripe event: ${event.type}`);
+
+  if (STRIPE_SUCCESSFUL_EVENT_TYPES.includes(event.type)) {
+    console.log("Payment intent succeeded");
+    const { data: userEventPayment } = await supabase
+      .from("user_event_payments")
+      .update({
+        payment_status: "paid",
+      })
+      .eq("stripe_customer_id", stripeCustomerId.customer)
+      .select();
+
+    if (!userEventPayment) {
+      throw new Error("Failed to update user event payment");
+    }
+  }
+
+  else if (STRIPE_FAILED_EVENT_TYPES.includes(event.type)) {
+    console.log("Payment intent failed");
+    await supabase
+      .from("user_event_payments")
+      .update({
+        payment_status: "canceled",
+      })
+      .eq("stripe_customer_id", stripeCustomerId.customer)
+  }
 }

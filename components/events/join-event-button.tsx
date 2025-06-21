@@ -23,7 +23,6 @@ import { Input } from "@/components/ui/input";
 import { EventRole, EventItem, EventVisibility } from "@/lib/types";
 import { toast } from "@/lib/hooks/use-toast";
 import { getRoleLabel } from "@/features/user/roles/roles";
-import { fetchPrice } from "@/app/actions/stripe";
 
 export interface JoinEventButtonProps {
   eventId: string;
@@ -71,8 +70,10 @@ export function JoinEventButton({ eventId, eventName }: JoinEventButtonProps) {
         }
 
         // Fetch price if event is paid
-        if (eventData?.paid && eventData?.stripe_price_id) {
-          getPrice(eventData.stripe_price_id);
+        if (eventData?.paid && eventData?.price) {
+          setIsLoadingPrice(true);
+          setPrice(eventData.price / 100);
+          setIsLoadingPrice(false);
         }
 
         const {
@@ -102,7 +103,6 @@ export function JoinEventButton({ eventId, eventName }: JoinEventButtonProps) {
   }, [eventId]);
 
   const handleRoleSelect = (value: EventRole) => {
-    console.log("event", event);
     setSelectedRole(value);
     // Show password input for protected roles
     if (event?.visibility === EventVisibility.Private) {
@@ -111,18 +111,6 @@ export function JoinEventButton({ eventId, eventName }: JoinEventButtonProps) {
       setShowPasswordInput(
         value === EventRole.Judge || value === EventRole.Organizer
       );
-    }
-  };
-
-  const getPrice = async (priceId: string) => {
-    try {
-      setIsLoadingPrice(true);
-      const fetchedPrice = await fetchPrice(priceId);
-      setPrice(fetchedPrice);
-    } catch (error) {
-      console.error("Error fetching price:", error);
-    } finally {
-      setIsLoadingPrice(false);
     }
   };
 
@@ -140,25 +128,43 @@ export function JoinEventButton({ eventId, eventName }: JoinEventButtonProps) {
       }
 
       // Check if event is paid and redirect to checkout
-      if (event?.paid) {
+      if (
+        event?.paid &&
+        selectedRole !== EventRole.Organizer &&
+        selectedRole !== EventRole.Judge
+      ) {
+        const { data: userPaidStatus } = await supabase
+          .from("user_event_payments")
+          .select("payment_status")
+          .eq("user_id", session.user.id)
+          .eq("event_id", eventId)
+          .maybeSingle();
 
-        // Store the event join intent in localStorage for after payment
-        localStorage.setItem("joinEventIntent", JSON.stringify({
-          eventId,
-          role: selectedRole,
-          password: showPasswordInput ? password : undefined,
-          userId: session.user.id,
-        }));
-        
-        // Redirect to checkout with event information
-        const searchParams = new URLSearchParams({
-          eventId: event.slug || eventId,
-          eventName: event.event_name,
-          ...(event.stripe_price_id && { stripePriceId: event.stripe_price_id })
-        });
-        
-        router.push(`/checkout?${searchParams.toString()}`);
-        return;
+        if (userPaidStatus?.payment_status !== "paid") {
+          // Store the event join intent in localStorage for after payment
+          localStorage.setItem(
+            "joinEventIntent",
+            JSON.stringify({
+              eventId,
+              role: selectedRole,
+              password: showPasswordInput ? password : undefined,
+              userId: session.user.id,
+            })
+          );
+
+          // Redirect to checkout with event information
+          const searchParams = new URLSearchParams({
+            eventId: eventId,
+            eventSlug: event.slug || eventId,
+            eventName: event.event_name,
+            ...(event.stripe_price_id && {
+              stripePriceId: event.stripe_price_id,
+            }),
+          });
+
+          router.push(`/checkout?${searchParams.toString()}`);
+          return;
+        }
       }
 
       // Use the verify endpoint for all roles
@@ -210,17 +216,13 @@ export function JoinEventButton({ eventId, eventName }: JoinEventButtonProps) {
     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
       <DialogTrigger asChild>
         <Button className="bg-blue-700 hover:bg-blue-800">
-          {event?.paid ? (
-            isLoadingPrice ? (
-              `Join ${eventName} - Loading...`
-            ) : price !== null ? (
-              `Join ${eventName} - $${price.toFixed(2)}`
-            ) : (
-              `Join ${eventName} - Paid Event`
-            )
-          ) : (
-            `Join ${eventName} - Free Event`
-          )}
+          {event?.paid
+            ? isLoadingPrice
+              ? `Join ${eventName} - Loading...`
+              : price !== null
+                ? `Join ${eventName} - $${price.toFixed(2)}`
+                : `Join ${eventName} - Paid Event`
+            : `Join ${eventName} - Free Event`}
         </Button>
       </DialogTrigger>
       <DialogContent>
