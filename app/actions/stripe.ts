@@ -47,7 +47,6 @@ export async function fetchClientSecret(options?: CheckoutOptions) {
       .single();
     
     if (userProfileError) {
-      console.error("Error updating user profile", userProfileError);
       throw new Error("Failed to update user profile with Stripe customer ID");
     }
     

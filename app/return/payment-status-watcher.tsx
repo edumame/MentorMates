@@ -45,7 +45,6 @@ export function PaymentStatusWatcher({ sessionId, eventId, customerEmail }: Paym
           .single();
 
         if (fetchError) {
-          console.error('Error fetching payment record:', fetchError);
           setError('Failed to fetch payment status');
           setIsLoading(false);
           
@@ -68,7 +67,6 @@ export function PaymentStatusWatcher({ sessionId, eventId, customerEmail }: Paym
           // If payment is still processing, set up a 3-second timer to check again
           if (payment.payment_status === 'processing') {
             processingTimer = setTimeout(() => {
-              console.log('Payment still processing after 3 seconds, remounting...');
               setRemountKey(prev => prev + 1);
             }, 3000);
           }
@@ -85,7 +83,6 @@ export function PaymentStatusWatcher({ sessionId, eventId, customerEmail }: Paym
                 filter: `id=eq.${payment.id}`,
               },
               (payload: { new: UserEventPayment }) => {
-                console.log('Payment status updated:', payload);
                 const updatedPayment = payload.new;
                 setPaymentStatus(updatedPayment.payment_status);
                 
@@ -112,7 +109,6 @@ export function PaymentStatusWatcher({ sessionId, eventId, customerEmail }: Paym
           }
         }
       } catch (err) {
-        console.error('Error setting up payment watcher:', err);
         setError('Failed to initialize payment watcher');
         setIsLoading(false);
         
