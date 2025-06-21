@@ -28,7 +28,6 @@ export async function fetchClientSecret(options?: CheckoutOptions) {
     .eq("uid", user.id)
     .maybeSingle();
 
-  console.log("userProfile", userProfile);
 
   if (!userProfile?.stripe_customer_id) {
     const customer = await stripe.customers.create({
@@ -36,7 +35,6 @@ export async function fetchClientSecret(options?: CheckoutOptions) {
         userId: user.id,
       },
     });
-    console.log("customer", customer);
 
     // Update the stripe_customer_id and get the updated record
     const { data: updatedUserProfile, error: userProfileError } = await supabase
@@ -55,7 +53,6 @@ export async function fetchClientSecret(options?: CheckoutOptions) {
     
     // Update the userProfile variable with the updated data
     userProfile = updatedUserProfile;
-    console.log("Updated userProfile", userProfile);
   }
 
   let lineItems;

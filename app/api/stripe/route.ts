@@ -48,12 +48,9 @@ async function handleEvent(event: Stripe.Event) {
   }
 
   const stripeCustomerId = event.data.object as { customer: string };
-  console.log("stripeCustomerId", stripeCustomerId);
 
-  console.log(`Processing Stripe event: ${event.type}`);
 
   if (STRIPE_SUCCESSFUL_EVENT_TYPES.includes(event.type)) {
-    console.log("Payment intent succeeded");
     const { data: userEventPayment } = await supabase
       .from("user_event_payments")
       .update({
@@ -68,7 +65,6 @@ async function handleEvent(event: Stripe.Event) {
   }
 
   else if (STRIPE_FAILED_EVENT_TYPES.includes(event.type)) {
-    console.log("Payment intent failed");
     await supabase
       .from("user_event_payments")
       .update({
