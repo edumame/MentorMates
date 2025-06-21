@@ -52,7 +52,16 @@ export function JoinEventButton({ eventId, eventName }: JoinEventButtonProps) {
         // Fetch the event details and role labels regardless of auth state
         const { data: eventData, error: eventError } = await supabase
           .from("events")
-          .select("*")
+          .select(`
+            event_id,
+            event_name,
+            event_date,
+            location,
+            paid,
+            price,
+            visibility,
+            role_labels
+          `)
           .eq("event_id", eventId)
           .maybeSingle();
 
@@ -213,7 +222,7 @@ export function JoinEventButton({ eventId, eventName }: JoinEventButtonProps) {
   }
 
   return (
-    <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+    <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen} aria-describedby="join-event-dialog">
       <DialogTrigger asChild>
         <Button className="bg-blue-700 hover:bg-blue-800">
           {event?.paid
@@ -225,7 +234,7 @@ export function JoinEventButton({ eventId, eventName }: JoinEventButtonProps) {
             : `Join ${eventName} - Free Event`}
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent aria-describedby="join-event-dialog">
         <DialogHeader>
           <DialogTitle>Choose Your Role</DialogTitle>
         </DialogHeader>

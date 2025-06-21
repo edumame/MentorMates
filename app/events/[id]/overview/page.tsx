@@ -45,7 +45,19 @@ export default async function EventOverviewPage({ params }: PageProps) {
 
   const isUUID = isValidUUID(id);
 
-  let query = supabase.from("events").select("*");
+  let query = supabase.from("events").select(`
+    event_id, 
+    event_name, 
+    event_description, 
+    event_blurb, 
+    event_date, 
+    location, 
+    rules, 
+    event_schedule, 
+    event_prizes, 
+    event_resources,
+    paywall_content
+  `);
 
   if (isUUID) {
     // If it's a UUID, check both slug and event_id

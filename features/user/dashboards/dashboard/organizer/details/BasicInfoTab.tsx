@@ -114,7 +114,7 @@ export function BasicInfoTab({
         <Label htmlFor="event_name">Event Name</Label>
         <Input
           id="event_name"
-          value={event.event_name}
+          value={event.event_name || ""}
           onChange={(e) =>
             setEvent({ ...event, event_name: e.target.value })
           }
@@ -125,7 +125,7 @@ export function BasicInfoTab({
         <Label htmlFor="slug">URL Slug</Label>
         <Input
           id="slug"
-          value={event.slug}
+          value={event.slug || ""}
           onChange={(e) => {
             setEvent({ ...event, slug: e.target.value });
             setUpdateSlug(true);
@@ -143,7 +143,7 @@ export function BasicInfoTab({
         <Input
           id="event_date"
           type="date"
-          value={event.event_date}
+          value={event.event_date || ""}
           onChange={(e) =>
             setEvent({ ...event, event_date: e.target.value })
           }
@@ -154,7 +154,7 @@ export function BasicInfoTab({
         <Label htmlFor="location">Location</Label>
         <Input
           id="location"
-          value={event.location}
+          value={event.location || ""}
           onChange={(e) =>
             setEvent({ ...event, location: e.target.value })
           }
@@ -165,7 +165,7 @@ export function BasicInfoTab({
         <Label htmlFor="event_description">Description</Label>
         <Textarea
           id="event_description"
-          value={event.event_description}
+          value={event.event_description || ""}
           onChange={(e) =>
             setEvent({
               ...event,
