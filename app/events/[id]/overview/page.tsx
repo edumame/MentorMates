@@ -6,7 +6,6 @@ import { EventStatusBar } from "@/components/events/event-status-bar";
 import ReactMarkdown from "react-markdown";
 import {
   EventDetails,
-  Rule,
   ScheduleDay,
   ScheduleEvent,
   Resource,
@@ -14,30 +13,11 @@ import {
 } from "@/lib/types";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { isValidUUID } from "@/app/utils/supabase/queries";
+import { defaultRules } from "@/lib/config/constants";
 
 interface PageProps {
   params: Promise<{ id: string }>;
 }
-
-const defaultRules: Rule[] = [
-  {
-    title: "General Rules",
-    items: [
-      "All work must be completed during the hackathon",
-      "Teams can have up to 4 members",
-      "Projects must be original work",
-      "Use of open source libraries and APIs is allowed",
-    ],
-  },
-  {
-    title: "Submission Requirements",
-    items: [
-      "Project must be submitted before the deadline",
-      "Include a demo video",
-      "Complete project documentation",
-    ],
-  },
-];
 
 export default async function EventOverviewPage({ params }: PageProps) {
   const { id } = await Promise.resolve(params);

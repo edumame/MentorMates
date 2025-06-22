@@ -32,6 +32,8 @@ export async function POST(req: Request) {
   try {
     await doEventHandling();
   } catch (error) {
+    console.error("Stripe processing error: ", error);
+    throw new Error(`Stripe processing error. Please contact support.`);
   }
 
   return NextResponse.json({ received: true }, { status: 200 });

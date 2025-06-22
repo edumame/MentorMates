@@ -66,6 +66,7 @@ export function PostPaymentJoin({ eventId }: PostPaymentJoinProps) {
       }, 2000);
 
     } catch (error) {
+      console.error("Error processing event join: ", error);
       toast({
         title: "Error",
         description: "Failed to complete registration. Please contact support.",

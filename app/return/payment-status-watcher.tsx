@@ -109,7 +109,8 @@ export function PaymentStatusWatcher({ sessionId, eventId, customerEmail }: Paym
           }
         }
       } catch (err) {
-        setError('Failed to initialize payment watcher');
+        console.error('Error setting up payment watcher:', err);
+        setError(`Failed to initialize payment watcher.`);
         setIsLoading(false);
         
         // Retry after 3 seconds if we haven't exceeded retry limit

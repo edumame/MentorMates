@@ -1,5 +1,5 @@
 import Stripe from "stripe";
-import { ScoringCriterion } from "../types";
+import { Rule, ScoringCriterion } from "../types";
 
 // Admin User IDs type
 type AdminUserId = string;
@@ -20,6 +20,26 @@ export const UI_TEXT = {
 export const DEFAULT_VALUES = {
   SEARCH_TERM: '',
 }; 
+
+export const defaultRules: Rule[] = [
+  {
+    title: "General Rules",
+    items: [
+      "All work must be completed during the hackathon",
+      "Teams can have up to 4 members",
+      "Projects must be original work",
+      "Use of open source libraries and APIs is allowed",
+    ],
+  },
+  {
+    title: "Submission Requirements",
+    items: [
+      "Project must be submitted before the deadline",
+      "Include a demo video",
+      "Complete project documentation",
+    ],
+  },
+];
 
 // Default scoring criteria if none are configured for the event
 export const defaultCriteria: ScoringCriterion[] = [
