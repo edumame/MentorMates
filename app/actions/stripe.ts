@@ -65,13 +65,8 @@ export async function fetchClientSecret(options?: CheckoutOptions) {
       },
     ];
   } else {
-    // Default fallback pricing
-    lineItems = [
-      {
-        price: "price_1Rb7QP3KA04RgYytVnnCAyNn",
-        quantity: 1,
-      },
-    ];
+    // Throw an error and prevent checkout
+    throw new Error("No Stripe price ID provided.");
   }
 
   // Create Checkout Sessions from body params.

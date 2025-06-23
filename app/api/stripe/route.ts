@@ -50,7 +50,6 @@ async function handleEvent(event: Stripe.Event) {
 
   const stripeCustomerId = event.data.object as { customer: string };
 
-
   if (STRIPE_SUCCESSFUL_EVENT_TYPES.includes(event.type)) {
     const { data: userEventPayment } = await supabase
       .from("user_event_payments")
@@ -58,19 +57,22 @@ async function handleEvent(event: Stripe.Event) {
         payment_status: "paid",
       })
       .eq("stripe_customer_id", stripeCustomerId.customer)
-      .select();
+      .select("id");
 
     if (!userEventPayment) {
       throw new Error("Failed to update user event payment");
     }
-  }
-
-  else if (STRIPE_FAILED_EVENT_TYPES.includes(event.type)) {
-    await supabase
+  } else if (STRIPE_FAILED_EVENT_TYPES.includes(event.type)) {
+    const { data: userEventPayment } = await supabase
       .from("user_event_payments")
       .update({
         payment_status: "canceled",
       })
       .eq("stripe_customer_id", stripeCustomerId.customer)
+      .select("id");
+
+    if (!userEventPayment) {
+      throw new Error("Failed to update user event payment");
+    }
   }
 }
