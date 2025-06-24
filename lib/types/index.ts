@@ -29,6 +29,8 @@ export type EventItem = {
   visibility?: EventVisibility;
   cover_image_url?: string;
   scoring_config?: EventScoringConfig;
+  paid?: boolean; 
+  stripe_price_id?: string; // Stripe price ID for paid events
 };
 
 // Event Overview Types
@@ -81,6 +83,7 @@ export interface EventTrack {
 export interface EventDetails extends EventItem {
   event_description: string;
   event_blurb?: string;
+  paywall_content?: string;
   event_schedule: ScheduleDay[];
   event_prizes: Prize[];
   event_resources: Resource[];

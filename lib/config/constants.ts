@@ -1,4 +1,5 @@
-import { ScoringCriterion } from "../types";
+import Stripe from "stripe";
+import { Rule, ScoringCriterion } from "../types";
 
 // Admin User IDs type
 type AdminUserId = string;
@@ -19,6 +20,26 @@ export const UI_TEXT = {
 export const DEFAULT_VALUES = {
   SEARCH_TERM: '',
 }; 
+
+export const defaultRules: Rule[] = [
+  {
+    title: "General Rules",
+    items: [
+      "All work must be completed during the hackathon",
+      "Teams can have up to 4 members",
+      "Projects must be original work",
+      "Use of open source libraries and APIs is allowed",
+    ],
+  },
+  {
+    title: "Submission Requirements",
+    items: [
+      "Project must be submitted before the deadline",
+      "Include a demo video",
+      "Complete project documentation",
+    ],
+  },
+];
 
 // Default scoring criteria if none are configured for the event
 export const defaultCriteria: ScoringCriterion[] = [
@@ -79,3 +100,21 @@ export const ADMIN_USER_IDS: AdminUserId[] = [
   "e4182548-e05d-4201-bc61-fe5d76a7a7ce", // Matthew dev
   "a91610aa-5324-4978-b75d-2994ba3e15fd" // Chinat dev
 ];
+
+
+export const STRIPE_SUCCESSFUL_EVENT_TYPES: Stripe.Event.Type[] = [
+    "checkout.session.completed",
+    "customer.subscription.created",
+    "customer.subscription.resumed",
+    "invoice.paid",
+    "invoice.payment_succeeded",
+    "payment_intent.succeeded",
+];
+
+export const STRIPE_FAILED_EVENT_TYPES: Stripe.Event.Type[] = [
+    "customer.subscription.deleted",
+    "customer.subscription.paused",
+    "invoice.payment_failed",
+    "payment_intent.payment_failed",
+    "payment_intent.canceled",
+  ];

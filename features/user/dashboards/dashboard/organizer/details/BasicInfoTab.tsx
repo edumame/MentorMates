@@ -72,6 +72,7 @@ export function BasicInfoTab({
           location: event.location,
           event_description: event.event_description,
           event_blurb: event.event_blurb,
+          paywall_content: event.paywall_content,
           cover_image_url: coverImageUrl,
         })
         .eq("event_id", event.event_id);
@@ -113,7 +114,7 @@ export function BasicInfoTab({
         <Label htmlFor="event_name">Event Name</Label>
         <Input
           id="event_name"
-          value={event.event_name}
+          value={event.event_name || ""}
           onChange={(e) =>
             setEvent({ ...event, event_name: e.target.value })
           }
@@ -124,7 +125,7 @@ export function BasicInfoTab({
         <Label htmlFor="slug">URL Slug</Label>
         <Input
           id="slug"
-          value={event.slug}
+          value={event.slug || ""}
           onChange={(e) => {
             setEvent({ ...event, slug: e.target.value });
             setUpdateSlug(true);
@@ -142,7 +143,7 @@ export function BasicInfoTab({
         <Input
           id="event_date"
           type="date"
-          value={event.event_date}
+          value={event.event_date || ""}
           onChange={(e) =>
             setEvent({ ...event, event_date: e.target.value })
           }
@@ -153,7 +154,7 @@ export function BasicInfoTab({
         <Label htmlFor="location">Location</Label>
         <Input
           id="location"
-          value={event.location}
+          value={event.location || ""}
           onChange={(e) =>
             setEvent({ ...event, location: e.target.value })
           }
@@ -164,7 +165,7 @@ export function BasicInfoTab({
         <Label htmlFor="event_description">Description (Markdown Supported)</Label>
         <Textarea
           id="event_description"
-          value={event.event_description}
+          value={event.event_description || ""}
           onChange={(e) =>
             setEvent({
               ...event,
@@ -187,6 +188,27 @@ export function BasicInfoTab({
           placeholder="A short, catchy description of your event"
         />
       </div>
+
+      {/* Paywall Content - Only show for paid events */}
+      {event.paid && (
+        <div className="space-y-2">
+          <Label htmlFor="paywall_content">
+            🔒 Exclusive Content for Participants
+          </Label>
+          <Textarea
+            id="paywall_content"
+            value={event.paywall_content || ""}
+            onChange={(e) =>
+              setEvent({ ...event, paywall_content: e.target.value })
+            }
+            rows={4}
+            placeholder="Content that will only be visible to users who have joined/paid for the event"
+          />
+          <p className="text-xs text-gray-500">
+            This content will only be shown to users who have joined the event. You can use Markdown formatting.
+          </p>
+        </div>
+      )}
 
       <div className="space-y-2">
         <Label htmlFor="cover_image">Cover Image</Label>

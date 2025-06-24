@@ -43,6 +43,8 @@ export function JoinEventButton({ eventId, eventName }: JoinEventButtonProps) {
     null
   );
   const router = useRouter();
+  const [price, setPrice] = useState<number | null>(null);
+  const [isLoadingPrice, setIsLoadingPrice] = useState(false);
 
   useEffect(() => {
     async function init() {
@@ -50,7 +52,16 @@ export function JoinEventButton({ eventId, eventName }: JoinEventButtonProps) {
         // Fetch the event details and role labels regardless of auth state
         const { data: eventData, error: eventError } = await supabase
           .from("events")
-          .select("*")
+          .select(`
+            event_id,
+            event_name,
+            event_date,
+            location,
+            paid,
+            price,
+            visibility,
+            role_labels
+          `)
           .eq("event_id", eventId)
           .maybeSingle();
 
@@ -65,6 +76,13 @@ export function JoinEventButton({ eventId, eventName }: JoinEventButtonProps) {
         // Set initial password visibility based on event settings
         if (eventData?.visibility === EventVisibility.Private) {
           setShowPasswordInput(true);
+        }
+
+        // Fetch price if event is paid
+        if (eventData?.paid && eventData?.price) {
+          setIsLoadingPrice(true);
+          setPrice(eventData.price / 100);
+          setIsLoadingPrice(false);
         }
 
         const {
@@ -94,7 +112,6 @@ export function JoinEventButton({ eventId, eventName }: JoinEventButtonProps) {
   }, [eventId]);
 
   const handleRoleSelect = (value: EventRole) => {
-    console.log("event", event);
     setSelectedRole(value);
     // Show password input for protected roles
     if (event?.visibility === EventVisibility.Private) {
@@ -117,6 +134,46 @@ export function JoinEventButton({ eventId, eventName }: JoinEventButtonProps) {
         localStorage.setItem("returnUrl", window.location.pathname);
         router.push("/login");
         return;
+      }
+
+      // Check if event is paid and redirect to checkout
+      if (
+        event?.paid &&
+        selectedRole !== EventRole.Organizer &&
+        selectedRole !== EventRole.Judge
+      ) {
+        const { data: userPaidStatus } = await supabase
+          .from("user_event_payments")
+          .select("payment_status")
+          .eq("user_id", session.user.id)
+          .eq("event_id", eventId)
+          .maybeSingle();
+
+        if (userPaidStatus?.payment_status !== "paid") {
+          // Store the event join intent in localStorage for after payment
+          localStorage.setItem(
+            "joinEventIntent",
+            JSON.stringify({
+              eventId,
+              role: selectedRole,
+              password: showPasswordInput ? password : undefined,
+              userId: session.user.id,
+            })
+          );
+
+          // Redirect to checkout with event information
+          const searchParams = new URLSearchParams({
+            eventId: eventId,
+            eventSlug: event.slug || eventId,
+            eventName: event.event_name,
+            ...(event.stripe_price_id && {
+              stripePriceId: event.stripe_price_id,
+            }),
+          });
+
+          router.push(`/checkout?${searchParams.toString()}`);
+          return;
+        }
       }
 
       // Use the verify endpoint for all roles
@@ -165,13 +222,19 @@ export function JoinEventButton({ eventId, eventName }: JoinEventButtonProps) {
   }
 
   return (
-    <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+    <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen} aria-describedby="join-event-dialog">
       <DialogTrigger asChild>
         <Button className="bg-blue-700 hover:bg-blue-800">
-          Join {eventName}
+          {event?.paid
+            ? isLoadingPrice
+              ? `Join ${eventName} - Loading...`
+              : price !== null
+                ? `Join ${eventName} - $${price.toFixed(2)}`
+                : `Join ${eventName} - Paid Event`
+            : `Join ${eventName} - Free Event`}
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent aria-describedby="join-event-dialog">
         <DialogHeader>
           <DialogTitle>Choose Your Role</DialogTitle>
         </DialogHeader>

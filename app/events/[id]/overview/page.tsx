@@ -6,7 +6,6 @@ import { EventStatusBar } from "@/components/events/event-status-bar";
 import ReactMarkdown from "react-markdown";
 import {
   EventDetails,
-  Rule,
   ScheduleDay,
   ScheduleEvent,
   Resource,
@@ -14,30 +13,11 @@ import {
 } from "@/lib/types";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { isValidUUID } from "@/app/utils/supabase/queries";
+import { defaultRules } from "@/lib/config/constants";
 
 interface PageProps {
   params: Promise<{ id: string }>;
 }
-
-const defaultRules: Rule[] = [
-  {
-    title: "General Rules",
-    items: [
-      "All work must be completed during the hackathon",
-      "Teams can have up to 4 members",
-      "Projects must be original work",
-      "Use of open source libraries and APIs is allowed",
-    ],
-  },
-  {
-    title: "Submission Requirements",
-    items: [
-      "Project must be submitted before the deadline",
-      "Include a demo video",
-      "Complete project documentation",
-    ],
-  },
-];
 
 export default async function EventOverviewPage({ params }: PageProps) {
   const { id } = await Promise.resolve(params);
@@ -45,7 +25,19 @@ export default async function EventOverviewPage({ params }: PageProps) {
 
   const isUUID = isValidUUID(id);
 
-  let query = supabase.from("events").select("*");
+  let query = supabase.from("events").select(`
+    event_id, 
+    event_name, 
+    event_description, 
+    event_blurb, 
+    event_date, 
+    location, 
+    rules, 
+    event_schedule, 
+    event_prizes, 
+    event_resources,
+    paywall_content
+  `);
 
   if (isUUID) {
     // If it's a UUID, check both slug and event_id
@@ -85,19 +77,14 @@ export default async function EventOverviewPage({ params }: PageProps) {
   let hasJoined = false;
 
   if (user) {
-    if (!user.email) {
-      // Skip join check if user has no email
-    } else {
-      const { data: userEventRoles } = await supabase
-        .from("user_event_roles")
-        .select("event_id")
-        .in("uid", [user.id]);
+    const { data: userEventRole } = await supabase
+      .from("user_event_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("event_id", eventData.event_id)
+      .maybeSingle();
 
-      if (userEventRoles) {
-        const events = userEventRoles.map((role) => role.event_id);
-        hasJoined = events.includes(eventData.event_id);
-      }
-    }
+    hasJoined = !!userEventRole;
   }
 
   return (
@@ -126,6 +113,22 @@ export default async function EventOverviewPage({ params }: PageProps) {
           </div>
         </CardContent>
       </Card>
+
+      {/* Paywall Content - Only shown if user has joined */}
+      {hasJoined && typedEvent.paywall_content && (
+        <Card className="mb-8 border-2 border-yellow-200 bg-yellow-50">
+          <CardHeader>
+            <CardTitle className="text-yellow-800">
+              🔒 Exclusive Content for Participants
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="prose prose-blue max-w-none">
+              <ReactMarkdown>{typedEvent.paywall_content}</ReactMarkdown>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Rules */}
       <Card className="shadow-lg rounded-lg mb-8">
