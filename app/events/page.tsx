@@ -96,7 +96,7 @@ export default async function EventsPage() {
       // Only fetch public and private events
       const { data: events, error } = await supabase
         .from("events")
-        .select("event_id, event_name, event_slug, event_blurb, event_overview")
+        .select("*")
         .in("visibility", [EventVisibility.Public, EventVisibility.Private])
         .order("event_date", { ascending: false });
 
