@@ -16,16 +16,14 @@ function CheckoutContent() {
   const searchParams = useSearchParams()
   const eventId = searchParams.get('eventId')
   const eventName = searchParams.get('eventName')
-  const stripePriceId = searchParams.get('stripePriceId')
   const eventSlug = searchParams.get('eventSlug')
 
   const options = {
     fetchClientSecret: () => {
-      if (eventId || eventName || stripePriceId || eventSlug) {
+      if (eventId || eventName || eventSlug) {
         return fetchClientSecret({
           eventId,
           eventName,
-          stripePriceId,
           eventSlug
         });
       } else {

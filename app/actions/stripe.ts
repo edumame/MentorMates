@@ -8,9 +8,7 @@ interface CheckoutOptions {
   eventId?: string | null;
   eventSlug?: string | null;
   eventName?: string | null;
-  stripePriceId?: string | null;
 }
-
 
 export async function fetchClientSecret(options?: CheckoutOptions) {
   const origin = (await headers()).get("origin");
@@ -28,7 +26,6 @@ export async function fetchClientSecret(options?: CheckoutOptions) {
     .eq("uid", user.id)
     .maybeSingle();
 
-
   if (!userProfile?.stripe_customer_id) {
     const customer = await stripe.customers.create({
       metadata: {
@@ -45,22 +42,28 @@ export async function fetchClientSecret(options?: CheckoutOptions) {
       .eq("uid", user.id)
       .select("stripe_customer_id")
       .single();
-    
+
     if (userProfileError) {
       throw new Error("Failed to update user profile with Stripe customer ID");
     }
-    
+
     // Update the userProfile variable with the updated data
     userProfile = updatedUserProfile;
   }
 
   let lineItems;
 
-  if (options?.stripePriceId) {
+  const { data: stripePriceId } = await supabase
+      .from("events")
+      .select("stripe_price_id")
+      .eq("event_id", options?.eventId)
+      .single();
+  
+  if (stripePriceId?.stripe_price_id) {
     // Use the specific Stripe price ID for this event
     lineItems = [
       {
-        price: options.stripePriceId,
+        price: stripePriceId.stripe_price_id,
         quantity: 1,
       },
     ];
@@ -81,18 +84,24 @@ export async function fetchClientSecret(options?: CheckoutOptions) {
   });
 
   // greedily create a user event payment record for the user in the processing state
-  const { data: userEventPayment } = await supabase.from("user_event_payments").upsert({
-    user_id: user.id,
-    event_id: options?.eventId,
-    stripe_customer_id: userProfile?.stripe_customer_id,
-    stripe_session_id: session.id,
-    stripe_payment_intent_id: session.payment_intent,
-    amount_paid: session.amount_total,
-    currency: session.currency,
-    payment_status: "processing",
-  }, {
-    onConflict: "user_id,event_id",
-  }).select();
+  const { data: userEventPayment } = await supabase
+    .from("user_event_payments")
+    .upsert(
+      {
+        user_id: user.id,
+        event_id: options?.eventId,
+        stripe_customer_id: userProfile?.stripe_customer_id,
+        stripe_session_id: session.id,
+        stripe_payment_intent_id: session.payment_intent,
+        amount_paid: session.amount_total,
+        currency: session.currency,
+        payment_status: "processing",
+      },
+      {
+        onConflict: "user_id,event_id",
+      }
+    )
+    .select();
 
   if (!userEventPayment) {
     throw new Error("Failed to create user event payment");
