@@ -254,7 +254,7 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                       <div key={track.track_id} className="border-t pt-4">
                         <div className="flex justify-between items-start">
                           <div>
-                            <h4 className="font-semibold">{track.name}</h4>
+                            <h4 className="font-semibold text-blue-600">Track: {track.name}</h4>
                             <p className="text-sm text-gray-600">
                               {track.description}
                             </p>
