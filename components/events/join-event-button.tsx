@@ -166,9 +166,6 @@ export function JoinEventButton({ eventId, eventName }: JoinEventButtonProps) {
             eventId: eventId,
             eventSlug: event.slug || eventId,
             eventName: event.event_name,
-            ...(event.stripe_price_id && {
-              stripePriceId: event.stripe_price_id,
-            }),
           });
 
           router.push(`/checkout?${searchParams.toString()}`);
