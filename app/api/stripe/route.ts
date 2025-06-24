@@ -48,6 +48,7 @@ async function handleEvent(event: Stripe.Event) {
     return;
   }
 
+  // all allowed events have a customer property
   const stripeCustomerId = event.data.object as { customer: string };
 
   if (STRIPE_SUCCESSFUL_EVENT_TYPES.includes(event.type)) {
