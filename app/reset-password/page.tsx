@@ -26,13 +26,12 @@ function ResetPasswordContent() {
       } = await supabase.auth.getSession();
       
       if (sessionError) {
-        console.error("Error fetching session:", sessionError);
         setError("Unable to verify your session. Please try requesting a new password reset link.");
       }
-      
-      // Session is checked but not used in current implementation
-      // Could be used for additional validation if needed
-      console.log("Session status:", session ? "active" : "inactive");
+
+      if (!session) {
+        setError("Unable to verify your session. Please try requesting a new password reset link.");
+      }
     };
 
     checkSession();
@@ -75,7 +74,6 @@ function ResetPasswordContent() {
       }, 2000);
 
     } catch (error: unknown) {
-      console.error("Error updating password:", error);
       const errorMessage = error instanceof Error ? error.message : "An error occurred while updating your password. Please try again.";
       setError(errorMessage);
     } finally {

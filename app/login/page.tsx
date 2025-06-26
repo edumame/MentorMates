@@ -125,7 +125,7 @@ function LoginContent() {
     }
     setLoading(true);
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${cleanBaseUrl}/reset-password`,
+      redirectTo: `${cleanBaseUrl}/auth/reset-request`,
     });
     setLoading(false);
     if (error) {
