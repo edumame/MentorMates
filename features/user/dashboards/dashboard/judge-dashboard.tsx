@@ -2,12 +2,6 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Project, EventTrack } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { DefaultScoring } from "@/components/project-scoring/default-scoring";
 
@@ -218,176 +212,81 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
     return <div>Loading...</div>;
   }
 
-  // Group projects by track, allowing projects to appear in multiple tracks
-  const projectsByTrack = projects.reduce((acc, project) => {
-    if (!project.track_ids || project.track_ids.length === 0) {
-      // Handle unassigned projects
-      if (!acc["unassigned"]) {
-        acc["unassigned"] = [];
-      }
-      acc["unassigned"].push(project);
-    } else {
-      // Add project to each of its tracks
-      project.track_ids.forEach((trackId) => {
-        if (!acc[trackId]) {
-          acc[trackId] = [];
-        }
-        acc[trackId].push(project);
-      });
-    }
-    return acc;
-  }, {} as Record<string, Project[]>);
-
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Judge Dashboard</h2>
       </div>
 
-      {Object.entries(projectsByTrack).map(([trackId, trackProjects]) => {
-        // Handle unassigned projects
-        if (trackId === "unassigned") {
-          return (
-            <div key={trackId} className="space-y-4">
-              <h3 className="text-xl font-semibold">Unassigned Projects</h3>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Projects Without Track</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p>
-                    These projects need to be assigned to at least one track
-                    before they can be scored.
-                  </p>
-                  <ul className="space-y-4">
-                    {trackProjects.map((project) => (
-                      <li key={project.id} className="border-b pb-2">
-                        <h3 className="font-semibold">
-                          {project.project_name}
-                        </h3>
-                        <p className="text-sm text-gray-600">
-                          {project.project_description}
-                        </p>
-                      </li>
-                    ))}
-                  </ul>
-                </CardContent>
-              </Card>
-            </div>
-          );
-        }
-
-        const trackInfo = eventTracks.find((t) => t.track_id === trackId);
-        if (!trackInfo) return null;
-
-        // Determine judging interface type
-        const unScoredTrackProjects = trackProjects.filter(
-          (project) => !scoredProjects.get(project.id)?.has(trackId)
-        );
-        const completedTrackProjects = trackProjects.filter((project) =>
-          scoredProjects.get(project.id)?.has(trackId)
-        );
+      {projects.map((project) => {
+        const trackInfos = project.track_ids
+          .map((id) => eventTracks.find((t) => t.track_id === id))
+          .filter(Boolean) as EventTrack[];
 
         return (
-          <div key={trackId} className="space-y-4">
-            <h3 className="text-xl font-semibold">{trackInfo.name}</h3>
-            <p className="text-gray-600">{trackInfo.description}</p>
+          <Card key={project.id} className="space-y-4">
+            <CardHeader>
+              <CardTitle>{project.project_name}</CardTitle>
+              <p className="text-sm text-gray-600">{project.project_description}</p>
+            </CardHeader>
+            <CardContent>
+              {trackInfos.length === 0 ? (
+                <p>This project has not been assigned to any tracks yet.</p>
+              ) : (
+                <div className="space-y-6">
+                  {trackInfos.map((track) => {
+                    const scored = scoredProjects
+                      .get(project.id)
+                      ?.has(track.track_id);
+                    const scoreKey = `${project.id}-${track.track_id}`;
+                    const projectScore = projectScores.get(scoreKey);
+                    const isEditing =
+                      editingScore?.projectId === project.id &&
+                      editingScore?.trackId === track.track_id;
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Projects Pending Review</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {unScoredTrackProjects.length === 0 ? (
-                  <p>No projects pending review in this track.</p>
-                ) : (
-                  <Accordion type="single" collapsible className="space-y-4">
-                    {unScoredTrackProjects.map((project) => (
-                      <AccordionItem key={project.id} value={project.id}>
-                        <AccordionTrigger className="text-left">
+                    return (
+                      <div key={track.track_id} className="border-t pt-4">
+                        <div className="flex justify-between items-start">
                           <div>
-                            <h3 className="font-semibold">
-                              {project.project_name}
-                            </h3>
+                            <h4 className="font-semibold">
+                              <span className="text-blue-600">{track.name}</span>
+                            </h4>
                             <p className="text-sm text-gray-600">
-                              {project.project_description}
+                              {track.description}
                             </p>
                           </div>
-                        </AccordionTrigger>
-                        <AccordionContent>
-                          {getScoringComponent(project.id, trackId)}
-                        </AccordionContent>
-                      </AccordionItem>
-                    ))}
-                  </Accordion>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Completed Reviews</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {completedTrackProjects.length === 0 ? (
-                  <p>No completed reviews in this track yet.</p>
-                ) : (
-                  <ul className="space-y-4">
-                    {completedTrackProjects.map((project) => {
-                      const scoreKey = `${project.id}-${trackId}`;
-                      const projectScore = projectScores.get(scoreKey);
-                      const isEditing =
-                        editingScore?.projectId === project.id &&
-                        editingScore?.trackId === trackId;
-
-                      return (
-                        <li key={project.id} className="border-b pb-4">
-                          <div className="flex justify-between items-start mb-2">
-                            <div>
-                              <h3 className="font-semibold">
-                                {project.project_name}
-                              </h3>
-                              <p className="text-sm text-gray-600">
-                                {project.project_description}
-                              </p>
-                            </div>
+                          {scored && (
                             <Button
                               variant="outline"
                               onClick={() =>
                                 setEditingScore(
                                   isEditing
                                     ? null
-                                    : { projectId: project.id, trackId }
+                                    : { projectId: project.id, trackId: track.track_id }
                                 )
                               }
                             >
                               {isEditing ? "Cancel Edit" : "Edit Score"}
                             </Button>
-                          </div>
-
-                          {isEditing ? (
-                            getScoringComponent(project.id, trackId)
+                          )}
+                        </div>
+                        {scored ? (
+                          isEditing ? (
+                            getScoringComponent(project.id, track.track_id)
                           ) : projectScore ? (
                             <div className="space-y-2 mt-2">
-                              {/* Display criteria scores */}
                               <div className="grid grid-cols-2 gap-4">
                                 {Object.entries(projectScore.scores).map(
                                   ([criterionId, score]) => {
-                                    const criterion =
-                                      trackInfo.scoring_criteria?.criteria.find(
-                                        (c) => c.id === criterionId
-                                      );
+                                    const criterion = track.scoring_criteria?.criteria.find(
+                                      (c) => c.id === criterionId
+                                    );
                                     return (
-                                      <div
-                                        key={criterionId}
-                                        className="text-sm"
-                                      >
+                                      <div key={criterionId} className="text-sm">
                                         <span className="font-medium">
                                           {criterion?.name}:{" "}
                                         </span>
-                                        <span className="text-gray-600">
-                                          {score}
-                                        </span>
+                                        <span className="text-gray-600">{score}</span>
                                       </div>
                                     );
                                   }
@@ -396,24 +295,24 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
 
                               {projectScore.comments && (
                                 <div className="mt-2">
-                                  <p className="text-sm font-medium">
-                                    Comments:
-                                  </p>
+                                  <p className="text-sm font-medium">Comments:</p>
                                   <p className="text-sm text-gray-600">
                                     {projectScore.comments}
                                   </p>
                                 </div>
                               )}
                             </div>
-                          ) : null}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+                          ) : null
+                        ) : (
+                          getScoringComponent(project.id, track.track_id)
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         );
       })}
     </div>
