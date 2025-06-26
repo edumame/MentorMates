@@ -2,12 +2,6 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Project, EventTrack } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { DefaultScoring } from "@/components/project-scoring/default-scoring";
 
@@ -254,7 +248,9 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                       <div key={track.track_id} className="border-t pt-4">
                         <div className="flex justify-between items-start">
                           <div>
-                            <h4 className="font-semibold text-blue-600">Track: {track.name}</h4>
+                            <h4 className="font-semibold">
+                              <span className="text-blue-600">{track.name}</span>
+                            </h4>
                             <p className="text-sm text-gray-600">
                               {track.description}
                             </p>
