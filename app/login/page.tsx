@@ -124,7 +124,9 @@ function LoginContent() {
       return;
     }
     setLoading(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(email);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${cleanBaseUrl}/auth/reset-request`,
+    });
     setLoading(false);
     if (error) {
       setError(error.message);
@@ -157,6 +159,14 @@ function LoginContent() {
     setIsSignUp((prev) => !prev);
     setError("");
   };
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) {
+        router.push("/");
+      }
+    });
+  }, [router]);
 
   return (
     <div>
