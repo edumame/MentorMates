@@ -28,17 +28,31 @@ export function EventHeader({
   const contentRef = useRef<HTMLParagraphElement>(null);
 
   useEffect(() => {
-    if (contentRef.current) {
-      const contentHeight = contentRef.current.scrollHeight;
-      const clampedHeight = contentRef.current.clientHeight;
-      setNeedsTruncation(contentHeight > clampedHeight);
+    if (contentRef.current && description) {
+      // Temporarily remove line-clamp to measure natural height
+      const element = contentRef.current;
+      const originalClassName = element.className;
+      
+      // Remove line-clamp classes to measure full content
+      element.className = element.className.replace(/line-clamp-\d+|overflow-hidden/g, '').trim();
+      
+      const fullHeight = element.scrollHeight;
+      
+      // Restore original classes
+      element.className = originalClassName;
+      
+      // Calculate approximate height of 3 lines
+      const lineHeight = parseInt(getComputedStyle(element).lineHeight);
+      const approximateThreeLineHeight = lineHeight * 2;
+      
+      setNeedsTruncation(fullHeight > approximateThreeLineHeight);
     }
-  }, [description]);
+  }, [description, isExpanded]);
 
   return (
     <div
       className={`relative w-full ${
-        isExpanded ? "h-auto" : "h-[250px] sm:h-[300px]"
+        isExpanded ? "h-auto" : "h-[350px] sm:h-[350px]"
       } rounded-lg overflow-hidden transition-all duration-300`}
     >
       {/* Background Image */}
@@ -81,7 +95,11 @@ export function EventHeader({
           <div>
             <p
               ref={contentRef}
-              className={"text-white/80 text-sm sm:text-base max-w-3xl"}
+              className={`text-white/80 text-sm sm:text-base max-w-3xl ${
+                isExpanded 
+                  ? "" 
+                  : "line-clamp-2 overflow-hidden"
+              }`}
             >
               {description}
             </p>
