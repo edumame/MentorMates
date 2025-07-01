@@ -13,7 +13,7 @@ export async function GET() {
     } = await supabase.auth.getUser();
 
     if (!user) {
-      // If not authenticated, only return public and private events
+      // If not authenticated, only return public and private events (no archived events)
       const { data: visibleEvents, error: visibleError } = await supabase
         .from("events")
         .select(
@@ -47,19 +47,19 @@ export async function GET() {
     let query = supabase.from("events").select("*");
 
     if (isAdmin) {
-      // Admins can see all events (public, private, draft, demo, test)
-      // No additional filter needed
+      // Admins can see all events except archived ones (public, private, draft, demo, test)
+      query = query.neq("visibility", EventVisibility.Archived);
     } else if (organizerEventIds.length > 0) {
       // For organizers:
       // - Public and private events (visible to everyone)
       // - Draft events where user is an organizer
-      // - No demo or test events
+      // - No demo, test, or archived events
       query = query.or(
         `visibility.in.(${[EventVisibility.Public, EventVisibility.Private].join(",")}),` +
           `and(visibility.eq.${EventVisibility.Draft},event_id.in.(${organizerEventIds.join(",")}))`
       );
     } else {
-      // Regular users only see public and private events
+      // Regular users only see public and private events (no archived events)
       query = query.in("visibility", [
         EventVisibility.Public,
         EventVisibility.Private,

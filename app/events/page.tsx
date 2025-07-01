@@ -43,13 +43,13 @@ export default async function EventsPage() {
       let query = supabase.from("events").select("*");
 
       if (isAdmin) {
-        // Admins can see all events (public, private, draft, demo, test)
-        // No additional filter needed
+        // Admins can see all events except archived ones (public, private, draft, demo, test)
+        query = query.neq("visibility", EventVisibility.Archived);
       } else if (organizerEventIds.length > 0) {
         // For organizers:
         // - Public and private events (visible to everyone)
         // - Draft events where user is an organizer
-        // - No demo or test events
+        // - No demo, test, or archived events
         query = query.or(
           `visibility.in.(${[
             EventVisibility.Public,
@@ -60,7 +60,7 @@ export default async function EventsPage() {
             },event_id.in.(${organizerEventIds.join(",")}))`
         );
       } else {
-        // Regular users only see public and private events
+        // Regular users only see public and private events (no archived events)
         query = query.in("visibility", [
           EventVisibility.Public,
           EventVisibility.Private,
@@ -93,7 +93,7 @@ export default async function EventsPage() {
 
   async function fetchPublicEvents() {
     try {
-      // Only fetch public and private events
+      // Only fetch public and private events (no archived events)
       const { data: events, error } = await supabase
         .from("events")
         .select("*")
@@ -117,13 +117,48 @@ export default async function EventsPage() {
 
   const eventsList = events || [];
 
+  // Check if user can view archived events
+  const canViewArchived = isAuthenticated && (
+    await (async () => {
+      if (!user) return false;
+      
+      const { data: userRoles } = await supabase
+        .from("user_event_roles")
+        .select("role")
+        .eq("user_id", user.id);
+
+      const { data: isAdmin } = await supabase.rpc("is_admin_user", {
+        user_id: user.id,
+      });
+
+      const hasOrganizerRole = userRoles?.some((role: any) => 
+        ["organizer", "admin"].includes(role.role)
+      );
+
+      return isAdmin || hasOrganizerRole;
+    })()
+  );
+
   return (
     <div className="min-h-[90vh] flex flex-col bg-gray-50">
       <div className="flex-grow">
         <div className="max-w-7xl mx-auto py-8 px-6 lg:px-10">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-center text-blue-900">
-            Events
-          </h1>
+          <div className="flex items-center justify-between mb-6">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-center text-blue-900 flex-1">
+              Events
+            </h1>
+            {canViewArchived && (
+              <a
+                href="/events/archived"
+                className="text-sm font-medium text-blue-600 hover:text-blue-500 flex items-center gap-1"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                </svg>
+                View Archived Events
+              </a>
+            )}
+          </div>
           <EventsPageClient eventsList={eventsList} />
         </div>
       </div>

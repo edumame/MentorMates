@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PasswordTab } from "./PasswordTab";
 import { RoleLabelsTab } from "./RoleLabelsTab";
 import { InviteOrganizersTab } from "./InviteOrganizersTab";
+import { EventManagementTab } from "./EventManagementTab";
 import { EventDetails } from "@/lib/types";
 
 interface AccessTabProps {
@@ -23,7 +24,7 @@ export function AccessTab({
   saving,
   setSaving,
 }: AccessTabProps) {
-  const [activeTab, setActiveTab] = useState("password");
+  const [activeTab, setActiveTab] = useState("management");
 
   return (
     <Card>
@@ -32,13 +33,21 @@ export function AccessTab({
       </CardHeader>
       <CardContent className="space-y-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid-cols-3">
+          <TabsList className="grid-cols-4">
+            <TabsTrigger value="management">Management</TabsTrigger>
             <TabsTrigger value="password">Password</TabsTrigger>
             <TabsTrigger value="role-labels">Role Labels</TabsTrigger>
             <TabsTrigger value="invite-organizers">
               Invite Organizers
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="management" className="mt-6">
+            <EventManagementTab
+              event={event}
+              setEvent={setEvent}
+            />
+          </TabsContent>
 
           <TabsContent value="password" className="mt-6">
             <PasswordTab eventId={eventId} roleLabels={event.role_labels} />
