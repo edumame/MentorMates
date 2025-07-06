@@ -205,8 +205,10 @@ export function JoinEventButton({ eventId, eventName, label }: JoinEventButtonPr
 
       setHasJoined(true);
       setIsDialogOpen(false);
-      router.refresh();
-      window.location.reload();
+      
+      // Redirect to overview page after successful acceptance
+      const overviewUrl = `/events/${event?.slug || eventId}/overview`;
+      router.push(overviewUrl);
     } catch (error) {
       console.error("Error joining event:", error);
       toast({

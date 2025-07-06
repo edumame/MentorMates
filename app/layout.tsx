@@ -5,6 +5,8 @@ import { Providers } from "@/components/utils/Providers";
 import { AuthProvider } from "@/features/user/authentication/auth/AuthProvider";
 import { StagewiseToolbarWrapper } from "@/components/StagewiseToolbarWrapper";
 import { ConditionalNavbar } from "@/components/layout/ConditionalNavbar";
+import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
+import { LayoutConfigProvider } from "@/components/layout/LayoutConfigProvider";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -22,21 +24,17 @@ export default function RootLayout({
     <html lang="en">
       <body className={inter.className}>
         <Providers>
-          <ConditionalNavbar />
-          <div className="min-h-screen flex flex-col">
-            <div className="flex flex-1 pt-16">
-              <AuthProvider>
-                <main className="flex-1 flex flex-col">
-                  <div className="flex-1">
-                    {process.env.NODE_ENV === "development" && (
-                      <StagewiseToolbarWrapper />
-                    )}
-                    {children}
-                  </div>
-                </main>
-              </AuthProvider>
-            </div>
-          </div>
+          <LayoutConfigProvider>
+            <ConditionalNavbar />
+            <AuthProvider>
+              <ConditionalLayout>
+                {process.env.NODE_ENV === "development" && (
+                  <StagewiseToolbarWrapper />
+                )}
+                {children}
+              </ConditionalLayout>
+            </AuthProvider>
+          </LayoutConfigProvider>
         </Providers>
       </body>
     </html>
