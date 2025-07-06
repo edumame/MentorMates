@@ -27,9 +27,14 @@ import { getRoleLabel } from "@/features/user/roles/roles";
 export interface JoinEventButtonProps {
   eventId: string;
   eventName: string;
+  /**
+   * Optional custom label for the main trigger button. If not provided,
+   * a label will be generated based on the event's pricing information.
+   */
+  label?: string;
 }
 
-export function JoinEventButton({ eventId, eventName }: JoinEventButtonProps) {
+export function JoinEventButton({ eventId, eventName, label }: JoinEventButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [hasJoined, setHasJoined] = useState(false);
   const [selectedRole, setSelectedRole] = useState<EventRole>(
@@ -200,8 +205,10 @@ export function JoinEventButton({ eventId, eventName }: JoinEventButtonProps) {
 
       setHasJoined(true);
       setIsDialogOpen(false);
-      router.refresh();
-      window.location.reload();
+      
+      // Redirect to overview page after successful acceptance
+      const overviewUrl = `/events/${event?.slug || eventId}/overview`;
+      router.push(overviewUrl);
     } catch (error) {
       console.error("Error joining event:", error);
       toast({
@@ -222,13 +229,15 @@ export function JoinEventButton({ eventId, eventName }: JoinEventButtonProps) {
     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen} aria-describedby="join-event-dialog">
       <DialogTrigger asChild>
         <Button className="bg-blue-700 hover:bg-blue-800">
-          {event?.paid
-            ? isLoadingPrice
-              ? `Join ${eventName} - Loading...`
-              : price !== null
-                ? `Join ${eventName} - $${price.toFixed(2)}`
-                : `Join ${eventName} - Paid Event`
-            : `Join ${eventName} - Free Event`}
+          {label
+            ? label
+            : event?.paid
+              ? isLoadingPrice
+                ? `Join ${eventName} - Loading...`
+                : price !== null
+                  ? `Join ${eventName} - $${price.toFixed(2)}`
+                  : `Join ${eventName} - Paid Event`
+              : `Join ${eventName} - Free Event`}
         </Button>
       </DialogTrigger>
       <DialogContent aria-describedby="join-event-dialog">

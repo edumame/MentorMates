@@ -1,11 +1,10 @@
 import type React from "react";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { notFound } from "next/navigation";
-import { EventRegistrationWrapper } from "@/components/event-registration-wrapper";
-import { EventHeader } from "@/components/events/event-header";
 import type { Metadata } from "next";
-import { Footer } from "@/components/layout/footer";
 import { isValidUUID } from "@/app/utils/supabase/queries";
+import { ConditionalEventLayout } from "./conditional-event-layout";
+import { RouteBasedLayoutConfig } from "./RouteBasedLayoutConfig";
 
 // add authentication check for non private/public events
 
@@ -48,24 +47,11 @@ export default async function Layout({
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <EventRegistrationWrapper eventId={event.event_id}>
-        <main className="flex-1 overflow-auto">
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6 w-full">
-            <EventHeader
-              eventName={event.event_name}
-              coverImageUrl={event.cover_image_url}
-              eventDate={event.event_date}
-              location={event.location}
-              description={event.event_blurb || event.event_description}
-              eventId={event.slug || event.event_id}
-            />
-            {children}
-          </div>
-        </main>
-      </EventRegistrationWrapper>
-      <Footer />
-    </div>
+    <RouteBasedLayoutConfig>
+      <ConditionalEventLayout event={event}>
+        {children}
+      </ConditionalEventLayout>
+    </RouteBasedLayoutConfig>
   );
 }
 

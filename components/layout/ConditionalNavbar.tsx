@@ -5,10 +5,12 @@ import { supabase } from "@/lib/supabase";
 import type { Session } from "@supabase/supabase-js";
 import { AuthNavbar } from "./authNavbar";
 import { Navbar } from "./navbar";
+import { useLayoutConfig } from "./LayoutConfigProvider";
 
 export function ConditionalNavbar() {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { showNavbar } = useLayoutConfig();
 
   useEffect(() => {
     // Get initial session
@@ -33,6 +35,11 @@ export function ConditionalNavbar() {
 
   // Don't render anything while loading to prevent flash
   if (isLoading) {
+    return null;
+  }
+
+  // Hide navbar if showNavbar is false
+  if (!showNavbar) {
     return null;
   }
 
