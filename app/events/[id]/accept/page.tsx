@@ -47,7 +47,7 @@ export default async function AcceptInvitePage({ params }: PageProps) {
     // If user is already registered, redirect to overview page
     if (existingRegistration) {
       const overviewUrl = `/events/${eventData.slug || eventData.event_id}/overview`;
-      return redirect(overviewUrl);
+      redirect(overviewUrl);
     }
   }
 
