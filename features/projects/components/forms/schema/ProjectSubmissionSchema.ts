@@ -22,11 +22,7 @@ export const formSchema = z.object({
     }),
   teammates: z.array(z.string()).optional(),
   projectUrl: z.string().url().optional().or(z.literal("")),
-  videoUrl: z.string().url({
-    message: "Please enter a valid video URL.",
-  }).min(1, {
-    message: "Video submission is required.",
-  }),
+  videoUrl: z.string().url().optional().or(z.literal("")),
   trackIds: z.array(z.string()).min(1, {
     message: "Please select at least one track.",
   }),

@@ -34,15 +34,8 @@ export function useStepValidation(form: UseFormReturn<ProjectSubmissionFormData>
           });
           return false;
         }
-        if (!values.videoUrl || values.videoUrl.trim().length === 0) {
-          toast({
-            title: "Missing Video Submission",
-            description: "Video submission is required. Please provide a video URL.",
-            variant: "destructive",
-          });
-          return false;
-        }
-        if (!/^https?:\/\/.+/.test(values.videoUrl)) {
+        // Only validate video URL format if one is provided
+        if (values.videoUrl && values.videoUrl.trim().length > 0 && !/^https?:\/\/.+/.test(values.videoUrl)) {
           toast({
             title: "Invalid Video URL",
             description: "Please enter a valid video URL.",
@@ -98,10 +91,8 @@ export function useStepValidation(form: UseFormReturn<ProjectSubmissionFormData>
         if (values.trackIds.length === 0) {
           errors.push("Please select at least one project track");
         }
-        if (!values.videoUrl || values.videoUrl.trim().length === 0) {
-          errors.push("Video submission is required");
-        }
-        if (values.videoUrl && !/^https?:\/\/.+/.test(values.videoUrl)) {
+        // Only validate video URL format if one is provided
+        if (values.videoUrl && values.videoUrl.trim().length > 0 && !/^https?:\/\/.+/.test(values.videoUrl)) {
           errors.push("Please enter a valid video URL");
         }
         break;

@@ -106,7 +106,7 @@ export function ProjectInfoStep({ form, availableTracks }: ProjectInfoStepProps)
         render={({ field }) => (
           <FormItem>
             <FormLabel className="text-base">
-              Video Submission
+              Video Submission (Optional)
             </FormLabel>
             <FormControl>
               <Input
