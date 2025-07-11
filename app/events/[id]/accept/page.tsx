@@ -15,9 +15,7 @@ export default async function AcceptInvitePage({ params }: PageProps) {
 
   const isUUID = isValidUUID(id);
 
-  let query = supabase
-    .from("events")
-    .select("event_id, event_name, event_blurb, slug, event_resources");
+  let query = supabase.from("events").select("event_id, event_name, event_blurb, slug, event_resources");
 
   if (isUUID) {
     query = query.or(`slug.eq.${id},event_id.eq.${id}`);
@@ -32,32 +30,30 @@ export default async function AcceptInvitePage({ params }: PageProps) {
   }
 
   // Check if user is authenticated and already registered
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (user) {
+  const { data: { session } } = await supabase.auth.getSession();
+  
+  if (session) {
     const { data: existingRegistration } = await supabase
       .from("user_event_roles")
       .select("role")
-      .eq("user_id", user.id)
+      .eq("user_id", session.user.id)
       .eq("event_id", eventData.event_id)
       .maybeSingle();
 
     // If user is already registered, redirect to overview page
     if (existingRegistration) {
       const overviewUrl = `/events/${eventData.slug || eventData.event_id}/overview`;
-      return redirect(overviewUrl);
+      redirect(overviewUrl);
     }
   }
 
   // Extract WhatsApp and Discord links from event resources
-  const whatsappLink = eventData.event_resources?.find((resource: Resource) =>
-    resource.name.toLowerCase().includes("whatsapp")
+  const whatsappLink = eventData.event_resources?.find((resource: Resource) => 
+    resource.name.toLowerCase().includes('whatsapp')
   )?.link;
 
-  const discordLink = eventData.event_resources?.find((resource: Resource) =>
-    resource.name.toLowerCase().includes("discord")
+  const discordLink = eventData.event_resources?.find((resource: Resource) => 
+    resource.name.toLowerCase().includes('discord')
   )?.link;
 
   return (
@@ -71,12 +67,11 @@ export default async function AcceptInvitePage({ params }: PageProps) {
             <h2 className="text-2xl sm:text-3xl font-semibold text-blue-700 mb-4">
               {eventData.event_name}
             </h2>
-
+            
             {/* Time-sensitive confirmation message */}
             <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-6">
               <p className="text-orange-800 font-medium text-sm">
-                ⏰ Accept this invitation in the next 48 hours to confirm your
-                spot
+                ⏰ Accept this invitation in the next 48 hours to confirm your spot
               </p>
             </div>
 
@@ -86,7 +81,7 @@ export default async function AcceptInvitePage({ params }: PageProps) {
               </p>
             )}
           </div>
-
+          
           <div className="space-y-4">
             {/* Primary Accept Button */}
             <JoinEventButton
@@ -94,9 +89,9 @@ export default async function AcceptInvitePage({ params }: PageProps) {
               eventName={eventData.event_name}
               label="Accept Invitation"
             />
-
+            
             {/* Community Buttons */}
-            <CommunityButtons
+            <CommunityButtons 
               whatsappLink={whatsappLink}
               discordLink={discordLink}
             />
