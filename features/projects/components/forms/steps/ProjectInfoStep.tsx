@@ -57,7 +57,7 @@ export function ProjectInfoStep({ form, availableTracks }: ProjectInfoStepProps)
               />
             </FormControl>
             <FormDescription className="text-sm">
-              Provide an overview of your project (max 500 characters).
+              Provide an overview of your project.
             </FormDescription>
             <FormMessage className="text-sm" />
           </FormItem>

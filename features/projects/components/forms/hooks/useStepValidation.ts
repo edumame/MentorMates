@@ -1,6 +1,6 @@
 import { UseFormReturn } from "react-hook-form";
 import { toast } from "@/lib/hooks/use-toast";
-import { ProjectSubmissionFormData } from "../schema/ProjectSubmissionSchema";
+import { ProjectSubmissionFormData, MAX_FILE_SIZE } from "../schema/ProjectSubmissionSchema";
 
 export function useStepValidation(form: UseFormReturn<ProjectSubmissionFormData>) {
   const validateStep = (step: number): boolean => {
@@ -46,7 +46,29 @@ export function useStepValidation(form: UseFormReturn<ProjectSubmissionFormData>
         return true;
       
       case 2:
-        // Documentation step - no specific validation required
+        // Documentation step - validate file sizes
+        if (values.coverImage && values.coverImage.length > 0) {
+          const coverImageFile = values.coverImage[0];
+          if (coverImageFile.size > MAX_FILE_SIZE) {
+            toast({
+              title: "Cover Image Too Large",
+              description: "Cover image must be less than 10MB.",
+              variant: "destructive",
+            });
+            return false;
+          }
+        }
+        if (values.additionalMaterials && values.additionalMaterials.length > 0) {
+          const additionalFile = values.additionalMaterials[0];
+          if (additionalFile.size > MAX_FILE_SIZE) {
+            toast({
+              title: "Additional Materials Too Large",
+              description: "Additional materials file must be less than 10MB.",
+              variant: "destructive",
+            });
+            return false;
+          }
+        }
         return true;
       
       case 3:
@@ -98,7 +120,19 @@ export function useStepValidation(form: UseFormReturn<ProjectSubmissionFormData>
         break;
       
       case 2:
-        // Documentation step - no specific validation required
+        // Documentation step - validate file sizes
+        if (values.coverImage && values.coverImage.length > 0) {
+          const coverImageFile = values.coverImage[0];
+          if (coverImageFile.size > MAX_FILE_SIZE) {
+            errors.push("Cover image must be less than 10MB");
+          }
+        }
+        if (values.additionalMaterials && values.additionalMaterials.length > 0) {
+          const additionalFile = values.additionalMaterials[0];
+          if (additionalFile.size > MAX_FILE_SIZE) {
+            errors.push("Additional materials file must be less than 10MB");
+          }
+        }
         break;
       
       case 3:
