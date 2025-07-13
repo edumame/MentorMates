@@ -16,9 +16,6 @@ export const formSchema = z.object({
     .string()
     .min(10, {
       message: "Project description must be at least 10 characters.",
-    })
-    .max(500, {
-      message: "Project description must not exceed 500 characters.",
     }),
   teammates: z.array(z.string()).optional(),
   projectUrl: z.string().url().optional().or(z.literal("")),

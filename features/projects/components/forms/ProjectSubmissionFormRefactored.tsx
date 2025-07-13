@@ -7,7 +7,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Form } from "@/components/ui/form";
 import { supabase } from "@/lib/supabase";
 // Imported schema and types
-import { formSchema, ProjectSubmissionFormData } from "./schema/ProjectSubmissionSchema";
+import {
+  formSchema,
+  ProjectSubmissionFormData,
+} from "./schema/ProjectSubmissionSchema";
 
 // Imported hooks
 import { useProjectSubmissionData } from "./hooks/useProjectSubmissionData";
@@ -35,11 +38,13 @@ export function ProjectSubmissionFormComponent({
 }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
-  
+
   // Custom hooks
-  const { allUsers, availableTracks, isLoading } = useProjectSubmissionData(eventId);
-  const { currentStep, totalSteps, goToNext, goToPrevious } = useStepNavigation(3);
-  
+  const { allUsers, availableTracks, isLoading } =
+    useProjectSubmissionData(eventId);
+  const { currentStep, totalSteps, goToNext, goToPrevious } =
+    useStepNavigation(3);
+
   // Form setup
   const form = useForm<ProjectSubmissionFormData>({
     resolver: zodResolver(formSchema),
@@ -54,7 +59,7 @@ export function ProjectSubmissionFormComponent({
       trackIds: [],
     },
   });
-  
+
   const { validateStep, getStepValidationMessages } = useStepValidation(form);
 
   // Watch form fields that affect validation to trigger re-renders
@@ -79,7 +84,7 @@ export function ProjectSubmissionFormComponent({
     trackIdsValue,
     leadNameValue,
     leadEmailValue,
-    videoUrlValue
+    videoUrlValue,
   ]);
 
   // Auto-fill form when props change
@@ -246,7 +251,7 @@ export function ProjectSubmissionFormComponent({
         description:
           error instanceof Error
             ? error.message
-            : "There was an error submitting your project. Please try again.",
+            : "There was an error submitting your project. There may be an issue with previous steps in the form.",
         variant: "destructive",
       });
     } finally {
@@ -263,20 +268,21 @@ export function ProjectSubmissionFormComponent({
 
   return (
     <div className="w-full max-w-6xl mx-auto px-6 py-8 bg-white rounded-xl shadow-xl">
-      <ProjectSubmissionHeader currentStep={currentStep} totalSteps={totalSteps} />
-      
+      <ProjectSubmissionHeader
+        currentStep={currentStep}
+        totalSteps={totalSteps}
+      />
+
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
           {currentStep === 1 && (
             <ProjectInfoStep form={form} availableTracks={availableTracks} />
           )}
-          
-          {currentStep === 2 && (
-            <ProjectDocumentationStep form={form} />
-          )}
-          
+
+          {currentStep === 2 && <ProjectDocumentationStep form={form} />}
+
           {currentStep === 3 && (
-            <TeamContactStep 
+            <TeamContactStep
               form={form}
               allUsers={allUsers}
               leadName={leadName}
@@ -284,7 +290,7 @@ export function ProjectSubmissionFormComponent({
               onTeammatesChange={handleTeammatesChange}
             />
           )}
-          
+
           <StepNavigation
             currentStep={currentStep}
             totalSteps={totalSteps}
