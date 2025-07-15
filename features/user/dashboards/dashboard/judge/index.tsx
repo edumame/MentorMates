@@ -228,93 +228,93 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-1">
+    <div className="flex gap-6 relative max-h-screen">
+      <div className="w-[300px]">
+        <div className="sticky top-4">
           <JudgeChecklist eventId={eventId} />
         </div>
-        <div className="md:col-span-2">
-          <Card className="w-full">
-            <CardHeader>
-              <CardTitle>Project Scoring</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {projects.map((project) => (
-                  <div key={project.id} className="border rounded-lg p-4">
-                    <div className="flex justify-between items-center mb-4">
-                      <h3 className="text-lg font-semibold">
-                        {project.project_name}
-                      </h3>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() =>
-                            project.track_ids.forEach((trackId) =>
-                              setShowScoringComponents((prev) => {
-                                const newMap = new Map(prev);
-                                newMap.set(
-                                  getTrackKey(project.id, trackId),
-                                  !prev.get(getTrackKey(project.id, trackId))
-                                );
-                                return newMap;
-                              })
-                            )
-                          }
-                        >
-                          {showScoringComponents.get(
-                            getTrackKey(project.id, project.track_ids[0])
-                          ) ? (
-                            <>
-                              <ChevronUp className="h-4 w-4 mr-1" />
-                              Hide Scoring
-                            </>
-                          ) : (
-                            <>
-                              <ChevronDown className="h-4 w-4 mr-1" />
-                              Show Scoring
-                            </>
-                          )}
-                        </Button>
-                      </div>
+      </div>
+      <div className="flex-1">
+        <Card className="w-full">
+          <CardHeader>
+            <CardTitle>Project Scoring</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {projects.map((project) => (
+                <div key={project.id} className="border rounded-lg p-4">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold">
+                      {project.project_name}
+                    </h3>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          project.track_ids.forEach((trackId) =>
+                            setShowScoringComponents((prev) => {
+                              const newMap = new Map(prev);
+                              newMap.set(
+                                getTrackKey(project.id, trackId),
+                                !prev.get(getTrackKey(project.id, trackId))
+                              );
+                              return newMap;
+                            })
+                          )
+                        }
+                      >
+                        {showScoringComponents.get(
+                          getTrackKey(project.id, project.track_ids[0])
+                        ) ? (
+                          <>
+                            <ChevronUp className="h-4 w-4 mr-1" />
+                            Hide Scoring
+                          </>
+                        ) : (
+                          <>
+                            <ChevronDown className="h-4 w-4 mr-1" />
+                            Show Scoring
+                          </>
+                        )}
+                      </Button>
                     </div>
-                    {project.track_ids.map((trackId) => {
-                      const trackInfo = eventTracks.find(
-                        (t) => t.track_id === trackId
-                      );
-                      const isScored = scoredProjects
-                        .get(project.id)
-                        ?.has(trackId);
-
-                      return (
-                        <div key={trackId} className="mb-4">
-                          <div className="flex items-center gap-2 mb-2">
-                            <h4 className="font-medium">
-                              {trackInfo?.name || "Unknown Track"}
-                            </h4>
-                            <span
-                              className={`px-2 py-1 text-xs rounded-full ${
-                                isScored
-                                  ? "bg-green-100 text-green-800"
-                                  : "bg-yellow-100 text-yellow-800"
-                              }`}
-                            >
-                              {isScored ? "Scored" : "Not Scored"}
-                            </span>
-                          </div>
-                          {showScoringComponents.get(
-                            getTrackKey(project.id, trackId)
-                          ) && getScoringComponent(project.id, trackId)}
-                        </div>
-                      );
-                    })}
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+                  {project.track_ids.map((trackId) => {
+                    const trackInfo = eventTracks.find(
+                      (t) => t.track_id === trackId
+                    );
+                    const isScored = scoredProjects
+                      .get(project.id)
+                      ?.has(trackId);
+
+                    return (
+                      <div key={trackId} className="mb-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <h4 className="font-medium">
+                            {trackInfo?.name || "Unknown Track"}
+                          </h4>
+                          <span
+                            className={`px-2 py-1 text-xs rounded-full ${
+                              isScored
+                                ? "bg-green-100 text-green-800"
+                                : "bg-yellow-100 text-yellow-800"
+                            }`}
+                          >
+                            {isScored ? "Scored" : "Not Scored"}
+                          </span>
+                        </div>
+                        {showScoringComponents.get(
+                          getTrackKey(project.id, trackId)
+                        ) && getScoringComponent(project.id, trackId)}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

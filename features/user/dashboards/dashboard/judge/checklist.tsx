@@ -116,7 +116,7 @@ export function JudgeChecklist({ eventId }: JudgeChecklistProps) {
 
   if (isLoading) {
     return (
-      <Card>
+      <Card className="w-full">
         <CardHeader>
           <CardTitle>Loading assigned projects...</CardTitle>
         </CardHeader>
@@ -126,7 +126,7 @@ export function JudgeChecklist({ eventId }: JudgeChecklistProps) {
 
   if (assignedProjects.length === 0) {
     return (
-      <Card>
+      <Card className="w-full">
         <CardHeader>
           <CardTitle>Project Checklist</CardTitle>
         </CardHeader>
@@ -140,12 +140,12 @@ export function JudgeChecklist({ eventId }: JudgeChecklistProps) {
   }
 
   return (
-    <Card className="h-full">
+    <Card className="w-full">
       <CardHeader>
         <CardTitle>Project Checklist</CardTitle>
       </CardHeader>
       <CardContent>
-        <ScrollArea className="h-[300px] pr-4">
+        <ScrollArea className="h-[calc(100vh-12rem)] pr-4">
           <div className="space-y-4">
             {assignedProjects.map((project) => {
               const isScored = isProjectFullyScored(project);
