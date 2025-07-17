@@ -48,16 +48,20 @@ async function handleEvent(event: Stripe.Event) {
     return;
   }
 
-  // all allowed events have a customer property
+  // only check checkoutsession status for now; too many complicated things to check for other events
   const stripeCustomerId = event.data.object as { customer: string };
+  const stripeCheckoutSessionId = event.data.object as { id: string };
+  const stripeAmountTotal = event.data.object as { amount_total: number };
 
   if (STRIPE_SUCCESSFUL_EVENT_TYPES.includes(event.type)) {
     const { data: userEventPayment } = await supabase
       .from("user_event_payments")
       .update({
         payment_status: "paid",
+        amount_paid: stripeAmountTotal.amount_total,
       })
       .eq("stripe_customer_id", stripeCustomerId.customer)
+      .eq("stripe_session_id", stripeCheckoutSessionId.id)
       .select("id");
 
     if (!userEventPayment) {
@@ -70,6 +74,7 @@ async function handleEvent(event: Stripe.Event) {
         payment_status: "canceled",
       })
       .eq("stripe_customer_id", stripeCustomerId.customer)
+      .eq("stripe_session_id", stripeCheckoutSessionId.id)
       .select("id");
 
     if (!userEventPayment) {
