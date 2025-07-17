@@ -104,17 +104,18 @@ export const ADMIN_USER_IDS: AdminUserId[] = [
 
 export const STRIPE_SUCCESSFUL_EVENT_TYPES: Stripe.Event.Type[] = [
     "checkout.session.completed",
-    "customer.subscription.created",
-    "customer.subscription.resumed",
-    "invoice.paid",
-    "invoice.payment_succeeded",
-    "payment_intent.succeeded",
+    // "customer.subscription.created",
+    // "customer.subscription.resumed",
+    // "invoice.paid",
+    // "invoice.payment_succeeded",
+    // "payment_intent.succeeded",
 ];
 
 export const STRIPE_FAILED_EVENT_TYPES: Stripe.Event.Type[] = [
-    "customer.subscription.deleted",
-    "customer.subscription.paused",
-    "invoice.payment_failed",
-    "payment_intent.payment_failed",
-    "payment_intent.canceled",
+    // "customer.subscription.deleted",
+    // "customer.subscription.paused",
+    // "invoice.payment_failed",
+    // "payment_intent.payment_failed",
+    // "payment_intent.canceled",
+    "checkout.session.expired"
   ];
