@@ -13,7 +13,6 @@ import {
 } from "@/lib/types";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { isValidUUID } from "@/app/utils/supabase/queries";
-import { defaultRules } from "@/lib/config/constants";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -131,29 +130,31 @@ export default async function EventOverviewPage({ params }: PageProps) {
       )}
 
       {/* Rules */}
-      <Card className="shadow-lg rounded-lg mb-8">
-        <CardHeader className="pb-4">
-          <CardTitle className="text-2xl font-semibold text-gray-800">
-            Rules
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {(typedEvent.rules || defaultRules).map((rule, idx) => (
-              <div key={idx}>
-                <h3 className="font-bold text-lg mb-2 text-blue-800">
-                  {rule.title}
-                </h3>
-                <ul className="list-disc pl-5 space-y-1 text-gray-600">
-                  {rule.items.map((item, i) => (
-                    <li key={i}>{item}</li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      {typedEvent.rules && typedEvent.rules.length > 0 && (
+        <Card className="shadow-lg rounded-lg mb-8">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-2xl font-semibold text-gray-800">
+              Rules
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {typedEvent.rules.map((rule, idx) => (
+                <div key={idx}>
+                  <h3 className="font-bold text-lg mb-2 text-blue-800">
+                    {rule.title}
+                  </h3>
+                  <ul className="list-disc pl-5 space-y-1 text-gray-600">
+                    {rule.items.map((item, i) => (
+                      <li key={i}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Schedule */}
       {typedEvent.event_schedule?.length > 0 && (
