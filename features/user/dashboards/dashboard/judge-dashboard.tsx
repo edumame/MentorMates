@@ -342,7 +342,7 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
           </Card>
         );
       })
-      )
+      )}
     </div>
   );
 }
