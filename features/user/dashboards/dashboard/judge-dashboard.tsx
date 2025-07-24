@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
 import { Project, EventTrack } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { DefaultScoring } from "@/components/project-scoring/default-scoring";
 
 interface JudgeDashboardProps {
@@ -29,6 +30,21 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
     trackId: string;
   } | null>(null);
   const [judgeId, setJudgeId] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredProjects = useMemo(
+    () =>
+      projects.filter(
+        (project) =>
+          project.project_name
+            .toLowerCase()
+            .includes(searchQuery.toLowerCase()) ||
+          project.project_description
+            .toLowerCase()
+            .includes(searchQuery.toLowerCase())
+      ),
+    [projects, searchQuery]
+  );
 
   useEffect(() => {
     const fetchData = async () => {
@@ -218,10 +234,21 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
         <h2 className="text-2xl font-bold">Judge Dashboard</h2>
       </div>
 
-      {projects.map((project) => {
-        const trackInfos = project.track_ids
-          .map((id) => eventTracks.find((t) => t.track_id === id))
-          .filter(Boolean) as EventTrack[];
+      <div>
+        <Input
+          placeholder="Search projects..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+      </div>
+
+      {filteredProjects.length === 0 ? (
+        <p>No projects match your search.</p>
+      ) : (
+        filteredProjects.map((project) => {
+          const trackInfos = project.track_ids
+            .map((id) => eventTracks.find((t) => t.track_id === id))
+            .filter(Boolean) as EventTrack[];
 
         return (
           <Card key={project.id} className="space-y-4">
@@ -314,7 +341,8 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
             </CardContent>
           </Card>
         );
-      })}
+      })
+      )
     </div>
   );
 }
