@@ -8,10 +8,11 @@ import { createClient } from "@/app/utils/supabase/client";
 import { Session, AuthChangeEvent } from "@supabase/supabase-js";
 import { Card } from "@/components/ui/card";
 import { motion } from "framer-motion";
-import { Loader2, Bot} from "lucide-react";
+import { Loader2, Bot } from "lucide-react";
 import TextareaAutosize from "react-textarea-autosize";
 import { SubmissionConfirmation } from "@/features/projects/components/forms/SubmissionConfirmation";
 import VoiceInput from "@/components/utils/VoiceInput";
+import { useToast } from "@/lib/hooks/use-toast";
 
 interface AISuggestions {
   "more specific": string;
@@ -76,10 +77,11 @@ export default function FeedbackForm({
     new Set(["original"])
   );
 
+  const { toast } = useToast();
+
   useEffect(() => {
     console.log("usedSuggestions updated:", Array.from(usedSuggestions));
   }, [usedSuggestions]);
-
 
   useEffect(() => {
     console.log("Initializing Supabase session");
@@ -129,7 +131,10 @@ export default function FeedbackForm({
       setHasImprovedWithAI(true);
     } catch (error) {
       console.error("Error generating AI suggestions:", error);
-      alert("Failed to generate AI suggestions. Please try again.");
+      toast({
+        title: "Error",
+        description: "Failed to generate AI suggestions. Please try again.",
+      });
     } finally {
       setIsGeneratingAI(false);
       setShowSubmitButton(true);
@@ -387,46 +392,69 @@ export default function FeedbackForm({
         event_id: eventId,
       };
 
-      const { data: projectData, error: projectError } = await supabaseClient
-        .from("projects")
-        .select("id")
-        .eq("id", projectId)
-        .single();
+      const feedbackBody = {
+        project_id: projectId,
+        mentor_id: session?.user?.id || null,
+        mentor_name: session?.user?.user_metadata?.full_name || null,
+        mentor_email: session?.user?.email || null,
+        feedback_text: feedback,
+        original_feedback_text: originalFeedback,
+        modifier_field: Array.from(usedSuggestions),
+        specific_ai_suggestion: aiSuggestions?.["more specific"] || "",
+        positive_ai_suggestion: aiSuggestions?.["more positive"] || "",
+        actionable_ai_suggestion: aiSuggestions?.["more actionable"] || "",
+        event_id: eventId,
+      };
 
-      if (projectError) {
-        console.error("Project lookup error:", projectError);
-        throw projectError;
-      }
-
-      console.log("Found project:", projectData);
-
-      const { data, error } = await supabaseClient.from("feedback").insert([
-        {
-          project_id: projectData.id,
-          mentor_id: session?.user?.id || null,
-          mentor_name: session?.user?.user_metadata?.full_name || null,
-          mentor_email: session?.user?.email || null,
-          feedback_text: feedback,
-          original_feedback_text: originalFeedback,
-          modifier_field: Array.from(usedSuggestions),
-          specific_ai_suggestion: aiSuggestions?.["more specific"] || "",
-          positive_ai_suggestion: aiSuggestions?.["more positive"] || "",
-          actionable_ai_suggestion: aiSuggestions?.["more actionable"] || "",
-          event_id: eventId,
-        },
-      ]);
-
-      if (error) {
-        console.error("Supabase error:", error);
-        console.error("Error details:", {
-          code: error.code,
-          message: error.message,
-          details: error.details,
-        });
-        throw error;
-      }
-
+      const response = await fetch(`/api/feedback/submit/${projectId}`, {
+        method: "POST",
+        body: JSON.stringify(feedbackBody),
+      });
+      const data = await response.json();
       console.log("Feedback submitted successfully:", data);
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to submit feedback");
+      }
+
+      // const { data: projectData, error: projectError } = await supabaseClient
+      //   .from("projects")
+      //   .select("id")
+      //   .eq("id", projectId)
+      //   .single();
+
+      // if (projectError) {
+      //   console.error("Project lookup error:", projectError);
+      //   throw projectError;
+      // }
+
+      // console.log("Found project:", projectData);
+
+      // const { data, error } = await supabaseClient.from("feedback").insert([
+      //   {
+      //     project_id: projectData.id,
+      //     mentor_id: session?.user?.id || null,
+      //     mentor_name: session?.user?.user_metadata?.full_name || null,
+      //     mentor_email: session?.user?.email || null,
+      //     feedback_text: feedback,
+      //     original_feedback_text: originalFeedback,
+      //     modifier_field: Array.from(usedSuggestions),
+      //     specific_ai_suggestion: aiSuggestions?.["more specific"] || "",
+      //     positive_ai_suggestion: aiSuggestions?.["more positive"] || "",
+      //     actionable_ai_suggestion: aiSuggestions?.["more actionable"] || "",
+      //     event_id: eventId,
+      //   },
+      // ]);
+
+      // if (error) {
+      //   console.error("Supabase error:", error);
+      //   console.error("Error details:", {
+      //     code: error.code,
+      //     message: error.message,
+      //     details: error.details,
+      //   });
+      //   throw error;
+      // }
 
       // TODO: Re-enable email notifications once email system is stable
       // Send email notification
@@ -455,11 +483,12 @@ export default function FeedbackForm({
       setIsSubmitted(true);
     } catch (error) {
       console.error("Error submitting feedback:", error);
-      alert(
-        `Error submitting feedback: ${
+      toast({
+        title: "Error",
+        description: `Error submitting feedback: ${
           error instanceof Error ? error.message : "Unknown error"
-        }`
-      );
+        }`,
+      });
     } finally {
       setIsSubmitting(false);
       localStorage.removeItem("originalFeedback");

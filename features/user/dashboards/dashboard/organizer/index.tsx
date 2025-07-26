@@ -13,6 +13,7 @@ import {
   BarChart,
   FolderKanban,
   UserCheck,
+  Import,
 } from "lucide-react";
 import {
   EventDetails,
@@ -210,6 +211,7 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
             Live Scores
           </TabsTrigger>
           <TabsTrigger value="import" className="flex items-center gap-2">
+            <Import className="h-4 w-4" />
             Import
           </TabsTrigger>
         </TabsList>
