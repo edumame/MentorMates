@@ -30,6 +30,7 @@ import { ParticipantsTab } from "./participants";
 import { EventTracksContainer } from "./tracks";
 import { AccessTab } from "./access";
 import { AssignTab } from "./assign";
+import { ProjectImportButton } from "./import/ProjectImportButton";
 
 export function OrganizerDashboard({ eventId }: { eventId: string }) {
   const [event, setEvent] = useState<EventDetails | null>(null);
@@ -208,6 +209,9 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
             <BarChart className="h-4 w-4" />
             Live Scores
           </TabsTrigger>
+          <TabsTrigger value="import" className="flex items-center gap-2">
+            Import
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="details">
@@ -268,6 +272,10 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
               }
             }
           />
+        </TabsContent>
+
+        <TabsContent value="import">
+          <ProjectImportButton eventId={eventId} />
         </TabsContent>
       </Tabs>
     </div>
