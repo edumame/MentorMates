@@ -8,8 +8,10 @@ const openai = new OpenAI({
 
 export async function POST(
   request: Request,
-  { params }: { params: { projectId: string } }
+  { params }: { params: Promise<{ projectId: string }> }
 ) {
+
+  const body = await request.json();
   const { projectId } = await params;
 
   if (!projectId) {
@@ -27,9 +29,6 @@ export async function POST(
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-
-  const body = await request.json();
-
   const { error: projectError } = await supabase
     .from("projects")
     .select("id")

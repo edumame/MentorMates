@@ -103,7 +103,7 @@ export interface Project {
   lead_email: string;
   teammates?: string[];
   event_id: string;
-  track_ids?: string[];
+  track_ids: string[]; //need to make tracks not required. Will need to redo.
   tracks?: EventTrack[];
   created_at: string;
   project_url?: string;
@@ -263,8 +263,4 @@ export interface DevpostProjectImport {
   lead_email: string;
   event_id: string;
   video_url?: string;
-}
-
-export interface DevpostProject {
-  
 }

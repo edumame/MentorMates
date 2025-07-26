@@ -8,10 +8,10 @@ import { EventRole } from "@/lib/types";
 
 export async function POST(
   req: Request,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   const { projectId, role, eventId } = await req.json();
-  const { userId } = params;
+  const { userId } = await params;
 
   const supabase = await createSupabaseClient();
   const {

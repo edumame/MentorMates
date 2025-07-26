@@ -417,45 +417,6 @@ export default function FeedbackForm({
         throw new Error(data.error || "Failed to submit feedback");
       }
 
-      // const { data: projectData, error: projectError } = await supabaseClient
-      //   .from("projects")
-      //   .select("id")
-      //   .eq("id", projectId)
-      //   .single();
-
-      // if (projectError) {
-      //   console.error("Project lookup error:", projectError);
-      //   throw projectError;
-      // }
-
-      // console.log("Found project:", projectData);
-
-      // const { data, error } = await supabaseClient.from("feedback").insert([
-      //   {
-      //     project_id: projectData.id,
-      //     mentor_id: session?.user?.id || null,
-      //     mentor_name: session?.user?.user_metadata?.full_name || null,
-      //     mentor_email: session?.user?.email || null,
-      //     feedback_text: feedback,
-      //     original_feedback_text: originalFeedback,
-      //     modifier_field: Array.from(usedSuggestions),
-      //     specific_ai_suggestion: aiSuggestions?.["more specific"] || "",
-      //     positive_ai_suggestion: aiSuggestions?.["more positive"] || "",
-      //     actionable_ai_suggestion: aiSuggestions?.["more actionable"] || "",
-      //     event_id: eventId,
-      //   },
-      // ]);
-
-      // if (error) {
-      //   console.error("Supabase error:", error);
-      //   console.error("Error details:", {
-      //     code: error.code,
-      //     message: error.message,
-      //     details: error.details,
-      //   });
-      //   throw error;
-      // }
-
       // TODO: Re-enable email notifications once email system is stable
       // Send email notification
       // const emailResponse = await fetch("/api/email", {
