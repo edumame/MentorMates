@@ -103,7 +103,7 @@ export interface Project {
   lead_email: string;
   teammates?: string[];
   event_id: string;
-  track_ids: string[];
+  track_ids: string[]; //need to make tracks not required. Will need to redo.
   tracks?: EventTrack[];
   created_at: string;
   project_url?: string;
@@ -254,3 +254,13 @@ export interface PrizeFromDatabase {
   prize_description: string;
 }
 
+export interface DevpostProjectImport {
+  project_url: string;
+  project_description: string;
+  project_name: string;
+  additional_materials_url: string;
+  lead_name: string;
+  lead_email: string;
+  event_id: string;
+  video_url?: string;
+}
