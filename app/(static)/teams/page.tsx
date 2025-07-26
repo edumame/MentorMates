@@ -52,10 +52,10 @@ const teamGroups: TeamGroup[] = [
         profileUrl: "https://www.linkedin.com/in/aurelia-sindhunirmala/",
       },
       {
-        name: "Matthew Law",
-        imageUrl: "/img/Matthew.png",
-        profileUrl: "https://www.linkedin.com/in/matthew-law-0x251/",
-      },
+        name: "Jeffery Zhou",
+        imageUrl: "/img/Jeffery.png",
+        profileUrl: "https://www.linkedin.com/in/jeffery-zhou-0000000000000000000000000000000000000000/",
+      }
     ],
   },
 ];
