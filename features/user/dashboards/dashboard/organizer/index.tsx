@@ -30,7 +30,7 @@ import { ParticipantsTab } from "./participants";
 import { EventTracksContainer } from "./tracks";
 import { AccessTab } from "./access";
 import { AssignTab } from "./assign";
-import { ProjectImportButton } from "./import/ProjectImportButton";
+import { ProjectImport } from "./import/ProjectImportButton";
 
 export function OrganizerDashboard({ eventId }: { eventId: string }) {
   const [event, setEvent] = useState<EventDetails | null>(null);
@@ -275,7 +275,7 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
         </TabsContent>
 
         <TabsContent value="import">
-          <ProjectImportButton eventId={eventId} />
+          <ProjectImport eventId={eventId} />
         </TabsContent>
       </Tabs>
     </div>

@@ -24,11 +24,11 @@ const HEADER_MAPPING: Record<string, keyof DevpostProjectImport> = {
   "Video Demo Link": "video_url",
 };
 
-interface ProjectImportButtonProps {
+interface ProjectImportProps {
   eventId: string;
 }
 
-export function ProjectImportButton({ eventId }: ProjectImportButtonProps) {
+export function ProjectImport({ eventId }: ProjectImportProps) {
   const { toast } = useToast();
   const [progress, setProgress] = useState<number>(0);
   const [mappedRows, setMappedRows] = useState<Partial<DevpostProjectImport>[]>(
@@ -150,7 +150,7 @@ export function ProjectImportButton({ eventId }: ProjectImportButtonProps) {
       )}
 
       {mappedRows.length > 0 && (
-        <div className="rounded-md border">
+        <div className="rounded-md border max-w-[500px] h-[400px] overflow-y-auto overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
