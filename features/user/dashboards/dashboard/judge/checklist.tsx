@@ -29,9 +29,8 @@ interface JudgeChecklistProps {
 export function JudgeChecklist({ eventId }: JudgeChecklistProps) {
   const [assignedProjects, setAssignedProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [scoredProjects, setScoredProjects] = useState<
-    Map<string, Set<string>>
-  >(new Map());
+  const [scoredProjects, setScoredProjects] = useState<Map<string, Set<string>>>(new Map());
+  const [manuallyToggled, setManuallyToggled] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const fetchAssignedProjects = async () => {
@@ -63,7 +62,6 @@ export function JudgeChecklist({ eventId }: JudgeChecklistProps) {
 
         if (assignmentsError) throw assignmentsError;
 
-        // Flatten the data into the Project format
         const projects = assignments.map(
           (assignment) => ({
             id: assignment.project_id,
@@ -107,11 +105,28 @@ export function JudgeChecklist({ eventId }: JudgeChecklistProps) {
   }, [eventId]);
 
   const isProjectFullyScored = (project: Project) => {
+    // Check if manually toggled first
+    if (manuallyToggled.has(project.id)) {
+      return true;
+    }
+    // Otherwise use the actual scored state
     const scoredTracks = scoredProjects.get(project.id);
     return (
       scoredTracks &&
       project.track_ids.every((trackId) => scoredTracks.has(trackId))
     );
+  };
+
+  const toggleProjectScore = (project: Project) => {
+    setManuallyToggled(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(project.id)) {
+        newSet.delete(project.id);
+      } else {
+        newSet.add(project.id);
+      }
+      return newSet;
+    });
   };
 
   if (isLoading) {
@@ -152,10 +167,21 @@ export function JudgeChecklist({ eventId }: JudgeChecklistProps) {
               return (
                 <div
                   key={project.id}
-                  className="flex items-start gap-3 p-3 rounded-lg border bg-card"
+                  className="flex items-start gap-3 p-3 rounded-lg border bg-card hover:bg-accent/50 cursor-pointer transition-colors"
+                  onClick={() => toggleProjectScore(project)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      toggleProjectScore(project);
+                    }
+                  }}
                 >
                   <div
-                    className={`mt-1 p-1 rounded-full ${isScored ? "bg-green-100" : "bg-yellow-100"}`}
+                    className={`mt-1 p-1 rounded-full ${
+                      isScored ? "bg-green-100" : "bg-yellow-100"
+                    }`}
                   >
                     {isScored ? (
                       <Check className="h-4 w-4 text-green-600" />
@@ -175,7 +201,9 @@ export function JudgeChecklist({ eventId }: JudgeChecklistProps) {
                     <p className="text-xs text-muted-foreground mt-1">
                       {isScored
                         ? "All tracks scored"
-                        : `${scoredProjects.get(project.id)?.size || 0}/${project.track_ids.length} tracks scored`}
+                        : `${
+                            scoredProjects.get(project.id)?.size || 0
+                          }/${project.track_ids.length} tracks scored`}
                     </p>
                   </div>
                 </div>

@@ -101,7 +101,7 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
             project_description,
             created_at,
             event_id,
-            project_tracks!project_tracks_project_id_fkey!inner (
+            project_tracks!project_tracks_project_id_fkey (
               track_id
             )
           `
@@ -123,9 +123,9 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
             project_description: string;
             created_at: string;
             event_id: string;
-            project_tracks: Array<{ track_id: string }>;
+            project_tracks: Array<{ track_id: string }> | null;
           }) => {
-            const trackIds = project.project_tracks.map((pt) => pt.track_id);
+            const trackIds = project.project_tracks?.map((pt) => pt.track_id) || [];
             projectMap.set(project.id, {
               id: project.id,
               project_name: project.project_name,
