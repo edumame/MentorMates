@@ -13,6 +13,8 @@ export interface EventHeaderProps {
   location?: string;
   description?: string;
   eventId: string;
+  submissionTimeStart?: string;
+  submissionTimeCutoff?: string;
 }
 
 export function EventHeader({
@@ -22,10 +24,22 @@ export function EventHeader({
   location,
   description,
   eventId,
+  submissionTimeStart,
+  submissionTimeCutoff,
 }: EventHeaderProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [needsTruncation, setNeedsTruncation] = useState(false);
   const contentRef = useRef<HTMLParagraphElement>(null);
+
+  const isSubmissionOpen = () => {
+    if (!submissionTimeStart || !submissionTimeCutoff) return false;
+    
+    const now = new Date();
+    const start = new Date(submissionTimeStart);
+    const end = new Date(submissionTimeCutoff);
+    
+    return now >= start && now <= end;
+  };
 
   useEffect(() => {
     if (contentRef.current && description) {
@@ -71,26 +85,36 @@ export function EventHeader({
         <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-3 sm:mb-4">
           {eventName}
         </h1>
-        {(eventDate || location) && (
-          <div className="flex flex-wrap gap-1.5 sm:gap-2 mb-3 sm:mb-4">
-            {eventDate && (
-              <Badge
-                variant="secondary"
-                className="bg-white/10 text-white border-none text-xs sm:text-sm"
-              >
-                {eventDate}
-              </Badge>
-            )}
-            {location && (
-              <Badge
-                variant="secondary"
-                className="bg-white/10 text-white border-none text-xs sm:text-sm"
-              >
-                {location}
-              </Badge>
-            )}
-          </div>
-        )}
+        <div className="flex flex-wrap gap-1.5 sm:gap-2 mb-3 sm:mb-4">
+          {eventDate && (
+            <Badge
+              variant="secondary"
+              className="bg-white/10 text-white border-none text-xs sm:text-sm"
+            >
+              {eventDate}
+            </Badge>
+          )}
+          {location && (
+            <Badge
+              variant="secondary"
+              className="bg-white/10 text-white border-none text-xs sm:text-sm"
+            >
+              {location}
+            </Badge>
+          )}
+          {(submissionTimeStart || submissionTimeCutoff) && (
+            <Badge
+              variant="secondary"
+              className={`${
+                isSubmissionOpen() 
+                  ? "bg-green-500/20 text-green-300" 
+                  : "bg-red-500/20 text-red-300"
+              } border-none text-xs sm:text-sm`}
+            >
+              {isSubmissionOpen() ? "OPEN FOR SUBMISSION" : "CLOSED FOR SUBMISSION"}
+            </Badge>
+          )}
+        </div>
         {description && (
           <div>
             <p

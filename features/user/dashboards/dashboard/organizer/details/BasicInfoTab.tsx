@@ -74,6 +74,8 @@ export function BasicInfoTab({
           event_blurb: event.event_blurb,
           paywall_content: event.paywall_content,
           cover_image_url: coverImageUrl,
+          submission_time_start: event.submission_time_start,
+          submission_time_cutoff: event.submission_time_cutoff,
         })
         .eq("event_id", event.event_id);
 
@@ -148,6 +150,40 @@ export function BasicInfoTab({
             setEvent({ ...event, event_date: e.target.value })
           }
         />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="submission_time_start">
+          Submission Window Start (UTC)
+        </Label>
+        <Input
+          id="submission_time_start"
+          type="datetime-local"
+          value={event.submission_time_start?.slice(0, 16) || ""}
+          onChange={(e) =>
+            setEvent({ ...event, submission_time_start: e.target.value })
+          }
+        />
+        <p className="text-xs text-gray-500">
+          {new Date(event.submission_time_start || "").toString()}
+        </p>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="submission_time_cutoff">
+          Submission Window End (UTC)
+        </Label>
+        <Input
+          id="submission_time_cutoff"
+          type="datetime-local"
+          value={event.submission_time_cutoff?.slice(0, 16) || ""}
+          onChange={(e) =>
+            setEvent({ ...event, submission_time_cutoff: e.target.value })
+          }
+        />
+        <p className="text-xs text-gray-500">
+          {new Date(event.submission_time_cutoff || "").toString()}
+        </p>
       </div>
 
       <div className="space-y-2">

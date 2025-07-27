@@ -218,7 +218,7 @@ export default async function EventOverviewPage({ params }: PageProps) {
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    {track.prizes && track.prizes.length > 0 ? (
+                    {track.prizes && track.prizes.length > 0 && (
                       <div className="space-y-4">
                         {track.prizes.map((prize, index) => (
                           <div
@@ -234,13 +234,6 @@ export default async function EventOverviewPage({ params }: PageProps) {
                           </div>
                         ))}
                       </div>
-                    ) : (
-                      <>
-                        <div className="text-2xl font-extrabold text-green-600 mb-2">
-                          TBD
-                        </div>
-                        <p className="text-gray-600">TBD</p>
-                      </>
                     )}
                   </CardContent>
                 </Card>
