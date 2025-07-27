@@ -92,6 +92,8 @@ export interface EventDetails extends EventItem {
   event_tracks?: EventTrack[];
   role_labels?: Record<string, string>;
   faq?: string; // Optional markdown FAQ content
+  submission_time_start?: string; // Submission window start time
+  submission_time_cutoff?: string; // Submission window end time
 }
 
 // Project Types
