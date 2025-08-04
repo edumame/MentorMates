@@ -39,7 +39,7 @@ export default function HomePage() {
             display_name: user.user_metadata.full_name,
           };
 
-          const { data: profile, error } = await supabase
+          const { error } = await supabase
             .from("user_profiles")
             .upsert(profileData, {
               onConflict: "email",
@@ -49,7 +49,7 @@ export default function HomePage() {
           if (error) {
             console.error("Error syncing profile:", error);
           } else {
-            console.log("Successfully synced profile:", profile);
+            console.log("Successfully synced profile.");
           }
         }
 
