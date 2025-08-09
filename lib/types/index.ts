@@ -1,10 +1,10 @@
 // Core Event Types
 export enum EventRole {
-  Participant = "participant",
-  Mentor = "mentor",
-  Judge = "judge",
-  Organizer = "organizer",
-  Admin = "admin",
+  Participant = 1,
+  Mentor = 2,
+  Judge = 3,
+  Organizer = 4,
+  Admin = 5,
 }
 
 export enum EventVisibility {

@@ -24,6 +24,7 @@ import { ProjectScoringForm } from "@/components/project-scoring/project-scoring
 import { EventTrack, TrackScoringConfig } from "@/lib/types";
 import { ProjectQRCodeSection } from "@/features/projects/components/displays/project-dashboard/ProjectQRCodeSection";
 import { VideoEmbed, canEmbed } from "@/components/utils";
+import { EventRole } from "@/lib/types";
 
 
 //REFACTOR this to use the Project type from the lib/types.ts file
@@ -139,7 +140,7 @@ export default function PublicProjectPage() {
         }
 
         const judgeStatus =
-          roleData?.role === "judge" || roleData?.role === "admin";
+          roleData?.role === EventRole.Judge || roleData?.role === EventRole.Admin;
         setIsJudge(judgeStatus);
 
         // Fetch project tracks if user is a judge
