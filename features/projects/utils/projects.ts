@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase";
-import { Project } from "@/lib/types";
+import { Prize, Project } from "@/lib/types";
 
 // TODO: This file is a mess and needs to be refactored to backend api logic.
 /**
@@ -99,20 +99,43 @@ export async function fetchProjectById(
     // Optionally fetch prizes won by this project
     if (includePrizes) {
       const { data: prizesData, error: prizesError } = await supabase
-        .from("prizes")
+        .from("prize_winners")
         .select(
           `
           id,
-          track_id,
-          prize_amount,
-          prize_description,
-          assigned_at
+          prize_id,
+          prize(
+            track_id,
+            prize_amount,
+            prize_description
+          ),
+          project_id
         `
         )
-        .eq("winning_project_id", projectId);
+        .eq("project_id", projectId)
+        .overrideTypes<
+          Array<{
+            id: string;
+            prize_id: string;
+            project_id: string;
+            prize: {
+              track_id: string;
+              prize_amount: string;
+              prize_description: string;
+            };
+          }>
+        >();
 
-      if (!prizesError && prizesData) {
-        project.prizes_won = prizesData;
+      const flattenedPrizes = prizesData?.map((prize) => ({
+        id: prize.id,
+        track_id: prize.prize?.track_id,
+        prize_amount: prize.prize?.prize_amount,
+        prize_description: prize.prize?.prize_description,
+        winning_project_id: prize.project_id,
+      })) as Prize[];
+
+      if (!prizesError && flattenedPrizes) {
+        project.prizes_won = flattenedPrizes;
       }
     }
 
