@@ -120,4 +120,3 @@ export const STRIPE_FAILED_EVENT_TYPES: Stripe.Event.Type[] = [
     "checkout.session.expired"
   ];
 
-  export const NOTIFICATIONS_EMAIL_FROM = "MentorMates <notifications@hello.mentormates.ai>"

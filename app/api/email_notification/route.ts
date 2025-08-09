@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { Resend } from "resend";
-import { NOTIFICATIONS_EMAIL_FROM } from "@/lib/config/constants";
+import { NOTIFICATIONS_EMAIL_FROM, EMAIL_CONTENT_TYPES } from "@/lib/email_templates/constants";
 import { EventDetails, EventRole } from "@/lib/types";
 import {
   getEventScheduleUpdateNotificationEmail,
   getEventUpdateNotificationEmail,
-} from "@/lib/templates/event-notifications";
+} from "@/lib/email_templates/event-notifications";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -20,7 +20,7 @@ type UserEmail = {
 export async function POST(request: Request) {
   const supabase = await createSupabaseClient();
 
-  const { eventId, email_content } = await request.json();
+  const { eventId, emailContent } = await request.json();
 
   //extract auth check to another function
   const {
@@ -30,17 +30,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { data: role_data, error: role_error } = await supabase
-    .from("user_profiles")
+  const { data: roleData, error: roleError } = await supabase
+    .from("user_event_roles")
     .select("role")
     .eq("user_id", user.id)
+    .eq("event_id", eventId)
     .single();
 
-  if (role_error) {
+  if (roleError) {
     return NextResponse.json({ error: "Error fetching role" }, { status: 500 });
   }
 
-  if (role_data.role !== "admin") {
+  if (roleData.role !== EventRole.Organizer && roleData.role !== EventRole.Admin) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -48,7 +49,6 @@ export async function POST(request: Request) {
     .from("events")
     .select("*")
     .eq("event_id", eventId)
-    .limit(1)
     .single();
 
   if (eventError) {
@@ -62,36 +62,42 @@ export async function POST(request: Request) {
 
   const eventName = eventDetails.event_name;
 
-  const { data: participants_data, error: participants_error } = await supabase
+  console.log(eventDetails);
+
+  const { data: participantsData, error: participantsError } = await supabase
     .from("user_event_roles")
     .select("user_id, user_profiles(email)")
     .eq("event_id", eventId)
     .in("role", [EventRole.Mentor, EventRole.Participant, EventRole.Judge])
     .overrideTypes<Array<UserEmail>>();
 
-  if (participants_error) {
+  if (participantsError) {
     return NextResponse.json(
       { error: "Error fetching participants" },
       { status: 500 }
     );
   }
 
-  const participants_emails = participants_data.map(
+  const participantsEmails = participantsData.map(
     (participant: UserEmail) => participant.user_profiles.email
   );
+
+  if (participantsEmails.length === 0) {
+    return NextResponse.json({ message: "No participants found. No email will be sent." }, { status: 200 });
+  }
 
   const email = getEmailContent(
     eventName,
     eventId,
     eventDetails,
-    email_content
+    emailContent
   );
 
   const { data, error } = await resend.emails.send({
     from: NOTIFICATIONS_EMAIL_FROM,
     to: NOTIFICATIONS_EMAIL_FROM,
     subject: email.subject,
-    bcc: participants_emails,
+    bcc: participantsEmails,
     html: email.html,
   });
 
@@ -108,19 +114,19 @@ export async function POST(request: Request) {
 const getEmailContent = (
   eventName: string,
   eventId: string,
-  event_information: EventDetails,
-  email_content: string
+  eventInformation: EventDetails,
+  emailContent: EMAIL_CONTENT_TYPES
 ) => {
-  switch (email_content) {
-    case "schedule_update":
+  switch (emailContent) {
+    case EMAIL_CONTENT_TYPES.EVENT_SCHEDULE_UPDATE:
       return getEventScheduleUpdateNotificationEmail(
         eventName,
         eventId,
-        event_information
+        eventInformation
       );
-    case "event_update":
-      return getEventUpdateNotificationEmail(eventName, eventId);
+    case EMAIL_CONTENT_TYPES.EVENT_UPDATE:
+      return getEventUpdateNotificationEmail(eventName, eventId, eventInformation);
     default:
-      return getEventUpdateNotificationEmail(eventName, eventId);
+      return getEventUpdateNotificationEmail(eventName, eventId, eventInformation);
   }
 };

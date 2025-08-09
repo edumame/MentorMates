@@ -1,29 +1,21 @@
 import { EventDetails } from "../types";
+import { ScheduleDay, ScheduleEvent } from "../types";
 
 export interface EmailTemplate {
   subject: string;
   html: string;
 }
 
-interface EventItem {
-  name: string;
-  time: string;
-}
-
-interface DaySchedule {
-  time: string;
-  events: EventItem[];
-}
-
 export function getEventUpdateNotificationEmail(
   eventName: string,
-  eventId: string
+  eventId: string,
+  eventInformation: EventDetails
 ): EmailTemplate {
   return {
     subject: `New Event Update for "${eventName}" - MentorMates`,
     html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h1 style="color: #2563eb; margin-bottom: 24px;">New Project Feedback</h1>
+          <h1 style="color: #2563eb; margin-bottom: 24px;">New Event Update</h1>
           
           <p style="font-size: 16px; line-height: 1.5; color: #374151; margin-bottom: 16px;">
               The event "${eventName}" has been updated.
@@ -33,8 +25,8 @@ export function getEventUpdateNotificationEmail(
             <p style="font-size: 16px; line-height: 1.5; color: #374151; margin-bottom: 8px; font-weight: bold;">
               Please Check the Event Page for the Latest Update:
             </p>
-            <p style="font-size: 16px; line-height: 1.5; color: #374151; white-space: pre-wrap;">
-              <a href="https://mentormates.ai/event/${eventId}">${eventName}</a>
+            <p style="font-size: 16px; line-height: 1.5; color: #374151;">
+              <a href="https://mentormates.ai/event/${eventInformation.slug || eventId}/overview">${eventName}</a>
             </p>
           </div>
           
@@ -54,13 +46,13 @@ export function getEventUpdateNotificationEmail(
 export function getEventScheduleUpdateNotificationEmail(
   eventName: string,
   eventId: string,
-  event_information: EventDetails
+  eventInformation: EventDetails
 ): EmailTemplate {
   return {
     subject: `New Event Schedule Update for "${eventName}" - MentorMates`,
     html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h1 style="color: #2563eb; margin-bottom: 24px;">New Project Feedback</h1>
+          <h1 style="color: #2563eb; margin-bottom: 24px;">New Event Schedule Update</h1>
           
           <p style="font-size: 16px; line-height: 1.5; color: #374151; margin-bottom: 16px;">
               The schedule for the event "${eventName}" has been updated.
@@ -70,8 +62,8 @@ export function getEventScheduleUpdateNotificationEmail(
             <p style="font-size: 16px; line-height: 1.5; color: #374151; margin-bottom: 8px; font-weight: bold;">
               Schedule change:
             </p>
-            <p style="font-size: 16px; line-height: 1.5; color: #374151; white-space: pre-wrap;">
-              ${generateEventSchedule(event_information.event_schedule)}
+            <p style="font-size: 16px; line-height: 1.5; color: #374151;">
+              ${generateEventSchedule(eventInformation.event_schedule)}
             </p>
           </div>
 
@@ -79,8 +71,8 @@ export function getEventScheduleUpdateNotificationEmail(
             <p style="font-size: 16px; line-height: 1.5; color: #374151; margin-bottom: 8px; font-weight: bold;">
               Please Check the Event Page for the Latest Updates:
             </p>
-            <p style="font-size: 16px; line-height: 1.5; color: #374151; white-space: pre-wrap;">
-              <a href="https://mentormates.ai/event/${eventId}">${eventName}</a>
+            <p style="font-size: 16px; line-height: 1.5; color: #374151;">
+              <a href="https://mentormates.ai/event/${eventInformation.slug || eventId}/overview">${eventName}</a>
             </p>
           </div>
           
@@ -111,8 +103,8 @@ export function getEventScheduleUpdateNotificationEmail(
 // ];
 // const htmlOutput = generateEventSchedule(schedule);
 
-export const generateEventSchedule = (schedule: DaySchedule[]): string => {
-  const generateEventItem = (event: EventItem): string => {
+export const generateEventSchedule = (schedule: ScheduleDay[]): string => {
+  const generateEventItem = (event: ScheduleEvent): string => {
     return `
         <li style="margin-bottom: 1rem;">
           <span style="font-weight: bold;">${event.time}</span>
@@ -120,7 +112,7 @@ export const generateEventSchedule = (schedule: DaySchedule[]): string => {
         </li>`;
   };
 
-  const generateDaySchedule = (day: DaySchedule): string => {
+  const generateDaySchedule = (day: ScheduleDay): string => {
     return `
     <li class="day-group" style="margin-bottom: 2rem;">
       <h3 style="color: #333; margin-bottom: 1rem;">${day.time}</h3>
