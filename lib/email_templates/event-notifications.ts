@@ -65,9 +65,6 @@ export function getEventScheduleUpdateNotificationEmail(
             <p style="font-size: 16px; line-height: 1.5; color: #374151;">
               ${generateEventSchedule(eventInformation.event_schedule)}
             </p>
-          </div>
-
-          <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin-bottom: 24px;">
             <p style="font-size: 16px; line-height: 1.5; color: #374151; margin-bottom: 8px; font-weight: bold;">
               Please Check the Event Page for the Latest Updates:
             </p>

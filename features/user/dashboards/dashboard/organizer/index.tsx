@@ -14,6 +14,7 @@ import {
   FolderKanban,
   UserCheck,
   Import,
+  Upload, 
 } from "lucide-react";
 import {
   EventDetails,
@@ -216,6 +217,7 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
             Import
           </TabsTrigger>
           <TabsTrigger value="notify" className="flex items-center gap-2">
+            <Upload className="h-4 w-4" />
             Notify
           </TabsTrigger>
         </TabsList>
