@@ -4,7 +4,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { ERROR_MESSAGES } from "@/lib/config/constants";
 import { EventRole } from "@/lib/types";
-import { canAccessRole } from "@/features/user/roles/roles";
+import { canAccessRole, toEventRole } from "@/features/user/roles/roles";
 
 const EventRegistrationContext =
   createContext<EventRegistrationContextType | null>(null);
@@ -22,10 +22,11 @@ export interface EventRegistrationContextType {
   setIsRegistered: (value: boolean) => void;
   userRole: EventRole | null; // The user's actual assigned role
   setUserRole: (value: EventRole | null) => void;
-  activeRole: EventRole | null; // The currently active role for dashboard view  
+  activeRole: EventRole | null; // The currently active role for dashboard view
   switchRole: (role: EventRole) => void; // Function to switch active role
   canSwitchToRole: (role: EventRole) => boolean; // Check if user can switch to role
   roleLabels: Record<string, string> | null;
+  isLoading: boolean; // Whether the registration check is still in progress
 }
 
 export interface EventRegistrationProviderProps {
@@ -43,6 +44,7 @@ export function EventRegistrationProvider({
   const [roleLabels, setRoleLabels] = useState<Record<string, string> | null>(
     null
   );
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     async function checkRegistrationStatus() {
@@ -50,7 +52,10 @@ export function EventRegistrationProvider({
         const {
           data: { session },
         } = await supabase.auth.getSession();
-        if (!session) return;
+        if (!session) {
+          setIsLoading(false);
+          return;
+        }
 
         const userId = session.user.id;
 
@@ -73,11 +78,14 @@ export function EventRegistrationProvider({
           .eq("event_id", eventId)
           .maybeSingle();
 
+
         if (roleData) {
           setIsRegistered(true);
-          const role = roleData.role as EventRole;
-          setUserRole(role);
-          setActiveRole(role); // Initially, active role is the same as user role
+          const normalizedRole = toEventRole(
+            roleData.role as unknown as EventRole | string
+          );
+          setUserRole(normalizedRole);
+          setActiveRole(normalizedRole); // Initially, active role is the same as user role
         } else {
           setIsRegistered(false);
           setUserRole(null);
@@ -85,6 +93,8 @@ export function EventRegistrationProvider({
         }
       } catch (error) {
         console.error(ERROR_MESSAGES.REGISTRATION_STATUS, error);
+      } finally {
+        setIsLoading(false);
       }
     }
 
@@ -93,14 +103,14 @@ export function EventRegistrationProvider({
 
   // Role switching functions
   const switchRole = (role: EventRole) => {
-    if (userRole && canAccessRole(userRole, role)) {
+    if (userRole && canAccessRole(toEventRole(userRole), role)) {
       setActiveRole(role);
     }
   };
 
   const canSwitchToRole = (role: EventRole): boolean => {
     if (!userRole) return false;
-    return canAccessRole(userRole, role);
+    return canAccessRole(toEventRole(userRole), role);
   };
 
   return (
@@ -114,6 +124,7 @@ export function EventRegistrationProvider({
         switchRole,
         canSwitchToRole,
         roleLabels,
+        isLoading,
       }}
     >
       {children}

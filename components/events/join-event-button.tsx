@@ -247,21 +247,21 @@ export function JoinEventButton({ eventId, eventName, label }: JoinEventButtonPr
         <div className="space-y-4 py-4">
           <div className="space-y-2">
             <label className="text-sm font-medium">Select your role:</label>
-            <Select value={selectedRole} onValueChange={handleRoleSelect}>
+            <Select value={selectedRole.toString()} onValueChange={(value) => handleRoleSelect(parseInt(value) as EventRole)}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={EventRole.Participant}>
+                <SelectItem value={EventRole.Participant.toString()}>
                   {getRoleLabel(EventRole.Participant, roleLabels)}
                 </SelectItem>
-                <SelectItem value={EventRole.Mentor}>
+                <SelectItem value={EventRole.Mentor.toString()}>
                   {getRoleLabel(EventRole.Mentor, roleLabels)}
                 </SelectItem>
-                <SelectItem value={EventRole.Judge}>
+                <SelectItem value={EventRole.Judge.toString()}>
                   {getRoleLabel(EventRole.Judge, roleLabels)}
                 </SelectItem>
-                <SelectItem value={EventRole.Organizer}>
+                <SelectItem value={EventRole.Organizer.toString()}>
                   {getRoleLabel(EventRole.Organizer, roleLabels)}
                 </SelectItem>
               </SelectContent>

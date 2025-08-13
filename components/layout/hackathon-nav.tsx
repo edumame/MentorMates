@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { useEventRegistration } from "@/components/event-registration-provider";
 import { EventRole } from "@/lib/types";
-import { canAccessRole } from "@/features/user/roles/roles";
+import { canAccessRole, toEventRole } from "@/features/user/roles/roles";
 
 const navItems = [
   {
@@ -47,10 +47,14 @@ export function HackathonNav({ id }: { id: string }) {
   const basePath = `/events/${id}`;
   const { isRegistered, userRole } = useEventRegistration();
 
-  const visibleNavItems = navItems.filter(
-    (item) =>
-      item.public || (isRegistered && userRole && canAccessRole(userRole, item.minRole))
-  );
+  const visibleNavItems = navItems.filter((item) => {
+    const hasAccess =
+      item.public ||
+      (isRegistered &&
+        userRole &&
+        canAccessRole(toEventRole(userRole), item.minRole));
+    return hasAccess;
+  });
 
   return (
     <nav className="w-full">

@@ -19,11 +19,27 @@ import ProjectBoard from "@/features/projects/components/displays/ProjectBoard/P
 import { motion } from "framer-motion";
 import { useToast } from "@/lib/hooks/use-toast";
 import { Toaster } from "@/components/ui/toaster";
+import { getRoleLabel } from "@/features/user/roles/roles";
 
 interface EventWithRole extends EventItem {
   user_event_roles: {
     role: EventRole;
   }[];
+}
+
+// Helper function to convert numeric roles to badge variants
+function getRoleBadgeVariant(role: EventRole | undefined): "default" | "participant" | "mentor" | "judge" | "organizer" | "admin" {
+  if (!role) return "default";
+  
+  const variantMap: Record<EventRole, "participant" | "mentor" | "judge" | "organizer" | "admin"> = {
+    [EventRole.Participant]: "participant",
+    [EventRole.Mentor]: "mentor",
+    [EventRole.Judge]: "judge",
+    [EventRole.Organizer]: "organizer",
+    [EventRole.Admin]: "admin",
+  };
+  
+  return variantMap[role] || "default";
 }
 
 interface SocialLinks {
@@ -392,8 +408,8 @@ export default function ProfilePage() {
                               </p>
                             )}
                           </div>
-                          <Badge variant={event.user_event_roles?.[0]?.role}>
-                            {event.user_event_roles?.[0]?.role}
+                          <Badge variant={getRoleBadgeVariant(event.user_event_roles?.[0]?.role)}>
+                            {getRoleLabel(event.user_event_roles?.[0]?.role as EventRole)}
                           </Badge>
                         </div>
                       </CardContent>

@@ -199,7 +199,6 @@ export default function PublicProjectPage() {
 
   // Effect to handle when projectTracks changes from empty to populated
   useEffect(() => {
-    console.log("ProjectTracks state changed:", projectTracks);
     if (projectTracks.length > 0 && !selectedTrackId) {
       setSelectedTrackId(projectTracks[0].track_id);
     }

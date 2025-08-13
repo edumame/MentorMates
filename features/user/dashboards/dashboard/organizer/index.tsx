@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/lib/hooks/use-toast";
+import { canAccessRole, toEventRole } from "@/features/user/roles/roles";
 import {
   Edit,
   Users,
@@ -53,22 +54,27 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
 
         const userId = session.user.id;
 
-        // Check if user is an organizer for this event
+        // Fetch user's role for this event and check access in app code
         const { data: roleData } = await supabase
           .from("user_event_roles")
           .select("role")
           .eq("user_id", userId)
           .eq("event_id", eventId)
-          .eq("role", EventRole.Organizer)
           .maybeSingle();
 
-        if (!roleData) {
+        if (
+          !roleData ||
+          !canAccessRole(
+            toEventRole(roleData.role as unknown as string),
+            EventRole.Organizer
+          )
+        ) {
           toast({
             title: "Error",
             description: "You don't have permission to edit this event",
             variant: "destructive",
           });
-          router.push("/organizer/dashboard");
+          router.push(`/events/${eventId}/dashboard`);
           return;
         }
 
@@ -181,7 +187,7 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
             <Edit className="h-4 w-4" />
             Event Details
           </TabsTrigger>
-        
+
           <TabsTrigger value="access" className="flex items-center gap-2">
             <Shield className="h-4 w-4" />
             Access

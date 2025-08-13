@@ -4,11 +4,11 @@ import { EventRole } from "@/lib/types";
  * Default role labels used when custom labels are not defined
  */
 export const DEFAULT_ROLE_LABELS: Record<string, string> = {
-  [EventRole.Participant]: "Participant",
-  [EventRole.Mentor]: "Mentor",
-  [EventRole.Judge]: "Judge",
-  [EventRole.Organizer]: "Organizer",
-  [EventRole.Admin]: "Admin",
+  [EventRole.Participant.toString()]: "Participant",
+  [EventRole.Mentor.toString()]: "Mentor",
+  [EventRole.Judge.toString()]: "Judge",
+  [EventRole.Organizer.toString()]: "Organizer",
+  [EventRole.Admin.toString()]: "Admin",
 };
 
 /**
@@ -22,16 +22,15 @@ export function getRoleLabel(
   role: EventRole | string,
   eventRoleLabels?: Record<string, string> | null
 ): string {
+  const roleKey = role.toString();
+  
   // If we have custom labels for this event and this role has a custom label
-  if (eventRoleLabels && eventRoleLabels[role]) {
-    return eventRoleLabels[role];
+  if (eventRoleLabels && eventRoleLabels[roleKey]) {
+    return eventRoleLabels[roleKey];
   }
 
   // Fall back to default labels
-  return (
-    DEFAULT_ROLE_LABELS[role] ||
-    role.charAt(0).toUpperCase() + role.slice(1).toLowerCase()
-  );
+  return DEFAULT_ROLE_LABELS[roleKey] || "Unknown Role";
 }
 
 /**
@@ -49,7 +48,7 @@ export function getRoleFromLabel(
   if (eventRoleLabels) {
     for (const [role, roleLabel] of Object.entries(eventRoleLabels)) {
       if (roleLabel.toLowerCase() === label.toLowerCase()) {
-        return role as EventRole;
+        return parseInt(role) as EventRole;
       }
     }
   }
@@ -57,11 +56,36 @@ export function getRoleFromLabel(
   // Check against default labels
   for (const [role, defaultLabel] of Object.entries(DEFAULT_ROLE_LABELS)) {
     if (defaultLabel.toLowerCase() === label.toLowerCase()) {
-      return role as EventRole;
+      return parseInt(role) as EventRole;
     }
   }
 
   return null;
+}
+
+/**
+ * Normalize role values that might come from the database as strings
+ * (e.g. "judge", "organizer", or numeric strings like "3") to the
+ * numeric EventRole enum used in the app.
+ */
+export function toEventRole(role: EventRole | string): EventRole {
+  if (typeof role === "number") return role as EventRole;
+
+  const key = role.toString().toLowerCase();
+  const mapping: Record<string, EventRole> = {
+    participant: EventRole.Participant,
+    mentor: EventRole.Mentor,
+    judge: EventRole.Judge,
+    organizer: EventRole.Organizer,
+    admin: EventRole.Admin,
+    "1": EventRole.Participant,
+    "2": EventRole.Mentor,
+    "3": EventRole.Judge,
+    "4": EventRole.Organizer,
+    "5": EventRole.Admin,
+  };
+
+  return mapping[key] ?? EventRole.Participant;
 }
 
 /**
@@ -72,8 +96,11 @@ export function getRoleFromLabel(
  * @param targetRole The role being accessed
  * @returns True if user can access the target role's functionality
  */
-export function canAccessRole(userRole: EventRole, targetRole: EventRole): boolean {
-  return userRole >= targetRole;
+export function canAccessRole(
+  userRole: EventRole | string,
+  targetRole: EventRole
+): boolean {
+  return toEventRole(userRole) >= targetRole;
 }
 
 /**
@@ -84,10 +111,10 @@ export function canAccessRole(userRole: EventRole, targetRole: EventRole): boole
  * @returns Array of roles the user can access
  */
 export function getAccessibleRoles(userRole: EventRole): EventRole[] {
-  const allRoles = Object.values(EventRole).filter(role => typeof role === 'number') as EventRole[];
-  return allRoles
-    .filter(role => userRole >= role)
-    .sort((a, b) => a - b);
+  const allRoles = Object.values(EventRole).filter(
+    (role) => typeof role === "number"
+  ) as EventRole[];
+  return allRoles.filter((role) => userRole >= role).sort((a, b) => a - b);
 }
 
 /**
@@ -97,7 +124,7 @@ export function getAccessibleRoles(userRole: EventRole): EventRole[] {
  */
 export function getAllRoles(): EventRole[] {
   return Object.values(EventRole)
-    .filter(role => typeof role === 'number')
+    .filter((role) => typeof role === "number")
     .sort((a, b) => (a as number) - (b as number)) as EventRole[];
 }
 
