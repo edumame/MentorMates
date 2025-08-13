@@ -6,7 +6,12 @@ import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/hooks/use-toast";
 
-export default function QRScanner() {
+interface QRScannerProps {
+  onTokenScanned?: (token: string) => void;
+  mode?: 'checkin' | 'project';
+}
+
+export default function QRScanner({ onTokenScanned, mode = 'project' }: QRScannerProps) {
   const router = useRouter();
   const [scanError, setScanError] = useState<string | null>(null);
 
@@ -14,17 +19,28 @@ export default function QRScanner() {
     if (detectedCodes.length > 0) {
       try {
         const rawValue = detectedCodes[0].rawValue;
-        const projectId = rawValue.split("/").pop();
-
-        if (!projectId) {
-          throw new Error("Invalid QR code format");
+        
+        if (mode === 'checkin') {
+          // For check-in mode, pass the entire token
+          if (onTokenScanned) {
+            onTokenScanned(rawValue);
+          }
+          toast({
+            title: "QR Code Scanned",
+            description: "Processing check-in...",
+          });
+        } else {
+          // For project mode, extract project ID
+          const projectId = rawValue.split("/").pop();
+          if (!projectId) {
+            throw new Error("Invalid QR code format");
+          }
+          toast({
+            title: "QR Code Scanned",
+            description: "Redirecting to project page...",
+          });
+          router.push(`/projects/${projectId}`);
         }
-
-        toast({
-          title: "QR Code Scanned",
-          description: "Redirecting to project page...",
-        });
-        router.push(`/projects/${projectId}`);
       } catch (error) {
         console.error("Error parsing QR code:", error);
         setScanError("Invalid QR code format. Please try scanning again.");

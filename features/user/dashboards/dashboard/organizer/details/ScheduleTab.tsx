@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { TrashIcon } from "lucide-react";
 import { EventDetails } from "@/lib/types";
 import { toast as ToastType } from "@/lib/hooks/use-toast";
-import { EMAIL_CONTENT_TYPES } from "@/lib/email_templates/constants";
+import { EMAIL_TYPES } from "@/lib/email_templates/constants";
 
 interface ScheduleTabProps {
   event: EventDetails;
@@ -27,11 +27,11 @@ export function ScheduleTab({
 }: ScheduleTabProps) {
 
   const handleScheduleUpdateNotification = async () => {
-    const response = await fetch("/api/email_notification", {
+    const response = await fetch(`/api/email_notification/event/${event.event_id}`, {
       method: "POST",
       body: JSON.stringify({
         eventId: event.event_id,
-        email_content: EMAIL_CONTENT_TYPES.EVENT_SCHEDULE_UPDATE,
+        emailType: EMAIL_TYPES.EVENT_SCHEDULE_UPDATE,
       }),
     });
 

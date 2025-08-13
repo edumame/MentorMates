@@ -2,15 +2,14 @@ import { SignJWT, jwtVerify } from "jose";
 
 const secret = new TextEncoder().encode(process.env.JWT_SECRET!);
 
-export type RegistrationClaims = {
+export type CheckinClaims = {
   eventId: string;
-  name: string;
-  email: string;
+  userId: string;
 };
 
-export async function signRegistrationJwt(
-  claims: RegistrationClaims,
-  expiresIn: string = "14d"
+export async function signCheckinJwt(
+  claims: CheckinClaims,
+  expiresIn: string = "30d"
 ) {
   const jti = crypto.randomUUID();
   return new SignJWT(claims)
@@ -21,8 +20,12 @@ export async function signRegistrationJwt(
     .sign(secret);
 }
 
-export async function verifyRegistrationJwt(token: string) {
-  const { payload } = await jwtVerify(token, secret, { algorithms: ["HS256"] });
-  // payload: { sub, jti, iat, exp, eventId, name, email }
-  return payload as RegistrationClaims;
+export async function verifyCheckinJwt(token: string) {
+  try {
+    const { payload } = await jwtVerify(token, secret, { algorithms: ["HS256"] });
+    // payload: { sub, jti, iat, exp, eventId, userId }
+    return payload as CheckinClaims;
+  } catch (error) {
+    throw new Error(`Invalid token: ${error}`);
+  }
 }

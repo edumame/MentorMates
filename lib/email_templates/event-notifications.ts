@@ -1,5 +1,7 @@
 import { EventDetails } from "../types";
 import { ScheduleDay, ScheduleEvent } from "../types";
+import { generateQRCode } from "@/lib/utils/qrcode";
+import { signCheckinJwt } from "@/lib/utils/jwt";
 
 export interface EmailTemplate {
   subject: string;
@@ -86,7 +88,6 @@ export function getEventScheduleUpdateNotificationEmail(
   };
 }
 
-
 // Example usage:
 // const schedule = [
 //   {
@@ -124,3 +125,38 @@ export const generateEventSchedule = (schedule: ScheduleDay[]): string => {
     ${schedule.map((day) => generateDaySchedule(day)).join("")}
   </ul>`;
 };
+
+export const getCheckinQRCodeEmail = async (
+  eventName: string,
+  userId: string,
+  eventId: string
+): Promise<EmailTemplate> => {
+
+  const qrCode = await getCheckinQRCode(eventId, userId);
+  return {
+    subject: `Check-In QR Code for "${eventName}" - MentorMates`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h1 style="color: #2563eb; margin-bottom: 24px;">Check-In QR Code</h1>
+        <p style="font-size: 16px; line-height: 1.5; color: #374151; margin-bottom: 16px;">
+          Please display the QR code to check in for the event "${eventName}".
+        </p>
+        <img src="${qrCode}" alt="Check-In QR Code" style="width: 300px; height: 300px; margin: 0 auto; display: block;" />
+      </div>
+    `,
+  };
+};
+
+export async function getCheckinQRCode(eventId: string, userId: string) {
+  const jwt = await signCheckinJwt({
+    eventId: eventId,
+    userId: userId,
+  });
+
+  const origin = process.env.NEXT_PUBLIC_APP_URL;
+  const checkInURL = `${origin}/checkin?token=${jwt}`;
+
+  const qrCode = await generateQRCode(checkInURL, 300);
+
+  return qrCode;
+}
