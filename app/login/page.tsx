@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/app/utils/supabase/client";
 import { Footer } from "@/components/layout/footer";
 import Image from "next/image";
+import { User } from "@supabase/supabase-js";
 
 const supabase = createClient();
 
@@ -79,15 +80,8 @@ function LoginContent() {
       }
 
       if (data?.user) {
-        const { error: profileError } = await supabase
-          .from("user_profiles")
-          .upsert({
-            uid: data.user.id,
-            email: data.user.email,
-            display_name: data.user.email?.split("@")[0],
-            created_at: new Date().toISOString(),
-          });
-
+        
+        const profileError = await syncUserProfile(data.user);
 
         if (profileError) {
           const message = "Error signing up. Please sign in instead or try again."
@@ -101,7 +95,7 @@ function LoginContent() {
       router.push(`${cleanBaseUrl}/confirmation`);
       return;
     } else {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
@@ -112,6 +106,15 @@ function LoginContent() {
         setError(errorMessage);
         setLoading(false);
         return;
+      }
+      if (data?.user) {
+        const profileError = await syncUserProfile(data.user);
+        if (profileError) {
+          const message = "Error signing in. Please sign up instead or try again."
+          setError(message);
+          setLoading(false);
+          return;
+        }
       }
       router.push(`${cleanBaseUrl}/${cleanReturnUrl || ""}`);
     }
@@ -158,6 +161,24 @@ function LoginContent() {
   const handleToggleAuthMode = () => {
     setIsSignUp((prev) => !prev);
     setError("");
+  };
+
+  const syncUserProfile = async (user: User) => {
+    if (user) {
+      const { error } = await supabase.from("user_profiles").upsert({
+        uid: user.id,
+        email: user.email,
+        display_name: user.email?.split("@")[0],
+        created_at: new Date().toISOString(),
+      }, {
+        onConflict: "uid",
+      });
+      if (error) {
+        console.error("Error syncing user profile:", error);
+        return error;
+      }
+      return null;
+    }
   };
 
   useEffect(() => {

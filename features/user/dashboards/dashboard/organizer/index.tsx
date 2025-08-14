@@ -14,6 +14,7 @@ import {
   FolderKanban,
   UserCheck,
   Import,
+  Upload, 
 } from "lucide-react";
 import {
   EventDetails,
@@ -32,6 +33,7 @@ import { EventTracksContainer } from "./tracks";
 import { AccessTab } from "./access";
 import { AssignTab } from "./assign";
 import { ProjectImport } from "./import/ProjectImportButton";
+import SendGeneralNotification from "./notifications/SendNotification";
 
 export function OrganizerDashboard({ eventId }: { eventId: string }) {
   const [event, setEvent] = useState<EventDetails | null>(null);
@@ -185,7 +187,7 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
             <Edit className="h-4 w-4" />
             Event Details
           </TabsTrigger>
-        
+
           <TabsTrigger value="access" className="flex items-center gap-2">
             <Shield className="h-4 w-4" />
             Access
@@ -213,6 +215,10 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
           <TabsTrigger value="import" className="flex items-center gap-2">
             <Import className="h-4 w-4" />
             Import
+          </TabsTrigger>
+          <TabsTrigger value="notify" className="flex items-center gap-2">
+            <Upload className="h-4 w-4" />
+            Notify
           </TabsTrigger>
         </TabsList>
 
@@ -278,6 +284,10 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
 
         <TabsContent value="import">
           <ProjectImport eventId={eventId} />
+        </TabsContent>
+
+        <TabsContent value="notify">
+          <SendGeneralNotification eventId={eventId} />
         </TabsContent>
       </Tabs>
     </div>
