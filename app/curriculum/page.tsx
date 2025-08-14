@@ -4,16 +4,16 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Lightbulb, 
-  Pencil, 
-  Figma, 
-  Zap, 
-  Users, 
+import {
+  Lightbulb,
+  Pencil,
+  Figma,
+  Zap,
+  Users,
   Trophy,
   CheckCircle,
   ArrowRight,
-  BookOpen
+  BookOpen,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -21,51 +21,57 @@ const modules = [
   {
     id: 1,
     title: "Design Thinking Foundations",
-    description: "Learn to empathize with users, define problems, and ideate creative solutions.",
+    description:
+      "Learn to empathize with users, define problems, and ideate creative solutions.",
     icon: Lightbulb,
     color: "bg-purple-100 text-purple-700",
-    duration: "Week 1"
+    duration: "Week 1",
   },
   {
     id: 2,
     title: "Low-Fidelity Wireframing",
-    description: "Capture ideas quickly through sketches and basic layout design.",
+    description:
+      "Capture ideas quickly through sketches and basic layout design.",
     icon: Pencil,
     color: "bg-blue-100 text-blue-700",
-    duration: "Week 2"
+    duration: "Week 2",
   },
   {
     id: 3,
     title: "Prototyping with Collaborative Tools",
-    description: "Build interactive prototypes using platforms like Figma to visualize and refine ideas.",
+    description:
+      "Build interactive prototypes using platforms like Figma to visualize and refine ideas.",
     icon: Figma,
     color: "bg-green-100 text-green-700",
-    duration: "Week 3"
+    duration: "Week 3",
   },
   {
     id: 4,
     title: "Rapid Development with AI Tools",
-    description: "Use AI-powered platforms such as Lovable and Cursor to accelerate building.",
+    description:
+      "Use AI-powered platforms such as Lovable and Cursor to accelerate building.",
     icon: Zap,
     color: "bg-yellow-100 text-yellow-700",
-    duration: "Week 4"
+    duration: "Week 4",
   },
   {
     id: 5,
     title: "Hackathon Build Sprint",
-    description: "Work in teams to bring your project to life under time constraints, applying both design and technical skills.",
+    description:
+      "Work in teams to bring your project to life under time constraints, applying both design and technical skills.",
     icon: Users,
     color: "bg-orange-100 text-orange-700",
-    duration: "Week 5"
+    duration: "Week 5",
   },
   {
     id: 6,
     title: "Final Presentation & Feedback",
-    description: "Pitch your completed project to judges, receive constructive feedback, and reflect on your learning journey.",
+    description:
+      "Pitch your completed project to judges, receive constructive feedback, and reflect on your learning journey.",
     icon: Trophy,
     color: "bg-red-100 text-red-700",
-    duration: "Week 6"
-  }
+    duration: "Week 6",
+  },
 ];
 
 const highlights = [
@@ -74,7 +80,7 @@ const highlights = [
   "AI-powered development with cutting-edge platforms",
   "Real-world hackathon experience with time constraints",
   "Expert mentorship and feedback throughout the program",
-  "Portfolio-ready projects to showcase your skills"
+  "Portfolio-ready projects to showcase your skills",
 ];
 
 export default function CurriculumPage() {
@@ -98,8 +104,9 @@ export default function CurriculumPage() {
             Curriculum Overview
           </h2>
           <p className="text-lg text-gray-700 max-w-4xl mx-auto leading-relaxed">
-            A hybrid learning experience that blends guided training, mentorship, and hands-on creation. 
-            Students move through the complete product cycle — from idea to launch — gaining skills in 
+            A hybrid learning experience that blends guided training,
+            mentorship, and hands-on creation. Students move through the
+            complete product cycle — from idea to launch — gaining skills in
             creative problem-solving, prototyping, and collaboration.
           </p>
         </motion.div>
@@ -124,9 +131,11 @@ export default function CurriculumPage() {
                     Foundation Phase
                   </h3>
                   <p className="text-gray-700 mb-4">
-                    The program begins with design thinking principles to ground participants in 
-                    user-centered problem-solving. They learn how to transform ideas into wireframes, 
-                    starting with low-fidelity sketches and evolving into refined, interactive prototypes.
+                    The program begins with design thinking principles to ground
+                    participants in user-centered problem-solving. They learn
+                    how to transform ideas into wireframes, starting with
+                    low-fidelity sketches and evolving into refined, interactive
+                    prototypes.
                   </p>
                   <div className="flex flex-wrap gap-2">
                     <Badge variant="secondary">Design Thinking</Badge>
@@ -139,9 +148,11 @@ export default function CurriculumPage() {
                     Build Phase
                   </h3>
                   <p className="text-gray-700 mb-4">
-                    Tools such as Figma are introduced as collaborative design platforms, alongside 
-                    rapid prototyping environments like Lovable and Cursor. The journey culminates in 
-                    a high-energy hackathon where students turn their concepts into functioning projects.
+                    Tools such as Figma are introduced as collaborative design
+                    platforms, alongside rapid prototyping environments like
+                    Lovable and Cursor. The journey culminates in a high-energy
+                    hackathon where students turn their concepts into
+                    functioning projects.
                   </p>
                   <div className="flex flex-wrap gap-2">
                     <Badge variant="secondary">Figma</Badge>
@@ -208,7 +219,7 @@ export default function CurriculumPage() {
           <Card className="bg-gradient-to-r from-blue-50 to-purple-50 border-0 shadow-lg">
             <CardHeader>
               <CardTitle className="text-2xl font-bold text-blue-900 text-center">
-                What You'll Gain
+                What You&apos;ll Gain
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -243,22 +254,23 @@ export default function CurriculumPage() {
                 Ready to Transform Ideas into Reality?
               </h2>
               <p className="text-xl text-blue-100 mb-8 max-w-3xl mx-auto leading-relaxed">
-                Join the AI Hackathon Program to challenge yourself, collaborate with peers, and learn 
-                to design, build, and launch projects that make an impact. Whether you're exploring new 
-                tools or refining your skills, this experience will equip you with the confidence and 
-                knowledge to turn ideas into reality.
+                Join the AI Hackathon Program to challenge yourself, collaborate
+                with peers, and learn to design, build, and launch projects that
+                make an impact. Whether you&apos;re exploring new tools or
+                refining your skills, this experience will equip you with the
+                confidence and knowledge to turn ideas into reality.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-                <Button 
-                  size="lg" 
+                <Button
+                  size="lg"
                   className="bg-white text-blue-900 hover:bg-gray-100 px-8 py-3 text-lg font-semibold rounded-full shadow-lg transition-all duration-300 hover:shadow-xl"
                 >
                   Enroll Now
                   <ArrowRight className="w-5 h-5 ml-2" />
                 </Button>
                 <Link href="/events">
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     size="lg"
                     className="border-white text-white hover:bg-white hover:text-blue-900 px-8 py-3 text-lg font-semibold rounded-full transition-all duration-300"
                   >

@@ -24,6 +24,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       "/terms",
       "/confirmation",
       "/previous-contributors",
+      "/curriculum",
     ];
     return [
       ...BASE_PUBLIC_PATHS,
