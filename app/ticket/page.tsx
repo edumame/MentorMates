@@ -8,13 +8,6 @@ import { LoadingScreen } from "@/components/ui/loading-screen";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 
-export async function getCheckinQRCode(eventId: string, userId: string) {
-  const origin = process.env.NEXT_PUBLIC_APP_URL;
-  const checkInURL = `${origin}/checkin?evt=${eventId}&usr=${userId}`;
-  const qrCode = await generateQRCode(checkInURL, 128);
-  return qrCode;
-}
-
 export default function Ticket() {
   const [qrCodeSrc, setQRCodeSrc] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
@@ -89,4 +82,10 @@ export default function Ticket() {
       </div>
     </div>
   );
+}
+
+async function getCheckinQRCode(eventId: string, userId: string) {
+  const checkInToken = `evt=${eventId}&usr=${userId}`;
+  const qrCode = await generateQRCode(checkInToken, 128);
+  return qrCode;
 }

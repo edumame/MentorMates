@@ -25,7 +25,7 @@ export function CheckinStatus({ token, onClose, isOpen }: CheckinStatusProps) {
     }
 
     setIsLoading(true)
-    fetch(`/api/checkin?token=${token}`)
+    fetch(`/api/checkin?${token}`)
       .then((res) => res.json())
       .then((data: CheckinResponse) => {
         setStatus(data)
