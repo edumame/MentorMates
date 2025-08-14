@@ -1,24 +1,19 @@
 import { NextResponse } from 'next/server'
-import { verifyCheckinJwt } from '@/lib/utils/jwt'
 import { createSupabaseClient } from '@/app/utils/supabase/server'
 
 export async function GET(request: Request) {
   try {
     // Get token from query params
     const { searchParams } = new URL(request.url)
-    const token = searchParams.get('token')
+    const eventId = searchParams.get('evt')
+    const userId = searchParams.get('usr')
 
-    if (!token) {
+    if (!eventId || !userId) {
       return NextResponse.json(
-        { error: 'No check-in token provided' },
+        { error: 'No event ID or user ID provided' },
         { status: 400 }
       )
     }
-
-    // Verify JWT token
-    const claims = await verifyCheckinJwt(token)
-    const { eventId, userId } = claims
-
     // Initialize Supabase client
     const supabase = await createSupabaseClient()
 

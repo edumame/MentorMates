@@ -11,6 +11,7 @@ export async function signCheckinJwt(
   claims: CheckinClaims,
   expiresIn: string = "30d"
 ) {
+  
   const jti = crypto.randomUUID();
   return new SignJWT(claims)
     .setProtectedHeader({ alg: "HS256", typ: "JWT" })
@@ -20,7 +21,7 @@ export async function signCheckinJwt(
     .sign(secret);
 }
 
-export async function verifyCheckinJwt(token: string) {
+export async function verifyJwt(token: string) {
   try {
     const { payload } = await jwtVerify(token, secret, { algorithms: ["HS256"] });
     // payload: { sub, jti, iat, exp, eventId, userId }

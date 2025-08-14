@@ -94,22 +94,22 @@ export default function EmailDashboard({
   const sendCheckinEmail = async (user: UserProfileWithEmail) => {
     setIsSending(true);
     try {
-      const response = await fetch(`/api/email_notification/user/${user.uid}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          eventId,
-          eventName,
-          emailType: EMAIL_TYPES.CHECKIN_QR_CODE,
-        }),
-      });
+        const response = await fetch(`/api/email_notification/user/${user.uid}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            eventId,
+            eventName,
+            emailType: EMAIL_TYPES.CHECKIN_QR_CODE,
+          }),
+        });
 
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to send email");
-      }
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || "Failed to send email");
+        }
 
       toast({
         title: "Success",
@@ -173,7 +173,7 @@ export default function EmailDashboard({
                       disabled={isSending}
                       size="sm"
                     >
-                      Send Email
+                      Send Check-in Email
                     </Button>
                   </TableCell>
                 </TableRow>

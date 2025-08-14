@@ -23,12 +23,12 @@ export default function SendGeneralNotification({
     const fetchEventName = async () => {
       const { data, error } = await supabase
         .from("events")
-        .select("name")
+        .select("event_name")
         .eq("event_id", eventId)
         .single();
 
       if (!error && data) {
-        setEventName(data.name);
+        setEventName(data.event_name);
       }
     };
 
@@ -41,7 +41,7 @@ export default function SendGeneralNotification({
       method: "POST",
       body: JSON.stringify({
         eventId: eventId,
-        emailType: EMAIL_TYPES.EVENT_SCHEDULE_UPDATE,
+        emailType: EMAIL_TYPES.EVENT_UPDATE,
       }),
     });
 
@@ -63,7 +63,7 @@ export default function SendGeneralNotification({
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-bold">Event Notifications</h1>
-      
+
       <Tabs defaultValue="individual" className="w-full">
         <TabsList>
           <TabsTrigger value="individual">Individual Notifications</TabsTrigger>
@@ -82,7 +82,7 @@ export default function SendGeneralNotification({
                 Send notifications to all event participants.
               </p>
             </div>
-            
+
             <Button onClick={handleSendGeneralNotification} disabled={loading}>
               {loading ? "Sending..." : "Send General Notification"}
             </Button>

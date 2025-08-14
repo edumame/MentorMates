@@ -1,7 +1,5 @@
 import { EventDetails } from "../types";
 import { ScheduleDay, ScheduleEvent } from "../types";
-import { generateQRCode } from "@/lib/utils/qrcode";
-import { signCheckinJwt } from "@/lib/utils/jwt";
 
 export interface EmailTemplate {
   subject: string;
@@ -131,32 +129,22 @@ export const getCheckinQRCodeEmail = async (
   userId: string,
   eventId: string
 ): Promise<EmailTemplate> => {
+  const origin = process.env.NEXT_PUBLIC_APP_URL;
 
-  const qrCode = await getCheckinQRCode(eventId, userId);
+  const link = `${origin}/ticket?evt=${eventId}&usr=${userId}`;
+
   return {
     subject: `Check-In QR Code for "${eventName}" - MentorMates`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h1 style="color: #2563eb; margin-bottom: 24px;">Check-In QR Code</h1>
+        <h1 style="color: #2563eb; margin-bottom: 24px;">Ticket for "${eventName}"</h1>
         <p style="font-size: 16px; line-height: 1.5; color: #374151; margin-bottom: 16px;">
-          Please display the QR code to check in for the event "${eventName}".
+          Get your ticket for the event "${eventName}:".
         </p>
-        <img src="${qrCode}" alt="Check-In QR Code" style="width: 300px; height: 300px; margin: 0 auto; display: block;" />
+        <a href="${link}" style="display: inline-block; background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 500; text-align: center; margin: 0 auto 16px; box-shadow: 0 2px 4px rgba(37, 99, 235, 0.1);">
+          Get your ticket
+        </a>
       </div>
     `,
   };
 };
-
-export async function getCheckinQRCode(eventId: string, userId: string) {
-  const jwt = await signCheckinJwt({
-    eventId: eventId,
-    userId: userId,
-  });
-
-  const origin = process.env.NEXT_PUBLIC_APP_URL;
-  const checkInURL = `${origin}/checkin?token=${jwt}`;
-
-  const qrCode = await generateQRCode(checkInURL, 300);
-
-  return qrCode;
-}
