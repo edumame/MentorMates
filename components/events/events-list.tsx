@@ -14,6 +14,14 @@ interface Event {
   event_date: string;
   location: string;
   cover_image_url?: string;
+  bucket_id?: string;
+  event_buckets?: {
+    bucket_id: string;
+    bucket_name: string;
+    bucket_slug: string;
+    bucket_color: string;
+    bucket_icon?: string;
+  };
 }
 
 interface UserEventRole {
@@ -120,6 +128,21 @@ export function EventsList({ events }: EventsListProps) {
                   <Badge variant="outline" className="text-xs sm:text-sm">
                     {event.location}
                   </Badge>
+                  {event.event_buckets && (
+                    <Badge 
+                      variant="outline" 
+                      className="text-xs sm:text-sm border-2"
+                      style={{ 
+                        borderColor: event.event_buckets.bucket_color,
+                        color: event.event_buckets.bucket_color
+                      }}
+                    >
+                      {event.event_buckets.bucket_icon && (
+                        <span className="mr-1">{event.event_buckets.bucket_icon}</span>
+                      )}
+                      {event.event_buckets.bucket_name}
+                    </Badge>
+                  )}
                 </div>
                 {userRole && (
                   <Badge

@@ -3,8 +3,10 @@ import { EventRole, EventVisibility } from "@/lib/types";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { ADMIN_USER_IDS } from "@/lib/config/constants";
 
-export async function GET() {
+export async function GET(request: Request) {
   const supabase = await createSupabaseClient();
+  const { searchParams } = new URL(request.url);
+  const bucketId = searchParams.get("bucket_id");
 
   try {
     // Check if user is authenticated
@@ -14,12 +16,30 @@ export async function GET() {
 
     if (!user) {
       // If not authenticated, only return public and private events
-      const { data: visibleEvents, error: visibleError } = await supabase
+      let query = supabase
         .from("events")
-        .select(
-          "event_id, event_name, event_slug, event_blurb"
-        )
+        .select(`
+          event_id, 
+          event_name, 
+          event_slug, 
+          event_blurb,
+          bucket_id,
+          event_buckets!inner(
+            bucket_id,
+            bucket_name,
+            bucket_slug,
+            bucket_color,
+            bucket_icon
+          )
+        `)
         .in("visibility", [EventVisibility.Public, EventVisibility.Private]);
+
+      // Filter by bucket if specified
+      if (bucketId) {
+        query = query.eq("bucket_id", bucketId);
+      }
+
+      const { data: visibleEvents, error: visibleError } = await query;
 
       if (visibleError) throw visibleError;
       return NextResponse.json({ events: visibleEvents });
@@ -44,7 +64,22 @@ export async function GET() {
       .map((role) => role.event_id);
 
     // Build query for events based on visibility and user role
-    let query = supabase.from("events").select("*");
+    let query = supabase.from("events").select(`
+      *,
+      event_buckets(
+        bucket_id,
+        bucket_name,
+        bucket_slug,
+        bucket_color,
+        bucket_icon,
+        visibility
+      )
+    `);
+
+    // Filter by bucket if specified
+    if (bucketId) {
+      query = query.eq("bucket_id", bucketId);
+    }
 
     if (isAdmin) {
       // Admins can see all events (public, private, draft, demo, test)
