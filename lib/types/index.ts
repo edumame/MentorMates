@@ -15,6 +15,18 @@ export enum EventVisibility {
   Draft = "draft",
 }
 
+// Pricing Types
+export interface PricingTier {
+  id: string;
+  name: string;
+  price: number; // Price in cents
+  stripe_price_id?: string;
+  description?: string;
+  available_until?: string; // ISO date string for limited-time offers
+  max_quantity?: number; // Maximum number of tickets for this tier
+  current_quantity?: number; // Current number sold (for tracking)
+}
+
 export interface UserProfile {
   uid: string;
   display_name: string;
@@ -30,7 +42,8 @@ export type EventItem = {
   cover_image_url?: string;
   scoring_config?: EventScoringConfig;
   paid?: boolean; 
-  stripe_price_id?: string; // Stripe price ID for paid events
+  stripe_price_id?: string; // Stripe price ID for paid events (legacy)
+  pricing_tiers?: PricingTier[]; // New pricing tiers system
 };
 
 // Event Overview Types

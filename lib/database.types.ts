@@ -71,6 +71,7 @@ export type Database = {
           faq: string | null
           location: string | null
           paid: boolean | null
+          pricing_tiers: Json | null
           role_labels: Json | null
           rules: Json
           scoring_config: Json | null
@@ -94,6 +95,7 @@ export type Database = {
           faq?: string | null
           location?: string | null
           paid?: boolean | null
+          pricing_tiers?: Json | null
           role_labels?: Json | null
           rules: Json
           scoring_config?: Json | null
@@ -117,6 +119,7 @@ export type Database = {
           faq?: string | null
           location?: string | null
           paid?: boolean | null
+          pricing_tiers?: Json | null
           role_labels?: Json | null
           rules?: Json
           scoring_config?: Json | null

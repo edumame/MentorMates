@@ -8,6 +8,7 @@ interface CheckoutOptions {
   eventId?: string | null;
   eventSlug?: string | null;
   eventName?: string | null;
+  pricingTierId?: string | null; // For selecting specific pricing tier
 }
 
 export async function fetchClientSecret(options?: CheckoutOptions) {
@@ -53,17 +54,34 @@ export async function fetchClientSecret(options?: CheckoutOptions) {
 
   let lineItems;
 
-  const { data: stripePriceId } = await supabase
+  const { data: eventData } = await supabase
       .from("events")
-      .select("stripe_price_id")
+      .select("stripe_price_id, pricing_tiers")
       .eq("event_id", options?.eventId)
       .single();
   
-  if (stripePriceId?.stripe_price_id) {
-    // Use the specific Stripe price ID for this event
+  if (options?.pricingTierId && eventData?.pricing_tiers) {
+    // Find the specific pricing tier
+    const pricingTiers = Array.isArray(eventData.pricing_tiers) 
+      ? eventData.pricing_tiers 
+      : [];
+    const selectedTier = pricingTiers.find((tier: any) => tier.id === options.pricingTierId);
+    
+    if (selectedTier?.stripe_price_id) {
+      lineItems = [
+        {
+          price: selectedTier.stripe_price_id,
+          quantity: 1,
+        },
+      ];
+    } else {
+      throw new Error("Selected pricing tier does not have a Stripe price ID configured.");
+    }
+  } else if (eventData?.stripe_price_id) {
+    // Fallback to legacy single price ID
     lineItems = [
       {
-        price: stripePriceId.stripe_price_id,
+        price: eventData.stripe_price_id,
         quantity: 1,
       },
     ];
@@ -83,6 +101,16 @@ export async function fetchClientSecret(options?: CheckoutOptions) {
     allow_promotion_codes: true,
   });
 
+  // Get pricing tier information if specified
+  let pricingTierName = null;
+  if (options?.pricingTierId && eventData?.pricing_tiers) {
+    const pricingTiers = Array.isArray(eventData.pricing_tiers) 
+      ? eventData.pricing_tiers 
+      : [];
+    const selectedTier = pricingTiers.find((tier: any) => tier.id === options.pricingTierId);
+    pricingTierName = selectedTier?.name || null;
+  }
+
   // greedily create a user event payment record for the user in the processing state
   const { data: userEventPayment } = await supabase
     .from("user_event_payments")
@@ -96,6 +124,8 @@ export async function fetchClientSecret(options?: CheckoutOptions) {
         amount_paid: session.amount_total,
         currency: session.currency,
         payment_status: "processing",
+        pricing_tier_id: options?.pricingTierId || null,
+        pricing_tier_name: pricingTierName,
       },
       {
         onConflict: "user_id,event_id",

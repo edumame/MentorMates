@@ -14,7 +14,8 @@ import {
   FolderKanban,
   UserCheck,
   Import,
-  Upload, 
+  Upload,
+  DollarSign,
 } from "lucide-react";
 import {
   EventDetails,
@@ -34,6 +35,7 @@ import { AccessTab } from "./access";
 import { AssignTab } from "./assign";
 import { ProjectImport } from "./import/ProjectImportButton";
 import SendGeneralNotification from "./notifications/SendNotification";
+import { PricingTab } from "./pricing/PricingTab";
 
 export function OrganizerDashboard({ eventId }: { eventId: string }) {
   const [event, setEvent] = useState<EventDetails | null>(null);
@@ -182,10 +184,15 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
   return (
     <div className="space-y-6">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4 mb-8 w-full h-auto">
+        <TabsList className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-8 gap-4 mb-8 w-full h-auto">
           <TabsTrigger value="details" className="flex-1 items-center gap-2">
             <Edit className="h-4 w-4" />
             Event Details
+          </TabsTrigger>
+
+          <TabsTrigger value="pricing" className="flex items-center gap-2">
+            <DollarSign className="h-4 w-4" />
+            Pricing
           </TabsTrigger>
 
           <TabsTrigger value="access" className="flex items-center gap-2">
@@ -229,6 +236,16 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
             saving={saving}
             setSaving={setSaving}
             router={router}
+            toast={toast}
+          />
+        </TabsContent>
+
+        <TabsContent value="pricing">
+          <PricingTab
+            event={event}
+            setEvent={setEvent}
+            saving={saving}
+            setSaving={setSaving}
             toast={toast}
           />
         </TabsContent>

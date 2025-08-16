@@ -20,9 +20,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { EventRole, EventItem, EventVisibility } from "@/lib/types";
+import { EventRole, EventItem, EventVisibility, PricingTier } from "@/lib/types";
 import { toast } from "@/lib/hooks/use-toast";
 import { getRoleLabel } from "@/features/user/roles/roles";
+import { PricingTierSelector } from "./pricing-tier-selector";
+import { getCheapestPricingTier, formatPrice } from "@/lib/utils/pricing";
 
 export interface JoinEventButtonProps {
   eventId: string;
@@ -50,6 +52,9 @@ export function JoinEventButton({ eventId, eventName, label }: JoinEventButtonPr
   const router = useRouter();
   const [price, setPrice] = useState<number | null>(null);
   const [isLoadingPrice, setIsLoadingPrice] = useState(false);
+  const [pricingTiers, setPricingTiers] = useState<PricingTier[]>([]);
+  const [selectedPricingTierId, setSelectedPricingTierId] = useState<string>("");
+  const [showPricingTiers, setShowPricingTiers] = useState(false);
 
   useEffect(() => {
     async function init() {
@@ -64,6 +69,7 @@ export function JoinEventButton({ eventId, eventName, label }: JoinEventButtonPr
             location,
             paid,
             price,
+            pricing_tiers,
             visibility,
             role_labels
           `)
@@ -83,11 +89,16 @@ export function JoinEventButton({ eventId, eventName, label }: JoinEventButtonPr
           setShowPasswordInput(true);
         }
 
-        // Fetch price if event is paid
-        if (eventData?.paid && eventData?.price) {
-          setIsLoadingPrice(true);
-          setPrice(eventData.price / 100);
-          setIsLoadingPrice(false);
+        // Handle pricing tiers or legacy pricing
+        if (eventData?.paid) {
+          if (eventData.pricing_tiers && Array.isArray(eventData.pricing_tiers) && eventData.pricing_tiers.length > 0) {
+            setPricingTiers(eventData.pricing_tiers);
+          } else if (eventData.price) {
+            // Legacy single price - convert to pricing tier
+            setIsLoadingPrice(true);
+            setPrice(eventData.price / 100);
+            setIsLoadingPrice(false);
+          }
         }
 
         const {
@@ -128,6 +139,52 @@ export function JoinEventButton({ eventId, eventName, label }: JoinEventButtonPr
     }
   };
 
+  const handlePricingTierContinue = async () => {
+    try {
+      setIsLoading(true);
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) {
+        localStorage.setItem("returnUrl", window.location.pathname);
+        router.push("/login");
+        return;
+      }
+
+      // Store the event join intent in localStorage for after payment
+      localStorage.setItem(
+        "joinEventIntent",
+        JSON.stringify({
+          eventId,
+          role: selectedRole,
+          password: showPasswordInput ? password : undefined,
+          userId: session.user.id,
+          pricingTierId: selectedPricingTierId,
+        })
+      );
+
+      // Redirect to checkout with event and pricing tier information
+      const searchParams = new URLSearchParams({
+        eventId: eventId,
+        eventSlug: event?.slug || eventId,
+        eventName: event?.event_name || eventName,
+        pricingTierId: selectedPricingTierId,
+      });
+
+      router.push(`/checkout?${searchParams.toString()}`);
+    } catch (error) {
+      console.error("Error processing pricing tier selection:", error);
+      toast({
+        title: "Error",
+        description: "Failed to process pricing tier selection",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleJoinEvent = async () => {
     try {
       setIsLoading(true);
@@ -141,7 +198,7 @@ export function JoinEventButton({ eventId, eventName, label }: JoinEventButtonPr
         return;
       }
 
-      // Check if event is paid and redirect to checkout
+      // Check if event is paid and handle pricing tier selection
       if (
         event?.paid &&
         selectedRole !== EventRole.Organizer &&
@@ -155,6 +212,12 @@ export function JoinEventButton({ eventId, eventName, label }: JoinEventButtonPr
           .maybeSingle();
 
         if (userPaidStatus?.payment_status !== "paid") {
+          // If there are pricing tiers, show tier selection
+          if (pricingTiers.length > 0) {
+            setShowPricingTiers(true);
+            return;
+          }
+          
           // Store the event join intent in localStorage for after payment
           localStorage.setItem(
             "joinEventIntent",
@@ -232,65 +295,95 @@ export function JoinEventButton({ eventId, eventName, label }: JoinEventButtonPr
           {label
             ? label
             : event?.paid
-              ? isLoadingPrice
-                ? `Join ${eventName} - Loading...`
-                : price !== null
-                  ? `Join ${eventName} - $${price.toFixed(2)}`
-                  : `Join ${eventName} - Paid Event`
+              ? pricingTiers.length > 0
+                ? (() => {
+                    const cheapestTier = getCheapestPricingTier(pricingTiers);
+                    return cheapestTier 
+                      ? `Join ${eventName} - From ${formatPrice(cheapestTier.price)}`
+                      : `Join ${eventName} - Multiple Tiers Available`;
+                  })()
+                : isLoadingPrice
+                  ? `Join ${eventName} - Loading...`
+                  : price !== null
+                    ? `Join ${eventName} - $${price.toFixed(2)}`
+                    : `Join ${eventName} - Paid Event`
               : `Join ${eventName} - Free Event`}
         </Button>
       </DialogTrigger>
-      <DialogContent aria-describedby="join-event-dialog">
+      <DialogContent aria-describedby="join-event-dialog" className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Choose Your Role</DialogTitle>
+          <DialogTitle>
+            {showPricingTiers ? "Select Pricing Tier" : "Choose Your Role"}
+          </DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Select your role:</label>
-            <Select value={selectedRole} onValueChange={handleRoleSelect}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={EventRole.Participant}>
-                  {getRoleLabel(EventRole.Participant, roleLabels)}
-                </SelectItem>
-                <SelectItem value={EventRole.Mentor}>
-                  {getRoleLabel(EventRole.Mentor, roleLabels)}
-                </SelectItem>
-                <SelectItem value={EventRole.Judge}>
-                  {getRoleLabel(EventRole.Judge, roleLabels)}
-                </SelectItem>
-                <SelectItem value={EventRole.Organizer}>
-                  {getRoleLabel(EventRole.Organizer, roleLabels)}
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {showPasswordInput && (
-            <div className="space-y-2">
-              <label className="text-sm font-medium">
-                {event?.visibility === EventVisibility.Private
-                  ? "Enter Event Password:"
-                  : `Enter ${getRoleLabel(selectedRole, roleLabels)} Password:`}
-              </label>
-              <Input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter password"
+          {showPricingTiers ? (
+            <div className="space-y-4">
+              <Button
+                variant="outline"
+                onClick={() => setShowPricingTiers(false)}
+                className="mb-4"
+              >
+                ← Back to Role Selection
+              </Button>
+              <PricingTierSelector
+                pricingTiers={pricingTiers}
+                selectedTierId={selectedPricingTierId}
+                onTierSelect={setSelectedPricingTierId}
+                onContinue={handlePricingTierContinue}
+                isLoading={isLoading}
               />
             </div>
-          )}
+          ) : (
+            <>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Select your role:</label>
+                <Select value={selectedRole} onValueChange={handleRoleSelect}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={EventRole.Participant}>
+                      {getRoleLabel(EventRole.Participant, roleLabels)}
+                    </SelectItem>
+                    <SelectItem value={EventRole.Mentor}>
+                      {getRoleLabel(EventRole.Mentor, roleLabels)}
+                    </SelectItem>
+                    <SelectItem value={EventRole.Judge}>
+                      {getRoleLabel(EventRole.Judge, roleLabels)}
+                    </SelectItem>
+                    <SelectItem value={EventRole.Organizer}>
+                      {getRoleLabel(EventRole.Organizer, roleLabels)}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-          <Button
-            onClick={handleJoinEvent}
-            disabled={isLoading || (showPasswordInput && !password)}
-            className="w-full bg-blue-700 hover:bg-blue-800"
-          >
-            {isLoading ? "Joining..." : "Confirm"}
-          </Button>
+              {showPasswordInput && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">
+                    {event?.visibility === EventVisibility.Private
+                      ? "Enter Event Password:"
+                      : `Enter ${getRoleLabel(selectedRole, roleLabels)} Password:`}
+                  </label>
+                  <Input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter password"
+                  />
+                </div>
+              )}
+
+              <Button
+                onClick={handleJoinEvent}
+                disabled={isLoading || (showPasswordInput && !password)}
+                className="w-full bg-blue-700 hover:bg-blue-800"
+              >
+                {isLoading ? "Joining..." : "Confirm"}
+              </Button>
+            </>
+          )}
         </div>
       </DialogContent>
     </Dialog>
