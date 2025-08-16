@@ -225,26 +225,24 @@ export function BasicInfoTab({
         />
       </div>
 
-      {/* Paywall Content - Only show for paid events */}
-      {event.paid && (
-        <div className="space-y-2">
-          <Label htmlFor="paywall_content">
-            🔒 Exclusive Content for Participants
-          </Label>
-          <Textarea
-            id="paywall_content"
-            value={event.paywall_content || ""}
-            onChange={(e) =>
-              setEvent({ ...event, paywall_content: e.target.value })
-            }
-            rows={4}
-            placeholder="Content that will only be visible to users who have joined/paid for the event"
-          />
-          <p className="text-xs text-gray-500">
-            This content will only be shown to users who have joined the event. You can use Markdown formatting.
-          </p>
-        </div>
-      )}
+      {/* Exclusive Content - Available for all events */}
+      <div className="space-y-2">
+        <Label htmlFor="paywall_content">
+          🔒 Exclusive Content for Participants
+        </Label>
+        <Textarea
+          id="paywall_content"
+          value={event.paywall_content || ""}
+          onChange={(e) =>
+            setEvent({ ...event, paywall_content: e.target.value })
+          }
+          rows={4}
+          placeholder="Content that will only be visible to users who have joined the event"
+        />
+        <p className="text-xs text-gray-500">
+          This content will only be shown to users who have joined the event. You can use Markdown formatting.
+        </p>
+      </div>
 
       <div className="space-y-2">
         <Label htmlFor="cover_image">Cover Image</Label>
