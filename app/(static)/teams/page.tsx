@@ -41,6 +41,11 @@ const teamGroups: TeamGroup[] = [
         imageUrl: "/img/Glenn.png",
         profileUrl: "https://dschool.stanford.edu/team-directory/glenn-fajardo",
       },
+      {
+        name: "Chris Piech",
+        imageUrl: "/img/ChrisPiech.jpg",
+        profileUrl: "https://stanford.edu/~cpiech/bio/index.html",
+      },
     ],
   },
   {
