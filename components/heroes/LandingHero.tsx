@@ -108,13 +108,20 @@ export function LandingHero() {
           Supported by:
         </p>
         <div className="mx-auto relative w-[200px] h-[100px]">
-          <Image
-            src="https://clinicalmindai.stanford.edu/sites/g/files/sbiybj31566/files/styles/responsive_large/public/media/image/motif_text-stanford_accelerator_for_learning_rgb_1_1.png.webp?itok=b--D-kMe"
-            alt="Stanford Accelerator for Learning"
-            fill
-            className="object-contain opacity-90 hover:opacity-100 transition-opacity duration-300"
-            priority
-          />
+          <Link 
+            href="https://acceleratelearning.stanford.edu/funding/people-who-help-other-people-learn-pwhopl/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block w-full h-full"
+          >
+            <Image
+              src="https://clinicalmindai.stanford.edu/sites/g/files/sbiybj31566/files/styles/responsive_large/public/media/image/motif_text-stanford_accelerator_for_learning_rgb_1_1.png.webp?itok=b--D-kMe"
+              alt="Stanford Accelerator for Learning"
+              fill
+              className="object-contain opacity-90 hover:opacity-100 transition-opacity duration-300 cursor-pointer"
+              priority
+            />
+          </Link>
         </div>
         <p className="text-md text-gray-600 max-w-3xl mx-auto pt-2">
           Mentor Mate is built at Stanford Graduate School of Education and
