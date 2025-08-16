@@ -5,6 +5,12 @@ import {
 } from "@/lib/email_templates/event-notifications";
 import { EMAIL_TYPES, NOTIFICATIONS_EMAIL_FROM } from "@/lib/email_templates/constants";
 import { Resend } from "resend";
+// Import new configurable template system
+import { 
+  getEmailTemplateService,
+  getEmailRenderer 
+} from "@/lib/email_templates";
+import { getServerEmailConfig } from "@/lib/config/email";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -12,7 +18,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ userId: string }> }
 ) {
-  const { eventId, emailType, eventName } = await request.json();
+  const { eventId, emailType, eventName, useConfigurableTemplates = false } = await request.json();
   if (!eventId || !emailType) {
     return NextResponse.json(
       { error: "Event ID and email type are required" },
@@ -58,10 +64,14 @@ export async function POST(
     );
   }
 
-  const emailToSend = await getUserEmail(userId, eventId, eventName, emailType);
+  const emailToSend = await getUserEmail(userId, eventId, eventName, emailType, useConfigurableTemplates);
+
+  // Use configurable from address if available
+  const emailRenderer = getEmailRenderer();
+  const fromAddress = emailRenderer.getFromAddress() || NOTIFICATIONS_EMAIL_FROM;
 
   const { data, error } = await resend.emails.send({
-    from: NOTIFICATIONS_EMAIL_FROM,
+    from: fromAddress,
     to: userEmail.email,
     subject: emailToSend.subject,
     html: emailToSend.html,
@@ -78,12 +88,30 @@ const getUserEmail = async (
     userId: string,
     eventId: string,
     eventName: string,
-    emailType: EMAIL_TYPES
+    emailType: EMAIL_TYPES,
+    useConfigurableTemplates: boolean = false
   ) => {
-    switch (emailType) {
-      case EMAIL_TYPES.CHECKIN_QR_CODE:
-        return await getCheckinQRCodeEmail(eventName, userId, eventId);
-      default:
-        return await getCheckinQRCodeEmail(eventName, userId, eventId);
+    // Check if configurable templates are enabled
+    const serverConfig = getServerEmailConfig();
+    const shouldUseConfigurable = useConfigurableTemplates && serverConfig.features.enableConfigurableTemplates;
+    
+    if (shouldUseConfigurable) {
+      // Use new configurable template system
+      const emailService = getEmailTemplateService();
+      
+      switch (emailType) {
+        case EMAIL_TYPES.CHECKIN_QR_CODE:
+          return emailService.generateCheckinQRCodeEmail(eventName, userId, eventId);
+        default:
+          return emailService.generateCheckinQRCodeEmail(eventName, userId, eventId);
+      }
+    } else {
+      // Use legacy template system for backward compatibility
+      switch (emailType) {
+        case EMAIL_TYPES.CHECKIN_QR_CODE:
+          return await getCheckinQRCodeEmail(eventName, userId, eventId);
+        default:
+          return await getCheckinQRCodeEmail(eventName, userId, eventId);
+      }
     }
   };

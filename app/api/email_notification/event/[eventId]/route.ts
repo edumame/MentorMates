@@ -10,6 +10,12 @@ import {
   getEventScheduleUpdateNotificationEmail,
   getEventUpdateNotificationEmail,
 } from "@/lib/email_templates/event-notifications";
+// Import new configurable template system
+import { 
+  getEmailTemplateService,
+  getEmailRenderer 
+} from "@/lib/email_templates";
+import { getServerEmailConfig } from "@/lib/config/email";
 
 //allow custom messages
 
@@ -37,7 +43,7 @@ export async function POST(
     );
   }
 
-  const { emailType, emailContent } = await request.json();
+  const { emailType, emailContent, useConfigurableTemplates = false } = await request.json();
 
   const customEmailContent = emailContent || "";
 
@@ -114,11 +120,16 @@ export async function POST(
     eventId,
     eventDetails,
     emailType,
-    customEmailContent
+    customEmailContent,
+    useConfigurableTemplates
   );
 
+  // Use configurable from address if available
+  const emailRenderer = getEmailRenderer();
+  const fromAddress = emailRenderer.getFromAddress() || NOTIFICATIONS_EMAIL_FROM;
+
   const { data, error } = await resend.emails.send({
-    from: NOTIFICATIONS_EMAIL_FROM,
+    from: fromAddress,
     to: participantsEmails,
     subject: email.subject,
     html: email.html,
@@ -139,31 +150,71 @@ const getEventEmail = (
   eventId: string,
   eventInformation: EventDetails,
   emailType: EMAIL_TYPES,
-  emailContent: string
+  emailContent: string,
+  useConfigurableTemplates: boolean = false
 ) => {
-  switch (emailType) {
-    case EMAIL_TYPES.EVENT_SCHEDULE_UPDATE:
-      return getEventScheduleUpdateNotificationEmail(
-        eventName,
-        eventId,
-        eventInformation
-      );
-    case EMAIL_TYPES.EVENT_UPDATE:
-      return getEventUpdateNotificationEmail(
-        eventName,
-        eventId,
-        eventInformation
-      );
-    case EMAIL_TYPES.EVENT_CUSTOM_UPDATE:
-      return {
-        subject: `Custom Message for "${eventName}" - MentorMates`,
-        html: emailContent,
-      };
-    default:
-      return getEventUpdateNotificationEmail(
-        eventName,
-        eventId,
-        eventInformation
-      );
+  // Check if configurable templates are enabled
+  const serverConfig = getServerEmailConfig();
+  const shouldUseConfigurable = useConfigurableTemplates && serverConfig.features.enableConfigurableTemplates;
+  
+  if (shouldUseConfigurable) {
+    // Use new configurable template system
+    const emailService = getEmailTemplateService();
+    
+    switch (emailType) {
+      case EMAIL_TYPES.EVENT_SCHEDULE_UPDATE:
+        return emailService.generateEventScheduleUpdateEmail(
+          eventName,
+          eventId,
+          eventInformation
+        );
+      case EMAIL_TYPES.EVENT_UPDATE:
+        return emailService.generateEventUpdateEmail(
+          eventName,
+          eventId,
+          eventInformation
+        );
+      case EMAIL_TYPES.EVENT_CUSTOM_UPDATE:
+        return emailService.generateEventCustomUpdateEmail(
+          eventName,
+          eventId,
+          "Custom Update", // Default title, could be made configurable
+          emailContent,
+          eventInformation
+        );
+      default:
+        return emailService.generateEventUpdateEmail(
+          eventName,
+          eventId,
+          eventInformation
+        );
+    }
+  } else {
+    // Use legacy template system for backward compatibility
+    switch (emailType) {
+      case EMAIL_TYPES.EVENT_SCHEDULE_UPDATE:
+        return getEventScheduleUpdateNotificationEmail(
+          eventName,
+          eventId,
+          eventInformation
+        );
+      case EMAIL_TYPES.EVENT_UPDATE:
+        return getEventUpdateNotificationEmail(
+          eventName,
+          eventId,
+          eventInformation
+        );
+      case EMAIL_TYPES.EVENT_CUSTOM_UPDATE:
+        return {
+          subject: `Custom Message for "${eventName}" - MentorMates`,
+          html: emailContent,
+        };
+      default:
+        return getEventUpdateNotificationEmail(
+          eventName,
+          eventId,
+          eventInformation
+        );
+    }
   }
 };

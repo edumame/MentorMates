@@ -359,10 +359,30 @@ npm install
 3. **Environment setup:**
 Create `.env.local` with your Supabase credentials:
 ```env
+# Supabase Configuration
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+
+# Email Configuration (Required)
 EMAIL_USER=your_email@gmail.com
 EMAIL_APP_PASSWORD=your_app_password
+
+# Email Template Configuration (Optional)
+EMAIL_FROM_NAME=MentorMates
+EMAIL_FROM_ADDRESS=notifications@mentormates.ai
+COMPANY_NAME=MentorMates
+COMPANY_LOGO_URL=https://mentormates.ai/logo.png
+COMPANY_WEBSITE_URL=https://mentormates.ai
+SUPPORT_EMAIL=support@mentormates.ai
+
+# Email Styling (Optional)
+EMAIL_PRIMARY_COLOR=#2563eb
+EMAIL_BACKGROUND_COLOR=#ffffff
+EMAIL_FONT_FAMILY=Arial, sans-serif
+
+# Feature Flags (Optional)
+ENABLE_CONFIGURABLE_TEMPLATES=true
+ENABLE_TEMPLATE_PREVIEW=true
 ```
 
 4. **Database setup:**
