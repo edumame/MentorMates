@@ -59,7 +59,7 @@ const teamGroups: TeamGroup[] = [
       {
         name: "Jeffery Zhou",
         imageUrl: "/img/Jeffery.png",
-        profileUrl: "https://www.linkedin.com/in/jeffery-zhou-0000000000000000000000000000000000000000/",
+        profileUrl: "https://www.linkedin.com/in/jeffery-zhou-b8523816a/",
       }
     ],
   },
