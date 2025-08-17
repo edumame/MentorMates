@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { JoinEventButton } from "@/components/events/join-event-button";
 import { EventStatusBar } from "@/components/events/event-status-bar";
 import ReactMarkdown from "react-markdown";
+import { customMarkdownComponents } from "@/components/markdown/custom-components";
 import {
   EventDetails,
   ScheduleDay,
@@ -108,7 +109,7 @@ export default async function EventOverviewPage({ params }: PageProps) {
         </CardHeader>
         <CardContent>
           <div className="prose prose-blue max-w-none">
-            <ReactMarkdown>{typedEvent.event_description}</ReactMarkdown>
+            <ReactMarkdown components={customMarkdownComponents}>{typedEvent.event_description}</ReactMarkdown>
           </div>
         </CardContent>
       </Card>
@@ -123,7 +124,7 @@ export default async function EventOverviewPage({ params }: PageProps) {
           </CardHeader>
           <CardContent>
             <div className="prose prose-blue max-w-none">
-              <ReactMarkdown>{typedEvent.paywall_content}</ReactMarkdown>
+              <ReactMarkdown components={customMarkdownComponents}>{typedEvent.paywall_content}</ReactMarkdown>
             </div>
           </CardContent>
         </Card>
@@ -187,7 +188,7 @@ export default async function EventOverviewPage({ params }: PageProps) {
                         </div>
                         {event.description && (
                           <div className="prose prose-sm prose-blue max-w-none text-gray-600 mt-2">
-                            <ReactMarkdown>{event.description}</ReactMarkdown>
+                            <ReactMarkdown components={customMarkdownComponents}>{event.description}</ReactMarkdown>
                           </div>
                         )}
                       </div>
@@ -281,7 +282,7 @@ export default async function EventOverviewPage({ params }: PageProps) {
           </CardHeader>
           <CardContent>
             <div className="prose prose-blue max-w-none">
-              <ReactMarkdown>{typedEvent.faq}</ReactMarkdown>
+              <ReactMarkdown components={customMarkdownComponents}>{typedEvent.faq}</ReactMarkdown>
             </div>
           </CardContent>
         </Card>
