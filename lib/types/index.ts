@@ -1,4 +1,12 @@
 // Core Event Types
+export enum EventRoleEnum {
+  Participant = 1,
+  Mentor = 2,
+  Judge = 3,
+  Organizer = 4,
+  Admin = 5,
+}
+
 export enum EventRole {
   Participant = "participant",
   Mentor = "mentor",
@@ -29,7 +37,7 @@ export type EventItem = {
   visibility?: EventVisibility;
   cover_image_url?: string;
   scoring_config?: EventScoringConfig;
-  paid?: boolean; 
+  paid?: boolean;
   stripe_price_id?: string; // Stripe price ID for paid events
 };
 

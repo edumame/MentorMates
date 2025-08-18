@@ -19,6 +19,7 @@ import ProjectBoard from "@/features/projects/components/displays/ProjectBoard/P
 import { motion } from "framer-motion";
 import { useToast } from "@/lib/hooks/use-toast";
 import { Toaster } from "@/components/ui/toaster";
+import { getRoleLabel } from "@/features/user/roles/roles";
 
 interface EventWithRole extends EventItem {
   user_event_roles: {
@@ -366,7 +367,7 @@ export default function ProfilePage() {
                             )}
                           </div>
                           <Badge variant={event.user_event_roles?.[0]?.role}>
-                            {event.user_event_roles?.[0]?.role}
+                            {getRoleLabel(event.user_event_roles?.[0]?.role as EventRole)}
                           </Badge>
                         </div>
                       </CardContent>

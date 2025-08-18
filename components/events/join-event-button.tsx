@@ -22,7 +22,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { EventRole, EventItem, EventVisibility } from "@/lib/types";
 import { toast } from "@/lib/hooks/use-toast";
-import { getRoleLabel } from "@/features/user/roles/roles";
+import { getRoleLabel, isHigherOrEqualRole } from "@/features/user/roles/roles";
 
 export interface JoinEventButtonProps {
   eventId: string;
@@ -123,7 +123,7 @@ export function JoinEventButton({ eventId, eventName, label }: JoinEventButtonPr
       setShowPasswordInput(true);
     } else {
       setShowPasswordInput(
-        value === EventRole.Judge || value === EventRole.Organizer
+        isHigherOrEqualRole(value, EventRole.Judge)
       );
     }
   };

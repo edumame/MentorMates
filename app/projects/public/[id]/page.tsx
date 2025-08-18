@@ -21,9 +21,10 @@ import { useQRCodeActions } from "@/features/projects/components/management/proj
 import { toast } from "@/lib/hooks/use-toast";
 import { Toaster } from "@/components/ui/toaster";
 import { ProjectScoringForm } from "@/components/project-scoring/project-scoring-form";
-import { EventTrack, TrackScoringConfig } from "@/lib/types";
+import { EventRole, EventTrack, TrackScoringConfig } from "@/lib/types";
 import { ProjectQRCodeSection } from "@/features/projects/components/displays/project-dashboard/ProjectQRCodeSection";
 import { VideoEmbed, canEmbed } from "@/components/utils";
+import { canAccessRole } from "@/features/user/roles/roles";
 
 
 //REFACTOR this to use the Project type from the lib/types.ts file
@@ -139,7 +140,7 @@ export default function PublicProjectPage() {
         }
 
         const judgeStatus =
-          roleData?.role === "judge" || roleData?.role === "admin";
+          canAccessRole(roleData?.role as EventRole, EventRole.Judge);
         setIsJudge(judgeStatus);
 
         // Fetch project tracks if user is a judge
@@ -198,7 +199,6 @@ export default function PublicProjectPage() {
 
   // Effect to handle when projectTracks changes from empty to populated
   useEffect(() => {
-    console.log("ProjectTracks state changed:", projectTracks);
     if (projectTracks.length > 0 && !selectedTrackId) {
       setSelectedTrackId(projectTracks[0].track_id);
     }

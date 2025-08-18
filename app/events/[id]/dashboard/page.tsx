@@ -10,12 +10,14 @@ import { MentorDashboard } from "@/features/user/dashboards/dashboard/mentor-das
 import { OrganizerDashboard } from "@/features/user/dashboards/dashboard/organizer";
 import { useState, useEffect } from "react";
 import { isValidUUID } from "@/app/utils/supabase/queries";
+import { RoleSwitcher } from "@/components/role-switcher";
 
 export default function DashboardPage() {
   const params = useParams();
   const slug = params.id as string;
   const [eventId, setEventId] = useState<string | null>(null);
-  const { userRole } = useEventRegistration();
+  const { userRole, activeRole, switchRole, roleLabels } =
+    useEventRegistration();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -52,7 +54,8 @@ export default function DashboardPage() {
   }
 
   const renderDashboard = () => {
-    switch (userRole) {
+    // Use activeRole for dashboard rendering to support role switching
+    switch (activeRole) {
       case EventRole.Participant:
         return <ParticipantDashboard eventId={eventId} />;
       case EventRole.Judge:
@@ -82,7 +85,21 @@ export default function DashboardPage() {
           <h2 className="text-2xl font-bold">Loading...</h2>
         </div>
       ) : (
-        renderDashboard()
+        <>
+          {/* Show role switcher for users who can access multiple roles */}
+          {userRole && activeRole && (
+            <div className="flex justify-end">
+              <RoleSwitcher
+                actualRole={userRole}
+                activeRole={activeRole}
+                onRoleChange={switchRole}
+                eventRoleLabels={roleLabels}
+                className="mb-4"
+              />
+            </div>
+          )}
+          {renderDashboard()}
+        </>
       )}
     </div>
   );

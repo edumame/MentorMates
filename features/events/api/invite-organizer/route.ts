@@ -1,6 +1,7 @@
 import { createSupabaseClient } from '@/app/utils/supabase/server';
 import { NextResponse } from 'next/server';
 import { EventRole } from '@/lib/types';
+import { canAccessRole } from '@/features/user/roles/roles';
 
 export async function POST(request: Request) {
   // TODO: Consider implementing rate limiting to prevent invite spam
@@ -31,7 +32,7 @@ export async function POST(request: Request) {
     .eq('user_id', auth.user.id)
     .maybeSingle();
 
-  if (!role || (role.role !== EventRole.Organizer && role.role !== EventRole.Admin)) {
+  if (!role || !canAccessRole(role.role as EventRole, EventRole.Organizer)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

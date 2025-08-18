@@ -7,6 +7,7 @@ import {
   ProjectFromDatabase,
   ProjectWithPrizes,
 } from "@/lib/types";
+import { canAccessRole } from "@/features/user/roles/roles";
 
 export async function GET(request: NextRequest) {
   try {
@@ -279,7 +280,7 @@ export async function GET(request: NextRequest) {
         .eq("user_id", user.id)
         .single();
 
-      if (!userRole || userRole.role !== EventRole.Organizer) {
+      if (!userRole || !canAccessRole(userRole.role as EventRole, EventRole.Organizer)) {
         return NextResponse.json(
           { error: "Insufficient permissions" },
           { status: 403 }

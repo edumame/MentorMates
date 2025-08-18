@@ -18,6 +18,21 @@ export async function POST(request: Request) {
       );
     }
 
+    // Validate role is a valid EventRole value
+    const validRoles = [
+      EventRole.Participant, 
+      EventRole.Mentor, 
+      EventRole.Judge, 
+      EventRole.Organizer, 
+      EventRole.Admin
+    ];
+    if (!validRoles.includes(role)) {
+      return NextResponse.json(
+        { error: "Invalid role specified" },
+        { status: 400 }
+      );
+    }
+
     const { data: event, error: eventError } = await supabase
       .from("events")
       .select("*")
@@ -114,7 +129,8 @@ export async function POST(request: Request) {
         }
       } else {
         // For non-protected roles (Participant or Mentor), verify the role is valid
-        if (role !== EventRole.Participant && role !== EventRole.Mentor) {
+        const validRoles = [EventRole.Participant, EventRole.Mentor];
+        if (!validRoles.includes(role)) {
           return NextResponse.json({ error: "Invalid role" }, { status: 400 });
         }
       }
