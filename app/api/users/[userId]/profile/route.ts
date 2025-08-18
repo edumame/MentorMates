@@ -148,6 +148,7 @@ export async function GET(
         visibility,
         cover_image_url,
         scoring_config,
+        role_labels,
         user_event_roles!inner (
           role
         )

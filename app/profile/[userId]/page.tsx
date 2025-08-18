@@ -6,8 +6,8 @@ import type { Session } from "@supabase/supabase-js";
 import {
   Project,
   EventRole,
-  EventItem,
   ProjectBoardContext,
+  EventDetails,
 } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -21,7 +21,7 @@ import { useToast } from "@/lib/hooks/use-toast";
 import { Toaster } from "@/components/ui/toaster";
 import { getRoleLabel } from "@/features/user/roles/roles";
 
-interface EventWithRole extends EventItem {
+interface EventWithRole extends EventDetails {
   user_event_roles: {
     role: EventRole;
   }[];
@@ -367,7 +367,7 @@ export default function ProfilePage() {
                             )}
                           </div>
                           <Badge variant={event.user_event_roles?.[0]?.role}>
-                            {getRoleLabel(event.user_event_roles?.[0]?.role as EventRole)}
+                            {getRoleLabel(event.user_event_roles?.[0]?.role as EventRole, event.role_labels)}
                           </Badge>
                         </div>
                       </CardContent>

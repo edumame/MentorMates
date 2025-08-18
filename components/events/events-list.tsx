@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { EventRole } from "@/lib/types";
+import { getRoleLabel } from "@/features/user/roles/roles";
 
 interface Event {
   event_id: string;
@@ -14,6 +15,7 @@ interface Event {
   event_date: string;
   location: string;
   cover_image_url?: string;
+  role_labels?: Record<string, string>;
 }
 
 interface UserEventRole {
@@ -66,9 +68,7 @@ export function EventsList({ events }: EventsListProps) {
     return userEventRole ? userEventRole.role : null;
   };
 
-  const getRoleBadgeVariant = (
-    role: EventRole
-  ): EventRole => {
+  const getRoleBadgeVariant = (role: EventRole): EventRole => {
     switch (role) {
       case EventRole.Admin:
         return EventRole.Admin;
@@ -123,10 +123,10 @@ export function EventsList({ events }: EventsListProps) {
                 </div>
                 {userRole && (
                   <Badge
-                    variant={getRoleBadgeVariant(userRole)}    
+                    variant={getRoleBadgeVariant(userRole)}
                     className="capitalize text-xs sm:text-sm mt-1 sm:mt-2"
                   >
-                    {userRole}
+                    {getRoleLabel(userRole, event.role_labels)}
                   </Badge>
                 )}
               </div>
