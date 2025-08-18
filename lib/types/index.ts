@@ -31,6 +31,7 @@ export type EventItem = {
   scoring_config?: EventScoringConfig;
   paid?: boolean; 
   stripe_price_id?: string; // Stripe price ID for paid events
+  participant_capacity?: number | null; // Max participants; null = unlimited
 };
 
 // Event Overview Types

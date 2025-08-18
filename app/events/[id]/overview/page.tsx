@@ -36,7 +36,8 @@ export default async function EventOverviewPage({ params }: PageProps) {
     event_schedule, 
     event_prizes, 
     event_resources,
-    paywall_content
+    paywall_content,
+    participant_capacity
   `);
 
   if (isUUID) {

@@ -120,11 +120,29 @@ export async function POST(request: Request) {
       }
     }
 
-    // At this point, either:
-    // 1. It's a private event and the role password was verified
-    // 2. It's a protected role and the role password was verified
-    // 3. It's a non-protected role
-    // So we can proceed with role assignment
+    // Enforce participant capacity if set
+    if (role === EventRole.Participant && event?.participant_capacity != null) {
+      // Count current participants for this event
+      const { count, error: countError } = await supabase
+        .from("user_event_roles")
+        .select("id", { count: "exact", head: true })
+        .eq("event_id", eventId)
+        .eq("role", EventRole.Participant);
+
+      if (countError) {
+        return NextResponse.json(
+          { error: "Failed to check capacity" },
+          { status: 500 }
+        );
+      }
+
+      if ((count || 0) >= event.participant_capacity) {
+        return NextResponse.json(
+          { error: "Event is full. No seats available." },
+          { status: 409 }
+        );
+      }
+    }
 
     // Assign role to user
     const { error: roleError } = await supabase.from("user_event_roles").upsert(
