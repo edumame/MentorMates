@@ -4,7 +4,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { ERROR_MESSAGES } from "@/lib/config/constants";
 import { EventRole } from "@/lib/types";
-import { canAccessRole, toEventRole } from "@/features/user/roles/roles";
+import { canAccessRole } from "@/features/user/roles/roles";
 
 const EventRegistrationContext =
   createContext<EventRegistrationContextType | null>(null);
@@ -81,11 +81,8 @@ export function EventRegistrationProvider({
 
         if (roleData) {
           setIsRegistered(true);
-          const normalizedRole = toEventRole(
-            roleData.role as unknown as EventRole | string
-          );
-          setUserRole(normalizedRole);
-          setActiveRole(normalizedRole); // Initially, active role is the same as user role
+          setUserRole(roleData.role as EventRole);
+          setActiveRole(roleData.role as EventRole); // Initially, active role is the same as user role
         } else {
           setIsRegistered(false);
           setUserRole(null);
@@ -103,14 +100,14 @@ export function EventRegistrationProvider({
 
   // Role switching functions
   const switchRole = (role: EventRole) => {
-    if (userRole && canAccessRole(toEventRole(userRole), role)) {
+    if (userRole && canAccessRole(userRole, role)) {
       setActiveRole(role);
     }
   };
 
   const canSwitchToRole = (role: EventRole): boolean => {
     if (!userRole) return false;
-    return canAccessRole(toEventRole(userRole), role);
+    return canAccessRole(userRole, role);
   };
 
   return (

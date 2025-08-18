@@ -22,7 +22,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { EventRole, EventItem, EventVisibility } from "@/lib/types";
 import { toast } from "@/lib/hooks/use-toast";
-import { getRoleLabel } from "@/features/user/roles/roles";
+import { getRoleLabel, isHigherOrEqualRole } from "@/features/user/roles/roles";
 
 export interface JoinEventButtonProps {
   eventId: string;
@@ -123,7 +123,7 @@ export function JoinEventButton({ eventId, eventName, label }: JoinEventButtonPr
       setShowPasswordInput(true);
     } else {
       setShowPasswordInput(
-        value === EventRole.Judge || value === EventRole.Organizer
+        isHigherOrEqualRole(value, EventRole.Judge)
       );
     }
   };
@@ -247,21 +247,21 @@ export function JoinEventButton({ eventId, eventName, label }: JoinEventButtonPr
         <div className="space-y-4 py-4">
           <div className="space-y-2">
             <label className="text-sm font-medium">Select your role:</label>
-            <Select value={selectedRole.toString()} onValueChange={(value) => handleRoleSelect(parseInt(value) as EventRole)}>
+            <Select value={selectedRole} onValueChange={handleRoleSelect}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={EventRole.Participant.toString()}>
+                <SelectItem value={EventRole.Participant}>
                   {getRoleLabel(EventRole.Participant, roleLabels)}
                 </SelectItem>
-                <SelectItem value={EventRole.Mentor.toString()}>
+                <SelectItem value={EventRole.Mentor}>
                   {getRoleLabel(EventRole.Mentor, roleLabels)}
                 </SelectItem>
-                <SelectItem value={EventRole.Judge.toString()}>
+                <SelectItem value={EventRole.Judge}>
                   {getRoleLabel(EventRole.Judge, roleLabels)}
                 </SelectItem>
-                <SelectItem value={EventRole.Organizer.toString()}>
+                <SelectItem value={EventRole.Organizer}>
                   {getRoleLabel(EventRole.Organizer, roleLabels)}
                 </SelectItem>
               </SelectContent>

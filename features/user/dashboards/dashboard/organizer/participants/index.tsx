@@ -68,7 +68,7 @@ export function ParticipantsTab({ eventId }: ParticipantsTabProps) {
           (data as UserEventRoleWithProfile[]) || []
         ).map((role) => ({
           user_id: role.user_id,
-          role: parseInt(role.role) as EventRole,
+          role: role.role as EventRole,
           display_name: role.profiles?.display_name || role.user_id,
           email: role.profiles?.email || "",
         }));

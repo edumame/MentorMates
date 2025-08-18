@@ -68,20 +68,20 @@ export function EventsList({ events }: EventsListProps) {
 
   const getRoleBadgeVariant = (
     role: EventRole
-  ): "participant" | "mentor" | "judge" | "organizer" | "admin" => {
+  ): EventRole => {
     switch (role) {
       case EventRole.Admin:
-        return "admin";
+        return EventRole.Admin;
       case EventRole.Organizer:
-        return "organizer";
+        return EventRole.Organizer;
       case EventRole.Judge:
-        return "judge";
+        return EventRole.Judge;
       case EventRole.Mentor:
-        return "mentor";
+        return EventRole.Mentor;
       case EventRole.Participant:
-        return "participant";
+        return EventRole.Participant;
       default:
-        return "participant";
+        return EventRole.Participant;
     }
   };
 
@@ -123,7 +123,7 @@ export function EventsList({ events }: EventsListProps) {
                 </div>
                 {userRole && (
                   <Badge
-                    variant={getRoleBadgeVariant(userRole)}
+                    variant={getRoleBadgeVariant(userRole)}    
                     className="capitalize text-xs sm:text-sm mt-1 sm:mt-2"
                   >
                     {userRole}

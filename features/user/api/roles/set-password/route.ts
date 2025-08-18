@@ -2,6 +2,7 @@ import { createSupabaseClient } from '@/app/utils/supabase/server';
 import { NextResponse } from 'next/server';
 import * as bcrypt from 'bcrypt';
 import { EventRole } from '@/lib/types';
+import { canAccessRole } from '@/features/user/roles/roles';
 
 export async function POST(request: Request) {
 
@@ -44,7 +45,7 @@ export async function POST(request: Request) {
       .eq('event_id', eventId)
       .single();
 
-    if (!userRole || (userRole.role !== EventRole.Admin && userRole.role !== EventRole.Organizer)) {
+    if (!userRole || !canAccessRole(userRole.role as EventRole, EventRole.Organizer)) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 403 }

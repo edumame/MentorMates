@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/lib/hooks/use-toast";
-import { canAccessRole, toEventRole } from "@/features/user/roles/roles";
+import { canAccessRole } from "@/features/user/roles/roles";
 import {
   Edit,
   Users,
@@ -65,7 +65,7 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
         if (
           !roleData ||
           !canAccessRole(
-            toEventRole(roleData.role as unknown as string),
+            roleData.role as EventRole,
             EventRole.Organizer
           )
         ) {
