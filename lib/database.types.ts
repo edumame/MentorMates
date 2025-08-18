@@ -555,6 +555,58 @@ export type Database = {
         }
         Relationships: []
       }
+      project_assignments: {
+        Row: {
+          id: string
+          project_id: string
+          user_id: string
+          event_id: string
+          role: Database["public"]["Enums"]["event_role"]
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          project_id: string
+          user_id: string
+          event_id: string
+          role: Database["public"]["Enums"]["event_role"]
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          project_id?: string
+          user_id?: string
+          event_id?: string
+          role?: Database["public"]["Enums"]["event_role"]
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_assignments_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_assignments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["uid"]
+          },
+          {
+            foreignKeyName: "project_assignments_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["event_id"]
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never

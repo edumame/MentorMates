@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { createClient } from '@/app/utils/supabase/client';
 import { PostPaymentJoin } from './post-payment-join';
 import { LoadingScreen } from '@/components/ui/loading-screen';
+import Link from 'next/link';
 
 interface PaymentStatusWatcherProps {
   sessionId: string;
@@ -192,12 +193,12 @@ export function PaymentStatusWatcher({ sessionId, eventId, customerEmail }: Paym
               Your payment could not be processed. Please try again or contact support if you continue to experience issues.
             </p>
             <div className="mt-4">
-              <a 
+              <Link 
                 href="/events" 
                 className="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg transition duration-200"
               >
                 Return to Events
-              </a>
+              </Link>
             </div>
           </div>
           

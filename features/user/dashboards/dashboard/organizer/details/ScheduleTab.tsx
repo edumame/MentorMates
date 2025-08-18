@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { TrashIcon } from "lucide-react";
 import { EventDetails } from "@/lib/types";
 import { toast as ToastType } from "@/lib/hooks/use-toast";
+import { EMAIL_TYPES } from "@/lib/email_templates/constants";
 
 interface ScheduleTabProps {
   event: EventDetails;
@@ -24,22 +25,65 @@ export function ScheduleTab({
   setSaving,
   toast,
 }: ScheduleTabProps) {
+
+  const handleScheduleUpdateNotification = async () => {
+    const response = await fetch(`/api/email_notification/event/${event.event_id}`, {
+      method: "POST",
+      body: JSON.stringify({
+        eventId: event.event_id,
+        emailType: EMAIL_TYPES.EVENT_SCHEDULE_UPDATE,
+      }),
+    });
+
+    if (response.ok) {
+      toast({
+        title: "Success",
+        description: "Schedule update notification sent successfully",
+      });
+    } else {
+      toast({
+        title: "Error",
+        description: "Failed to send schedule update notification",
+      });
+    }
+  };
+
   const handleScheduleUpdate = async () => {
     if (!event) return;
 
     try {
       setSaving(true);
-      const { error } = await supabase
+
+      // Fetch current schedule from database
+      const { data: currentData, error: fetchError } = await supabase
+        .from("events")
+        .select("event_schedule")
+        .eq("event_id", event.event_id)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      // Update the schedule
+      const { error: updateError } = await supabase
         .from("events")
         .update({ event_schedule: event.event_schedule })
         .eq("event_id", event.event_id);
 
-      if (error) throw error;
+      if (updateError) throw updateError;
 
       toast({
         title: "Success",
         description: "Schedule saved successfully",
       });
+
+      // Compare schedules to determine if notification is needed
+      const hasScheduleChanged = JSON.stringify(currentData.event_schedule) !== JSON.stringify(event.event_schedule);
+      
+      if (hasScheduleChanged) {
+        // Only send notification if schedule actually changed
+        await handleScheduleUpdateNotification();
+      }
+
     } catch (error) {
       console.error("Error updating schedule:", error);
       toast({
@@ -55,10 +99,7 @@ export function ScheduleTab({
   return (
     <div className="space-y-4">
       {event.event_schedule.map((day, dayIndex) => (
-        <div
-          key={dayIndex}
-          className="space-y-4 border-b pb-4 last:border-0"
-        >
+        <div key={dayIndex} className="space-y-4 border-b pb-4 last:border-0">
           <div className="flex justify-between items-center">
             <div className="space-y-2 flex-1">
               <Label>Day Title</Label>
@@ -143,7 +184,7 @@ export function ScheduleTab({
                   <TrashIcon className="h-4 w-4" />
                 </Button>
               </div>
-              
+
               <div className="space-y-2">
                 <Label>Description (Optional - Markdown Supported)</Label>
                 <Textarea
@@ -188,13 +229,21 @@ export function ScheduleTab({
             ...event,
             event_schedule: [
               ...event.event_schedule,
-              { time: "", events: [{ name: "", time: "", description: undefined }] },
+              {
+                time: "",
+                events: [{ name: "", time: "", description: undefined }],
+              },
             ],
           });
         }}
       >
         Add Day
       </Button>
+
+      <div className="flex justify-center items-center text-sm text-gray-500 italic bg-gray-100 py-2 px-4 rounded-lg">
+        Editing the schedule will automatically send a notification to all
+        participants once the changes are saved.
+      </div>
 
       <Button
         onClick={handleScheduleUpdate}
@@ -205,4 +254,4 @@ export function ScheduleTab({
       </Button>
     </div>
   );
-} 
+}

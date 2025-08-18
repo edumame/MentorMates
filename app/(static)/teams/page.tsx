@@ -41,6 +41,11 @@ const teamGroups: TeamGroup[] = [
         imageUrl: "/img/Glenn.png",
         profileUrl: "https://dschool.stanford.edu/team-directory/glenn-fajardo",
       },
+      {
+        name: "Chris Piech",
+        imageUrl: "/img/ChrisPiech.jpg",
+        profileUrl: "https://stanford.edu/~cpiech/bio/index.html",
+      },
     ],
   },
   {
@@ -52,10 +57,10 @@ const teamGroups: TeamGroup[] = [
         profileUrl: "https://www.linkedin.com/in/aurelia-sindhunirmala/",
       },
       {
-        name: "Matthew Law",
-        imageUrl: "/img/Matthew.png",
-        profileUrl: "https://www.linkedin.com/in/matthew-law-0x251/",
-      },
+        name: "Jeffery Zhou",
+        imageUrl: "/img/Jeffery.png",
+        profileUrl: "https://www.linkedin.com/in/jeffery-zhou-b8523816a/",
+      }
     ],
   },
 ];

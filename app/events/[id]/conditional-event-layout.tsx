@@ -17,6 +17,8 @@ interface ConditionalEventLayoutProps {
     event_description: string | null;
     cover_image_url: string | null;
     slug: string | null;
+    submission_time_start: string | null;
+    submission_time_cutoff: string | null;
   };
 }
 
@@ -40,6 +42,8 @@ export function ConditionalEventLayout({ children, event }: ConditionalEventLayo
             location={event.location || undefined}
             description={event.event_blurb || event.event_description || undefined}
             eventId={event.slug || event.event_id}
+            submissionTimeStart={event.submission_time_start || undefined}
+            submissionTimeCutoff={event.submission_time_cutoff || undefined}
           />
         )}
         {children}

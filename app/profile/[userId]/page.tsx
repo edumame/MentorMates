@@ -80,25 +80,20 @@ export default function ProfilePage() {
         if (sessionError) throw sessionError;
         setSession(session);
 
-        // Fetch user profile
-        const { data: profile, error: profileError } = await supabase
-          .from("user_profiles")
-          .select("display_name, email, links")
-          .eq("uid", userId)
-          .single();
-
-        if (profileError) throw profileError;
-        setUserProfile(profile);
-        setNewSocialLinks(profile.links || {});
-
-        // Fetch projects where user is lead or teammate
-
-        const response = await fetch("/api/projects/user");
+        // Fetch user profile and projects
+        const response = await fetch(`/api/users/${userId}/profile`);
         if (!response.ok) {
-          throw new Error("Failed to fetch projects");
+          throw new Error("Failed to fetch profile data");
         }
-        const projectsData: { projects: ProjectWithTracks[] } =
-          await response.json();
+        const profileData = await response.json();
+        
+        // Set profile data
+        setUserProfile(profileData.profile);
+        setNewSocialLinks(profileData.profile.links || {});
+        
+        const projectsData: { projects: ProjectWithTracks[] } = {
+          projects: profileData.projects
+        };
 
         // Combine and deduplicate projects
         const allProjects = [...(projectsData.projects || [])]
@@ -139,30 +134,8 @@ export default function ProfilePage() {
                 .filter(Boolean) || [],
           }));
 
-        // Fetch events for each role
-        const { data: events, error } = await supabase
-          .from("events")
-          .select(
-            `
-                event_id,
-                slug,
-                event_name,
-                event_date,
-                location,
-                visibility,
-                cover_image_url,
-                scoring_config,
-                user_event_roles!inner (
-                    role
-                )
-        `
-          )
-          .eq("user_event_roles.user_id", userId)
-          .in("visibility", ["public", "private"]);
-
-        if (error) throw error;
-
-        setEvents(events);
+        // Set events and projects from API response
+        setEvents(profileData.events || []);
         setProjects(allProjects);
       } catch (error) {
         console.error("Error fetching data:", error);

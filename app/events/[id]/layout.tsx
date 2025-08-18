@@ -29,7 +29,9 @@ export default async function Layout({
     location,
     event_blurb,
     event_description,
-    cover_image_url
+    cover_image_url,
+    submission_time_start,
+    submission_time_cutoff
   `);
 
   if (isUUID) {

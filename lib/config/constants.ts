@@ -6,20 +6,21 @@ type AdminUserId = string;
 
 // Error Messages
 export const ERROR_MESSAGES = {
-  REGISTRATION_CONTEXT: 'useEventRegistration must be used within an EventRegistrationProvider',
-  REGISTRATION_STATUS: 'Error checking registration status:',
+  REGISTRATION_CONTEXT:
+    "useEventRegistration must be used within an EventRegistrationProvider",
+  REGISTRATION_STATUS: "Error checking registration status:",
 };
 
 // UI Text
 export const UI_TEXT = {
-  SEARCH_PLACEHOLDER: 'Search hackathons...',
-  NO_EVENTS_FOUND: 'No events found for the selected filters.',
+  SEARCH_PLACEHOLDER: "Search hackathons...",
+  NO_EVENTS_FOUND: "No events found for the selected filters.",
 };
 
 // Default Values
 export const DEFAULT_VALUES = {
-  SEARCH_TERM: '',
-}; 
+  SEARCH_TERM: "",
+};
 
 export const defaultRules: Rule[] = [
   {
@@ -91,31 +92,32 @@ export const defaultInvestmentCriteria = [
   },
 ];
 
-
 export const ADMIN_USER_IDS: AdminUserId[] = [
   // Add your admin user IDs here
   "5fd21fad-2ea4-4caa-aab1-596ab7f6a4d7", // spencer
   "ec64dc8e-fc2b-45a8-9fd8-4a32e2d63f2c", // quest 2 learn
   "c0bb8ce8-a8cf-4db0-82d3-262535825d12", // Hello mentor mates
   "e4182548-e05d-4201-bc61-fe5d76a7a7ce", // Matthew dev
-  "a91610aa-5324-4978-b75d-2994ba3e15fd" // Chinat dev
+  "a91610aa-5324-4978-b75d-2994ba3e15fd", // Chinat dev
 ];
 
-
 export const STRIPE_SUCCESSFUL_EVENT_TYPES: Stripe.Event.Type[] = [
-    "checkout.session.completed",
-    // "customer.subscription.created",
-    // "customer.subscription.resumed",
-    // "invoice.paid",
-    // "invoice.payment_succeeded",
-    // "payment_intent.succeeded",
+  "checkout.session.completed",
+  // "customer.subscription.created",
+  // "customer.subscription.resumed",
+  // "invoice.paid",
+  // "invoice.payment_succeeded",
 ];
 
 export const STRIPE_FAILED_EVENT_TYPES: Stripe.Event.Type[] = [
-    // "customer.subscription.deleted",
-    // "customer.subscription.paused",
-    // "invoice.payment_failed",
-    // "payment_intent.payment_failed",
-    // "payment_intent.canceled",
-    "checkout.session.expired"
-  ];
+  // "customer.subscription.deleted",
+  // "customer.subscription.paused",
+  // "invoice.payment_failed",
+  // "payment_intent.payment_failed",
+  // "payment_intent.canceled",
+  "checkout.session.expired",
+];
+
+export const STRIPE_REFUNDED_EVENT_TYPES: Stripe.Event.Type[] = [
+  "charge.refunded",
+];

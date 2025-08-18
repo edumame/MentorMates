@@ -100,6 +100,8 @@ export interface EventDetails extends EventItem {
   event_tracks?: EventTrack[];
   role_labels?: Record<string, string>;
   faq?: string; // Optional markdown FAQ content
+  submission_time_start?: string; // Submission window start time
+  submission_time_cutoff?: string; // Submission window end time
 }
 
 // Project Types
@@ -111,7 +113,7 @@ export interface Project {
   lead_email: string;
   teammates?: string[];
   event_id: string;
-  track_ids: string[];
+  track_ids: string[]; //need to make tracks not required. Will need to redo.
   tracks?: EventTrack[];
   created_at: string;
   project_url?: string;
@@ -260,4 +262,15 @@ export interface PrizeFromDatabase {
   track_id: string;
   prize_amount: string;
   prize_description: string;
+}
+
+export interface DevpostProjectImport {
+  project_url: string;
+  project_description: string;
+  project_name: string;
+  additional_materials_url: string;
+  lead_name: string;
+  lead_email: string;
+  event_id: string;
+  video_url?: string;
 }

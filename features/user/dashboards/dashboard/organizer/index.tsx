@@ -13,6 +13,9 @@ import {
   FileText,
   BarChart,
   FolderKanban,
+  UserCheck,
+  Import,
+  Upload, 
 } from "lucide-react";
 import {
   EventDetails,
@@ -29,6 +32,9 @@ import { EventDetailsTab } from "./details";
 import { ParticipantsTab } from "./participants";
 import { EventTracksContainer } from "./tracks";
 import { AccessTab } from "./access";
+import { AssignTab } from "./assign";
+import { ProjectImport } from "./import/ProjectImportButton";
+import SendGeneralNotification from "./notifications/SendNotification";
 
 export function OrganizerDashboard({ eventId }: { eventId: string }) {
   const [event, setEvent] = useState<EventDetails | null>(null);
@@ -182,7 +188,7 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
   return (
     <div className="space-y-6">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8 w-full h-auto">
+        <TabsList className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4 mb-8 w-full h-auto">
           <TabsTrigger value="details" className="flex-1 items-center gap-2">
             <Edit className="h-4 w-4" />
             Event Details
@@ -200,6 +206,10 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
             <Users className="h-4 w-4" />
             Participants
           </TabsTrigger>
+          <TabsTrigger value="assign" className="flex items-center gap-2">
+            <UserCheck className="h-4 w-4" />
+            Assign
+          </TabsTrigger>
           <TabsTrigger value="submissions" className="flex items-center gap-2">
             <FileText className="h-4 w-4" />
             Submissions
@@ -207,6 +217,14 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
           <TabsTrigger value="scores" className="flex items-center gap-2">
             <BarChart className="h-4 w-4" />
             Live Scores
+          </TabsTrigger>
+          <TabsTrigger value="import" className="flex items-center gap-2">
+            <Import className="h-4 w-4" />
+            Import
+          </TabsTrigger>
+          <TabsTrigger value="notify" className="flex items-center gap-2">
+            <Upload className="h-4 w-4" />
+            Notify
           </TabsTrigger>
         </TabsList>
 
@@ -248,6 +266,10 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
           <ParticipantsTab eventId={eventId} />
         </TabsContent>
 
+        <TabsContent value="assign">
+          <AssignTab eventId={eventId} />
+        </TabsContent>
+
         <TabsContent value="submissions">
           <SubmissionsTab eventId={eventId} />
         </TabsContent>
@@ -264,6 +286,14 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
               }
             }
           />
+        </TabsContent>
+
+        <TabsContent value="import">
+          <ProjectImport eventId={eventId} />
+        </TabsContent>
+
+        <TabsContent value="notify">
+          <SendGeneralNotification eventId={eventId} />
         </TabsContent>
       </Tabs>
     </div>
