@@ -1,5 +1,3 @@
-"use client";
-
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -37,6 +35,8 @@ export function ProjectSubmissionFormComponent({
   onProjectSubmitted?: () => void;
 }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [projectId, setProjectId] = useState<string | null>(null);
+  const [isInitializing, setIsInitializing] = useState(true);
   const router = useRouter();
 
   // Custom hooks
@@ -92,6 +92,82 @@ export function ProjectSubmissionFormComponent({
     if (leadName) form.setValue("leadName", leadName);
     if (userEmail) form.setValue("leadEmail", userEmail);
   }, [leadName, userEmail, form]);
+
+  // Initialize or create draft project
+  useEffect(() => {
+    const ensureDraft = async () => {
+      try {
+        const { data: existing, error } = await supabase
+          .from("projects")
+          .select(
+            `id, project_name, project_description, project_url, additional_materials_url, cover_image_url, teammates, lead_name, lead_email`
+          )
+          .eq("event_id", eventId)
+          .eq("lead_email", userEmail || "")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (!error && existing) {
+          setProjectId(existing.id);
+          form.reset({
+            projectName: existing.project_name || "",
+            projectDescription: existing.project_description || "",
+            projectUrl: existing.project_url || "",
+            teammates: (existing.teammates as string[]) || [],
+            leadName: existing.lead_name || leadName || "",
+            leadEmail: existing.lead_email || userEmail || "",
+            additionalMaterials: undefined,
+            coverImage: undefined,
+            videoUrl: "",
+            trackIds: [],
+          });
+        } else {
+          const resp = await fetch("/api/projects", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ eventId, leadName, leadEmail: userEmail }),
+          });
+          if (resp.ok) {
+            const json = await resp.json();
+            setProjectId(json.id);
+          }
+        }
+      } catch (e) {
+        console.error("Failed to initialize draft project", e);
+      } finally {
+        setIsInitializing(false);
+      }
+    };
+
+    ensureDraft();
+  }, [eventId, userEmail, leadName, form]);
+
+  // Autosave core fields
+  useEffect(() => {
+    if (!projectId) return;
+    const handler = setTimeout(async () => {
+      try {
+        const payload: Record<string, unknown> = {
+          project_name: form.getValues("projectName"),
+          project_description: form.getValues("projectDescription"),
+          project_url: form.getValues("projectUrl"),
+          lead_name: form.getValues("leadName"),
+          lead_email: form.getValues("leadEmail"),
+          teammates: form.getValues("teammates"),
+        };
+        await fetch(`/api/projects/${projectId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      } catch (e) {
+        console.error("Autosave failed", e);
+      }
+    }, 800);
+
+    return () => clearTimeout(handler);
+  }, [projectId, form.watch("projectName"), form.watch("projectDescription"), form.watch("projectUrl"), form.watch("leadName"), form.watch("leadEmail"), form.watch("teammates")]);
 
   // Handle teammates change
   const handleTeammatesChange = (tags: string[]) => {
@@ -191,6 +267,7 @@ export function ProjectSubmissionFormComponent({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          projectId,
           projectName: values.projectName,
           leadName: values.leadName,
           leadEmail: values.leadEmail,
@@ -221,22 +298,6 @@ export function ProjectSubmissionFormComponent({
         });
       }
 
-      // TODO: Re-enable email notifications once email system is stable
-      // Send confirmation email
-      // const emailResponse = await fetch("/api/email", {
-      //   method: "POST",
-      //   headers: { "Content-Type": "application/json" },
-      //   body: JSON.stringify({
-      //     type: "project_submission",
-      //     to: values.leadEmail,
-      //     projectName: values.projectName,
-      //     leadName: values.leadName,
-      //     teammates: values.teammates || [],
-      //   }),
-      // });
-      // if (!emailResponse.ok) {
-      //   console.error("Failed to send confirmation email");
-      // }
       toast({
         title: "Project Submitted",
         description: "Your project has been submitted for feedback.",
@@ -260,7 +321,7 @@ export function ProjectSubmissionFormComponent({
     setIsSubmitting(false);
   };
 
-  if (isLoading) {
+  if (isLoading || isInitializing) {
     return <div>Loading...</div>;
   }
 

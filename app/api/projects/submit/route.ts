@@ -12,6 +12,7 @@ export async function POST(request: Request) {
 
     const body = await request.json();
     const {
+      projectId,
       projectName,
       leadName,
       leadEmail,
@@ -95,34 +96,70 @@ export async function POST(request: Request) {
       );
     }
 
-    // Start a transaction to ensure both project and track relationships are created
-    const { data: project, error: projectError } = await supabase
-      .from("projects")
-      .insert({
-        project_name: projectName,
-        lead_name: leadName,
-        lead_email: leadEmail,
-        project_description: projectDescription,
-        teammates: teammates || [],
-        project_url: projectUrl || null,
-        cover_image_url: coverImageUrl || null,
-        additional_materials_url: additionalMaterialsUrl || null,
-        event_id: eventId,
-        video_url: videoUrl || null,
-      })
-      .select()
-      .single();
+    // Create or update the project, then create track relationships
+    let finalProjectId = projectId as string | undefined;
 
-    if (projectError) {
-      return NextResponse.json(
-        { error: "Failed to create project" },
-        { status: 500 }
-      );
+    if (!finalProjectId) {
+      const { data: project, error: projectError } = await supabase
+        .from("projects")
+        .insert({
+          project_name: projectName,
+          lead_name: leadName,
+          lead_email: leadEmail,
+          project_description: projectDescription,
+          teammates: teammates || [],
+          project_url: projectUrl || null,
+          cover_image_url: coverImageUrl || null,
+          additional_materials_url: additionalMaterialsUrl || null,
+          event_id: eventId,
+          // keep video optional if column exists
+          // @ts-ignore
+          video_url: videoUrl || null,
+          submitted: true,
+          submitted_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+      if (projectError) {
+        return NextResponse.json(
+          { error: "Failed to create project" },
+          { status: 500 }
+        );
+      }
+      finalProjectId = project.id;
+    } else {
+      // Update existing draft
+      const { error: updateError } = await supabase
+        .from("projects")
+        .update({
+          project_name: projectName,
+          lead_name: leadName,
+          lead_email: leadEmail,
+          project_description: projectDescription,
+          teammates: teammates || [],
+          project_url: projectUrl || null,
+          cover_image_url: coverImageUrl || null,
+          additional_materials_url: additionalMaterialsUrl || null,
+          // @ts-ignore
+          video_url: videoUrl || null,
+          submitted: true,
+          submitted_at: new Date().toISOString(),
+        })
+        .eq("id", finalProjectId);
+
+      if (updateError) {
+        return NextResponse.json(
+          { error: "Failed to update project" },
+          { status: 500 }
+        );
+      }
     }
 
-    // Create track relationships
+    // Create track relationships (replace any existing ones)
+    await supabase.from("project_tracks").delete().eq("project_id", finalProjectId!);
     const trackInserts = trackIds.map((trackId: string) => ({
-      project_id: project.id,
+      project_id: finalProjectId!,
       track_id: trackId,
     }));
 
@@ -132,14 +169,16 @@ export async function POST(request: Request) {
 
     if (trackInsertError) {
       // Delete the project since track relationships failed
-      await supabase.from("projects").delete().eq("id", project.id);
+      if (!projectId) {
+        await supabase.from("projects").delete().eq("id", finalProjectId!);
+      }
       return NextResponse.json(
         { error: "Failed to create project track relationships" },
         { status: 500 }
       );
     }
 
-    return NextResponse.json({ data: project });
+    return NextResponse.json({ data: { id: finalProjectId } });
   } catch (error) {
     console.error("Error in project submission:", error);
     return NextResponse.json(
