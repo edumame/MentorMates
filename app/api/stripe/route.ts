@@ -21,6 +21,10 @@ export async function POST(req: Request) {
       throw new Error("Invalid Stripe signature");
     }
 
+    if (!process.env.STRIPE_SECRET_KEY || !process.env.STRIPE_WEBHOOK_SECRET) {
+      throw new Error("Stripe not configured");
+    }
+
     const event = stripe.webhooks.constructEvent(
       body,
       signature,
