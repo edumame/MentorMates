@@ -22,7 +22,16 @@ export default function JoinPage() {
               We are living in the age of AI, where people feel both excitement and fear. Many want to explore, but also worry about being left behind. Hackathons are one of the best ways to expose people to new technologies, but they often feel intimidating. In just 48 hours, participants are told to “build something,” yet most receive little guidance or scaffolding. This creates a huge barrier to entry—especially for beginners, students from underrepresented backgrounds, and those without prior coding or entrepreneurial experience.
             </p>
             <p>
-              The result is that hackathons, which should be gateways to curiosity and innovation, can instead feel exclusive and overwhelming. I&#39;ve seen this first-hand both as a participant and as an organizer. At Stanford&#39;s AI + Learning Differences hackathon, I focused on showing that hackathons can be about social impact and inclusivity—not just building tech for tech’s sake. What participants valued most was the sense of support, mentorship, and community.
+              The result is that hackathons, which should be gateways to curiosity and innovation, can instead feel exclusive and overwhelming. I&#39;ve seen this first-hand both as a participant and as an organizer. At{' '}
+              <a
+                href="https://ed.stanford.edu/giving/story/ready-set-solve"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-900 underline hover:text-blue-700"
+              >
+                Stanford&rsquo;s AI + Learning Differences hackathon
+              </a>
+              , I focused on showing that hackathons can be about social impact and inclusivity—not just building tech for tech’s sake. What participants valued most was the sense of support, mentorship, and community.
             </p>
             <p>
               MentorMates addresses this gap by making sure every participant gets structured feedback, encouragement, and scaffolding. Our goal is to democratize entrepreneurial education through hackathons, making them more inclusive and accessible. We want hackathons to be spaces where anyone, regardless of background or skill level, can feel confident exploring technology and creating impact.
