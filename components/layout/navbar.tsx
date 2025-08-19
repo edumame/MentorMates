@@ -77,7 +77,7 @@ export function Navbar() {
               href="/about"
               className="text-base font-medium text-gray-700 hover:text-blue-600"
             >
-              About Us
+              About Mentor Mates
             </Link>
             <Link
               href="/teams"
@@ -184,7 +184,7 @@ export function Navbar() {
               href="/about"
               className="block py-2 text-base font-medium text-gray-700 hover:text-blue-600"
             >
-              About Us
+              About Mentor Mates
             </Link>
             <Link
               href="/teams"
