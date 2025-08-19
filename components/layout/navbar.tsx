@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import type { Session } from "@supabase/supabase-js";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+ 
 
 export function Navbar() {
   const router = useRouter();
@@ -95,6 +96,13 @@ export function Navbar() {
               className="text-base font-medium text-gray-700 hover:text-blue-600"
             >
               Events
+            </Link>
+            <Link
+              href="/roles"
+              className="text-base font-medium text-gray-700 hover:text-blue-600"
+              title="How to use MentorMates"
+            >
+              Help
             </Link>
           </div>
 
@@ -195,6 +203,12 @@ export function Navbar() {
               className="block py-2 text-base font-medium text-gray-700 hover:text-blue-600"
             >
               Events
+            </Link>
+            <Link
+              href="/roles"
+              className="block py-2 text-base font-medium text-gray-700 hover:text-blue-600"
+            >
+              How to use MentorMates
             </Link>
             {session ? (
               <div className="pt-2 border-t border-gray-100">
