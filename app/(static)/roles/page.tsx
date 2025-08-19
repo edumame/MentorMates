@@ -1,6 +1,7 @@
 import type React from "react";
 import Link from "next/link";
 import { ArrowRight, HelpCircle, Play } from "lucide-react";
+import { Footer } from "@/components/layout/footer";
 
 const RoleCard: React.FC<{
   title: string;
@@ -33,8 +34,9 @@ const RoleCard: React.FC<{
 
 const RolesPage: React.FC = () => {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-2">
-      <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 space-y-10 pt-16">
+    <>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-2">
+        <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 space-y-10 pt-16">
         <div className="text-center">
           <div className="mx-auto mb-4 inline-flex items-center gap-2 rounded-full bg-blue-100 px-3 py-1 text-blue-900">
             <HelpCircle className="h-4 w-4" />
@@ -83,10 +85,11 @@ const RolesPage: React.FC = () => {
             <Link href="/about" className="text-blue-900 underline hover:text-blue-700">Learn more about MentorMates</Link>
           </div>
         </div>
+        </div>
       </div>
-    </div>
+      <Footer />
+    </>
   );
 };
 
 export default RolesPage;
-
