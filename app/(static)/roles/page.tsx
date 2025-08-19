@@ -54,7 +54,7 @@ const RolesPage: React.FC = () => {
           <RoleCard
             title="Participant"
             description="Submit projects, share ideas, and get real feedback from mentors and judges."
-            href="https://youtu.be/mAm-LnMK5dA"
+            href="https://youtu.be/GMHO4vdLgD0"
           />
           <RoleCard
             title="Mentor"
