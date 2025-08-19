@@ -94,11 +94,16 @@ export default async function EventOverviewPage({ params }: PageProps) {
 
       {/* Join Button */}
       {!hasJoined && (
-        <div className="flex justify-center mb-8">
-          <JoinEventButton
-            eventId={eventData.event_id}
-            eventName={typedEvent.event_name}
-          />
+        <div className="mb-8">
+          <div className="mx-auto max-w-2xl text-center mb-3">
+            <p className="text-sm text-muted-foreground">Secure your spot now</p>
+          </div>
+          <div className="flex justify-center">
+            <JoinEventButton
+              eventId={eventData.event_id}
+              eventName={typedEvent.event_name}
+            />
+          </div>
         </div>
       )}
 
