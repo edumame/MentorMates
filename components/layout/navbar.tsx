@@ -86,10 +86,10 @@ export function Navbar() {
               Team
             </Link>
             <Link
-              href="mailto:chinat@stanford.edu"
-              className="text-base font-medium text-gray-700 hover:text-blue-600"
+              href="/join"
+              className="text-base font-medium bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent hover:from-blue-700 hover:to-purple-700"
             >
-              Contact
+              Join
             </Link>
             <Link
               href="/events"
@@ -193,10 +193,10 @@ export function Navbar() {
               Team
             </Link>
             <Link
-              href="mailto:chinat@stanford.edu"
-              className="block py-2 text-base font-medium text-gray-700 hover:text-blue-600"
+              href="/join"
+              className="block py-2 text-base font-medium bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent hover:from-blue-700 hover:to-purple-700"
             >
-              Contact
+              Join
             </Link>
             <Link
               href="/events"
