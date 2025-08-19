@@ -2,6 +2,33 @@ import { NextResponse } from "next/server";
 import { EventRole, EventVisibility } from "@/lib/types";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { ADMIN_USER_IDS } from "@/lib/config/constants";
+import { defaultRules } from "@/lib/config/constants";
+
+type CreateEventRequestBody = {
+  eventName: string;
+  eventDate: string; // ISO or free text; stored as text in DB
+  location?: string;
+  eventDescription?: string;
+  eventBlurb?: string;
+  coverImageUrl?: string;
+  visibility?: EventVisibility;
+  slug?: string;
+  submissionTimeStart?: string;
+  submissionTimeCutoff?: string;
+  roleLabels?: Record<string, string>;
+  organizerEmails?: string[]; // optional list of organizer emails to assign
+  organizerUserIds?: string[]; // optional list of organizer user IDs to assign
+};
+
+function generateSlugFromName(name: string): string {
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .slice(0, 64);
+}
 
 export async function GET() {
   const supabase = await createSupabaseClient();
@@ -83,6 +110,143 @@ export async function GET() {
     console.error("Error fetching events:", error);
     return NextResponse.json(
       { error: "Failed to fetch events" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(request: Request) {
+  const supabase = await createSupabaseClient();
+
+  try {
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const isAdminUser = ADMIN_USER_IDS.includes(user.id);
+    if (!isAdminUser) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const body = (await request.json()) as CreateEventRequestBody;
+
+    const {
+      eventName,
+      eventDate,
+      location,
+      eventDescription,
+      eventBlurb,
+      coverImageUrl,
+      visibility,
+      slug,
+      submissionTimeStart,
+      submissionTimeCutoff,
+      roleLabels,
+      organizerEmails,
+      organizerUserIds,
+    } = body;
+
+    if (!eventName || !eventDate) {
+      return NextResponse.json(
+        { error: "Missing required fields: eventName, eventDate" },
+        { status: 400 }
+      );
+    }
+
+    const computedSlug = slug && slug.trim().length > 0 ? slug.trim() : generateSlugFromName(eventName);
+
+    const { data: createdEvent, error: insertError } = await supabase
+      .from("events")
+      .insert({
+        event_name: eventName,
+        event_date: eventDate,
+        location: location || null,
+        event_description: eventDescription || null,
+        event_blurb: eventBlurb || null,
+        cover_image_url: coverImageUrl || null,
+        rules: defaultRules as unknown as Record<string, unknown>,
+        visibility: visibility || EventVisibility.Draft,
+        slug: computedSlug,
+        submission_time_start: submissionTimeStart || null,
+        submission_time_cutoff: submissionTimeCutoff || null,
+        role_labels: roleLabels || null,
+      })
+      .select("event_id")
+      .single();
+
+    if (insertError || !createdEvent) {
+      return NextResponse.json(
+        { error: "Failed to create event" },
+        { status: 500 }
+      );
+    }
+
+    const newEventId = createdEvent.event_id as string;
+
+    // Resolve organizer user IDs from emails if provided
+    const organizerIds: string[] = [];
+
+    if (Array.isArray(organizerUserIds) && organizerUserIds.length > 0) {
+      organizerIds.push(
+        ...organizerUserIds.filter((id) => typeof id === "string" && id.length > 0)
+      );
+    }
+
+    if (Array.isArray(organizerEmails) && organizerEmails.length > 0) {
+      const normalizedEmails = organizerEmails
+        .map((e) => (typeof e === "string" ? e.trim().toLowerCase() : ""))
+        .filter((e) => e.length > 0);
+
+      if (normalizedEmails.length > 0) {
+        const { data: usersByEmail, error: usersError } = await supabase
+          .from("user_profiles")
+          .select("uid, email")
+          .in("email", normalizedEmails);
+
+        if (usersError) {
+          return NextResponse.json(
+            { error: "Failed to resolve organizer emails" },
+            { status: 500 }
+          );
+        }
+
+        if (usersByEmail && usersByEmail.length > 0) {
+          organizerIds.push(...usersByEmail.map((u: { uid: string }) => u.uid));
+        }
+      }
+    }
+
+    // Upsert organizer roles
+    if (organizerIds.length > 0) {
+      const upsertRows = organizerIds.map((uid) => ({
+        user_id: uid,
+        event_id: newEventId,
+        role: EventRole.Organizer,
+        updated_at: new Date().toISOString(),
+      }));
+
+      const { error: roleUpsertError } = await supabase
+        .from("user_event_roles")
+        .upsert(upsertRows, { onConflict: "user_id,event_id" });
+
+      if (roleUpsertError) {
+        return NextResponse.json(
+          { error: "Event created, but failed to assign organizers" },
+          { status: 207 }
+        );
+      }
+    }
+
+    return NextResponse.json({ eventId: newEventId }, { status: 201 });
+  } catch (error) {
+    console.error("Error creating event:", error);
+    return NextResponse.json(
+      { error: "Failed to create event" },
       { status: 500 }
     );
   }
