@@ -11,8 +11,9 @@ export function generateProjectInviteHash(projectId: string): string {
 
 export function generateProjectInviteLink(projectId: string): string {
   const hash = generateProjectInviteHash(projectId);
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-  return `${baseUrl}/join-project/${projectId}/${hash}`;
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+  const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+  return `${cleanBaseUrl}/join-project/${projectId}/${hash}`;
 }
 
 export function validateProjectInviteHash(projectId: string, hash: string): boolean {

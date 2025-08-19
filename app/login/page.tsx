@@ -6,6 +6,7 @@ import { createClient } from "@/app/utils/supabase/client";
 import { Footer } from "@/components/layout/footer";
 import Image from "next/image";
 import { User } from "@supabase/supabase-js";
+import { getURL } from "@/app/utils/get-url";
 
 const supabase = createClient();
 
@@ -18,8 +19,7 @@ function LoginContent() {
   const [password, setPassword] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
-  const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+  const cleanBaseUrl = getURL();
 
   useEffect(() => {
     const mode = searchParams.get("mode");
