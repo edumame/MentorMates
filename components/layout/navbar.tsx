@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import type { Session } from "@supabase/supabase-js";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { HelpCircle } from "lucide-react";
+ 
 
 export function Navbar() {
   const router = useRouter();
@@ -99,10 +99,9 @@ export function Navbar() {
             </Link>
             <Link
               href="/roles"
-              className="text-base font-medium text-gray-700 hover:text-blue-600 inline-flex items-center gap-1"
+              className="text-base font-medium text-gray-700 hover:text-blue-600"
               title="How to use MentorMates"
             >
-              <HelpCircle className="h-5 w-5" />
               Help
             </Link>
           </div>
