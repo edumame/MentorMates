@@ -89,7 +89,7 @@ const ProfileImage = ({
 export default function TeamGrid() {
   return (
     <div className="relative min-h-screen overflow-hidden bg-gradient-to-b from-blue-50 to-white">
-      <div className="container mx-auto pt-16">
+      <div className="container mx-auto pt-16 px-4 sm:px-6">
         <h1 className="mb-8 text-3xl sm:text-4xl md:text-5xl font-bold text-center text-blue-900">
           Our Team
         </h1>
@@ -133,38 +133,35 @@ export default function TeamGrid() {
                 {projectDirector.email}
               </Link>
 
-              <div className="mt-8 max-w-3xl text-sm sm:text-base leading-relaxed text-gray-700">
+              <div className="mt-8 max-w-3xl text-sm sm:text-base leading-relaxed text-gray-700 px-4 sm:px-0">
                 <h3 className="text-lg font-semibold text-blue-800 text-center">Bio</h3>
                 <p className="mt-2 text-center">
-                  Chinat Yu is a Stanford AI researcher, tech founder, and one of MLH’s Top 50 Hackers. He has organized and led initiatives including publishing white papers and building platforms such as <Link href="https://www.q2l.app/" target="_blank" rel="noopener noreferrer" className="text-blue-700 hover:text-blue-900 underline">Quest2Learn</Link> and <Link href="https://ai-playground.io/" target="_blank" rel="noopener noreferrer" className="text-blue-700 hover:text-blue-900 underline">AI Playground</Link>. His work has been showcased at major events like Stanford’s 1.2K-person Demo Day and Johns Hopkins’ first education hackathon at the Pava Center. Passionate about the intersection of generative AI, entrepreneurial education, and community building, Chinat is currently researching and developing MentorMates, a platform that provides scaffolding and support for hackathons and entrepreneurial events.
+                  Chinat Yu is a Stanford AI researcher, tech founder, and one of
+                  <Link href="https://top.mlh.io/2023/profiles/chinat-yu" target="_blank" rel="noopener noreferrer" className="ml-1 text-blue-700 hover:text-blue-900 underline">MLH’s Top 50 Hackers</Link>.
+                  He has organized and led initiatives including publishing
+                  <Link href="https://acceleratelearning.stanford.edu/story/what-does-ai-mean-for-learners-with-disabilities/" target="_blank" rel="noopener noreferrer" className="ml-1 text-blue-700 hover:text-blue-900 underline">white papers</Link>
+                  and building platforms such as
+                  <Link href="https://www.q2l.app/" target="_blank" rel="noopener noreferrer" className="ml-1 text-blue-700 hover:text-blue-900 underline">Quest2Learn</Link>
+                  and
+                  <Link href="https://ai-playground.io/" target="_blank" rel="noopener noreferrer" className="ml-1 text-blue-700 hover:text-blue-900 underline">AI Playground</Link>.
+                  His work has been showcased at major events like
+                  <Link href="https://stanforddaily.com/2025/05/30/stanford-founders-hosts-90-startups-in-second-ever-demo-day/?utm_campaign=digest&utm_medium=email&utm_source=mailchimp&utm_content=May-30-2025?utm_campaign=digest&utm_medium=email&utm_source=mailchimp&utm_content=May-30-2025" target="_blank" rel="noopener noreferrer" className="ml-1 text-blue-700 hover:text-blue-900 underline">Stanford’s 1.2K-person Demo Day</Link>
+                  and
+                  <Link href="https://ventures.jhu.edu/news/pava-center-continues-to-deepen-relationship-with-the-school-of-education/" target="_blank" rel="noopener noreferrer" className="ml-1 text-blue-700 hover:text-blue-900 underline">Johns Hopkins’ first education hackathon at the Pava Center</Link>.
+                  Passionate about the intersection of generative AI, entrepreneurial education, and community building, Chinat is currently researching and developing MentorMates, a platform that provides scaffolding and support for hackathons and entrepreneurial events.
                 </p>
 
                 <div className="my-6 text-center text-gray-300">⸻</div>
 
-                <h4 className="text-md font-semibold text-blue-800 text-center">Reference Links</h4>
-                <ul className="mt-3 space-y-2 text-center">
-                  <li>
-                    <Link href="https://top.mlh.io/2023/profiles/chinat-yu" target="_blank" rel="noopener noreferrer" className="text-blue-700 hover:text-blue-900 underline">MLH Top 50 Hacker</Link>
-                  </li>
-                  <li>
-                    <Link href="https://ed.stanford.edu/giving/story/ready-set-solve" target="_blank" rel="noopener noreferrer" className="text-blue-700 hover:text-blue-900 underline">Stanford AI + Learning Differences Hackathon</Link>
-                  </li>
-                  <li>
-                    <Link href="https://stanforddaily.com/2025/05/30/stanford-founders-hosts-90-startups-in-second-ever-demo-day/?utm_campaign=digest&utm_medium=email&utm_source=mailchimp&utm_content=May-30-2025?utm_campaign=digest&utm_medium=email&utm_source=mailchimp&utm_content=May-30-2025" target="_blank" rel="noopener noreferrer" className="text-blue-700 hover:text-blue-900 underline">Stanford Demo Day (1.2K attendees)</Link>
-                  </li>
-                  <li>
-                    <Link href="https://ventures.jhu.edu/news/pava-center-continues-to-deepen-relationship-with-the-school-of-education/" target="_blank" rel="noopener noreferrer" className="text-blue-700 hover:text-blue-900 underline">Johns Hopkins Hackathon @ Pava Center</Link>
-                  </li>
-                  <li>
-                    <Link href="https://acceleratelearning.stanford.edu/story/what-does-ai-mean-for-learners-with-disabilities/" target="_blank" rel="noopener noreferrer" className="text-blue-700 hover:text-blue-900 underline">Stanford Hackathon Toolkit White Paper</Link>
-                  </li>
-                  <li>
-                    <Link href="https://www.q2l.app/" target="_blank" rel="noopener noreferrer" className="text-blue-700 hover:text-blue-900 underline">Quest2Learn</Link>
-                  </li>
-                  <li>
-                    <Link href="https://ai-playground.io/" target="_blank" rel="noopener noreferrer" className="text-blue-700 hover:text-blue-900 underline">AI Playground</Link>
-                  </li>
-                </ul>
+                <p className="text-center">
+                  <Link href="https://top.mlh.io/2023/profiles/chinat-yu" target="_blank" rel="noopener noreferrer" className="text-blue-700 hover:text-blue-900 underline">MLH Top 50 Hacker</Link>,
+                  <Link href="https://ed.stanford.edu/giving/story/ready-set-solve" target="_blank" rel="noopener noreferrer" className="ml-2 text-blue-700 hover:text-blue-900 underline">Stanford AI + Learning Differences Hackathon</Link>,
+                  <Link href="https://stanforddaily.com/2025/05/30/stanford-founders-hosts-90-startups-in-second-ever-demo-day/?utm_campaign=digest&utm_medium=email&utm_source=mailchimp&utm_content=May-30-2025?utm_campaign=digest&utm_medium=email&utm_source=mailchimp&utm_content=May-30-2025" target="_blank" rel="noopener noreferrer" className="ml-2 text-blue-700 hover:text-blue-900 underline">Stanford Demo Day (1.2K attendees)</Link>,
+                  <Link href="https://ventures.jhu.edu/news/pava-center-continues-to-deepen-relationship-with-the-school-of-education/" target="_blank" rel="noopener noreferrer" className="ml-2 text-blue-700 hover:text-blue-900 underline">Johns Hopkins Hackathon @ Pava Center</Link>,
+                  <Link href="https://acceleratelearning.stanford.edu/story/what-does-ai-mean-for-learners-with-disabilities/" target="_blank" rel="noopener noreferrer" className="ml-2 text-blue-700 hover:text-blue-900 underline">Stanford Hackathon Toolkit White Paper</Link>,
+                  <Link href="https://www.q2l.app/" target="_blank" rel="noopener noreferrer" className="ml-2 text-blue-700 hover:text-blue-900 underline">Quest2Learn</Link>,
+                  <Link href="https://ai-playground.io/" target="_blank" rel="noopener noreferrer" className="ml-2 text-blue-700 hover:text-blue-900 underline">AI Playground</Link>
+                </p>
               </div>
             </div>
           </div>
