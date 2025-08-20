@@ -133,23 +133,25 @@ export default function TeamGrid() {
                 {projectDirector.email}
               </Link>
 
-              <div className="mt-8 max-w-3xl text-sm sm:text-base leading-relaxed text-gray-700 px-4 sm:px-0 bg-white/70 rounded-xl shadow-lg p-6 sm:p-8">
+              <div className="mt-8 max-w-3xl bg-white/70 rounded-xl shadow-lg p-6 sm:p-8">
                 <h3 className="text-lg font-semibold text-blue-800 text-center">Bio</h3>
-                <p className="mt-2 text-center">
-                  Chinat Yu is a Stanford AI researcher, tech founder, and one of
-                  <Link href="https://top.mlh.io/2023/profiles/chinat-yu" target="_blank" rel="noopener noreferrer" className="ml-1 text-blue-700 hover:text-blue-900 underline">MLH’s Top 50 Hackers</Link>.
-                  He has organized and led initiatives including publishing
-                  <Link href="https://acceleratelearning.stanford.edu/story/what-does-ai-mean-for-learners-with-disabilities/" target="_blank" rel="noopener noreferrer" className="ml-1 text-blue-700 hover:text-blue-900 underline">white papers</Link>
-                  and building platforms such as
-                  <Link href="https://www.q2l.app/" target="_blank" rel="noopener noreferrer" className="ml-1 text-blue-700 hover:text-blue-900 underline">Quest2Learn</Link>
-                  and
-                  <Link href="https://ai-playground.io/" target="_blank" rel="noopener noreferrer" className="ml-1 text-blue-700 hover:text-blue-900 underline">AI Playground</Link>.
-                  His work has been showcased at major events like
-                  <Link href="https://stanforddaily.com/2025/05/30/stanford-founders-hosts-90-startups-in-second-ever-demo-day/?utm_campaign=digest&utm_medium=email&utm_source=mailchimp&utm_content=May-30-2025?utm_campaign=digest&utm_medium=email&utm_source=mailchimp&utm_content=May-30-2025" target="_blank" rel="noopener noreferrer" className="ml-1 text-blue-700 hover:text-blue-900 underline">Stanford’s 1.2K-person Demo Day</Link>
-                  and
-                  <Link href="https://ventures.jhu.edu/news/pava-center-continues-to-deepen-relationship-with-the-school-of-education/" target="_blank" rel="noopener noreferrer" className="ml-1 text-blue-700 hover:text-blue-900 underline">Johns Hopkins’ first education hackathon at the Pava Center</Link>.
-                  Passionate about the intersection of generative AI, entrepreneurial education, and community building, Chinat is currently researching and developing MentorMates, a platform that provides scaffolding and support for hackathons and entrepreneurial events.
-                </p>
+                <div className="mt-3 max-w-prose mx-auto text-gray-700 text-sm sm:text-base leading-relaxed text-justify">
+                  <p>
+                    Chinat Yu is a Stanford AI researcher, tech founder, and one of{' '}
+                    <Link href="https://top.mlh.io/2023/profiles/chinat-yu" target="_blank" rel="noopener noreferrer" className="text-blue-700 hover:text-blue-900 underline">MLH’s Top 50 Hackers</Link>.
+                    {' '}He has organized and led initiatives including publishing{' '}
+                    <Link href="https://acceleratelearning.stanford.edu/story/what-does-ai-mean-for-learners-with-disabilities/" target="_blank" rel="noopener noreferrer" className="text-blue-700 hover:text-blue-900 underline">white papers</Link>{' '}
+                    and building platforms such as{' '}
+                    <Link href="https://www.q2l.app/" target="_blank" rel="noopener noreferrer" className="text-blue-700 hover:text-blue-900 underline">Quest2Learn</Link>{' '}
+                    and{' '}
+                    <Link href="https://ai-playground.io/" target="_blank" rel="noopener noreferrer" className="text-blue-700 hover:text-blue-900 underline">AI Playground</Link>.
+                    {' '}His work has been showcased at major events like{' '}
+                    <Link href="https://stanforddaily.com/2025/05/30/stanford-founders-hosts-90-startups-in-second-ever-demo-day/?utm_campaign=digest&utm_medium=email&utm_source=mailchimp&utm_content=May-30-2025?utm_campaign=digest&utm_medium=email&utm_source=mailchimp&utm_content=May-30-2025" target="_blank" rel="noopener noreferrer" className="text-blue-700 hover:text-blue-900 underline">Stanford’s 1.2K-person Demo Day</Link>{' '}
+                    and{' '}
+                    <Link href="https://ventures.jhu.edu/news/pava-center-continues-to-deepen-relationship-with-the-school-of-education/" target="_blank" rel="noopener noreferrer" className="text-blue-700 hover:text-blue-900 underline">Johns Hopkins’ first education hackathon at the Pava Center</Link>.
+                    {' '}Passionate about the intersection of generative AI, entrepreneurial education, and community building, Chinat is currently researching and developing MentorMates, a platform that provides scaffolding and support for hackathons and entrepreneurial events.
+                  </p>
+                </div>
               </div>
             </div>
           </div>
