@@ -27,6 +27,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       "/curriculum",
       "/roles",
       "/join",
+      "/devpost-integration",
     ];
     return [
       ...BASE_PUBLIC_PATHS,
