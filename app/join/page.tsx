@@ -1,4 +1,5 @@
 import { Footer } from "@/components/layout/footer";
+import { ArrowRight } from "lucide-react";
 
 export default function JoinPage() {
   return (
@@ -104,6 +105,33 @@ export default function JoinPage() {
               </a>
               .
             </p>
+          </div>
+        </section>
+
+        {/* DevPost Integration */}
+        <section className="bg-white/70 shadow-lg p-6 rounded-xl transition-shadow hover:shadow-2xl">
+          <h2 className="text-2xl font-bold text-gray-900 mb-3">Already Using DevPost?</h2>
+          <p className="text-gray-800 text-md mb-4">
+            Hey, are you already using DevPost? If you are, look at this DevPost integration.
+          </p>
+          <p className="text-gray-700 text-sm mb-4">
+            MentorMates seamlessly integrates with DevPost to enhance your hackathon with structured feedback, 
+            mentorship connections, and engagement analytics - all while keeping your familiar DevPost workflow.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <a
+              href="/devpost-integration"
+              className="inline-flex items-center px-4 py-2 bg-blue-900 text-white rounded-md hover:bg-blue-800 transition-colors duration-200 text-center justify-center"
+            >
+              Learn About DevPost Integration
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </a>
+            <a
+              href="mailto:admin@mentormates.ai?subject=DevPost Integration Inquiry"
+              className="inline-flex items-center px-4 py-2 border border-blue-900 text-blue-900 rounded-md hover:bg-blue-50 transition-colors duration-200 text-center justify-center"
+            >
+              Contact Us About Integration
+            </a>
           </div>
         </section>
       </div>
