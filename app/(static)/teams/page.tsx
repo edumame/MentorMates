@@ -133,7 +133,7 @@ export default function TeamGrid() {
                 {projectDirector.email}
               </Link>
 
-              <div className="mt-8 max-w-3xl text-sm sm:text-base leading-relaxed text-gray-700 px-4 sm:px-0">
+              <div className="mt-8 max-w-3xl text-sm sm:text-base leading-relaxed text-gray-700 px-4 sm:px-0 bg-white/70 rounded-xl shadow-lg p-6 sm:p-8">
                 <h3 className="text-lg font-semibold text-blue-800 text-center">Bio</h3>
                 <p className="mt-2 text-center">
                   Chinat Yu is a Stanford AI researcher, tech founder, and one of
@@ -149,18 +149,6 @@ export default function TeamGrid() {
                   and
                   <Link href="https://ventures.jhu.edu/news/pava-center-continues-to-deepen-relationship-with-the-school-of-education/" target="_blank" rel="noopener noreferrer" className="ml-1 text-blue-700 hover:text-blue-900 underline">Johns Hopkins’ first education hackathon at the Pava Center</Link>.
                   Passionate about the intersection of generative AI, entrepreneurial education, and community building, Chinat is currently researching and developing MentorMates, a platform that provides scaffolding and support for hackathons and entrepreneurial events.
-                </p>
-
-                <div className="my-6 text-center text-gray-300">⸻</div>
-
-                <p className="text-center">
-                  <Link href="https://top.mlh.io/2023/profiles/chinat-yu" target="_blank" rel="noopener noreferrer" className="text-blue-700 hover:text-blue-900 underline">MLH Top 50 Hacker</Link>,
-                  <Link href="https://ed.stanford.edu/giving/story/ready-set-solve" target="_blank" rel="noopener noreferrer" className="ml-2 text-blue-700 hover:text-blue-900 underline">Stanford AI + Learning Differences Hackathon</Link>,
-                  <Link href="https://stanforddaily.com/2025/05/30/stanford-founders-hosts-90-startups-in-second-ever-demo-day/?utm_campaign=digest&utm_medium=email&utm_source=mailchimp&utm_content=May-30-2025?utm_campaign=digest&utm_medium=email&utm_source=mailchimp&utm_content=May-30-2025" target="_blank" rel="noopener noreferrer" className="ml-2 text-blue-700 hover:text-blue-900 underline">Stanford Demo Day (1.2K attendees)</Link>,
-                  <Link href="https://ventures.jhu.edu/news/pava-center-continues-to-deepen-relationship-with-the-school-of-education/" target="_blank" rel="noopener noreferrer" className="ml-2 text-blue-700 hover:text-blue-900 underline">Johns Hopkins Hackathon @ Pava Center</Link>,
-                  <Link href="https://acceleratelearning.stanford.edu/story/what-does-ai-mean-for-learners-with-disabilities/" target="_blank" rel="noopener noreferrer" className="ml-2 text-blue-700 hover:text-blue-900 underline">Stanford Hackathon Toolkit White Paper</Link>,
-                  <Link href="https://www.q2l.app/" target="_blank" rel="noopener noreferrer" className="ml-2 text-blue-700 hover:text-blue-900 underline">Quest2Learn</Link>,
-                  <Link href="https://ai-playground.io/" target="_blank" rel="noopener noreferrer" className="ml-2 text-blue-700 hover:text-blue-900 underline">AI Playground</Link>
                 </p>
               </div>
             </div>
