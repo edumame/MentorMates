@@ -13,6 +13,14 @@ export default function JoinPage() {
           <p className="max-w-prose mx-auto text-lg text-gray-700">
             Get involved as a mentor, judge, or organizer.
           </p>
+          <div className="mt-6">
+            <a
+              href="/join/hiring"
+              className="inline-flex items-center px-4 py-2 bg-blue-900 text-white rounded-md hover:bg-blue-800 transition-colors duration-200"
+            >
+              We&apos;re Hiring
+            </a>
+          </div>
         </div>
 
         {/* Mission */}
