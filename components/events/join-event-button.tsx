@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { EventRole, EventItem, EventVisibility } from "@/lib/types";
 import { toast } from "@/lib/hooks/use-toast";
 import { getRoleLabel, isHigherOrEqualRole } from "@/features/user/roles/roles";
+import { Ticket } from "lucide-react";
 
 export interface JoinEventButtonProps {
   eventId: string;
@@ -228,16 +229,19 @@ export function JoinEventButton({ eventId, eventName, label }: JoinEventButtonPr
   return (
     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen} aria-describedby="join-event-dialog">
       <DialogTrigger asChild>
-        <Button className="bg-blue-700 hover:bg-blue-800">
-          {label
-            ? label
-            : event?.paid
-              ? isLoadingPrice
-                ? `Join ${eventName} - Loading...`
-                : price !== null
-                  ? `Join ${eventName} - $${price.toFixed(2)}`
-                  : `Join ${eventName} - Paid Event`
-              : `Join ${eventName} - Free Event`}
+        <Button variant="cta" size="lg" className="rounded-full px-6 py-5 gap-2">
+          <Ticket className="h-5 w-5" />
+          <span>
+            {label
+              ? label
+              : event?.paid
+                ? isLoadingPrice
+                  ? `Join ${eventName} - Loading...`
+                  : price !== null
+                    ? `Join ${eventName} - $${price.toFixed(2)}`
+                    : `Join ${eventName} - Paid Event`
+                : `Join ${eventName} - Free Event`}
+          </span>
         </Button>
       </DialogTrigger>
       <DialogContent aria-describedby="join-event-dialog">
@@ -287,7 +291,8 @@ export function JoinEventButton({ eventId, eventName, label }: JoinEventButtonPr
           <Button
             onClick={handleJoinEvent}
             disabled={isLoading || (showPasswordInput && !password)}
-            className="w-full bg-blue-700 hover:bg-blue-800"
+            variant="cta"
+            className="w-full rounded-full"
           >
             {isLoading ? "Joining..." : "Confirm"}
           </Button>
