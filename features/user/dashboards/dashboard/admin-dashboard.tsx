@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Project, EventItem, FeedbackItem } from "@/lib/types";
+import { Input } from "@/components/ui/input";
 
 interface AdminDashboardProps {
   event?: EventItem;
@@ -31,10 +32,25 @@ interface ExtendedFeedback extends FeedbackItem {
   project_description: string;
 }
 
+interface UserRow {
+  uid: string;
+  display_name: string | null;
+  email: string | null;
+  pulse: number;
+}
+
 export function AdminDashboard({ event }: AdminDashboardProps) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [mentors, setMentors] = useState<MentorType[]>([]);
   const [feedback, setFeedback] = useState<ExtendedFeedback[]>([]);
+
+  // Users tab state
+  const [userQuery, setUserQuery] = useState("");
+  const [users, setUsers] = useState<UserRow[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [userPage, setUserPage] = useState(1);
+  const [userTotal, setUserTotal] = useState(0);
+  const [userLimit] = useState(25);
 
   const fetchProjects = useCallback(async () => {
     const query = supabase
@@ -101,11 +117,56 @@ export function AdminDashboard({ event }: AdminDashboardProps) {
     }
   }, [event]);
 
+  // Debounced search effect
+  useEffect(() => {
+    const controller = new AbortController();
+    const signal = controller.signal;
+
+    const timeout = setTimeout(async () => {
+      try {
+        setIsSearching(true);
+        const params = new URLSearchParams();
+        if (userQuery) params.set("q", userQuery);
+        params.set("limit", String(userLimit));
+        params.set("page", String(userPage));
+
+        const res = await fetch(`/api/admin/users/search?${params.toString()}`, {
+          method: "GET",
+          signal,
+        });
+
+        if (!res.ok) {
+          console.error("User search failed", await res.text());
+          setUsers([]);
+          setUserTotal(0);
+          return;
+        }
+
+        const json = await res.json();
+        setUsers(json.users ?? []);
+        setUserTotal(json.total ?? 0);
+      } catch (err) {
+        if ((err as any)?.name !== "AbortError") {
+          console.error("User search error", err);
+        }
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300);
+
+    return () => {
+      controller.abort();
+      clearTimeout(timeout);
+    };
+  }, [userQuery, userPage, userLimit]);
+
   useEffect(() => {
     fetchProjects();
     fetchMentors();
     fetchFeedbackWithProjects();
   }, [fetchProjects, fetchMentors, fetchFeedbackWithProjects]);
+
+  const totalPages = Math.max(1, Math.ceil(userTotal / userLimit));
 
   return (
     <Tabs defaultValue="projects" className="space-y-4">
@@ -113,6 +174,7 @@ export function AdminDashboard({ event }: AdminDashboardProps) {
         <TabsTrigger value="projects">Projects</TabsTrigger>
         <TabsTrigger value="mentors">Mentors</TabsTrigger>
         <TabsTrigger value="feedback">Feedback</TabsTrigger>
+        <TabsTrigger value="users">Users</TabsTrigger>
       </TabsList>
 
       <TabsContent value="projects">
@@ -206,6 +268,66 @@ export function AdminDashboard({ event }: AdminDashboardProps) {
             ))}
           </TableBody>
         </Table>
+      </TabsContent>
+
+      <TabsContent value="users">
+        <div className="flex items-center justify-between gap-4 mb-4">
+          <div className="flex-1">
+            <Input
+              placeholder="Search by name or email..."
+              value={userQuery}
+              onChange={(e) => {
+                setUserPage(1);
+                setUserQuery(e.target.value);
+              }}
+            />
+          </div>
+          <div className="text-sm text-muted-foreground">
+            {isSearching ? "Searching..." : `${userTotal} result${userTotal === 1 ? "" : "s"}`}
+          </div>
+        </div>
+
+        <Table>
+          <TableCaption>All users across the platform.</TableCaption>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Display Name</TableHead>
+              <TableHead>Email</TableHead>
+              <TableHead>Pulse</TableHead>
+              <TableHead>User ID</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {users.map((u) => (
+              <TableRow key={u.uid}>
+                <TableCell>{u.display_name ?? "—"}</TableCell>
+                <TableCell>{u.email ?? "—"}</TableCell>
+                <TableCell>{u.pulse ?? 0}</TableCell>
+                <TableCell className="font-mono text-xs">{u.uid}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+
+        <div className="flex items-center justify-end gap-2 mt-4">
+          <button
+            className="px-3 py-1.5 rounded border text-sm disabled:opacity-50"
+            disabled={userPage <= 1}
+            onClick={() => setUserPage((p) => Math.max(1, p - 1))}
+          >
+            Prev
+          </button>
+          <span className="text-sm">
+            Page {userPage} of {totalPages}
+          </span>
+          <button
+            className="px-3 py-1.5 rounded border text-sm disabled:opacity-50"
+            disabled={userPage >= totalPages}
+            onClick={() => setUserPage((p) => p + 1)}
+          >
+            Next
+          </button>
+        </div>
       </TabsContent>
     </Tabs>
   );
