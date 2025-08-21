@@ -17,7 +17,7 @@ const positions = [
       "Highly organized, reliable, and proactive.",
     ],
     compensation: [
-      "$500 HKD per episode (with opportunities for growth as the program expands).",
+      "Per-episode compensation with opportunities for growth as the program expands.",
       "Flexible, remote-friendly role.",
     ],
     why: "You'll gain direct access to industry leaders from organizations like Anthropic, Stanford, Johns Hopkins, and more. This is a chance to build your network, sharpen your skills in public speaking and community building, and contribute to the future of AI and education.",
