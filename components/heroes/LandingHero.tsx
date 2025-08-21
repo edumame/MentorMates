@@ -130,6 +130,37 @@ export function LandingHero() {
         </p>
       </div>
 
+      {/* Professional Support Logos */}
+      <div className="relative z-10 mt-16 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-6xl mx-auto text-center">
+          <h3 className="text-2xl sm:text-3xl font-semibold text-blue-900">
+            Get support from professionals at…
+          </h3>
+          <div className="mt-8 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6 sm:gap-8 items-center justify-items-center">
+            {[
+              { name: "Microsoft", src: "https://static.wikia.nocookie.net/windows/images/3/33/Microsoft-logo.png/revision/latest?cb=20231201023319" },
+              { name: "PayPal", src: "https://zipbooks.com/wp-content/uploads/2018/09/paypal.png" },
+              { name: "U.S. Bank", src: "https://www.capitalopportunitiesnc.org/wp-content/uploads/2023/02/US-Bank-Logo.png" },
+              { name: "Google", src: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Google_2015_logo.svg/800px-Google_2015_logo.svg.png" },
+              { name: "Amazon", src: "https://www.prideindustries.com/wp-content/uploads/2021/06/Customer-logo_Amazon-1-768x384.png.webp" },
+              { name: "Carnegie Mellon University", src: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRA2s1hmSEyKN2i06AOMX_dfvmVEk2zr7I8EuFKbu36O3y8YJJNVEeVkIv1MU66zttkeMI&usqp=CAU" },
+              { name: "Stanford University", src: "https://www.computersciencedegreehub.com/wp-content/uploads/2019/02/stanford-university.png" },
+              { name: "Johns Hopkins University", src: "https://collegeaim.org/wp-content/uploads/2021/09/johnshopkins-large.jpg" },
+            ].map((logo) => (
+              <div key={logo.name} className="relative h-12 w-28 sm:h-14 sm:w-32 md:h-16 md:w-40">
+                <Image
+                  src={logo.src}
+                  alt={logo.name}
+                  fill
+                  className="object-contain grayscale opacity-80 hover:opacity-100 hover:grayscale-0 transition duration-300"
+                />
+              </div>
+            ))}
+          </div>
+          <p className="mt-6 text-gray-600">And many more.</p>
+        </div>
+      </div>
+
       {/* Final CTA Section */}
       <div className="relative z-10 mt-20 mb-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="bg-blue-900 rounded-2xl shadow-xl overflow-hidden">
