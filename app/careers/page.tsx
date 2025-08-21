@@ -15,12 +15,7 @@ const jobPostings: JobPosting[] = [
     location: "Remote",
     type: "part-time",
     remote: true,
-    salary: {
-      min: 500,
-      max: 500,
-      currency: "HKD",
-      period: "per-episode"
-    },
+
     description: "We're looking for an energetic, curious, and community-driven individual to host and run our upcoming podcast series and support our community engagement efforts. You'll co-host a podcast series with our founder, featuring conversations with leading voices in AI, education, and technology.",
     responsibilities: [
       "Co-host a podcast series with our founder, featuring conversations with leading voices in AI, education, and technology",
@@ -40,6 +35,7 @@ const jobPostings: JobPosting[] = [
       "Passion for connecting with industry leaders and thought leaders"
     ],
     benefits: [
+      "Competitive compensation package (details discussed during application process)",
       "Direct access to industry leaders from organizations like Anthropic, Stanford, Johns Hopkins, and more",
       "Opportunity to build your network and sharpen your skills in public speaking",
       "Contribute to the future of AI and education",
