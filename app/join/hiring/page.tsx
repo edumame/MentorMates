@@ -20,9 +20,20 @@ const positions = [
       "Per-episode compensation with opportunities for growth as the program expands.",
       "Flexible, remote-friendly role.",
     ],
-    why: "You'll gain direct access to industry leaders from organizations like Anthropic, Stanford, Johns Hopkins, and more. This is a chance to build your network, sharpen your skills in public speaking and community building, and contribute to the future of AI and education.",
-    contact:
-      "\uD83D\uDC49 Interested? Reach out to us with a short note about yourself and why you'd be excited to take on this role.",
+    why:
+      "You'll gain direct access to industry leaders from organizations like Google, Microsoft, Stanford, Johns Hopkins, and more. This is a chance to build your network, sharpen your skills in public speaking and community building, and contribute to the future of AI and education.",
+    contact: (
+      <>
+        \uD83D\uDC49 Interested? Reach out to us at{' '}
+        <a
+          href="mailto:admin@mentormates.ai"
+          className="text-blue-900 underline hover:text-blue-700"
+        >
+          admin@mentormates.ai
+        </a>{' '}
+        with a short note about yourself and why you&apos;d be excited to take on this role.
+      </>
+    ),
   },
 ];
 
