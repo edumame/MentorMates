@@ -102,6 +102,104 @@ export function LandingHero() {
         </div>
       </div>
 
+      {/* Professional Support Section */}
+      <div className="relative z-10 mt-20 text-center px-4 sm:px-6 lg:px-8">
+        <h2 className="text-2xl md:text-3xl font-bold text-blue-900 mb-4">
+          Get support from professionals at…
+        </h2>
+        <p className="text-gray-600 mb-8">And many more.</p>
+        
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-6 sm:gap-8 max-w-6xl mx-auto items-center justify-items-center">
+          {/* Microsoft */}
+          <div className="flex justify-center items-center h-12 sm:h-16 w-full max-w-[100px] sm:max-w-[120px]">
+            <Image
+              src="https://static.wikia.nocookie.net/windows/images/3/33/Microsoft-logo.png/revision/latest?cb=20231201023319"
+              alt="Microsoft"
+              width={120}
+              height={40}
+              className="object-contain opacity-70 hover:opacity-100 transition-opacity duration-300 w-full h-auto"
+            />
+          </div>
+          
+          {/* PayPal */}
+          <div className="flex justify-center items-center h-12 sm:h-16 w-full max-w-[100px] sm:max-w-[120px]">
+            <Image
+              src="https://zipbooks.com/wp-content/uploads/2018/09/paypal.png"
+              alt="PayPal"
+              width={120}
+              height={40}
+              className="object-contain opacity-70 hover:opacity-100 transition-opacity duration-300 w-full h-auto"
+            />
+          </div>
+          
+          {/* U.S. Bank */}
+          <div className="flex justify-center items-center h-12 sm:h-16 w-full max-w-[100px] sm:max-w-[120px]">
+            <Image
+              src="https://www.capitalopportunitiesnc.org/wp-content/uploads/2023/02/US-Bank-Logo.png"
+              alt="U.S. Bank"
+              width={120}
+              height={40}
+              className="object-contain opacity-70 hover:opacity-100 transition-opacity duration-300 w-full h-auto"
+            />
+          </div>
+          
+          {/* Google */}
+          <div className="flex justify-center items-center h-12 sm:h-16 w-full max-w-[100px] sm:max-w-[120px]">
+            <Image
+              src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Google_2015_logo.svg/800px-Google_2015_logo.svg.png"
+              alt="Google"
+              width={120}
+              height={40}
+              className="object-contain opacity-70 hover:opacity-100 transition-opacity duration-300 w-full h-auto"
+            />
+          </div>
+          
+          {/* Amazon */}
+          <div className="flex justify-center items-center h-12 sm:h-16 w-full max-w-[100px] sm:max-w-[120px]">
+            <Image
+              src="https://www.prideindustries.com/wp-content/uploads/2021/06/Customer-logo_Amazon-1-768x384.png.webp"
+              alt="Amazon"
+              width={120}
+              height={40}
+              className="object-contain opacity-70 hover:opacity-100 transition-opacity duration-300 w-full h-auto"
+            />
+          </div>
+          
+          {/* Carnegie Mellon University */}
+          <div className="flex justify-center items-center h-12 sm:h-16 w-full max-w-[100px] sm:max-w-[120px]">
+            <Image
+              src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRA2s1hmSEyKN2i06AOMX_dfvmVEk2zr7I8EuFKbu36O3y8YJJNVEeVkIv1MU66zttkeMI&usqp=CAU"
+              alt="Carnegie Mellon University"
+              width={120}
+              height={40}
+              className="object-contain opacity-70 hover:opacity-100 transition-opacity duration-300 w-full h-auto"
+            />
+          </div>
+          
+          {/* Stanford University */}
+          <div className="flex justify-center items-center h-12 sm:h-16 w-full max-w-[100px] sm:max-w-[120px]">
+            <Image
+              src="https://www.computersciencedegreehub.com/wp-content/uploads/2019/02/stanford-university.png"
+              alt="Stanford University"
+              width={120}
+              height={40}
+              className="object-contain opacity-70 hover:opacity-100 transition-opacity duration-300 w-full h-auto"
+            />
+          </div>
+          
+          {/* Johns Hopkins University */}
+          <div className="flex justify-center items-center h-12 sm:h-16 w-full max-w-[100px] sm:max-w-[120px]">
+            <Image
+              src="https://collegeaim.org/wp-content/uploads/2021/09/johnshopkins-large.jpg"
+              alt="Johns Hopkins University"
+              width={120}
+              height={40}
+              className="object-contain opacity-70 hover:opacity-100 transition-opacity duration-300 w-full h-auto"
+            />
+          </div>
+        </div>
+      </div>
+
       {/* Supported by Stanford */}
       <div className="relative z-10 mt-20 text-center px-4 sm:px-6 lg:px-8">
         <p className="text-sm text-gray-600 font-medium tracking-wide uppercase mb-6">
