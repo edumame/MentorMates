@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { JobCard } from "@/components/careers/JobCard";
-import { JobPosting, CareerPageData } from "@/lib/types/careers";
+import { JobPosting } from "@/lib/types/careers";
 import { Badge } from "@/components/ui/badge";
 import { Users, Lightbulb, Globe, Heart } from "lucide-react";
 
@@ -55,7 +55,7 @@ const jobPostings: JobPosting[] = [
 const companyValues = [
   {
     title: "Innovation in Education",
-    description: "We're building the future of mentorship and learning through technology and human connection.",
+    description: "We&apos;re building the future of mentorship and learning through technology and human connection.",
     icon: "lightbulb"
   },
   {
@@ -84,7 +84,6 @@ const iconMap = {
 
 export default function CareersPage() {
   const activeJobs = jobPostings.filter(job => job.isActive);
-  const inactiveJobs = jobPostings.filter(job => !job.isActive);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
@@ -100,7 +99,7 @@ export default function CareersPage() {
               Join Our Mission
             </h1>
             <p className="text-xl md:text-2xl text-gray-600 mb-8 max-w-3xl mx-auto leading-relaxed">
-              Help us build the future of mentorship and education. Join a team that's connecting 
+              Help us build the future of mentorship and education. Join a team that&apos;s connecting 
               mentors and learners worldwide through innovative technology and meaningful experiences.
             </p>
             <div className="flex flex-wrap justify-center gap-4">
@@ -131,7 +130,7 @@ export default function CareersPage() {
               Why Work With Us?
             </h2>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              We're more than just a platform – we're a community dedicated to transforming education 
+              We&apos;re more than just a platform – we&apos;re a community dedicated to transforming education 
               and empowering the next generation of innovators.
             </p>
           </motion.div>
@@ -205,7 +204,7 @@ export default function CareersPage() {
                 No Open Positions Right Now
               </h3>
               <p className="text-gray-600 mb-4">
-                We're not actively hiring at the moment, but we're always interested in connecting 
+                We&apos;re not actively hiring at the moment, but we&apos;re always interested in connecting 
                 with talented individuals who share our mission.
               </p>
               <p className="text-sm text-gray-500">
@@ -229,12 +228,12 @@ export default function CareersPage() {
             </h2>
             <p className="text-xl mb-8 opacity-90">
               Join us in shaping the future of education and mentorship. 
-              We'd love to hear from passionate individuals who want to make a difference.
+              We&apos;d love to hear from passionate individuals who want to make a difference.
             </p>
             <div className="space-y-2">
               <p className="text-lg">
                 👉 Interested? Reach out to us with a short note about yourself 
-                and why you'd be excited to take on a role with us.
+                and why you&apos;d be excited to take on a role with us.
               </p>
               <p className="text-blue-100">
                 careers@mentormates.com
