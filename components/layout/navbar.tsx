@@ -98,6 +98,12 @@ export function Navbar() {
               Events
             </Link>
             <Link
+              href="/careers"
+              className="text-base font-medium text-gray-700 hover:text-blue-600"
+            >
+              Careers
+            </Link>
+            <Link
               href="/roles"
               className="text-base font-medium text-gray-700 hover:text-blue-600"
               title="How to use MentorMates"
@@ -203,6 +209,12 @@ export function Navbar() {
               className="block py-2 text-base font-medium text-gray-700 hover:text-blue-600"
             >
               Events
+            </Link>
+            <Link
+              href="/careers"
+              className="block py-2 text-base font-medium text-gray-700 hover:text-blue-600"
+            >
+              Careers
             </Link>
             <Link
               href="/roles"
