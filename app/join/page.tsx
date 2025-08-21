@@ -108,6 +108,41 @@ export default function JoinPage() {
           </div>
         </section>
 
+        {/* Careers */}
+        <section className="bg-white/70 shadow-lg p-6 rounded-xl transition-shadow hover:shadow-2xl">
+          <h2 className="text-2xl font-bold text-gray-900 mb-3">Work With Us</h2>
+          <p className="text-gray-800 text-md mb-4">
+            Join our mission to make hackathons more inclusive and accessible. We&apos;re looking for passionate individuals who want to help shape the future of education and mentorship.
+          </p>
+          <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-lg mb-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">🎙️ Now Hiring: Podcast Host &amp; Community Engagement Lead</h3>
+            <p className="text-gray-700 text-sm mb-3">
+              We&apos;re seeking an energetic, curious individual to co-host our podcast series and support community engagement efforts. You&apos;ll work directly with industry leaders from organizations like Anthropic, Stanford, and Johns Hopkins.
+            </p>
+            <ul className="text-sm text-gray-600 space-y-1 mb-3">
+              <li>• <strong>Remote-friendly</strong> and flexible role</li>
+              <li>• <strong>Part-time</strong> with growth opportunities</li>
+              <li>• <strong>Competitive compensation</strong> (details discussed during application)</li>
+              <li>• <strong>Network building</strong> with industry leaders</li>
+            </ul>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <a
+              href="/join/careers"
+              className="inline-flex items-center px-4 py-2 bg-blue-900 text-white rounded-md hover:bg-blue-800 transition-colors duration-200 text-center justify-center"
+            >
+              View Open Positions
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </a>
+            <a
+              href="mailto:careers@mentormates.com?subject=Interest in Podcast Host Position"
+              className="inline-flex items-center px-4 py-2 border border-blue-900 text-blue-900 rounded-md hover:bg-blue-50 transition-colors duration-200 text-center justify-center"
+            >
+              Apply Now
+            </a>
+          </div>
+        </section>
+
         {/* DevPost Integration */}
         <section className="bg-white/70 shadow-lg p-6 rounded-xl transition-shadow hover:shadow-2xl">
           <h2 className="text-2xl font-bold text-gray-900 mb-3">Already Using DevPost?</h2>

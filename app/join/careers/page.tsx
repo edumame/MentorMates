@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { JobCard } from "@/components/careers/JobCard";
+
 import { JobPosting } from "@/lib/types/careers";
 import { Badge } from "@/components/ui/badge";
 import { Users, Lightbulb, Globe, Heart } from "lucide-react";
@@ -41,8 +41,7 @@ const jobPostings: JobPosting[] = [
       "Contribute to the future of AI and education",
       "Flexible, remote-friendly role with growth opportunities"
     ],
-    postedDate: "2024-12-19",
-    applicationDeadline: "2025-01-31",
+
     contactEmail: "careers@mentormates.com",
     isActive: true
   }
@@ -184,8 +183,80 @@ export default function CareersPage() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.6, delay: 0.5 + index * 0.1 }}
+                  className="bg-white rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-shadow p-6 border-l-4 border-l-blue-600"
                 >
-                  <JobCard job={job} />
+                  <div className="flex justify-between items-start gap-4 mb-4">
+                    <div className="flex-1">
+                      <h3 className="text-xl font-bold text-gray-900 mb-2">
+                        {job.title}
+                      </h3>
+                      <p className="text-gray-600 mb-3">
+                        {job.department}
+                      </p>
+                    </div>
+                    <Badge 
+                      variant={job.isActive ? "default" : "secondary"}
+                      className={job.isActive ? "bg-green-100 text-green-800" : ""}
+                    >
+                      {job.isActive ? "Open" : "Closed"}
+                    </Badge>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    <Badge variant="outline" className="flex items-center gap-1">
+                      📍 {job.location}
+                    </Badge>
+                    <Badge variant="outline" className="flex items-center gap-1">
+                      ⏰ {job.type}
+                    </Badge>
+                    {job.remote && (
+                      <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                        Remote Friendly
+                      </Badge>
+                    )}
+                  </div>
+
+                  <p className="text-gray-700 leading-relaxed mb-4">
+                    {job.description}
+                  </p>
+
+                  {job.requirements.length > 0 && (
+                    <div className="mb-4">
+                      <h4 className="font-semibold text-gray-900 mb-2">Key Requirements:</h4>
+                      <ul className="text-sm text-gray-600 space-y-1">
+                        {job.requirements.slice(0, 3).map((req, reqIndex) => (
+                          <li key={reqIndex} className="flex items-start gap-2">
+                            <span className="text-blue-600 mt-1">•</span>
+                            <span>{req}</span>
+                          </li>
+                        ))}
+                        {job.requirements.length > 3 && (
+                          <li className="text-blue-600 font-medium">
+                            +{job.requirements.length - 3} more requirements
+                          </li>
+                        )}
+                      </ul>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                    <div className="text-sm text-gray-500">
+                      {job.benefits && job.benefits.length > 0 && (
+                        <span>Competitive benefits package</span>
+                      )}
+                    </div>
+                    
+                    <a
+                      href={`mailto:${job.contactEmail}?subject=${encodeURIComponent(`Application for ${job.title} Position`)}&body=${encodeURIComponent(`Hello,
+
+I am interested in applying for the ${job.title} position at MentorMates. Please find my application details below.
+
+Best regards,`)}`}
+                      className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors"
+                    >
+                      ✉️ Apply Now
+                    </a>
+                  </div>
                 </motion.div>
               ))}
             </div>

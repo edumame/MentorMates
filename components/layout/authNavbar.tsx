@@ -83,12 +83,7 @@ export function AuthNavbar() {
             >
               Resources
             </Link>
-            <Link
-              href="/careers"
-              className="text-base font-medium text-gray-700 hover:text-blue-600"
-            >
-              Careers
-            </Link>
+
           </div>
 
           {/* Desktop Auth Buttons */}
@@ -195,13 +190,7 @@ export function AuthNavbar() {
           >
             Resources
           </Link>
-          <Link
-            href="/careers"
-            className="block text-gray-700 font-medium hover:text-blue-600"
-            onClick={() => setIsOpen(false)}
-          >
-            Careers
-          </Link>
+
         </nav>
 
         {session && (

@@ -97,12 +97,7 @@ export function Navbar() {
             >
               Events
             </Link>
-            <Link
-              href="/careers"
-              className="text-base font-medium text-gray-700 hover:text-blue-600"
-            >
-              Careers
-            </Link>
+
             <Link
               href="/roles"
               className="text-base font-medium text-gray-700 hover:text-blue-600"
@@ -210,12 +205,7 @@ export function Navbar() {
             >
               Events
             </Link>
-            <Link
-              href="/careers"
-              className="block py-2 text-base font-medium text-gray-700 hover:text-blue-600"
-            >
-              Careers
-            </Link>
+
             <Link
               href="/roles"
               className="block py-2 text-base font-medium text-gray-700 hover:text-blue-600"
