@@ -40,6 +40,24 @@ export default function JoinPage() {
           </div>
         </section>
 
+        {/* Hiring CTA */}
+        <section className="bg-white/70 shadow-lg p-6 rounded-xl transition-shadow hover:shadow-2xl">
+          <h2 className="text-2xl font-bold text-gray-900 mb-3">We&apos;re Hiring</h2>
+          <p className="text-gray-800 text-md mb-4">
+            We&apos;re growing the team. Explore open roles and help us build inclusive
+            learning experiences.
+          </p>
+          <div>
+            <a
+              href="/join/hiring"
+              className="inline-flex items-center px-4 py-2 bg-blue-900 text-white rounded-md hover:bg-blue-800 transition-colors duration-200"
+            >
+              View Open Roles
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </a>
+          </div>
+        </section>
+
         {/* Contact Card */}
         <section className="bg-white/70 shadow-lg p-6 rounded-xl transition-shadow hover:shadow-2xl">
           <h2 className="text-2xl font-bold text-gray-900 mb-3">Get in touch</h2>
