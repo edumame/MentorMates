@@ -1,4 +1,5 @@
 import { Footer } from "@/components/layout/footer";
+import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
 export default function JoinPage() {
@@ -14,12 +15,12 @@ export default function JoinPage() {
             Get involved as a mentor, judge, or organizer.
           </p>
           <div className="mt-6">
-            <a
+            <Link
               href="/join/hiring"
               className="inline-flex items-center px-4 py-2 bg-blue-900 text-white rounded-md hover:bg-blue-800 transition-colors duration-200"
             >
               We&apos;re Hiring
-            </a>
+            </Link>
           </div>
         </div>
 

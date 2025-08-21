@@ -26,11 +26,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       "/previous-contributors",
       "/curriculum",
       "/roles",
-      "/join",
       "/devpost-integration",
     ];
     return [
       ...BASE_PUBLIC_PATHS,
+      /^\/join($|\/.*$)/, // Matches /join and all its sub-routes
       /^\/projects\/public($|\/.*$)/, // Matches /projects/public and all its sub-routes
       /^\/events($|\/.*$)/, // Matches /events and all its sub-routes
       /^\/profile\/[a-zA-Z0-9_-]+($|\/.*$)/, // Matches /profile/user-id and all its sub-routes
