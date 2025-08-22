@@ -27,9 +27,10 @@ interface JournalEntry {
 
 interface JournalSectionProps {
   eventId?: string;
+  hideHeader?: boolean;
 }
 
-export default function JournalSection({ eventId: propEventId }: JournalSectionProps) {
+export default function JournalSection({ eventId: propEventId, hideHeader }: JournalSectionProps) {
   const params = useParams();
   const eventId = propEventId || (params.id as string);
   
@@ -300,24 +301,40 @@ export default function JournalSection({ eventId: propEventId }: JournalSectionP
     <div className="bg-white rounded-xl shadow-md">
       <div className="mx-auto">
         {/* Blue Header */}
-        <div className="bg-blue-900 text-white p-4 rounded-t-xl">
-          <h2 className="text-2xl font-bold">Journal</h2>
-          <p className="text-lg">Write down your thoughts, track your progress, and capture insights.</p>
-        </div>
+        {!hideHeader && (
+          <div className="bg-blue-900 text-white p-4 rounded-t-xl">
+            <h2 className="text-2xl font-bold">Journal</h2>
+            <p className="text-lg">Write down your thoughts, track your progress, and capture insights.</p>
+          </div>
+        )}
 
         {/* Header with Plus Button for new entry */}
-        <div className="flex justify-between items-center p-4 bg-blue-50">
-          <h1 className="text-xl font-bold">Your Entries</h1>
-          <Button variant="ghost" onClick={() => {
-            setIsCreating(true);
-            setEditingId(null);
-            setEntry("");
-            setIsPrivate(false);
-            setTags([]);
-          }}>
-            <Plus className="h-6 w-6" />
-          </Button>
-        </div>
+        {hideHeader ? (
+          <div className="flex justify-end items-center p-2">
+            <Button variant="ghost" onClick={() => {
+              setIsCreating(true);
+              setEditingId(null);
+              setEntry("");
+              setIsPrivate(false);
+              setTags([]);
+            }}>
+              <Plus className="h-6 w-6" />
+            </Button>
+          </div>
+        ) : (
+          <div className="flex justify-between items-center p-4 bg-blue-50">
+            <h1 className="text-xl font-bold">Your Entries</h1>
+            <Button variant="ghost" onClick={() => {
+              setIsCreating(true);
+              setEditingId(null);
+              setEntry("");
+              setIsPrivate(false);
+              setTags([]);
+            }}>
+              <Plus className="h-6 w-6" />
+            </Button>
+          </div>
+        )}
 
         {/* Create / Edit Journal Entry Form */}
         {(isCreating || editingId) ? (

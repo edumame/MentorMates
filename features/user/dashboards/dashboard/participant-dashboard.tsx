@@ -228,12 +228,12 @@ export function ParticipantDashboard({ eventId }: ParticipantDashboardProps) {
             </div>
             <TabsContent value="goals" className="p-4">
               <Suspense fallback={<div>Loading goals...</div>}>
-                <GoalSection eventId={eventId} />
+                <GoalSection eventId={eventId} hideHeader />
               </Suspense>
             </TabsContent>
             <TabsContent value="journal" className="p-4">
               <Suspense fallback={<div>Loading journal...</div>}>
-                <JournalSection eventId={eventId} />
+                <JournalSection eventId={eventId} hideHeader />
               </Suspense>
             </TabsContent>
             <TabsContent value="stats" className="p-4">
