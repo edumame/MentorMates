@@ -1,6 +1,6 @@
 "use client";
 
-import { ProjectSubmissionFormComponent } from "@/features/projects/components/forms/ProjectSubmissionForm";
+import { ProjectSubmissionFormSinglePage } from "@/features/projects/components/forms/ProjectSubmissionFormSinglePage";
 import { supabase } from "@/lib/supabase";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
@@ -72,7 +72,7 @@ export default function ProjectSubmissionPage() {
 
   return (
     <div className="container mx-auto py-8">
-      <ProjectSubmissionFormComponent
+      <ProjectSubmissionFormSinglePage
         userEmail={userEmail || ""}
         leadName={userName || ""}
         eventId={eventId}
