@@ -183,7 +183,13 @@ export function LandingHero() {
           </div>
         </div>
 
-        <p className="text-gray-600 mt-8">And many more.</p>
+        <div className="mt-10">
+          <div className="flex items-center justify-center gap-3">
+            <span className="h-px w-12 sm:w-24 bg-gray-200" />
+            <span className="text-sm sm:text-base tracking-wide text-gray-500 italic">And many more…</span>
+            <span className="h-px w-12 sm:w-24 bg-gray-200" />
+          </div>
+        </div>
       </div>
 
       {/* Supported by Stanford */}
