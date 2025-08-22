@@ -15,6 +15,14 @@ export function EventsPageClient({ eventsList }: { eventsList: EventItem[] }) {
     );
   }, [eventsList, searchTerm]);
 
+  const paidEvents = useMemo(() => {
+    return filteredEvents.filter((event) => event.paid === true);
+  }, [filteredEvents]);
+
+  const unpaidEvents = useMemo(() => {
+    return filteredEvents.filter((event) => event.paid !== true);
+  }, [filteredEvents]);
+
   return (
     <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-6 sm:py-8">
       <div className="relative w-full mb-6 sm:mb-8">
@@ -41,7 +49,21 @@ export function EventsPageClient({ eventsList }: { eventsList: EventItem[] }) {
       </div>
 
       {filteredEvents.length > 0 ? (
-        <EventsList events={filteredEvents} />
+        <div className="space-y-10">
+          {paidEvents.length > 0 && (
+            <div className="space-y-4">
+              <h2 className="text-2xl font-semibold">Paid Events</h2>
+              <EventsList events={paidEvents} />
+            </div>
+          )}
+
+          {unpaidEvents.length > 0 && (
+            <div className="space-y-4">
+              <h2 className="text-2xl font-semibold">Unpaid Events</h2>
+              <EventsList events={unpaidEvents} />
+            </div>
+          )}
+        </div>
       ) : (
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <svg
