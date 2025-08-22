@@ -14,6 +14,7 @@ import {
 } from "@/lib/types";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { isValidUUID } from "@/app/utils/supabase/queries";
+import { markdownRehypePlugins } from "@/components/markdown/plugins";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -114,7 +115,7 @@ export default async function EventOverviewPage({ params }: PageProps) {
         </CardHeader>
         <CardContent>
           <div className="prose prose-blue max-w-none">
-            <ReactMarkdown components={customMarkdownComponents}>{typedEvent.event_description}</ReactMarkdown>
+            <ReactMarkdown rehypePlugins={markdownRehypePlugins} components={customMarkdownComponents}>{typedEvent.event_description}</ReactMarkdown>
           </div>
         </CardContent>
       </Card>
@@ -129,7 +130,7 @@ export default async function EventOverviewPage({ params }: PageProps) {
           </CardHeader>
           <CardContent>
             <div className="prose prose-blue max-w-none">
-              <ReactMarkdown components={customMarkdownComponents}>{typedEvent.paywall_content}</ReactMarkdown>
+              <ReactMarkdown rehypePlugins={markdownRehypePlugins} components={customMarkdownComponents}>{typedEvent.paywall_content}</ReactMarkdown>
             </div>
           </CardContent>
         </Card>
@@ -193,7 +194,7 @@ export default async function EventOverviewPage({ params }: PageProps) {
                         </div>
                         {event.description && (
                           <div className="prose prose-sm prose-blue max-w-none text-gray-600 mt-2">
-                            <ReactMarkdown components={customMarkdownComponents}>{event.description}</ReactMarkdown>
+                            <ReactMarkdown rehypePlugins={markdownRehypePlugins} components={customMarkdownComponents}>{event.description}</ReactMarkdown>
                           </div>
                         )}
                       </div>
@@ -287,7 +288,7 @@ export default async function EventOverviewPage({ params }: PageProps) {
           </CardHeader>
           <CardContent>
             <div className="prose prose-blue max-w-none">
-              <ReactMarkdown components={customMarkdownComponents}>{typedEvent.faq}</ReactMarkdown>
+              <ReactMarkdown rehypePlugins={markdownRehypePlugins} components={customMarkdownComponents}>{typedEvent.faq}</ReactMarkdown>
             </div>
           </CardContent>
         </Card>
