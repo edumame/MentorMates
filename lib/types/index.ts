@@ -18,6 +18,8 @@ export enum EventVisibility {
 // Pricing Types
 export interface PricingTier {
   id: string;
+  event_id: string;
+  tier_id: string; // Unique identifier within the event (e.g., "early-bird", "regular")
   name: string;
   price: number; // Price in cents
   stripe_price_id?: string;
@@ -25,6 +27,11 @@ export interface PricingTier {
   available_until?: string; // ISO date string for limited-time offers
   max_quantity?: number; // Maximum number of tickets for this tier
   current_quantity?: number; // Current number sold (for tracking)
+  is_active?: boolean;
+  sort_order?: number;
+  created_at?: string;
+  updated_at?: string;
+  bundle_size?: number;
 }
 
 export interface UserProfile {
@@ -41,9 +48,7 @@ export type EventItem = {
   visibility?: EventVisibility;
   cover_image_url?: string;
   scoring_config?: EventScoringConfig;
-  paid?: boolean; 
-  stripe_price_id?: string; // Stripe price ID for paid events (legacy)
-  pricing_tiers?: PricingTier[]; // New pricing tiers system
+  paid?: boolean;
 };
 
 // Event Overview Types

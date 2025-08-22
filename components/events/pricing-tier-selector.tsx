@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -10,8 +10,8 @@ import { formatPrice } from "@/lib/utils/pricing";
 
 interface PricingTierSelectorProps {
   pricingTiers: PricingTier[];
-  selectedTierId?: string;
-  onTierSelect: (tierId: string) => void;
+  selectedTierId?: string; // The tier_id string (not the UUID id)
+  onTierSelect: (tierId: string) => void; // Passes tier_id string (not the UUID id)
   onContinue: () => void;
   isLoading?: boolean;
 }
@@ -65,7 +65,7 @@ export function PricingTierSelector({
       <div className="space-y-3">
         {pricingTiers.map((tier) => {
           const isAvailable = isValidTier(tier);
-          const isSelected = selectedTierId === tier.id;
+          const isSelected = selectedTierId === tier.tier_id;
 
           return (
             <Card
@@ -75,7 +75,7 @@ export function PricingTierSelector({
                   ? "ring-2 ring-blue-500 border-blue-500"
                   : "hover:border-gray-300"
               } ${!isAvailable ? "opacity-50 cursor-not-allowed" : ""}`}
-              onClick={() => isAvailable && onTierSelect(tier.id)}
+              onClick={() => isAvailable && onTierSelect(tier.tier_id)}
             >
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">

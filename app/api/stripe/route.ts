@@ -67,11 +67,14 @@ async function handleEvent(event: Stripe.Event) {
       })
       .eq("stripe_customer_id", stripeCustomerId.customer)
       .eq("stripe_session_id", stripeCheckoutSessionId.id)
-      .select("id");
+      .select("id, event_id")
+      .single();
 
     if (!userEventPayment) {
       throw new Error("Failed to update user event payment");
     }
+
+
   } else if (STRIPE_FAILED_EVENT_TYPES.includes(event.type)) {
     const { data: userEventPayment } = await supabase
       .from("user_event_payments")

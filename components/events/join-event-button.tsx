@@ -50,8 +50,6 @@ export function JoinEventButton({ eventId, eventName, label }: JoinEventButtonPr
     null
   );
   const router = useRouter();
-  const [price, setPrice] = useState<number | null>(null);
-  const [isLoadingPrice, setIsLoadingPrice] = useState(false);
   const [pricingTiers, setPricingTiers] = useState<PricingTier[]>([]);
   const [selectedPricingTierId, setSelectedPricingTierId] = useState<string>("");
   const [showPricingTiers, setShowPricingTiers] = useState(false);
@@ -68,10 +66,9 @@ export function JoinEventButton({ eventId, eventName, label }: JoinEventButtonPr
             event_date,
             location,
             paid,
-            price,
-            pricing_tiers,
             visibility,
-            role_labels
+            role_labels,
+            slug
           `)
           .eq("event_id", eventId)
           .maybeSingle();
@@ -89,15 +86,23 @@ export function JoinEventButton({ eventId, eventName, label }: JoinEventButtonPr
           setShowPasswordInput(true);
         }
 
-        // Handle pricing tiers or legacy pricing
+        // Fetch pricing tiers for paid events
         if (eventData?.paid) {
-          if (eventData.pricing_tiers && Array.isArray(eventData.pricing_tiers) && eventData.pricing_tiers.length > 0) {
-            setPricingTiers(eventData.pricing_tiers);
-          } else if (eventData.price) {
-            // Legacy single price - convert to pricing tier
-            setIsLoadingPrice(true);
-            setPrice(eventData.price / 100);
-            setIsLoadingPrice(false);
+          const { data: pricingTiersData, error: pricingTiersError } = await supabase
+            .from("pricing_tiers")
+            .select(`
+              *
+            `)
+            .eq("event_id", eventId)
+            .eq("is_active", true)
+            .order("sort_order", { ascending: true });
+
+          if (pricingTiersError) {
+            console.error("Error fetching pricing tiers:", pricingTiersError);
+          }
+
+          if (pricingTiersData && pricingTiersData.length > 0) {
+            setPricingTiers(pricingTiersData);
           }
         }
 
@@ -212,32 +217,19 @@ export function JoinEventButton({ eventId, eventName, label }: JoinEventButtonPr
           .maybeSingle();
 
         if (userPaidStatus?.payment_status !== "paid") {
-          // If there are pricing tiers, show tier selection
+          // For paid events, always require pricing tier selection
           if (pricingTiers.length > 0) {
             setShowPricingTiers(true);
             return;
+          } else {
+            // No pricing tiers available for paid event
+            toast({
+              title: "Error",
+              description: "This event requires payment but no pricing tiers are available. Please contact the organizer.",
+              variant: "destructive",
+            });
+            return;
           }
-          
-          // Store the event join intent in localStorage for after payment
-          localStorage.setItem(
-            "joinEventIntent",
-            JSON.stringify({
-              eventId,
-              role: selectedRole,
-              password: showPasswordInput ? password : undefined,
-              userId: session.user.id,
-            })
-          );
-
-          // Redirect to checkout with event information
-          const searchParams = new URLSearchParams({
-            eventId: eventId,
-            eventSlug: event.slug || eventId,
-            eventName: event.event_name,
-          });
-
-          router.push(`/checkout?${searchParams.toString()}`);
-          return;
         }
       }
 
@@ -302,11 +294,7 @@ export function JoinEventButton({ eventId, eventName, label }: JoinEventButtonPr
                       ? `Join ${eventName} - From ${formatPrice(cheapestTier.price)}`
                       : `Join ${eventName} - Multiple Tiers Available`;
                   })()
-                : isLoadingPrice
-                  ? `Join ${eventName} - Loading...`
-                  : price !== null
-                    ? `Join ${eventName} - $${price.toFixed(2)}`
-                    : `Join ${eventName} - Paid Event`
+                : `Join ${eventName} - Paid Event`
               : `Join ${eventName} - Free Event`}
         </Button>
       </DialogTrigger>

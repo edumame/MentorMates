@@ -82,3 +82,10 @@ The system maintains backward compatibility with existing single-price events. E
 - Group pricing discounts
 - Real-time availability updates
 - Analytics on tier performance
+
+## Group pricing
+- Implement tickets system
+- User has access to all of their tickets and is able to distribute them to other users
+- Distribution should send an email link with their ticket id to create an account, and when the ticket id is consumed and linked to another user that ticket can no longer be used
+- will need to update the logic for checking if users have access to paid events
+- For migration purposes, should create tickets for existing "paid" participants to ensure they can continue to access the content they paid for

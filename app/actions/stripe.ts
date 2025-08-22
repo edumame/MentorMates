@@ -8,7 +8,7 @@ interface CheckoutOptions {
   eventId?: string | null;
   eventSlug?: string | null;
   eventName?: string | null;
-  pricingTierId?: string | null; // For selecting specific pricing tier
+  pricingId?: string | null; // Required: id from pricing_tiers table
 }
 
 export async function fetchClientSecret(options?: CheckoutOptions) {
@@ -54,40 +54,47 @@ export async function fetchClientSecret(options?: CheckoutOptions) {
 
   let lineItems;
 
-  const { data: eventData } = await supabase
-      .from("events")
-      .select("stripe_price_id, pricing_tiers")
-      .eq("event_id", options?.eventId)
+  if (options?.pricingId) {
+    // Query the pricing_tiers table for the specific tier
+    const { data: pricingTierData } = await supabase
+      .from("pricing_tiers")
+      .select(
+        `*`
+      )
+      .eq("event_id", options.eventId)
+      .eq("id", options.pricingId)
+      .eq("is_active", true)
       .single();
-  
-  if (options?.pricingTierId && eventData?.pricing_tiers) {
-    // Find the specific pricing tier
-    const pricingTiers = Array.isArray(eventData.pricing_tiers) 
-      ? eventData.pricing_tiers 
-      : [];
-    const selectedTier = pricingTiers.find((tier: any) => tier.id === options.pricingTierId);
     
-    if (selectedTier?.stripe_price_id) {
-      lineItems = [
-        {
-          price: selectedTier.stripe_price_id,
-          quantity: 1,
-        },
-      ];
+    if (pricingTierData) {      
+      // Check if tier is still available
+      if (pricingTierData.available_until) {
+        const availableUntil = new Date(pricingTierData.available_until);
+        if (availableUntil < new Date()) {
+          throw new Error("Selected pricing tier is no longer available.");
+        }
+      }
+      
+      // Check if tier has reached max quantity
+      if (pricingTierData.max_quantity && pricingTierData.current_quantity >= pricingTierData.max_quantity) {
+        throw new Error("Selected pricing tier is sold out.");
+      }
+      
+      if (pricingTierData.stripe_price_id) {
+        lineItems = [
+          {
+            price: pricingTierData.stripe_price_id,
+            quantity: 1,
+          },
+        ];
+      } else {
+        throw new Error("Selected pricing tier does not have a Stripe price ID configured.");
+      }
     } else {
-      throw new Error("Selected pricing tier does not have a Stripe price ID configured.");
+      throw new Error("Selected pricing tier not found or inactive.");
     }
-  } else if (eventData?.stripe_price_id) {
-    // Fallback to legacy single price ID
-    lineItems = [
-      {
-        price: eventData.stripe_price_id,
-        quantity: 1,
-      },
-    ];
   } else {
-    // Throw an error and prevent checkout
-    throw new Error("No Stripe price ID provided.");
+    throw new Error("No pricing tier selected. Please select a pricing tier to continue.");
   }
 
   // Create Checkout Sessions from body params.
@@ -100,16 +107,6 @@ export async function fetchClientSecret(options?: CheckoutOptions) {
     // automatic_tax: { enabled: true },
     allow_promotion_codes: true,
   });
-
-  // Get pricing tier information if specified
-  let pricingTierName = null;
-  if (options?.pricingTierId && eventData?.pricing_tiers) {
-    const pricingTiers = Array.isArray(eventData.pricing_tiers) 
-      ? eventData.pricing_tiers 
-      : [];
-    const selectedTier = pricingTiers.find((tier: any) => tier.id === options.pricingTierId);
-    pricingTierName = selectedTier?.name || null;
-  }
 
   // greedily create a user event payment record for the user in the processing state
   const { data: userEventPayment } = await supabase
@@ -124,8 +121,6 @@ export async function fetchClientSecret(options?: CheckoutOptions) {
         amount_paid: session.amount_total,
         currency: session.currency,
         payment_status: "processing",
-        pricing_tier_id: options?.pricingTierId || null,
-        pricing_tier_name: pricingTierName,
       },
       {
         onConflict: "user_id,event_id",

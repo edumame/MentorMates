@@ -50,7 +50,7 @@ export function formatPrice(priceInCents: number): string {
 }
 
 /**
- * Get pricing tier by ID
+ * Get pricing tier by UUID ID
  */
 export function getPricingTierById(pricingTiers: PricingTier[], id: string): PricingTier | null {
   return pricingTiers.find(tier => tier.id === id) || null;
