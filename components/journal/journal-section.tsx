@@ -11,6 +11,7 @@ import { useToast } from "@/lib/hooks/use-toast";
 import { useParams } from "next/navigation";
 import { Pencil, Plus, X, Loader2 } from "lucide-react";
 import VoiceInput from "../utils/VoiceInput";
+import { Badge } from "@/components/ui/badge";
 const supabase = createClient();
 
 interface JournalEntry {
@@ -27,6 +28,30 @@ interface JournalEntry {
 
 interface JournalSectionProps {
   eventId?: string;
+}
+
+const JOURNAL_PROMPTS = [
+  "What did you learn today and how will you apply it tomorrow?",
+  "What was your biggest blocker today and how did you navigate it?",
+  "One win, one challenge, and one next step.",
+  "Who helped you today and what did you learn from them?",
+  "What surprised you today?"
+];
+
+function countWords(text: string) {
+  return text.trim().length === 0 ? 0 : text.trim().split(/\s+/).length;
+}
+
+function calculateStreak(entries: JournalEntry[]): number {
+  if (entries.length === 0) return 0;
+  const days = new Set(entries.map((e) => new Date(e.created_at).toDateString()));
+  let streak = 0;
+  const cursor = new Date();
+  while (days.has(cursor.toDateString())) {
+    streak += 1;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return streak;
 }
 
 export default function JournalSection({ eventId: propEventId }: JournalSectionProps) {
@@ -109,6 +134,31 @@ export default function JournalSection({ eventId: propEventId }: JournalSectionP
       initSession();
     }
   }, [eventId, fetchEntries]);
+
+  // Load draft from localStorage on mount when creating a new entry
+  useEffect(() => {
+    if (!isCreating || editingId) return;
+    const key = `journal_draft_${eventId}`;
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        const parsed = JSON.parse(raw) as { content: string; isPrivate: boolean; tags: string[] };
+        setEntry(parsed.content || "");
+        setIsPrivate(!!parsed.isPrivate);
+        setTags(Array.isArray(parsed.tags) ? parsed.tags : []);
+      }
+    } catch {}
+  }, [isCreating, editingId, eventId]);
+
+  // Autosave draft to localStorage
+  useEffect(() => {
+    const key = `journal_draft_${eventId}`;
+    const current = editingId ? editContent : entry;
+    if ((isCreating || editingId) && current.trim().length > 0) {
+      const payload = JSON.stringify({ content: current, isPrivate, tags });
+      try { localStorage.setItem(key, payload); } catch {}
+    }
+  }, [entry, editContent, isPrivate, tags, isCreating, editingId, eventId]);
 
   const incrementPulse = async (userEmail: string) => {
     const { data: profiles, error: fetchError } = await supabase
@@ -212,6 +262,7 @@ export default function JournalSection({ eventId: propEventId }: JournalSectionP
     setIsPrivate(false);
     setTags([]);
     setIsCreating(false);
+    try { localStorage.removeItem(`journal_draft_${eventId}`); } catch {}
     fetchEntries();
   };
 
@@ -296,6 +347,11 @@ export default function JournalSection({ eventId: propEventId }: JournalSectionP
     setExpandedEntryId(expandedEntryId === id ? null : id);
   };
 
+  const activeText = editingId ? editContent : entry;
+  const wordCount = countWords(activeText);
+  const promptOfTheDay = JOURNAL_PROMPTS[new Date().getDate() % JOURNAL_PROMPTS.length];
+  const streak = calculateStreak(entries);
+
   return (
     <div className="bg-white rounded-xl shadow-md">
       <div className="mx-auto">
@@ -303,6 +359,10 @@ export default function JournalSection({ eventId: propEventId }: JournalSectionP
         <div className="bg-blue-900 text-white p-4 rounded-t-xl">
           <h2 className="text-2xl font-bold">Journal</h2>
           <p className="text-lg">Write down your thoughts, track your progress, and capture insights.</p>
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+            <Badge variant="secondary" className="bg-white/20 text-white">Streak: {streak} day{streak === 1 ? "" : "s"}</Badge>
+            <Badge variant="secondary" className="bg-white/20 text-white">Entries: {entries.length}</Badge>
+          </div>
         </div>
 
         {/* Header with Plus Button for new entry */}
@@ -337,6 +397,18 @@ export default function JournalSection({ eventId: propEventId }: JournalSectionP
                 <X className="h-5 w-5" />
               </Button>
             </div>
+            <div className="mb-2 text-sm text-gray-600">
+              <span className="font-medium">Prompt:</span> {promptOfTheDay}
+            </div>
+            <div className="flex gap-2 flex-wrap mb-2">
+              {JOURNAL_PROMPTS.map((p, i) => (
+                <Badge key={i} variant="secondary" className="cursor-pointer" onClick={() => {
+                  const base = editingId ? editContent : entry;
+                  const joiner = base.trim().length ? "\n\n" : "";
+                  (editingId ? setEditContent : setEntry)(`${base}${joiner}${p}`);
+                }}>Use</Badge>
+              ))}
+            </div>
             <Textarea
               value={editingId ? editContent : entry}
               onChange={(e) =>
@@ -344,16 +416,15 @@ export default function JournalSection({ eventId: propEventId }: JournalSectionP
               }
               placeholder="Write your journal entry..."
               rows={5}
-              className="w-full p-2 border rounded mb-2"
+              className="w-full p-2 border rounded mb-1"
             />
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between mb-2 text-xs text-gray-500">
               <div className="flex items-center gap-2">
                 <Switch id="private" checked={isPrivate} onCheckedChange={setIsPrivate} />
                 <Label htmlFor="private">Private</Label>
               </div>
-              <VoiceInput setText={editingId ? setEditContent : setEntry} />
+              <div>{wordCount} word{wordCount === 1 ? "" : "s"}</div>
             </div>
-            {/* Tag Input */}
             <div className="flex gap-3 mb-2">
               <Input
                 placeholder="Add a tag"
@@ -370,6 +441,7 @@ export default function JournalSection({ eventId: propEventId }: JournalSectionP
               <Button onClick={handleAddTag} className="px-4 py-2">
                 Add Tag
               </Button>
+              <VoiceInput setText={editingId ? setEditContent : setEntry} />
             </div>
             {tags.length > 0 && (
               <div className="flex flex-wrap gap-2 mb-2">

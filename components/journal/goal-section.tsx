@@ -15,6 +15,8 @@ import { useToast } from "@/lib/hooks/use-toast";
 import { useParams } from "next/navigation";
 import { Pencil, CheckCircle2 } from "lucide-react";
 import VoiceInput from "@/components/utils/VoiceInput";
+import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
 
 // Initialize Supabase client once at module level
 const supabase = createClient();
@@ -304,19 +306,40 @@ export default function GoalSection({
 
   const handleSelectRecommendation = (recommendation: string) => {
     setNewGoal(recommendation);
+    setIsDialogOpen(true);
   };
+
+  const totalGoals = goals.length;
+  const completedGoals = goals.filter((g) => g.status === "completed").length;
+  const progressValue = totalGoals === 0 ? 0 : Math.round((completedGoals / totalGoals) * 100);
 
   return (
     <>
       <Card className="w-full bg-white shadow-lg rounded-xl">
-        <CardHeader className="flex flex-row items-center justify-between bg-blue-900 text-white p-4 rounded-t-xl">
-          <CardTitle className="text-2xl font-bold">Your Goals</CardTitle>
-          <Button
-            onClick={handleSetGoal}
-            className="bg-black hover:bg-black/90 text-white rounded-full px-4 py-2"
-          >
-            Set Goal
-          </Button>
+        <CardHeader className="flex flex-col gap-3 bg-blue-900 text-white p-4 rounded-t-xl">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-2xl font-bold">Your Goals</CardTitle>
+            <Button
+              onClick={handleSetGoal}
+              className="bg-black hover:bg-black/90 text-white rounded-full px-4 py-2"
+            >
+              Set Goal
+            </Button>
+          </div>
+          <div className="bg-white/10 backdrop-blur rounded-lg p-3">
+            <div className="flex items-center justify-between text-xs mb-1">
+              <span>{completedGoals} of {totalGoals} completed</span>
+              <span>{progressValue}%</span>
+            </div>
+            <Progress value={progressValue} />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {goalRecommendations.map((rec, idx) => (
+              <Badge key={idx} variant="secondary" className="cursor-pointer bg-white/20 text-white hover:bg-white/30" onClick={() => handleSelectRecommendation(rec)}>
+                + {idx === 0 ? "Networking" : idx === 1 ? "Build" : "Research"}
+              </Badge>
+            ))}
+          </div>
         </CardHeader>
         <CardContent className="p-6">
           {goals.length === 0 ? (

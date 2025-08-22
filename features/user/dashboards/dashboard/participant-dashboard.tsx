@@ -9,6 +9,7 @@ import dynamic from "next/dynamic";
 import ReactMarkdown from "react-markdown";
 import { customMarkdownComponents } from "@/components/markdown/custom-components";
 import { markdownRehypePlugins } from "@/components/markdown/plugins";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const GoalSection = dynamic(() => import("@/components/journal/goal-section"), {
   ssr: false,
@@ -147,15 +148,29 @@ export function ParticipantDashboard({ eventId }: ParticipantDashboardProps) {
         </Card>
       </div>
 
-      {/* Goals Section */}
-      <Suspense fallback={<div>Loading goals...</div>}>
-        <GoalSection eventId={eventId} />
-      </Suspense>
-
-      {/* Journal Section */}
-      <Suspense fallback={<div>Loading journal...</div>}>
-        <JournalSection eventId={eventId} />
-      </Suspense>
+      <Card>
+        <CardHeader>
+          <CardTitle>Focus</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Tabs defaultValue="goals">
+            <TabsList>
+              <TabsTrigger value="goals">Goals</TabsTrigger>
+              <TabsTrigger value="journal">Journal</TabsTrigger>
+            </TabsList>
+            <TabsContent value="goals">
+              <Suspense fallback={<div>Loading goals...</div>}>
+                <GoalSection eventId={eventId} />
+              </Suspense>
+            </TabsContent>
+            <TabsContent value="journal">
+              <Suspense fallback={<div>Loading journal...</div>}>
+                <JournalSection eventId={eventId} />
+              </Suspense>
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
 
       {paywalledContent && (
         <Card className="border-2 border-yellow-200 bg-yellow-50">
