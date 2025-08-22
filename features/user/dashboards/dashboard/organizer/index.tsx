@@ -16,10 +16,8 @@ import {
   UserCheck,
   Import,
   Upload, 
-  MoreHorizontal,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+
 import {
   EventDetails,
   EventRole,
@@ -206,49 +204,18 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
   return (
     <div className="space-y-6">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="mb-8 w-full overflow-x-auto gap-1">
-          {primaryTabs.map((item) => (
+        <TabsList className="mb-8 w-full h-auto flex flex-wrap gap-2">
+          {[...primaryTabs, ...overflowTabs].map((item) => (
             <TabsTrigger
               key={item.value}
               value={item.value}
               title={item.label}
-              className="flex items-center gap-2 px-2 py-1 sm:px-3 sm:py-1.5"
+              className="inline-flex items-center gap-2 px-3 py-1.5"
             >
               <item.icon className="h-4 w-4" />
-              <span className="hidden sm:inline">{item.label}</span>
+              {item.label}
             </TabsTrigger>
           ))}
-
-          {overflowTabs.map((item) => (
-            <TabsTrigger
-              key={item.value}
-              value={item.value}
-              title={item.label}
-              className="hidden sm:inline-flex items-center gap-2 px-2 py-1 sm:px-3 sm:py-1.5"
-            >
-              <item.icon className="h-4 w-4" />
-              <span className="hidden sm:inline">{item.label}</span>
-            </TabsTrigger>
-          ))}
-
-          <div className="ml-auto flex sm:hidden">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="gap-2">
-                  <MoreHorizontal className="h-4 w-4" />
-                  More
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {overflowTabs.map((item) => (
-                  <DropdownMenuItem key={item.value} onClick={() => setActiveTab(item.value)}>
-                    <item.icon className="h-4 w-4 mr-2" />
-                    {item.label}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
         </TabsList>
 
         <TabsContent value="details">
