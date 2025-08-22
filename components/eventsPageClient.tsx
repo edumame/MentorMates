@@ -49,7 +49,7 @@ export function EventsPageClient({ eventsList }: { eventsList: EventItem[] }) {
 
       <div className="flex justify-end mb-6">
         <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-600">Hide $$$</span>
+          <span className="text-sm text-gray-600">Hide Paid</span>
           <Switch checked={hidePaid} onCheckedChange={setHidePaid} />
         </div>
       </div>
