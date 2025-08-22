@@ -120,22 +120,6 @@ export default async function EventOverviewPage({ params }: PageProps) {
         </CardContent>
       </Card>
 
-      {/* Paywall Content - Only shown if user has joined */}
-      {hasJoined && typedEvent.paywall_content && (
-        <Card className="mb-8 border-2 border-yellow-200 bg-yellow-50">
-          <CardHeader>
-            <CardTitle className="text-yellow-800">
-              🔒 Exclusive Content for Participants
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="prose prose-blue max-w-none">
-              <ReactMarkdown rehypePlugins={markdownRehypePlugins} components={customMarkdownComponents}>{typedEvent.paywall_content}</ReactMarkdown>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Rules */}
       {typedEvent.rules && typedEvent.rules.length > 0 && (
         <Card className="shadow-lg rounded-lg mb-8">

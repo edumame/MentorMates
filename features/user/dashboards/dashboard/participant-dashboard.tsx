@@ -6,6 +6,9 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import dynamic from "next/dynamic";
+import ReactMarkdown from "react-markdown";
+import { customMarkdownComponents } from "@/components/markdown/custom-components";
+import { markdownRehypePlugins } from "@/components/markdown/plugins";
 
 const GoalSection = dynamic(() => import("@/components/journal/goal-section"), {
   ssr: false,
@@ -25,6 +28,7 @@ interface ParticipantDashboardProps {
 export function ParticipantDashboard({ eventId }: ParticipantDashboardProps) {
   const [myProjects, setMyProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [paywalledContent, setPaywalledContent] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchMyProjects = async () => {
@@ -65,6 +69,24 @@ export function ParticipantDashboard({ eventId }: ParticipantDashboardProps) {
     };
 
     fetchMyProjects();
+  }, [eventId]);
+
+  useEffect(() => {
+    const fetchEventPaywall = async () => {
+      const { data, error } = await supabase
+        .from("events")
+        .select("paywall_content")
+        .eq("event_id", eventId)
+        .maybeSingle();
+
+      if (error) {
+        console.error("Error fetching event paywalled content:", error);
+        return;
+      }
+      setPaywalledContent(data?.paywall_content ?? null);
+    };
+
+    fetchEventPaywall();
   }, [eventId]);
 
   return (
@@ -134,6 +156,21 @@ export function ParticipantDashboard({ eventId }: ParticipantDashboardProps) {
       <Suspense fallback={<div>Loading journal...</div>}>
         <JournalSection eventId={eventId} />
       </Suspense>
+
+      {paywalledContent && (
+        <Card className="border-2 border-yellow-200 bg-yellow-50">
+          <CardHeader>
+            <CardTitle className="text-yellow-800">
+              🔒 Exclusive Content for Participants
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="prose prose-blue max-w-none">
+              <ReactMarkdown rehypePlugins={markdownRehypePlugins} components={customMarkdownComponents}>{paywalledContent}</ReactMarkdown>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
