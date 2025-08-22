@@ -57,7 +57,7 @@ export default function ProjectsPage() {
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-4">Please log in to view your projects</h1>
           <Link href="/login">
-            <Button>Login</Button>
+            <Button className="bg-blue-900 text-white hover:bg-blue-800">Login</Button>
           </Link>
         </div>
       </div>
@@ -73,7 +73,7 @@ export default function ProjectsPage() {
           <p className="text-gray-600">Manage and track your project portfolio</p>
         </div>
         <Link href="/events">
-          <Button className="flex items-center gap-2">
+          <Button className="flex items-center gap-2 bg-blue-900 text-white hover:bg-blue-800">
             <Plus className="h-4 w-4" />
             New Project
           </Button>
@@ -84,7 +84,7 @@ export default function ProjectsPage() {
         <div className="text-center py-12">
           <div className="text-gray-500 mb-4">No projects found</div>
           <Link href="/events">
-            <Button>Join an Event to Start a Project</Button>
+            <Button className="bg-blue-900 text-white hover:bg-blue-800">Join an Event to Start a Project</Button>
           </Link>
         </div>
       ) : (
