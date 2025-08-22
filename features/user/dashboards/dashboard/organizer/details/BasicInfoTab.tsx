@@ -9,6 +9,8 @@ import { Label } from "@/components/ui/label";
 import { EventDetails } from "@/lib/types";
 import { useRouter } from "next/navigation";
 import { toast as ToastType } from "@/lib/hooks/use-toast";
+import ReactMarkdown from "react-markdown";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 interface BasicInfoTabProps {
   event: EventDetails;
@@ -199,17 +201,30 @@ export function BasicInfoTab({
 
       <div className="space-y-2">
         <Label htmlFor="event_description">Description (Markdown Supported)</Label>
-        <Textarea
-          id="event_description"
-          value={event.event_description || ""}
-          onChange={(e) =>
-            setEvent({
-              ...event,
-              event_description: e.target.value,
-            })
-          }
-          rows={4}
-        />
+        <Tabs defaultValue="edit" className="w-full">
+          <TabsList>
+            <TabsTrigger value="edit">Edit</TabsTrigger>
+            <TabsTrigger value="preview">Preview</TabsTrigger>
+          </TabsList>
+          <TabsContent value="edit" className="mt-0">
+            <Textarea
+              id="event_description"
+              value={event.event_description || ""}
+              onChange={(e) =>
+                setEvent({
+                  ...event,
+                  event_description: e.target.value,
+                })
+              }
+              rows={4}
+            />
+          </TabsContent>
+          <TabsContent value="preview" className="mt-0">
+            <div className="prose prose-sm dark:prose-invert max-w-none rounded-md border bg-muted/30 p-3">
+              <ReactMarkdown>{event.event_description || ""}</ReactMarkdown>
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
 
       <div className="space-y-2">
