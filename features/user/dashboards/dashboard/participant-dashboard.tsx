@@ -9,6 +9,7 @@ import dynamic from "next/dynamic";
 import ReactMarkdown from "react-markdown";
 import { customMarkdownComponents } from "@/components/markdown/custom-components";
 import { markdownRehypePlugins } from "@/components/markdown/plugins";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const GoalSection = dynamic(() => import("@/components/journal/goal-section"), {
   ssr: false,
@@ -29,6 +30,9 @@ export function ParticipantDashboard({ eventId }: ParticipantDashboardProps) {
   const [myProjects, setMyProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [paywalledContent, setPaywalledContent] = useState<string | null>(null);
+  const [goalsCount, setGoalsCount] = useState<number>(0);
+  const [journalCount, setJournalCount] = useState<number>(0);
+  const [streakDays, setStreakDays] = useState<number>(0);
 
   useEffect(() => {
     const fetchMyProjects = async () => {
@@ -89,6 +93,68 @@ export function ParticipantDashboard({ eventId }: ParticipantDashboardProps) {
     fetchEventPaywall();
   }, [eventId]);
 
+  useEffect(() => {
+    const fetchStats = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session?.user?.email) return;
+
+      const { data: profile, error: profileError } = await supabase
+        .from("user_profiles")
+        .select("uid")
+        .eq("email", session.user.email)
+        .single();
+
+      if (profileError || !profile) return;
+
+      const { count: gCount } = await supabase
+        .from("platform_engagement")
+        .select("id", { count: "exact", head: true })
+        .eq("event_id", eventId)
+        .eq("type", "goal")
+        .eq("user_id", profile.uid);
+
+      const { count: jCount } = await supabase
+        .from("platform_engagement")
+        .select("id", { count: "exact", head: true })
+        .eq("event_id", eventId)
+        .eq("type", "journal")
+        .eq("user_id", profile.uid);
+
+      setGoalsCount(gCount || 0);
+      setJournalCount(jCount || 0);
+
+      const since = new Date();
+      since.setDate(since.getDate() - 14);
+      const { data: activity } = await supabase
+        .from("platform_engagement")
+        .select("created_at,type")
+        .eq("event_id", eventId)
+        .eq("user_id", profile.uid)
+        .gte("created_at", since.toISOString());
+
+      const daysSet = new Set<string>();
+      (activity || []).forEach((a: any) => {
+        const d = new Date(a.created_at);
+        const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+        daysSet.add(key);
+      });
+      let streak = 0;
+      const today = new Date();
+      for (let i = 0; i < 30; i++) {
+        const d = new Date(today);
+        d.setDate(today.getDate() - i);
+        const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+        if (daysSet.has(key)) streak++;
+        else break;
+      }
+      setStreakDays(streak);
+    };
+
+    fetchStats();
+  }, [eventId]);
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -147,15 +213,60 @@ export function ParticipantDashboard({ eventId }: ParticipantDashboardProps) {
         </Card>
       </div>
 
-      {/* Goals Section */}
-      <Suspense fallback={<div>Loading goals...</div>}>
-        <GoalSection eventId={eventId} />
-      </Suspense>
-
-      {/* Journal Section */}
-      <Suspense fallback={<div>Loading journal...</div>}>
-        <JournalSection eventId={eventId} />
-      </Suspense>
+      <Card className="w-full bg-white shadow-lg rounded-xl">
+        <CardHeader className="bg-blue-900 text-white p-4 rounded-t-xl">
+          <CardTitle className="text-2xl font-bold">Focus</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          <Tabs defaultValue="goals" className="w-full">
+            <div className="p-4">
+              <TabsList>
+                <TabsTrigger value="goals">Goals</TabsTrigger>
+                <TabsTrigger value="journal">Journal</TabsTrigger>
+                <TabsTrigger value="stats">Stats</TabsTrigger>
+              </TabsList>
+            </div>
+            <TabsContent value="goals" className="p-4">
+              <Suspense fallback={<div>Loading goals...</div>}>
+                <GoalSection eventId={eventId} hideHeader />
+              </Suspense>
+            </TabsContent>
+            <TabsContent value="journal" className="p-4">
+              <Suspense fallback={<div>Loading journal...</div>}>
+                <JournalSection eventId={eventId} hideHeader />
+              </Suspense>
+            </TabsContent>
+            <TabsContent value="stats" className="p-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Goals Set</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-3xl font-bold">{goalsCount}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Journal Entries</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-3xl font-bold">{journalCount}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Streak</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-3xl font-bold">{streakDays}d</p>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
 
       {paywalledContent && (
         <Card className="border-2 border-yellow-200 bg-yellow-50">
