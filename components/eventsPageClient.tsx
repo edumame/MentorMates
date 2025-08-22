@@ -3,11 +3,13 @@
 import { useState, useMemo } from "react";
 import { EventsList } from "@/components/events/events-list";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { EventItem } from "@/lib/types";
 import { UI_TEXT, DEFAULT_VALUES } from "@/lib/config/constants";
 
 export function EventsPageClient({ eventsList }: { eventsList: EventItem[] }) {
   const [searchTerm, setSearchTerm] = useState(DEFAULT_VALUES.SEARCH_TERM);
+  const [hidePaid, setHidePaid] = useState(false);
 
   const filteredEvents = useMemo(() => {
     return eventsList.filter((event) =>
@@ -48,19 +50,25 @@ export function EventsPageClient({ eventsList }: { eventsList: EventItem[] }) {
         </svg>
       </div>
 
+      <div className="flex justify-end mb-6">
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-600">Hide $$$</span>
+          <Switch checked={hidePaid} onCheckedChange={setHidePaid} />
+        </div>
+      </div>
+
       {filteredEvents.length > 0 ? (
         <div className="space-y-10">
-          {paidEvents.length > 0 && (
+          {unpaidEvents.length > 0 && (
             <div className="space-y-4">
-              <h2 className="text-2xl font-semibold">Paid Events</h2>
-              <EventsList events={paidEvents} />
+              <EventsList events={unpaidEvents} />
             </div>
           )}
 
-          {unpaidEvents.length > 0 && (
+          {!hidePaid && paidEvents.length > 0 && (
             <div className="space-y-4">
-              <h2 className="text-2xl font-semibold">Unpaid Events</h2>
-              <EventsList events={unpaidEvents} />
+              <h2 className="text-2xl font-semibold">$$$</h2>
+              <EventsList events={paidEvents} />
             </div>
           )}
         </div>
