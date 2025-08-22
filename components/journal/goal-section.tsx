@@ -344,7 +344,7 @@ export default function GoalSection({
       await incrementPulse(session.session.user.email);
       toast({
         title: "🎉 Goal completed!",
-        description: "Amazing work! You're making great progress.",
+        description: "Amazing work! You&apos;re making great progress.",
       });
     }
 
@@ -536,7 +536,7 @@ export default function GoalSection({
                     <div className="mt-4 p-3 bg-green-100 rounded-lg">
                       <div className="flex items-center gap-2 text-green-800">
                         <Star className="h-4 w-4" />
-                        <span className="text-sm font-medium">Congratulations! You've completed this goal! 🎉</span>
+                        <span className="text-sm font-medium">Congratulations! You&apos;ve completed this goal! 🎉</span>
                       </div>
                     </div>
                   )}

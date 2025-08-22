@@ -19,11 +19,8 @@ import {
   Lock,
   Globe,
   Lightbulb,
-  Heart,
   Zap,
-  TrendingUp,
-  Clock,
-  Star
+  TrendingUp
 } from "lucide-react";
 import VoiceInput from "../utils/VoiceInput";
 import { Badge } from "@/components/ui/badge";
@@ -724,7 +721,7 @@ export default function JournalSection({ eventId: propEventId }: JournalSectionP
               );
             })}
           </div>
-        )}
+        ) : null}
       </CardContent>
     </Card>
   );
