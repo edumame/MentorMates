@@ -101,21 +101,6 @@ export function ParticipantDashboard({ eventId }: ParticipantDashboardProps) {
         </Link>
       </div>
 
-      {paywalledContent && (
-        <Card className="border-2 border-yellow-200 bg-yellow-50">
-          <CardHeader>
-            <CardTitle className="text-yellow-800">
-              🔒 Exclusive Content for Participants
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="prose prose-blue max-w-none">
-              <ReactMarkdown rehypePlugins={markdownRehypePlugins} components={customMarkdownComponents}>{paywalledContent}</ReactMarkdown>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
@@ -171,6 +156,21 @@ export function ParticipantDashboard({ eventId }: ParticipantDashboardProps) {
       <Suspense fallback={<div>Loading journal...</div>}>
         <JournalSection eventId={eventId} />
       </Suspense>
+
+      {paywalledContent && (
+        <Card className="border-2 border-yellow-200 bg-yellow-50">
+          <CardHeader>
+            <CardTitle className="text-yellow-800">
+              🔒 Exclusive Content for Participants
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="prose prose-blue max-w-none">
+              <ReactMarkdown rehypePlugins={markdownRehypePlugins} components={customMarkdownComponents}>{paywalledContent}</ReactMarkdown>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
