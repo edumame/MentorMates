@@ -27,7 +27,7 @@ export default function JoinPage() {
 							We are living in the age of AI, where people feel both excitement and fear. Many want to explore, but also worry about being left behind. Hackathons are one of the best ways to expose people to new technologies, but they often feel intimidating. In just 48 hours, participants are told to “build something,” yet most receive little guidance or scaffolding. This creates a huge barrier to entry—especially for beginners, students from underrepresented backgrounds, and those without prior coding or entrepreneurial experience.
 						</p>
 						<p>
-							The result is that hackathons, which should be gateways to curiosity and innovation, can instead feel exclusive and overwhelming. I've seen this first-hand both as a participant and as an organizer. At{' '}
+							The result is that hackathons, which should be gateways to curiosity and innovation, can instead feel exclusive and overwhelming. I&apos;ve seen this first-hand both as a participant and as an organizer. At{' '}
 							<a
 								href="https://ed.stanford.edu/giving/story/ready-set-solve"
 								target="_blank"
