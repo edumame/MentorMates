@@ -160,6 +160,30 @@ export default function JoinPage() {
                   </p>
                 </div>
               </div>
+
+              {/* DevPost Integration Callout for Organizers */}
+              <section className="mt-8 bg-white/70 shadow-lg p-6 rounded-xl transition-shadow hover:shadow-2xl">
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Already Using DevPost?</h3>
+                <p className="text-gray-800 text-md mb-4">
+                  MentorMates integrates with DevPost to enhance your hackathon with structured feedback,
+                  mentorship connections, and engagement analytics — while keeping your familiar DevPost workflow.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <a
+                    href="/devpost-integration"
+                    className="inline-flex items-center px-4 py-2 bg-blue-900 text-white rounded-md hover:bg-blue-800 transition-colors duration-200 text-center justify-center"
+                  >
+                    Learn About DevPost Integration
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </a>
+                  <a
+                    href="mailto:admin@mentormates.ai?subject=DevPost Integration Inquiry"
+                    className="inline-flex items-center px-4 py-2 border border-blue-900 text-blue-900 rounded-md hover:bg-blue-50 transition-colors duration-200 text-center justify-center"
+                  >
+                    Contact Us About Integration
+                  </a>
+                </div>
+              </section>
             </TabsContent>
 
             {/* Careers */}
