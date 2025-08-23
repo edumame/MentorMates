@@ -419,6 +419,8 @@ export type Database = {
           project_name: string | null
           project_url: string | null
           teammates: string[] | null
+          contextus_project_id: string | null
+          video_url: string | null
           submitted?: boolean | null
           submitted_at?: string | null
         }
@@ -434,6 +436,8 @@ export type Database = {
           project_name?: string | null
           project_url?: string | null
           teammates?: string[] | null
+          contextus_project_id?: string | null
+          video_url?: string | null
           submitted?: boolean | null
           submitted_at?: string | null
         }
@@ -449,6 +453,8 @@ export type Database = {
           project_name?: string | null
           project_url?: string | null
           teammates?: string[] | null
+          contextus_project_id?: string | null
+          video_url?: string | null
           submitted?: boolean | null
           submitted_at?: string | null
         }

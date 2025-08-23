@@ -34,6 +34,7 @@ export async function GET(request: NextRequest) {
           additional_materials_url,
           cover_image_url,
           event_id,
+          contextus_project_id,
           created_at,
           submitted,
           project_tracks (
@@ -78,6 +79,7 @@ export async function GET(request: NextRequest) {
         additional_materials_url: item.additional_materials_url,
         cover_image_url: item.cover_image_url,
         event_id: item.event_id,
+        contextus_project_id: (item as unknown as { contextus_project_id?: string }).contextus_project_id,
         submitted: (item as unknown as { submitted?: boolean }).submitted ?? true,
         tracks:
           item.project_tracks?.map((pt) => pt.event_tracks).filter(Boolean) ||
@@ -178,6 +180,7 @@ export async function GET(request: NextRequest) {
           additional_materials_url,
           cover_image_url,
           event_id,
+          contextus_project_id,
           created_at,
           submitted,
           project_tracks (
@@ -222,6 +225,7 @@ export async function GET(request: NextRequest) {
         additional_materials_url: project.additional_materials_url,
         cover_image_url: project.cover_image_url,
         event_id: project.event_id,
+        contextus_project_id: (project as unknown as { contextus_project_id?: string }).contextus_project_id,
         submitted: (project as unknown as { submitted?: boolean }).submitted ?? false,
         tracks:
           project.project_tracks

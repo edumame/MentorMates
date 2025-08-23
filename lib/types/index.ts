@@ -122,6 +122,7 @@ export interface Project {
   cover_image_url?: string;
   event_name?: string;
   prizes_won?: Prize[];
+  contextus_project_id?: string;
   submitted?: boolean;
 }
 
