@@ -95,7 +95,22 @@ export async function POST(request: Request) {
 
 		// Create or update the project, then create track relationships
 		let finalProjectId = projectId as string | undefined;
-		let projectData: any;
+		let projectData: {
+			id: string;
+			project_name: string | null;
+			lead_name: string;
+			lead_email: string | null;
+			project_description: string | null;
+			teammates: string[] | null;
+			project_url: string | null;
+			cover_image_url: string | null;
+			additional_materials_url: string | null;
+			event_id: string | null;
+			video_url: string | null;
+			submitted?: boolean | null;
+			submitted_at?: string | null;
+			contextus_project_id?: string | null;
+		} | undefined;
 
 		if (!finalProjectId) {
 			const { data: project, error: projectError } = await supabase

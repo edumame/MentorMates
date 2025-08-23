@@ -1441,11 +1441,6 @@ export default function ProjectPage() {
                   </p>
                 </div>
                 {/* Contextus Integration - Only show to team members */}
-                {console.log('Contextus ID visibility check:', {
-                  canEdit,
-                  contextusId: project.contextus_project_id,
-                  showSection: canEdit && project.contextus_project_id
-                })}
                 {canEdit && project.contextus_project_id && (
                   <div className="border-t pt-3 mt-3">
                     <div className="flex items-center justify-between">
