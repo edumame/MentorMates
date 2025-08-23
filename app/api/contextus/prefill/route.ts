@@ -10,66 +10,65 @@ export type PrefillData = {
 	videoUrl?: string;
 };
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === "object" && value !== null;
+// Minimal types based on Contextus Query response example
+interface ContextusQueryLinks {
+	github?: string;
+	video?: string;
+	website?: string;
+	[key: string]: unknown;
 }
 
-function isString(value: unknown): value is string {
-	return typeof value === "string";
+interface ContextusQueryMetadata {
+	mentor_mates_project_id?: string;
+	team_lead_name?: string;
+	team_lead_email?: string;
+	event_id?: string;
+	project_description?: string;
+	github_url?: string;
+	video_url?: string;
+	project_url?: string;
+	team?: string | string[];
+	team_members?: string | string[];
+	teammates?: string | string[];
+	members?: string | string[];
+	[key: string]: unknown;
 }
 
-function coercePrefillFromUnknown(value: unknown): PrefillData | null {
-	if (!isRecord(value)) return null;
-	const out: PrefillData = {};
+interface ContextusQueryOverview {
+	summary?: string;
+	[key: string]: unknown;
+}
 
-	if (isString(value.projectName)) out.projectName = value.projectName;
-	if (isString(value.projectDescription)) out.projectDescription = value.projectDescription;
-	if (isString(value.projectUrl)) out.projectUrl = value.projectUrl;
-	if (isString(value.videoUrl)) out.videoUrl = value.videoUrl;
+interface ContextusQueryResponseDTO {
+	project_id?: string;
+	label?: string;
+	description?: string;
+	metadata?: ContextusQueryMetadata;
+	links?: ContextusQueryLinks;
+	artifacts?: Array<{ type?: string; title?: string; url?: string }>;
+	overview?: ContextusQueryOverview;
+	[key: string]: unknown;
+}
 
-	const teammatesUnknown = (value as Record<string, unknown>).teammates;
-	if (Array.isArray(teammatesUnknown)) {
-		out.teammates = teammatesUnknown.filter((t): t is string => typeof t === "string");
-	} else if (isString(teammatesUnknown)) {
-		out.teammates = teammatesUnknown
+interface ContextusQueryResult {
+	project_id?: string;
+	query_response?: ContextusQueryResponseDTO;
+	[key: string]: unknown;
+}
+
+function normalizeTeammates(meta?: ContextusQueryMetadata): string[] | undefined {
+	if (!meta) return undefined;
+	const candidate = (meta.team_members ?? meta.teammates ?? meta.members ?? meta.team) as unknown;
+	let list: string[] = [];
+	if (Array.isArray(candidate)) {
+		list = candidate.filter((x): x is string => typeof x === "string");
+	} else if (typeof candidate === "string") {
+		list = candidate
 			.split(/,|\n|\r|;/)
 			.map((s) => s.trim())
 			.filter(Boolean);
 	}
-
-	// Return only if any field was set
-	return Object.keys(out).length > 0 ? out : null;
-}
-
-function coercePrefillFromPossibleWrapper(value: unknown): PrefillData | null {
-	// Try direct
-	const direct = coercePrefillFromUnknown(value);
-	if (direct) return direct;
-
-	// Common wrappers like { answer: "...json..." } or { result: "..." } or { data: {...} }
-	if (isRecord(value)) {
-		const answerCandidates: unknown[] = [];
-		if ("answer" in value) answerCandidates.push((value as Record<string, unknown>).answer);
-		if ("result" in value) answerCandidates.push((value as Record<string, unknown>).result);
-		if ("output" in value) answerCandidates.push((value as Record<string, unknown>).output);
-		if ("data" in value) answerCandidates.push((value as Record<string, unknown>).data);
-
-		for (const candidate of answerCandidates) {
-			if (candidate == null) continue;
-			if (isString(candidate)) {
-				try {
-					const parsed = JSON.parse(candidate) as unknown;
-					const inner = coercePrefillFromUnknown(parsed);
-					if (inner) return inner;
-				} catch {
-					// ignore
-				}
-			}
-			const inner = coercePrefillFromUnknown(candidate);
-			if (inner) return inner;
-		}
-	}
-	return null;
+	return list.length ? list : undefined;
 }
 
 export async function POST(req: Request) {
@@ -119,66 +118,62 @@ export async function POST(req: Request) {
 
 		const BASE = process.env.CONTEXTUS_BASE_URL || "https://www.contextus.space";
 
-		// Instruct Contextus Query to return ONLY valid JSON in the exact shape we need
-		const exampleJson = {
-			projectName: "Acme AI Assistant",
-			projectDescription: "Short description of what the project does and how.",
-			teammates: ["Alice Example", "Bob Sample"],
-			projectUrl: "https://github.com/acme/ai-assistant",
-			videoUrl: "https://youtu.be/dQw4w9WgXcQ",
-		};
-
-		const nlPrompt =
-			"Extract the following fields for this project and return ONLY strict JSON with these exact keys. " +
-			"If a field is unknown, use an empty string for strings and an empty array for arrays. " +
-			"Do not include any extra commentary, markdown, or code fences. " +
-			"The keys must be: projectName, projectDescription, teammates, projectUrl, videoUrl.\n" +
-			"Example format (values are illustrative):\n" +
-			JSON.stringify(exampleJson, null, 2);
-
-		const queryRes = await fetch(`${BASE}/v1/query`, {
+		// Call the Contextus Query endpoint per provided example
+		const queryRes = await fetch(`${BASE}/v1/projects/${contextusProjectId}/query`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ project_id: contextusProjectId, query: nlPrompt }),
+			body: JSON.stringify({ q: "tell me about this project" }),
 		});
 
-		const rawText = await queryRes.text();
-		let parsed: unknown = null;
-		let dataOut: PrefillData | null = null;
-		try {
-			parsed = JSON.parse(rawText) as unknown;
-			dataOut = coercePrefillFromPossibleWrapper(parsed);
-		} catch {
-			// Not JSON, try to locate JSON substring quickly (best-effort)
-			const firstBrace = rawText.indexOf("{");
-			const lastBrace = rawText.lastIndexOf("}");
-			if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-				const candidate = rawText.slice(firstBrace, lastBrace + 1);
-				try {
-					const inner = JSON.parse(candidate) as unknown;
-					dataOut = coercePrefillFromPossibleWrapper(inner);
-					parsed = inner;
-				} catch {
-					// ignore
-				}
-			}
-		}
-
 		if (!queryRes.ok) {
+			const raw = await queryRes.text().catch(() => "");
 			return NextResponse.json(
-				{ error: `Contextus Query failed: ${queryRes.status}`, raw: rawText },
+				{ error: `Contextus Query failed: ${queryRes.status}`, raw },
 				{ status: 502 }
 			);
 		}
 
-		if (!dataOut) {
+		const json = (await queryRes.json()) as ContextusQueryResult;
+		const qr: ContextusQueryResponseDTO | undefined = json.query_response ?? (json as unknown as ContextusQueryResponseDTO);
+		if (!qr) {
 			return NextResponse.json(
-				{ error: "Contextus Query did not return valid JSON in the expected format", raw: rawText },
+				{ error: "Contextus Query did not return expected query_response" },
 				{ status: 502 }
 			);
 		}
 
-		return NextResponse.json({ success: true, data: dataOut });
+		// Map to our form fields
+		const out: PrefillData = {};
+		if (qr.label && typeof qr.label === "string") out.projectName = qr.label;
+
+		const meta = qr.metadata;
+		const links = qr.links;
+
+		// Description precedence: metadata.project_description > description > overview.summary
+		const desc = (meta?.project_description as string | undefined) ||
+			(qr.description ?? undefined) ||
+			(qr.overview?.summary ?? undefined);
+		if (desc && typeof desc === "string") out.projectDescription = desc;
+
+		// Project URL precedence: metadata.github_url > links.github > metadata.project_url > links.website
+		const projectUrlCandidate =
+			(meta?.github_url as string | undefined) ||
+			(links?.github as string | undefined) ||
+			(meta?.project_url as string | undefined) ||
+			(links?.website as string | undefined);
+		if (projectUrlCandidate && typeof projectUrlCandidate === "string") out.projectUrl = projectUrlCandidate;
+
+		// Video URL precedence: metadata.video_url > links.video
+		const videoUrlCandidate =
+			(meta?.video_url as string | undefined) ||
+			(links?.video as string | undefined);
+		if (videoUrlCandidate && typeof videoUrlCandidate === "string") out.videoUrl = videoUrlCandidate;
+
+		// Teammates from metadata team fields (do not auto-include team lead by default)
+		const teammates = normalizeTeammates(meta);
+		if (teammates && teammates.length) out.teammates = teammates;
+
+		return NextResponse.json({ success: true, data: out });
 	} catch (error) {
 		console.error("/api/contextus/prefill error", error);
 		return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
