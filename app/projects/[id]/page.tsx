@@ -73,8 +73,6 @@ interface EventParticipant {
   email: string;
 }
 
-
-
 export default function ProjectPage() {
   const params = useParams();
   const router = useRouter();
@@ -550,7 +548,7 @@ export default function ProjectPage() {
       }
 
       const { data, error } = await updateProjectClient(projectId, {
-        video_url: newUrl.trim() || null
+        video_url: newUrl.trim() || null,
       });
 
       if (error) {
@@ -1010,13 +1008,28 @@ export default function ProjectPage() {
               {/* Event Badge */}
               {eventName && project?.event_id && (
                 <Link href={`/events/${eventSlug}/overview`}>
-                  <Badge 
-                    variant="secondary" 
+                  <Badge
+                    variant="secondary"
                     className="bg-green-100 text-green-800 hover:bg-green-200 px-4 py-2 text-sm font-medium cursor-pointer transition-colors"
                   >
                     {eventName}
                   </Badge>
                 </Link>
+              )}
+              {project.submitted ? (
+                <Badge
+                  variant="secondary"
+                  className="bg-blue-100 text-blue-800 hover:bg-blue-200 px-4 py-2 text-sm font-medium cursor-pointer transition-colors"
+                >
+                  Submitted
+                </Badge>
+              ) : (
+                <Badge
+                  variant="secondary"
+                  className="bg-gray-100 text-gray-800 hover:bg-gray-200 px-4 py-2 text-sm font-medium cursor-pointer transition-colors"
+                >
+                  Draft
+                </Badge>
               )}
             </div>
 
@@ -1076,7 +1089,6 @@ export default function ProjectPage() {
             <CardTitle>Project Links</CardTitle>
           </CardHeader>
           <CardContent>
-            
             {/* Cover Image URL */}
             <div className=" mb-6">
               <div className="flex items-center gap-2 mb-3">
@@ -1287,13 +1299,10 @@ export default function ProjectPage() {
                   </a>
                 )}
               </div>
-              
+
               {/* Video Embed */}
               {project.video_url && canEmbed(project.video_url) && (
-                <VideoEmbed 
-                  url={project.video_url} 
-                  title="Project Video" 
-                />
+                <VideoEmbed url={project.video_url} title="Project Video" />
               )}
             </div>
           </CardContent>

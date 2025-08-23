@@ -13,6 +13,7 @@ export async function POST(request: Request) {
 
 		const body = await request.json();
 		const {
+			projectId,
 			projectName,
 			leadName,
 			leadEmail,
@@ -63,81 +64,127 @@ export async function POST(request: Request) {
 			);
 		}
 
-		// Validate track_ids exist in event_tracks table
-		if (!trackIds || trackIds.length === 0) {
-			return NextResponse.json(
-				{ error: "At least one track must be selected" },
-				{ status: 400 }
+		// Validate track_ids if provided
+		let validTrackIds: string[] = [];
+		if (trackIds && trackIds.length > 0) {
+			const { data: validTracks, error: trackError } = await supabase
+				.from("event_tracks")
+				.select("track_id")
+				.eq("event_id", eventId)
+				.in("track_id", trackIds);
+
+			if (trackError) {
+				return NextResponse.json(
+					{ error: "Failed to validate tracks" },
+					{ status: 500 }
+				);
+			}
+
+			validTrackIds = validTracks.map((t) => t.track_id);
+			const invalidTracks = trackIds.filter(
+				(id: string) => !validTrackIds.includes(id)
 			);
+
+			if (invalidTracks.length > 0) {
+				return NextResponse.json(
+					{ error: `Invalid track IDs: ${invalidTracks.join(", ")}` },
+					{ status: 400 }
+				);
+			}
 		}
 
-		const { data: validTracks, error: trackError } = await supabase
-			.from("event_tracks")
-			.select("track_id")
-			.eq("event_id", eventId)
-			.in("track_id", trackIds);
+		// Create or update the project, then create track relationships
+		let finalProjectId = projectId as string | undefined;
+		let projectData: any;
 
-		if (trackError) {
-			return NextResponse.json(
-				{ error: "Failed to validate tracks" },
-				{ status: 500 }
-			);
+		if (!finalProjectId) {
+			const { data: project, error: projectError } = await supabase
+				.from("projects")
+				.insert({
+					project_name: projectName,
+					lead_name: leadName,
+					lead_email: leadEmail,
+					project_description: projectDescription,
+					teammates: teammates || [],
+					project_url: projectUrl || null,
+					cover_image_url: coverImageUrl || null,
+					additional_materials_url: additionalMaterialsUrl || null,
+					event_id: eventId,
+					video_url: videoUrl || null,
+					submitted: true,
+					submitted_at: new Date().toISOString(),
+				})
+				.select()
+				.single();
+
+			if (projectError) {
+				return NextResponse.json(
+					{ error: "Failed to create project" },
+					{ status: 500 }
+				);
+			}
+			finalProjectId = project.id;
+			projectData = project;
+		} else {
+			// Update existing draft
+			const { error: updateError } = await supabase
+				.from("projects")
+				.update({
+					project_name: projectName,
+					lead_name: leadName,
+					lead_email: leadEmail,
+					project_description: projectDescription,
+					teammates: teammates || [],
+					project_url: projectUrl || null,
+					cover_image_url: coverImageUrl || null,
+					additional_materials_url: additionalMaterialsUrl || null,
+					video_url: videoUrl || null,
+					submitted: true,
+					submitted_at: new Date().toISOString(),
+				})
+				.eq("id", finalProjectId);
+
+			if (updateError) {
+				return NextResponse.json(
+					{ error: "Failed to update project" },
+					{ status: 500 }
+				);
+			}
+			
+			// Fetch the updated project data
+			const { data: updatedProject } = await supabase
+				.from("projects")
+				.select()
+				.eq("id", finalProjectId)
+				.single();
+			
+			projectData = updatedProject;
 		}
 
-		const validTrackIds = validTracks.map((t) => t.track_id);
-		const invalidTracks = trackIds.filter(
-			(id: string) => !validTrackIds.includes(id)
-		);
+		// Create track relationships only if tracks are provided
+		if (trackIds && trackIds.length > 0) {
+			// Delete any existing track relationships
+			await supabase.from("project_tracks").delete().eq("project_id", finalProjectId!);
+			
+			const trackInserts = trackIds.map((trackId: string) => ({
+				project_id: finalProjectId!,
+				track_id: trackId,
+			}));
 
-		if (invalidTracks.length > 0) {
-			return NextResponse.json(
-				{ error: `Invalid track IDs: ${invalidTracks.join(", ")}` },
-				{ status: 400 }
-			);
-		}
+			const { error: trackInsertError } = await supabase
+				.from("project_tracks")
+				.insert(trackInserts);
 
-		// Start a transaction to ensure both project and track relationships are created
-		const { data: project, error: projectError } = await supabase
-			.from("projects")
-			.insert({
-				project_name: projectName,
-				lead_name: leadName,
-				lead_email: leadEmail,
-				project_description: projectDescription,
-				teammates: teammates || [],
-				project_url: projectUrl || null,
-				cover_image_url: coverImageUrl || null,
-				additional_materials_url: additionalMaterialsUrl || null,
-				event_id: eventId,
-				video_url: videoUrl || null,
-			})
-			.select()
-			.single();
-
-		if (projectError) {
-			return NextResponse.json(
-				{ error: "Failed to create project" },
-				{ status: 500 }
-			);
-		}
-
-		// Create track relationships
-		const trackInserts = trackIds.map((trackId: string) => ({
-			project_id: project.id,
-			track_id: trackId,
-		}));
-
-		const { error: trackInsertError } = await supabase
-			.from("project_tracks")
-			.insert(trackInserts);
-
-		if (trackInsertError) {
-			// Delete the project since track relationships failed
-			await supabase.from("projects").delete().eq("id", project.id);
-			return NextResponse.json(
-				{ error: "Failed to create project track relationships" },
-				{ status: 500 }
-			);
+			if (trackInsertError) {
+				// Delete the project since track relationships failed
+				if (!projectId) {
+					await supabase.from("projects").delete().eq("id", finalProjectId!);
+				}
+				return NextResponse.json(
+					{ error: "Failed to create project track relationships" },
+					{ status: 500 }
+				);
+			}
 		}
 
 		// Create project in Contextus (best-effort, non-blocking failure)
@@ -147,7 +194,7 @@ export async function POST(request: Request) {
 			const contextusPayload = {
 				label,
 				metadata: [
-					{ key: "mentor_mates_project_id", value: project.id },
+					{ key: "mentor_mates_project_id", value: finalProjectId! },
 					{ key: "team_lead_name", value: leadName },
 					{ key: "team_lead_email", value: leadEmail },
 					{ key: "event_id", value: eventId },
@@ -171,7 +218,7 @@ export async function POST(request: Request) {
 			const { error: updateError } = await supabase
 				.from("projects")
 				.update({ contextus_project_id: contextusId })
-				.eq("id", project.id);
+				.eq("id", finalProjectId!);
 				
 			if (updateError) {
 				console.error("Error updating project with Contextus ID:", updateError);
@@ -179,8 +226,8 @@ export async function POST(request: Request) {
 		}
 
 		// Return the project with the contextus_project_id included
-		const finalProject = contextusId ? { ...project, contextus_project_id: contextusId } : project;
-		return NextResponse.json({ data: finalProject });
+		const finalProject = contextusId && projectData ? { ...projectData, contextus_project_id: contextusId } : projectData;
+		return NextResponse.json({ data: finalProject || { id: finalProjectId } });
 	} catch (error) {
 		console.error("Error in project submission:", error);
 		return NextResponse.json(

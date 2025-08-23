@@ -69,6 +69,7 @@ export default function PublicProjectPage() {
         .from("projects")
         .select("*")
         .eq("id", projectId)
+        .eq("submitted", true)
         .single();
 
       if (error) {

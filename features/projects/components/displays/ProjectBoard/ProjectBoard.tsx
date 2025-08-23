@@ -104,6 +104,19 @@ const ProjectBoard = ({
                           </h3>
                         </div>
                       )}
+                      {projectBoardContext === ProjectBoardContext.MyProjects && (
+                        <div className="absolute top-4 left-2 z-20">
+                          {project.submitted ? (
+                            <span className="px-4 py-1 bg-white text-blue-800 text-xs rounded-full shadow-lg">
+                              Submitted
+                            </span>
+                          ) : (
+                            <span className="px-4 py-1 bg-white text-gray-600 text-xs rounded-full shadow-lg">
+                              Draft
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
                     <div className="p-6 flex flex-col flex-grow">
                       <div className="flex justify-between items-center mb-3">

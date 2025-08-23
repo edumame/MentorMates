@@ -123,6 +123,7 @@ export interface Project {
   event_name?: string;
   prizes_won?: Prize[];
   contextus_project_id?: string;
+  submitted?: boolean;
 }
 
 export enum ProjectBoardContext {
@@ -207,6 +208,7 @@ export interface SupabaseProjectData {
   cover_image_url?: string;
   event_id: string;
   created_at: string;
+  submitted?: boolean;
   project_tracks?: Array<{
     track_id: string;
     event_tracks?: Array<{
@@ -253,6 +255,7 @@ export interface ProjectFromDatabase {
   cover_image_url?: string;
   event_id: string;
   created_at: string;
+  submitted?: boolean;
   project_tracks?: Array<{
     event_tracks?: EventTrack;
   }>;

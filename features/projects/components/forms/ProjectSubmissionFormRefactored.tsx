@@ -1,5 +1,3 @@
-"use client";
-
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -37,6 +35,10 @@ export function ProjectSubmissionFormComponent({
   onProjectSubmitted?: () => void;
 }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [projectId, setProjectId] = useState<string | null>(null);
+  const [isInitializing, setIsInitializing] = useState(true);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const router = useRouter();
 
   // Custom hooks
@@ -60,7 +62,7 @@ export function ProjectSubmissionFormComponent({
     },
   });
 
-  const { validateStep, getStepValidationMessages } = useStepValidation(form);
+  const { validateStep, getStepValidationMessages } = useStepValidation(form, availableTracks.length);
 
   // Watch form fields that affect validation to trigger re-renders
   const projectNameValue = form.watch("projectName");
@@ -93,6 +95,96 @@ export function ProjectSubmissionFormComponent({
     if (userEmail) form.setValue("leadEmail", userEmail);
   }, [leadName, userEmail, form]);
 
+  // Initialize or create draft project
+  useEffect(() => {
+    const ensureDraft = async () => {
+      try {
+        const { data: existing, error } = await supabase
+          .from("projects")
+          .select(
+            `id, 
+            project_name, 
+            project_description, 
+            project_url, 
+            additional_materials_url, 
+            cover_image_url, 
+            teammates, 
+            lead_name, 
+            lead_email, submitted`
+          )
+          .eq("event_id", eventId)
+          .eq("lead_email", userEmail || "")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (!error && existing) {
+          setProjectId(existing.id);
+          form.reset({
+            projectName: existing.project_name || "",
+            projectDescription: existing.project_description || "",
+            projectUrl: existing.project_url || "",
+            teammates: (existing.teammates as string[]) || [],
+            leadName: existing.lead_name || leadName || "",
+            leadEmail: existing.lead_email || userEmail || "",
+            additionalMaterials: undefined,
+            coverImage: undefined,
+            videoUrl: "",
+            trackIds: [],
+          });
+        } else {
+          const resp = await fetch("/api/projects", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ eventId, leadName, leadEmail: userEmail }),
+          });
+          if (resp.ok) {
+            const json = await resp.json();
+            setProjectId(json.id);
+          }
+        }
+      } catch (e) {
+        console.error("Failed to initialize draft project", e);
+      } finally {
+        setIsInitializing(false);
+      }
+    };
+
+    ensureDraft();
+  }, [eventId, userEmail, leadName, form]);
+
+  // Autosave core fields
+  useEffect(() => {
+    if (!projectId) return;
+    const handler = setTimeout(async () => {
+      setIsSaving(true);
+      try {
+        const payload: Record<string, unknown> = {
+          project_name: form.getValues("projectName"),
+          project_description: form.getValues("projectDescription"),
+          project_url: form.getValues("projectUrl"),
+          lead_name: form.getValues("leadName"),
+          lead_email: form.getValues("leadEmail"),
+          teammates: form.getValues("teammates"),
+        };
+        const resp = await fetch(`/api/projects/${projectId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (resp.ok) {
+          setLastSaved(new Date());
+        }
+      } catch (e) {
+        console.error("Autosave failed", e);
+      } finally {
+        setIsSaving(false);
+      }
+    }, 800);
+
+    return () => clearTimeout(handler);
+  }, [projectId, form.watch("projectName"), form.watch("projectDescription"), form.watch("projectUrl"), form.watch("leadName"), form.watch("leadEmail"), form.watch("teammates")]);
+
   // Handle teammates change
   const handleTeammatesChange = (tags: string[]) => {
     form.setValue("teammates", tags);
@@ -113,7 +205,8 @@ export function ProjectSubmissionFormComponent({
   const onSubmit = async (values: ProjectSubmissionFormData) => {
     setIsSubmitting(true);
     // TODO: Move submission logic to useProjectSubmission hook
-    if (values.trackIds.length === 0) {
+    // Only require track selection if tracks are available
+    if (availableTracks.length > 0 && values.trackIds.length === 0) {
       toast({
         title: "Missing Track Selection",
         description:
@@ -190,6 +283,7 @@ export function ProjectSubmissionFormComponent({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          projectId,
           projectName: values.projectName,
           leadName: values.leadName,
           leadEmail: values.leadEmail,
@@ -220,25 +314,9 @@ export function ProjectSubmissionFormComponent({
         });
       }
 
-      // TODO: Re-enable email notifications once email system is stable
-      // Send confirmation email
-      // const emailResponse = await fetch("/api/email", {
-      //   method: "POST",
-      //   headers: { "Content-Type": "application/json" },
-      //   body: JSON.stringify({
-      //     type: "project_submission",
-      //     to: values.leadEmail,
-      //     projectName: values.projectName,
-      //     leadName: values.leadName,
-      //     teammates: values.teammates || [],
-      //   }),
-      // });
-      // if (!emailResponse.ok) {
-      //   console.error("Failed to send confirmation email");
-      // }
       toast({
-        title: "Project Submitted",
-        description: "Your project has been submitted for feedback.",
+        title: "Project Successfully Submitted!",
+        description: "Your project has been finalized and is now available in the gallery.",
       });
       form.reset();
       onProjectSubmitted?.();
@@ -250,7 +328,7 @@ export function ProjectSubmissionFormComponent({
         description:
           error instanceof Error
             ? error.message
-            : "There was an error submitting your project. There may be an issue with previous steps in the form.",
+            : "There was an error finalizing your project. Please check all required fields.",
         variant: "destructive",
       });
     } finally {
@@ -259,7 +337,7 @@ export function ProjectSubmissionFormComponent({
     setIsSubmitting(false);
   };
 
-  if (isLoading) {
+  if (isLoading || isInitializing) {
     return <div>Loading...</div>;
   }
 
@@ -271,6 +349,35 @@ export function ProjectSubmissionFormComponent({
         currentStep={currentStep}
         totalSteps={totalSteps}
       />
+
+      {/* Autosave Status */}
+      <div className="mb-6 p-3 bg-blue-50 rounded-lg border border-blue-200">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span className="text-sm text-blue-800">
+              Your project is automatically saved as you type
+            </span>
+          </div>
+          <div className="text-sm text-gray-600">
+            {isSaving ? (
+              <span className="flex items-center">
+                <svg className="animate-spin h-4 w-4 mr-1" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                Saving...
+              </span>
+            ) : lastSaved ? (
+              <span>Last saved {new Date(lastSaved).toLocaleTimeString()}</span>
+            ) : (
+              <span>Draft created</span>
+            )}
+          </div>
+        </div>
+      </div>
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">

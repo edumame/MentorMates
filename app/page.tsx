@@ -101,12 +101,14 @@ export default function HomePage() {
       const { data: leadProjects } = await supabase
         .from("projects")
         .select("*")
-        .eq("lead_email", userEmail);
+        .eq("lead_email", userEmail)
+        .eq("submitted", true);
 
       const { data: teamProjects } = await supabase
         .from("projects")
         .select("*")
-        .contains("teammates", [userEmail]);
+        .contains("teammates", [userEmail])
+        .eq("submitted", true);
 
       const combinedProjects = [
         ...(leadProjects || []),
