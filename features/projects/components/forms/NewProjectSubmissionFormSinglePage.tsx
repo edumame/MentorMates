@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Form } from "@/components/ui/form";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Loader2, Share2 } from "lucide-react";
+import { ArrowLeft, Loader2, Share2, Sparkles } from "lucide-react";
 import { toast } from "@/lib/hooks/use-toast";
 
 // Form field components
@@ -19,6 +19,8 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 
 // Imported schema and types
 import {
@@ -46,6 +48,10 @@ export function NewProjectSubmissionFormSinglePage({
   const [projectId, setProjectId] = useState<string | null>(null);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [ctxDialogOpen, setCtxDialogOpen] = useState(false);
+  const [ctxProjectId, setCtxProjectId] = useState("");
+  const [ctxPrompt, setCtxPrompt] = useState("");
+  const [isPrefilling, setIsPrefilling] = useState(false);
   const router = useRouter();
 
   // Custom hooks
@@ -148,6 +154,52 @@ export function NewProjectSubmissionFormSinglePage({
     // Cleanup subscription on unmount
     return () => subscription.unsubscribe();
   }, [projectId, form]);
+
+  // Prefill from Contextus handler
+  const handlePrefill = async () => {
+    if (!ctxProjectId.trim()) {
+      toast({
+        title: "Missing Contextus Project ID",
+        description: "Please enter a Contextus project ID.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setIsPrefilling(true);
+    try {
+      const resp = await fetch("/api/contextus/prefill", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId: ctxProjectId.trim(), queryPrompt: ctxPrompt || undefined }),
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err.error || `Prefill failed: ${resp.status}`);
+      }
+      const json = await resp.json();
+      const data = json?.data || {};
+
+      if (data.projectName) form.setValue("projectName", data.projectName, { shouldDirty: true });
+      if (data.projectDescription) form.setValue("projectDescription", data.projectDescription, { shouldDirty: true });
+      if (Array.isArray(data.teammates)) form.setValue("teammates", data.teammates, { shouldDirty: true });
+      if (data.projectUrl) form.setValue("projectUrl", data.projectUrl, { shouldDirty: true });
+      if (data.videoUrl) form.setValue("videoUrl", data.videoUrl, { shouldDirty: true });
+
+      toast({
+        title: "Form Prefilled",
+        description: "We imported details from Contextus. Review and adjust as needed.",
+      });
+      setCtxDialogOpen(false);
+    } catch (error) {
+      toast({
+        title: "Prefill Error",
+        description: error instanceof Error ? error.message : "Unable to prefill from Contextus.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsPrefilling(false);
+    }
+  };
 
   // Form submission
   const onSubmit = async (values: ProjectSubmissionFormData) => {
@@ -294,7 +346,7 @@ export function NewProjectSubmissionFormSinglePage({
 
   return (
     <div className="w-full max-w-4xl mx-auto px-6 py-8 bg-white rounded-xl shadow-xl">
-      <div className="flex justify-start mb-6">
+      <div className="flex justify-between items-center mb-6">
         <Button
           variant="ghost"
           onClick={() => router.push(`/events/${eventId}/dashboard`)}
@@ -303,6 +355,54 @@ export function NewProjectSubmissionFormSinglePage({
           <ArrowLeft className="h-4 w-4" />
           Back
         </Button>
+        <Dialog open={ctxDialogOpen} onOpenChange={setCtxDialogOpen}>
+          <DialogTrigger asChild>
+            <Button variant="secondary" className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4" />
+              Fill out this form for me
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Prefill from Contextus</DialogTitle>
+              <DialogDescription>
+                Enter your Contextus project ID. Optionally add guidance for what to extract.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-2">
+              <div className="grid gap-2">
+                <Label htmlFor="ctx-project-id">Contextus Project ID</Label>
+                <Input
+                  id="ctx-project-id"
+                  placeholder="e.g. ctx_prj_123..."
+                  value={ctxProjectId}
+                  onChange={(e) => setCtxProjectId(e.target.value)}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="ctx-prompt">Optional Prompt</Label>
+                <Input
+                  id="ctx-prompt"
+                  placeholder="What details would you like to extract?"
+                  value={ctxPrompt}
+                  onChange={(e) => setCtxPrompt(e.target.value)}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button onClick={handlePrefill} disabled={isPrefilling}>
+                {isPrefilling ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Prefilling...
+                  </>
+                ) : (
+                  "Prefill"
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
       <div className="text-center mb-8">
         <h2 className="text-4xl font-extrabold text-gray-900">
