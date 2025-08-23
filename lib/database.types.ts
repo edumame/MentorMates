@@ -419,6 +419,8 @@ export type Database = {
           project_name: string | null
           project_url: string | null
           teammates: string[] | null
+          submitted?: boolean | null
+          submitted_at?: string | null
         }
         Insert: {
           additional_materials_url?: string | null
@@ -432,6 +434,8 @@ export type Database = {
           project_name?: string | null
           project_url?: string | null
           teammates?: string[] | null
+          submitted?: boolean | null
+          submitted_at?: string | null
         }
         Update: {
           additional_materials_url?: string | null
@@ -445,6 +449,8 @@ export type Database = {
           project_name?: string | null
           project_url?: string | null
           teammates?: string[] | null
+          submitted?: boolean | null
+          submitted_at?: string | null
         }
         Relationships: []
       }
