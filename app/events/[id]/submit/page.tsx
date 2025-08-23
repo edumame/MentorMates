@@ -108,6 +108,7 @@ export default function ProjectSubmissionPage() {
         userEmail={userEmail || ""}
         leadName={userName || ""}
         eventId={eventId}
+        onContextusLinked={(ctxId) => setContextusId(ctxId)}
       />
     </div>
   );

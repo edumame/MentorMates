@@ -38,11 +38,13 @@ export function NewProjectSubmissionFormSinglePage({
   leadName,
   eventId,
   onProjectSubmitted,
+  onContextusLinked,
 }: {
   userEmail?: string;
   leadName?: string;
   eventId: string;
   onProjectSubmitted?: () => void;
+  onContextusLinked?: (ctxId: string) => void;
 }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [projectId, setProjectId] = useState<string | null>(null);
@@ -95,6 +97,9 @@ export function NewProjectSubmissionFormSinglePage({
         if (resp.ok) {
           const json = await resp.json();
           setProjectId(json.id);
+          if (json.contextus_project_id && onContextusLinked) {
+            onContextusLinked(json.contextus_project_id as string);
+          }
         }
       } catch (e) {
         console.error("Failed to create draft project", e);
