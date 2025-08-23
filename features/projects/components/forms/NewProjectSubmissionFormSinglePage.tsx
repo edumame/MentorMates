@@ -39,12 +39,14 @@ export function NewProjectSubmissionFormSinglePage({
   eventId,
   onProjectSubmitted,
   onContextusLinked,
+  contextusId: initialContextusId,
 }: {
   userEmail?: string;
   leadName?: string;
   eventId: string;
   onProjectSubmitted?: () => void;
   onContextusLinked?: (ctxId: string) => void;
+  contextusId?: string | null;
 }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [projectId, setProjectId] = useState<string | null>(null);
@@ -52,6 +54,7 @@ export function NewProjectSubmissionFormSinglePage({
   const [isSaving, setIsSaving] = useState(false);
   const [isPrefilling, setIsPrefilling] = useState(false);
   const router = useRouter();
+  const [contextusId, setContextusId] = useState<string | null>(initialContextusId ?? null);
 
   // Custom hooks
   const { allUsers, availableTracks, isLoading } =
@@ -81,7 +84,9 @@ export function NewProjectSubmissionFormSinglePage({
   useEffect(() => {
     if (leadName) form.setValue("leadName", leadName);
     if (userEmail) form.setValue("leadEmail", userEmail);
-  }, [leadName, userEmail, form]);
+    // keep local contextusId in sync if parent provides it later
+    if (initialContextusId) setContextusId(initialContextusId);
+  }, [leadName, userEmail, initialContextusId, form]);
 
   // Create draft project when form data changes
   useEffect(() => {
@@ -97,8 +102,9 @@ export function NewProjectSubmissionFormSinglePage({
         if (resp.ok) {
           const json = await resp.json();
           setProjectId(json.id);
-          if (json.contextus_project_id && onContextusLinked) {
-            onContextusLinked(json.contextus_project_id as string);
+          if (json.contextus_project_id) {
+            setContextusId(json.contextus_project_id as string);
+            if (onContextusLinked) onContextusLinked(json.contextus_project_id as string);
           }
         }
       } catch (e) {
@@ -370,6 +376,53 @@ export function NewProjectSubmissionFormSinglePage({
           Start building your project with automatic saving as you go. Share
           when you&apos;re ready!
         </p>
+        {contextusId && (
+          <div className="mt-4">
+            <p className="text-sm text-gray-600 mb-2 font-medium">Tools available</p>
+            <ul className="flex flex-wrap items-center justify-center gap-3 text-sm">
+              <li>
+                <a
+                  className="underline text-blue-600 hover:text-blue-800"
+                  href={`https://www.magicloops.dev/?contextus_id=${encodeURIComponent(contextusId)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  magicloops.dev
+                </a>
+              </li>
+              <li>
+                <a
+                  className="underline text-blue-600 hover:text-blue-800"
+                  href={`https://www.shanye.io/?contextus_id=${encodeURIComponent(contextusId)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  shanye.io
+                </a>
+              </li>
+              <li>
+                <a
+                  className="underline text-blue-600 hover:text-blue-800"
+                  href={`https://lovable.dev/?contextus_id=${encodeURIComponent(contextusId)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  lovable.dev
+                </a>
+              </li>
+              <li>
+                <a
+                  className="underline text-blue-600 hover:text-blue-800"
+                  href={`https://v0.app/?contextus_id=${encodeURIComponent(contextusId)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  v0.app
+                </a>
+              </li>
+            </ul>
+          </div>
+        )}
       </div>
 
       {/* Autosave Status */}
