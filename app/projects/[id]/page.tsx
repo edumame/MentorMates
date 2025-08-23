@@ -37,6 +37,8 @@ import {
   UserPlus,
   Check,
   ChevronsUpDown,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -63,6 +65,7 @@ import { ProjectQRCodeSection } from "@/features/projects/components/displays/pr
 import { FileUpload } from "@/components/db/fileUpload";
 import { ImageUpload } from "@/components/db/imageUpload";
 import { VideoEmbed, canEmbed } from "@/components/utils";
+import { createContextusProject } from "@/lib/integrations/contextus";
 
 interface EventParticipant {
   user_id: string;
@@ -99,6 +102,9 @@ export default function ProjectPage() {
   // Event details state
   const [eventName, setEventName] = useState<string>("");
   const [eventSlug, setEventSlug] = useState<string>("");
+  
+  // Contextus ID state
+  const [showContextusId, setShowContextusId] = useState(false);
 
   // QR Code functionality
   const { handleCopyQR, handleDownloadQR } = useQRCodeActions(
@@ -155,7 +161,10 @@ export default function ProjectPage() {
   const fetchProject = async () => {
     const { data, error } = await supabase
       .from("projects")
-      .select("*")
+      .select(`
+        *,
+        contextus_project_id
+      `)
       .eq("id", projectId)
       .single();
 
@@ -171,7 +180,8 @@ export default function ProjectPage() {
       const userEmail = session.user.email;
       const isLead = data.lead_email === userEmail;
       const isTeammate = data.teammates?.includes(userEmail);
-      setCanEdit(isLead || isTeammate);
+      const canEditProject = isLead || isTeammate;
+      setCanEdit(canEditProject);
     }
   };
 
@@ -859,6 +869,70 @@ export default function ProjectPage() {
     }
   };
 
+  const handleCreateContextusLink = async () => {
+    if (!project) return;
+    
+    setIsUpdating(true);
+    try {
+      // Create the Contextus project
+      const contextusPayload = {
+        label: project.project_name,
+        metadata: [
+          { key: "event", value: eventName || "Unknown Event" },
+          { key: "lead", value: project.lead_name },
+          { key: "team_size", value: String((project.teammates?.length || 0) + 1) }
+        ],
+        artifacts: project.project_url ? {
+          type: "link",
+          title: "Project Repository",
+          url: project.project_url
+        } : undefined
+      };
+
+      const contextusId = await createContextusProject(contextusPayload);
+      
+      if (!contextusId) {
+        toast({
+          title: "Error",
+          description: "Failed to create Contextus project",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Update the project with the Contextus ID
+      const { data, error } = await updateProjectClient(projectId, {
+        contextus_project_id: contextusId,
+      });
+
+      if (error) {
+        console.error("Error updating project with Contextus ID:", error);
+        toast({
+          title: "Error",
+          description: "Failed to save Contextus project ID",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Update local state
+      setProject(data);
+      toast({
+        title: "Success",
+        description: "Project linked to Contextus successfully",
+      });
+    } catch (error) {
+      console.error("Error creating Contextus link:", error);
+      toast({
+        title: "Error",
+        description: "Failed to create Contextus link",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -1224,6 +1298,86 @@ export default function ProjectPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Integrations Card */}
+        {canEdit && (
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle>Integrations</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {/* Contextus Integration */}
+                <div className="border rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-medium text-gray-900">Contextus</h3>
+                      <p className="text-sm text-gray-600 mt-1">
+                        Connect your project to Contextus for enhanced visibility
+                      </p>
+                    </div>
+                    {!project.contextus_project_id ? (
+                      <Button
+                        onClick={handleCreateContextusLink}
+                        disabled={isUpdating}
+                        className="flex items-center gap-2"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                        Link on Contextus
+                      </Button>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary" className="bg-green-100 text-green-800">
+                          Connected
+                        </Badge>
+                        <Button
+                          onClick={() => setShowContextusId(!showContextusId)}
+                          variant="ghost"
+                          size="sm"
+                          className="flex items-center gap-2"
+                        >
+                          {showContextusId ? (
+                            <>
+                              <EyeOff className="w-4 h-4" />
+                              Hide ID
+                            </>
+                          ) : (
+                            <>
+                              <Eye className="w-4 h-4" />
+                              Show ID
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                  {project.contextus_project_id && showContextusId && (
+                    <div className="mt-3 flex items-center gap-2">
+                      <span className="text-sm text-gray-600">Project ID:</span>
+                      <code className="bg-gray-100 px-2 py-1 rounded text-sm font-mono text-purple-700">
+                        {project.contextus_project_id}
+                      </code>
+                      <Button
+                        onClick={() => {
+                          navigator.clipboard.writeText(project.contextus_project_id!);
+                          toast({
+                            title: "Copied",
+                            description: "Contextus ID copied to clipboard",
+                          });
+                        }}
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-2"
+                      >
+                        <Copy className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Tabs */}
@@ -1277,6 +1431,60 @@ export default function ProjectPage() {
                     {new Date(project.created_at).toLocaleDateString()}
                   </p>
                 </div>
+                {/* Contextus Integration - Only show to team members */}
+                {console.log('Contextus ID visibility check:', {
+                  canEdit,
+                  contextusId: project.contextus_project_id,
+                  showSection: canEdit && project.contextus_project_id
+                })}
+                {canEdit && project.contextus_project_id && (
+                  <div className="border-t pt-3 mt-3">
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm font-medium text-gray-500">
+                        Contextus Integration
+                      </label>
+                      <Button
+                        onClick={() => setShowContextusId(!showContextusId)}
+                        variant="ghost"
+                        size="sm"
+                        className="flex items-center gap-2 h-8"
+                      >
+                        {showContextusId ? (
+                          <>
+                            <EyeOff className="w-4 h-4" />
+                            Hide ID
+                          </>
+                        ) : (
+                          <>
+                            <Eye className="w-4 h-4" />
+                            Reveal ID
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                    {showContextusId && (
+                      <div className="mt-2 flex items-center gap-2">
+                        <code className="bg-gray-100 px-2 py-1 rounded text-sm font-mono text-purple-700">
+                          {project.contextus_project_id}
+                        </code>
+                        <Button
+                          onClick={() => {
+                            navigator.clipboard.writeText(project.contextus_project_id!);
+                            toast({
+                              title: "Copied",
+                              description: "Contextus ID copied to clipboard",
+                            });
+                          }}
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2"
+                        >
+                          <Copy className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

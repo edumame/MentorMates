@@ -113,7 +113,6 @@ export function ProjectSubmissionFormComponent({
   const onSubmit = async (values: ProjectSubmissionFormData) => {
     setIsSubmitting(true);
     // TODO: Move submission logic to useProjectSubmission hook
-    console.log("Submitting:", values);
     if (values.trackIds.length === 0) {
       toast({
         title: "Missing Track Selection",

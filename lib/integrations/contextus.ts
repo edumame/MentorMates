@@ -18,6 +18,8 @@ export interface CreateContextusProjectInput {
 export interface CreateContextusProjectResponse {
   id?: string;
   project?: { id?: string };
+  project_id?: string;
+  label?: string;
   [key: string]: unknown;
 }
 
@@ -39,7 +41,7 @@ export async function createContextusProject(
     }
 
     const data = (await res.json()) as CreateContextusProjectResponse;
-    const id = data?.id || data?.project?.id || null;
+    const id = data?.id || data?.project?.id || data?.project_id || null;
     return id ?? null;
   } catch (error) {
     console.error("Contextus create project error:", error);

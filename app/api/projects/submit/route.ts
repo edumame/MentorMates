@@ -141,29 +141,46 @@ export async function POST(request: Request) {
 		}
 
 		// Create project in Contextus (best-effort, non-blocking failure)
-		const label = projectName || leadName || "Project";
-		const contextusId = await createContextusProject({
-			label,
-			metadata: [
-				{ key: "mentor_mates_project_id", value: project.id },
-				{ key: "team_lead_name", value: leadName },
-				{ key: "team_lead_email", value: leadEmail },
-				{ key: "event_id", value: eventId },
-			],
-			artifacts: {
-				type: "doc",
-				title: projectDescription ? projectDescription.slice(0, 100) : "Project",
-			},
-		});
+		let contextusId: string | null = null;
+		try {
+			const label = projectName || leadName || "Project";
+			const contextusPayload = {
+				label,
+				metadata: [
+					{ key: "mentor_mates_project_id", value: project.id },
+					{ key: "team_lead_name", value: leadName },
+					{ key: "team_lead_email", value: leadEmail },
+					{ key: "event_id", value: eventId },
+				],
+				artifacts: projectUrl ? {
+					type: "link",
+					title: "Project Repository",
+					url: projectUrl
+				} : {
+					type: "doc",
+					title: projectDescription ? projectDescription.slice(0, 100) : "Project",
+				},
+			};
+			
+			contextusId = await createContextusProject(contextusPayload);
+		} catch (contextusError) {
+			console.error("Error creating Contextus project:", contextusError);
+		}
 
 		if (contextusId) {
-			await supabase
+			const { error: updateError } = await supabase
 				.from("projects")
 				.update({ contextus_project_id: contextusId })
 				.eq("id", project.id);
+				
+			if (updateError) {
+				console.error("Error updating project with Contextus ID:", updateError);
+			}
 		}
 
-		return NextResponse.json({ data: { ...project, contextus_project_id: contextusId || null } });
+		// Return the project with the contextus_project_id included
+		const finalProject = contextusId ? { ...project, contextus_project_id: contextusId } : project;
+		return NextResponse.json({ data: finalProject });
 	} catch (error) {
 		console.error("Error in project submission:", error);
 		return NextResponse.json(
