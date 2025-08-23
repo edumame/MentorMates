@@ -19,6 +19,19 @@ export default function JoinPage() {
 					</p>
 				</div>
 
+				{/* Mission (condensed) */}
+				<section className="bg-white/70 shadow-lg p-6 rounded-xl transition-shadow hover:shadow-2xl">
+					<h2 className="text-2xl font-bold text-gray-900 mb-3">Our Mission</h2>
+					<div className="text-gray-800 text-md space-y-4 text-justify">
+						<p>
+							We are making hackathons more inclusive and effective by ensuring every participant receives structure, mentorship, and actionable feedback. Hackathons should be gateways to curiosity and impact—not barriers.
+						</p>
+						<p>
+							Built out of the Stanford Graduate School of Education, MentorMates focuses on scaffolding and support so that anyone, regardless of background or skill level, can confidently explore technology and create impact.
+						</p>
+					</div>
+				</section>
+
 				{/* Role-based tabs */}
 				<section className="bg-white/70 shadow-lg p-4 sm:p-6 rounded-xl transition-shadow hover:shadow-2xl">
 					<Tabs defaultValue="mentor" className="w-full">
@@ -167,19 +180,6 @@ export default function JoinPage() {
 						</a>
 						.
 					</p>
-				</section>
-
-				{/* Mission (condensed) */}
-				<section className="bg-white/70 shadow-lg p-6 rounded-xl transition-shadow hover:shadow-2xl">
-					<h2 className="text-2xl font-bold text-gray-900 mb-3">Our Mission</h2>
-					<div className="text-gray-800 text-md space-y-4 text-justify">
-						<p>
-							We are making hackathons more inclusive and effective by ensuring every participant receives structure, mentorship, and actionable feedback. Hackathons should be gateways to curiosity and impact—not barriers.
-						</p>
-						<p>
-							Built out of the Stanford Graduate School of Education, MentorMates focuses on scaffolding and support so that anyone, regardless of background or skill level, can confidently explore technology and create impact.
-						</p>
-					</div>
 				</section>
 			</div>
 
