@@ -8,6 +8,7 @@ import {
   ProjectWithPrizes,
 } from "@/lib/types";
 import { canAccessRole } from "@/features/user/roles/roles";
+import { createContextusProject } from "@/lib/integrations/contextus";
 
 export async function GET(request: NextRequest) {
   try {
@@ -384,7 +385,7 @@ export async function POST(request: NextRequest) {
     const { data, error } = await supabase
       .from("projects")
       .insert(insertPayload)
-      .select("id")
+      .select("id, lead_name, lead_email, event_id, project_name")
       .single();
 
     if (error) {
@@ -394,7 +395,32 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ id: data.id });
+    // Immediately create a Contextus project (best-effort)
+    let createdContextusId: string | null = null;
+    try {
+      const label = (data.project_name as string | null) || (data.lead_name as string | null) || "Project";
+      const contextusPayload = {
+        label,
+        metadata: [
+          { key: "mentor_mates_project_id", value: data.id },
+          { key: "team_lead_name", value: data.lead_name },
+          { key: "team_lead_email", value: data.lead_email },
+          { key: "event_id", value: data.event_id },
+        ],
+      };
+      createdContextusId = await createContextusProject(contextusPayload);
+      if (createdContextusId) {
+        await supabase
+          .from("projects")
+          .update({ contextus_project_id: createdContextusId })
+          .eq("id", data.id);
+      }
+    } catch (ctxErr) {
+      console.error("Contextus create-on-draft failed:", ctxErr);
+      // non-blocking
+    }
+
+    return NextResponse.json({ id: data.id, contextus_project_id: createdContextusId });
   } catch (error) {
     console.error("Error creating draft project:", error);
     return NextResponse.json(

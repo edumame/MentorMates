@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Form } from "@/components/ui/form";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Loader2, Share2 } from "lucide-react";
+import { ArrowLeft, Loader2, Share2, Sparkles } from "lucide-react";
 import { toast } from "@/lib/hooks/use-toast";
 
 // Form field components
@@ -19,6 +19,8 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 
 // Imported schema and types
 import {
@@ -36,16 +38,19 @@ export function NewProjectSubmissionFormSinglePage({
   leadName,
   eventId,
   onProjectSubmitted,
+  onContextusLinked,
 }: {
   userEmail?: string;
   leadName?: string;
   eventId: string;
   onProjectSubmitted?: () => void;
+  onContextusLinked?: (ctxId: string) => void;
 }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [projectId, setProjectId] = useState<string | null>(null);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isPrefilling, setIsPrefilling] = useState(false);
   const router = useRouter();
 
   // Custom hooks
@@ -92,6 +97,9 @@ export function NewProjectSubmissionFormSinglePage({
         if (resp.ok) {
           const json = await resp.json();
           setProjectId(json.id);
+          if (json.contextus_project_id && onContextusLinked) {
+            onContextusLinked(json.contextus_project_id as string);
+          }
         }
       } catch (e) {
         console.error("Failed to create draft project", e);
@@ -148,6 +156,43 @@ export function NewProjectSubmissionFormSinglePage({
     // Cleanup subscription on unmount
     return () => subscription.unsubscribe();
   }, [projectId, form]);
+
+  // Prefill from Contextus handler
+  const handlePrefill = async () => {
+    setIsPrefilling(true);
+    try {
+      const resp = await fetch("/api/contextus/prefill", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ eventId, leadEmail: userEmail }),
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err.error || `Prefill failed: ${resp.status}`);
+      }
+      const json = await resp.json();
+      const data = json?.data || {};
+
+      if (data.projectName) form.setValue("projectName", data.projectName, { shouldDirty: true });
+      if (data.projectDescription) form.setValue("projectDescription", data.projectDescription, { shouldDirty: true });
+      if (Array.isArray(data.teammates)) form.setValue("teammates", data.teammates, { shouldDirty: true });
+      if (data.projectUrl) form.setValue("projectUrl", data.projectUrl, { shouldDirty: true });
+      if (data.videoUrl) form.setValue("videoUrl", data.videoUrl, { shouldDirty: true });
+
+      toast({
+        title: "Form Prefilled",
+        description: "We imported details from Contextus. Review and adjust as needed.",
+      });
+    } catch (error) {
+      toast({
+        title: "Prefill Error",
+        description: error instanceof Error ? error.message : "Unable to prefill from Contextus.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsPrefilling(false);
+    }
+  };
 
   // Form submission
   const onSubmit = async (values: ProjectSubmissionFormData) => {
@@ -294,7 +339,7 @@ export function NewProjectSubmissionFormSinglePage({
 
   return (
     <div className="w-full max-w-4xl mx-auto px-6 py-8 bg-white rounded-xl shadow-xl">
-      <div className="flex justify-start mb-6">
+      <div className="flex justify-between items-center mb-6">
         <Button
           variant="ghost"
           onClick={() => router.push(`/events/${eventId}/dashboard`)}
@@ -302,6 +347,19 @@ export function NewProjectSubmissionFormSinglePage({
         >
           <ArrowLeft className="h-4 w-4" />
           Back
+        </Button>
+        <Button variant="secondary" className="flex items-center gap-2" onClick={handlePrefill} disabled={isPrefilling}>
+          {isPrefilling ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Prefilling...
+            </>
+          ) : (
+            <>
+              <Sparkles className="h-4 w-4" />
+              Fill out this form for me
+            </>
+          )}
         </Button>
       </div>
       <div className="text-center mb-8">
