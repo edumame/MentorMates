@@ -396,6 +396,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Immediately create a Contextus project (best-effort)
+    let createdContextusId: string | null = null;
     try {
       const label = (data.project_name as string | null) || (data.lead_name as string | null) || "Project";
       const contextusPayload = {
@@ -407,11 +408,11 @@ export async function POST(request: NextRequest) {
           { key: "event_id", value: data.event_id },
         ],
       };
-      const contextusId = await createContextusProject(contextusPayload);
-      if (contextusId) {
+      createdContextusId = await createContextusProject(contextusPayload);
+      if (createdContextusId) {
         await supabase
           .from("projects")
-          .update({ contextus_project_id: contextusId })
+          .update({ contextus_project_id: createdContextusId })
           .eq("id", data.id);
       }
     } catch (ctxErr) {
@@ -419,7 +420,7 @@ export async function POST(request: NextRequest) {
       // non-blocking
     }
 
-    return NextResponse.json({ id: data.id });
+    return NextResponse.json({ id: data.id, contextus_project_id: createdContextusId });
   } catch (error) {
     console.error("Error creating draft project:", error);
     return NextResponse.json(
