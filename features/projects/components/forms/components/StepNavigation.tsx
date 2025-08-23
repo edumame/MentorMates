@@ -50,7 +50,7 @@ export function StepNavigation({
           Submitting...
         </>
       ) : (
-        "Submit to Gallery"
+        "Finalize & Submit"
       )}
     </Button>
   );

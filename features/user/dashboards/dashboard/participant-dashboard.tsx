@@ -88,7 +88,7 @@ export function ParticipantDashboard({ eventId }: ParticipantDashboardProps) {
             {isLoading ? (
               <p>Loading...</p>
             ) : myProjects.length === 0 ? (
-              <p>You haven&apos;t submitted any projects yet.</p>
+              <p>You haven&apos;t created any projects yet.</p>
             ) : (
               <ul className="space-y-4">
                 {myProjects.map((project) => (
@@ -116,7 +116,7 @@ export function ParticipantDashboard({ eventId }: ParticipantDashboardProps) {
           <CardContent>
             <div className="space-y-4">
               <div>
-                <h3 className="font-semibold">Projects Submitted</h3>
+                <h3 className="font-semibold">Projects Created</h3>
                 <p className="text-2xl">{myProjects.length}</p>
               </div>
               {/* Add more progress metrics here */}

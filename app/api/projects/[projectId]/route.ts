@@ -3,7 +3,7 @@ import { createSupabaseClient } from "@/app/utils/supabase/server";
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { projectId: string } }
+  { params }: { params: Promise<{ projectId: string }> }
 ) {
   try {
     const supabase = await createSupabaseClient();
@@ -15,7 +15,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const projectId = params.projectId;
+    const { projectId } = await params;
     const body = await request.json();
 
     const allowedFields: string[] = [
