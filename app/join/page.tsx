@@ -1,3 +1,5 @@
+"use client";
+
 import { Footer } from "@/components/layout/footer";
 import Link from "next/link";
 import { ArrowRight, Users, Award, Calendar, Briefcase, CheckCircle } from "lucide-react";
