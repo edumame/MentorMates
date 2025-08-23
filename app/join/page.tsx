@@ -26,7 +26,7 @@ export default function JoinPage() {
               <h3 className="text-xl font-bold text-gray-900">Join Our Team</h3>
             </div>
             <p className="text-gray-600 mb-4">
-              We're building the future of inclusive hackathons and looking for passionate individuals to join us.
+              We&apos;re building the future of inclusive hackathons and looking for passionate individuals to join us.
             </p>
             <ul className="space-y-2 mb-6">
               <li className="flex items-start">
@@ -139,9 +139,9 @@ export default function JoinPage() {
                 rel="noopener noreferrer"
                 className="text-blue-900 underline hover:text-blue-700"
               >
-                Stanford's AI + Learning Differences hackathon
+                Stanford&apos;s AI + Learning Differences hackathon
               </a>
-              , we showed that hackathons can be about social impact and inclusivity—not just building tech for tech's sake. What participants valued most was the sense of support, mentorship, and community.
+              , we showed that hackathons can be about social impact and inclusivity—not just building tech for tech&apos;s sake. What participants valued most was the sense of support, mentorship, and community.
             </p>
             <p className="font-semibold text-center text-xl text-blue-900 pt-4">
               MentorMates democratizes entrepreneurial education through hackathons, making them inclusive and accessible for everyone.
@@ -313,7 +313,7 @@ export default function JoinPage() {
         <section className="bg-white/90 backdrop-blur shadow-lg p-8 rounded-xl text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">Have Questions?</h2>
           <p className="text-lg text-gray-700 mb-2">
-            We're here to help! Reach out to us at
+            We&apos;re here to help! Reach out to us at
           </p>
           <a href="mailto:admin@mentormates.ai" className="text-xl text-blue-900 underline hover:text-blue-700 font-semibold">
             admin@mentormates.ai
