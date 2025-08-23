@@ -74,7 +74,7 @@ export function ParticipantDashboard({ eventId }: ParticipantDashboardProps) {
         <Link href={`/events/${eventId}/submit`}>
           <Button className="button-gradient text-white font-semibold rounded-full shadow-lg hover:shadow-xl transition-all duration-300 flex items-center gap-2">
             <Plus className="h-5 w-5" />
-            Submit Project
+            Create Project
           </Button>
         </Link>
       </div>
