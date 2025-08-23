@@ -110,41 +110,43 @@ export function NewProjectSubmissionFormSinglePage({
   useEffect(() => {
     if (!projectId) return;
 
-    // Watch all form fields that need to trigger autosave
-    const projectName = form.watch("projectName");
-    const projectDescription = form.watch("projectDescription");
-    const projectUrl = form.watch("projectUrl");
-    const leadName = form.watch("leadName");
-    const leadEmail = form.watch("leadEmail");
-    const teammates = form.watch("teammates");
+    // Subscribe to form value changes
+    const subscription = form.watch((value) => {
+      // Skip if no values yet
+      if (!value) return;
 
-    const handler = setTimeout(async () => {
-      setIsSaving(true);
-      try {
-        const payload: Record<string, unknown> = {
-          project_name: projectName,
-          project_description: projectDescription,
-          project_url: projectUrl,
-          lead_name: leadName,
-          lead_email: leadEmail,
-          teammates: teammates,
-        };
-        const resp = await fetch(`/api/projects/${projectId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-        if (resp.ok) {
-          setLastSaved(new Date());
+      // Debounce the save
+      const handler = setTimeout(async () => {
+        setIsSaving(true);
+        try {
+          const payload: Record<string, unknown> = {
+            project_name: value.projectName,
+            project_description: value.projectDescription,
+            project_url: value.projectUrl,
+            lead_name: value.leadName,
+            lead_email: value.leadEmail,
+            teammates: value.teammates,
+          };
+          const resp = await fetch(`/api/projects/${projectId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          if (resp.ok) {
+            setLastSaved(new Date());
+          }
+        } catch (e) {
+          console.error("Autosave failed", e);
+        } finally {
+          setIsSaving(false);
         }
-      } catch (e) {
-        console.error("Autosave failed", e);
-      } finally {
-        setIsSaving(false);
-      }
-    }, 500);
+      }, 500);
 
-    return () => clearTimeout(handler);
+      return () => clearTimeout(handler);
+    });
+
+    // Cleanup subscription on unmount
+    return () => subscription.unsubscribe();
   }, [projectId, form]);
 
   // Form submission
