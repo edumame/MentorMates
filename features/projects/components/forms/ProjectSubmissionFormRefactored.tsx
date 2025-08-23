@@ -102,7 +102,15 @@ export function ProjectSubmissionFormComponent({
         const { data: existing, error } = await supabase
           .from("projects")
           .select(
-            `id, project_name, project_description, project_url, additional_materials_url, cover_image_url, teammates, lead_name, lead_email`
+            `id, 
+            project_name, 
+            project_description, 
+            project_url, 
+            additional_materials_url, 
+            cover_image_url, 
+            teammates, 
+            lead_name, 
+            lead_email, submitted`
           )
           .eq("event_id", eventId)
           .eq("lead_email", userEmail || "")
