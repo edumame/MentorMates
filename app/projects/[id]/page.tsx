@@ -63,6 +63,7 @@ import { ProjectQRCodeSection } from "@/features/projects/components/displays/pr
 import { FileUpload } from "@/components/db/fileUpload";
 import { ImageUpload } from "@/components/db/imageUpload";
 import { VideoEmbed, canEmbed } from "@/components/utils";
+import type { Database } from "@/lib/database.types";
 
 interface EventParticipant {
   user_id: string;
@@ -97,6 +98,29 @@ export default function ProjectPage() {
   // Event details state
   const [eventName, setEventName] = useState<string>("");
   const [eventSlug, setEventSlug] = useState<string>("");
+
+  // Helper: normalize Supabase row to strict Project type
+  const normalizeProject = (row: Database["public"]["Tables"]["projects"]["Row"]): Project => {
+    return {
+      id: row.id,
+      project_name: row.project_name ?? "",
+      project_description: row.project_description ?? "",
+      lead_name: row.lead_name ?? "",
+      lead_email: row.lead_email ?? "",
+      teammates: row.teammates ?? [],
+      event_id: row.event_id ?? "",
+      created_at: row.created_at ?? new Date().toISOString(),
+      project_url: row.project_url ?? undefined,
+      video_url: (row as any).video_url ?? null,
+      additional_materials_url: row.additional_materials_url ?? undefined,
+      cover_image_url: row.cover_image_url ?? undefined,
+      event_name: undefined,
+      prizes_won: undefined,
+      submitted: row.submitted ?? false,
+      track_ids: [],
+      tracks: undefined,
+    };
+  };
 
   // QR Code functionality
   const { handleCopyQR, handleDownloadQR } = useQRCodeActions(
@@ -162,7 +186,7 @@ export default function ProjectPage() {
       return;
     }
 
-    setProject(data);
+    setProject(normalizeProject(data));
 
     // Check if user can edit (is lead or teammate)
     if (session?.user?.email) {
@@ -192,7 +216,7 @@ export default function ProjectPage() {
       }
 
       // Update local state
-      setProject(data);
+      setProject(normalizeProject(data));
       toast({
         title: "Success",
         description: "Project title updated successfully",
@@ -231,7 +255,7 @@ export default function ProjectPage() {
       }
 
       // Update local state
-      setProject(data);
+      setProject(normalizeProject(data));
       toast({
         title: "Success",
         description: "Project description updated successfully",
@@ -293,7 +317,7 @@ export default function ProjectPage() {
       }
 
       // Update local state
-      setProject(data);
+      setProject(normalizeProject(data));
       toast({
         title: "Success",
         description: newUrl.trim()
@@ -358,7 +382,7 @@ export default function ProjectPage() {
       }
 
       // Update local state
-      setProject(data);
+      setProject(normalizeProject(data));
       toast({
         title: "Success",
         description: newUrl.trim()
@@ -423,7 +447,7 @@ export default function ProjectPage() {
       }
 
       // Update local state
-      setProject(data);
+      setProject(normalizeProject(data));
       toast({
         title: "Success",
         description: "Cover image uploaded and updated successfully",
@@ -487,7 +511,7 @@ export default function ProjectPage() {
       }
 
       // Update local state
-      setProject(data);
+      setProject(normalizeProject(data));
       toast({
         title: "Success",
         description: newUrl.trim()
@@ -552,7 +576,7 @@ export default function ProjectPage() {
       }
 
       // Update local state
-      setProject(data);
+      setProject(normalizeProject(data));
       toast({
         title: "Success",
         description: newUrl.trim()
@@ -619,7 +643,7 @@ export default function ProjectPage() {
       }
 
       // Update local state
-      setProject(data);
+      setProject(normalizeProject(data));
       toast({
         title: "Success",
         description: "Additional materials uploaded and updated successfully",
@@ -797,7 +821,7 @@ export default function ProjectPage() {
       }
 
       // Update local state
-      setProject(data);
+      setProject(normalizeProject(data));
       setNewTeammateEmail("");
       setSearchValue("");
       setSearchOpen(false);
@@ -840,7 +864,7 @@ export default function ProjectPage() {
       }
 
       // Update local state
-      setProject(data);
+      setProject(normalizeProject(data));
       toast({
         title: "Team member removed",
         description: `${teammateEmail} has been removed from the team`,

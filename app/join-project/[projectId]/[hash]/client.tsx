@@ -45,7 +45,8 @@ export default function JoinProjectClient({ projectId, hash }: JoinProjectClient
         }
 
         const teammates = project.teammates || [];
-        if (teammates.includes(user.email)) {
+        const userEmail = user.email ?? "";
+        if (userEmail && teammates.includes(userEmail)) {
           router.push(`/events/${projectId}/projects/public/${projectId}`);
           return;
         }
@@ -53,7 +54,7 @@ export default function JoinProjectClient({ projectId, hash }: JoinProjectClient
         const { error: updateError } = await supabase
           .from('projects')
           .update({
-            teammates: [...teammates, user.email],
+            teammates: userEmail ? [...teammates, userEmail] : teammates,
           })
           .eq('id', projectId);
 

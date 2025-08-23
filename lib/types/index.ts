@@ -113,7 +113,7 @@ export interface Project {
   lead_email: string;
   teammates?: string[];
   event_id: string;
-  track_ids: string[]; //need to make tracks not required. Will need to redo.
+  track_ids?: string[]; //need to make tracks not required. Will need to redo.
   tracks?: EventTrack[];
   created_at: string;
   project_url?: string;

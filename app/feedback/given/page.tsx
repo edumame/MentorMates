@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface FeedbackWithProject {
   id: string;
-  project_id: string;
+  project_id: string | null;
   project_name: string;
   feedback_text: string;
   mentor_name: string;
@@ -50,7 +50,9 @@ export default function GivenFeedbackPage() {
 
         // If we have feedback entries, fetch the corresponding projects
         if (data && data.length > 0) {
-          const projectIds = data.map((item) => item.project_id);
+          const projectIds = data
+            .map((item) => item.project_id)
+            .filter((id): id is string => Boolean(id));
 
           const { data: projectsData, error: projectsError } = await supabase
             .from("projects")
@@ -67,10 +69,13 @@ export default function GivenFeedbackPage() {
           );
 
           // Combine feedback with project names
-          const formattedData = data.map((item) => ({
-            ...item,
-            project_name: projectMap.get(item.project_id) || "Unknown Project",
-          }));
+          const formattedData = data.map((item) => {
+            const name = item.project_id ? projectMap.get(item.project_id) : undefined;
+            return {
+              ...item,
+              project_name: name ?? "Unknown Project",
+            } as FeedbackWithProject;
+          });
 
           setFeedbackList(formattedData);
         } else {

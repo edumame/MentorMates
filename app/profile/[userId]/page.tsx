@@ -20,6 +20,7 @@ import { motion } from "framer-motion";
 import { useToast } from "@/lib/hooks/use-toast";
 import { Toaster } from "@/components/ui/toaster";
 import { getRoleLabel } from "@/features/user/roles/roles";
+import type { Json } from "@/lib/database.types";
 
 interface EventWithRole extends EventDetails {
   user_event_roles: {
@@ -47,6 +48,7 @@ interface ProjectWithTracks extends Project {
 
 export default function ProfilePage() {
   const { userId } = useParams();
+  const userIdStr = typeof userId === 'string' ? userId : Array.isArray(userId) ? userId[0] : String(userId ?? '');
   const [session, setSession] = useState<Session | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -81,7 +83,7 @@ export default function ProfilePage() {
         setSession(session);
 
         // Fetch user profile and projects
-        const response = await fetch(`/api/users/${userId}/profile`);
+        const response = await fetch(`/api/users/${userIdStr}/profile`);
         if (!response.ok) {
           throw new Error("Failed to fetch profile data");
         }
@@ -145,7 +147,7 @@ export default function ProfilePage() {
     };
 
     fetchData();
-  }, [userId]);
+  }, [userIdStr]);
 
   const handleUpdateDisplayName = async () => {
     if (!newDisplayName.trim()) return;
@@ -154,7 +156,7 @@ export default function ProfilePage() {
       const { error } = await supabase
         .from("user_profiles")
         .update({ display_name: newDisplayName })
-        .eq("uid", userId);
+        .eq("uid", userIdStr);
 
       if (error) throw error;
 
@@ -180,8 +182,8 @@ export default function ProfilePage() {
     try {
       const { error } = await supabase
         .from("user_profiles")
-        .update({ links: newSocialLinks })
-        .eq("uid", userId);
+        .update({ links: newSocialLinks as Json })
+        .eq("uid", userIdStr);
 
       if (error) throw error;
 

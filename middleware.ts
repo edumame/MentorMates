@@ -1,7 +1,11 @@
-import { type NextRequest } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 import { updateSession } from '@/app/utils/supabase/middleware'
 
 export async function middleware(request: NextRequest) {
+  // Skip Supabase session update if env is not configured (e.g., during CI/build)
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    return NextResponse.next()
+  }
   // update user's auth session
   return await updateSession(request)
 }
