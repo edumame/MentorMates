@@ -204,29 +204,39 @@ export async function POST(request: Request) {
 
 		// Create project in Contextus (best-effort, non-blocking failure)
 		let contextusId: string | null = null;
-		try {
-			const label = projectName || leadName || "Project";
-			const contextusPayload = {
-				label,
-				metadata: [
-					{ key: "mentor_mates_project_id", value: finalProjectId! },
-					{ key: "team_lead_name", value: leadName },
-					{ key: "team_lead_email", value: leadEmail },
-					{ key: "event_id", value: eventId },
-				],
-				artifacts: projectUrl ? {
-					type: "link",
-					title: "Project Repository",
-					url: projectUrl
-				} : {
-					type: "doc",
-					title: projectDescription ? projectDescription.slice(0, 100) : "Project",
-				},
-			};
-			
-			contextusId = await createContextusProject(contextusPayload);
-		} catch (contextusError) {
-			console.error("Error creating Contextus project:", contextusError);
+		// If the project already has a Contextus ID (created at draft time), skip creation
+		const { data: existingCtx } = await supabase
+			.from("projects")
+			.select("contextus_project_id")
+			.eq("id", finalProjectId!)
+			.single();
+		if (existingCtx?.contextus_project_id) {
+			contextusId = existingCtx.contextus_project_id;
+		} else {
+			try {
+				const label = projectName || leadName || "Project";
+				const contextusPayload = {
+					label,
+					metadata: [
+						{ key: "mentor_mates_project_id", value: finalProjectId! },
+						{ key: "team_lead_name", value: leadName },
+						{ key: "team_lead_email", value: leadEmail },
+						{ key: "event_id", value: eventId },
+					],
+					artifacts: projectUrl ? {
+						type: "link",
+						title: "Project Repository",
+						url: projectUrl
+					} : {
+						type: "doc",
+						title: projectDescription ? projectDescription.slice(0, 100) : "Project",
+					},
+				};
+				
+				contextusId = await createContextusProject(contextusPayload);
+			} catch (contextusError) {
+				console.error("Error creating Contextus project:", contextusError);
+			}
 		}
 
 		if (contextusId) {

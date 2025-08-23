@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { isValidUUID } from "@/app/utils/supabase/queries";
+import { Button } from "@/components/ui/button";
 
 // Project Submission Page
 export default function ProjectSubmissionPage() {
@@ -13,6 +14,7 @@ export default function ProjectSubmissionPage() {
   const [eventId, setEventId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
+  const [contextusId, setContextusId] = useState<string | null>(null);
 
   useEffect(() => {
     const resolveEventId = async () => {
@@ -66,16 +68,47 @@ export default function ProjectSubmissionPage() {
     getUser();
   }, []);
 
+  // Fetch the user's latest draft for this event and show Contextus ID
+  useEffect(() => {
+    const fetchDraft = async () => {
+      if (!eventId || !userEmail) return;
+      const { data } = await supabase
+        .from("projects")
+        .select("id, contextus_project_id, lead_email, submitted, created_at")
+        .eq("event_id", eventId)
+        .eq("lead_email", userEmail)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (data?.contextus_project_id) setContextusId(data.contextus_project_id);
+    };
+    fetchDraft();
+  }, [eventId, userEmail]);
+
   if (!eventId) {
     return <div>Loading...</div>;
   }
 
   return (
     <div className="container mx-auto py-8">
+      {contextusId && (
+        <div className="mb-4 rounded-md border p-3 bg-blue-50 text-blue-800 flex items-center justify-between">
+          <div>
+            <span className="font-semibold">Contextus ID:</span> {contextusId}
+          </div>
+          <Button
+            variant="secondary"
+            onClick={() => navigator.clipboard.writeText(contextusId)}
+          >
+            Copy
+          </Button>
+        </div>
+      )}
       <NewProjectSubmissionFormSinglePage
         userEmail={userEmail || ""}
         leadName={userName || ""}
         eventId={eventId}
+        onContextusLinked={(ctxId) => setContextusId(ctxId)}
       />
     </div>
   );
