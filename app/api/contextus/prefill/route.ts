@@ -74,9 +74,8 @@ function coercePrefillFromPossibleWrapper(value: unknown): PrefillData | null {
 export async function POST(req: Request) {
 	try {
 		const body = await req.json();
-		const { projectId, queryPrompt } = body as {
+		const { projectId } = body as {
 			projectId?: string;
-			queryPrompt?: string;
 		};
 
 		if (!projectId) {
@@ -94,15 +93,13 @@ export async function POST(req: Request) {
 			videoUrl: "https://youtu.be/dQw4w9WgXcQ",
 		};
 
-		const defaultPrompt =
+		const nlPrompt =
 			"Extract the following fields for this project and return ONLY strict JSON with these exact keys. " +
 			"If a field is unknown, use an empty string for strings and an empty array for arrays. " +
 			"Do not include any extra commentary, markdown, or code fences. " +
 			"The keys must be: projectName, projectDescription, teammates, projectUrl, videoUrl.\n" +
 			"Example format (values are illustrative):\n" +
 			JSON.stringify(exampleJson, null, 2);
-
-		const nlPrompt = queryPrompt && queryPrompt.trim().length > 0 ? `${queryPrompt.trim()}\n\n${defaultPrompt}` : defaultPrompt;
 
 		const queryRes = await fetch(`${BASE}/v1/query`, {
 			method: "POST",

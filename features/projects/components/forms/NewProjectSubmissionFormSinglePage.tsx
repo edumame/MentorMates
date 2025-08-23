@@ -50,7 +50,6 @@ export function NewProjectSubmissionFormSinglePage({
   const [isSaving, setIsSaving] = useState(false);
   const [ctxDialogOpen, setCtxDialogOpen] = useState(false);
   const [ctxProjectId, setCtxProjectId] = useState("");
-  const [ctxPrompt, setCtxPrompt] = useState("");
   const [isPrefilling, setIsPrefilling] = useState(false);
   const router = useRouter();
 
@@ -170,7 +169,7 @@ export function NewProjectSubmissionFormSinglePage({
       const resp = await fetch("/api/contextus/prefill", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectId: ctxProjectId.trim(), queryPrompt: ctxPrompt || undefined }),
+        body: JSON.stringify({ projectId: ctxProjectId.trim() }),
       });
       if (!resp.ok) {
         const err = await resp.json().catch(() => ({}));
@@ -377,15 +376,6 @@ export function NewProjectSubmissionFormSinglePage({
                   placeholder="e.g. ctx_prj_123..."
                   value={ctxProjectId}
                   onChange={(e) => setCtxProjectId(e.target.value)}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="ctx-prompt">Optional Prompt</Label>
-                <Input
-                  id="ctx-prompt"
-                  placeholder="What details would you like to extract?"
-                  value={ctxPrompt}
-                  onChange={(e) => setCtxPrompt(e.target.value)}
                 />
               </div>
             </div>
