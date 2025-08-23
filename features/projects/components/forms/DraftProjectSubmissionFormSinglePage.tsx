@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Form } from "@/components/ui/form";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
-import { Loader2, Share2 } from "lucide-react";
+import { Loader2, Share2, ArrowLeft } from "lucide-react";
 import { toast } from "@/lib/hooks/use-toast";
 
 // Form field components
@@ -31,19 +31,16 @@ import { useProjectSubmissionData } from "./hooks/useProjectSubmissionData";
 import { TrackSelector } from "./components/TrackSelector";
 import UserSearch from "@/components/utils/UserSearch";
 
-export function ProjectSubmissionFormSinglePage({
-  userEmail,
-  leadName,
+export function DraftProjectSubmissionFormSinglePage({
+  projectId,
   eventId,
   onProjectSubmitted,
 }: {
-  userEmail?: string;
-  leadName?: string;
+  projectId: string;
   eventId: string;
   onProjectSubmitted?: () => void;
 }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [projectId, setProjectId] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -58,8 +55,8 @@ export function ProjectSubmissionFormSinglePage({
     resolver: zodResolver(formSchema),
     defaultValues: {
       projectName: "",
-      leadName: leadName || "",
-      leadEmail: userEmail || "",
+      leadName: "",
+      leadEmail: "",
       projectDescription: "",
       teammates: [],
       projectUrl: "",
@@ -72,12 +69,6 @@ export function ProjectSubmissionFormSinglePage({
   const handleTeammatesChange = (tags: string[]) => {
     form.setValue("teammates", tags);
   };
-
-  // Auto-fill form when props change
-  useEffect(() => {
-    if (leadName) form.setValue("leadName", leadName);
-    if (userEmail) form.setValue("leadEmail", userEmail);
-  }, [leadName, userEmail, form]);
 
   // Initialize or create draft project
   useEffect(() => {
@@ -94,39 +85,27 @@ export function ProjectSubmissionFormSinglePage({
             cover_image_url, 
             teammates, 
             lead_name, 
-            lead_email, submitted`
+            lead_email, 
+            submitted
+            `
           )
-          .eq("event_id", eventId)
-          .eq("lead_email", userEmail || "")
-          .order("created_at", { ascending: false })
-          .limit(1)
+          .eq("id", projectId)
           .maybeSingle();
 
         if (!error && existing) {
-          setProjectId(existing.id);
           form.reset({
             projectName: existing.project_name || "",
             projectDescription: existing.project_description || "",
             projectUrl: existing.project_url || "",
             teammates: (existing.teammates as string[]) || [],
-            leadName: existing.lead_name || leadName || "",
-            leadEmail: existing.lead_email || userEmail || "",
+            leadName: existing.lead_name || "",
+            leadEmail: existing.lead_email || "",
             additionalMaterials: undefined,
             coverImage: undefined,
             videoUrl: "",
             trackIds: [],
           });
-        } else {
-          const resp = await fetch("/api/projects", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ eventId, leadName, leadEmail: userEmail }),
-          });
-          if (resp.ok) {
-            const json = await resp.json();
-            setProjectId(json.id);
-          }
-        }
+        } 
       } catch (e) {
         console.error("Failed to initialize draft project", e);
       } finally {
@@ -135,7 +114,7 @@ export function ProjectSubmissionFormSinglePage({
     };
 
     ensureDraft();
-  }, [eventId, userEmail, leadName, form]);
+  }, [projectId, form]);
 
   // Autosave core fields
   useEffect(() => {
@@ -320,6 +299,16 @@ export function ProjectSubmissionFormSinglePage({
 
   return (
     <div className="w-full max-w-4xl mx-auto px-6 py-8 bg-white rounded-xl shadow-xl">
+      <div className="flex justify-start mb-6">
+        <Button
+          variant="ghost"
+          onClick={() => router.push(`/events/${eventId}/dashboard`)}
+          className="flex items-center gap-2"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back
+        </Button>
+      </div>
       <div className="text-center mb-8">
         <h2 className="text-4xl font-extrabold text-gray-900">
           Create Your Project
