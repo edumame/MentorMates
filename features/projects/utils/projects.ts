@@ -145,3 +145,31 @@ export async function fetchProjectById(
     return null;
   }
 }
+
+export async function queryProjectLLM({
+	projectId,
+	query,
+	artifacts,
+	metadata,
+}: {
+	projectId: string;
+	query: string;
+	artifacts?: Record<string, unknown>;
+	metadata?: Record<string, unknown>;
+}): Promise<{ result: unknown; error?: string }> {
+	try {
+		const res = await fetch("/api/projects/query", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ projectId, query, artifacts, metadata }),
+		});
+		if (!res.ok) {
+			const data = await res.json().catch(() => ({}));
+			return { result: null, error: data?.error || "Failed to query project" };
+		}
+		const data = await res.json();
+		return { result: data?.result };
+	} catch (err) {
+		return { result: null, error: err instanceof Error ? err.message : "Unknown error" };
+	}
+}
