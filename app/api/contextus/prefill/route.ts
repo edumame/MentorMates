@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { createSupabaseClient } from "@/app/utils/supabase/server";
 
 // Fields expected by the MentorMates project submission form
 export type PrefillData = {
@@ -74,12 +75,46 @@ function coercePrefillFromPossibleWrapper(value: unknown): PrefillData | null {
 export async function POST(req: Request) {
 	try {
 		const body = await req.json();
-		const { projectId } = body as {
-			projectId?: string;
+		const { projectId, eventId, leadEmail } = body as {
+			projectId?: string; // internal MentorMates project id
+			eventId?: string;
+			leadEmail?: string;
 		};
 
-		if (!projectId) {
-			return NextResponse.json({ error: "Missing projectId" }, { status: 400 });
+		if (!projectId && !(eventId && leadEmail)) {
+			return NextResponse.json({ error: "Missing projectId or eventId+leadEmail" }, { status: 400 });
+		}
+
+		const supabase = await createSupabaseClient();
+		let contextusProjectId: string | null = null;
+
+		if (projectId) {
+			const { data, error } = await supabase
+				.from("projects")
+				.select("contextus_project_id")
+				.eq("id", projectId)
+				.maybeSingle();
+			if (error) {
+				return NextResponse.json({ error: "Failed to fetch project" }, { status: 400 });
+			}
+			contextusProjectId = (data as unknown as { contextus_project_id?: string | null })?.contextus_project_id ?? null;
+		} else if (eventId && leadEmail) {
+			const { data, error } = await supabase
+				.from("projects")
+				.select("id, contextus_project_id")
+				.eq("event_id", eventId)
+				.eq("lead_email", leadEmail)
+				.order("created_at", { ascending: false })
+				.limit(1)
+				.maybeSingle();
+			if (error) {
+				return NextResponse.json({ error: "Failed to resolve current project" }, { status: 400 });
+			}
+			contextusProjectId = (data as unknown as { contextus_project_id?: string | null })?.contextus_project_id ?? null;
+		}
+
+		if (!contextusProjectId) {
+			return NextResponse.json({ error: "No Contextus project linked to current project" }, { status: 404 });
 		}
 
 		const BASE = process.env.CONTEXTUS_BASE_URL || "https://www.contextus.space";
@@ -104,15 +139,15 @@ export async function POST(req: Request) {
 		const queryRes = await fetch(`${BASE}/v1/query`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ project_id: projectId, query: nlPrompt }),
+			body: JSON.stringify({ project_id: contextusProjectId, query: nlPrompt }),
 		});
 
 		const rawText = await queryRes.text();
 		let parsed: unknown = null;
-		let data: PrefillData | null = null;
+		let dataOut: PrefillData | null = null;
 		try {
 			parsed = JSON.parse(rawText) as unknown;
-			data = coercePrefillFromPossibleWrapper(parsed);
+			dataOut = coercePrefillFromPossibleWrapper(parsed);
 		} catch {
 			// Not JSON, try to locate JSON substring quickly (best-effort)
 			const firstBrace = rawText.indexOf("{");
@@ -121,7 +156,7 @@ export async function POST(req: Request) {
 				const candidate = rawText.slice(firstBrace, lastBrace + 1);
 				try {
 					const inner = JSON.parse(candidate) as unknown;
-					data = coercePrefillFromPossibleWrapper(inner);
+					dataOut = coercePrefillFromPossibleWrapper(inner);
 					parsed = inner;
 				} catch {
 					// ignore
@@ -136,14 +171,14 @@ export async function POST(req: Request) {
 			);
 		}
 
-		if (!data) {
+		if (!dataOut) {
 			return NextResponse.json(
 				{ error: "Contextus Query did not return valid JSON in the expected format", raw: rawText },
 				{ status: 502 }
 			);
 		}
 
-		return NextResponse.json({ success: true, data });
+		return NextResponse.json({ success: true, data: dataOut });
 	} catch (error) {
 		console.error("/api/contextus/prefill error", error);
 		return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
