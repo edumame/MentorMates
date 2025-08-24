@@ -39,12 +39,14 @@ export function NewProjectSubmissionFormSinglePage({
   eventId,
   onProjectSubmitted,
   onContextusLinked,
+  contextusId: initialContextusId,
 }: {
   userEmail?: string;
   leadName?: string;
   eventId: string;
   onProjectSubmitted?: () => void;
   onContextusLinked?: (ctxId: string) => void;
+  contextusId?: string | null;
 }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [projectId, setProjectId] = useState<string | null>(null);
@@ -52,6 +54,7 @@ export function NewProjectSubmissionFormSinglePage({
   const [isSaving, setIsSaving] = useState(false);
   const [isPrefilling, setIsPrefilling] = useState(false);
   const router = useRouter();
+  const [contextusId, setContextusId] = useState<string | null>(initialContextusId ?? null);
 
   // Custom hooks
   const { allUsers, availableTracks, isLoading } =
@@ -81,7 +84,9 @@ export function NewProjectSubmissionFormSinglePage({
   useEffect(() => {
     if (leadName) form.setValue("leadName", leadName);
     if (userEmail) form.setValue("leadEmail", userEmail);
-  }, [leadName, userEmail, form]);
+    // keep local contextusId in sync if parent provides it later
+    if (initialContextusId) setContextusId(initialContextusId);
+  }, [leadName, userEmail, initialContextusId, form]);
 
   // Create draft project when form data changes
   useEffect(() => {
@@ -97,8 +102,9 @@ export function NewProjectSubmissionFormSinglePage({
         if (resp.ok) {
           const json = await resp.json();
           setProjectId(json.id);
-          if (json.contextus_project_id && onContextusLinked) {
-            onContextusLinked(json.contextus_project_id as string);
+          if (json.contextus_project_id) {
+            setContextusId(json.contextus_project_id as string);
+            if (onContextusLinked) onContextusLinked(json.contextus_project_id as string);
           }
         }
       } catch (e) {
@@ -370,6 +376,88 @@ export function NewProjectSubmissionFormSinglePage({
           Start building your project with automatic saving as you go. Share
           when you&apos;re ready!
         </p>
+        {contextusId && (
+          <div className="mt-4">
+            <p className="text-sm text-gray-600 mb-3 font-medium">Tools available</p>
+            <ul role="list" className="grid grid-cols-1 gap-x-6 gap-y-6 md:grid-cols-2 xl:gap-x-8">
+              {/* Shanye */}
+              <li className="overflow-hidden rounded-xl outline outline-1 outline-gray-200">
+                <div className="flex items-center gap-x-4 border-b border-gray-900/5 bg-gray-50 p-4">
+                  <img
+                    alt="Shanye"
+                    src="https://www.shanye.io/favicon.ico"
+                    className="size-10 flex-none rounded bg-white object-cover ring-1 ring-gray-900/10"
+                  />
+                  <div className="text-sm font-medium text-gray-900">Shanye</div>
+                  <div className="relative ml-auto">
+                    <a
+                      href={`https://www.shanye.io/?contextus_id=${encodeURIComponent(contextusId)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-gray-400 hover:text-gray-600"
+                      aria-label="Open Shanye"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-5"><path d="M13.5 6.75a.75.75 0 01.75-.75h5.25a.75.75 0 01.75.75V12a.75.75 0 01-1.5 0V8.56l-6.97 6.97a.75.75 0 01-1.06-1.06l6.97-6.97H14.25a.75.75 0 01-.75-.75z"></path><path d="M6 4.5A1.5 1.5 0 004.5 6v12A1.5 1.5 0 006 19.5h12a1.5 1.5 0 001.5-1.5v-3a.75.75 0 011.5 0v3A3 3 0 0118 21H6a3 3 0 01-3-3V6a3 3 0 013-3h3a.75.75 0 010 1.5H6z"></path></svg>
+                    </a>
+                  </div>
+                </div>
+                <dl className="-my-2 divide-y divide-gray-100 px-4 py-3 text-sm">
+                  <div className="flex justify-between gap-x-4 py-2">
+                    <dt className="text-gray-500">Link</dt>
+                    <dd className="text-gray-700 truncate max-w-[60%]">
+                      <a
+                        href={`https://www.shanye.io/?contextus_id=${encodeURIComponent(contextusId)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline"
+                      >
+                        shanye.io/?contextus_id={contextusId}
+                      </a>
+                    </dd>
+                  </div>
+                </dl>
+              </li>
+
+              {/* Lovable */}
+              <li className="overflow-hidden rounded-xl outline outline-1 outline-gray-200">
+                <div className="flex items-center gap-x-4 border-b border-gray-900/5 bg-gray-50 p-4">
+                  <img
+                    alt="Lovable"
+                    src="https://lovable.dev/favicon.ico"
+                    className="size-10 flex-none rounded bg-white object-cover ring-1 ring-gray-900/10"
+                  />
+                  <div className="text-sm font-medium text-gray-900">Lovable</div>
+                  <div className="relative ml-auto">
+                    <a
+                      href={`https://lovable.dev/?contextus_id=${encodeURIComponent(contextusId)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-gray-400 hover:text-gray-600"
+                      aria-label="Open Lovable"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-5"><path d="M13.5 6.75a.75.75 0 01.75-.75h5.25a.75.75 0 01.75.75V12a.75.75 0 01-1.5 0V8.56l-6.97 6.97a.75.75 0 01-1.06-1.06l6.97-6.97H14.25a.75.75 0 01-.75-.75z"></path><path d="M6 4.5A1.5 1.5 0 004.5 6v12A1.5 1.5 0 006 19.5h12a1.5 1.5 0 001.5-1.5v-3a.75.75 0 011.5 0v3A3 3 0 0118 21H6a3 3 0 01-3-3V6a3 3 0 013-3h3a.75.75 0 010 1.5H6z"></path></svg>
+                    </a>
+                  </div>
+                </div>
+                <dl className="-my-2 divide-y divide-gray-100 px-4 py-3 text-sm">
+                  <div className="flex justify-between gap-x-4 py-2">
+                    <dt className="text-gray-500">Link</dt>
+                    <dd className="text-gray-700 truncate max-w-[60%]">
+                      <a
+                        href={`https://lovable.dev/?contextus_id=${encodeURIComponent(contextusId)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline"
+                      >
+                        lovable.dev/?contextus_id={contextusId}
+                      </a>
+                    </dd>
+                  </div>
+                </dl>
+              </li>
+            </ul>
+          </div>
+        )}
       </div>
 
       {/* Autosave Status */}
