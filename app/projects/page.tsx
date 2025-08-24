@@ -72,7 +72,7 @@ export default function ProjectsPage() {
           <h1 className="text-3xl font-bold text-gray-900">My Projects</h1>
           <p className="text-gray-600">Manage and track your project portfolio</p>
         </div>
-        <Link href="/events">
+        <Link href="/projects/submit">
           <Button className="flex items-center gap-2 bg-blue-900 text-white hover:bg-blue-800">
             <Plus className="h-4 w-4" />
             New Project
@@ -83,8 +83,8 @@ export default function ProjectsPage() {
       {projects.length === 0 ? (
         <div className="text-center py-12">
           <div className="text-gray-500 mb-4">No projects found</div>
-          <Link href="/events">
-            <Button className="bg-blue-900 text-white hover:bg-blue-800">Join an Event to Start a Project</Button>
+          <Link href="/projects/submit">
+            <Button className="bg-blue-900 text-white hover:bg-blue-800">Create a Project</Button>
           </Link>
         </div>
       ) : (
