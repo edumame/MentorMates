@@ -66,6 +66,7 @@ import { FileUpload } from "@/components/db/fileUpload";
 import { ImageUpload } from "@/components/db/imageUpload";
 import { VideoEmbed, canEmbed } from "@/components/utils";
 import { createContextusProject } from "@/lib/integrations/contextus";
+import { useAdmin } from "@/lib/hooks/use-admin";
 
 interface EventParticipant {
   user_id: string;
@@ -77,7 +78,7 @@ export default function ProjectPage() {
   const params = useParams();
   const router = useRouter();
   const projectId = params.id as string;
-
+  const isAdmin = useAdmin();
   const [session, setSession] = useState<Session | null>(null);
   const [project, setProject] = useState<Project | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -1309,7 +1310,7 @@ export default function ProjectPage() {
         </Card>
 
         {/* Integrations Card */}
-        {canEdit && (
+        {!canEdit && isAdmin && (
           <Card className="mb-8">
             <CardHeader>
               <CardTitle>Integrations</CardTitle>
@@ -1325,7 +1326,8 @@ export default function ProjectPage() {
                         Connect your project to Contextus for enhanced visibility
                       </p>
                     </div>
-                    {!project.contextus_project_id ? (
+                    {
+                      !project.contextus_project_id ? (
                       <Button
                         onClick={handleCreateContextusLink}
                         disabled={isUpdating}
@@ -1356,9 +1358,10 @@ export default function ProjectPage() {
                               Show ID
                             </>
                           )}
-                        </Button>
-                      </div>
-                    )}
+                          </Button>
+                        </div>
+                      )
+                    }
                   </div>
                   {project.contextus_project_id && showContextusId && (
                     <div className="mt-3 flex items-center gap-2">
