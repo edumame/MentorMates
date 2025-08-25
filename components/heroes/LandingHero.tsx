@@ -221,10 +221,7 @@ export function LandingHero() {
         </p>
       </div>
 
-      {/* Discord CTA Section */}
-      <div className="relative z-10 mt-20 mb-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-        <DiscordCTA variant="hero" />
-      </div>
+
 
       {/* Final CTA Section */}
       <div className="relative z-10 mt-20 mb-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -252,6 +249,13 @@ export function LandingHero() {
               </Link>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Sticky Discord CTA */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-white/95 backdrop-blur-sm border-t border-gray-200">
+        <div className="max-w-md mx-auto">
+          <DiscordCTA variant="compact" />
         </div>
       </div>
 

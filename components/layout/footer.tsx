@@ -22,10 +22,7 @@ export function Footer() {
                 </div>
             </div>
             
-            {/* Discord CTA in footer */}
-            <div className="mx-auto max-w-4xl px-6 lg:px-8 mt-6">
-                <DiscordCTA variant="compact" />
-            </div>
+
         </footer>
     );
 }
