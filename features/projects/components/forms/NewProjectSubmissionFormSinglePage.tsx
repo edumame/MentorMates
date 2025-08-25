@@ -19,7 +19,15 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 
 // Imported schema and types
@@ -32,6 +40,7 @@ import {
 import { useProjectSubmissionData } from "./hooks/useProjectSubmissionData";
 import { TrackSelector } from "./components/TrackSelector";
 import UserSearch from "@/components/utils/UserSearch";
+import { useAdmin } from "@/lib/hooks/use-admin";
 
 export function NewProjectSubmissionFormSinglePage({
   userEmail,
@@ -54,6 +63,7 @@ export function NewProjectSubmissionFormSinglePage({
   const [isSaving, setIsSaving] = useState(false);
   const [isPrefilling, setIsPrefilling] = useState(false);
   const router = useRouter();
+  const isAdmin = useAdmin();
   const [contextusId, setContextusId] = useState<string | null>(initialContextusId ?? null);
 
   // Custom hooks
@@ -102,7 +112,7 @@ export function NewProjectSubmissionFormSinglePage({
         if (resp.ok) {
           const json = await resp.json();
           setProjectId(json.id);
-          if (json.contextus_project_id) {
+          if (json.contextus_project_id && onContextusLinked && isAdmin) {
             setContextusId(json.contextus_project_id as string);
             if (onContextusLinked) onContextusLinked(json.contextus_project_id as string);
           }
@@ -165,6 +175,15 @@ export function NewProjectSubmissionFormSinglePage({
 
   // Prefill from Contextus handler
   const handlePrefill = async () => {
+    if (!isAdmin) {
+      toast({
+        title: "Access Denied",
+        description: "Only administrators can use the Contextus prefill feature.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setIsPrefilling(true);
     try {
       const resp = await fetch("/api/contextus/prefill", {
@@ -179,20 +198,31 @@ export function NewProjectSubmissionFormSinglePage({
       const json = await resp.json();
       const data = json?.data || {};
 
-      if (data.projectName) form.setValue("projectName", data.projectName, { shouldDirty: true });
-      if (data.projectDescription) form.setValue("projectDescription", data.projectDescription, { shouldDirty: true });
-      if (Array.isArray(data.teammates)) form.setValue("teammates", data.teammates, { shouldDirty: true });
-      if (data.projectUrl) form.setValue("projectUrl", data.projectUrl, { shouldDirty: true });
-      if (data.videoUrl) form.setValue("videoUrl", data.videoUrl, { shouldDirty: true });
+      if (data.projectName)
+        form.setValue("projectName", data.projectName, { shouldDirty: true });
+      if (data.projectDescription)
+        form.setValue("projectDescription", data.projectDescription, {
+          shouldDirty: true,
+        });
+      if (Array.isArray(data.teammates))
+        form.setValue("teammates", data.teammates, { shouldDirty: true });
+      if (data.projectUrl)
+        form.setValue("projectUrl", data.projectUrl, { shouldDirty: true });
+      if (data.videoUrl)
+        form.setValue("videoUrl", data.videoUrl, { shouldDirty: true });
 
       toast({
         title: "Form Prefilled",
-        description: "We imported details from Contextus. Review and adjust as needed.",
+        description:
+          "We imported details from Contextus. Review and adjust as needed.",
       });
     } catch (error) {
       toast({
         title: "Prefill Error",
-        description: error instanceof Error ? error.message : "Unable to prefill from Contextus.",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Unable to prefill from Contextus.",
         variant: "destructive",
       });
     } finally {
@@ -354,19 +384,26 @@ export function NewProjectSubmissionFormSinglePage({
           <ArrowLeft className="h-4 w-4" />
           Back
         </Button>
-        <Button variant="secondary" className="flex items-center gap-2" onClick={handlePrefill} disabled={isPrefilling}>
-          {isPrefilling ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Prefilling...
-            </>
-          ) : (
-            <>
-              <Sparkles className="h-4 w-4" />
-              Fill out this form for me
-            </>
-          )}
-        </Button>
+        {isAdmin && (
+          <Button
+            variant="secondary"
+            className="flex items-center gap-2"
+            onClick={handlePrefill}
+            disabled={isPrefilling}
+          >
+            {isPrefilling ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Prefilling...
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-4 w-4" />
+                Fill out this form for me
+              </>
+            )}
+          </Button>
+        )}
       </div>
       <div className="text-center mb-8">
         <h2 className="text-4xl font-extrabold text-gray-900">
