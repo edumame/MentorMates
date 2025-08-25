@@ -14,18 +14,18 @@ export function DiscordCTA({ variant = "default", className = "" }: DiscordCTAPr
 
   if (variant === "compact") {
     return (
-      <div className={`bg-gradient-to-r from-indigo-500 to-purple-600 rounded-lg p-4 text-white ${className}`}>
+      <div className={`bg-white border border-gray-200 rounded-lg p-3 shadow-sm ${className}`}>
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <MessageCircle className="w-5 h-5" />
+          <div className="flex items-center space-x-2">
+            <MessageCircle className="w-4 h-4 text-gray-600" />
             <div>
-              <p className="text-sm font-medium">Join our Discord community!</p>
-              <p className="text-xs opacity-90">Connect with mentors and peers</p>
+              <p className="text-xs font-medium text-gray-700">Join Discord</p>
+              <p className="text-xs text-gray-500">Connect with community</p>
             </div>
           </div>
           <Link href={discordUrl} target="_blank" rel="noopener noreferrer">
-            <Button size="sm" variant="secondary" className="bg-white text-indigo-600 hover:bg-gray-100">
-              Join Now
+            <Button size="sm" variant="outline" className="h-7 px-3 text-xs border-gray-300 text-gray-700 hover:bg-gray-50">
+              Join
             </Button>
           </Link>
         </div>

@@ -253,10 +253,8 @@ export function LandingHero() {
       </div>
 
       {/* Sticky Discord CTA */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-white/95 backdrop-blur-sm border-t border-gray-200">
-        <div className="max-w-md mx-auto">
-          <DiscordCTA variant="compact" />
-        </div>
+      <div className="fixed bottom-4 left-4 right-4 z-40 max-w-sm mx-auto">
+        <DiscordCTA variant="compact" />
       </div>
 
       {/* Word Slide Animation */}
