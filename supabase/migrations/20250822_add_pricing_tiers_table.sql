@@ -86,18 +86,17 @@ CREATE TRIGGER ensure_paid_event_has_pricing_tiers
 -- Enable RLS on pricing_tiers table
 ALTER TABLE "public"."pricing_tiers" ENABLE ROW LEVEL SECURITY;
 
--- RLS Policy: Anyone can view active pricing tiers for visible events
-CREATE POLICY "Anyone can view active pricing tiers for visible events"
+-- RLS Policy: Anyone can view active pricing tiers
+CREATE POLICY "Anyone can view active pricing tiers"
 ON "public"."pricing_tiers" FOR SELECT
 TO public
 USING (
-  "is_active" = true AND
-  EXISTS (
-    SELECT 1 FROM "public"."events" 
-    WHERE "events"."event_id" = "pricing_tiers"."event_id" 
-    AND "events"."visibility" IN ('public', 'private')
-  )
+  "is_active" = true
 );
+
+-- Add comment to document the policy change
+COMMENT ON POLICY "Anyone can view active pricing tiers" ON "public"."pricing_tiers"
+IS 'Allows anyone to view active pricing tiers regardless of event visibility';
 
 -- RLS Policy: Organizers and admins can manage pricing tiers for their events
 CREATE POLICY "Organizers can manage pricing tiers for their events"
@@ -127,4 +126,3 @@ USING (
 ALTER TABLE "public"."events"
 DROP CONSTRAINT IF EXISTS check_if_paid_then_price,
 DROP CONSTRAINT IF EXISTS check_if_paid_then_stripe;
-

@@ -121,6 +121,7 @@ export async function fetchClientSecret(options?: CheckoutOptions) {
         amount_paid: session.amount_total,
         currency: session.currency,
         payment_status: "processing",
+        pricing_id: options?.pricingTierId,
       },
       {
         onConflict: "user_id,event_id",

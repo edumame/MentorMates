@@ -16,26 +16,26 @@ export async function POST(req: Request) {
     return new Response("Missing Stripe signature", { status: 400 });
   }
 
-  // async function doEventHandling() {
-  //   if (typeof signature !== "string") {
-  //     throw new Error("Invalid Stripe signature");
-  //   }
+  async function doEventHandling() {
+    if (typeof signature !== "string") {
+      throw new Error("Invalid Stripe signature");
+    }
 
-  //   const event = stripe.webhooks.constructEvent(
-  //     body,
-  //     signature,
-  //     process.env.STRIPE_WEBHOOK_SECRET!
-  //   );
+    const event = stripe.webhooks.constructEvent(
+      body,
+      signature,
+      process.env.STRIPE_WEBHOOK_SECRET!
+    );
 
-  //   await handleEvent(event);
-  // }
+    await handleEvent(event);
+  }
 
-  // try {
-  //   await doEventHandling();
-  // } catch (error) {
-  //   console.error("Stripe processing error: ", error);
-  //   throw new Error(`Stripe processing error. Please contact support.`);
-  // }
+  try {
+    await doEventHandling();
+  } catch (error) {
+    console.error("Stripe processing error: ", error);
+    throw new Error(`Stripe processing error. Please contact support.`);
+  }
 
   return NextResponse.json({ received: true }, { status: 200 });
 }
@@ -54,35 +54,33 @@ async function assignTicket(userEventPayment: {
     .eq("event_id", userEventPayment.event_id)
     .eq("assigned_to_user_id", userEventPayment.user_id)
     .single();
-
+  
   if (userAssignedTickets) {
     return;
   }
 
   //  get the first available ticket sorted by ID
-  const { data: tickets } = await supabase
+  const { data: ticket } = await supabase
     .from("event_tickets")
     .select("id")
     .eq("event_id", userEventPayment.event_id)
     .eq("payment_id", userEventPayment.id)
     .order("id", { ascending: true })
-    .limit(1);
+    .limit(1)
+    .single();
 
-  if (tickets && tickets.length > 0) {
-    // Update only the first ticket found
+  if (ticket) {
     await supabase
       .from("event_tickets")
       .update({
         assigned_to_user_id: userEventPayment.user_id,
         ticket_status: "assigned",
-        assigned_at: new Date(),
       })
-      .eq("id", tickets[0].id);
-  }
-
-  if (!tickets || tickets.length === 0) {
+      .eq("id", ticket.id);
+  } else {
     throw new Error("No tickets found");
   }
+
 }
 
 async function handleEvent(event: Stripe.Event) {
@@ -136,6 +134,7 @@ async function handleEvent(event: Stripe.Event) {
           payment_id: userEventPayment.id,
           purchased_by_user_id: userEventPayment.user_id,
           assigned_to_user_id: userEventPayment.user_id,
+          ticket_status: "unassigned",
         }))
       )
       .select("id");
