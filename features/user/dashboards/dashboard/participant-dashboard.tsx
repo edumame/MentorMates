@@ -2,9 +2,10 @@ import { useEffect, useState, Suspense } from "react";
 import { supabase } from "@/lib/supabase";
 import { Project } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, FolderOpen, Ticket } from "lucide-react";
 import dynamic from "next/dynamic";
 
 const GoalSection = dynamic(() => import("@/components/journal/goal-section"), {
@@ -18,20 +19,42 @@ const JournalSection = dynamic(
   }
 );
 
+const ViewTicketsTab = dynamic(
+  () => import("@/components/tickets/view-tickets-tab").then(mod => ({ default: mod.ViewTicketsTab })),
+  {
+    ssr: false,
+  }
+);
+
 interface ParticipantDashboardProps {
   eventId: string;
 }
 
+interface EventInfo {
+  paid: boolean | null;
+}
+
 export function ParticipantDashboard({ eventId }: ParticipantDashboardProps) {
   const [myProjects, setMyProjects] = useState<Project[]>([]);
+  const [eventInfo, setEventInfo] = useState<EventInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("projects");
 
   useEffect(() => {
-    const fetchMyProjects = async () => {
+    const fetchData = async () => {
       const {
         data: { session },
       } = await supabase.auth.getSession();
       if (!session) return
+
+      // Fetch event info to check if it's paid
+      const { data: event } = await supabase
+        .from("events")
+        .select("paid")
+        .eq("event_id", eventId)
+        .single();
+      
+      setEventInfo(event);
 
       const { data: leadProjects, error: leadProjectsError } = await supabase
         .from("projects")
@@ -64,8 +87,10 @@ export function ParticipantDashboard({ eventId }: ParticipantDashboardProps) {
       setIsLoading(false);
     };
 
-    fetchMyProjects();
+    fetchData();
   }, [eventId]);
+
+  const isPaidEvent = eventInfo?.paid === true;
 
   return (
     <div className="space-y-6">
@@ -79,61 +104,86 @@ export function ParticipantDashboard({ eventId }: ParticipantDashboardProps) {
         </Link>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>My Projects</CardTitle>
-          </CardHeader>
-          <CardContent className="overflow-y-auto max-h-[500px]">
-            {isLoading ? (
-              <p>Loading...</p>
-            ) : myProjects.length === 0 ? (
-              <p>You haven&apos;t submitted any projects yet.</p>
-            ) : (
-              <ul className="space-y-4">
-                {myProjects.map((project) => (
-                  <li key={project.id} className="border-b pb-2">
-                    <Link
-                      href={`/projects/${project.id}`}
-                      className="hover:text-blue-500"
-                    >
-                      <h3 className="font-semibold">{project.project_name}</h3>
-                      <p className="text-sm text-gray-600">
-                        {project.project_description}
-                      </p>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className={`grid w-full ${isPaidEvent ? 'grid-cols-2' : 'grid-cols-1'}`}>
+          <TabsTrigger value="projects" className="flex items-center gap-2">
+            <FolderOpen className="h-4 w-4" />
+            Projects
+          </TabsTrigger>
+          {isPaidEvent && (
+            <TabsTrigger value="tickets" className="flex items-center gap-2">
+              <Ticket className="h-4 w-4" />
+              View Tickets
+            </TabsTrigger>
+          )}
+        </TabsList>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Event Progress</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div>
-                <h3 className="font-semibold">Projects Submitted</h3>
-                <p className="text-2xl">{myProjects.length}</p>
-              </div>
-              {/* Add more progress metrics here */}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+        <TabsContent value="projects" className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>My Projects</CardTitle>
+              </CardHeader>
+              <CardContent className="overflow-y-auto max-h-[500px]">
+                {isLoading ? (
+                  <p>Loading...</p>
+                ) : myProjects.length === 0 ? (
+                  <p>You haven&apos;t submitted any projects yet.</p>
+                ) : (
+                  <ul className="space-y-4">
+                    {myProjects.map((project) => (
+                      <li key={project.id} className="border-b pb-2">
+                        <Link
+                          href={`/projects/${project.id}`}
+                          className="hover:text-blue-500"
+                        >
+                          <h3 className="font-semibold">{project.project_name}</h3>
+                          <p className="text-sm text-gray-600">
+                            {project.project_description}
+                          </p>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </CardContent>
+            </Card>
 
-      {/* Goals Section */}
-      <Suspense fallback={<div>Loading goals...</div>}>
-        <GoalSection eventId={eventId} />
-      </Suspense>
+            <Card>
+              <CardHeader>
+                <CardTitle>Event Progress</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="font-semibold">Projects Submitted</h3>
+                    <p className="text-2xl">{myProjects.length}</p>
+                  </div>
+                  {/* Add more progress metrics here */}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
-      {/* Journal Section */}
-      <Suspense fallback={<div>Loading journal...</div>}>
-        <JournalSection eventId={eventId} />
-      </Suspense>
+          {/* Goals Section */}
+          <Suspense fallback={<div>Loading goals...</div>}>
+            <GoalSection eventId={eventId} />
+          </Suspense>
+
+          {/* Journal Section */}
+          <Suspense fallback={<div>Loading journal...</div>}>
+            <JournalSection eventId={eventId} />
+          </Suspense>
+        </TabsContent>
+
+        {isPaidEvent && (
+          <TabsContent value="tickets">
+            <Suspense fallback={<div>Loading tickets...</div>}>
+              <ViewTicketsTab eventId={eventId} />
+            </Suspense>
+          </TabsContent>
+        )}
+      </Tabs>
     </div>
   );
 }

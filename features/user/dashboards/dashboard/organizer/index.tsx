@@ -45,8 +45,16 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
     null
   );
   const [activeTab, setActiveTab] = useState("details");
+  const [isAdmin, setIsAdmin] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
+
+  // Redirect from pricing tab if user is not admin
+  useEffect(() => {
+    if (activeTab === "pricing" && !isAdmin) {
+      setActiveTab("details");
+    }
+  }, [activeTab, isAdmin]);
 
   useEffect(() => {
     async function fetchEvent() {
@@ -79,6 +87,12 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
           router.push("/organizer/dashboard");
           return;
         }
+
+        // Check if user is an admin
+        const { data: adminData } = await supabase.rpc("is_admin_user", {
+          user_id: userId,
+        });
+        setIsAdmin(adminData || false);
 
         const { data: eventData, error } = await supabase
           .from("events")
@@ -190,10 +204,12 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
             Event Details
           </TabsTrigger>
 
-          <TabsTrigger value="pricing" className="flex items-center gap-2">
-            <DollarSign className="h-4 w-4" />
-            Pricing
-          </TabsTrigger>
+          {isAdmin && (
+            <TabsTrigger value="pricing" className="flex items-center gap-2">
+              <DollarSign className="h-4 w-4" />
+              Pricing
+            </TabsTrigger>
+          )}
 
           <TabsTrigger value="access" className="flex items-center gap-2">
             <Shield className="h-4 w-4" />
@@ -240,15 +256,16 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
           />
         </TabsContent>
 
-        <TabsContent value="pricing">
-          <PricingTab
-            event={event}
-            setEvent={setEvent}
-            saving={saving}
-            setSaving={setSaving}
-            toast={toast}
-          />
-        </TabsContent>
+        {isAdmin && (
+          <TabsContent value="pricing">
+            <PricingTab
+              event={event}
+              setEvent={setEvent}
+              saving={saving}
+              setSaving={setSaving}
+            />
+          </TabsContent>
+        )}
 
         <TabsContent value="access">
           <AccessTab

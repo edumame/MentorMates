@@ -94,8 +94,10 @@ export function JoinEventButton({ eventId, eventName, label }: JoinEventButtonPr
               *
             `)
             .eq("event_id", eventId)
-            .eq("is_active", true)
             .order("sort_order", { ascending: true });
+
+          console.log("pricingTiersData", pricingTiersData);
+          console.log("eventId", eventId);
 
           if (pricingTiersError) {
             console.error("Error fetching pricing tiers:", pricingTiersError);

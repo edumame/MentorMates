@@ -8,7 +8,7 @@ CREATE TABLE "public"."pricing_tiers" (
     "tier_id" text NOT NULL, -- Unique identifier within the event (e.g., "early-bird", "regular")
     "name" text NOT NULL,
     "price" integer NOT NULL, -- Price in cents
-    "stripe_price_id" text,
+    "stripe_price_id" text NOT NULL,
     "description" text,
     "available_until" timestamptz,
     "max_quantity" integer,
@@ -54,25 +54,34 @@ CREATE TRIGGER "update_pricing_tiers_updated_at"
 
 -- Update user_event_payments to reference pricing_tier instead of pricing_tier_id text
 ALTER TABLE "public"."user_event_payments" 
-ADD COLUMN "pricing_tier_uuid" uuid REFERENCES "public"."pricing_tiers"("id") ON DELETE SET NULL;
+ADD COLUMN "pricing_id" uuid REFERENCES "public"."pricing_tiers"("id") ON DELETE SET NULL;
 
 -- Add index for the new foreign key
-CREATE INDEX "user_event_payments_pricing_tier_uuid_idx" ON "public"."user_event_payments" ("pricing_tier_uuid");
+CREATE INDEX "user_event_payments_pricing_id_idx" ON "public"."user_event_payments" ("pricing_id");
 
--- Add index for the new foreign key
-CREATE INDEX "event_tickets_pricing_tier_uuid_idx" ON "public"."event_tickets" ("pricing_tier_uuid");
 
--- Add constraint to ensure paid events have at least one pricing tier
-ALTER TABLE "public"."events" 
-ADD CONSTRAINT "check_if_paid_then_has_pricing_tiers" 
-CHECK (
-  "paid" = false OR 
-  EXISTS (
-    SELECT 1 FROM "public"."pricing_tiers" 
-    WHERE "pricing_tiers"."event_id" = "events"."event_id" 
-    AND "pricing_tiers"."is_active" = true
-  )
-);
+-- Create function to validate paid events have pricing tiers
+CREATE OR REPLACE FUNCTION check_paid_event_has_pricing_tiers()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.paid = true THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM public.pricing_tiers 
+      WHERE event_id = NEW.event_id 
+      AND is_active = true
+    ) THEN
+      RAISE EXCEPTION 'Paid events must have at least one active pricing tier';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Add trigger to ensure paid events have at least one pricing tier
+CREATE TRIGGER ensure_paid_event_has_pricing_tiers
+  BEFORE INSERT OR UPDATE ON public.events
+  FOR EACH ROW
+  EXECUTE FUNCTION check_paid_event_has_pricing_tiers();
 
 -- Enable RLS on pricing_tiers table
 ALTER TABLE "public"."pricing_tiers" ENABLE ROW LEVEL SECURITY;
@@ -86,7 +95,7 @@ USING (
   EXISTS (
     SELECT 1 FROM "public"."events" 
     WHERE "events"."event_id" = "pricing_tiers"."event_id" 
-    AND "events"."visibility" IN ('public', 'unlisted')
+    AND "events"."visibility" IN ('public', 'private')
   )
 );
 
@@ -103,3 +112,19 @@ USING (
     AND uer."role" IN ('organizer', 'admin')
   )
 );
+
+-- Add policy for admin users to manage any pricing tiers
+CREATE POLICY "Admin users can manage all pricing tiers"
+ON "public"."pricing_tiers"
+FOR ALL
+TO public
+USING (
+  (SELECT is_admin_user(auth.uid()::uuid))
+);
+
+
+-- Drop constraints from user_events table
+ALTER TABLE "public"."events"
+DROP CONSTRAINT IF EXISTS check_if_paid_then_price,
+DROP CONSTRAINT IF EXISTS check_if_paid_then_stripe;
+

@@ -3,7 +3,10 @@ ALTER TABLE user_event_payments
 ADD COLUMN tickets_quantity INTEGER DEFAULT 1,
 ADD COLUMN is_bundle BOOLEAN DEFAULT false;
 
--- 2. Create event_tickets table as the main participation tracker
+-- 2. Create enum type for ticket status
+CREATE TYPE ticket_status_enum AS ENUM ('unassigned', 'assigned', 'used', 'transferred');
+
+-- 3. Create event_tickets table as the main participation tracker
 CREATE TABLE event_tickets (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     event_id UUID NOT NULL REFERENCES events(event_id) ON DELETE CASCADE,
@@ -11,7 +14,7 @@ CREATE TABLE event_tickets (
     purchased_by_user_id UUID NOT NULL REFERENCES user_profiles(uid) ON DELETE CASCADE,
     assigned_to_user_id UUID REFERENCES user_profiles(uid) ON DELETE SET NULL,
     assigned_to_email TEXT, -- For inviting people who don't have accounts yet
-    ticket_status TEXT DEFAULT 'unassigned' CHECK (ticket_status IN ('unassigned', 'assigned', 'used', 'transferred')),
+    ticket_status ticket_status_enum DEFAULT 'unassigned',
     assigned_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()

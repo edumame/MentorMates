@@ -8,7 +8,7 @@ interface CheckoutOptions {
   eventId?: string | null;
   eventSlug?: string | null;
   eventName?: string | null;
-  pricingId?: string | null; // Required: id from pricing_tiers table
+  pricingTierId?: string | null; // Required: id from pricing_tiers table
 }
 
 export async function fetchClientSecret(options?: CheckoutOptions) {
@@ -54,7 +54,7 @@ export async function fetchClientSecret(options?: CheckoutOptions) {
 
   let lineItems;
 
-  if (options?.pricingId) {
+  if (options?.pricingTierId) {
     // Query the pricing_tiers table for the specific tier
     const { data: pricingTierData } = await supabase
       .from("pricing_tiers")
@@ -62,11 +62,11 @@ export async function fetchClientSecret(options?: CheckoutOptions) {
         `*`
       )
       .eq("event_id", options.eventId)
-      .eq("id", options.pricingId)
+      .eq("id", options.pricingTierId)
       .eq("is_active", true)
       .single();
     
-    if (pricingTierData) {      
+    if (pricingTierData) {
       // Check if tier is still available
       if (pricingTierData.available_until) {
         const availableUntil = new Date(pricingTierData.available_until);

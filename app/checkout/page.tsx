@@ -17,16 +17,16 @@ function CheckoutContent() {
   const eventId = searchParams.get('eventId')
   const eventName = searchParams.get('eventName')
   const eventSlug = searchParams.get('eventSlug')
-  const pricingId = searchParams.get('pricingId')
+  const pricingTierId = searchParams.get('pricingTierId')
 
   const options = {
     fetchClientSecret: () => {
-      if (eventId || eventName || eventSlug || pricingId) {
+      if (eventId || eventName || eventSlug || pricingTierId) {
         return fetchClientSecret({
           eventId,
           eventName,
           eventSlug,
-          pricingId
+          pricingTierId
         });
       } else {
         return fetchClientSecret();

@@ -1,6 +1,5 @@
 "use client";
 
-
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -10,8 +9,8 @@ import { formatPrice } from "@/lib/utils/pricing";
 
 interface PricingTierSelectorProps {
   pricingTiers: PricingTier[];
-  selectedTierId?: string; // The tier_id string (not the UUID id)
-  onTierSelect: (tierId: string) => void; // Passes tier_id string (not the UUID id)
+  selectedTierId?: string; // The id string (not the UUID id)
+  onTierSelect: (id: string) => void; // Passes id string (not the UUID id)
   onContinue: () => void;
   isLoading?: boolean;
 }
@@ -31,18 +30,16 @@ export function PricingTierSelector({
         return false;
       }
     }
-    
+
     // Check if tier has reached max quantity (if specified)
     if (tier.max_quantity && tier.current_quantity) {
       if (tier.current_quantity >= tier.max_quantity) {
         return false;
       }
     }
-    
+
     return true;
   };
-
-
 
   const formatAvailableUntil = (dateString: string): string => {
     return new Date(dateString).toLocaleDateString("en-US", {
@@ -65,7 +62,7 @@ export function PricingTierSelector({
       <div className="space-y-3">
         {pricingTiers.map((tier) => {
           const isAvailable = isValidTier(tier);
-          const isSelected = selectedTierId === tier.tier_id;
+          const isSelected = selectedTierId === tier.id;
 
           return (
             <Card
@@ -75,15 +72,13 @@ export function PricingTierSelector({
                   ? "ring-2 ring-blue-500 border-blue-500"
                   : "hover:border-gray-300"
               } ${!isAvailable ? "opacity-50 cursor-not-allowed" : ""}`}
-              onClick={() => isAvailable && onTierSelect(tier.tier_id)}
+              onClick={() => isAvailable && onTierSelect(tier.id)}
             >
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-lg flex items-center gap-2">
                     {tier.name}
-                    {isSelected && (
-                      <Check className="h-5 w-5 text-blue-500" />
-                    )}
+                    {isSelected && <Check className="h-5 w-5 text-blue-500" />}
                   </CardTitle>
                   <div className="flex items-center gap-2">
                     <span className="text-2xl font-bold text-green-600">
@@ -97,18 +92,26 @@ export function PricingTierSelector({
               </CardHeader>
               <CardContent>
                 {tier.description && (
-                  <p className="text-sm text-gray-600 mb-3">{tier.description}</p>
+                  <p className="text-sm text-gray-600 mb-3">
+                    {tier.description}
+                  </p>
                 )}
-                
+
                 <div className="flex flex-wrap gap-2 text-xs">
                   {tier.available_until && (
-                    <Badge variant="outline" className="flex items-center gap-1">
+                    <Badge
+                      variant="outline"
+                      className="flex items-center gap-1"
+                    >
                       <Clock className="h-3 w-3" />
                       Until {formatAvailableUntil(tier.available_until)}
                     </Badge>
                   )}
                   {tier.max_quantity && (
-                    <Badge variant="outline" className="flex items-center gap-1">
+                    <Badge
+                      variant="outline"
+                      className="flex items-center gap-1"
+                    >
                       <Package className="h-3 w-3" />
                       {tier.current_quantity || 0}/{tier.max_quantity} sold
                     </Badge>
