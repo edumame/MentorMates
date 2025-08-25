@@ -5,6 +5,7 @@ import Image from "next/image";
 import { ArrowRight, Users, Lightbulb, Target } from "lucide-react";
 // import { TextGenerateEffect } from "@/components/ui/text-generate-effect";
 import { Button } from "@/components/ui/button";
+import { DiscordCTA } from "@/components/ui/discord-cta";
 
 export function LandingHero() {
   return (
@@ -218,6 +219,11 @@ export function LandingHero() {
           supported by the Stanford Accelerator for Learning—backed by the
           latest advances in learning sciences and pedagogy.
         </p>
+      </div>
+
+      {/* Discord CTA Section */}
+      <div className="relative z-10 mt-20 mb-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+        <DiscordCTA variant="hero" />
       </div>
 
       {/* Final CTA Section */}

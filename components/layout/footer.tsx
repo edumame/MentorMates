@@ -1,6 +1,7 @@
 "use client";
 import React from "react";
 import Link from "next/link";
+import { DiscordCTA } from "@/components/ui/discord-cta";
 
 export function Footer() {
     return (
@@ -19,6 +20,11 @@ export function Footer() {
                     &copy; 2025 Mentor Mate, All rights reserved.
                 </p>
                 </div>
+            </div>
+            
+            {/* Discord CTA in footer */}
+            <div className="mx-auto max-w-4xl px-6 lg:px-8 mt-6">
+                <DiscordCTA variant="compact" />
             </div>
         </footer>
     );

@@ -12,6 +12,7 @@ import { TextGenerateEffect } from "@/components/ui/text-generate-effect";
 import { Footer } from "@/components/layout/footer";
 import { Calendar, Folder, MessageSquare } from "lucide-react";
 import { toast } from "@/lib/hooks/use-toast";
+import { DiscordCTA } from "@/components/ui/discord-cta";
 
 export default function HomePage() {
   const [session, setSession] = useState<Session | null>(null);
@@ -265,9 +266,15 @@ export default function HomePage() {
                   </Button>
                   </Link>
                 </motion.div>
-                </div>
-          </div>
+                                </div>
+              </div>
         </div>
+
+        {/* Discord CTA for authenticated users */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
+          <DiscordCTA variant="default" className="mb-8" />
+        </div>
+      </div>
 
       <ServiceWorkerRegistration />
       <Footer />
