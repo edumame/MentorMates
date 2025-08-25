@@ -1308,6 +1308,7 @@ export default function ProjectPage() {
             </div>
           </CardContent>
         </Card>
+        
 
         {/* Integrations Card */}
         {!canEdit && isAdmin && (
