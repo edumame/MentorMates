@@ -50,7 +50,7 @@ export default function JoinPage() {
 						<TabsList className="grid grid-cols-3 w-full">
 							<TabsTrigger value="mentor">Mentor / Judge</TabsTrigger>
 							<TabsTrigger value="organizer">Organizer</TabsTrigger>
-							<TabsTrigger value="hiring">Hiring</TabsTrigger>
+							<TabsTrigger value="opportunities">Opportunities</TabsTrigger>
 						</TabsList>
 
 						{/* Mentors & Judges */}
@@ -158,8 +158,8 @@ export default function JoinPage() {
 							</div>
 						</TabsContent>
 
-						{/* Hiring */}
-						<TabsContent value="hiring" className="mt-6">
+						{/* Opportunities */}
+						<TabsContent value="opportunities" className="mt-6">
 							<div className="space-y-6">
 								<div className="bg-white rounded-lg border p-5">
 									<h3 className="text-xl font-semibold text-gray-900 mb-2">Work with MentorMates</h3>
@@ -170,10 +170,10 @@ export default function JoinPage() {
 									</ul>
 									<div className="mt-4">
 										<Link
-											href="/join/hiring"
+											href="/join/opportunities"
 											className="inline-flex items-center px-4 py-2 bg-blue-900 text-white rounded-md hover:bg-blue-800 transition-colors duration-200"
 										>
-											We&apos;re Hiring
+											View Opportunities
 										</Link>
 									</div>
 								</div>
