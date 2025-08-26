@@ -361,21 +361,14 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const { eventId, leadName, leadEmail, projectName } = body as {
-      eventId: string;
+      eventId?: string;
       leadName?: string;
       leadEmail?: string;
       projectName?: string;
     };
 
-    if (!eventId) {
-      return NextResponse.json(
-        { error: "Missing eventId" },
-        { status: 400 }
-      );
-    }
-
     const insertPayload: Record<string, unknown> = {
-      event_id: eventId,
+      event_id: eventId || null,
       lead_name: leadName || user.user_metadata?.full_name || user.email || "",
       lead_email: leadEmail || user.email,
       project_name: projectName || null,
@@ -405,7 +398,8 @@ export async function POST(request: NextRequest) {
           { key: "mentor_mates_project_id", value: data.id },
           { key: "team_lead_name", value: data.lead_name },
           { key: "team_lead_email", value: data.lead_email },
-          { key: "event_id", value: data.event_id },
+          // Only add event_id if present
+          ...(data.event_id ? [{ key: "event_id", value: data.event_id }] : []),
         ],
       };
       createdContextusId = await createContextusProject(contextusPayload);
