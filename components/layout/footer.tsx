@@ -1,6 +1,7 @@
 "use client";
 import React from "react";
 import Link from "next/link";
+import { DiscordCTA } from "@/components/ui/discord-cta";
 
 export function Footer() {
     return (
@@ -20,6 +21,8 @@ export function Footer() {
                 </p>
                 </div>
             </div>
+            
+
         </footer>
     );
 }
