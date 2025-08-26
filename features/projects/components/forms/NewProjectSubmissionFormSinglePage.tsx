@@ -373,14 +373,14 @@ export function NewProjectSubmissionFormSinglePage({
             {/* Shanye Card */}
             <div className="group relative overflow-hidden rounded-lg bg-white border border-gray-200/60 hover:border-blue-300/60 transition-all duration-300 hover:shadow-md hover:shadow-blue-50/50 hover:-translate-y-0.5">
               <div className="absolute inset-0 bg-gradient-to-r from-blue-500/3 to-indigo-500/3 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              <div className="relative p-4">
+              <div className="relative p-4 pb-5">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center space-x-3">
                     <div className="relative">
                       <img
                         alt="Shanye"
                         src="https://www.shanye.io/favicon.ico"
-                        className="w-10 h-10 rounded-lg bg-gray-50 shadow-sm ring-1 ring-gray-200/50 group-hover:ring-blue-200/50 transition-all duration-300"
+                        className="w-10 h-10 rounded-lg bg-gray-50 shadow-sm transition-all duration-300"
                       />
                       <div className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-emerald-500 rounded-full border border-white flex items-center justify-center">
                         <div className="w-1.5 h-1.5 bg-white rounded-full" />
@@ -435,14 +435,14 @@ export function NewProjectSubmissionFormSinglePage({
             {/* Lovable Card */}
             <div className="group relative overflow-hidden rounded-lg bg-white border border-gray-200/60 hover:border-purple-300/60 transition-all duration-300 hover:shadow-md hover:shadow-purple-50/50 hover:-translate-y-0.5">
               <div className="absolute inset-0 bg-gradient-to-r from-purple-500/3 to-pink-500/3 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              <div className="relative p-4">
+              <div className="relative p-4 pb-5">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center space-x-3">
                     <div className="relative">
                       <img
                         alt="Lovable"
                         src="https://lovable.dev/favicon.ico"
-                        className="w-10 h-10 rounded-lg bg-gray-50 shadow-sm ring-1 ring-gray-200/50 group-hover:ring-purple-200/50 transition-all duration-300"
+                        className="w-10 h-10 rounded-lg bg-gray-50 shadow-sm transition-all duration-300"
                       />
                       <div className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-emerald-500 rounded-full border border-white flex items-center justify-center">
                         <div className="w-1.5 h-1.5 bg-white rounded-full" />
@@ -486,7 +486,7 @@ export function NewProjectSubmissionFormSinglePage({
                         description: "Lovable project link copied to clipboard",
                       });
                     }}
-                    className="text-xs text-purple-600 hover:text-purple-700 font-medium hover:underline transition-colors duration-200"
+                    className="text-xs text-blue-600 hover:text-blue-700 font-medium hover:underline transition-colors duration-200"
                   >
                     Copy Link
                   </button>
