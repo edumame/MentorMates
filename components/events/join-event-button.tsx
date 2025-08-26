@@ -324,7 +324,7 @@ export function JoinEventButton({
               : `Join ${eventName} - Free Event`}
         </Button>
       </DialogTrigger>
-      <DialogContent aria-describedby="join-event-dialog" className="max-w-2xl">
+      <DialogContent aria-describedby="join-event-dialog" className="max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {showPricingTiers ? "Select Pricing Tier" : "Choose Your Role"}
@@ -332,7 +332,7 @@ export function JoinEventButton({
         </DialogHeader>
         <div className="space-y-4 py-4">
           {showPricingTiers ? (
-            <div className="space-y-4">
+            <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-1">
               <Button
                 variant="outline"
                 onClick={() => setShowPricingTiers(false)}
