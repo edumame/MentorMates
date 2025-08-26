@@ -324,7 +324,10 @@ export function JoinEventButton({
               : `Join ${eventName} - Free Event`}
         </Button>
       </DialogTrigger>
-      <DialogContent aria-describedby="join-event-dialog" className="max-w-2xl">
+      <DialogContent
+        aria-describedby="join-event-dialog"
+        className="max-w-2xl max-h-[85vh] overflow-y-auto"
+      >
         <DialogHeader>
           <DialogTitle>
             {showPricingTiers ? "Select Pricing Tier" : "Choose Your Role"}
@@ -332,7 +335,7 @@ export function JoinEventButton({
         </DialogHeader>
         <div className="space-y-4 py-4">
           {showPricingTiers ? (
-            <div className="space-y-4">
+            <div className="space-y-4 max-h-[65vh] overflow-y-auto px-1">
               <Button
                 variant="outline"
                 onClick={() => setShowPricingTiers(false)}
@@ -349,40 +352,38 @@ export function JoinEventButton({
               />
             </div>
           ) : (
-            <>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Select your role:</label>
-                <Select value={selectedRole} onValueChange={handleRoleSelect}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={EventRole.Participant}>
-                      {getRoleLabel(EventRole.Participant, roleLabels)}
-                    </SelectItem>
-                    <SelectItem value={EventRole.Mentor}>
-                      {getRoleLabel(EventRole.Mentor, roleLabels)}
-                    </SelectItem>
-                    <SelectItem value={EventRole.Judge}>
-                      {getRoleLabel(EventRole.Judge, roleLabels)}
-                    </SelectItem>
-                    <SelectItem value={EventRole.Organizer}>
-                      {getRoleLabel(EventRole.Organizer, roleLabels)}
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </>
-          )}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Select your role:</label>
+              <Select value={selectedRole} onValueChange={handleRoleSelect}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={EventRole.Participant}>
+                    {getRoleLabel(EventRole.Participant, roleLabels)}
+                  </SelectItem>
+                  <SelectItem value={EventRole.Mentor}>
+                    {getRoleLabel(EventRole.Mentor, roleLabels)}
+                  </SelectItem>
+                  <SelectItem value={EventRole.Judge}>
+                    {getRoleLabel(EventRole.Judge, roleLabels)}
+                  </SelectItem>
+                  <SelectItem value={EventRole.Organizer}>
+                    {getRoleLabel(EventRole.Organizer, roleLabels)}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
 
-          <Button
-            onClick={handleJoinEvent}
-            disabled={isLoading || (showPasswordInput && !password)}
-            variant="cta"
-            className="w-full rounded-full"
-          >
-            {isLoading ? "Joining..." : "Confirm"}
-          </Button>
+              <Button
+                onClick={handleJoinEvent}
+                disabled={isLoading || (showPasswordInput && !password)}
+                variant="cta"
+                className="w-full rounded-full"
+              >
+                {isLoading ? "Joining..." : "Confirm"}
+              </Button>
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>

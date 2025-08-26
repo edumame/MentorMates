@@ -124,9 +124,10 @@ export function PricingTierSelector({
       </div>
 
       <Button
+        variant="cta"
         onClick={onContinue}
         disabled={!selectedTierId || isLoading}
-        className="w-full"
+        className="w-full rounded-full"
       >
         {isLoading ? "Processing..." : "Continue to Payment"}
       </Button>
