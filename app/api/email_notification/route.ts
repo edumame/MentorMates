@@ -4,6 +4,15 @@ import { Resend } from "resend";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+interface EmailData {
+  from: string;
+  to: string;
+  subject: string;
+  html: string;
+  bcc?: string[];
+  cc?: string[];
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { to, from, subject, html, bcc, cc } = await request.json();
@@ -14,7 +23,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const emailData: any = {
+    const emailData: EmailData = {
       from: from,
       to: to,
       subject: subject,

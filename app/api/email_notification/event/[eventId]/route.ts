@@ -13,8 +13,9 @@ import {
 } from "@/lib/email_templates/event-notifications";
 
 //allow custom messages
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = process.env.RESEND_API_KEY
+  ? new Resend(process.env.RESEND_API_KEY)
+  : null as unknown as Resend;
 
 type UserEmail = {
   user_id: string;
@@ -117,6 +118,10 @@ export async function POST(
     emailType,
     customEmailContent
   );
+
+  if (!process.env.RESEND_API_KEY) {
+    return NextResponse.json({ error: "Email service not configured" }, { status: 500 });
+  }
 
   const { data, error } = await resend.emails.send({
     from: NOTIFICATIONS_EMAIL_FROM,

@@ -1,4 +1,12 @@
 // Core Event Types
+export enum EventRoleEnum {
+  Participant = 1,
+  Mentor = 2,
+  Judge = 3,
+  Organizer = 4,
+  Admin = 5,
+}
+
 export enum EventRole {
   Participant = "participant",
   Mentor = "mentor",
@@ -49,6 +57,7 @@ export type EventItem = {
   cover_image_url?: string;
   scoring_config?: EventScoringConfig;
   paid?: boolean;
+  stripe_price_id?: string; // Stripe price ID for paid events
 };
 
 // Event Overview Types
@@ -132,6 +141,8 @@ export interface Project {
   cover_image_url?: string;
   event_name?: string;
   prizes_won?: Prize[];
+  contextus_project_id?: string;
+  submitted?: boolean;
 }
 
 export enum ProjectBoardContext {
@@ -216,6 +227,7 @@ export interface SupabaseProjectData {
   cover_image_url?: string;
   event_id: string;
   created_at: string;
+  submitted?: boolean;
   project_tracks?: Array<{
     track_id: string;
     event_tracks?: Array<{
@@ -262,6 +274,7 @@ export interface ProjectFromDatabase {
   cover_image_url?: string;
   event_id: string;
   created_at: string;
+  submitted?: boolean;
   project_tracks?: Array<{
     event_tracks?: EventTrack;
   }>;

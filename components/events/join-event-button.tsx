@@ -27,9 +27,10 @@ import {
   PricingTier,
 } from "@/lib/types";
 import { toast } from "@/lib/hooks/use-toast";
-import { getRoleLabel } from "@/features/user/roles/roles";
 import { PricingTierSelector } from "./pricing-tier-selector";
 import { getCheapestPricingTier, formatPrice } from "@/lib/utils/pricing";
+import { getRoleLabel, isHigherOrEqualRole } from "@/features/user/roles/roles";
+import { Ticket } from "lucide-react";
 
 export interface JoinEventButtonProps {
   eventId: string;
@@ -155,9 +156,7 @@ export function JoinEventButton({
     if (event?.visibility === EventVisibility.Private) {
       setShowPasswordInput(true);
     } else {
-      setShowPasswordInput(
-        value === EventRole.Judge || value === EventRole.Organizer
-      );
+      setShowPasswordInput(isHigherOrEqualRole(value, EventRole.Judge));
     }
   };
 
@@ -305,7 +304,12 @@ export function JoinEventButton({
       aria-describedby="join-event-dialog"
     >
       <DialogTrigger asChild>
-        <Button className="bg-blue-700 hover:bg-blue-800">
+        <Button
+          variant="cta"
+          size="lg"
+          className="rounded-full px-6 py-5 gap-2"
+        >
+          <Ticket className="h-5 w-5" />{" "}
           {label
             ? label
             : event?.paid
@@ -368,32 +372,17 @@ export function JoinEventButton({
                   </SelectContent>
                 </Select>
               </div>
-
-              {showPasswordInput && (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">
-                    {event?.visibility === EventVisibility.Private
-                      ? "Enter Event Password:"
-                      : `Enter ${getRoleLabel(selectedRole, roleLabels)} Password:`}
-                  </label>
-                  <Input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter password"
-                  />
-                </div>
-              )}
-
-              <Button
-                onClick={handleJoinEvent}
-                disabled={isLoading || (showPasswordInput && !password)}
-                className="w-full bg-blue-700 hover:bg-blue-800"
-              >
-                {isLoading ? "Joining..." : "Confirm"}
-              </Button>
             </>
           )}
+
+          <Button
+            onClick={handleJoinEvent}
+            disabled={isLoading || (showPasswordInput && !password)}
+            variant="cta"
+            className="w-full rounded-full"
+          >
+            {isLoading ? "Joining..." : "Confirm"}
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

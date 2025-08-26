@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Ticket,
   Mail,
-  User,
+  User as UserIcon,
   Calendar,
   CheckCircle,
   Clock,
@@ -22,6 +22,7 @@ import {
 import { useToast } from "@/lib/hooks/use-toast";
 import { NOTIFICATIONS_EMAIL_FROM } from "@/lib/email_templates/constants";
 import { getClaimTicketEmailTemplate } from "@/lib/email_templates/claim-ticket";
+import { User } from "@supabase/supabase-js";
 
 interface EventTicket {
   id: string;
@@ -45,7 +46,7 @@ export function ViewTicketsTab({ eventId }: ViewTicketsTabProps) {
   const [loading, setLoading] = useState(true);
   const [assigning, setAssigning] = useState<string | null>(null);
   const [ticketEmails, setTicketEmails] = useState<Record<string, string>>({});
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -184,7 +185,7 @@ export function ViewTicketsTab({ eventId }: ViewTicketsTabProps) {
         `
         )
         .eq("event_id", eventId)
-        .eq("purchased_by_user_id", user.id)
+        .eq("purchased_by_user_id", user?.id)
         .order("created_at", { ascending: true })
         .overrideTypes<EventTicket[]>();
 
@@ -221,7 +222,7 @@ export function ViewTicketsTab({ eventId }: ViewTicketsTabProps) {
       case "assigned":
         return (
           <Badge variant="default">
-            <User className="h-3 w-3 mr-1" />
+            <UserIcon className="h-3 w-3 mr-1" />
             Assigned
           </Badge>
         );
@@ -257,7 +258,7 @@ export function ViewTicketsTab({ eventId }: ViewTicketsTabProps) {
             No Tickets Found
           </h3>
           <p className="text-gray-600">
-            You haven't purchased any tickets for this event yet.
+            You haven&apos;t purchased any tickets for this event yet.
           </p>
         </CardContent>
       </Card>
@@ -287,7 +288,7 @@ export function ViewTicketsTab({ eventId }: ViewTicketsTabProps) {
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
                 You can assign these tickets to friends or colleagues by
-                entering their email address. They'll receive an invitation to
+                entering their email address. They&apos;ll receive an invitation to
                 claim their ticket.
               </AlertDescription>
             </Alert>
@@ -356,7 +357,7 @@ export function ViewTicketsTab({ eventId }: ViewTicketsTabProps) {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
-              <User className="h-5 w-5" />
+              <UserIcon className="h-5 w-5" />
               <span>Assigned Tickets ({assignedTickets.length})</span>
             </CardTitle>
           </CardHeader>

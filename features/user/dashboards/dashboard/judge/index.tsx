@@ -107,6 +107,7 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
           `
           )
           .eq("event_id", eventId)
+          .eq("submitted", true)
           .in("id", projectIds);
 
         if (projectsError) {

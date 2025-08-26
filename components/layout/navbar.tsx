@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import type { Session } from "@supabase/supabase-js";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+ 
 
 export function Navbar() {
   const router = useRouter();
@@ -76,7 +77,7 @@ export function Navbar() {
               href="/about"
               className="text-base font-medium text-gray-700 hover:text-blue-600"
             >
-              About Us
+              About
             </Link>
             <Link
               href="/teams"
@@ -85,16 +86,23 @@ export function Navbar() {
               Team
             </Link>
             <Link
-              href="mailto:chinat@stanford.edu"
-              className="text-base font-medium text-gray-700 hover:text-blue-600"
+              href="/join"
+              className="text-base font-medium bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent hover:from-blue-700 hover:to-purple-700"
             >
-              Contact
+              Join
             </Link>
             <Link
               href="/events"
               className="text-base font-medium text-gray-700 hover:text-blue-600"
             >
               Events
+            </Link>
+            <Link
+              href="/roles"
+              className="text-base font-medium text-gray-700 hover:text-blue-600"
+              title="How to use MentorMates"
+            >
+              Help
             </Link>
           </div>
 
@@ -176,7 +184,7 @@ export function Navbar() {
               href="/about"
               className="block py-2 text-base font-medium text-gray-700 hover:text-blue-600"
             >
-              About Us
+              About
             </Link>
             <Link
               href="/teams"
@@ -185,16 +193,22 @@ export function Navbar() {
               Team
             </Link>
             <Link
-              href="mailto:chinat@stanford.edu"
-              className="block py-2 text-base font-medium text-gray-700 hover:text-blue-600"
+              href="/join"
+              className="block py-2 text-base font-medium bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent hover:from-blue-700 hover:to-purple-700"
             >
-              Contact
+              Join
             </Link>
             <Link
               href="/events"
               className="block py-2 text-base font-medium text-gray-700 hover:text-blue-600"
             >
               Events
+            </Link>
+            <Link
+              href="/roles"
+              className="block py-2 text-base font-medium text-gray-700 hover:text-blue-600"
+            >
+              How to use MentorMates
             </Link>
             {session ? (
               <div className="pt-2 border-t border-gray-100">

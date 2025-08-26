@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/lib/hooks/use-toast";
+import { canAccessRole } from "@/features/user/roles/roles";
 import {
   Edit,
   Users,
@@ -17,6 +18,7 @@ import {
   Upload,
   DollarSign,
 } from "lucide-react";
+
 import {
   EventDetails,
   EventRole,
@@ -55,6 +57,21 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
       setActiveTab("details");
     }
   }, [activeTab, isAdmin]);
+  const primaryTabs = [
+    { value: "details", label: "Event Details", icon: Edit },
+    { value: "access", label: "Access", icon: Shield },
+    { value: "tracks", label: "Tracks", icon: FolderKanban },
+    { value: "participants", label: "Participants", icon: Users },
+    { value: "assign", label: "Assign", icon: UserCheck },
+    { value: "submissions", label: "Submissions", icon: FileText },
+    { value: "scores", label: "Live Scores", icon: BarChart },
+    { value: "pricing", label: "Pricing", icon: DollarSign },
+  ];
+
+  const overflowTabs = [
+    { value: "import", label: "Import", icon: Import },
+    { value: "notify", label: "Notify", icon: Upload },
+  ];
 
   useEffect(() => {
     async function fetchEvent() {
@@ -69,22 +86,27 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
 
         const userId = session.user.id;
 
-        // Check if user is an organizer for this event
+        // Fetch user's role for this event and check access in app code
         const { data: roleData } = await supabase
           .from("user_event_roles")
           .select("role")
           .eq("user_id", userId)
           .eq("event_id", eventId)
-          .eq("role", EventRole.Organizer)
           .maybeSingle();
 
-        if (!roleData) {
+        if (
+          !roleData ||
+          !canAccessRole(
+            roleData.role as EventRole,
+            EventRole.Organizer
+          )
+        ) {
           toast({
             title: "Error",
             description: "You don't have permission to edit this event",
             variant: "destructive",
           });
-          router.push("/organizer/dashboard");
+          router.push(`/events/${eventId}/dashboard`);
           return;
         }
 
@@ -198,51 +220,18 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
   return (
     <div className="space-y-6">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-8 gap-4 mb-8 w-full h-auto">
-          <TabsTrigger value="details" className="flex-1 items-center gap-2">
-            <Edit className="h-4 w-4" />
-            Event Details
-          </TabsTrigger>
-
-          {isAdmin && (
-            <TabsTrigger value="pricing" className="flex items-center gap-2">
-              <DollarSign className="h-4 w-4" />
-              Pricing
+        <TabsList className="mb-8 w-full h-auto flex flex-wrap gap-2">
+          {[...primaryTabs, ...overflowTabs].map((item) => (
+            <TabsTrigger
+              key={item.value}
+              value={item.value}
+              title={item.label}
+              className="inline-flex items-center gap-2 px-3 py-1.5"
+            >
+              <item.icon className="h-4 w-4" />
+              {item.label}
             </TabsTrigger>
-          )}
-
-          <TabsTrigger value="access" className="flex items-center gap-2">
-            <Shield className="h-4 w-4" />
-            Access
-          </TabsTrigger>
-          <TabsTrigger value="tracks" className="flex items-center gap-2">
-            <FolderKanban className="h-4 w-4" />
-            Tracks
-          </TabsTrigger>
-          <TabsTrigger value="participants" className="flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            Participants
-          </TabsTrigger>
-          <TabsTrigger value="assign" className="flex items-center gap-2">
-            <UserCheck className="h-4 w-4" />
-            Assign
-          </TabsTrigger>
-          <TabsTrigger value="submissions" className="flex items-center gap-2">
-            <FileText className="h-4 w-4" />
-            Submissions
-          </TabsTrigger>
-          <TabsTrigger value="scores" className="flex items-center gap-2">
-            <BarChart className="h-4 w-4" />
-            Live Scores
-          </TabsTrigger>
-          <TabsTrigger value="import" className="flex items-center gap-2">
-            <Import className="h-4 w-4" />
-            Import
-          </TabsTrigger>
-          <TabsTrigger value="notify" className="flex items-center gap-2">
-            <Upload className="h-4 w-4" />
-            Notify
-          </TabsTrigger>
+          ))}
         </TabsList>
 
         <TabsContent value="details">

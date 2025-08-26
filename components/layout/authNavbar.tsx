@@ -105,7 +105,7 @@ export function AuthNavbar() {
             ) : (
               <Button
                 variant="logIn"
-                className="bg-black text-white font-semibold py-2 px-6 rounded-full hover:bg-gray-800"
+                className="bg-blue-900 text-white font-semibold py-2 px-6 rounded-full hover:bg-blue-800"
                 onClick={handleLogin}
               >
                 Log in
