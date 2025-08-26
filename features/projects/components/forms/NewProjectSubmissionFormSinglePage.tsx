@@ -364,85 +364,142 @@ export function NewProjectSubmissionFormSinglePage({
       </div>
 
       {contextusId && (
-        <div className="mt-4">
-          <p className="text-sm text-gray-600 mb-3 font-medium">Tools available</p>
-          <ul role="list" className="grid grid-cols-1 gap-x-6 gap-y-6 md:grid-cols-2 xl:gap-x-8">
-            {/* Shanye */}
-            <li className="overflow-hidden rounded-xl outline outline-1 outline-gray-200">
-              <div className="flex items-center gap-x-4 border-b border-gray-900/5 bg-gray-50 p-4">
-                <img
-                  alt="Shanye"
-                  src="https://www.shanye.io/favicon.ico"
-                  className="size-10 flex-none rounded bg-white object-cover ring-1 ring-gray-900/10"
-                />
-                <div className="text-sm font-medium text-gray-900">Shanye</div>
-                <div className="relative ml-auto">
+        <div className="mt-6">
+          <div className="mb-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Available Tools</h3>
+            <p className="text-sm text-gray-600">Enhance your project development with these AI-powered tools</p>
+          </div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {/* Shanye Card */}
+            <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200/50 hover:border-blue-300/70 transition-all duration-300 hover:shadow-lg hover:shadow-blue-100/50 hover:-translate-y-1">
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-600/5 to-indigo-600/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <div className="relative p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center space-x-3">
+                    <div className="relative">
+                      <img
+                        alt="Shanye"
+                        src="https://www.shanye.io/favicon.ico"
+                        className="w-12 h-12 rounded-xl bg-white shadow-sm ring-2 ring-blue-100 group-hover:ring-blue-200 transition-all duration-300"
+                      />
+                      <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white flex items-center justify-center">
+                        <div className="w-2 h-2 bg-white rounded-full" />
+                      </div>
+                    </div>
+                    <div>
+                      <h4 className="text-lg font-semibold text-gray-900 group-hover:text-blue-900 transition-colors duration-300">
+                        Shanye
+                      </h4>
+                      <p className="text-sm text-gray-600">AI-powered development</p>
+                    </div>
+                  </div>
                   <a
                     href={`https://www.shanye.io/?contextus_id=${encodeURIComponent(contextusId)}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-gray-400 hover:text-gray-600"
+                    className="flex items-center justify-center w-10 h-10 rounded-lg bg-white/80 hover:bg-white border border-blue-200/50 hover:border-blue-300 transition-all duration-300 group-hover:shadow-sm"
                     aria-label="Open Shanye"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-5"><path d="M13.5 6.75a.75.75 0 01.75-.75h5.25a.75.75 0 01.75.75V12a.75.75 0 01-1.5 0V8.56l-6.97 6.97a.75.75 0 01-1.06-1.06l6.97-6.97H14.25a.75.75 0 01-.75-.75z"></path><path d="M6 4.5A1.5 1.5 0 004.5 6v12A1.5 1.5 0 006 19.5h12a1.5 1.5 0 001.5-1.5v-3a.75.75 0 011.5 0v3A3 3 0 0118 21H6a3 3 0 01-3-3V6a3 3 0 013-3h3a.75.75 0 010 1.5H6z"></path></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 text-blue-600 group-hover:text-blue-700 transition-colors duration-300">
+                      <path d="M13.5 6.75a.75.75 0 01.75-.75h5.25a.75.75 0 01.75.75V12a.75.75 0 01-1.5 0V8.56l-6.97 6.97a.75.75 0 01-1.06-1.06l6.97-6.97H14.25a.75.75 0 01-.75-.75z"></path>
+                      <path d="M6 4.5A1.5 1.5 0 004.5 6v12A1.5 1.5 0 006 19.5h12a1.5 1.5 0 001.5-1.5v-3a.75.75 0 011.5 0v3A3 3 0 0118 21H6a3 3 0 01-3-3V6a3 3 0 013-3h3a.75.75 0 010 1.5H6z"></path>
+                    </svg>
                   </a>
                 </div>
-              </div>
-              <dl className="-my-2 divide-y divide-gray-100 px-4 py-3 text-sm">
-                <div className="flex justify-between gap-x-4 py-2">
-                  <dt className="text-gray-500">Link</dt>
-                  <dd className="text-gray-700 truncate max-w-[60%]">
-                    <a
-                      href={`https://www.shanye.io/?contextus_id=${encodeURIComponent(contextusId)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:underline"
-                    >
+                
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-2 text-sm text-gray-600">
+                    <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                    </svg>
+                    <span>Direct integration with your project</span>
+                  </div>
+                  
+                  <div className="bg-white/60 rounded-lg p-3 border border-blue-100/50">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Project Link</span>
+                      <a
+                        href={`https://www.shanye.io/?contextus_id=${encodeURIComponent(contextusId)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-blue-600 hover:text-blue-700 font-medium hover:underline transition-colors duration-200"
+                      >
+                        Open Tool →
+                      </a>
+                    </div>
+                    <div className="mt-1 text-xs text-gray-600 font-mono bg-gray-50 rounded px-2 py-1 truncate">
                       shanye.io/?contextus_id={contextusId}
-                    </a>
-                  </dd>
+                    </div>
+                  </div>
                 </div>
-              </dl>
-            </li>
+              </div>
+            </div>
 
-            {/* Lovable */}
-            <li className="overflow-hidden rounded-xl outline outline-1 outline-gray-200">
-              <div className="flex items-center gap-x-4 border-b border-gray-900/5 bg-gray-50 p-4">
-                <img
-                  alt="Lovable"
-                  src="https://lovable.dev/favicon.ico"
-                  className="size-10 flex-none rounded bg-white object-cover ring-1 ring-gray-900/10"
-                />
-                <div className="text-sm font-medium text-gray-900">Lovable</div>
-                <div className="relative ml-auto">
+            {/* Lovable Card */}
+            <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-200/50 hover:border-purple-300/70 transition-all duration-300 hover:shadow-lg hover:shadow-purple-100/50 hover:-translate-y-1">
+              <div className="absolute inset-0 bg-gradient-to-r from-purple-600/5 to-pink-600/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <div className="relative p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center space-x-3">
+                    <div className="relative">
+                      <img
+                        alt="Lovable"
+                        src="https://lovable.dev/favicon.ico"
+                        className="w-12 h-12 rounded-xl bg-white shadow-sm ring-2 ring-purple-100 group-hover:ring-purple-200 transition-all duration-300"
+                      />
+                      <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white flex items-center justify-center">
+                        <div className="w-2 h-2 bg-white rounded-full" />
+                      </div>
+                    </div>
+                    <div>
+                      <h4 className="text-lg font-semibold text-gray-900 group-hover:text-purple-900 transition-colors duration-300">
+                        Lovable
+                      </h4>
+                      <p className="text-sm text-gray-600">AI development platform</p>
+                    </div>
+                  </div>
                   <a
                     href={`https://lovable.dev/?contextus_id=${encodeURIComponent(contextusId)}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-gray-400 hover:text-gray-600"
+                    className="flex items-center justify-center w-10 h-10 rounded-lg bg-white/80 hover:bg-white border border-purple-200/50 hover:border-purple-300 transition-all duration-300 group-hover:shadow-sm"
                     aria-label="Open Lovable"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-5"><path d="M13.5 6.75a.75.75 0 01.75-.75h5.25a.75.75 0 01.75.75V12a.75.75 0 01-1.5 0V8.56l-6.97 6.97a.75.75 0 01-1.06-1.06l6.97-6.97H14.25a.75.75 0 01-.75-.75z"></path><path d="M6 4.5A1.5 1.5 0 004.5 6v12A1.5 1.5 0 006 19.5h12a1.5 1.5 0 001.5-1.5v-3a.75.75 0 011.5 0v3A3 3 0 0118 21H6a3 3 0 01-3-3V6a3 3 0 013-3h3a.75.75 0 010 1.5H6z"></path></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 text-purple-600 group-hover:text-purple-700 transition-colors duration-300">
+                      <path d="M13.5 6.75a.75.75 0 01.75-.75h5.25a.75.75 0 01.75.75V12a.75.75 0 01-1.5 0V8.56l-6.97 6.97a.75.75 0 01-1.06-1.06l6.97-6.97H14.25a.75.75 0 01-.75-.75z"></path>
+                      <path d="M6 4.5A1.5 1.5 0 004.5 6v12A1.5 1.5 0 006 19.5h12a1.5 1.5 0 001.5-1.5v-3a.75.75 0 011.5 0v3A3 3 0 0118 21H6a3 3 0 01-3-3V6a3 3 0 013-3h3a.75.75 0 010 1.5H6z"></path>
+                    </svg>
                   </a>
                 </div>
-              </div>
-              <dl className="-my-2 divide-y divide-gray-100 px-4 py-3 text-sm">
-                <div className="flex justify-between gap-x-4 py-2">
-                  <dt className="text-gray-500">Link</dt>
-                  <dd className="text-gray-700 truncate max-w-[60%]">
-                    <a
-                      href={`https://lovable.dev/?contextus_id=${encodeURIComponent(contextusId)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:underline"
-                    >
+                
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-2 text-sm text-gray-600">
+                    <svg className="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                    </svg>
+                    <span>AI-powered development tools</span>
+                  </div>
+                  
+                  <div className="bg-white/60 rounded-lg p-3 border border-purple-100/50">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Project Link</span>
+                      <a
+                        href={`https://lovable.dev/?contextus_id=${encodeURIComponent(contextusId)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-purple-600 hover:text-purple-700 font-medium hover:underline transition-colors duration-200"
+                      >
+                        Open Tool →
+                      </a>
+                    </div>
+                    <div className="mt-1 text-xs text-gray-600 font-mono bg-gray-50 rounded px-2 py-1 truncate">
                       lovable.dev/?contextus_id={contextusId}
-                    </a>
-                  </dd>
+                    </div>
+                  </div>
                 </div>
-              </dl>
-            </li>
-          </ul>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
