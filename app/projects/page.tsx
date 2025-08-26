@@ -9,6 +9,7 @@ import { Session } from "@supabase/supabase-js";
 import { Toaster } from "@/components/ui/toaster";
 import ProjectBoard from "@/features/projects/components/displays/ProjectBoard/ProjectBoard";
 import { Project, ProjectBoardContext } from "@/lib/types";
+import { DiscordCTA } from "@/components/ui/discord-cta";
 
 export default function ProjectsPage() {
   const [session, setSession] = useState<Session | null>(null);
@@ -95,6 +96,11 @@ export default function ProjectsPage() {
           projectBoardContext={ProjectBoardContext.MyProjects}
         />
       )}
+      
+      {/* Discord CTA on projects page */}
+      <div className="mt-12">
+        <DiscordCTA variant="default" />
+      </div>
     </div>
   );
 }

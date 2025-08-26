@@ -5,6 +5,7 @@ import Image from "next/image";
 import { ArrowRight, Users, Lightbulb, Target } from "lucide-react";
 // import { TextGenerateEffect } from "@/components/ui/text-generate-effect";
 import { Button } from "@/components/ui/button";
+import { DiscordCTA } from "@/components/ui/discord-cta";
 
 export function LandingHero() {
   return (
@@ -220,6 +221,8 @@ export function LandingHero() {
         </p>
       </div>
 
+
+
       {/* Final CTA Section */}
       <div className="relative z-10 mt-20 mb-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="bg-blue-900 rounded-2xl shadow-xl overflow-hidden">
@@ -247,6 +250,11 @@ export function LandingHero() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Discord CTA at bottom */}
+      <div className="relative z-10 mt-20 mb-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+        <DiscordCTA variant="compact" />
       </div>
 
       {/* Word Slide Animation */}

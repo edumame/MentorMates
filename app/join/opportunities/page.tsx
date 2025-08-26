@@ -37,16 +37,16 @@ const positions = [
   },
 ];
 
-export default function HiringPage() {
+export default function OpportunitiesPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-2">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12 pt-16">
         <div className="text-center">
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-gray-900 tracking-tight mb-4">
-            We&apos;re Hiring
+            Join Our Team
           </h1>
           <p className="max-w-prose mx-auto text-lg text-gray-700">
-            Join our team and help shape the future of AI education.
+            Explore opportunities to help shape the future of AI education.
           </p>
         </div>
         {positions.map((role) => (
@@ -85,4 +85,3 @@ export default function HiringPage() {
     </div>
   );
 }
-
