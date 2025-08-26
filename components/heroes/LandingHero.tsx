@@ -252,8 +252,8 @@ export function LandingHero() {
         </div>
       </div>
 
-      {/* Sticky Discord CTA */}
-      <div className="fixed bottom-4 left-4 right-4 z-40 max-w-sm mx-auto">
+      {/* Discord CTA at bottom */}
+      <div className="relative z-10 mt-20 mb-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         <DiscordCTA variant="compact" />
       </div>
 
