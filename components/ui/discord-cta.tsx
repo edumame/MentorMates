@@ -86,10 +86,6 @@ export function DiscordCTA({ variant = "default", className = "" }: DiscordCTAPr
             </Link>
             <div className="flex items-center space-x-4 text-xs opacity-80">
               <div className="flex items-center">
-                <Users className="w-3 h-3 mr-1" />
-                <span>500+ members</span>
-              </div>
-              <div className="flex items-center">
                 <Zap className="w-3 h-3 mr-1" />
                 <span>24/7 support</span>
               </div>
