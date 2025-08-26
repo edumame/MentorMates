@@ -20,7 +20,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { EventRole, EventItem, EventVisibility, PricingTier } from "@/lib/types";
+import {
+  EventRole,
+  EventItem,
+  EventVisibility,
+  PricingTier,
+} from "@/lib/types";
 import { toast } from "@/lib/hooks/use-toast";
 import { getRoleLabel } from "@/features/user/roles/roles";
 import { PricingTierSelector } from "./pricing-tier-selector";
@@ -36,7 +41,11 @@ export interface JoinEventButtonProps {
   label?: string;
 }
 
-export function JoinEventButton({ eventId, eventName, label }: JoinEventButtonProps) {
+export function JoinEventButton({
+  eventId,
+  eventName,
+  label,
+}: JoinEventButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [hasJoined, setHasJoined] = useState(false);
   const [selectedRole, setSelectedRole] = useState<EventRole>(
@@ -51,7 +60,8 @@ export function JoinEventButton({ eventId, eventName, label }: JoinEventButtonPr
   );
   const router = useRouter();
   const [pricingTiers, setPricingTiers] = useState<PricingTier[]>([]);
-  const [selectedPricingTierId, setSelectedPricingTierId] = useState<string>("");
+  const [selectedPricingTierId, setSelectedPricingTierId] =
+    useState<string>("");
   const [showPricingTiers, setShowPricingTiers] = useState(false);
 
   useEffect(() => {
@@ -60,7 +70,8 @@ export function JoinEventButton({ eventId, eventName, label }: JoinEventButtonPr
         // Fetch the event details and role labels regardless of auth state
         const { data: eventData, error: eventError } = await supabase
           .from("events")
-          .select(`
+          .select(
+            `
             event_id,
             event_name,
             event_date,
@@ -69,7 +80,8 @@ export function JoinEventButton({ eventId, eventName, label }: JoinEventButtonPr
             visibility,
             role_labels,
             slug
-          `)
+          `
+          )
           .eq("event_id", eventId)
           .maybeSingle();
 
@@ -88,13 +100,16 @@ export function JoinEventButton({ eventId, eventName, label }: JoinEventButtonPr
 
         // Fetch pricing tiers for paid events
         if (eventData?.paid) {
-          const { data: pricingTiersData, error: pricingTiersError } = await supabase
-            .from("pricing_tiers")
-            .select(`
+          const { data: pricingTiersData, error: pricingTiersError } =
+            await supabase
+              .from("pricing_tiers")
+              .select(
+                `
               *
-            `)
-            .eq("event_id", eventId)
-            .order("sort_order", { ascending: true });
+            `
+              )
+              .eq("event_id", eventId)
+              .order("sort_order", { ascending: true });
 
           console.log("pricingTiersData", pricingTiersData);
           console.log("eventId", eventId);
@@ -211,14 +226,14 @@ export function JoinEventButton({ eventId, eventName, label }: JoinEventButtonPr
         selectedRole !== EventRole.Organizer &&
         selectedRole !== EventRole.Judge
       ) {
-        const { data: userPaidStatus } = await supabase
-          .from("user_event_payments")
-          .select("payment_status")
-          .eq("user_id", session.user.id)
+        const { data: userTicket } = await supabase
+          .from("event_tickets")
+          .select("ticket_status")
+          .eq("assigned_to_user_id", session.user.id)
           .eq("event_id", eventId)
           .maybeSingle();
 
-        if (userPaidStatus?.payment_status !== "paid") {
+        if (!userTicket?.ticket_status) {
           // For paid events, always require pricing tier selection
           if (pricingTiers.length > 0) {
             setShowPricingTiers(true);
@@ -227,7 +242,8 @@ export function JoinEventButton({ eventId, eventName, label }: JoinEventButtonPr
             // No pricing tiers available for paid event
             toast({
               title: "Error",
-              description: "This event requires payment but no pricing tiers are available. Please contact the organizer.",
+              description:
+                "This event requires payment but no pricing tiers are available. Please contact the organizer.",
               variant: "destructive",
             });
             return;
@@ -262,7 +278,7 @@ export function JoinEventButton({ eventId, eventName, label }: JoinEventButtonPr
 
       setHasJoined(true);
       setIsDialogOpen(false);
-      
+
       // Redirect to overview page after successful acceptance
       const overviewUrl = `/events/${event?.slug || eventId}/overview`;
       router.push(overviewUrl);
@@ -283,7 +299,11 @@ export function JoinEventButton({ eventId, eventName, label }: JoinEventButtonPr
   }
 
   return (
-    <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen} aria-describedby="join-event-dialog">
+    <Dialog
+      open={isDialogOpen}
+      onOpenChange={setIsDialogOpen}
+      aria-describedby="join-event-dialog"
+    >
       <DialogTrigger asChild>
         <Button className="bg-blue-700 hover:bg-blue-800">
           {label
@@ -292,7 +312,7 @@ export function JoinEventButton({ eventId, eventName, label }: JoinEventButtonPr
               ? pricingTiers.length > 0
                 ? (() => {
                     const cheapestTier = getCheapestPricingTier(pricingTiers);
-                    return cheapestTier 
+                    return cheapestTier
                       ? `Join ${eventName} - From ${formatPrice(cheapestTier.price)}`
                       : `Join ${eventName} - Multiple Tiers Available`;
                   })()
