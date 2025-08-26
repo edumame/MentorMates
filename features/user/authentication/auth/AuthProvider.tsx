@@ -25,6 +25,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       "/confirmation",
       "/previous-contributors",
       "/curriculum",
+      "/claim-ticket",
       "/roles",
       "/devpost-integration",
     ];

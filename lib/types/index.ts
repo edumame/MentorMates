@@ -23,6 +23,25 @@ export enum EventVisibility {
   Draft = "draft",
 }
 
+// Pricing Types
+export interface PricingTier {
+  id: string;
+  event_id: string;
+  tier_id: string; // Unique identifier within the event (e.g., "early-bird", "regular")
+  name: string;
+  price: number; // Price in cents
+  stripe_price_id?: string;
+  description?: string;
+  available_until?: string; // ISO date string for limited-time offers
+  max_quantity?: number; // Maximum number of tickets for this tier
+  current_quantity?: number; // Current number sold (for tracking)
+  is_active?: boolean;
+  sort_order?: number;
+  created_at?: string;
+  updated_at?: string;
+  bundle_size?: number;
+}
+
 export interface UserProfile {
   uid: string;
   display_name: string;

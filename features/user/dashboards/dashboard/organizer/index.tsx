@@ -15,7 +15,8 @@ import {
   FolderKanban,
   UserCheck,
   Import,
-  Upload, 
+  Upload,
+  DollarSign,
 } from "lucide-react";
 
 import {
@@ -36,6 +37,7 @@ import { AccessTab } from "./access";
 import { AssignTab } from "./assign";
 import { ProjectImport } from "./import/ProjectImportButton";
 import SendGeneralNotification from "./notifications/SendNotification";
+import { PricingTab } from "./pricing/PricingTab";
 
 export function OrganizerDashboard({ eventId }: { eventId: string }) {
   const [event, setEvent] = useState<EventDetails | null>(null);
@@ -45,9 +47,16 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
     null
   );
   const [activeTab, setActiveTab] = useState("details");
+  const [isAdmin, setIsAdmin] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
 
+  // Redirect from pricing tab if user is not admin
+  useEffect(() => {
+    if (activeTab === "pricing" && !isAdmin) {
+      setActiveTab("details");
+    }
+  }, [activeTab, isAdmin]);
   const primaryTabs = [
     { value: "details", label: "Event Details", icon: Edit },
     { value: "access", label: "Access", icon: Shield },
@@ -56,6 +65,7 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
     { value: "assign", label: "Assign", icon: UserCheck },
     { value: "submissions", label: "Submissions", icon: FileText },
     { value: "scores", label: "Live Scores", icon: BarChart },
+    { value: "pricing", label: "Pricing", icon: DollarSign },
   ];
 
   const overflowTabs = [
@@ -99,6 +109,12 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
           router.push(`/events/${eventId}/dashboard`);
           return;
         }
+
+        // Check if user is an admin
+        const { data: adminData } = await supabase.rpc("is_admin_user", {
+          user_id: userId,
+        });
+        setIsAdmin(adminData || false);
 
         const { data: eventData, error } = await supabase
           .from("events")
@@ -228,6 +244,17 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
             toast={toast}
           />
         </TabsContent>
+
+        {isAdmin && (
+          <TabsContent value="pricing">
+            <PricingTab
+              event={event}
+              setEvent={setEvent}
+              saving={saving}
+              setSaving={setSaving}
+            />
+          </TabsContent>
+        )}
 
         <TabsContent value="access">
           <AccessTab

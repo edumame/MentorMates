@@ -8,6 +8,7 @@ interface CheckoutOptions {
   eventId?: string | null;
   eventSlug?: string | null;
   eventName?: string | null;
+  pricingTierId?: string | null; // Required: id from pricing_tiers table
 }
 
 export async function fetchClientSecret(options?: CheckoutOptions) {
@@ -53,23 +54,47 @@ export async function fetchClientSecret(options?: CheckoutOptions) {
 
   let lineItems;
 
-  const { data: stripePriceId } = await supabase
-      .from("events")
-      .select("stripe_price_id")
-      .eq("event_id", options?.eventId)
+  if (options?.pricingTierId) {
+    // Query the pricing_tiers table for the specific tier
+    const { data: pricingTierData } = await supabase
+      .from("pricing_tiers")
+      .select(
+        `*`
+      )
+      .eq("event_id", options.eventId)
+      .eq("id", options.pricingTierId)
+      .eq("is_active", true)
       .single();
-  
-  if (stripePriceId?.stripe_price_id) {
-    // Use the specific Stripe price ID for this event
-    lineItems = [
-      {
-        price: stripePriceId.stripe_price_id,
-        quantity: 1,
-      },
-    ];
+    
+    if (pricingTierData) {
+      // Check if tier is still available
+      if (pricingTierData.available_until) {
+        const availableUntil = new Date(pricingTierData.available_until);
+        if (availableUntil < new Date()) {
+          throw new Error("Selected pricing tier is no longer available.");
+        }
+      }
+      
+      // Check if tier has reached max quantity
+      if (pricingTierData.max_quantity && pricingTierData.current_quantity >= pricingTierData.max_quantity) {
+        throw new Error("Selected pricing tier is sold out.");
+      }
+      
+      if (pricingTierData.stripe_price_id) {
+        lineItems = [
+          {
+            price: pricingTierData.stripe_price_id,
+            quantity: 1,
+          },
+        ];
+      } else {
+        throw new Error("Selected pricing tier does not have a Stripe price ID configured.");
+      }
+    } else {
+      throw new Error("Selected pricing tier not found or inactive.");
+    }
   } else {
-    // Throw an error and prevent checkout
-    throw new Error("No Stripe price ID provided.");
+    throw new Error("No pricing tier selected. Please select a pricing tier to continue.");
   }
 
   // Create Checkout Sessions from body params.
@@ -96,6 +121,7 @@ export async function fetchClientSecret(options?: CheckoutOptions) {
         amount_paid: session.amount_total,
         currency: session.currency,
         payment_status: "processing",
+        pricing_id: options?.pricingTierId,
       },
       {
         onConflict: "user_id,event_id",

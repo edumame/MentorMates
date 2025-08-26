@@ -4,6 +4,7 @@ import { Resend } from "resend";
 import {
   NOTIFICATIONS_EMAIL_FROM,
   EMAIL_TYPES,
+  ADMIN_EMAIL,
 } from "@/lib/email_templates/constants";
 import { EventDetails, EventRole } from "@/lib/types";
 import {
@@ -124,7 +125,8 @@ export async function POST(
 
   const { data, error } = await resend.emails.send({
     from: NOTIFICATIONS_EMAIL_FROM,
-    to: participantsEmails,
+    to: ADMIN_EMAIL,
+    bcc: participantsEmails,
     subject: email.subject,
     html: email.html,
   });
