@@ -120,9 +120,3 @@ TO public
 USING (
   (SELECT is_admin_user(auth.uid()::uuid))
 );
-
-
--- Drop constraints from user_events table
-ALTER TABLE "public"."events"
-DROP CONSTRAINT IF EXISTS check_if_paid_then_price,
-DROP CONSTRAINT IF EXISTS check_if_paid_then_stripe;

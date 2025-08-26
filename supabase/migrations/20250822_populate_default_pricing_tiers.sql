@@ -56,3 +56,8 @@ BEGIN
     
     RAISE NOTICE 'Migration completed: Created % default pricing tiers and linked % payments', tier_count, payment_count;
 END $$;
+
+-- Drop constraints from events table
+ALTER TABLE "public"."events"
+DROP CONSTRAINT IF EXISTS check_if_paid_then_price,
+DROP CONSTRAINT IF EXISTS check_if_paid_then_stripe;
