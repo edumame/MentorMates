@@ -72,12 +72,45 @@ export function NewProjectSubmissionFormSinglePage({
     },
   });
 
-  // Keep props in sync
+  // Keep props in sync and hydrate defaults from session for eventless flow
   useEffect(() => {
     if (leadName) form.setValue("leadName", leadName);
     if (userEmail) form.setValue("leadEmail", userEmail);
     if (initialContextusId) setContextusId(initialContextusId);
   }, [leadName, userEmail, initialContextusId, form]);
+
+  useEffect(() => {
+    const hydrateFromSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const email = session?.user?.email || "";
+        const nameFromMeta = (session?.user?.user_metadata?.full_name || session?.user?.user_metadata?.name) as string | undefined;
+
+        if (email && !form.getValues("leadEmail")) {
+          form.setValue("leadEmail", email, { shouldDirty: true });
+        }
+
+        let displayName = nameFromMeta || "";
+        if (session?.user?.id) {
+          const { data: profile } = await supabase
+            .from("user_profiles")
+            .select("display_name")
+            .eq("uid", session.user.id)
+            .maybeSingle();
+          if (profile?.display_name) displayName = profile.display_name;
+        }
+
+        if (displayName && !form.getValues("leadName")) {
+          form.setValue("leadName", displayName, { shouldDirty: true });
+        }
+      } catch {/* no-op */}
+    };
+
+    // Only hydrate when no explicit props were provided
+    if (!leadName || !userEmail) {
+      hydrateFromSession();
+    }
+  }, [leadName, userEmail, form]);
 
   // Create a draft as soon as user starts typing
   useEffect(() => {
@@ -89,7 +122,7 @@ export function NewProjectSubmissionFormSinglePage({
         const resp = await fetch("/api/projects", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ eventId, leadName, leadEmail: userEmail }),
+          body: JSON.stringify({ eventId, leadName: form.getValues("leadName"), leadEmail: form.getValues("leadEmail") }),
         });
         if (resp.ok) {
           const json = await resp.json();
@@ -105,7 +138,7 @@ export function NewProjectSubmissionFormSinglePage({
     };
 
     createDraft();
-  }, [form.formState.dirtyFields, projectId, eventId, userEmail, leadName, onContextusLinked]);
+  }, [form.formState.dirtyFields, projectId, eventId, onContextusLinked, form]);
 
   // Autosave core fields when draft exists
   useEffect(() => {
@@ -149,7 +182,7 @@ export function NewProjectSubmissionFormSinglePage({
       const resp = await fetch("/api/contextus/prefill", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(projectId ? { projectId } : { eventId, leadEmail: userEmail }),
+        body: JSON.stringify(projectId ? { projectId } : { eventId, leadEmail: form.getValues("leadEmail") }),
       });
       if (!resp.ok) {
         const err = await resp.json().catch(() => ({}));
