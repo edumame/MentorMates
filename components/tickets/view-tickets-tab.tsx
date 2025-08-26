@@ -20,6 +20,8 @@ import {
   Send,
 } from "lucide-react";
 import { useToast } from "@/lib/hooks/use-toast";
+import { NOTIFICATIONS_EMAIL_FROM } from "@/lib/email_templates/constants";
+import { getClaimTicketEmailTemplate } from "@/lib/email_templates/claim-ticket";
 
 interface EventTicket {
   id: string;
@@ -42,7 +44,7 @@ export function ViewTicketsTab({ eventId }: ViewTicketsTabProps) {
   const [tickets, setTickets] = useState<EventTicket[]>([]);
   const [loading, setLoading] = useState(true);
   const [assigning, setAssigning] = useState<string | null>(null);
-  const [assignEmail, setAssignEmail] = useState("");
+  const [ticketEmails, setTicketEmails] = useState<Record<string, string>>({});
   const [user, setUser] = useState<any>(null);
   const { toast } = useToast();
 
@@ -95,7 +97,9 @@ export function ViewTicketsTab({ eventId }: ViewTicketsTabProps) {
   }, [eventId, toast]);
 
   const assignTicket = async (ticketId: string) => {
-    if (!assignEmail.trim()) {
+    const ticketEmail = ticketEmails[ticketId]?.trim();
+    
+    if (!ticketEmail) {
       toast({
         title: "Error",
         description: "Please enter an email address",
@@ -106,7 +110,7 @@ export function ViewTicketsTab({ eventId }: ViewTicketsTabProps) {
 
     // Basic email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(assignEmail)) {
+    if (!emailRegex.test(ticketEmail)) {
       toast({
         title: "Error",
         description: "Please enter a valid email address",
@@ -122,7 +126,7 @@ export function ViewTicketsTab({ eventId }: ViewTicketsTabProps) {
       const { error: updateError } = await supabase
         .from("event_tickets")
         .update({
-          assigned_to_email: assignEmail.trim(),
+          assigned_to_email: ticketEmail,
           ticket_status: "assigned",
           assigned_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -138,19 +142,23 @@ export function ViewTicketsTab({ eventId }: ViewTicketsTabProps) {
         .eq("event_id", eventId)
         .single();
 
+      const email = getClaimTicketEmailTemplate(
+        eventData?.event_name || "Event",
+        ticketId,
+        user?.user_metadata?.display_name || user?.email || "Someone"
+      );
+
       // Send claim ticket email
-      const response = await fetch("/api/email", {
+      const response = await fetch("/api/email_notification", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          type: "CLAIM_TICKET",
-          to: assignEmail.trim(),
-          eventName: eventData?.event_name || "Event",
-          ticketId: ticketId,
-          senderName:
-            user?.user_metadata?.display_name || user?.email || "Someone",
+          to: ticketEmail,
+          from: NOTIFICATIONS_EMAIL_FROM,
+          subject: email.subject,
+          html: email.html,
         }),
       });
 
@@ -184,10 +192,11 @@ export function ViewTicketsTab({ eventId }: ViewTicketsTabProps) {
         setTickets(updatedTickets);
       }
 
-      setAssignEmail("");
+      // Clear the email input for this specific ticket
+      setTicketEmails(prev => ({ ...prev, [ticketId]: "" }));
       toast({
         title: "Success",
-        description: `Ticket assigned to ${assignEmail}. An invitation email has been sent.`,
+        description: `Ticket assigned to ${ticketEmail}. An invitation email has been sent.`,
       });
     } catch (error) {
       toast({
@@ -308,14 +317,19 @@ export function ViewTicketsTab({ eventId }: ViewTicketsTabProps) {
                       id={`email-${ticket.id}`}
                       type="email"
                       placeholder="Enter email address"
-                      value={assignEmail}
-                      onChange={(e) => setAssignEmail(e.target.value)}
+                      value={ticketEmails[ticket.id] || ""}
+                      onChange={(e) => 
+                        setTicketEmails(prev => ({ 
+                          ...prev, 
+                          [ticket.id]: e.target.value 
+                        }))
+                      }
                       disabled={assigning === ticket.id}
                     />
                   </div>
                   <Button
                     onClick={() => assignTicket(ticket.id)}
-                    disabled={assigning === ticket.id || !assignEmail.trim()}
+                    disabled={assigning === ticket.id || !ticketEmails[ticket.id]?.trim()}
                     className="w-full"
                   >
                     {assigning === ticket.id ? (

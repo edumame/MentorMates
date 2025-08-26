@@ -133,7 +133,6 @@ async function handleEvent(event: Stripe.Event) {
           event_id: userEventPayment.event_id,
           payment_id: userEventPayment.id,
           purchased_by_user_id: userEventPayment.user_id,
-          assigned_to_user_id: userEventPayment.user_id,
           ticket_status: "unassigned",
         }))
       )

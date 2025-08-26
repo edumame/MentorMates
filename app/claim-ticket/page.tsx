@@ -39,10 +39,13 @@ export default function ClaimTicketPage() {
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
-    const checkAuth = async () => { 
-      const { data: { session } } = await supabase.auth.getSession();
+    const checkAuth = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       setUser(session?.user || null);
     };
+
     checkAuth();
   }, []);
 
@@ -55,13 +58,15 @@ export default function ClaimTicketPage() {
 
     const fetchTicket = async () => {
       try {
-        const { data, error } = await supabase
+        const { data: ticketData, error } = await supabase
           .from("event_tickets")
-          .select(`
+          .select(
+            `
             id,
             event_id,
             assigned_to_email,
             ticket_status,
+            assigned_to_user_id,
             event:events!inner(
               event_id,
               event_name,
@@ -72,7 +77,8 @@ export default function ClaimTicketPage() {
               display_name,
               email
             )
-          `)
+          `
+          )
           .eq("id", ticketId)
           .single()
           .overrideTypes<TicketInfo>();
@@ -82,12 +88,12 @@ export default function ClaimTicketPage() {
           return;
         }
 
-        if (data.ticket_status !== "unassigned") {
-          setError("This ticket has already been claimed or is no longer available");
+        if (ticketData.assigned_to_user_id) {
+          setError("This ticket has already been claimed");
           return;
         }
 
-        setTicket(data);
+        setTicket(ticketData);
       } catch (error) {
         console.error("Error fetching ticket:", error);
         setError("Failed to load ticket information");
@@ -101,23 +107,48 @@ export default function ClaimTicketPage() {
 
   const handleLogin = () => {
     // Store the current URL to redirect back after login
-    localStorage.setItem("returnUrl", window.location.pathname + window.location.search);
+    localStorage.setItem(
+      "returnUrl",
+      window.location.pathname + window.location.search
+    );
     router.push("/login");
   };
 
   const claimTicket = async () => {
     if (!user || !ticket) return;
 
+    console.log("user", user);
+
     setClaiming(true);
     setError(null);
 
     try {
+      //check if the user already has a role for this event
+      const { data: existingRole } = await supabase
+        .from("user_event_roles")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("event_id", ticket.event.event_id)
+        .single();
+
+      if (existingRole) {
+        setError("You are already registered for this event.");
+        return;
+      }
+
+      //check if user email is the same as the assigned_to_email
+      if (user.email !== ticket.assigned_to_email) {
+        setError(
+          "The email address you are signed in with does not match the email address assigned to this ticket."
+        );
+        return;
+      }
+
       // Update the ticket
       const { error: ticketError } = await supabase
         .from("event_tickets")
         .update({
           assigned_to_user_id: user.id,
-          assigned_to_email: user.email,
           ticket_status: "assigned",
           assigned_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -126,34 +157,23 @@ export default function ClaimTicketPage() {
 
       if (ticketError) throw ticketError;
 
-      // Check if user already has a role for this event
-      const { data: existingRole } = await supabase
+      // Create a participant role for the user
+      const { error: roleError } = await supabase
         .from("user_event_roles")
-        .select("id")
-        .eq("user_id", user.id)
-        .eq("event_id", ticket.event.event_id)
-        .single();
+        .insert({
+          user_id: user.id,
+          event_id: ticket.event.event_id,
+          role: "participant",
+        });
 
-      // If no existing role, create participant role
-      if (!existingRole) {
-        const { error: roleError } = await supabase
-          .from("user_event_roles")
-          .insert({
-            user_id: user.id,
-            event_id: ticket.event.event_id,
-            role: "participant",
-          });
-
-        if (roleError) throw roleError;
-      }
+      if (roleError) throw roleError;
 
       setSuccess(true);
-      
+
       // Redirect to event page after a short delay
       setTimeout(() => {
-        router.push(`/events/${ticket.event_id}`);
+        router.push(`/events/${ticket.event_id}/overview`);
       }, 3000);
-
     } catch (error) {
       console.error("Error claiming ticket:", error);
       setError("Failed to claim ticket. Please try again.");
@@ -206,8 +226,9 @@ export default function ClaimTicketPage() {
           </CardHeader>
           <CardContent>
             <p className="text-gray-600 mb-4">
-              Your ticket for <strong>{ticket?.event.event_name}</strong> has been successfully claimed.
-              You will be redirected to the event page shortly.
+              Your ticket for <strong>{ticket?.event.event_name}</strong> has
+              been successfully claimed. You will be redirected to the event
+              page shortly.
             </p>
             <div className="flex items-center space-x-2 text-sm text-gray-500">
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -236,12 +257,15 @@ export default function ClaimTicketPage() {
                   {ticket.event.event_name}
                 </h3>
                 <p className="text-gray-600">
-                  {new Date(ticket.event.event_date).toLocaleDateString("en-US", {
-                    weekday: "long",
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                  })}
+                  {new Date(ticket.event.event_date).toLocaleDateString(
+                    "en-US",
+                    {
+                      weekday: "long",
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    }
+                  )}
                 </p>
               </div>
 
@@ -256,10 +280,10 @@ export default function ClaimTicketPage() {
                 <AlertDescription>
                   This ticket was purchased by{" "}
                   <strong>
-                    {ticket.purchased_by.display_name || ticket.purchased_by.email}
+                    {ticket.purchased_by.display_name ||
+                      ticket.purchased_by.email}
                   </strong>{" "}
-                  and assigned to{" "}
-                  <strong>{ticket.assigned_to_email}</strong>
+                  and assigned to <strong>{ticket.assigned_to_email}</strong>
                 </AlertDescription>
               </Alert>
 
