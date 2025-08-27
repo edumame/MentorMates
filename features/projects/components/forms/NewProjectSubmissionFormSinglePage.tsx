@@ -386,7 +386,7 @@ export function NewProjectSubmissionFormSinglePage({
                   </div>
                 </div>
                 <a
-                  href="https://idea-generation-prd.lovable.app/"
+                  href={contextusId ? `https://idea-generation-prd.lovable.app/?contextus_id=${encodeURIComponent(contextusId)}` : "https://idea-generation-prd.lovable.app/"}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center justify-center px-2.5 h-8 rounded-md bg-gray-50 hover:bg-amber-50 border border-gray-200/50 hover:border-amber-200/50 transition-all duration-300 group-hover:shadow-sm text-xs font-medium text-gray-700"
@@ -404,7 +404,9 @@ export function NewProjectSubmissionFormSinglePage({
                 </div>
                 <button
                   onClick={() => {
-                    const url = "https://idea-generation-prd.lovable.app/";
+                    const url = contextusId
+                      ? `https://idea-generation-prd.lovable.app/?contextus_id=${encodeURIComponent(contextusId)}`
+                      : "https://idea-generation-prd.lovable.app/";
                     navigator.clipboard.writeText(url);
                     toast({
                       title: "Link copied!",
