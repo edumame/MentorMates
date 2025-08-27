@@ -363,125 +363,121 @@ export function NewProjectSubmissionFormSinglePage({
         </p>
       </div>
 
-      <div className="mt-6">
-        <div className="mb-4">
-          <h3 className="text-lg font-semibold text-gray-900 mb-1">Available Tools</h3>
-          <p className="text-sm text-gray-500">Enhance your project development with these AI-powered tools</p>
-        </div>
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          {/* Idea Generator (always available) */}
-          <div className="group relative overflow-hidden rounded-lg bg-white border border-gray-200/60 hover:border-amber-300/60 transition-all duration-300 hover:shadow-md hover:shadow-amber-50/50 hover:-translate-y-0.5">
-            <div className="absolute inset-0 bg-gradient-to-r from-amber-500/5 to-yellow-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            <div className="relative p-4 pb-5">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center space-x-3">
-                  <div className="relative p-2 rounded-lg bg-amber-50 border border-amber-100">
-                    <Lightbulb className="w-6 h-6 text-amber-600" />
+      {contextusId && (
+        <div className="mt-6">
+          <div className="mb-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">Available Tools</h3>
+            <p className="text-sm text-gray-500">Enhance your project development with these AI-powered tools</p>
+          </div>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            {/* Idea Generator (Contextus-linked) */}
+            <div className="group relative overflow-hidden rounded-lg bg-white border border-gray-200/60 hover:border-amber-300/60 transition-all duration-300 hover:shadow-md hover:shadow-amber-50/50 hover:-translate-y-0.5">
+              <div className="absolute inset-0 bg-gradient-to-r from-amber-500/5 to-yellow-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <div className="relative p-4 pb-5">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center space-x-3">
+                    <div className="relative p-2 rounded-lg bg-amber-50 border border-amber-100">
+                      <Lightbulb className="w-6 h-6 text-amber-600" />
+                    </div>
+                    <div>
+                      <h4 className="text-base font-semibold text-gray-900 group-hover:text-amber-900 transition-colors duration-300">
+                        Idea Generator
+                      </h4>
+                      <p className="text-xs text-gray-500">Generate project ideas and inspiration</p>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="text-base font-semibold text-gray-900 group-hover:text-amber-900 transition-colors duration-300">
-                      Idea Generator
-                    </h4>
-                    <p className="text-xs text-gray-500">Generate project ideas and inspiration</p>
+                  <a
+                    href={`https://idea-generation-prd.lovable.app/?contextus_id=${encodeURIComponent(contextusId)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center px-2.5 h-8 rounded-md bg-gray-50 hover:bg-amber-50 border border-gray-200/50 hover:border-amber-200/50 transition-all duration-300 group-hover:shadow-sm text-xs font-medium text-gray-700"
+                    aria-label="Open Idea Generator"
+                  >
+                    Open
+                  </a>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2 text-xs text-gray-600">
+                    <svg className="w-3.5 h-3.5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>Works in a new tab</span>
                   </div>
+                  <button
+                    onClick={() => {
+                      const url = `https://idea-generation-prd.lovable.app/?contextus_id=${encodeURIComponent(contextusId)}`;
+                      navigator.clipboard.writeText(url);
+                      toast({
+                        title: "Link copied!",
+                        description: "Idea Generator link copied to clipboard",
+                      });
+                    }}
+                    className="text-xs text-amber-700 hover:text-amber-800 font-medium hover:underline transition-colors duration-200"
+                  >
+                    Copy Link
+                  </button>
                 </div>
-                <a
-                  href={contextusId ? `https://idea-generation-prd.lovable.app/?contextus_id=${encodeURIComponent(contextusId)}` : "https://idea-generation-prd.lovable.app/"}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-center px-2.5 h-8 rounded-md bg-gray-50 hover:bg-amber-50 border border-gray-200/50 hover:border-amber-200/50 transition-all duration-300 group-hover:shadow-sm text-xs font-medium text-gray-700"
-                  aria-label="Open Idea Generator"
-                >
-                  Open
-                </a>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2 text-xs text-gray-600">
-                  <svg className="w-3.5 h-3.5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <span>Works in a new tab</span>
-                </div>
-                <button
-                  onClick={() => {
-                    const url = contextusId
-                      ? `https://idea-generation-prd.lovable.app/?contextus_id=${encodeURIComponent(contextusId)}`
-                      : "https://idea-generation-prd.lovable.app/";
-                    navigator.clipboard.writeText(url);
-                    toast({
-                      title: "Link copied!",
-                      description: "Idea Generator link copied to clipboard",
-                    });
-                  }}
-                  className="text-xs text-amber-700 hover:text-amber-800 font-medium hover:underline transition-colors duration-200"
-                >
-                  Copy Link
-                </button>
               </div>
             </div>
-          </div>
 
-          {contextusId && (
-            <>
-              {/* Shanye Card */}
-              <div className="group relative overflow-hidden rounded-lg bg-white border border-gray-200/60 hover:border-blue-300/60 transition-all duration-300 hover:shadow-md hover:shadow-blue-50/50 hover:-translate-y-0.5">
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-500/3 to-indigo-500/3 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                <div className="relative p-4 pb-5">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center space-x-3">
-                      <div className="relative">
-                        <img
-                          alt="Shanye"
-                          src="https://www.shanye.io/favicon.ico"
-                          className="w-10 h-10 rounded-lg bg-gray-50 shadow-sm transition-all duration-300"
-                        />
-                        <div className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-emerald-500 rounded-full border border-white flex items-center justify-center">
-                          <div className="w-1.5 h-1.5 bg-white rounded-full" />
-                        </div>
-                      </div>
-                      <div>
-                        <h4 className="text-base font-semibold text-gray-900 group-hover:text-blue-900 transition-colors duration-300">
-                          Shanye
-                        </h4>
-                        <p className="text-xs text-gray-500">AI-powered development</p>
+            {/* Shanye Card */}
+            <div className="group relative overflow-hidden rounded-lg bg-white border border-gray-200/60 hover:border-blue-300/60 transition-all duration-300 hover:shadow-md hover:shadow-blue-50/50 hover:-translate-y-0.5">
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-500/3 to-indigo-500/3 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <div className="relative p-4 pb-5">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center space-x-3">
+                    <div className="relative">
+                      <img
+                        alt="Shanye"
+                        src="https://www.shanye.io/favicon.ico"
+                        className="w-10 h-10 rounded-lg bg-gray-50 shadow-sm transition-all duration-300"
+                      />
+                      <div className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-emerald-500 rounded-full border border-white flex items-center justify-center">
+                        <div className="w-1.5 h-1.5 bg-white rounded-full" />
                       </div>
                     </div>
-                    <a
-                      href={`https://www.shanye.io/?contextus_id=${encodeURIComponent(contextusId)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center justify-center w-8 h-8 rounded-md bg-gray-50 hover:bg-blue-50 border border-gray-200/50 hover:border-blue-200/50 transition-all duration-300 group-hover:shadow-sm"
-                      aria-label="Open Shanye"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 text-gray-600 group-hover:text-blue-600 transition-colors duration-300">
-                        <path d="M13.5 6.75a.75.75 0 01.75-.75h5.25a.75.75 0 01.75.75V12a.75.75 0 01-1.5 0V8.56l-6.97 6.97a.75.75 0 01-1.06-1.06l6.97-6.97H14.25a.75.75 0 01-.75-.75z"></path>
-                        <path d="M6 4.5A1.5 1.5 0 004.5 6v12A1.5 1.5 0 006 19.5h12a1.5 1.5 0 001.5-1.5v-3a.75.75 0 011.5 0v3A3 3 0 0118 21H6a3 3 0 01-3-3V6a3 3 0 013-3h3a.75.75 0 010 1.5H6z"></path>
-                      </svg>
-                    </a>
+                    <div>
+                      <h4 className="text-base font-semibold text-gray-900 group-hover:text-blue-900 transition-colors duration-300">
+                        Shanye
+                      </h4>
+                      <p className="text-xs text-gray-500">AI-powered development</p>
+                    </div>
+                  </div>
+                  <a
+                    href={`https://www.shanye.io/?contextus_id=${encodeURIComponent(contextusId)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center w-8 h-8 rounded-md bg-gray-50 hover:bg-blue-50 border border-gray-200/50 hover:border-blue-200/50 transition-all duration-300 group-hover:shadow-sm"
+                    aria-label="Open Shanye"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 text-gray-600 group-hover:text-blue-600 transition-colors duration-300">
+                      <path d="M13.5 6.75a.75.75 0 01.75-.75h5.25a.75.75 0 01.75.75V12a.75.75 0 01-1.5 0V8.56l-6.97 6.97a.75.75 0 01-1.06-1.06l6.97-6.97H14.25a.75.75 0 01-.75-.75z"></path>
+                      <path d="M6 4.5A1.5 1.5 0 004.5 6v12A1.5 1.5 0 006 19.5h12a1.5 1.5 0 001.5-1.5v-3a.75.75 0 011.5 0v3A3 3 0 0118 21H6a3 3 0 01-3-3V6a3 3 0 013-3h3a.75.75 0 010 1.5H6z"></path>
+                    </svg>
+                  </a>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2 text-xs text-gray-600">
+                    <svg className="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                    </svg>
+                    <span>Direct integration</span>
                   </div>
                   
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2 text-xs text-gray-600">
-                      <svg className="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                      </svg>
-                      <span>Direct integration</span>
-                    </div>
-                    
-                    <button
-                      onClick={() => {
-                        const url = `https://www.shanye.io/?contextus_id=${encodeURIComponent(contextusId)}`;
-                        navigator.clipboard.writeText(url);
-                        toast({
-                          title: "Link copied!",
-                          description: "Shanye project link copied to clipboard",
-                        });
-                      }}
-                      className="text-xs text-blue-600 hover:text-blue-700 font-medium hover:underline transition-colors duration-200"
-                    >
-                      Copy Link
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => {
+                      const url = `https://www.shanye.io/?contextus_id=${encodeURIComponent(contextusId)}`;
+                      navigator.clipboard.writeText(url);
+                      toast({
+                        title: "Link copied!",
+                        description: "Shanye project link copied to clipboard",
+                      });
+                    }}
+                    className="text-xs text-blue-600 hover:text-blue-700 font-medium hover:underline transition-colors duration-200"
+                  >
+                    Copy Link
+                  </button>
                 </div>
               </div>
 
@@ -526,10 +522,10 @@ export function NewProjectSubmissionFormSinglePage({
                     <div className="flex items-center space-x-2 text-xs text-gray-600">
                       <svg className="w-3.5 h-3.5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                      </svg>
-                      <span>AI-powered tools</span>
+                    </svg>
+                    <span>AI-powered tools</span>
                     </div>
-
+                    
                     <button
                       onClick={() => {
                         const url = `https://lovable.dev/?contextus_id=${encodeURIComponent(contextusId)}`;
@@ -546,10 +542,10 @@ export function NewProjectSubmissionFormSinglePage({
                   </div>
                 </div>
               </div>
-            </>
-          )}
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Autosave Status */}
       <div className="mb-6 p-3 bg-blue-50 rounded-lg border border-blue-200">
