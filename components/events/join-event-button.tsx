@@ -374,6 +374,18 @@ export function JoinEventButton({
                 </SelectContent>
               </Select>
 
+              {showPasswordInput && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Enter password:</label>
+                  <Input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter event password"
+                  />
+                </div>
+              )}
+
               <Button
                 onClick={handleJoinEvent}
                 disabled={isLoading || (showPasswordInput && !password)}
