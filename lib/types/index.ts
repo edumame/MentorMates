@@ -296,4 +296,5 @@ export interface DevpostProjectImport {
   lead_email: string;
   event_id: string;
   video_url?: string;
+  teammates?: string[];
 }
