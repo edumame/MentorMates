@@ -13,7 +13,7 @@ import {
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/lib/hooks/use-toast";
 
-type CsvRow = Record<string, string>;
+type CsvRow = Record<string | number, string>;
 
 // Define the mapping of DevPost headers to our database schema
 const HEADER_MAPPING: Record<string, keyof DevpostProjectImport> = {
@@ -22,6 +22,8 @@ const HEADER_MAPPING: Record<string, keyof DevpostProjectImport> = {
   "About The Project": "project_description",
   "Please Provide A Link To Your Git Hub.": "project_url",
   "Video Demo Link": "video_url",
+  "Team Member 1 First Name": "lead_name",
+  "Team Member 1 Email": "lead_email",
 };
 
 interface ProjectImportProps {
@@ -35,10 +37,11 @@ export function ProjectImport({ eventId }: ProjectImportProps) {
     []
   );
 
-  const initialInsertProps = {
+  const initialInsertProps: Partial<DevpostProjectImport> = {
     event_id: eventId,
     lead_name: "Unknown",
     lead_email: "Unknown",
+    teammates: [],
   };
 
   const mapRow = (row: CsvRow): Partial<DevpostProjectImport> | null => {
@@ -50,8 +53,39 @@ export function ProjectImport({ eventId }: ProjectImportProps) {
 
     // Map each field according to our header mapping
     Object.entries(HEADER_MAPPING).forEach(([devpostHeader, dbField]) => {
-      mappedRow[dbField] = row[devpostHeader] || "";
+      if (dbField === "teammates") {
+        mappedRow[dbField] = row[devpostHeader] ? [row[devpostHeader]] : [];
+      } else {
+        mappedRow[dbField] = row[devpostHeader] || "";
+      }
     });
+
+    // Set lead name if it's not already set
+    if (!mappedRow.lead_name && row["Team Member 1 First Name"] && row["Team Member 1 Last Name"]) {
+      mappedRow.lead_name = `${row["Team Member 1 First Name"]} ${row["Team Member 1 Last Name"]}`.trim();
+    }
+
+    // Handle additional team members
+    const additionalMemberCount = parseInt(row["Additional Team Member Count"] || "0", 10);
+    const teammates: string[] = [];
+
+    // Calculate base index for team member 2 (first additional member)
+    // Assuming team member 2's email is 3 columns after team member 1's email
+    const team1EmailIndex = Object.keys(row).findIndex(key => key === "Team Member 1 Email");
+    if (team1EmailIndex !== -1) {
+      // For each additional member, their email is every 3rd column
+      for (let i = 0; i < additionalMemberCount; i++) {
+        const memberEmailIndex = team1EmailIndex + 3 + (i * 3); // Skip 3 columns for each member
+        const memberEmail = row[memberEmailIndex];
+        if (memberEmail && typeof memberEmail === 'string' && memberEmail.trim()) {
+          teammates.push(memberEmail.trim());
+        }
+      }
+    }
+
+    if (teammates.length > 0) {
+      mappedRow.teammates = teammates;
+    }
 
     return mappedRow;
   };
@@ -100,14 +134,34 @@ export function ProjectImport({ eventId }: ProjectImportProps) {
     setProgress(0);
 
     return new Promise<void>((resolve) => {
-      Papa.parse<CsvRow>(file, {
-        header: true,
+      let headers: string[] = [];
+      let firstRow = true;
+
+      Papa.parse<string[]>(file, {
+        header: false,
         skipEmptyLines: true,
-        transformHeader: function (header: string) {
-          return header.replaceAll('"', "");
+        transform: function(value) {
+          return value.replaceAll('"', "");
         },
         step({ data }) {
-          const mappedRow = mapRow(data);
+          if (firstRow) {
+            headers = data;
+            firstRow = false;
+            return;
+          }
+
+          // Convert array data to object with both header keys and numeric indices
+          const rowData = data.reduce((acc: Record<string | number, string>, value, index) => {
+            // Store by index
+            acc[index] = value;
+            // If there's a header for this column, store by header name too
+            if (headers[index]) {
+              acc[headers[index]] = value;
+            }
+            return acc;
+          }, {});
+
+          const mappedRow = mapRow(rowData);
           if (mappedRow) {
             setMappedRows((prev) => [...prev, mappedRow]);
           }
@@ -159,6 +213,8 @@ export function ProjectImport({ eventId }: ProjectImportProps) {
                 <TableHead>Project URL</TableHead>
                 <TableHead>Video URL</TableHead>
                 <TableHead>Additional Materials</TableHead>
+                <TableHead>Lead</TableHead>
+                <TableHead>Team Members</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -171,6 +227,8 @@ export function ProjectImport({ eventId }: ProjectImportProps) {
                   <TableCell>{row.project_url}</TableCell>
                   <TableCell>{row.video_url}</TableCell>
                   <TableCell>{row.additional_materials_url}</TableCell>
+                  <TableCell>{row.lead_name} ({row.lead_email})</TableCell>
+                  <TableCell>{row.teammates?.join(", ") || "No additional members"}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
