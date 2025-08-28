@@ -13,7 +13,10 @@ import {
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/lib/hooks/use-toast";
 
-type CsvRow = Record<string | number, string>;
+type CsvRow = {
+  headers: Record<string, string>;
+  data: string[];
+};
 
 // Define the mapping of DevPost headers to our database schema
 const HEADER_MAPPING: Record<string, keyof DevpostProjectImport> = {
@@ -47,37 +50,38 @@ export function ProjectImport({ eventId }: ProjectImportProps) {
   const mapRow = (row: CsvRow): Partial<DevpostProjectImport> | null => {
     const mappedRow: Partial<DevpostProjectImport> = { ...initialInsertProps };
 
-    if (row["Project Status"] === "Draft") {
+    if (row.headers["Project Status"] === "Draft") {
       return null;
     }
 
     // Map each field according to our header mapping
     Object.entries(HEADER_MAPPING).forEach(([devpostHeader, dbField]) => {
-      if (dbField === "teammates") {
-        mappedRow[dbField] = row[devpostHeader] ? [row[devpostHeader]] : [];
-      } else {
-        mappedRow[dbField] = row[devpostHeader] || "";
-      }
+      const value = row.headers[devpostHeader] || "";
+      (mappedRow as Record<keyof DevpostProjectImport, string | string[]>)[dbField] = value;
     });
 
     // Set lead name if it's not already set
-    if (!mappedRow.lead_name && row["Team Member 1 First Name"] && row["Team Member 1 Last Name"]) {
-      mappedRow.lead_name = `${row["Team Member 1 First Name"]} ${row["Team Member 1 Last Name"]}`.trim();
+    if (!mappedRow.lead_name && row.headers["Team Member 1 First Name"] && row.headers["Team Member 1 Last Name"]) {
+      mappedRow.lead_name = `${row.headers["Team Member 1 First Name"]} ${row.headers["Team Member 1 Last Name"]}`.trim();
     }
 
     // Handle additional team members
-    const additionalMemberCount = parseInt(row["Additional Team Member Count"] || "0", 10);
+    const additionalMemberCount = parseInt(row.headers["Additional Team Member Count"] || "0", 10);
     const teammates: string[] = [];
 
-    // Calculate base index for team member 2 (first additional member)
-    // Assuming team member 2's email is 3 columns after team member 1's email
-    const team1EmailIndex = Object.keys(row).findIndex(key => key === "Team Member 1 Email");
+    // Find Team Member 1's email column index by looking through the original headers array
+    const team1EmailIndex = Object.keys(row.headers).findIndex((header: string) => header === "Team Member 1 Email");
+    console.log("team1EmailIndex", team1EmailIndex);
+    
     if (team1EmailIndex !== -1) {
       // For each additional member, their email is every 3rd column
       for (let i = 0; i < additionalMemberCount; i++) {
         const memberEmailIndex = team1EmailIndex + 3 + (i * 3); // Skip 3 columns for each member
-        const memberEmail = row[memberEmailIndex];
-        if (memberEmail && typeof memberEmail === 'string' && memberEmail.trim()) {
+        console.log("memberEmailIndex", memberEmailIndex);
+        console.log("row data", row.data);
+        const memberEmail = row.data[memberEmailIndex];
+        console.log("memberEmail", memberEmail);
+        if (memberEmail && memberEmail.trim()) {
           teammates.push(memberEmail.trim());
         }
       }
@@ -150,16 +154,16 @@ export function ProjectImport({ eventId }: ProjectImportProps) {
             return;
           }
 
-          // Convert array data to object with both header keys and numeric indices
-          const rowData = data.reduce((acc: Record<string | number, string>, value, index) => {
-            // Store by index
-            acc[index] = value;
-            // If there's a header for this column, store by header name too
-            if (headers[index]) {
-              acc[headers[index]] = value;
-            }
-            return acc;
-          }, {});
+          // Create an object with both the raw data array and a headers mapping
+          const rowData: CsvRow = {
+            data: data,
+            headers: headers.reduce((acc, header, index) => {
+              if (header) {
+                acc[header] = data[index];
+              }
+              return acc;
+            }, {} as Record<string, string>)
+          };
 
           const mappedRow = mapRow(rowData);
           if (mappedRow) {
