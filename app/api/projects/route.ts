@@ -80,8 +80,11 @@ export async function GET(request: NextRequest) {
         additional_materials_url: item.additional_materials_url,
         cover_image_url: item.cover_image_url,
         event_id: item.event_id,
-        contextus_project_id: (item as unknown as { contextus_project_id?: string }).contextus_project_id,
-        submitted: (item as unknown as { submitted?: boolean }).submitted ?? true,
+        contextus_project_id: (
+          item as unknown as { contextus_project_id?: string }
+        ).contextus_project_id,
+        submitted:
+          (item as unknown as { submitted?: boolean }).submitted ?? true,
         tracks:
           item.project_tracks?.map((pt) => pt.event_tracks).filter(Boolean) ||
           [],
@@ -226,8 +229,11 @@ export async function GET(request: NextRequest) {
         additional_materials_url: project.additional_materials_url,
         cover_image_url: project.cover_image_url,
         event_id: project.event_id,
-        contextus_project_id: (project as unknown as { contextus_project_id?: string }).contextus_project_id,
-        submitted: (project as unknown as { submitted?: boolean }).submitted ?? false,
+        contextus_project_id: (
+          project as unknown as { contextus_project_id?: string }
+        ).contextus_project_id,
+        submitted:
+          (project as unknown as { submitted?: boolean }).submitted ?? false,
         tracks:
           project.project_tracks
             ?.map((pt) => pt.event_tracks)
@@ -290,7 +296,10 @@ export async function GET(request: NextRequest) {
         .eq("user_id", user.id)
         .single();
 
-      if (!userRole || !canAccessRole(userRole.role as EventRole, EventRole.Organizer)) {
+      if (
+        !userRole ||
+        !canAccessRole(userRole.role as EventRole, EventRole.Organizer)
+      ) {
         return NextResponse.json(
           { error: "Insufficient permissions" },
           { status: 403 }
@@ -360,11 +369,12 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { eventId, leadName, leadEmail, projectName } = body as {
+    const { eventId, leadName, leadEmail, projectName, contextus } = body as {
       eventId?: string;
       leadName?: string;
       leadEmail?: string;
       projectName?: string;
+      contextus?: boolean;
     };
 
     const insertPayload: Record<string, unknown> = {
@@ -388,33 +398,43 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Immediately create a Contextus project (best-effort)
-    let createdContextusId: string | null = null;
-    try {
-      const label = (data.project_name as string | null) || (data.lead_name as string | null) || "Project";
-      const contextusPayload = {
-        label,
-        metadata: [
-          { key: "mentor_mates_project_id", value: data.id },
-          { key: "team_lead_name", value: data.lead_name },
-          { key: "team_lead_email", value: data.lead_email },
-          // Only add event_id if present
-          ...(data.event_id ? [{ key: "event_id", value: data.event_id }] : []),
-        ],
-      };
-      createdContextusId = await createContextusProject(contextusPayload);
-      if (createdContextusId) {
-        await supabase
-          .from("projects")
-          .update({ contextus_project_id: createdContextusId })
-          .eq("id", data.id);
+    if (contextus) {
+      // Immediately create a Contextus project (best-effort)
+      let createdContextusId: string | null = null;
+      try {
+        const label =
+          (data.project_name as string | null) ||
+          (data.lead_name as string | null) ||
+          "Project";
+        const contextusPayload = {
+          label,
+          metadata: [
+            { key: "mentor_mates_project_id", value: data.id },
+            { key: "team_lead_name", value: data.lead_name },
+            { key: "team_lead_email", value: data.lead_email },
+            // Only add event_id if present
+            ...(data.event_id
+              ? [{ key: "event_id", value: data.event_id }]
+              : []),
+          ],
+        };
+        createdContextusId = await createContextusProject(contextusPayload);
+        if (createdContextusId) {
+          await supabase
+            .from("projects")
+            .update({ contextus_project_id: createdContextusId })
+            .eq("id", data.id);
+        }
+      } catch (ctxErr) {
+        console.error("Contextus create-on-draft failed:", ctxErr);
+        // non-blocking
       }
-    } catch (ctxErr) {
-      console.error("Contextus create-on-draft failed:", ctxErr);
-      // non-blocking
+      return NextResponse.json({
+        id: data.id,
+        contextus_project_id: createdContextusId,
+      });
     }
-
-    return NextResponse.json({ id: data.id, contextus_project_id: createdContextusId });
+    return NextResponse.json({ id: data.id });
   } catch (error) {
     console.error("Error creating draft project:", error);
     return NextResponse.json(
