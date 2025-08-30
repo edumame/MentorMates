@@ -183,7 +183,7 @@ export function AvailableTools({
               }
             >
               {/* Top-right connection indicator: small corner dot */}
-              <span className="absolute top-0 right-0 -mt-1 -mr-1 z-10 flex size-3">
+              <span className="pointer-events-none absolute top-1.5 right-1.5 z-20 flex h-3 w-3">
                 <span
                   className={
                     `absolute inline-flex h-full w-full rounded-full opacity-75 ` +
@@ -192,7 +192,7 @@ export function AvailableTools({
                 />
                 <span
                   className={
-                    `relative inline-flex size-3 rounded-full ` +
+                    `relative inline-flex h-3 w-3 rounded-full ` +
                     `${connectedMap[tool.id] ? "bg-emerald-500" : "bg-orange-500"}`
                   }
                 />
