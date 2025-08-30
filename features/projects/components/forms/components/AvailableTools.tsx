@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { toast } from "@/lib/hooks/use-toast";
 import {
   SUBMISSION_TOOLS,
@@ -126,6 +127,34 @@ export function AvailableTools({
   contextusId?: string | null;
   tools?: ToolDefinition[];
 }) {
+  const [connectedMap, setConnectedMap] = useState<Record<string, boolean>>({});
+
+  // Load and persist connection status per contextusId
+  useEffect(() => {
+    if (!contextusId) return;
+    try {
+      const storageKey = `tools_connected_status:${contextusId}`;
+      const raw = window.localStorage.getItem(storageKey);
+      setConnectedMap(raw ? (JSON.parse(raw) as Record<string, boolean>) : {});
+    } catch {
+      setConnectedMap({});
+    }
+  }, [contextusId]);
+
+  const markConnected = (toolId: string) => {
+    if (!contextusId) return;
+    setConnectedMap((prev) => {
+      const next = { ...prev, [toolId]: true };
+      try {
+        const storageKey = `tools_connected_status:${contextusId}`;
+        window.localStorage.setItem(storageKey, JSON.stringify(next));
+      } catch {
+        // no-op
+      }
+      return next;
+    });
+  };
+
   if (!contextusId) return null;
 
   return (
@@ -153,6 +182,30 @@ export function AvailableTools({
                 `${theme.borderHover} transition-all duration-300 hover:shadow-md ${theme.shadowHover} hover:-translate-y-0.5`
               }
             >
+              {/* Top-right connection indicator */}
+              <div className="absolute top-2 right-2 z-10">
+                <div
+                  className={
+                    `flex items-center gap-1.5 px-2 py-1 rounded-full border ` +
+                    `${connectedMap[tool.id] ? "bg-emerald-50 border-emerald-200" : "bg-orange-50 border-orange-200"}`
+                  }
+                >
+                  <span
+                    className={
+                      `h-2.5 w-2.5 rounded-full ` +
+                      `${connectedMap[tool.id] ? "bg-emerald-500" : "bg-orange-400"}`
+                    }
+                  />
+                  <span
+                    className={
+                      `text-[10px] font-medium ` +
+                      `${connectedMap[tool.id] ? "text-emerald-700" : "text-orange-700"}`
+                    }
+                  >
+                    {connectedMap[tool.id] ? "Connected" : "Available to connect"}
+                  </span>
+                </div>
+              </div>
               <div
                 className={
                   `absolute inset-0 bg-gradient-to-r ${theme.gradientFrom} ${theme.gradientTo} opacity-0 group-hover:opacity-100 transition-opacity duration-300`
@@ -180,6 +233,7 @@ export function AvailableTools({
                       `${theme.openHoverBg} ${theme.openHoverBorder}`
                     }
                     aria-label={`Open ${tool.name}`}
+                    onClick={() => markConnected(tool.id)}
                   >
                     Open
                   </a>
