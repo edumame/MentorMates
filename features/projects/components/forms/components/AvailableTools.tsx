@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { toast } from "@/lib/hooks/use-toast";
 import {
   SUBMISSION_TOOLS,
@@ -126,6 +127,34 @@ export function AvailableTools({
   contextusId?: string | null;
   tools?: ToolDefinition[];
 }) {
+  const [connectedMap, setConnectedMap] = useState<Record<string, boolean>>({});
+
+  // Load and persist connection status per contextusId
+  useEffect(() => {
+    if (!contextusId) return;
+    try {
+      const storageKey = `tools_connected_status:${contextusId}`;
+      const raw = window.localStorage.getItem(storageKey);
+      setConnectedMap(raw ? (JSON.parse(raw) as Record<string, boolean>) : {});
+    } catch {
+      setConnectedMap({});
+    }
+  }, [contextusId]);
+
+  const markConnected = (toolId: string) => {
+    if (!contextusId) return;
+    setConnectedMap((prev) => {
+      const next = { ...prev, [toolId]: true };
+      try {
+        const storageKey = `tools_connected_status:${contextusId}`;
+        window.localStorage.setItem(storageKey, JSON.stringify(next));
+      } catch {
+        // no-op
+      }
+      return next;
+    });
+  };
+
   if (!contextusId) return null;
 
   return (
@@ -164,10 +193,20 @@ export function AvailableTools({
                     <div className={`relative p-2 rounded-lg ${theme.iconBg} border ${theme.iconBorder}`}>
                       <Icon className={`w-6 h-6 ${theme.iconColor}`} />
                     </div>
-                    <div>
-                      <h4 className="text-base font-semibold text-gray-900 group-hover:opacity-90 transition-colors duration-300">
-                        {tool.name}
-                      </h4>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-base font-semibold text-gray-900 group-hover:opacity-90 transition-colors duration-300">
+                          {tool.name}
+                        </h4>
+                        {/* Connection status badge */}
+                        <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ${
+                          connectedMap[tool.id] 
+                            ? 'bg-green-100 text-green-700' 
+                            : 'bg-orange-100 text-orange-700'
+                        }`}>
+                          {connectedMap[tool.id] ? 'Connected' : 'Not connected'}
+                        </span>
+                      </div>
                       <p className="text-xs text-gray-500">{tool.description}</p>
                     </div>
                   </div>
@@ -180,6 +219,7 @@ export function AvailableTools({
                       `${theme.openHoverBg} ${theme.openHoverBorder}`
                     }
                     aria-label={`Open ${tool.name}`}
+                    onClick={() => markConnected(tool.id)}
                   >
                     Open
                   </a>
