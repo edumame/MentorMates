@@ -182,30 +182,21 @@ export function AvailableTools({
                 `${theme.borderHover} transition-all duration-300 hover:shadow-md ${theme.shadowHover} hover:-translate-y-0.5`
               }
             >
-              {/* Top-right connection indicator */}
-              <div className="absolute top-2 right-2 z-10">
-                <div
+              {/* Top-right connection indicator: small corner dot */}
+              <span className="absolute top-0 right-0 -mt-1 -mr-1 z-10 flex size-3">
+                <span
                   className={
-                    `flex items-center gap-1.5 px-2 py-1 rounded-full border ` +
-                    `${connectedMap[tool.id] ? "bg-emerald-50 border-emerald-200" : "bg-orange-50 border-orange-200"}`
+                    `absolute inline-flex h-full w-full rounded-full opacity-75 ` +
+                    `${connectedMap[tool.id] ? "hidden" : "animate-ping bg-orange-400"}`
                   }
-                >
-                  <span
-                    className={
-                      `h-2.5 w-2.5 rounded-full ` +
-                      `${connectedMap[tool.id] ? "bg-emerald-500" : "bg-orange-400"}`
-                    }
-                  />
-                  <span
-                    className={
-                      `text-[10px] font-medium ` +
-                      `${connectedMap[tool.id] ? "text-emerald-700" : "text-orange-700"}`
-                    }
-                  >
-                    {connectedMap[tool.id] ? "Connected" : "Available to connect"}
-                  </span>
-                </div>
-              </div>
+                />
+                <span
+                  className={
+                    `relative inline-flex size-3 rounded-full ` +
+                    `${connectedMap[tool.id] ? "bg-emerald-500" : "bg-orange-500"}`
+                  }
+                />
+              </span>
               <div
                 className={
                   `absolute inset-0 bg-gradient-to-r ${theme.gradientFrom} ${theme.gradientTo} opacity-0 group-hover:opacity-100 transition-opacity duration-300`
