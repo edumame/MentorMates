@@ -14,6 +14,8 @@ import {
   Sparkles,
   Presentation,
   Globe,
+  Eye,
+  FileText,
 } from "lucide-react";
 import { toast } from "@/lib/hooks/use-toast";
 
@@ -638,6 +640,130 @@ export function NewProjectSubmissionFormSinglePage({
                       toast({
                         title: "Link copied!",
                         description: "Auto Slide AI link copied to clipboard",
+                      });
+                    }}
+                    className="text-xs text-blue-600 hover:text-blue-700 font-medium hover:underline transition-colors duration-200"
+                  >
+                    Copy Link
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Contextus Visual Card */}
+            <div className="group relative overflow-hidden rounded-lg bg-white border border-gray-200/60 hover:border-emerald-300/60 transition-all duration-300 hover:shadow-md hover:shadow-emerald-50/50 hover:-translate-y-0.5">
+              <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/3 to-teal-500/3 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <div className="relative p-4 pb-5">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center space-x-3">
+                    <div className="relative p-2 rounded-lg bg-emerald-50 border border-emerald-100">
+                      <Eye className="w-6 h-6 text-emerald-600" />
+                    </div>
+                    <div>
+                      <h4 className="text-base font-semibold text-gray-900 group-hover:text-emerald-900 transition-colors duration-300">
+                        Contextus Visual
+                      </h4>
+                      <p className="text-xs text-gray-500">Visualize your project context</p>
+                    </div>
+                  </div>
+                  <a
+                    href={`https://contextus-visual.lovable.app/?contextus_id=${encodeURIComponent(contextusId)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center px-2.5 h-8 rounded-md bg-gray-50 hover:bg-emerald-50 border border-gray-200/50 hover:border-emerald-200/50 transition-all duration-300 group-hover:shadow-sm text-xs font-medium text-gray-700"
+                    aria-label="Open Contextus Visual"
+                  >
+                    Open
+                  </a>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2 text-xs text-gray-600">
+                    <svg
+                      className="w-3.5 h-3.5 text-emerald-500"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+                      />
+                    </svg>
+                    <span>Interactive visualization</span>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      const url = `https://contextus-visual.lovable.app/?contextus_id=${encodeURIComponent(contextusId)}`;
+                      navigator.clipboard.writeText(url);
+                      toast({
+                        title: "Link copied!",
+                        description: "Contextus Visual link copied to clipboard",
+                      });
+                    }}
+                    className="text-xs text-blue-600 hover:text-blue-700 font-medium hover:underline transition-colors duration-200"
+                  >
+                    Copy Link
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* AI Meeting Note Taker Card */}
+            <div className="group relative overflow-hidden rounded-lg bg-white border border-gray-200/60 hover:border-cyan-300/60 transition-all duration-300 hover:shadow-md hover:shadow-cyan-50/50 hover:-translate-y-0.5">
+              <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/3 to-sky-500/3 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <div className="relative p-4 pb-5">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center space-x-3">
+                    <div className="relative p-2 rounded-lg bg-cyan-50 border border-cyan-100">
+                      <FileText className="w-6 h-6 text-cyan-600" />
+                    </div>
+                    <div>
+                      <h4 className="text-base font-semibold text-gray-900 group-hover:text-cyan-900 transition-colors duration-300">
+                        AI Meeting Note Taker
+                      </h4>
+                      <p className="text-xs text-gray-500">Capture and summarize discussions</p>
+                    </div>
+                  </div>
+                  <a
+                    href={`https://ai-meeting-note-taker.lovable.app/meeting-notes?contextus_id=${encodeURIComponent(contextusId)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center px-2.5 h-8 rounded-md bg-gray-50 hover:bg-cyan-50 border border-gray-200/50 hover:border-cyan-200/50 transition-all duration-300 group-hover:shadow-sm text-xs font-medium text-gray-700"
+                    aria-label="Open AI Meeting Note Taker"
+                  >
+                    Open
+                  </a>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2 text-xs text-gray-600">
+                    <svg
+                      className="w-3.5 h-3.5 text-cyan-500"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+                      />
+                    </svg>
+                    <span>AI-powered notes</span>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      const url = `https://ai-meeting-note-taker.lovable.app/meeting-notes?contextus_id=${encodeURIComponent(contextusId)}`;
+                      navigator.clipboard.writeText(url);
+                      toast({
+                        title: "Link copied!",
+                        description: "AI Meeting Note Taker link copied to clipboard",
                       });
                     }}
                     className="text-xs text-blue-600 hover:text-blue-700 font-medium hover:underline transition-colors duration-200"
