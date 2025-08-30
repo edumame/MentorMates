@@ -182,21 +182,6 @@ export function AvailableTools({
                 `${theme.borderHover} transition-all duration-300 hover:shadow-md ${theme.shadowHover} hover:-translate-y-0.5`
               }
             >
-              {/* Top-right connection indicator: small corner dot */}
-              <span className="pointer-events-none absolute top-1.5 right-1.5 z-20 flex h-3 w-3">
-                <span
-                  className={
-                    `absolute inline-flex h-full w-full rounded-full opacity-75 ` +
-                    `${connectedMap[tool.id] ? "hidden" : "animate-ping bg-orange-400"}`
-                  }
-                />
-                <span
-                  className={
-                    `relative inline-flex h-3 w-3 rounded-full ` +
-                    `${connectedMap[tool.id] ? "bg-emerald-500" : "bg-orange-500"}`
-                  }
-                />
-              </span>
               <div
                 className={
                   `absolute inset-0 bg-gradient-to-r ${theme.gradientFrom} ${theme.gradientTo} opacity-0 group-hover:opacity-100 transition-opacity duration-300`
@@ -208,10 +193,20 @@ export function AvailableTools({
                     <div className={`relative p-2 rounded-lg ${theme.iconBg} border ${theme.iconBorder}`}>
                       <Icon className={`w-6 h-6 ${theme.iconColor}`} />
                     </div>
-                    <div>
-                      <h4 className="text-base font-semibold text-gray-900 group-hover:opacity-90 transition-colors duration-300">
-                        {tool.name}
-                      </h4>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-base font-semibold text-gray-900 group-hover:opacity-90 transition-colors duration-300">
+                          {tool.name}
+                        </h4>
+                        {/* Connection status badge */}
+                        <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ${
+                          connectedMap[tool.id] 
+                            ? 'bg-green-100 text-green-700' 
+                            : 'bg-orange-100 text-orange-700'
+                        }`}>
+                          {connectedMap[tool.id] ? 'Connected' : 'Not connected'}
+                        </span>
+                      </div>
                       <p className="text-xs text-gray-500">{tool.description}</p>
                     </div>
                   </div>
