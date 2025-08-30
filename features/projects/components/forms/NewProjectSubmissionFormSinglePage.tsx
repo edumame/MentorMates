@@ -151,7 +151,7 @@ export function NewProjectSubmissionFormSinglePage({
             eventId,
             leadName: name,
             leadEmail: email,
-            contextus: true,
+            contextus: isAdmin,
           }),
         });
         if (resp.ok) {
@@ -184,7 +184,7 @@ export function NewProjectSubmissionFormSinglePage({
             eventId,
             leadName: form.getValues("leadName"),
             leadEmail: form.getValues("leadEmail"),
-            contextus: true,
+            contextus: isAdmin,
           }),
         });
         if (resp.ok) {
