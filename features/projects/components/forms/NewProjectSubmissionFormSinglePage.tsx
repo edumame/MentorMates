@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -70,6 +70,7 @@ export function NewProjectSubmissionFormSinglePage({
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPrefilling, setIsPrefilling] = useState(false);
+  const draftAttemptedRef = useRef(false);
 
   const isAdmin = useAdmin();
 
@@ -133,6 +134,42 @@ export function NewProjectSubmissionFormSinglePage({
     }
   }, [leadName, userEmail, form]);
 
+  // Proactively create a draft once basic identity is known, so Contextus ID is available immediately
+  useEffect(() => {
+    const maybeCreateDraft = async () => {
+      if (projectId || draftAttemptedRef.current) return;
+      const email = form.getValues("leadEmail");
+      const name = form.getValues("leadName");
+      if (!email && !name) return;
+
+      draftAttemptedRef.current = true;
+      try {
+        const resp = await fetch("/api/projects", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            eventId,
+            leadName: name,
+            leadEmail: email,
+            contextus: true,
+          }),
+        });
+        if (resp.ok) {
+          const json = await resp.json();
+          setProjectId(json.id);
+          if (json.contextus_project_id) {
+            setContextusId(json.contextus_project_id as string);
+            onContextusLinked?.(json.contextus_project_id as string);
+          }
+        }
+      } catch (e) {
+        console.error("Failed to proactively create draft project", e);
+      }
+    };
+
+    maybeCreateDraft();
+  }, [projectId, eventId, form, onContextusLinked]);
+
   // Create a draft as soon as user starts typing
   useEffect(() => {
     const hasChanges = Object.keys(form.formState.dirtyFields).length > 0;
@@ -147,13 +184,13 @@ export function NewProjectSubmissionFormSinglePage({
             eventId,
             leadName: form.getValues("leadName"),
             leadEmail: form.getValues("leadEmail"),
-            contextus: isAdmin,
+            contextus: true,
           }),
         });
         if (resp.ok) {
           const json = await resp.json();
           setProjectId(json.id);
-          if (json.contextus_project_id && onContextusLinked && isAdmin) {
+          if (json.contextus_project_id) {
             setContextusId(json.contextus_project_id as string);
             onContextusLinked?.(json.contextus_project_id as string);
           }
@@ -444,6 +481,20 @@ export function NewProjectSubmissionFormSinglePage({
           when you&apos;re ready!
         </p>
       </div>
+
+      {contextusId && (
+        <div className="mb-4 rounded-md border p-3 bg-blue-50 text-blue-800 flex items-center justify-between">
+          <div>
+            <span className="font-semibold">Contextus ID:</span> {contextusId}
+          </div>
+          <Button
+            variant="secondary"
+            onClick={() => navigator.clipboard.writeText(contextusId)}
+          >
+            Copy
+          </Button>
+        </div>
+      )}
 
       {contextusId && <AvailableTools contextusId={contextusId} />}
 
