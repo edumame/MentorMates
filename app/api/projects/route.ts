@@ -408,15 +408,12 @@ export async function POST(request: NextRequest) {
           "Project";
         const contextusPayload = {
           label,
-          metadata: [
-            { key: "mentor_mates_project_id", value: data.id },
-            { key: "team_lead_name", value: data.lead_name },
-            { key: "team_lead_email", value: data.lead_email },
-            // Only add event_id if present
-            ...(data.event_id
-              ? [{ key: "event_id", value: data.event_id }]
-              : []),
-          ],
+          metadata: {
+            mentor_mates_project_id: data.id,
+            team_lead_name: data.lead_name,
+            team_lead_email: data.lead_email,
+            ...(data.event_id ? { event_id: data.event_id } : {}),
+          },
         };
         createdContextusId = await createContextusProject(contextusPayload);
         if (createdContextusId) {

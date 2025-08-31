@@ -204,12 +204,12 @@ export async function POST(request: Request) {
 				const label = projectName || leadName || "Project";
 				const contextusPayload = {
 					label,
-					metadata: [
-						{ key: "mentor_mates_project_id", value: finalProjectId! },
-						{ key: "team_lead_name", value: leadName as string },
-						{ key: "team_lead_email", value: leadEmail as string },
-						...(eventId ? [{ key: "event_id", value: eventId }] : []),
-					],
+					metadata: {
+						mentor_mates_project_id: finalProjectId!,
+						team_lead_name: leadName as string,
+						team_lead_email: leadEmail as string,
+						...(eventId ? { event_id: eventId } : {}),
+					},
 					artifacts: projectUrl
 						? { type: "link", title: "Project Repository", url: projectUrl }
 						: { type: "doc", title: projectDescription ? projectDescription.slice(0, 100) : "Project" },

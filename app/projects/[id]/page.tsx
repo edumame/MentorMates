@@ -876,11 +876,11 @@ export default function ProjectPage() {
       // Create the Contextus project
       const contextusPayload = {
         label: project.project_name,
-        metadata: [
-          { key: "event", value: eventName || "Unknown Event" },
-          { key: "lead", value: project.lead_name },
-          { key: "team_size", value: String((project.teammates?.length || 0) + 1) }
-        ],
+        metadata: {
+          event: eventName || "Unknown Event",
+          lead: project.lead_name,
+          team_size: String((project.teammates?.length || 0) + 1)
+        },
         artifacts: project.project_url ? {
           type: "link",
           title: "Project Repository",
