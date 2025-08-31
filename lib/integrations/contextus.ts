@@ -1,8 +1,3 @@
-export interface ContextusMetadataItem {
-  key: string;
-  value: string;
-}
-
 export interface ContextusArtifactItem {
   type: string;
   title: string;
@@ -11,7 +6,8 @@ export interface ContextusArtifactItem {
 
 export interface CreateContextusProjectInput {
   label: string;
-  metadata?: ContextusMetadataItem[];
+  // Use a single JSON blob for metadata instead of key/value array
+  metadata?: Record<string, unknown>;
   artifacts?: ContextusArtifactItem | ContextusArtifactItem[];
 }
 
