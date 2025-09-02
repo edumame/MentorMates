@@ -13,7 +13,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Project, EventItem, FeedbackItem } from "@/lib/types";
+import { Project, EventItem, FeedbackItem, EventVisibility } from "@/lib/types";
+import { z } from "zod";
+import { useToast } from "@/lib/hooks/use-toast";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface AdminDashboardProps {
   event?: EventItem;
@@ -35,6 +41,93 @@ export function AdminDashboard({ event }: AdminDashboardProps) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [mentors, setMentors] = useState<MentorType[]>([]);
   const [feedback, setFeedback] = useState<ExtendedFeedback[]>([]);
+  const { toast } = useToast();
+
+  const [creating, setCreating] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    event_name: "",
+    event_date: "",
+    location: "",
+    visibility: EventVisibility.Draft,
+    slug: "",
+    event_description: "",
+    event_blurb: "",
+    cover_image_url: "",
+    organizer_emails: "",
+  });
+
+  const onCreateChange = (key: keyof typeof createForm, value: string) => {
+    setCreateForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const createEventSchema = z.object({
+    event_name: z.string().min(3),
+    event_date: z.string().refine((v) => !Number.isNaN(Date.parse(v))),
+    location: z.string().min(1),
+    visibility: z.nativeEnum(EventVisibility),
+    slug: z.string().optional(),
+    event_description: z.string().optional(),
+    event_blurb: z.string().optional(),
+    cover_image_url: z.string().url().optional().or(z.literal("")),
+    organizer_emails: z.string().optional(),
+  });
+
+  const handleCreateEvent = async () => {
+    const parsed = createEventSchema.safeParse(createForm);
+    if (!parsed.success) {
+      toast({ title: "Invalid form", description: "Please fix validation errors.", variant: "destructive" });
+      return;
+    }
+
+    const organizerEmails = (createForm.organizer_emails || "")
+      .split(",")
+      .map((e) => e.trim())
+      .filter((e) => e.length > 0);
+
+    setCreating(true);
+    try {
+      const res = await fetch("/api/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          event: {
+            event_name: createForm.event_name,
+            event_date: createForm.event_date,
+            location: createForm.location,
+            visibility: createForm.visibility,
+            slug: createForm.slug || undefined,
+            event_description: createForm.event_description || undefined,
+            event_blurb: createForm.event_blurb || undefined,
+            cover_image_url: createForm.cover_image_url || undefined,
+          },
+          organizerEmails,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast({ title: "Create failed", description: data.error || "Error creating event.", variant: "destructive" });
+        return;
+      }
+
+      toast({ title: "Event created", description: `${data.event.event_name} created successfully.` });
+      // Reset form
+      setCreateForm({
+        event_name: "",
+        event_date: "",
+        location: "",
+        visibility: EventVisibility.Draft,
+        slug: "",
+        event_description: "",
+        event_blurb: "",
+        cover_image_url: "",
+        organizer_emails: "",
+      });
+    } catch (e) {
+      toast({ title: "Network error", description: "Unable to create event.", variant: "destructive" });
+    } finally {
+      setCreating(false);
+    }
+  };
 
   const fetchProjects = useCallback(async () => {
     const query = supabase
@@ -111,6 +204,7 @@ export function AdminDashboard({ event }: AdminDashboardProps) {
     <Tabs defaultValue="projects" className="space-y-4">
       <TabsList>
         <TabsTrigger value="projects">Projects</TabsTrigger>
+        <TabsTrigger value="events">Events</TabsTrigger>
         <TabsTrigger value="mentors">Mentors</TabsTrigger>
         <TabsTrigger value="feedback">Feedback</TabsTrigger>
       </TabsList>
@@ -146,6 +240,64 @@ export function AdminDashboard({ event }: AdminDashboardProps) {
             ))}
           </TableBody>
         </Table>
+      </TabsContent>
+
+      <TabsContent value="events">
+        <h2 className="text-2xl font-bold mb-4">Create Event</h2>
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Event Name</label>
+            <Input value={createForm.event_name} onChange={(e) => onCreateChange("event_name", e.target.value)} placeholder="My Hackathon" />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Event Date</label>
+            <Input type="datetime-local" value={createForm.event_date} onChange={(e) => onCreateChange("event_date", e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Location</label>
+            <Input value={createForm.location} onChange={(e) => onCreateChange("location", e.target.value)} placeholder="City, Venue or Remote" />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Visibility</label>
+            <Select value={createForm.visibility} onValueChange={(v) => onCreateChange("visibility", v)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select visibility" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={EventVisibility.Draft}>Draft</SelectItem>
+                <SelectItem value={EventVisibility.Private}>Private</SelectItem>
+                <SelectItem value={EventVisibility.Public}>Public</SelectItem>
+                <SelectItem value={EventVisibility.Demo}>Demo</SelectItem>
+                <SelectItem value={EventVisibility.Test}>Test</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2 md:col-span-2">
+            <label className="text-sm font-medium">Slug (optional)</label>
+            <Input value={createForm.slug} onChange={(e) => onCreateChange("slug", e.target.value)} placeholder="my-hackathon-2025" />
+          </div>
+          <div className="space-y-2 md:col-span-2">
+            <label className="text-sm font-medium">Blurb (optional)</label>
+            <Input value={createForm.event_blurb} onChange={(e) => onCreateChange("event_blurb", e.target.value)} placeholder="Short description shown in cards" />
+          </div>
+          <div className="space-y-2 md:col-span-2">
+            <label className="text-sm font-medium">Description (optional)</label>
+            <Textarea value={createForm.event_description} onChange={(e) => onCreateChange("event_description", e.target.value)} rows={5} placeholder="Long description or markdown" />
+          </div>
+          <div className="space-y-2 md:col-span-2">
+            <label className="text-sm font-medium">Cover Image URL (optional)</label>
+            <Input value={createForm.cover_image_url} onChange={(e) => onCreateChange("cover_image_url", e.target.value)} placeholder="https://..." />
+          </div>
+          <div className="space-y-2 md:col-span-2">
+            <label className="text-sm font-medium">Organizer Emails (comma separated)</label>
+            <Input value={createForm.organizer_emails} onChange={(e) => onCreateChange("organizer_emails", e.target.value)} placeholder="alice@example.com, bob@example.com" />
+          </div>
+        </div>
+        <div className="mt-4">
+          <Button onClick={handleCreateEvent} disabled={creating}>
+            {creating ? "Creating..." : "Create Event"}
+          </Button>
+        </div>
       </TabsContent>
 
       <TabsContent value="mentors">

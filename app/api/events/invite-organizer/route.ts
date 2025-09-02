@@ -25,14 +25,25 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid email format' }, { status: 400 });
   }
 
-  const { data: role } = await supabase
+  // Allow organizers of this event OR global admins
+  const { data: userRole } = await supabase
     .from('user_event_roles')
     .select('role')
     .eq('event_id', eventId)
     .eq('user_id', auth.user.id)
     .maybeSingle();
 
-  if (!role || !canAccessRole(role.role as EventRole, EventRole.Organizer)) {
+  let isAllowed = false;
+  if (userRole && canAccessRole(userRole.role as EventRole, EventRole.Organizer)) {
+    isAllowed = true;
+  } else {
+    const { data: isAdmin } = await supabase.rpc('is_admin_user', {
+      user_id: auth.user.id,
+    });
+    isAllowed = Boolean(isAdmin);
+  }
+
+  if (!isAllowed) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
