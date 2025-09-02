@@ -75,7 +75,7 @@ export function EventsPageClient({ eventsList, isAdmin }: { eventsList: EventIte
         cover_image_url: "",
         organizer_emails: "",
       });
-    } catch (e) {
+    } catch (_err) {
       toast({ title: "Network error", description: "Unable to create event.", variant: "destructive" });
     } finally {
       setCreating(false);

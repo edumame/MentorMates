@@ -3,6 +3,7 @@ import { EventRole, EventVisibility } from "@/lib/types";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { defaultRules } from "@/lib/config/constants";
 import { z } from "zod";
+import type { Database, Json } from "@/lib/database.types";
 
 export async function GET() {
   const supabase = await createSupabaseClient();
@@ -151,12 +152,13 @@ export async function POST(req: Request) {
     const { event, organizerEmails = [] } = parsed.data;
 
     // Build insert payload, providing sane defaults
-    const insertPayload: any = {
+    const insertPayload: Database["public"]["Tables"]["events"]["Insert"] = {
       event_name: event.event_name,
       event_date: event.event_date,
       location: event.location,
-      rules: defaultRules,
-      visibility: event.visibility ?? EventVisibility.Draft,
+      rules: defaultRules as unknown as Json,
+      visibility:
+        (event.visibility ?? EventVisibility.Draft) as Database["public"]["Enums"]["event_visibility"],
       slug: event.slug ?? null,
       cover_image_url: event.cover_image_url ?? null,
       event_description: event.event_description ?? null,
