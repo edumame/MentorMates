@@ -4,12 +4,20 @@ import { useState, useMemo } from "react";
 import { EventsList } from "@/components/events/events-list";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { EventItem } from "@/lib/types";
+import { EventItem, EventVisibility } from "@/lib/types";
 import { UI_TEXT, DEFAULT_VALUES } from "@/lib/config/constants";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/lib/hooks/use-toast";
+import Link from "next/link";
 
-export function EventsPageClient({ eventsList }: { eventsList: EventItem[] }) {
+export function EventsPageClient({ eventsList, isAdmin }: { eventsList: EventItem[]; isAdmin?: boolean }) {
   const [searchTerm, setSearchTerm] = useState(DEFAULT_VALUES.SEARCH_TERM);
   const [hidePaid, setHidePaid] = useState(false);
+  const { toast } = useToast();
+
+  // Creating is now done on a separate page
 
   const filteredEvents = useMemo(() => {
     return eventsList.filter((event) =>
@@ -47,7 +55,14 @@ export function EventsPageClient({ eventsList }: { eventsList: EventItem[] }) {
         </svg>
       </div>
 
-      <div className="flex justify-end mb-6">
+      <div className="flex justify-between items-center mb-6 gap-4 flex-col sm:flex-row">
+        {isAdmin ? (
+          <div className="w-full">
+            <Button asChild>
+              <Link href="/events/new">Create an event</Link>
+            </Button>
+          </div>
+        ) : null }
         <div className="flex items-center gap-2">
           <span className="text-sm text-gray-600">Hide Paid</span>
           <Switch checked={hidePaid} onCheckedChange={setHidePaid} />

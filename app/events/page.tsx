@@ -12,6 +12,9 @@ export default async function EventsPage() {
     data: { user },
   } = await supabase.auth.getUser();
   const isAuthenticated = !!user;
+  const isAdminGlobal = isAuthenticated
+    ? (await supabase.rpc("is_admin_user", { user_id: user!.id })).data || false
+    : false;
 
   async function fetchAuthenticatedUserEvents() {
     try {
@@ -30,10 +33,7 @@ export default async function EventsPage() {
 
       if (rolesError) throw rolesError;
 
-      // Check if user is an admin in any event
-      const { data } = await supabase.rpc("is_admin_user", { user_id: userId });
-
-      const isAdmin = data || false;
+      const isAdmin = isAdminGlobal;
 
       // Get event IDs where user is an organizer
       const organizerEventIds = userRoles
@@ -125,7 +125,7 @@ export default async function EventsPage() {
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-center text-blue-900">
             Events
           </h1>
-          <EventsPageClient eventsList={eventsList} />
+          <EventsPageClient eventsList={eventsList} isAdmin={isAdminGlobal} />
           
           {/* Discord CTA on events page */}
           <div className="mt-12">
