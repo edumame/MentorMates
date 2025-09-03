@@ -11,6 +11,17 @@ import { useRouter } from "next/navigation";
 import { toast as ToastType } from "@/lib/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface BasicInfoTabProps {
   event: EventDetails;
@@ -35,6 +46,7 @@ export function BasicInfoTab({
   const [useImageUrl, setUseImageUrl] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [updateSlug, setUpdateSlug] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const handleBasicInfoUpdate = async () => {
     if (!event) return;
@@ -355,6 +367,62 @@ export function BasicInfoTab({
       >
         {saving ? "Saving..." : "Save Basic Information"}
       </Button>
+
+      {/* Danger zone */}
+      <div className="mt-8 border-t pt-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="font-semibold text-red-600">Delete Event</p>
+            <p className="text-sm text-muted-foreground">This action cannot be undone.</p>
+          </div>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" disabled={deleting}>
+                {deleting ? "Deleting..." : "Delete Event"}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete this event?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will permanently remove the event and related data (tickets, payments, tracks, feedback). This cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={async () => {
+                    try {
+                      setDeleting(true);
+                      const res = await fetch(`/api/events/${event.event_id}`, {
+                        method: "DELETE",
+                      });
+                      if (!res.ok) {
+                        const body = await res.json().catch(() => ({}));
+                        throw new Error(body?.error || "Failed to delete event");
+                      }
+                      toast({ title: "Event deleted" });
+                      // Navigate back to events list
+                      router.push("/events");
+                    } catch (err) {
+                      console.error(err);
+                      toast({
+                        title: "Error",
+                        description: (err as Error).message,
+                        variant: "destructive",
+                      });
+                    } finally {
+                      setDeleting(false);
+                    }
+                  }}
+                >
+                  Confirm Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      </div>
     </div>
   );
 } 
