@@ -229,41 +229,45 @@ export function BasicInfoTab({
         />
       </div>
 
-      {/* Description moved directly under the blurb */}
+      {/* Description moved directly under the blurb, inside a navy callout */}
       <div className="space-y-2">
-        <Label htmlFor="event_description">Description (Markdown Supported)</Label>
-        <Alert variant="destructive">
+        <Alert className="border-blue-200 bg-blue-50 text-blue-900">
           <AlertTitle>Important</AlertTitle>
           <AlertDescription>
             This section is really important. Please click the Preview tab to
             confirm formatting and content before saving.
           </AlertDescription>
+          <div className="mt-3 space-y-2">
+            <Label htmlFor="event_description">Description (Markdown Supported)</Label>
+            <Tabs defaultValue="edit" className="w-full">
+              <TabsList>
+                <TabsTrigger value="edit">Edit</TabsTrigger>
+                <TabsTrigger value="preview">Preview</TabsTrigger>
+              </TabsList>
+              <TabsContent value="edit" className="mt-0">
+                <Textarea
+                  id="event_description"
+                  value={event.event_description || ""}
+                  onChange={(e) =>
+                    setEvent({
+                      ...event,
+                      event_description: e.target.value,
+                    })
+                  }
+                  rows={4}
+                  className="text-blue-900"
+                />
+              </TabsContent>
+              <TabsContent value="preview" className="mt-0">
+                <div className="prose prose-sm dark:prose-invert max-w-none rounded-md border bg-white p-3 text-blue-900">
+                  <div className="font-mono text-blue-700">[</div>
+                  <ReactMarkdown>{event.event_description || ""}</ReactMarkdown>
+                  <div className="font-mono text-blue-700 text-right">]</div>
+                </div>
+              </TabsContent>
+            </Tabs>
+          </div>
         </Alert>
-        <Tabs defaultValue="edit" className="w-full">
-          <TabsList>
-            <TabsTrigger value="edit">Edit</TabsTrigger>
-            <TabsTrigger value="preview">Preview</TabsTrigger>
-          </TabsList>
-          <TabsContent value="edit" className="mt-0">
-            <Textarea
-              id="event_description"
-              value={event.event_description || ""}
-              onChange={(e) =>
-                setEvent({
-                  ...event,
-                  event_description: e.target.value,
-                })
-              }
-              rows={4}
-              className="text-red-600"
-            />
-          </TabsContent>
-          <TabsContent value="preview" className="mt-0">
-            <div className="prose prose-sm dark:prose-invert max-w-none rounded-md border bg-muted/30 p-3 !text-red-600">
-              <ReactMarkdown>{event.event_description || ""}</ReactMarkdown>
-            </div>
-          </TabsContent>
-        </Tabs>
       </div>
 
       {/* Paywall Content - Only show for paid events (below description) */}
