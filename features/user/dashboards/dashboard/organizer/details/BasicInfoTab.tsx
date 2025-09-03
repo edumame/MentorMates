@@ -231,8 +231,8 @@ export function BasicInfoTab({
 
       {/* Description moved directly under the blurb, inside a navy callout */}
       <div className="space-y-2">
-        <Alert className="border-blue-200 bg-blue-50 text-blue-900">
-          <AlertTitle>Important</AlertTitle>
+        <Alert className="border-blue-200 bg-blue-50">
+          <AlertTitle className="text-blue-900">Important</AlertTitle>
           <AlertDescription>
             This section is really important. Please click the Preview tab to
             confirm formatting and content before saving.
@@ -255,14 +255,11 @@ export function BasicInfoTab({
                     })
                   }
                   rows={4}
-                  className="text-blue-900"
                 />
               </TabsContent>
               <TabsContent value="preview" className="mt-0">
-                <div className="prose prose-sm dark:prose-invert max-w-none rounded-md border bg-white p-3 text-blue-900">
-                  <div className="font-mono text-blue-700">[</div>
+                <div className="prose prose-sm dark:prose-invert max-w-none rounded-md border bg-white p-3">
                   <ReactMarkdown>{event.event_description || ""}</ReactMarkdown>
-                  <div className="font-mono text-blue-700 text-right">]</div>
                 </div>
               </TabsContent>
             </Tabs>
