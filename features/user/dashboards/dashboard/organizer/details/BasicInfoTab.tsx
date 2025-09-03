@@ -22,6 +22,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 interface BasicInfoTabProps {
   event: EventDetails;
@@ -126,89 +127,93 @@ export function BasicInfoTab({
 
   return (
     <div className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="event_name">Event Name</Label>
-        <Input
-          id="event_name"
-          value={event.event_name || ""}
-          onChange={(e) =>
-            setEvent({ ...event, event_name: e.target.value })
-          }
-        />
+      {/* Compact top rows */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="event_name">Event Name</Label>
+          <Input
+            id="event_name"
+            value={event.event_name || ""}
+            onChange={(e) =>
+              setEvent({ ...event, event_name: e.target.value })
+            }
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="slug">URL Slug</Label>
+          <Input
+            id="slug"
+            value={event.slug || ""}
+            onChange={(e) => {
+              setEvent({ ...event, slug: e.target.value });
+              setUpdateSlug(true);
+            }}
+            placeholder="url-friendly-event-name"
+            className="font-mono text-sm"
+          />
+          <p className="text-xs text-gray-500">
+            URL-friendly identifier for your event (lowercase, hyphens only)
+          </p>
+        </div>
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="slug">URL Slug</Label>
-        <Input
-          id="slug"
-          value={event.slug || ""}
-          onChange={(e) => {
-            setEvent({ ...event, slug: e.target.value });
-            setUpdateSlug(true);
-          }}
-          placeholder="url-friendly-event-name"
-          className="font-mono text-sm"
-        />
-        <p className="text-xs text-gray-500">
-          URL-friendly identifier for your event (lowercase, hyphens only)
-        </p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="event_date">Event Date</Label>
+          <Input
+            id="event_date"
+            type="date"
+            value={event.event_date || ""}
+            onChange={(e) =>
+              setEvent({ ...event, event_date: e.target.value })
+            }
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="location">Location</Label>
+          <Input
+            id="location"
+            value={event.location || ""}
+            onChange={(e) =>
+              setEvent({ ...event, location: e.target.value })
+            }
+          />
+        </div>
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="event_date">Event Date</Label>
-        <Input
-          id="event_date"
-          type="date"
-          value={event.event_date || ""}
-          onChange={(e) =>
-            setEvent({ ...event, event_date: e.target.value })
-          }
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="submission_time_start">
-          Submission Window Start (UTC)
-        </Label>
-        <Input
-          id="submission_time_start"
-          type="datetime-local"
-          value={event.submission_time_start?.slice(0, 16) || ""}
-          onChange={(e) =>
-            setEvent({ ...event, submission_time_start: e.target.value })
-          }
-        />
-        <p className="text-xs text-gray-500">
-          {new Date(event.submission_time_start || "").toString()}
-        </p>
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="submission_time_cutoff">
-          Submission Window End (UTC)
-        </Label>
-        <Input
-          id="submission_time_cutoff"
-          type="datetime-local"
-          value={event.submission_time_cutoff?.slice(0, 16) || ""}
-          onChange={(e) =>
-            setEvent({ ...event, submission_time_cutoff: e.target.value })
-          }
-        />
-        <p className="text-xs text-gray-500">
-          {new Date(event.submission_time_cutoff || "").toString()}
-        </p>
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="location">Location</Label>
-        <Input
-          id="location"
-          value={event.location || ""}
-          onChange={(e) =>
-            setEvent({ ...event, location: e.target.value })
-          }
-        />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="submission_time_start">
+            Submission Window Start (UTC)
+          </Label>
+          <Input
+            id="submission_time_start"
+            type="datetime-local"
+            value={event.submission_time_start?.slice(0, 16) || ""}
+            onChange={(e) =>
+              setEvent({ ...event, submission_time_start: e.target.value })
+            }
+          />
+          <p className="text-xs text-gray-500">
+            {new Date(event.submission_time_start || "").toString()}
+          </p>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="submission_time_cutoff">
+            Submission Window End (UTC)
+          </Label>
+          <Input
+            id="submission_time_cutoff"
+            type="datetime-local"
+            value={event.submission_time_cutoff?.slice(0, 16) || ""}
+            onChange={(e) =>
+              setEvent({ ...event, submission_time_cutoff: e.target.value })
+            }
+          />
+          <p className="text-xs text-gray-500">
+            {new Date(event.submission_time_cutoff || "").toString()}
+          </p>
+        </div>
       </div>
 
       <div className="space-y-2">
@@ -224,7 +229,44 @@ export function BasicInfoTab({
         />
       </div>
 
-      {/* Paywall Content - Only show for paid events */}
+      {/* Description moved directly under the blurb */}
+      <div className="space-y-2">
+        <Label htmlFor="event_description">Description (Markdown Supported)</Label>
+        <Alert variant="destructive">
+          <AlertTitle>Important</AlertTitle>
+          <AlertDescription>
+            This section is really important. Please click the Preview tab to
+            confirm formatting and content before saving.
+          </AlertDescription>
+        </Alert>
+        <Tabs defaultValue="edit" className="w-full">
+          <TabsList>
+            <TabsTrigger value="edit">Edit</TabsTrigger>
+            <TabsTrigger value="preview">Preview</TabsTrigger>
+          </TabsList>
+          <TabsContent value="edit" className="mt-0">
+            <Textarea
+              id="event_description"
+              value={event.event_description || ""}
+              onChange={(e) =>
+                setEvent({
+                  ...event,
+                  event_description: e.target.value,
+                })
+              }
+              rows={4}
+              className="text-red-600"
+            />
+          </TabsContent>
+          <TabsContent value="preview" className="mt-0">
+            <div className="prose prose-sm dark:prose-invert max-w-none rounded-md border bg-muted/30 p-3 !text-red-600">
+              <ReactMarkdown>{event.event_description || ""}</ReactMarkdown>
+            </div>
+          </TabsContent>
+        </Tabs>
+      </div>
+
+      {/* Paywall Content - Only show for paid events (below description) */}
       {event.paid && (
         <div className="space-y-2">
           <Label htmlFor="paywall_content">
@@ -331,34 +373,7 @@ export function BasicInfoTab({
         )}
       </div>
 
-      {/* Moved Description (Overview) to bottom */}
-      <div className="space-y-2">
-        <Label htmlFor="event_description">Description (Markdown Supported)</Label>
-        <Tabs defaultValue="edit" className="w-full">
-          <TabsList>
-            <TabsTrigger value="edit">Edit</TabsTrigger>
-            <TabsTrigger value="preview">Preview</TabsTrigger>
-          </TabsList>
-          <TabsContent value="edit" className="mt-0">
-            <Textarea
-              id="event_description"
-              value={event.event_description || ""}
-              onChange={(e) =>
-                setEvent({
-                  ...event,
-                  event_description: e.target.value,
-                })
-              }
-              rows={4}
-            />
-          </TabsContent>
-          <TabsContent value="preview" className="mt-0">
-            <div className="prose prose-sm dark:prose-invert max-w-none rounded-md border bg-muted/30 p-3">
-              <ReactMarkdown>{event.event_description || ""}</ReactMarkdown>
-            </div>
-          </TabsContent>
-        </Tabs>
-      </div>
+      {/* Description moved above; removed from bottom */}
 
       <Button
         onClick={handleBasicInfoUpdate}
