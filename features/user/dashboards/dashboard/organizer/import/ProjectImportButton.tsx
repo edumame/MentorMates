@@ -57,26 +57,38 @@ export function ProjectImport({ eventId }: ProjectImportProps) {
     // Map each field according to our header mapping
     Object.entries(HEADER_MAPPING).forEach(([devpostHeader, dbField]) => {
       const value = row.headers[devpostHeader] || "";
-      (mappedRow as Record<keyof DevpostProjectImport, string | string[]>)[dbField] = value;
+      (mappedRow as Record<keyof DevpostProjectImport, string | string[]>)[
+        dbField
+      ] = value;
     });
 
     // Set lead name if it's not already set
-    if (!mappedRow.lead_name && row.headers["Team Member 1 First Name"] && row.headers["Team Member 1 Last Name"]) {
-      mappedRow.lead_name = `${row.headers["Team Member 1 First Name"]} ${row.headers["Team Member 1 Last Name"]}`.trim();
+    if (
+      !mappedRow.lead_name &&
+      row.headers["Team Member 1 First Name"] &&
+      row.headers["Team Member 1 Last Name"]
+    ) {
+      mappedRow.lead_name =
+        `${row.headers["Team Member 1 First Name"]} ${row.headers["Team Member 1 Last Name"]}`.trim();
     }
 
     // Handle additional team members
-    const additionalMemberCount = parseInt(row.headers["Additional Team Member Count"] || "0", 10);
+    const additionalMemberCount = parseInt(
+      row.headers["Additional Team Member Count"] || "0",
+      10
+    );
     const teammates: string[] = [];
 
     // Find Team Member 1's email column index by looking through the original headers array
-    const team1EmailIndex = Object.keys(row.headers).findIndex((header: string) => header === "Team Member 1 Email");
+    const team1EmailIndex = Object.keys(row.headers).findIndex(
+      (header: string) => header === "Team Member 1 Email"
+    );
     console.log("team1EmailIndex", team1EmailIndex);
-    
+
     if (team1EmailIndex !== -1) {
       // For each additional member, their email is every 3rd column
       for (let i = 0; i < additionalMemberCount; i++) {
-        const memberEmailIndex = team1EmailIndex + 3 + (i * 3); // Skip 3 columns for each member
+        const memberEmailIndex = team1EmailIndex + 3 + i * 3; // Skip 3 columns for each member
         console.log("memberEmailIndex", memberEmailIndex);
         console.log("row data", row.data);
         const memberEmail = row.data[memberEmailIndex];
@@ -114,9 +126,12 @@ export function ProjectImport({ eventId }: ProjectImportProps) {
 
     const { error: projectInsertError } = await supabase
       .from("projects")
-      .upsert(deduplicatedRows, {
-        onConflict: "project_url,event_id,project_name",
-      });
+      .upsert(
+        { ...deduplicatedRows, submitted: true },
+        {
+          onConflict: "project_url,event_id,project_name",
+        }
+      );
 
     console.log(deduplicatedRows);
 
@@ -144,7 +159,7 @@ export function ProjectImport({ eventId }: ProjectImportProps) {
       Papa.parse<string[]>(file, {
         header: false,
         skipEmptyLines: true,
-        transform: function(value) {
+        transform: function (value) {
           return value.replaceAll('"', "");
         },
         step({ data }) {
@@ -157,12 +172,15 @@ export function ProjectImport({ eventId }: ProjectImportProps) {
           // Create an object with both the raw data array and a headers mapping
           const rowData: CsvRow = {
             data: data,
-            headers: headers.reduce((acc, header, index) => {
-              if (header) {
-                acc[header] = data[index];
-              }
-              return acc;
-            }, {} as Record<string, string>)
+            headers: headers.reduce(
+              (acc, header, index) => {
+                if (header) {
+                  acc[header] = data[index];
+                }
+                return acc;
+              },
+              {} as Record<string, string>
+            ),
           };
 
           const mappedRow = mapRow(rowData);
@@ -231,8 +249,12 @@ export function ProjectImport({ eventId }: ProjectImportProps) {
                   <TableCell>{row.project_url}</TableCell>
                   <TableCell>{row.video_url}</TableCell>
                   <TableCell>{row.additional_materials_url}</TableCell>
-                  <TableCell>{row.lead_name} ({row.lead_email})</TableCell>
-                  <TableCell>{row.teammates?.join(", ") || "No additional members"}</TableCell>
+                  <TableCell>
+                    {row.lead_name} ({row.lead_email})
+                  </TableCell>
+                  <TableCell>
+                    {row.teammates?.join(", ") || "No additional members"}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
