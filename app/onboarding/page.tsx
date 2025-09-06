@@ -28,51 +28,22 @@ import {
   NON_AI_TECH_CATEGORIES,
   AI_TOOL_VALUES,
   NON_AI_TOOL_VALUES,
+  FAMILIARITY_VALUES,
+  GOAL_VALUES,
+  ROLE_VALUES,
+  INDUSTRY_VALUES,
 } from "@/features/user/onboarding/questions-data";
 
 const Schema = z.object({
-  familiarity: z.enum(["beginner", "intermediate", "advanced"], {
+  familiarity: z.enum(FAMILIARITY_VALUES, {
     required_error: "Please select your AI familiarity",
   }),
   mainGoals: z
-    .array(
-      z.enum([
-        "build_project",
-        "start_startup",
-        "learn_skills",
-        "prepare_jobs",
-        "join_community",
-        "exploring",
-      ])
-    )
+    .array(z.enum(GOAL_VALUES))
     .min(1, "Select at least one goal"),
-  role: z.enum(
-    [
-      "developer",
-      "design",
-      "product",
-      "research",
-      "marketing",
-      "founder",
-      "it_security",
-      "other",
-    ],
-    { required_error: "Please choose a role" }
-  ),
+  role: z.enum(ROLE_VALUES, { required_error: "Please choose a role" }),
   industries: z
-    .array(
-      z.enum([
-        "education",
-        "health",
-        "gaming",
-        "manufacturing",
-        "transport",
-        "climate",
-        "accessibility",
-        "finance_business",
-        "other",
-      ])
-    )
+    .array(z.enum(INDUSTRY_VALUES))
     .min(1, "Select at least one industry"),
   aiTools: z.array(z.enum(AI_TOOL_VALUES)).default([]),
   nonAiTools: z.array(z.enum(NON_AI_TOOL_VALUES)).default([]),

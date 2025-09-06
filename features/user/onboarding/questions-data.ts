@@ -15,6 +15,12 @@ export const FAMILIARITY_OPTIONS = [
   
 ] as const;
 
+export const FAMILIARITY_VALUES = [
+  "beginner",
+  "intermediate",
+  "advanced",
+] as const;
+
 export const GOAL_OPTIONS = [
   { value: "build_project", label: "Build a project" },
   { value: "start_startup", label: "Start or grow a startup" },
@@ -22,6 +28,15 @@ export const GOAL_OPTIONS = [
   { value: "prepare_jobs", label: "Prepare for jobs/career" },
   { value: "join_community", label: "Join a community / meet people" },
   { value: "exploring", label: "Just exploring, not sure yet" },
+] as const;
+
+export const GOAL_VALUES = [
+  "build_project",
+  "start_startup",
+  "learn_skills",
+  "prepare_jobs",
+  "join_community",
+  "exploring",
 ] as const;
 
 export const ROLE_OPTIONS = [
@@ -35,6 +50,17 @@ export const ROLE_OPTIONS = [
   { value: "other", label: "Other" },
 ] as const;
 
+export const ROLE_VALUES = [
+  "developer",
+  "design",
+  "product",
+  "research",
+  "marketing",
+  "founder",
+  "it_security",
+  "other",
+] as const;
+
 export const INDUSTRY_OPTIONS = [
   { value: "education", label: "Education" },
   { value: "health", label: "Health" },
@@ -45,6 +71,18 @@ export const INDUSTRY_OPTIONS = [
   { value: "accessibility", label: "Accessibility" },
   { value: "finance_business", label: "Finance / Business" },
   { value: "other", label: "Other" },
+] as const;
+
+export const INDUSTRY_VALUES = [
+  "education",
+  "health",
+  "gaming",
+  "manufacturing",
+  "transport",
+  "climate",
+  "accessibility",
+  "finance_business",
+  "other",
 ] as const;
 
 export const AI_TECH_CATEGORIES = [
