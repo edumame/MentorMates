@@ -19,6 +19,16 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { CheckedState } from "@radix-ui/react-checkbox";
+import {
+  FAMILIARITY_OPTIONS,
+  GOAL_OPTIONS,
+  ROLE_OPTIONS,
+  INDUSTRY_OPTIONS,
+  AI_TECH_CATEGORIES,
+  NON_AI_TECH_CATEGORIES,
+  AI_TOOL_VALUES,
+  NON_AI_TOOL_VALUES,
+} from "@/features/user/onboarding/questions-data";
 
 const Schema = z.object({
   familiarity: z.enum(["beginner", "intermediate", "advanced"], {
@@ -64,19 +74,8 @@ const Schema = z.object({
       ])
     )
     .min(1, "Select at least one industry"),
-  tools: z.array(
-    z.enum([
-      "gamma",
-      "chatgpt",
-      "canva_ai",
-      "notion",
-      "replit",
-      "cursor",
-      "data_analysis",
-      "ar_vr",
-      "hardware_iot",
-    ])
-  ),
+  aiTools: z.array(z.enum(AI_TOOL_VALUES)).optional().default([]),
+  nonAiTools: z.array(z.enum(NON_AI_TOOL_VALUES)).optional().default([]),
 });
 
 type FormValues = z.infer<typeof Schema>;
@@ -94,7 +93,8 @@ export default function OnboardingPage() {
       mainGoals: [],
       role: undefined as unknown as FormValues["role"],
       industries: [],
-      tools: [],
+      aiTools: [],
+      nonAiTools: [],
     },
   });
 
@@ -128,38 +128,10 @@ export default function OnboardingPage() {
     }
   };
 
-  const goalOptions = [
-    { value: "build_project", label: "Build a project" },
-    { value: "start_startup", label: "Start or grow a startup" },
-    { value: "learn_skills", label: "Learn new skills" },
-    { value: "prepare_jobs", label: "Prepare for jobs/career" },
-    { value: "join_community", label: "Join a community / meet people" },
-    { value: "exploring", label: "Just exploring, not sure yet" },
-  ] as const;
-
-  const industryOptions = [
-    { value: "education", label: "Education" },
-    { value: "health", label: "Health" },
-    { value: "gaming", label: "Gaming" },
-    { value: "manufacturing", label: "Manufacturing" },
-    { value: "transport", label: "Transport" },
-    { value: "climate", label: "Climate / Sustainability" },
-    { value: "accessibility", label: "Accessibility" },
-    { value: "finance_business", label: "Finance / Business" },
-    { value: "other", label: "Other" },
-  ] as const;
-
-  const toolsOptions = [
-    { value: "gamma", label: "AI for slide generation (Gamma)" },
-    { value: "chatgpt", label: "AI for writing & research (ChatGPT)" },
-    { value: "canva_ai", label: "AI for design (Canva AI)" },
-    { value: "notion", label: "AI for project tracking & organization (Notion)" },
-    { value: "replit", label: "AI for website/app building (Replit)" },
-    { value: "cursor", label: "AI coding assistants (Cursor)" },
-    { value: "data_analysis", label: "AI for data analysis" },
-    { value: "ar_vr", label: "AR / VR" },
-    { value: "hardware_iot", label: "Hardware / IoT" },
-  ] as const;
+  const familiarityOptions = FAMILIARITY_OPTIONS;
+  const goalOptions = GOAL_OPTIONS;
+  const roleOptions = ROLE_OPTIONS;
+  const industryOptions = INDUSTRY_OPTIONS;
 
   return (
     <div className="mx-auto max-w-3xl p-4">
@@ -178,24 +150,12 @@ export default function OnboardingPage() {
                     <FormLabel>How familiar are you with AI?</FormLabel>
                     <FormControl>
                       <RadioGroup onValueChange={field.onChange} value={field.value} className="grid grid-cols-1 gap-2">
-                        <div className="flex items-center space-x-3">
-                          <RadioGroupItem value="beginner" id="fam-beginner" />
-                          <label htmlFor="fam-beginner" className="text-sm">
-                            Beginner — I’ve never built with AI, or I only know the basics
-                          </label>
-                        </div>
-                        <div className="flex items-center space-x-3">
-                          <RadioGroupItem value="intermediate" id="fam-intermediate" />
-                          <label htmlFor="fam-intermediate" className="text-sm">
-                            Intermediate — I’ve created some projects using AI
-                          </label>
-                        </div>
-                        <div className="flex items-center space-x-3">
-                          <RadioGroupItem value="advanced" id="fam-advanced" />
-                          <label htmlFor="fam-advanced" className="text-sm">
-                            Advanced — I’ve built with AI professionally or extensively
-                          </label>
-                        </div>
+                        {familiarityOptions.map((opt) => (
+                          <div key={opt.value} className="flex items-center space-x-3">
+                            <RadioGroupItem value={opt.value} id={`fam-${opt.value}`} />
+                            <label htmlFor={`fam-${opt.value}`} className="text-sm">{opt.label}</label>
+                          </div>
+                        ))}
                       </RadioGroup>
                     </FormControl>
                     <FormMessage />
@@ -252,38 +212,12 @@ export default function OnboardingPage() {
                     <FormLabel>Which role are you most interested in?</FormLabel>
                     <FormControl>
                       <RadioGroup onValueChange={field.onChange} value={field.value} className="grid grid-cols-1 gap-2">
-                        <div className="flex items-center space-x-3">
-                          <RadioGroupItem value="developer" id="role-dev" />
-                          <label htmlFor="role-dev" className="text-sm">Developer / Engineer</label>
-                        </div>
-                        <div className="flex items-center space-x-3">
-                          <RadioGroupItem value="design" id="role-design" />
-                          <label htmlFor="role-design" className="text-sm">UX / UI Design</label>
-                        </div>
-                        <div className="flex items-center space-x-3">
-                          <RadioGroupItem value="product" id="role-product" />
-                          <label htmlFor="role-product" className="text-sm">Product / PM</label>
-                        </div>
-                        <div className="flex items-center space-x-3">
-                          <RadioGroupItem value="research" id="role-research" />
-                          <label htmlFor="role-research" className="text-sm">Research / Data</label>
-                        </div>
-                        <div className="flex items-center space-x-3">
-                          <RadioGroupItem value="marketing" id="role-marketing" />
-                          <label htmlFor="role-marketing" className="text-sm">Marketing / Growth</label>
-                        </div>
-                        <div className="flex items-center space-x-3">
-                          <RadioGroupItem value="founder" id="role-founder" />
-                          <label htmlFor="role-founder" className="text-sm">Founder</label>
-                        </div>
-                        <div className="flex items-center space-x-3">
-                          <RadioGroupItem value="it_security" id="role-it" />
-                          <label htmlFor="role-it" className="text-sm">IT &amp; Security</label>
-                        </div>
-                        <div className="flex items-center space-x-3">
-                          <RadioGroupItem value="other" id="role-other" />
-                          <label htmlFor="role-other" className="text-sm">Other</label>
-                        </div>
+                        {roleOptions.map((opt) => (
+                          <div key={opt.value} className="flex items-center space-x-3">
+                            <RadioGroupItem value={opt.value} id={`role-${opt.value}`} />
+                            <label htmlFor={`role-${opt.value}`} className="text-sm">{opt.label}</label>
+                          </div>
+                        ))}
                       </RadioGroup>
                     </FormControl>
                     <FormMessage />
@@ -332,46 +266,87 @@ export default function OnboardingPage() {
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name="tools"
-                render={() => (
-                  <FormItem className="space-y-3">
-                    <FormLabel>What tools or technologies do you want to explore?</FormLabel>
-                    <div className="grid grid-cols-1 gap-2">
-                      {toolsOptions.map((t) => (
-                        <FormField
-                          key={t.value}
-                          control={form.control}
-                          name="tools"
-                          render={({ field }: { field: { value: FormValues["tools"]; onChange: (v: FormValues["tools"]) => void } }) => {
-                            const isChecked = (field.value || []).includes(t.value as unknown as FormValues["tools"][number]);
-                            return (
-                              <FormItem key={t.value} className="flex flex-row items-center space-x-3 space-y-0">
-                                <FormControl>
-                                  <Checkbox
-                                    checked={isChecked}
-                                    onCheckedChange={(checked: CheckedState) => {
-                                      const current = new Set(field.value || []);
-                                      if (checked === true) current.add(t.value);
-                                      else current.delete(t.value);
-                                      field.onChange(Array.from(current));
-                                    }}
-                                  />
-                                </FormControl>
-                                <FormLabel className="text-sm font-normal">
-                                  {t.label}
-                                </FormLabel>
-                              </FormItem>
-                            );
-                          }}
-                        />
-                      ))}
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <FormItem className="space-y-3">
+                <FormLabel>What tools or technologies do you want to explore?</FormLabel>
+                <div className="space-y-6">
+                  <div>
+                    <div className="mb-2 font-medium">AI-based technologies</div>
+                    {AI_TECH_CATEGORIES.map((cat) => (
+                      <div key={cat.id} className="mb-3">
+                        <div className="text-sm text-muted-foreground mb-1">{cat.label}</div>
+                        <div className="grid grid-cols-1 gap-2">
+                          {cat.items.map((t) => (
+                            <FormField
+                              key={t.value}
+                              control={form.control}
+                              name="aiTools"
+                              render={({ field }: { field: { value: FormValues["aiTools"]; onChange: (v: FormValues["aiTools"]) => void } }) => {
+                                const isChecked = (field.value || []).includes(t.value as unknown as FormValues["aiTools"][number]);
+                                return (
+                                  <FormItem key={t.value} className="flex flex-row items-center space-x-3 space-y-0">
+                                    <FormControl>
+                                      <Checkbox
+                                        checked={isChecked}
+                                        onCheckedChange={(checked: CheckedState) => {
+                                          const current = new Set(field.value || []);
+                                          if (checked === true) current.add(t.value);
+                                          else current.delete(t.value);
+                                          field.onChange(Array.from(current));
+                                        }}
+                                      />
+                                    </FormControl>
+                                    <FormLabel className="text-sm font-normal">
+                                      {t.label}
+                                    </FormLabel>
+                                  </FormItem>
+                                );
+                              }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div>
+                    <div className="mb-2 font-medium">Non-AI technologies</div>
+                    {NON_AI_TECH_CATEGORIES.map((cat) => (
+                      <div key={cat.id} className="mb-3">
+                        <div className="text-sm text-muted-foreground mb-1">{cat.label}</div>
+                        <div className="grid grid-cols-1 gap-2">
+                          {cat.items.map((t) => (
+                            <FormField
+                              key={t.value}
+                              control={form.control}
+                              name="nonAiTools"
+                              render={({ field }: { field: { value: FormValues["nonAiTools"]; onChange: (v: FormValues["nonAiTools"]) => void } }) => {
+                                const isChecked = (field.value || []).includes(t.value as unknown as FormValues["nonAiTools"][number]);
+                                return (
+                                  <FormItem key={t.value} className="flex flex-row items-center space-x-3 space-y-0">
+                                    <FormControl>
+                                      <Checkbox
+                                        checked={isChecked}
+                                        onCheckedChange={(checked: CheckedState) => {
+                                          const current = new Set(field.value || []);
+                                          if (checked === true) current.add(t.value);
+                                          else current.delete(t.value);
+                                          field.onChange(Array.from(current));
+                                        }}
+                                      />
+                                    </FormControl>
+                                    <FormLabel className="text-sm font-normal">
+                                      {t.label}
+                                    </FormLabel>
+                                  </FormItem>
+                                );
+                              }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </FormItem>
 
               <div className="flex justify-end">
                 <Button type="submit" disabled={isSubmitting}>

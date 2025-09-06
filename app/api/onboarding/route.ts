@@ -1,24 +1,23 @@
 import { NextResponse } from "next/server";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { z } from "zod";
+import { AI_TOOL_VALUES, NON_AI_TOOL_VALUES } from "@/features/user/onboarding/questions-data";
 
 const OnboardingSchema = z.object({
   version: z.number().int().min(1),
   completedAt: z.string().datetime(),
   answers: z.object({
     familiarity: z.enum(["beginner", "intermediate", "advanced"]),
-    mainGoals: z
-      .array(
-        z.enum([
-          "build_project",
-          "start_startup",
-          "learn_skills",
-          "prepare_jobs",
-          "join_community",
-          "exploring",
-        ])
-      )
-      .min(1),
+    mainGoals: z.array(
+      z.enum([
+        "build_project",
+        "start_startup",
+        "learn_skills",
+        "prepare_jobs",
+        "join_community",
+        "exploring",
+      ])
+    ).min(1),
     role: z.enum([
       "developer",
       "design",
@@ -29,34 +28,21 @@ const OnboardingSchema = z.object({
       "it_security",
       "other",
     ]),
-    industries: z
-      .array(
-        z.enum([
-          "education",
-          "health",
-          "gaming",
-          "manufacturing",
-          "transport",
-          "climate",
-          "accessibility",
-          "finance_business",
-          "other",
-        ])
-      )
-      .min(1),
-    tools: z.array(
+    industries: z.array(
       z.enum([
-        "gamma",
-        "chatgpt",
-        "canva_ai",
-        "notion",
-        "replit",
-        "cursor",
-        "data_analysis",
-        "ar_vr",
-        "hardware_iot",
+        "education",
+        "health",
+        "gaming",
+        "manufacturing",
+        "transport",
+        "climate",
+        "accessibility",
+        "finance_business",
+        "other",
       ])
-    ),
+    ).min(1),
+    aiTools: z.array(z.enum(AI_TOOL_VALUES)).optional().default([]),
+    nonAiTools: z.array(z.enum(NON_AI_TOOL_VALUES)).optional().default([]),
   }),
 });
 
