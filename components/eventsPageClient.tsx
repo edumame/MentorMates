@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { EventsList } from "@/components/events/events-list";
 import { Input } from "@/components/ui/input";
 import { EventItem, EventVisibility } from "@/lib/types";
@@ -10,10 +10,12 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/lib/hooks/use-toast";
 import Link from "next/link";
+import { supabase } from "@/lib/supabase";
 
 export function EventsPageClient({ eventsList, isAdmin }: { eventsList: EventItem[]; isAdmin?: boolean }) {
   const [searchTerm, setSearchTerm] = useState(DEFAULT_VALUES.SEARCH_TERM);
   const { toast } = useToast();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   // Creating is now done on a separate page
 
@@ -22,6 +24,18 @@ export function EventsPageClient({ eventsList, isAdmin }: { eventsList: EventIte
       event.event_name.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [eventsList, searchTerm]);
+
+  useEffect(() => {
+    async function checkSession() {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        setIsLoggedIn(!!session);
+      } catch (error) {
+        console.error("Error checking session:", error);
+      }
+    }
+    checkSession();
+  }, []);
 
   
 
@@ -51,7 +65,7 @@ export function EventsPageClient({ eventsList, isAdmin }: { eventsList: EventIte
       </div>
 
       <div className="flex justify-between items-center mb-6 gap-4 flex-col sm:flex-row">
-        {isAdmin ? (
+        {isLoggedIn ? (
           <div className="w-full">
             <Button asChild>
               <Link href="/events/new">Create an event</Link>
