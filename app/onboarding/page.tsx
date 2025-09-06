@@ -49,7 +49,7 @@ const Schema = z.object({
   nonAiTools: z.array(z.enum(NON_AI_TOOL_VALUES)).default([]),
 });
 
-type FormValues = z.infer<typeof Schema>;
+type FormValues = z.input<typeof Schema>;
 
 export default function OnboardingPage() {
   const router = useRouter();
