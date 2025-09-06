@@ -546,6 +546,7 @@ export type Database = {
           display_name: string | null
           email: string | null
           links: Json | null
+          onboarding_metadata: Json | null
           pulse: number
           stripe_customer_id: string | null
           uid: string
@@ -555,6 +556,7 @@ export type Database = {
           display_name?: string | null
           email?: string | null
           links?: Json | null
+          onboarding_metadata?: Json | null
           pulse?: number
           stripe_customer_id?: string | null
           uid: string
@@ -564,6 +566,7 @@ export type Database = {
           display_name?: string | null
           email?: string | null
           links?: Json | null
+          onboarding_metadata?: Json | null
           pulse?: number
           stripe_customer_id?: string | null
           uid?: string
