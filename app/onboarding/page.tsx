@@ -7,7 +7,6 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
@@ -33,6 +32,8 @@ import {
   ROLE_VALUES,
   INDUSTRY_VALUES,
 } from "@/features/user/onboarding/questions-data";
+import { useStepNavigation } from "@/features/projects/components/forms/hooks/useStepNavigation";
+import { StepNavigation } from "@/features/projects/components/forms/components/StepNavigation";
 
 const Schema = z.object({
   familiarity: z.enum(FAMILIARITY_VALUES, {
@@ -56,6 +57,8 @@ export default function OnboardingPage() {
   const searchParams = useSearchParams();
   const returnUrl = useMemo(() => searchParams.get("returnUrl") || "/", [searchParams]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const totalSteps = 5;
+  const { currentStep, goToNext, goToPrevious } = useStepNavigation(totalSteps);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(Schema),
@@ -104,6 +107,51 @@ export default function OnboardingPage() {
   const roleOptions = ROLE_OPTIONS;
   const industryOptions = INDUSTRY_OPTIONS;
 
+  const stepValidationMessages = (step: number): string[] => {
+    const values = form.getValues();
+    const messages: string[] = [];
+    if (step === 1) {
+      if (!values.familiarity) messages.push("Please select your AI familiarity");
+    }
+    if (step === 2) {
+      if (!values.mainGoals || values.mainGoals.length === 0) messages.push("Select at least one goal");
+    }
+    if (step === 3) {
+      if (!values.role) messages.push("Please choose a role");
+    }
+    if (step === 4) {
+      if (!values.industries || values.industries.length === 0) messages.push("Select at least one industry");
+    }
+    return messages;
+  };
+
+  const canProceedFromStep = (step: number): boolean => stepValidationMessages(step).length === 0;
+
+  const handleNext = () => {
+    if (canProceedFromStep(currentStep)) {
+      goToNext();
+    }
+  };
+
+  const handleFinalizeSubmit = () => {
+    // Final submit from the last step
+    form.handleSubmit(onSubmit)();
+  };
+
+  const progressPercent = Math.round((currentStep / totalSteps) * 100);
+
+  const StepHeader = () => (
+    <div className="mb-6">
+      <div className="flex items-center justify-between mb-2">
+        <div className="text-sm text-muted-foreground">Step {currentStep} of {totalSteps}</div>
+        <div className="text-sm font-medium">{progressPercent}%</div>
+      </div>
+      <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+        <div className="h-full bg-primary" style={{ width: `${progressPercent}%` }} />
+      </div>
+    </div>
+  );
+
   return (
     <div className="mx-auto max-w-3xl p-4">
       <Card>
@@ -112,220 +160,237 @@ export default function OnboardingPage() {
         </CardHeader>
         <CardContent>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-              <FormField
-                control={form.control}
-                name="familiarity"
-                render={({ field }: { field: { value: FormValues["familiarity"]; onChange: (v: FormValues["familiarity"]) => void } }) => (
-                  <FormItem className="space-y-3">
-                    <FormLabel>How familiar are you with AI?</FormLabel>
-                    <FormControl>
-                      <RadioGroup onValueChange={field.onChange} value={field.value} className="grid grid-cols-1 gap-2">
-                        {familiarityOptions.map((opt) => (
-                          <div key={opt.value} className="flex items-center space-x-3">
-                            <RadioGroupItem value={opt.value} id={`fam-${opt.value}`} />
-                            <label htmlFor={`fam-${opt.value}`} className="text-sm">{opt.label}</label>
-                          </div>
-                        ))}
-                      </RadioGroup>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            <form className="space-y-8">
+              <StepHeader />
 
-              <FormField
-                control={form.control}
-                name="mainGoals"
-                render={() => (
-                  <FormItem className="space-y-3">
-                    <FormLabel>What is your main goal?</FormLabel>
-                    <div className="grid grid-cols-1 gap-2">
-                      {goalOptions.map((goal) => (
-                        <FormField
-                          key={goal.value}
-                          control={form.control}
-                          name="mainGoals"
-                          render={({ field }: { field: { value: FormValues["mainGoals"]; onChange: (v: FormValues["mainGoals"]) => void } }) => {
-                            const isChecked = (field.value || []).includes(goal.value as unknown as FormValues["mainGoals"][number]);
-                            return (
-                              <FormItem key={goal.value} className="flex flex-row items-center space-x-3 space-y-0">
-                                <FormControl>
-                                  <Checkbox
-                                    checked={isChecked}
-                                    onCheckedChange={(checked: CheckedState) => {
-                                      const current = new Set(field.value || []);
-                                      if (checked === true) current.add(goal.value);
-                                      else current.delete(goal.value);
-                                      field.onChange(Array.from(current));
-                                    }}
-                                  />
-                                </FormControl>
-                                <FormLabel className="text-sm font-normal">
-                                  {goal.label}
-                                </FormLabel>
-                              </FormItem>
-                            );
-                          }}
-                        />
+              {currentStep === 1 && (
+                <FormField
+                  control={form.control}
+                  name="familiarity"
+                  render={({ field }: { field: { value: FormValues["familiarity"]; onChange: (v: FormValues["familiarity"]) => void } }) => (
+                    <FormItem className="space-y-3">
+                      <FormLabel>How familiar are you with AI?</FormLabel>
+                      <FormControl>
+                        <RadioGroup onValueChange={field.onChange} value={field.value} className="grid grid-cols-1 gap-2">
+                          {familiarityOptions.map((opt) => (
+                            <div key={opt.value} className="flex items-center space-x-3">
+                              <RadioGroupItem value={opt.value} id={`fam-${opt.value}`} />
+                              <label htmlFor={`fam-${opt.value}`} className="text-sm">{opt.label}</label>
+                            </div>
+                          ))}
+                        </RadioGroup>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
+              {currentStep === 2 && (
+                <FormField
+                  control={form.control}
+                  name="mainGoals"
+                  render={() => (
+                    <FormItem className="space-y-3">
+                      <FormLabel>What is your main goal?</FormLabel>
+                      <div className="grid grid-cols-1 gap-2">
+                        {goalOptions.map((goal) => (
+                          <FormField
+                            key={goal.value}
+                            control={form.control}
+                            name="mainGoals"
+                            render={({ field }: { field: { value: FormValues["mainGoals"]; onChange: (v: FormValues["mainGoals"]) => void } }) => {
+                              const isChecked = (field.value || []).includes(goal.value as unknown as FormValues["mainGoals"][number]);
+                              return (
+                                <FormItem key={goal.value} className="flex flex-row items-center space-x-3 space-y-0">
+                                  <FormControl>
+                                    <Checkbox
+                                      checked={isChecked}
+                                      onCheckedChange={(checked: CheckedState) => {
+                                        const current = new Set(field.value || []);
+                                        if (checked === true) current.add(goal.value);
+                                        else current.delete(goal.value);
+                                        field.onChange(Array.from(current));
+                                      }}
+                                    />
+                                  </FormControl>
+                                  <FormLabel className="text-sm font-normal">
+                                    {goal.label}
+                                  </FormLabel>
+                                </FormItem>
+                              );
+                            }}
+                          />
+                        ))}
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
+              {currentStep === 3 && (
+                <FormField
+                  control={form.control}
+                  name="role"
+                  render={({ field }: { field: { value: FormValues["role"]; onChange: (v: FormValues["role"]) => void } }) => (
+                    <FormItem className="space-y-3">
+                      <FormLabel>Which role are you most interested in?</FormLabel>
+                      <FormControl>
+                        <RadioGroup onValueChange={field.onChange} value={field.value} className="grid grid-cols-1 gap-2">
+                          {roleOptions.map((opt) => (
+                            <div key={opt.value} className="flex items-center space-x-3">
+                              <RadioGroupItem value={opt.value} id={`role-${opt.value}`} />
+                              <label htmlFor={`role-${opt.value}`} className="text-sm">{opt.label}</label>
+                            </div>
+                          ))}
+                        </RadioGroup>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
+              {currentStep === 4 && (
+                <FormField
+                  control={form.control}
+                  name="industries"
+                  render={() => (
+                    <FormItem className="space-y-3">
+                      <FormLabel>Which industries or problem areas excite you most?</FormLabel>
+                      <div className="grid grid-cols-1 gap-2">
+                        {industryOptions.map((i) => (
+                          <FormField
+                            key={i.value}
+                            control={form.control}
+                            name="industries"
+                            render={({ field }: { field: { value: FormValues["industries"]; onChange: (v: FormValues["industries"]) => void } }) => {
+                              const isChecked = (field.value || []).includes(i.value as unknown as FormValues["industries"][number]);
+                              return (
+                                <FormItem key={i.value} className="flex flex-row items-center space-x-3 space-y-0">
+                                  <FormControl>
+                                    <Checkbox
+                                      checked={isChecked}
+                                      onCheckedChange={(checked: CheckedState) => {
+                                        const current = new Set(field.value || []);
+                                        if (checked === true) current.add(i.value);
+                                        else current.delete(i.value);
+                                        field.onChange(Array.from(current));
+                                      }}
+                                    />
+                                  </FormControl>
+                                  <FormLabel className="text-sm font-normal">
+                                    {i.label}
+                                  </FormLabel>
+                                </FormItem>
+                              );
+                            }}
+                          />
+                        ))}
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
+              {currentStep === 5 && (
+                <FormItem className="space-y-3">
+                  <FormLabel>What tools or technologies do you want to explore?</FormLabel>
+                  <div className="space-y-6">
+                    <div>
+                      <div className="mb-2 font-medium">AI-based technologies</div>
+                      {AI_TECH_CATEGORIES.map((cat) => (
+                        <div key={cat.id} className="mb-3">
+                          <div className="text-sm text-muted-foreground mb-1">{cat.label}</div>
+                          <div className="grid grid-cols-1 gap-2">
+                            {cat.items.map((t) => (
+                              <FormField
+                                key={t.value}
+                                control={form.control}
+                                name="aiTools"
+                                render={({ field }: { field: { value: FormValues["aiTools"]; onChange: (v: FormValues["aiTools"]) => void } }) => {
+                                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                  const isChecked = (field.value || []).includes(t.value as any);
+                                  return (
+                                    <FormItem key={t.value} className="flex flex-row items-center space-x-3 space-y-0">
+                                      <FormControl>
+                                        <Checkbox
+                                          checked={isChecked}
+                                          onCheckedChange={(checked: CheckedState) => {
+                                            const current = new Set(field.value || []);
+                                            if (checked === true) current.add(t.value);
+                                            else current.delete(t.value);
+                                            field.onChange(Array.from(current));
+                                          }}
+                                        />
+                                      </FormControl>
+                                      <FormLabel className="text-sm font-normal">
+                                        {t.label}
+                                      </FormLabel>
+                                    </FormItem>
+                                  );
+                                }}
+                              />
+                            ))}
+                          </div>
+                        </div>
                       ))}
                     </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="role"
-                render={({ field }: { field: { value: FormValues["role"]; onChange: (v: FormValues["role"]) => void } }) => (
-                  <FormItem className="space-y-3">
-                    <FormLabel>Which role are you most interested in?</FormLabel>
-                    <FormControl>
-                      <RadioGroup onValueChange={field.onChange} value={field.value} className="grid grid-cols-1 gap-2">
-                        {roleOptions.map((opt) => (
-                          <div key={opt.value} className="flex items-center space-x-3">
-                            <RadioGroupItem value={opt.value} id={`role-${opt.value}`} />
-                            <label htmlFor={`role-${opt.value}`} className="text-sm">{opt.label}</label>
+                    <div>
+                      <div className="mb-2 font-medium">Non-AI technologies</div>
+                      {NON_AI_TECH_CATEGORIES.map((cat) => (
+                        <div key={cat.id} className="mb-3">
+                          <div className="text-sm text-muted-foreground mb-1">{cat.label}</div>
+                          <div className="grid grid-cols-1 gap-2">
+                            {cat.items.map((t) => (
+                              <FormField
+                                key={t.value}
+                                control={form.control}
+                                name="nonAiTools"
+                                render={({ field }: { field: { value: FormValues["nonAiTools"]; onChange: (v: FormValues["nonAiTools"]) => void } }) => {
+                                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                  const isChecked = (field.value || []).includes(t.value as any);
+                                  return (
+                                    <FormItem key={t.value} className="flex flex-row items-center space-x-3 space-y-0">
+                                      <FormControl>
+                                        <Checkbox
+                                          checked={isChecked}
+                                          onCheckedChange={(checked: CheckedState) => {
+                                            const current = new Set(field.value || []);
+                                            if (checked === true) current.add(t.value);
+                                            else current.delete(t.value);
+                                            field.onChange(Array.from(current));
+                                          }}
+                                        />
+                                      </FormControl>
+                                      <FormLabel className="text-sm font-normal">
+                                        {t.label}
+                                      </FormLabel>
+                                    </FormItem>
+                                  );
+                                }}
+                              />
+                            ))}
                           </div>
-                        ))}
-                      </RadioGroup>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="industries"
-                render={() => (
-                  <FormItem className="space-y-3">
-                    <FormLabel>Which industries or problem areas excite you most?</FormLabel>
-                    <div className="grid grid-cols-1 gap-2">
-                      {industryOptions.map((i) => (
-                        <FormField
-                          key={i.value}
-                          control={form.control}
-                          name="industries"
-                          render={({ field }: { field: { value: FormValues["industries"]; onChange: (v: FormValues["industries"]) => void } }) => {
-                            const isChecked = (field.value || []).includes(i.value as unknown as FormValues["industries"][number]);
-                            return (
-                              <FormItem key={i.value} className="flex flex-row items-center space-x-3 space-y-0">
-                                <FormControl>
-                                  <Checkbox
-                                    checked={isChecked}
-                                    onCheckedChange={(checked: CheckedState) => {
-                                      const current = new Set(field.value || []);
-                                      if (checked === true) current.add(i.value);
-                                      else current.delete(i.value);
-                                      field.onChange(Array.from(current));
-                                    }}
-                                  />
-                                </FormControl>
-                                <FormLabel className="text-sm font-normal">
-                                  {i.label}
-                                </FormLabel>
-                              </FormItem>
-                            );
-                          }}
-                        />
+                        </div>
                       ))}
                     </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                  </div>
+                </FormItem>
+              )}
+
+              <StepNavigation
+                currentStep={currentStep}
+                totalSteps={totalSteps}
+                isSubmitting={isSubmitting}
+                canGoNext={canProceedFromStep(currentStep)}
+                validationMessages={stepValidationMessages(currentStep)}
+                onPrevious={goToPrevious}
+                onNext={handleNext}
+                onSubmit={handleFinalizeSubmit}
               />
-
-              <FormItem className="space-y-3">
-                <FormLabel>What tools or technologies do you want to explore?</FormLabel>
-                <div className="space-y-6">
-                  <div>
-                    <div className="mb-2 font-medium">AI-based technologies</div>
-                    {AI_TECH_CATEGORIES.map((cat) => (
-                      <div key={cat.id} className="mb-3">
-                        <div className="text-sm text-muted-foreground mb-1">{cat.label}</div>
-                        <div className="grid grid-cols-1 gap-2">
-                          {cat.items.map((t) => (
-                            <FormField
-                              key={t.value}
-                              control={form.control}
-                              name="aiTools"
-                              render={({ field }: { field: { value: FormValues["aiTools"]; onChange: (v: FormValues["aiTools"]) => void } }) => {
-                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                const isChecked = (field.value || []).includes(t.value as any);
-                                return (
-                                  <FormItem key={t.value} className="flex flex-row items-center space-x-3 space-y-0">
-                                    <FormControl>
-                                      <Checkbox
-                                        checked={isChecked}
-                                        onCheckedChange={(checked: CheckedState) => {
-                                          const current = new Set(field.value || []);
-                                          if (checked === true) current.add(t.value);
-                                          else current.delete(t.value);
-                                          field.onChange(Array.from(current));
-                                        }}
-                                      />
-                                    </FormControl>
-                                    <FormLabel className="text-sm font-normal">
-                                      {t.label}
-                                    </FormLabel>
-                                  </FormItem>
-                                );
-                              }}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <div>
-                    <div className="mb-2 font-medium">Non-AI technologies</div>
-                    {NON_AI_TECH_CATEGORIES.map((cat) => (
-                      <div key={cat.id} className="mb-3">
-                        <div className="text-sm text-muted-foreground mb-1">{cat.label}</div>
-                        <div className="grid grid-cols-1 gap-2">
-                          {cat.items.map((t) => (
-                            <FormField
-                              key={t.value}
-                              control={form.control}
-                              name="nonAiTools"
-                              render={({ field }: { field: { value: FormValues["nonAiTools"]; onChange: (v: FormValues["nonAiTools"]) => void } }) => {
-                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                const isChecked = (field.value || []).includes(t.value as any);
-                                return (
-                                  <FormItem key={t.value} className="flex flex-row items-center space-x-3 space-y-0">
-                                    <FormControl>
-                                      <Checkbox
-                                        checked={isChecked}
-                                        onCheckedChange={(checked: CheckedState) => {
-                                          const current = new Set(field.value || []);
-                                          if (checked === true) current.add(t.value);
-                                          else current.delete(t.value);
-                                          field.onChange(Array.from(current));
-                                        }}
-                                      />
-                                    </FormControl>
-                                    <FormLabel className="text-sm font-normal">
-                                      {t.label}
-                                    </FormLabel>
-                                  </FormItem>
-                                );
-                              }}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </FormItem>
-
-              <div className="flex justify-end">
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? "Saving..." : "Continue"}
-                </Button>
-              </div>
             </form>
           </Form>
         </CardContent>
