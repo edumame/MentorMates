@@ -41,8 +41,8 @@ const OnboardingSchema = z.object({
         "other",
       ])
     ).min(1),
-    aiTools: z.array(z.enum(AI_TOOL_VALUES)).optional().default([]),
-    nonAiTools: z.array(z.enum(NON_AI_TOOL_VALUES)).optional().default([]),
+    aiTools: z.array(z.enum(AI_TOOL_VALUES)).default([]),
+    nonAiTools: z.array(z.enum(NON_AI_TOOL_VALUES)).default([]),
   }),
 });
 

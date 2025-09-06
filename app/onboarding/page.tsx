@@ -74,8 +74,8 @@ const Schema = z.object({
       ])
     )
     .min(1, "Select at least one industry"),
-  aiTools: z.array(z.enum(AI_TOOL_VALUES)).optional().default([]),
-  nonAiTools: z.array(z.enum(NON_AI_TOOL_VALUES)).optional().default([]),
+  aiTools: z.array(z.enum(AI_TOOL_VALUES)).default([]),
+  nonAiTools: z.array(z.enum(NON_AI_TOOL_VALUES)).default([]),
 });
 
 type FormValues = z.infer<typeof Schema>;
