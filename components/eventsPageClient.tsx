@@ -3,7 +3,6 @@
 import { useState, useMemo } from "react";
 import { EventsList } from "@/components/events/events-list";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
 import { EventItem, EventVisibility } from "@/lib/types";
 import { UI_TEXT, DEFAULT_VALUES } from "@/lib/config/constants";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,7 +13,6 @@ import Link from "next/link";
 
 export function EventsPageClient({ eventsList, isAdmin }: { eventsList: EventItem[]; isAdmin?: boolean }) {
   const [searchTerm, setSearchTerm] = useState(DEFAULT_VALUES.SEARCH_TERM);
-  const [hidePaid, setHidePaid] = useState(false);
   const { toast } = useToast();
 
   // Creating is now done on a separate page
@@ -25,10 +23,7 @@ export function EventsPageClient({ eventsList, isAdmin }: { eventsList: EventIte
     );
   }, [eventsList, searchTerm]);
 
-  const visibleEvents = useMemo(() => {
-    if (!hidePaid) return filteredEvents;
-    return filteredEvents.filter((event) => event.paid !== true);
-  }, [filteredEvents, hidePaid]);
+  
 
   return (
     <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-6 sm:py-8">
@@ -63,14 +58,10 @@ export function EventsPageClient({ eventsList, isAdmin }: { eventsList: EventIte
             </Button>
           </div>
         ) : null }
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-600">Hide Paid</span>
-          <Switch checked={hidePaid} onCheckedChange={setHidePaid} />
-        </div>
       </div>
 
-      {visibleEvents.length > 0 ? (
-        <EventsList events={visibleEvents} />
+      {filteredEvents.length > 0 ? (
+        <EventsList events={filteredEvents} />
       ) : (
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <svg
