@@ -252,7 +252,8 @@ export default function OnboardingPage() {
                               control={form.control}
                               name="aiTools"
                               render={({ field }: { field: { value: FormValues["aiTools"]; onChange: (v: FormValues["aiTools"]) => void } }) => {
-                                const isChecked = (field.value || []).includes(t.value as unknown as FormValues["aiTools"][number]);
+                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                const isChecked = (field.value || []).includes(t.value as any);
                                 return (
                                   <FormItem key={t.value} className="flex flex-row items-center space-x-3 space-y-0">
                                     <FormControl>
@@ -290,7 +291,8 @@ export default function OnboardingPage() {
                               control={form.control}
                               name="nonAiTools"
                               render={({ field }: { field: { value: FormValues["nonAiTools"]; onChange: (v: FormValues["nonAiTools"]) => void } }) => {
-                                const isChecked = (field.value || []).includes(t.value as unknown as FormValues["nonAiTools"][number]);
+                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                const isChecked = (field.value || []).includes(t.value as any);
                                 return (
                                   <FormItem key={t.value} className="flex flex-row items-center space-x-3 space-y-0">
                                     <FormControl>
