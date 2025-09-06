@@ -49,6 +49,7 @@ export function JoinEventButton({
 }: JoinEventButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [hasJoined, setHasJoined] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [selectedRole, setSelectedRole] = useState<EventRole>(
     EventRole.Participant
   );
@@ -127,6 +128,8 @@ export function JoinEventButton({
         const {
           data: { session },
         } = await supabase.auth.getSession();
+
+        setIsAuthenticated(!!session);
 
         if (!session) return;
 
@@ -313,14 +316,16 @@ export function JoinEventButton({
           {label
             ? label
             : event?.paid
-              ? pricingTiers.length > 0
-                ? (() => {
-                    const cheapestTier = getCheapestPricingTier(pricingTiers);
-                    return cheapestTier
-                      ? `Join ${eventName} - From ${formatPrice(cheapestTier.price)}`
-                      : `Join ${eventName} - Multiple Tiers Available`;
-                  })()
-                : `Join ${eventName} - Paid Event`
+              ? !isAuthenticated
+                ? `Join ${eventName}`
+                : pricingTiers.length > 0
+                  ? (() => {
+                      const cheapestTier = getCheapestPricingTier(pricingTiers);
+                      return cheapestTier
+                        ? `Join ${eventName} - From ${formatPrice(cheapestTier.price)}`
+                        : `Join ${eventName} - Multiple Tiers Available`;
+                    })()
+                  : `Join ${eventName} - Paid Event`
               : `Join ${eventName} - Free Event`}
         </Button>
       </DialogTrigger>
