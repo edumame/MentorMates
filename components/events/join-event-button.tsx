@@ -326,7 +326,7 @@ export function JoinEventButton({
                         : `Join ${eventName} - Multiple Tiers Available`;
                     })()
                   : `Join ${eventName} - Paid Event`
-              : `Join ${eventName} - Free Event`}
+              : `Join ${eventName}`}
         </Button>
       </DialogTrigger>
       <DialogContent
