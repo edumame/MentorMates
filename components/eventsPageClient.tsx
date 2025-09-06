@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { EventsList } from "@/components/events/events-list";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
 import { EventItem, EventVisibility } from "@/lib/types";
 import { UI_TEXT, DEFAULT_VALUES } from "@/lib/config/constants";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,11 +10,12 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/lib/hooks/use-toast";
 import Link from "next/link";
+import { supabase } from "@/lib/supabase";
 
 export function EventsPageClient({ eventsList, isAdmin }: { eventsList: EventItem[]; isAdmin?: boolean }) {
   const [searchTerm, setSearchTerm] = useState(DEFAULT_VALUES.SEARCH_TERM);
-  const [hidePaid, setHidePaid] = useState(false);
   const { toast } = useToast();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   // Creating is now done on a separate page
 
@@ -25,10 +25,19 @@ export function EventsPageClient({ eventsList, isAdmin }: { eventsList: EventIte
     );
   }, [eventsList, searchTerm]);
 
-  const visibleEvents = useMemo(() => {
-    if (!hidePaid) return filteredEvents;
-    return filteredEvents.filter((event) => event.paid !== true);
-  }, [filteredEvents, hidePaid]);
+  useEffect(() => {
+    async function checkSession() {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        setIsLoggedIn(!!session);
+      } catch (error) {
+        console.error("Error checking session:", error);
+      }
+    }
+    checkSession();
+  }, []);
+
+  
 
   return (
     <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-6 sm:py-8">
@@ -56,21 +65,17 @@ export function EventsPageClient({ eventsList, isAdmin }: { eventsList: EventIte
       </div>
 
       <div className="flex justify-between items-center mb-6 gap-4 flex-col sm:flex-row">
-        {isAdmin ? (
+        {isLoggedIn ? (
           <div className="w-full">
             <Button asChild>
               <Link href="/events/new">Create an event</Link>
             </Button>
           </div>
         ) : null }
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-600">Hide Paid</span>
-          <Switch checked={hidePaid} onCheckedChange={setHidePaid} />
-        </div>
       </div>
 
-      {visibleEvents.length > 0 ? (
-        <EventsList events={visibleEvents} />
+      {filteredEvents.length > 0 ? (
+        <EventsList events={filteredEvents} />
       ) : (
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <svg
