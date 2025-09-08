@@ -5,6 +5,7 @@ import { isValidUUID } from "@/app/utils/supabase/queries";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Trophy, Medal, Award, CheckCircle2, Sparkles } from "lucide-react";
+import { EventDetails } from "@/lib/types";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -65,7 +66,7 @@ async function getEvent(id: string) {
 
   let query = supabase
     .from("events")
-    .select("event_id, event_name, slug")
+    .select("event_id, event_name, slug, sponsorship_tiers")
     .limit(1);
 
   if (isUUID) {
@@ -76,7 +77,7 @@ async function getEvent(id: string) {
 
   const { data, error } = await query.single();
   if (error || !data) return null;
-  return data as { event_id: string; event_name: string; slug: string | null };
+  return data as Pick<EventDetails, "event_id" | "event_name" | "slug" | "sponsorship_tiers">;
 }
 
 function getCheckoutUrl(eventId: string, tier: SponsorshipTier) {
@@ -134,6 +135,19 @@ export default async function SponsorshipsPage({ params, searchParams }: PagePro
     notFound();
   }
 
+  // Build tiers from event.sponsorship_tiers if available; otherwise fallback to defaults
+  const eventTiers = Array.isArray(event.sponsorship_tiers?.tiers)
+    ? event.sponsorship_tiers!.tiers
+        .slice()
+        .sort((a, b) => (a.sort || 0) - (b.sort || 0))
+        .map((t) => ({
+          id: (t.id || t.label || "").toLowerCase() as SponsorshipTier["id"],
+          name: t.label || t.id || "Tier",
+          amount: typeof t.price === "number" ? Math.round(t.price / 100) : 0, // convert cents -> dollars for display
+          description: t.benefits || [],
+        }))
+    : null;
+
   return (
     <div className="container mx-auto py-10">
       <div className="max-w-3xl mx-auto text-center mb-10">
@@ -155,7 +169,7 @@ export default async function SponsorshipsPage({ params, searchParams }: PagePro
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto">
-        {TIERS.map((tier) => {
+        {(eventTiers || TIERS).map((tier) => {
           const styles = getTierStyles(tier.id);
           return (
             <Card

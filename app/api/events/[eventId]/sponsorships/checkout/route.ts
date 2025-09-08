@@ -4,7 +4,7 @@ import { createSupabaseClient } from "@/app/utils/supabase/server";
 
 type TierId = "bronze" | "silver" | "gold";
 
-const TIER_TO_AMOUNT_CENTS: Record<TierId, number> = {
+const DEFAULT_TIER_TO_AMOUNT_CENTS: Record<TierId, number> = {
   bronze: 50000,
   silver: 100000,
   gold: 200000,
@@ -20,7 +20,7 @@ export async function POST(
     }
 
     const { tier } = (await _request.json()) as { tier?: TierId };
-    if (!tier || !(tier in TIER_TO_AMOUNT_CENTS)) {
+    if (!tier || !(tier in DEFAULT_TIER_TO_AMOUNT_CENTS)) {
       return NextResponse.json({ error: "Invalid tier" }, { status: 400 });
     }
 
@@ -30,14 +30,23 @@ export async function POST(
     const supabase = await createSupabaseClient();
     const { data: eventData } = await supabase
       .from("events")
-      .select("event_id, event_name, slug")
+      .select("event_id, event_name, slug, sponsorship_tiers")
       .or(`slug.eq.${eventIdentifier},event_id.eq.${eventIdentifier}`)
       .maybeSingle();
 
     const eventDisplayName = eventData?.event_name || eventIdentifier;
     const eventUrlId = eventData?.slug || eventData?.event_id || eventIdentifier;
 
-    const amountCents = TIER_TO_AMOUNT_CENTS[tier];
+    let amountCents = DEFAULT_TIER_TO_AMOUNT_CENTS[tier];
+    if (eventData?.sponsorship_tiers?.tiers && Array.isArray(eventData.sponsorship_tiers.tiers)) {
+      const matched = (eventData.sponsorship_tiers.tiers as any[]).find((t) => {
+        const id = String(t.id || t.label || "").toLowerCase();
+        return id === tier;
+      });
+      if (matched && typeof matched.price === "number") {
+        amountCents = matched.price;
+      }
+    }
 
     const originHeader = _request.headers.get("origin");
     const hostHeader = _request.headers.get("host");
@@ -90,7 +99,7 @@ export async function GET(
 
     const url = new URL(request.url);
     const tierParam = url.searchParams.get("tier") as TierId | null;
-    if (!tierParam || !(tierParam in TIER_TO_AMOUNT_CENTS)) {
+    if (!tierParam || !(tierParam in DEFAULT_TIER_TO_AMOUNT_CENTS)) {
       return NextResponse.json({ error: "Invalid tier" }, { status: 400 });
     }
 
@@ -99,14 +108,23 @@ export async function GET(
     const supabase = await createSupabaseClient();
     const { data: eventData } = await supabase
       .from("events")
-      .select("event_id, event_name, slug")
+      .select("event_id, event_name, slug, sponsorship_tiers")
       .or(`slug.eq.${eventIdentifier},event_id.eq.${eventIdentifier}`)
       .maybeSingle();
 
     const eventDisplayName = eventData?.event_name || eventIdentifier;
     const eventUrlId = eventData?.slug || eventData?.event_id || eventIdentifier;
 
-    const amountCents = TIER_TO_AMOUNT_CENTS[tierParam];
+    let amountCents = DEFAULT_TIER_TO_AMOUNT_CENTS[tierParam];
+    if (eventData?.sponsorship_tiers?.tiers && Array.isArray(eventData.sponsorship_tiers.tiers)) {
+      const matched = (eventData.sponsorship_tiers.tiers as any[]).find((t) => {
+        const id = String(t.id || t.label || "").toLowerCase();
+        return id === tierParam;
+      });
+      if (matched && typeof matched.price === "number") {
+        amountCents = matched.price;
+      }
+    }
 
     const originHeader = request.headers.get("origin");
     const hostHeader = request.headers.get("host");
