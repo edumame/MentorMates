@@ -2,41 +2,41 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { createSupabaseClient } from "@/app/utils/supabase/client";
+import { createClient } from "@/app/utils/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, Download, Mail, Calendar } from "lucide-react";
-import { toast } from "@/components/ui/use-toast";
+import { CheckCircle, Mail, Calendar } from "lucide-react";
 
 export default function SponsorshipSuccessPage() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
   const sessionId = searchParams.get("session_id");
-  const [event, setEvent] = useState<any>(null);
+  const [event, setEvent] = useState<{id: string; name: string; date?: string} | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchEventDetails();
-  }, [params.id]);
+    async function fetchEvent() {
+      const supabase = createClient();
+      
+      const { data: eventData, error } = await supabase
+        .from("events")
+        .select("*")
+        .eq("id", params.id)
+        .single();
 
-  async function fetchEventDetails() {
-    const supabase = createSupabaseClient();
-    
-    const { data: eventData, error } = await supabase
-      .from("events")
-      .select("*")
-      .eq("id", params.id)
-      .single();
-
-    if (error) {
-      console.error("Error fetching event:", error);
-    } else {
-      setEvent(eventData);
+      if (error) {
+        console.error("Error fetching event:", error);
+      } else {
+        setEvent(eventData);
+      }
+      
+      setLoading(false);
     }
     
-    setLoading(false);
-  }
+    fetchEvent();
+  }, [params.id]);
+
 
   if (loading) {
     return (
@@ -76,7 +76,7 @@ export default function SponsorshipSuccessPage() {
             )}
 
             <div className="space-y-4">
-              <h3 className="font-semibold text-lg">What's Next?</h3>
+              <h3 className="font-semibold text-lg">What&apos;s Next?</h3>
               <div className="space-y-3">
                 <div className="flex items-start gap-3">
                   <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -85,7 +85,7 @@ export default function SponsorshipSuccessPage() {
                   <div>
                     <p className="font-medium">Confirmation Email</p>
                     <p className="text-sm text-muted-foreground">
-                      You'll receive a detailed confirmation email with your sponsorship details and benefits.
+                      You&apos;ll receive a detailed confirmation email with your sponsorship details and benefits.
                     </p>
                   </div>
                 </div>
@@ -109,7 +109,7 @@ export default function SponsorshipSuccessPage() {
                   <div>
                     <p className="font-medium">Sponsorship Package</p>
                     <p className="text-sm text-muted-foreground">
-                      We'll send you a sponsorship package with guidelines for logos, booth setup (if applicable), and other materials.
+                      We&apos;ll send you a sponsorship package with guidelines for logos, booth setup (if applicable), and other materials.
                     </p>
                   </div>
                 </div>

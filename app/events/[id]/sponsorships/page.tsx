@@ -2,12 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { createSupabaseClient } from "@/app/utils/supabase/client";
+import { createClient } from "@/app/utils/supabase/client";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, Sparkles, Trophy, Medal } from "lucide-react";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "@/lib/hooks/use-toast";
 
 interface SponsorshipTier {
   id: string;
@@ -76,36 +75,37 @@ const sponsorshipTiers: SponsorshipTier[] = [
 export default function EventSponsorshipsPage() {
   const params = useParams();
   const router = useRouter();
-  const [event, setEvent] = useState<any>(null);
+  const [event, setEvent] = useState<{id: string; name: string; date?: string} | null>(null);
   const [loading, setLoading] = useState(true);
   const [processingTier, setProcessingTier] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchEventDetails();
-  }, [params.id]);
+    async function fetchEvent() {
+      const supabase = createClient();
+      
+      const { data: eventData, error } = await supabase
+        .from("events")
+        .select("*")
+        .eq("id", params.id)
+        .single();
 
-  async function fetchEventDetails() {
-    const supabase = createSupabaseClient();
-    
-    const { data: eventData, error } = await supabase
-      .from("events")
-      .select("*")
-      .eq("id", params.id)
-      .single();
-
-    if (error) {
-      console.error("Error fetching event:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load event details",
-        variant: "destructive",
-      });
-    } else {
-      setEvent(eventData);
+      if (error) {
+        console.error("Error fetching event:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load event details",
+          variant: "destructive",
+        });
+      } else {
+        setEvent(eventData);
+      }
+      
+      setLoading(false);
     }
     
-    setLoading(false);
-  }
+    fetchEvent();
+  }, [params.id]);
+
 
   const handleSponsorshipPurchase = async (tier: SponsorshipTier) => {
     setProcessingTier(tier.id);
@@ -217,7 +217,7 @@ export default function EventSponsorshipsPage() {
                 
                 <div className="space-y-3">
                   <p className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">
-                    What's Included:
+                    What&apos;s Included:
                   </p>
                   {tier.benefits.map((benefit, index) => (
                     <div key={index} className="flex items-start gap-2">
