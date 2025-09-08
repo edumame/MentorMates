@@ -39,6 +39,12 @@ const navItems = [
     public: false,
     minRole: EventRole.Participant, // All roles can access
   },
+  {
+    name: "Sponsorships",
+    href: "/sponsorships",
+    public: true,
+    minRole: EventRole.Participant, // All roles can access
+  },
   // TODO: add admin data page?
 ];
 

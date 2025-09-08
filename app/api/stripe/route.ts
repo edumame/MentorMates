@@ -102,8 +102,27 @@ async function handleEvent(event: Stripe.Event) {
   const stripeCheckoutSessionId = event.data.object as { id: string };
   const stripeAmountTotal = event.data.object as { amount_total: number };
   const stripePaymentIntentId = event.data.object as { payment_intent: string };
+  const stripeMetadata = event.data.object as { metadata?: { type?: string } };
 
   if (STRIPE_SUCCESSFUL_EVENT_TYPES.includes(event.type)) {
+    // Check if this is a sponsorship payment
+    if (stripeMetadata.metadata?.type === "sponsorship") {
+      // Handle sponsorship payment
+      const { error: sponsorshipError } = await supabase
+        .from("event_sponsorships")
+        .update({
+          payment_status: "paid",
+        })
+        .eq("stripe_session_id", stripeCheckoutSessionId.id);
+      
+      if (sponsorshipError) {
+        console.log("Note: Could not update sponsorship record, table may not exist");
+      }
+      
+      return; // Exit early for sponsorship payments
+    }
+    
+    // Handle regular event ticket payment
     const { data: userEventPayment } = await supabase
       .from("user_event_payments")
       .update({
