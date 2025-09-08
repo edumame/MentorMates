@@ -18,9 +18,11 @@ import {
 export function Navbar() {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
+  const [resourcesOpen, setResourcesOpen] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
 
   const toggleMenu = () => setIsOpen(!isOpen);
+  const toggleResources = () => setResourcesOpen(!resourcesOpen);
 
   useEffect(() => {
     const fetchSession = async () => {
@@ -124,9 +126,9 @@ export function Navbar() {
             <Image
               src="/mentormate.png"
               alt="Mentor Mate Logo"
-              width={200}
-              height={40}
-              className="object-contain pl-2"
+              width={160}
+              height={32}
+              className="object-contain"
             />
           </Link>
 
@@ -208,77 +210,106 @@ export function Navbar() {
         <div
           className={`${
             isOpen ? "block" : "hidden"
-          } bg-white border-t border-gray-100 md:hidden`}
+          } bg-white border-t border-gray-100 md:hidden min-h-screen`}
         >
-          <div className="px-4 py-4 pb-4 space-y-3">
+          <div className="px-6 py-6 space-y-1">
             <Link
               href="/projects"
-              className="block px-4 py-4 text-base font-medium text-gray-700 hover:text-blue-600"
+              className="block py-4 text-lg font-medium text-black hover:text-blue-600"
             >
               Projects
             </Link>
             <Link
               href="/events"
-              className="block px-4 py-4 text-base font-medium text-gray-700 hover:text-blue-600"
+              className="block py-4 text-lg font-medium text-black hover:text-blue-600"
             >
               Host a hackathon
             </Link>
-            <Link
-              href="/about"
-              className="block px-4 py-4 text-base font-medium text-gray-700 hover:text-blue-600"
-            >
-              About us
-            </Link>
-            <Link
-              href="/resources"
-              className="block px-4 py-4 text-base font-medium text-gray-700 hover:text-blue-600"
-            >
-              Research
-            </Link>
-            <Link
-              href="/blog"
-              className="block px-4 py-4 text-base font-medium text-gray-700 hover:text-blue-600"
-            >
-              Blog
-            </Link>
-            {session ? (
-              <div className="pt-2 border-t border-gray-100">
-                <div className="flex items-center gap-3 px-2 py-3">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src={session.user.user_metadata?.avatar_url} />
-                    <AvatarFallback>
-                      {session.user.email?.charAt(0).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-900">
-                      {session.user.email}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={handleSignOutClick}
-                  className="w-full mt-2 px-4 py-2 text-left text-base font-medium text-red-600 hover:bg-red-50"
+            
+            {/* Resources Dropdown in Mobile */}
+            <div className="py-4">
+              <button
+                onClick={toggleResources}
+                className="w-full text-left text-lg font-medium text-black flex items-center justify-between hover:text-blue-600"
+              >
+                Resources
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className={`transition-transform ${resourcesOpen ? 'rotate-180' : ''}`}
                 >
-                  Sign Out
-                </button>
-              </div>
-            ) : (
-              <div className="flex gap-3">
-                <Button
-                  variant="outline"
-                  className="flex-1 mt-2 px-4 py-4 rounded-xl text-base"
-                  onClick={handleLoginClick}
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </button>
+              <div className={`${resourcesOpen ? 'block' : 'hidden'} ml-4 mt-2 space-y-1 bg-gray-50 rounded-lg p-4`}>
+                <Link
+                  href="/about"
+                  className="block py-3 text-base font-normal text-black hover:text-blue-600"
                 >
-                  Log in
-                </Button>
-                <Link href="/select-role" className="flex-1 mt-2">
-                  <Button className="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-4 rounded-xl text-base">
-                    Get started
-                  </Button>
+                  About us
+                </Link>
+                <Link
+                  href="/resources"
+                  className="block py-3 text-base font-normal text-black hover:text-blue-600"
+                >
+                  Research
+                </Link>
+                <Link
+                  href="/blog"
+                  className="block py-3 text-base font-normal text-black hover:text-blue-600"
+                >
+                  Blog
                 </Link>
               </div>
-            )}
+            </div>
+
+            {/* Mobile Auth Buttons */}
+            <div className="pt-8 space-y-4">
+              {session ? (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3 px-2 py-3">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={session.user.user_metadata?.avatar_url} />
+                      <AvatarFallback>
+                        {session.user.email?.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-900">
+                        {session.user.email}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleSignOutClick}
+                    className="w-full px-4 py-3 text-center text-base font-medium text-red-600 hover:bg-red-50 rounded-lg"
+                  >
+                    Sign Out
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <Button
+                    variant="outline"
+                    className="w-full py-4 rounded-lg text-base font-medium"
+                    onClick={handleLoginClick}
+                  >
+                    Log in
+                  </Button>
+                  <Link href="/select-role" className="block">
+                    <Button className="w-full bg-blue-500 hover:bg-blue-600 text-white py-4 rounded-lg text-base font-medium">
+                      Get started
+                    </Button>
+                  </Link>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </nav>
