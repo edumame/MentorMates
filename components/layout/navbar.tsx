@@ -8,7 +8,12 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import type { Session } from "@supabase/supabase-js";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
- 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export function Navbar() {
   const router = useRouter();
@@ -59,55 +64,74 @@ export function Navbar() {
     <>
       <nav className="fixed top-0 left-0 right-0 bg-white/70 backdrop-blur-sm z-50">
         <div className="flex justify-between items-center p-4">
-          {/* Logo */}
-          <Link href="/" className="flex items-center gap-2">
-            <Image
-              src="/mentormate.png"
-              alt="Mentor Mate Logo"
-              width={32}
-              height={32}
-              className="object-contain pl-2"
-            />
-            <span className="font-bold text-lg text-blue-900">MentorMates</span>
-          </Link>
-
-          {/* Desktop Menu */}
-          <div className="hidden md:flex flex-1 justify-center items-center gap-8">
-            <Link
-              href="/about"
-              className="text-base font-medium text-gray-700 hover:text-blue-600"
-            >
-              About
+          {/* Logo and Desktop Menu */}
+          <div className="hidden md:flex items-center gap-8">
+            <Link href="/" className="flex items-center gap-2">
+              <Image
+                src="/mentormate.png"
+                alt="Mentor Mate Logo"
+                width={200}
+                height={40}
+                className="object-contain pl-2"
+              />
             </Link>
             <Link
-              href="/teams"
+              href="/projects"
               className="text-base font-medium text-gray-700 hover:text-blue-600"
             >
-              Team
-            </Link>
-            <Link
-              href="/join"
-              className="text-base font-medium bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent hover:from-blue-700 hover:to-purple-700"
-            >
-              Join
+              Projects
             </Link>
             <Link
               href="/events"
               className="text-base font-medium text-gray-700 hover:text-blue-600"
             >
-              Events
+              Host a hackathon
             </Link>
-            <Link
-              href="/roles"
-              className="text-base font-medium text-gray-700 hover:text-blue-600"
-              title="How to use MentorMates"
-            >
-              Help
-            </Link>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="text-base font-medium text-gray-700 hover:text-blue-600 inline-flex items-center gap-1">
+                  Resources
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuItem asChild>
+                  <Link href="/about">About us</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/resources">Research</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/blog">Blog</Link>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
+          {/* Mobile Logo */}
+          <Link href="/" className="flex md:hidden items-center gap-2">
+            <Image
+              src="/mentormate.png"
+              alt="Mentor Mate Logo"
+              width={200}
+              height={40}
+              className="object-contain pl-2"
+            />
+          </Link>
+
           {/* Desktop Auth Buttons */}
-          <div className="hidden md:flex items-center gap-4">
+          <div className="hidden md:flex items-center gap-3">
             {session ? (
               <>
                 <Avatar className="h-8 w-8">
@@ -118,19 +142,26 @@ export function Navbar() {
                 </Avatar>
                 <button
                   onClick={handleSignOutClick}
-                  className="px-4 py-2 text-base font-medium text-red-600 hover:bg-red-50 rounded-full"
+                  className="px-4 py-4 text-base font-medium text-red-600 hover:bg-red-50 rounded-xl"
                 >
                   Sign Out
                 </button>
               </>
             ) : (
-              <Button
-                variant="logIn"
-                className="bg-black text-white font-semibold py-2 px-6 rounded-full hover:bg-gray-800"
-                onClick={handleLoginClick}
-              >
-                Log in
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  className="px-4 py-4 rounded-xl text-base"
+                  onClick={handleLoginClick}
+                >
+                  Log in
+                </Button>
+                <Link href="/select-role">
+                  <Button className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-4 rounded-xl text-base">
+                    Get started
+                  </Button>
+                </Link>
+              </>
             )}
           </div>
 
@@ -179,36 +210,36 @@ export function Navbar() {
             isOpen ? "block" : "hidden"
           } bg-white border-t border-gray-100 md:hidden`}
         >
-          <div className="px-4 pt-2 pb-4 space-y-3">
+          <div className="px-4 py-4 pb-4 space-y-3">
             <Link
-              href="/about"
-              className="block py-2 text-base font-medium text-gray-700 hover:text-blue-600"
+              href="/projects"
+              className="block px-4 py-4 text-base font-medium text-gray-700 hover:text-blue-600"
             >
-              About
-            </Link>
-            <Link
-              href="/teams"
-              className="block py-2 text-base font-medium text-gray-700 hover:text-blue-600"
-            >
-              Team
-            </Link>
-            <Link
-              href="/join"
-              className="block py-2 text-base font-medium bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent hover:from-blue-700 hover:to-purple-700"
-            >
-              Join
+              Projects
             </Link>
             <Link
               href="/events"
-              className="block py-2 text-base font-medium text-gray-700 hover:text-blue-600"
+              className="block px-4 py-4 text-base font-medium text-gray-700 hover:text-blue-600"
             >
-              Events
+              Host a hackathon
             </Link>
             <Link
-              href="/roles"
-              className="block py-2 text-base font-medium text-gray-700 hover:text-blue-600"
+              href="/about"
+              className="block px-4 py-4 text-base font-medium text-gray-700 hover:text-blue-600"
             >
-              How to use MentorMates
+              About us
+            </Link>
+            <Link
+              href="/resources"
+              className="block px-4 py-4 text-base font-medium text-gray-700 hover:text-blue-600"
+            >
+              Research
+            </Link>
+            <Link
+              href="/blog"
+              className="block px-4 py-4 text-base font-medium text-gray-700 hover:text-blue-600"
+            >
+              Blog
             </Link>
             {session ? (
               <div className="pt-2 border-t border-gray-100">
@@ -233,13 +264,20 @@ export function Navbar() {
                 </button>
               </div>
             ) : (
-              <Button
-                variant="logIn"
-                className="w-full mt-2 bg-black text-white font-semibold py-2 rounded-full hover:bg-gray-800"
-                onClick={handleLoginClick}
-              >
-                Log in
-              </Button>
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  className="flex-1 mt-2 px-4 py-4 rounded-xl text-base"
+                  onClick={handleLoginClick}
+                >
+                  Log in
+                </Button>
+                <Link href="/select-role" className="flex-1 mt-2">
+                  <Button className="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-4 rounded-xl text-base">
+                    Get started
+                  </Button>
+                </Link>
+              </div>
             )}
           </div>
         </div>
