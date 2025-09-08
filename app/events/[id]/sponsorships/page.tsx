@@ -78,26 +78,9 @@ async function getEvent(id: string) {
   return data as { event_id: string; event_name: string; slug: string | null };
 }
 
-async function createCheckout(eventId: string, tier: SponsorshipTier) {
-  const res = await fetch(
-    `/api/events/${encodeURIComponent(eventId)}/sponsorships/checkout`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tier: tier.id }),
-      cache: "no-store",
-    }
-  );
-
-  if (!res.ok) {
-    throw new Error("Failed to start checkout");
-  }
-
-  const data = (await res.json()) as { url?: string };
-  if (!data.url) {
-    throw new Error("No checkout URL returned");
-  }
-  return data.url;
+function getCheckoutUrl(eventId: string, tier: SponsorshipTier) {
+  const search = new URLSearchParams({ tier: tier.id }).toString();
+  return `/api/events/${encodeURIComponent(eventId)}/sponsorships/checkout?${search}`;
 }
 
 export default async function SponsorshipsPage({ params, searchParams }: PageProps) {
@@ -140,28 +123,11 @@ export default async function SponsorshipsPage({ params, searchParams }: PagePro
               </ul>
             </CardContent>
             <CardFooter className="mt-auto">
-              {/* Use a server action-like form submit to avoid client bundle */}
-              <form
-                action={async () => {
-                  "use server";
-                  const url = await createCheckout(event.event_id, tier);
-                  // Redirect on server
-                  // Next.js App Router supports returning a redirect here, but for simplicity
-                  // send a minimal client redirect by setting a header isn't possible here.
-                }}
-              >
-                {/* Fallback to client-side since we need to perform fetch and then redirect */}
-                <Button
-                  type="button"
-                  className="w-full"
-                  onClick={async () => {
-                    const url = await createCheckout(event.event_id, tier);
-                    window.location.href = url;
-                  }}
-                >
+              <Button asChild className="w-full">
+                <a href={getCheckoutUrl(event.event_id, tier)}>
                   Sponsor {tier.name}
-                </Button>
-              </form>
+                </a>
+              </Button>
             </CardFooter>
           </Card>
         ))}
