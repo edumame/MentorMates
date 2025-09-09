@@ -11,8 +11,8 @@ export function Customer() {
             author: "Paul Kim",
             title: "Director",
             company: "Stanford Graduate School of Education",
-            avatar: "/avatars/paul-kim.jpg",
-            logo: "/logos/stanford.png"
+            avatar: "/testimonials/paul.png",
+            logo: "/testimonials/stanfordedu.png"
         },
         {
             id: 2,
@@ -20,17 +20,17 @@ export function Customer() {
             quote: "This Hackathon provided invaluable insight - especially bridging the stigma of AI/Technology and providing foundational knowledge for these competitions.",
             author: "Peter Song",
             title: "Participant, Hong Kong",
-            avatar: "/avatars/peter-song.jpg"
+            avatar: "/testimonials/avatarFallback.png"
         },
         {
             id: 3,
             rating: 5,
             quote: "I've been to a LOT of hackathons, both as a judge and as a hacker. And all the speakers were excellent and brought creativity and efficiency I'd never seen before. These days were super enjoyable and responsive to feedback. They know how to ask the right questions better; looking forward to their next exciting things.",
-            author: "Cynthia Lemon",
+            author: "Quincy Larson",
             title: "Founder & Teacher, FreeCodeCamp.org",
             company: "FreeCodeCamp.org",
-            avatar: "/avatars/cynthia-lemon.jpg",
-            logo: "/logos/freecodecamp.png"
+            avatar: "/testimonials/quincy.png",
+            logo: "/testimonials/freecode.png"
         }
     ];
 
