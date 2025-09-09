@@ -31,7 +31,7 @@ export default async function GuideReturn({ searchParams }: { searchParams: Prom
             </div>
             <h1 className="text-2xl font-bold text-green-800 mb-2">Payment Successful!</h1>
             <p className="text-green-700">
-              Thank you! We'll email instant access to {customerEmail ?? 'your email'} shortly.
+              Thank you! We&apos;ll email instant access to {customerEmail ?? 'your email'} shortly.
             </p>
           </div>
         )}

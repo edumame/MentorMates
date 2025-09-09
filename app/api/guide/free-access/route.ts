@@ -39,8 +39,9 @@ export async function POST(request: Request) {
     })
 
     return NextResponse.json({ success: true })
-  } catch (err: any) {
-    if (err?.issues) {
+  } catch (err: unknown) {
+    const anyErr = err as { issues?: unknown }
+    if (anyErr?.issues) {
       return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
     }
     console.error('Free access request error', err)

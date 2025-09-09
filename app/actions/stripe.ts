@@ -158,12 +158,21 @@ export async function fetchGuideClientSecret() {
     // ignore auth errors; allow guest checkout
   }
 
-  const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [] as any;
+  type SimpleLineItem = { price: string; quantity: number };
+  type InlinePriceLineItem = {
+    price_data: {
+      currency: string;
+      unit_amount: number;
+      product_data: { name: string };
+    };
+    quantity: number;
+  };
+  const lineItems: Array<SimpleLineItem | InlinePriceLineItem> = [];
 
   // Prefer a pre-configured Stripe Price if provided via env
   const guidePriceId = process.env.GUIDE_STRIPE_PRICE_ID;
   if (guidePriceId) {
-    lineItems.push({ price: guidePriceId, quantity: 1 } as any);
+    lineItems.push({ price: guidePriceId, quantity: 1 });
   } else {
     // Fallback: inline price data for $20 USD
     lineItems.push({
@@ -175,7 +184,7 @@ export async function fetchGuideClientSecret() {
         },
       },
       quantity: 1,
-    } as any);
+    });
   }
 
   const session = await stripe.checkout.sessions.create({

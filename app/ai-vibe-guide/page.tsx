@@ -22,7 +22,7 @@ function ShareForAccessForm() {
       })
       if (!res.ok) throw new Error('Failed to submit')
       setStatus('success')
-    } catch (err: any) {
+    } catch {
       setError('Please check your email and LinkedIn URL and try again.')
       setStatus('error')
     }
@@ -33,7 +33,7 @@ function ShareForAccessForm() {
       <CardContent className="p-6">
         <h3 className="text-xl font-semibold mb-2">Get it Free by Sharing</h3>
         <p className="text-sm text-gray-600 mb-4">
-          Share this guide on LinkedIn and tag <strong>@Chinat</strong>. Paste your post URL below and we'll email you access.
+          Share this guide on LinkedIn and tag <strong>@Chinat</strong>. Paste your post URL below and we&apos;ll email you access.
         </p>
         <form onSubmit={onSubmit} className="space-y-3">
           <div>
@@ -67,7 +67,7 @@ function ShareForAccessForm() {
             </Link>
           </div>
           {status === 'success' && (
-            <p className="text-green-700 text-sm">Thanks! We'll verify your post and send access shortly.</p>
+            <p className="text-green-700 text-sm">Thanks! We&apos;ll verify your post and send access shortly.</p>
           )}
           {status === 'error' && error && (
             <p className="text-red-700 text-sm">{error}</p>
