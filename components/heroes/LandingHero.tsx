@@ -1,317 +1,174 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
-import { ArrowRight, Users, Lightbulb, Target } from "lucide-react";
-// import { TextGenerateEffect } from "@/components/ui/text-generate-effect";
+import { TextGenerateEffect } from "@/components/ui/text-generate-effect";
+import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { DiscordCTA } from "@/components/ui/discord-cta";
 
 export function LandingHero() {
+  const logos = [
+    {
+      alt: "Tencent",
+      src: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1d/Tencent_Logo.svg/2560px-Tencent_Logo.svg.png",
+    },
+    {
+      alt: "Goodnotes",
+      src: "https://seeklogo.com/images/G/goodnotes-logo-9E1E6A4FAD-seeklogo.com.png",
+    },
+    {
+      alt: "Inspirit AI",
+      src: "https://uploads-ssl.webflow.com/5cd8ca5d0f14f8fe27ad10d4/62323f0b7397d3d3b6e0d3fa_inspirit-logo.png",
+    },
+    {
+      alt: "Johns Hopkins University",
+      src: "https://upload.wikimedia.org/wikipedia/commons/5/5d/Johns_Hopkins_University_logo.svg",
+    },
+    {
+      alt: "Microsoft",
+      src: "https://upload.wikimedia.org/wikipedia/commons/9/96/Microsoft_logo_%282012%29.svg",
+    },
+    {
+      alt: "PayPal",
+      src: "https://upload.wikimedia.org/wikipedia/commons/a/a4/Paypal_2014_logo.png",
+    },
+    {
+      alt: "U.S. Bank",
+      src: "https://upload.wikimedia.org/wikipedia/commons/4/49/US_Bank_logo.svg",
+    },
+    {
+      alt: "Google",
+      src: "https://upload.wikimedia.org/wikipedia/commons/2/2f/Google_2015_logo.svg",
+    },
+    {
+      alt: "Amazon",
+      src: "https://upload.wikimedia.org/wikipedia/commons/a/a9/Amazon_logo.svg",
+    },
+  ];
+
   return (
-    <div className="relative min-h-screen overflow-hidden bg-gradient-to-b from-white to-blue-50">
-      <div className="absolute top-0 -left-10 w-[600px] h-[600px] bg-blue-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse" />
-      <div className="absolute top-0 right-0 w-[300px] h-[300px] bg-blue-300 rounded-full mix-blend-multiply filter blur-2xl opacity-50" />
-      <div className="absolute bottom-0 left-1/2 w-[400px] h-[400px] bg-blue-100 rounded-full mix-blend-multiply filter blur-3xl opacity-40 animate-pulse" />
-
-      {/* Hero Section */}
-      <div className="relative z-10 px-4 pt-12 pb-20 sm:px-6 lg:px-8 lg:pt-20">
-        <div className="max-w-5xl mx-auto text-center">
-          <h1 className="text-5xl md:text-6xl font-extrabold mb-6 flex items-center justify-center text-blue-900">
-            Mentor Mates
-          </h1>
-          <h2 className="text-xl sm:text-2xl md:text-3xl font-semibold text-gray-700 max-w-3xl mx-auto leading-relaxed">
-            All-in-One Platform for{" "}
-            <div className="inline-flex flex-col h-[40px] overflow-hidden align-middle">
-              <div className="animate-word-slide flex flex-col">
-                <span className="text-blue-900 font-bold bg-blue-300/30 px-2 py-1 rounded">
-                  Student Hackathons
-                </span>
-                <span className="text-blue-900 font-bold bg-blue-300/30 px-2 py-1 rounded">
-                  Game Jams
-                </span>
-                <span className="text-blue-900 font-bold bg-blue-300/30 px-2 py-1 rounded">
-                  Demo Day
-                </span>
-                <span className="text-blue-900 font-bold bg-blue-300/30 px-2 py-1 rounded">
-                  Pitch Competitions
-                </span>
-                <span className="text-blue-900 font-bold bg-blue-300/30 px-2 py-1 rounded">
-                  Innovation Challenges
-                </span>
-              </div>
-            </div>
-          </h2>
-          <p className="text-lg sm:text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed mt-4 mb-8">
-            Built <strong>by students, for students</strong>, and backed by{" "}
-            <strong>learning sciences</strong> and <strong>pedagogy</strong>,
-            Mentor Mates guides you through every step of your hackathon,
-            Demo Day, or innovation event. From structured learning resources to streamlined
-            logistics, our platform helps you focus on what truly matters:
-            creating <em>impactful</em> projects.
-          </p>
-
-          {/* Call to Action */}
-          <div className="mt-8">
-            <Link href="/login" className="inline-block">
-              <Button className="inline-flex items-center px-6 py-3 text-base font-medium rounded-full text-white bg-blue-900 hover:bg-gray-800 transition-colors duration-300">
-                Get Started
-                <ArrowRight className="ml-2 -mr-1 h-5 w-5" aria-hidden="true" />
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </div>
-
-      <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 -mt-10 md:-mt-20">
-        <div className="mt-12 grid gap-6 md:grid-cols-3">
-          {[
-            {
-              icon: Users,
-              title: "Peer Feedback",
-              description:
-                "Leverage peer feedback and support to improve.",
-            },
-            {
-              icon: Lightbulb,
-              title: "Simplified Logistics",
-              description:
-                "Streamlined event management and team coordination.",
-            },
-            {
-              icon: Target,
-              title: "Continuous Learning",
-              description:
-                "Resources to master hackathons and build impactful projects.",
-            },
-          ].map((item, index) => (
-            <div
-              key={index}
-              className="flex flex-col items-center p-6 bg-white rounded-lg shadow-lg transition-transform hover:scale-105"
-            >
-              <div className="flex items-center justify-center w-14 h-14 rounded-full bg-blue-100 text-blue-900 mb-8">
-                <item.icon className="h-7 w-7" />
-              </div>
-              <h3 className="text-xl font-semibold text-gray-800 mb-2">
-                {item.title}
-              </h3>
-              <p className="text-gray-600 text-sm md:text-base">
-                {item.description}
-              </p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Professional Support Section */}
-      <div className="relative z-10 mt-20 text-center px-4 sm:px-6 lg:px-8">
-        <h2 className="text-2xl md:text-3xl font-bold text-blue-900 mb-8">
-          Get support from professionals at…
-        </h2>
-        
-        
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-6 sm:gap-8 max-w-6xl mx-auto items-center justify-items-center">
-          {/* Microsoft */}
-          <div className="flex justify-center items-center h-12 sm:h-16 w-full max-w-[100px] sm:max-w-[120px]">
-            <img
-              src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/96/Microsoft_logo_%282012%29.svg/2560px-Microsoft_logo_%282012%29.svg.png"
-              alt="Microsoft"
-              className="object-contain opacity-70 hover:opacity-100 transition-opacity duration-300 w-full h-auto max-h-10"
-            />
-          </div>
-          
-          {/* PayPal */}
-          <div className="flex justify-center items-center h-12 sm:h-16 w-full max-w-[100px] sm:max-w-[120px]">
-            <img
-              src="https://zipbooks.com/wp-content/uploads/2018/09/paypal.png"
-              alt="PayPal"
-              className="object-contain opacity-70 hover:opacity-100 transition-opacity duration-300 w-full h-auto max-h-10"
-            />
-          </div>
-          
-          {/* U.S. Bank */}
-          <div className="flex justify-center items-center h-12 sm:h-16 w-full max-w-[100px] sm:max-w-[120px]">
-            <img
-              src="https://www.capitalopportunitiesnc.org/wp-content/uploads/2023/02/US-Bank-Logo.png"
-              alt="U.S. Bank"
-              className="object-contain opacity-70 hover:opacity-100 transition-opacity duration-300 w-full h-auto max-h-10"
-            />
-          </div>
-          
-          {/* Google */}
-          <div className="flex justify-center items-center h-12 sm:h-16 w-full max-w-[100px] sm:max-w-[120px]">
-            <img
-              src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Google_2015_logo.svg/800px-Google_2015_logo.svg.png"
-              alt="Google"
-              className="object-contain opacity-70 hover:opacity-100 transition-opacity duration-300 w-full h-auto max-h-10"
-            />
-          </div>
-          
-          {/* Amazon */}
-          <div className="flex justify-center items-center h-12 sm:h-16 w-full max-w-[100px] sm:max-w-[120px]">
-            <img
-              src="https://www.prideindustries.com/wp-content/uploads/2021/06/Customer-logo_Amazon-1-768x384.png.webp"
-              alt="Amazon"
-              className="object-contain opacity-70 hover:opacity-100 transition-opacity duration-300 w-full h-auto max-h-10"
-            />
-          </div>
-          
-          {/* Carnegie Mellon University */}
-          <div className="flex justify-center items-center h-12 sm:h-16 w-full max-w-[100px] sm:max-w-[120px]">
-            <img
-              src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRA2s1hmSEyKN2i06AOMX_dfvmVEk2zr7I8EuFKbu36O3y8YJJNVEeVkIv1MU66zttkeMI&usqp=CAU"
-              alt="Carnegie Mellon University"
-              className="object-contain opacity-70 hover:opacity-100 transition-opacity duration-300 w-full h-auto max-h-10"
-            />
-          </div>
-          
-          {/* Stanford University */}
-          <div className="flex justify-center items-center h-12 sm:h-16 w-full max-w-[100px] sm:max-w-[120px]">
-            <img
-              src="https://www.computersciencedegreehub.com/wp-content/uploads/2019/02/stanford-university.png"
-              alt="Stanford University"
-              className="object-contain opacity-70 hover:opacity-100 transition-opacity duration-300 w-full h-auto max-h-10"
-            />
-          </div>
-          
-          {/* Johns Hopkins University */}
-          <div className="flex justify-center items-center h-12 sm:h-16 w-full max-w-[100px] sm:max-w-[120px]">
-            <img
-              src="https://collegeaim.org/wp-content/uploads/2021/09/johnshopkins-large.jpg"
-              alt="Johns Hopkins University"
-              className="object-contain opacity-70 hover:opacity-100 transition-opacity duration-300 w-full h-auto max-h-10"
-            />
-          </div>
-        </div>
-
-        <div className="mt-10">
-          <div className="flex items-center justify-center gap-3">
-            <span className="h-px w-12 sm:w-24 bg-gray-200" />
-            <span className="text-sm sm:text-base tracking-wide text-gray-500 italic">And many more…</span>
-            <span className="h-px w-12 sm:w-24 bg-gray-200" />
-          </div>
-        </div>
-      </div>
-
-      {/* Supported by Stanford */}
-      <div className="relative z-10 mt-20 text-center px-4 sm:px-6 lg:px-8">
-        <p className="text-sm text-gray-600 font-medium tracking-wide uppercase mb-6">
-          Supported by:
-        </p>
-        <div className="mx-auto relative w-[200px] h-[100px]">
-          <Link 
-            href="https://acceleratelearning.stanford.edu/funding/people-who-help-other-people-learn-pwhopl/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block w-full h-full"
-          >
-            <Image
-              src="https://clinicalmindai.stanford.edu/sites/g/files/sbiybj31566/files/styles/responsive_large/public/media/image/motif_text-stanford_accelerator_for_learning_rgb_1_1.png.webp?itok=b--D-kMe"
-              alt="Stanford Accelerator for Learning"
-              fill
-              className="object-contain opacity-90 hover:opacity-100 transition-opacity duration-300 cursor-pointer"
-              priority
-            />
-          </Link>
-        </div>
-        <p className="text-md text-gray-600 max-w-3xl mx-auto pt-2">
-          Mentor Mate is built at Stanford Graduate School of Education and
-          supported by the Stanford Accelerator for Learning—backed by the
-          latest advances in learning sciences and pedagogy.
-        </p>
-      </div>
-
-
-
-      {/* Final CTA Section */}
-      <div className="relative z-10 mt-20 mb-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-blue-900 rounded-2xl shadow-xl overflow-hidden">
-          <div className="py-12 px-4 sm:px-6 lg:py-16 lg:px-8 text-center">
-            <h2 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
-              <span className="block">Ready to start your journey?</span>
-              <span className="block text-blue-200 mt-2">
-                Join MentorMates today.
+    <div className="relative overflow-hidden bg-white">
+      {/* --- HERO --- */}
+      <div className="relative z-10 max-w-7xl mx-auto px-6 lg:px-10 pt-16 lg:pt-24 pb-20">
+        <div className="grid lg:grid-cols-12 gap-10 lg:gap-8 items-start">
+          {/* Left: Huge headline */}
+          <div className="lg:col-span-7">
+            <h1 className="leading-[0.95] tracking-tight text-gray-900 font-extrabold text-5xl sm:text-6xl lg:text-[72px]">
+              <span className="block">Your home for</span>
+              <span className="mt-5 relative inline-block">
+                {/* <span className="slope-highlight" aria-hidden="true" /> */}
+                <TextGenerateEffect 
+                  words="Hackathons" 
+                  className="relative"
+                />
               </span>
-            </h2>
+            </h1>
+          </div>
 
-            <div className="mt-8 flex justify-center space-x-4">
-              <Link
-                href="/login"
-                className="inline-flex items-center justify-center px-5 py-2 border border-transparent text-base font-medium rounded-md text-blue-900 bg-white hover:bg-blue-200/20 hover:text-white transition-colors duration-300"
-              >
-                Get Started
-              </Link>
-              <Link
-                href="/about"
-                className="inline-flex items-center justify-center px-5 py-2 border border-transparent text-base font-medium rounded-md text-white bg-gray-800 hover:bg-blue-200 hover:text-blue-900 transition-colors duration-300"
-              >
-                Learn More
+          {/* Right: Copy + CTA */}
+          <div className="lg:col-span-5 lg:pl-6">
+            <p className="text-base sm:text-md lg:text-md text-gray-700 leading-relaxed">
+              MentorMates guides you through your entire hackathon journey.
+              Built by students, for students, our platform helps you focus on
+              what matters most — creating an impactful project.
+            </p>
+
+            <div className="mt-6">
+              <Link href="/login" className="inline-block">
+                <Button className="inline-flex items-center rounded-xl px-6 py-3 text-base font-medium text-white bg-[#4B89EF] hover:bg-[#4B89EF] transition-colors">
+                  Get started
+                  <ArrowRight className="ml-2 h-5 w-5" aria-hidden="true" />
+                </Button>
               </Link>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Discord CTA at bottom */}
-      <div className="relative z-10 mt-20 mb-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-        <DiscordCTA variant="compact" />
+      {/* --- TRUSTED BY + LOGO RAIL --- */}
+      <div className="relative z-10 max-w-7xl mx-auto px-6 lg:px-10 pb-20">
+        <p className="text-center text-sm sm:text-base text-gray-700">
+          Trusted by top companies and innovative organizations
+        </p>
+
+        <div className="relative mt-6">
+          {/* Edge fades */}
+          <div className="pointer-events-none absolute inset-y-0 left-0 w-16 bg-gradient-to-r from-white to-transparent" />
+          <div className="pointer-events-none absolute inset-y-0 right-0 w-16 bg-gradient-to-l from-white to-transparent" />
+
+          {/* Scrollable rail with gentle auto-marquee */}
+          <div className="group overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [mask-image:linear-gradient(to_right,transparent,black_10%,black_90%,transparent)]">
+            <div className="flex w-max gap-10 py-4 will-change-transform animate-marquee group-hover:[animation-play-state:paused]">
+              {[...logos, ...logos].map((l, i) => (
+                <div
+                  key={`${l.alt}-${i}`}
+                  className="flex items-center justify-center h-14 min-w-[160px] opacity-80 hover:opacity-100 transition-opacity"
+                  aria-hidden={i >= logos.length ? true : undefined}
+                >
+                  {/* use <img> to avoid next/image domain config for external hosts */}
+                  <img
+                    src={l.src}
+                    alt={l.alt}
+                    className="max-h-10 object-contain"
+                    loading="lazy"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Word Slide Animation */}
       <style jsx>{`
-        @keyframes slideWords {
-          0%, 18% {
-            transform: translateY(0%);
+        /* Slanted "slope" highlight behind the word Hackathons */
+        .slope-highlight {
+          position: absolute;
+          inset: 0 -6px -6px -10px;
+          background: linear-gradient(
+            90deg,
+            rgba(59, 130, 246, 0.18),
+            rgba(59, 130, 246, 0.28)
+          );
+          transform: skewX(-12deg) translateY(6px);
+          border-radius: 12px;
+          filter: blur(0.2px);
+          animation: floaty 4s ease-in-out infinite;
+        }
+        @keyframes floaty {
+          0% {
+            transform: skewX(-12deg) translateY(6px);
           }
-          20%, 38% {
-            transform: translateY(-20%);
-          }
-          40%, 58% {
-            transform: translateY(-40%);
-          }
-          60%, 78% {
-            transform: translateY(-60%);
-          }
-          80%, 98% {
-            transform: translateY(-80%);
+          50% {
+            transform: skewX(-12deg) translateY(10px);
           }
           100% {
-            transform: translateY(-100%);
+            transform: skewX(-12deg) translateY(6px);
           }
         }
 
-        .animate-word-slide {
-          animation: slideWords 10s infinite;
-          will-change: transform;
+        /* Infinite marquee for logos (pauses on hover) */
+        .animate-marquee {
+          animation: marquee 30s linear infinite;
+        }
+        @keyframes marquee {
+          0% {
+            transform: translateX(0);
+          }
+          100% {
+            transform: translateX(-50%);
+          }
         }
 
-        .animate-word-slide span {
-          height: 40px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          flex-shrink: 0;
+        /* Respect reduced motion */
+        @media (prefers-reduced-motion: reduce) {
+          .slope-highlight,
+          .animate-marquee {
+            animation: none !important;
+          }
         }
 
-        /* Cloned first item for a seamless loop */
-        .animate-word-slide span:first-child {
-          position: relative;
-        }
-        .animate-word-slide span:first-child::after {
-          content: "Student Hackathons";
-          position: absolute;
-          top: 200px;
-          left: 0;
-          right: 0;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background-color: rgba(147, 197, 253, 0.3);
-          border-radius: 0.25rem;
-          color: rgb(30, 58, 138);
-          font-weight: 700;
-          padding: 0.25rem 0.5rem;
-          height: 40px;
+        /* Hide scrollbars cross-browser (container still scrolls on trackpads/drags) */
+        .group::-webkit-scrollbar {
+          display: none;
         }
       `}</style>
     </div>
