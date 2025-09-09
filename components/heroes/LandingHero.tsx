@@ -4,6 +4,11 @@ import Link from "next/link";
 import { TextGenerateEffect } from "@/components/ui/text-generate-effect";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Work } from "@/components/heroes/components/Work";
+import { Featured } from "@/components/heroes/components/Featured";
+import { Impact } from "@/components/heroes/components/Impact";
+import { Customer } from "@/components/heroes/components/Customer";
+import { CTA } from "@/components/heroes/components/CTA";
 
 export function LandingHero() {
   const logos = [
@@ -118,6 +123,13 @@ export function LandingHero() {
         </div>
       </div>
 
+      <Work />
+      <Featured />
+      <Impact />
+      <Customer />
+      <CTA />
+
+      {/* logo animation */}
       <style jsx>{`
         /* Slanted "slope" highlight behind the word Hackathons */
         .slope-highlight {

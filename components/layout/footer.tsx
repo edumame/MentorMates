@@ -7,7 +7,7 @@ import { Instagram, Facebook, Twitter, Linkedin, Youtube } from "lucide-react";
 export function Footer() {
     return (
         <footer className="w-full bg-white">
-        <div className="mx-auto max-w-7xl px-6 py-12 lg:px-8">
+        <div className="mx-auto px-10 py-12 lg:px-24">
             {/* Newsletter + Columns */}
             <div className="rounded-2xl border border-gray-200 p-8 md:p-12">
             <div className="grid grid-cols-1 gap-10 md:grid-cols-2 lg:grid-cols-4">
