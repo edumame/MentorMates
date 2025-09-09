@@ -7,7 +7,7 @@ import { Instagram, Facebook, Twitter, Linkedin, Youtube } from "lucide-react";
 export function Footer() {
     return (
         <footer className="w-full bg-white">
-        <div className="mx-auto w-full max-w-7xl px-4 md:px-10 lg:px-24 py-8 md:py-12">
+        <div className="mx-auto w-full max-w-8xl px-4 md:px-10 lg:px-24 py-8 md:py-12">
             {/* Card */}
             <div className="rounded-xl border border-gray-200 p-6 md:p-10">
             <div className="grid grid-cols-1 gap-10 md:grid-cols-2">
