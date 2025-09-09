@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Work } from "@/components/heroes/components/Work";
+import { Build } from "@/components/heroes/components/Build";
 import { Featured } from "@/components/heroes/components/Featured";
 import { Impact } from "@/components/heroes/components/Impact";
 import { Customer } from "@/components/heroes/components/Customer";
@@ -147,6 +148,7 @@ export function LandingHero() {
       <Work />
       <Featured />
       <Impact />
+      <Build />
       <Customer />
       <CTA />
 
