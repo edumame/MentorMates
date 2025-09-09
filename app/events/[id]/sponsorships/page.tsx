@@ -30,16 +30,18 @@ const TIERS: SponsorshipTier[] = [
     id: "bronze",
     name: "Bronze",
     amount: 500,
-    description: ["Logo on event site", "Mention in opening/closing"],
+    description: [
+      "Attend the event and represent your company.",
+      "Logo featured on the sponsorship page.",
+    ],
   },
   {
     id: "silver",
     name: "Silver",
     amount: 1000,
     description: [
-      "Medium logo placement",
-      "Social media shoutout",
-      "Sponsor table space",
+      "Company shout-out during the event.",
+      "Short speaking time to share about your company/product.",
     ],
   },
   {
@@ -47,10 +49,8 @@ const TIERS: SponsorshipTier[] = [
     name: "Gold",
     amount: 2000,
     description: [
-      "Prominent logo placement",
-      "Dedicated announcement",
-      "Premium sponsor table",
-      "Option to present a prize",
+      "Showcase your technology at the event.",
+      "Dedicated time to present your platform and engage with attendees.",
     ],
   },
 ];
