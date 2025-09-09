@@ -94,7 +94,7 @@ export function LandingHero() {
 
       {/* --- TRUSTED BY + LOGO MARQUEE (no overflow, no lib) --- */}
       <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 pb-10 sm:pb-16 lg:pb-20">
-        <p className="text-center text-xs sm:text-sm lg:text-base text-gray-700 px-2">
+        <p className="text-center text-xs sm:text-sm lg:text-base text-gray-700 pb-8">
           Trusted by top companies and innovative organizations
         </p>
 
