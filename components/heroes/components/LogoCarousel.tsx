@@ -43,7 +43,7 @@ export function LogoCarousel({
     }: LogoCarouselProps) {
     return (
         <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 p-10 sm:p-16 lg:p-20">
-            <p className="text-center text-xs sm:text-sm lg:text-base text-gray-700 pb-8">
+            <p className="text-center text-xs sm:text-sm lg:text-base text-gray-700 pb-12">
                 Trusted by top companies and innovative organizations
             </p>
             <LogoMarquee
