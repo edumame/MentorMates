@@ -16,7 +16,10 @@ export async function POST(
 ) {
   try {
     if (!process.env.STRIPE_SECRET_KEY) {
-      return NextResponse.json({ error: "Stripe not configured" }, { status: 500 });
+      return NextResponse.json(
+        { error: "Stripe not configured" },
+        { status: 500 }
+      );
     }
 
     const { tier } = (await _request.json()) as { tier?: TierId };
@@ -35,11 +38,21 @@ export async function POST(
       .maybeSingle();
 
     const eventDisplayName = eventData?.event_name || eventIdentifier;
-    const eventUrlId = eventData?.slug || eventData?.event_id || eventIdentifier;
+    const eventUrlId =
+      eventData?.slug || eventData?.event_id || eventIdentifier;
 
     let amountCents = DEFAULT_TIER_TO_AMOUNT_CENTS[tier];
-    if (eventData?.sponsorship_tiers?.tiers && Array.isArray(eventData.sponsorship_tiers.tiers)) {
-      const matched = (eventData.sponsorship_tiers.tiers as any[]).find((t) => {
+    if (
+      eventData?.sponsorship_tiers?.tiers &&
+      Array.isArray(eventData.sponsorship_tiers.tiers)
+    ) {
+      const matched = (
+        eventData.sponsorship_tiers.tiers as unknown as {
+          id: string;
+          label: string;
+          price: number;
+        }[]
+      ).find((t) => {
         const id = String(t.id || t.label || "").toLowerCase();
         return id === tier;
       });
@@ -53,7 +66,9 @@ export async function POST(
     const protocolHeader = _request.headers.get("x-forwarded-proto");
     const baseUrl =
       originHeader ||
-      (protocolHeader && hostHeader ? `${protocolHeader}://${hostHeader}` : undefined) ||
+      (protocolHeader && hostHeader
+        ? `${protocolHeader}://${hostHeader}`
+        : undefined) ||
       process.env.NEXT_PUBLIC_APP_URL ||
       "http://localhost:3000";
 
@@ -84,7 +99,10 @@ export async function POST(
     return NextResponse.json({ url: session.url }, { status: 200 });
   } catch (error) {
     console.error("Failed to create sponsorship checkout session:", error);
-    return NextResponse.json({ error: "Failed to create checkout" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to create checkout" },
+      { status: 500 }
+    );
   }
 }
 
@@ -94,7 +112,10 @@ export async function GET(
 ) {
   try {
     if (!process.env.STRIPE_SECRET_KEY) {
-      return NextResponse.json({ error: "Stripe not configured" }, { status: 500 });
+      return NextResponse.json(
+        { error: "Stripe not configured" },
+        { status: 500 }
+      );
     }
 
     const url = new URL(request.url);
@@ -113,11 +134,21 @@ export async function GET(
       .maybeSingle();
 
     const eventDisplayName = eventData?.event_name || eventIdentifier;
-    const eventUrlId = eventData?.slug || eventData?.event_id || eventIdentifier;
+    const eventUrlId =
+      eventData?.slug || eventData?.event_id || eventIdentifier;
 
     let amountCents = DEFAULT_TIER_TO_AMOUNT_CENTS[tierParam];
-    if (eventData?.sponsorship_tiers?.tiers && Array.isArray(eventData.sponsorship_tiers.tiers)) {
-      const matched = (eventData.sponsorship_tiers.tiers as any[]).find((t) => {
+    if (
+      eventData?.sponsorship_tiers?.tiers &&
+      Array.isArray(eventData.sponsorship_tiers.tiers)
+    ) {
+      const matched = (
+        eventData.sponsorship_tiers.tiers as unknown as {
+          id: string;
+          label: string;
+          price: number;
+        }[]
+      ).find((t) => {
         const id = String(t.id || t.label || "").toLowerCase();
         return id === tierParam;
       });
@@ -131,7 +162,9 @@ export async function GET(
     const protocolHeader = request.headers.get("x-forwarded-proto");
     const baseUrl =
       originHeader ||
-      (protocolHeader && hostHeader ? `${protocolHeader}://${hostHeader}` : undefined) ||
+      (protocolHeader && hostHeader
+        ? `${protocolHeader}://${hostHeader}`
+        : undefined) ||
       process.env.NEXT_PUBLIC_APP_URL ||
       "http://localhost:3000";
 
@@ -160,13 +193,21 @@ export async function GET(
     });
 
     if (!session.url) {
-      return NextResponse.json({ error: "Failed to create checkout" }, { status: 500 });
+      return NextResponse.json(
+        { error: "Failed to create checkout" },
+        { status: 500 }
+      );
     }
 
     return NextResponse.redirect(session.url, 303);
   } catch (error) {
-    console.error("Failed to create sponsorship checkout session (GET):", error);
-    return NextResponse.json({ error: "Failed to create checkout" }, { status: 500 });
+    console.error(
+      "Failed to create sponsorship checkout session (GET):",
+      error
+    );
+    return NextResponse.json(
+      { error: "Failed to create checkout" },
+      { status: 500 }
+    );
   }
 }
-

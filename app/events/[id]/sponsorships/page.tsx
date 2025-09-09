@@ -2,7 +2,13 @@ import React from "react";
 import { notFound } from "next/navigation";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { isValidUUID } from "@/app/utils/supabase/queries";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Trophy, Medal, Award, CheckCircle2, Sparkles } from "lucide-react";
 import { EventDetails } from "@/lib/types";
@@ -24,10 +30,7 @@ const TIERS: SponsorshipTier[] = [
     id: "bronze",
     name: "Bronze",
     amount: 500,
-    description: [
-      "Logo on event site",
-      "Mention in opening/closing",
-    ],
+    description: ["Logo on event site", "Mention in opening/closing"],
   },
   {
     id: "silver",
@@ -77,7 +80,10 @@ async function getEvent(id: string) {
 
   const { data, error } = await query.single();
   if (error || !data) return null;
-  return data as Pick<EventDetails, "event_id" | "event_name" | "slug" | "sponsorship_tiers">;
+  return data as Pick<
+    EventDetails,
+    "event_id" | "event_name" | "slug" | "sponsorship_tiers"
+  >;
 }
 
 function getCheckoutUrl(eventId: string, tier: SponsorshipTier) {
@@ -121,13 +127,16 @@ function getTierStyles(id: SponsorshipTier["id"]) {
     icon: <Trophy className="h-6 w-6" />,
     highlight: (
       <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-yellow-400/90 px-2.5 py-0.5 text-[10px] font-semibold text-yellow-900 shadow">
-        <Sparkles className="h-3 w-3" /> Most Popular
+        <Sparkles className="h-3 w-3" /> Most Visibility
       </span>
     ) as React.ReactNode,
   };
 }
 
-export default async function SponsorshipsPage({ params, searchParams }: PageProps) {
+export default async function SponsorshipsPage({
+  params,
+  searchParams,
+}: PageProps) {
   const { id } = await Promise.resolve(params);
   const sp = (await Promise.resolve(searchParams)) || {};
   const event = await getEvent(id);
@@ -137,8 +146,8 @@ export default async function SponsorshipsPage({ params, searchParams }: PagePro
 
   // Build tiers from event.sponsorship_tiers if available; otherwise fallback to defaults
   const eventTiers = Array.isArray(event.sponsorship_tiers?.tiers)
-    ? event.sponsorship_tiers!.tiers
-        .slice()
+    ? event
+        .sponsorship_tiers!.tiers.slice()
         .sort((a, b) => (a.sort || 0) - (b.sort || 0))
         .map((t) => ({
           id: (t.id || t.label || "").toLowerCase() as SponsorshipTier["id"],
@@ -158,13 +167,21 @@ export default async function SponsorshipsPage({ params, searchParams }: PagePro
           Sponsor {event.event_name}
         </h1>
         <p className="text-muted-foreground mt-2 max-w-2xl mx-auto">
-          Choose a tier that fits your goals. Your support helps us run an awesome event.
+          Choose a tier that fits your goals. Your support helps us run an
+          awesome event.
         </p>
         {sp.success === "true" && (
-          <div className="mt-4 text-green-600">Thank you for your sponsorship!</div>
+          <div className="mt-4 text-green-600">
+            Thank you for your sponsorship! We will be in touch soon at the
+            email associated with your account. If we don&apos;t reach out within 24
+            hours, please email us at{" "}
+            <a href="mailto:admin@mentormates.ai">admin@mentormates.ai</a>.
+          </div>
         )}
         {sp.canceled === "true" && (
-          <div className="mt-4 text-yellow-700">Checkout canceled. You can try again anytime.</div>
+          <div className="mt-4 text-yellow-700">
+            Checkout canceled. You can try again anytime.
+          </div>
         )}
       </div>
 
@@ -177,12 +194,16 @@ export default async function SponsorshipsPage({ params, searchParams }: PagePro
               className={`relative overflow-hidden flex flex-col border shadow-sm transition-all hover:shadow-md hover:ring-2 ${styles.card}`}
             >
               {/* Decorative gradient blob */}
-              <div className={`pointer-events-none absolute -top-16 -right-16 h-40 w-40 rounded-full bg-gradient-to-br ${styles.accentBlob} blur-2xl opacity-30`} />
+              <div
+                className={`pointer-events-none absolute -top-16 -right-16 h-40 w-40 rounded-full bg-gradient-to-br ${styles.accentBlob} blur-2xl opacity-30`}
+              />
               {styles.highlight}
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
-                    <div className={`flex h-10 w-10 items-center justify-center rounded-full ${styles.iconWrap}`}>
+                    <div
+                      className={`flex h-10 w-10 items-center justify-center rounded-full ${styles.iconWrap}`}
+                    >
                       {styles.icon}
                     </div>
                     <CardTitle className="text-xl font-bold">
@@ -198,7 +219,9 @@ export default async function SponsorshipsPage({ params, searchParams }: PagePro
                 <ul className="space-y-2 text-sm">
                   {tier.description.map((d, i) => (
                     <li key={i} className="flex items-start gap-2">
-                      <CheckCircle2 className={`mt-0.5 h-4 w-4 ${styles.check}`} />
+                      <CheckCircle2
+                        className={`mt-0.5 h-4 w-4 ${styles.check}`}
+                      />
                       <span className="text-muted-foreground">{d}</span>
                     </li>
                   ))}
@@ -221,4 +244,3 @@ export default async function SponsorshipsPage({ params, searchParams }: PagePro
     </div>
   );
 }
-
