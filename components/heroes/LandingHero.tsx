@@ -11,9 +11,10 @@ import { Featured } from "@/components/heroes/components/Featured";
 import { Impact } from "@/components/heroes/components/Impact";
 import { Customer } from "@/components/heroes/components/Customer";
 import { CTA } from "@/components/heroes/components/CTA";
+import { LogoCarousel } from "./components/LogoCarousel";
 
 export function LandingHero() {
-  // Rotating word animation (unchanged)
+  // Rotating word animation
   const [titleIndex, setTitleIndex] = useState(0);
   const titles = useMemo(
     () => ["Hackathons", "Projects", "Prototypes", "Builders"],
@@ -65,6 +66,7 @@ export function LandingHero() {
                       </span>
                     </motion.span>
                   ))}
+                  {/* Spacer to preserve layout height */}
                   <span className="invisible text-3xl sm:text-4xl md:text-5xl lg:text-[72px]">
                     {titles[0]}
                   </span>
@@ -93,56 +95,13 @@ export function LandingHero() {
         </div>
       </div>
 
-      {/* --- TRUSTED BY + LOGO MARQUEE (no overflow, no lib) --- */}
+      {/* --- TRUSTED BY + LOGO MARQUEE --- */}
       <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 pb-10 sm:pb-16 lg:pb-20">
         <p className="text-center text-xs sm:text-sm lg:text-base text-gray-700 pb-8">
           Trusted by top companies and innovative organizations
         </p>
 
-        {/* Rail clamps to viewport width and hides overflow */}
-        <div
-          className="relative mt-4 sm:mt-6 h-10 sm:h-12 lg:h-16 w-full overflow-hidden"
-          style={{
-            WebkitMaskImage:
-              "linear-gradient(to right, transparent, black 8%, black 92%, transparent)",
-            maskImage:
-              "linear-gradient(to right, transparent, black 8%, black 92%, transparent)",
-          }}
-        >
-          {/* Optional soft edge fades (visual only) */}
-          <div className="pointer-events-none absolute inset-y-0 left-0 w-6 sm:w-10 lg:w-16 bg-gradient-to-r from-white to-transparent z-10" />
-          <div className="pointer-events-none absolute inset-y-0 right-0 w-6 sm:w-10 lg:w-16 bg-gradient-to-l from-white to-transparent z-10" />
-
-          {/* Absolute track — transforms never affect layout width */}
-          <div className="absolute left-0 top-0 h-full w-[200%] marquee group">
-            {/* first half */}
-            <ul className="marquee-half left-0">
-              {logos.map((l, i) => (
-                <li key={`a-${i}`} className="marquee-item">
-                  <img
-                    src={l.src}
-                    alt={l.alt}
-                    className="block h-6 sm:h-8 lg:h-10 w-auto object-contain"
-                    loading="lazy"
-                  />
-                </li>
-              ))}
-            </ul>
-            {/* second half (duplicate) */}
-            <ul className="marquee-half left-1/2">
-              {logos.map((l, i) => (
-                <li key={`b-${i}`} className="marquee-item">
-                  <img
-                    src={l.src}
-                    alt={l.alt}
-                    className="block h-6 sm:h-8 lg:h-10 w-auto object-contain"
-                    loading="lazy"
-                  />
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
+        <LogoCarousel />
       </div>
 
       <Work />
@@ -151,51 +110,6 @@ export function LandingHero() {
       <Build />
       <Customer />
       <CTA />
-
-      {/* Scoped styles */}
-      <style jsx>{`
-        .marquee {
-          animation: marquee 24s linear infinite;
-        }
-        .marquee-half {
-          position: absolute;
-          top: 0;
-          height: 100%;
-          width: 50%;
-          display: flex;
-          align-items: center;
-          gap: 1.5rem; /* ~24px; matches sm:gap-6 feel */
-          padding-left: 0.25rem;
-          padding-right: 0.25rem;
-        }
-        .marquee-item {
-          display: flex;
-          align-items: center;
-          height: 100%;
-          flex: 0 0 auto; /* no shrink */
-        }
-        @keyframes marquee {
-          0% {
-            transform: translateX(0);
-          }
-          100% {
-            transform: translateX(-50%);
-          }
-        }
-
-        @media (max-width: 640px) {
-          .marquee {
-            animation-duration: 20s;
-          }
-        }
-        /* Accessibility: honor reduced motion */
-        @media (prefers-reduced-motion: reduce) {
-          .marquee {
-            animation: none !important;
-            transform: none !important;
-          }
-        }
-      `}</style>
     </div>
   );
 }
