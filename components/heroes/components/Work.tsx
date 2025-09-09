@@ -40,11 +40,12 @@ export function Work() {
     return (
         <div 
             ref={containerRef}
-            className="mx-auto px-4 sm:px-8 lg:px-24 py-12 sm:py-16 rounded-t-[56px] sm:rounded-t-[80px] lg:rounded-t-[112px]"
+            className="w-full py-12 sm:py-16 rounded-t-[56px] sm:rounded-t-[80px] lg:rounded-t-[112px]"
             style={{
                 background: 'linear-gradient(180deg, rgba(229, 240, 254, 0.65) 0%, rgba(229, 240, 254, 0.42) 96.63%)'
             }}
         >
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10">
             {/* Header */}
             <div className="text-center mb-16">
                 <h2 className="text-4xl font-bold text-gray-900 mb-4">
@@ -74,7 +75,7 @@ export function Work() {
                 </div>
 
                 {/* Steps */}
-                <div className="space-y-12 sm:space-y-16 md:space-y-24 px-20">
+                <div className="space-y-12 sm:space-y-16 md:space-y-24">
                     {steps.map((step, index) => (
                         <motion.div
                             key={step.id}
@@ -288,6 +289,7 @@ export function Work() {
                 <button className="bg-[#4B89EF] text-white px-6 py-2 rounded-md font-semibold text-md hover:bg-blue-700 transition-colors">
                     Get Started
                 </button>
+            </div>
             </div>
         </div>
     );
