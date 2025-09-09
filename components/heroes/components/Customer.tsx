@@ -58,7 +58,7 @@ export function Customer() {
                     {testimonials.map((testimonial) => (
                         <div
                             key={testimonial.id}
-                            className="bg-white border border-gray-200 rounded-lg p-4 sm:p-6 shadow-sm hover:shadow-md transition-shadow"
+                            className="p-4"
                         >
                             {/* Star Rating */}
                             <div className="flex items-center mb-3 sm:mb-4">
