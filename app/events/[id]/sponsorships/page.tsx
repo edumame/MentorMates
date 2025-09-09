@@ -92,45 +92,46 @@ function getCheckoutUrl(eventId: string, tier: SponsorshipTier) {
 }
 
 function getTierStyles(id: SponsorshipTier["id"]) {
-  if (id === "bronze") {
-    return {
-      card: "bg-amber-50/50 border-amber-200 hover:ring-amber-300",
-      accentBlob: "from-amber-500/20 to-orange-400/10",
-      iconWrap: "bg-amber-100 text-amber-700",
-      price: "text-amber-700",
-      button: "bg-amber-600 hover:bg-amber-700 focus-visible:ring-amber-600",
-      check: "text-amber-600",
-      icon: <Medal className="h-6 w-6" />,
-      highlight: null as React.ReactNode,
-    };
+  switch (id) {
+    case "bronze":
+      return {
+        card: "bg-amber-50/50 border-amber-200 hover:ring-amber-300",
+        accentBlob: "from-amber-500/20 to-orange-400/10",
+        iconWrap: "bg-amber-100 text-amber-700",
+        price: "text-amber-700",
+        button: "bg-amber-600 hover:bg-amber-700 focus-visible:ring-amber-600",
+        check: "text-amber-600",
+        icon: <Medal className="h-6 w-6" />,
+        highlight: null as React.ReactNode,
+      };
+    case "silver":
+      return {
+        card: "bg-zinc-50/50 border-zinc-200 hover:ring-zinc-300",
+        accentBlob: "from-zinc-400/20 to-gray-200/10",
+        iconWrap: "bg-zinc-100 text-zinc-700",
+        price: "text-zinc-700",
+        button: "bg-zinc-700 hover:bg-zinc-800 focus-visible:ring-zinc-700",
+        check: "text-zinc-600",
+        icon: <Award className="h-6 w-6" />,
+        highlight: null as React.ReactNode,
+      };
+    case "gold":
+    default:
+      return {
+        card: "bg-yellow-50/50 border-yellow-200 hover:ring-yellow-300",
+        accentBlob: "from-yellow-400/30 to-amber-300/10",
+        iconWrap: "bg-yellow-100 text-yellow-700",
+        price: "text-yellow-700",
+        button: "bg-yellow-500 hover:bg-yellow-600 focus-visible:ring-yellow-600",
+        check: "text-yellow-600",
+        icon: <Trophy className="h-6 w-6" />,
+        highlight: (
+          <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-yellow-400/90 px-2.5 py-0.5 text-[10px] font-semibold text-yellow-900 shadow">
+            <Sparkles className="h-3 w-3" /> Most Visibility
+          </span>
+        ) as React.ReactNode,
+      };
   }
-  if (id === "silver") {
-    return {
-      card: "bg-zinc-50/50 border-zinc-200 hover:ring-zinc-300",
-      accentBlob: "from-zinc-400/20 to-gray-200/10",
-      iconWrap: "bg-zinc-100 text-zinc-700",
-      price: "text-zinc-700",
-      button: "bg-zinc-700 hover:bg-zinc-800 focus-visible:ring-zinc-700",
-      check: "text-zinc-600",
-      icon: <Award className="h-6 w-6" />,
-      highlight: null as React.ReactNode,
-    };
-  }
-  // gold
-  return {
-    card: "bg-yellow-50/50 border-yellow-200 hover:ring-yellow-300",
-    accentBlob: "from-yellow-400/30 to-amber-300/10",
-    iconWrap: "bg-yellow-100 text-yellow-700",
-    price: "text-yellow-700",
-    button: "bg-yellow-500 hover:bg-yellow-600 focus-visible:ring-yellow-600",
-    check: "text-yellow-600",
-    icon: <Trophy className="h-6 w-6" />,
-    highlight: (
-      <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-yellow-400/90 px-2.5 py-0.5 text-[10px] font-semibold text-yellow-900 shadow">
-        <Sparkles className="h-3 w-3" /> Most Visibility
-      </span>
-    ) as React.ReactNode,
-  };
 }
 
 export default async function SponsorshipsPage({
@@ -149,12 +150,32 @@ export default async function SponsorshipsPage({
     ? event
         .sponsorship_tiers!.tiers.slice()
         .sort((a, b) => (a.sort || 0) - (b.sort || 0))
-        .map((t) => ({
-          id: (t.id || t.label || "").toLowerCase() as SponsorshipTier["id"],
-          name: t.label || t.id || "Tier",
-          amount: typeof t.price === "number" ? Math.round(t.price / 100) : 0, // convert cents -> dollars for display
-          description: t.benefits || [],
-        }))
+        .map((t) => {
+          const rawId = (t.id || t.label || "").toLowerCase();
+          // Only allow valid tier IDs
+          const validId = ["bronze", "silver", "gold"].includes(rawId) 
+            ? rawId as SponsorshipTier["id"] 
+            : "bronze"; // default to bronze if invalid
+          
+          const tier = {
+            id: validId,
+            name: t.label || t.id || "Tier",
+            amount: typeof t.price === "number" ? Math.round(t.price / 100) : 0, // convert cents -> dollars for display
+            description: t.benefits || [],
+          };
+          
+          // Debug log to help identify issues
+          console.log("Processing tier:", { rawId, validId, tier, originalTier: t });
+          
+          return tier;
+        })
+        .filter((tier) => {
+          const isValid = tier.amount > 0;
+          if (!isValid) {
+            console.log("Filtering out tier with invalid amount:", tier);
+          }
+          return isValid;
+        })
     : null;
 
   return (
