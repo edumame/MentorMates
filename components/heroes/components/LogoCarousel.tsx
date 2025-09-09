@@ -42,15 +42,20 @@ export function LogoCarousel({
         pauseOnHover = true,
     }: LogoCarouselProps) {
     return (
-        <LogoMarquee
-        logos={items ?? logos}
-        itemHeightClass={itemHeightClass}
-        className={className}
-        speed={speed}
-        speedMobile={speedMobile}
-        reverse={reverse}
-        fade={fade}
-        pauseOnHover={pauseOnHover}
-        />
+        <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 p-10 sm:p-16 lg:p-20">
+            <p className="text-center text-xs sm:text-sm lg:text-base text-gray-700 pb-8">
+                Trusted by top companies and innovative organizations
+            </p>
+            <LogoMarquee
+                logos={items ?? logos}
+                itemHeightClass={itemHeightClass}
+                className={className}
+                speed={speed}
+                speedMobile={speedMobile}
+                reverse={reverse}
+                fade={fade}
+                pauseOnHover={pauseOnHover}
+            />
+        </div>
     );
 }
