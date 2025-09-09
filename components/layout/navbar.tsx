@@ -65,7 +65,7 @@ export function Navbar() {
   return (
     <>
       <nav className="fixed top-0 left-0 right-0 bg-white/70 backdrop-blur-sm z-50">
-        <div className="flex justify-between items-center p-4">
+        <div className="flex justify-between items-center py-4 px-10">
           {/* Logo and Desktop Menu */}
           <div className="hidden md:flex items-center gap-8">
             <Link href="/" className="flex items-center gap-2">
