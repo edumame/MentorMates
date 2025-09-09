@@ -1,8 +1,16 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import Link from "next/link";
+import Image from "next/image";
 import { Calendar, MapPin, Users } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/app/utils/supabase/client";
@@ -116,7 +124,8 @@ export function Featured() {
             const [
             { data: pubPriv = [], error: ppErr },
             { data: drafts = [], error: drErr },
-            ]: any = await Promise.all([publicPrivatePromise, draftsPromise]);
+            ]: [{ data: DBEvent[]; error: any }, { data: DBEvent[]; error: any }] =
+            await Promise.all([publicPrivatePromise, draftsPromise]);
 
             if (ppErr) throw ppErr;
             if (drErr) throw drErr;
@@ -256,9 +265,11 @@ export function Featured() {
                     className="overflow-hidden hover:shadow-lg transition-shadow duration-300 bg-white dark:bg-gray-800"
                 >
                     <div className="relative">
-                    <img
+                    <Image
                         src={e.image}
                         alt={e.title}
+                        width={400}
+                        height={192}
                         className="w-full h-48 object-cover"
                     />
                     <Badge
@@ -292,7 +303,7 @@ export function Featured() {
                         </div>
                     </div>
                     <Button variant="outline" className="w-full" asChild>
-                        <a href={e.href}>View Event</a>
+                        <Link href={e.href}>View Event</Link>
                     </Button>
                     </CardContent>
                 </Card>
@@ -306,7 +317,7 @@ export function Featured() {
                 className="px-4 bg-gray-100 text-gray-900 hover:bg-gray-200 shadow-md"
                 asChild
             >
-                <a href="/events">View all</a>
+                <Link href="/events">View all</Link>
             </Button>
             </div>
         </div>

@@ -1,4 +1,5 @@
 import React from "react";
+import Image from "next/image";
 
 export type LogoItem = { src: string; alt: string };
 
@@ -70,9 +71,11 @@ export function LogoMarquee({
         <ul className="mm-half left-0">
           {logos.map((l, i) => (
             <li key={`a-${i}`} className="mm-item">
-              <img
+              <Image
                 src={l.src}
                 alt={l.alt}
+                width={120}
+                height={40}
                 className={`block ${itemHeightClass} w-auto object-contain`}
                 loading="lazy"
               />
@@ -83,9 +86,11 @@ export function LogoMarquee({
         <ul className="mm-half left-1/2">
           {logos.map((l, i) => (
             <li key={`b-${i}`} className="mm-item">
-              <img
+              <Image
                 src={l.src}
                 alt={l.alt}
+                width={120}
+                height={40}
                 className={`block ${itemHeightClass} w-auto object-contain`}
                 loading="lazy"
               />

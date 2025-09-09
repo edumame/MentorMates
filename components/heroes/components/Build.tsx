@@ -1,7 +1,5 @@
 "use client";
 
-import Image from "next/image";
-
 type Feature = {
     icon: string;
     title: string;

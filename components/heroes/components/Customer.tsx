@@ -67,7 +67,7 @@ export function Customer() {
 
               {/* Quote */}
               <blockquote className="text-gray-700 text-sm sm:text-base leading-relaxed mb-4 sm:mb-6">
-                "{testimonial.quote}"
+                &ldquo;{testimonial.quote}&rdquo;
               </blockquote>
 
               {/* Author Info */}

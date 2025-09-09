@@ -47,7 +47,7 @@ export function Impact() {
 
             {/* Right Side - Stats Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8 lg:border-l-2 lg:border-gray-200 lg:pl-8 text-center lg:text-left">
-                {stats.map((stat, index) => (
+                {stats.map((stat) => (
                 <div key={stat.label} className="space-y-2">
                     <div className="text-4xl sm:text-3xl lg:text-5xl font-bold text-gray-900">
                     {stat.value}

@@ -73,7 +73,7 @@ export default function HomePage() {
       ]);
 
       const projectIds = Array.from(
-        new Set([...(lead ?? []), ...(team ?? [])].map((p: any) => p.id))
+        new Set([...(lead ?? []), ...(team ?? [])].map((p: { id: string }) => p.id))
       );
       const projectsCount = projectIds.length;
 
@@ -87,7 +87,11 @@ export default function HomePage() {
         feedbackCount = feedback?.length ?? 0;
       }
 
-      setStats({ events: eventsCount, projects: projectsCount, feedback: feedbackCount });
+      setStats({
+        events: eventsCount,
+        projects: projectsCount,
+        feedback: feedbackCount,
+      });
       setLoadingStats(false);
     })();
   }, [session]);
@@ -112,7 +116,8 @@ export default function HomePage() {
             Welcome to MentorMates
           </h1>
           <p className="text-lg text-gray-700 max-w-2xl font-light mb-6">
-            Find your event to start getting personalized feedback and guidance for your projects.
+            Find your event to start getting personalized feedback and guidance
+            for your projects.
           </p>
 
           {/* Stats */}
@@ -148,7 +153,9 @@ export default function HomePage() {
                 Check your upcoming events or create new ones.
               </p>
               <Link href="/events" className="mt-auto">
-                <Button className="bg-blue-900 text-white w-full sm:w-auto">View Events</Button>
+                <Button className="bg-blue-900 text-white w-full sm:w-auto">
+                  View Events
+                </Button>
               </Link>
             </div>
 
@@ -161,7 +168,9 @@ export default function HomePage() {
                 Track and update your project progress.
               </p>
               <Link href="/projects" className="mt-auto">
-                <Button className="bg-blue-900 text-white w-full sm:w-auto">View Projects</Button>
+                <Button className="bg-blue-900 text-white w-full sm:w-auto">
+                  View Projects
+                </Button>
               </Link>
             </div>
 
@@ -174,7 +183,9 @@ export default function HomePage() {
                 Review the feedback you have provided.
               </p>
               <Link href="/feedback/given" className="mt-auto">
-                <Button className="bg-blue-900 text-white w-full sm:w-auto">View Feedback</Button>
+                <Button className="bg-blue-900 text-white w-full sm:w-auto">
+                  View Feedback
+                </Button>
               </Link>
             </div>
           </div>

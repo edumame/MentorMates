@@ -28,15 +28,6 @@ export function LandingHero() {
     return () => clearTimeout(id);
   }, [titleIndex, titles]);
 
-  const logos = [
-    { alt: "Tencent", src: "/partners/tencent.png" },
-    { alt: "Goodnotes", src: "/partners/goodnotes.png" },
-    { alt: "Inspirit AI", src: "/partners/inspirit.png" },
-    { alt: "Johns Hopkins University", src: "/partners/jhu.png" },
-    { alt: "Stanford", src: "/partners/stanford.png" },
-    { alt: "HKPU", src: "/partners/hkpu.png" },
-  ];
-
   return (
     <div className="relative bg-white overflow-x-hidden">
       {/* --- HERO --- */}
@@ -87,7 +78,10 @@ export function LandingHero() {
               <Link href="/login" className="inline-block w-full sm:w-auto">
                 <Button className="inline-flex items-center justify-center w-full sm:w-auto rounded-xl px-6 py-3 text-sm sm:text-base font-medium text-white bg-[#4B89EF] hover:bg-[#4B89EF]/90 transition-colors">
                   Get started
-                  <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5" aria-hidden="true" />
+                  <ArrowRight
+                    className="ml-2 h-4 w-4 sm:h-5 sm:w-5"
+                    aria-hidden="true"
+                  />
                 </Button>
               </Link>
             </div>
