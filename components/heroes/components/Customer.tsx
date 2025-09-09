@@ -9,8 +9,7 @@ export function Customer() {
             rating: 5,
             quote: "These young entrepreneurs will thrive if they have the 'meta AI competency' mindset as early on as their high school age. Also, I am hoping that they will generate unique foundational questions that will lead to learning, change, and innovation.",
             author: "Paul Kim",
-            title: "Director",
-            company: "Stanford Graduate School of Education",
+            title: "Former Associate Dean, Stanford Graduate School of Education",
             avatar: "/testimonials/paul.png",
             logo: "/testimonials/stanfordedu.png"
         },
@@ -28,7 +27,6 @@ export function Customer() {
             quote: "I've been to a LOT of hackathons, both as a judge and as a hacker. And all the speakers were excellent and brought creativity and efficiency I'd never seen before. These days were super enjoyable and responsive to feedback. They know how to ask the right questions better; looking forward to their next exciting things.",
             author: "Quincy Larson",
             title: "Founder & Teacher, FreeCodeCamp.org",
-            company: "FreeCodeCamp.org",
             avatar: "/testimonials/quincy.png",
             logo: "/testimonials/freecode.png"
         }
@@ -38,7 +36,7 @@ export function Customer() {
         return Array.from({ length: 5 }, (_, i) => (
             <span
                 key={i}
-                className={`text-sm ${i < rating ? 'text-orange-400' : 'text-gray-300'}`}
+                className={`text-md ${i < rating ? 'text-[#944524]' : 'text-gray-300'}`}
             >
                 ★
             </span>
@@ -76,11 +74,21 @@ export function Customer() {
                             <div className="flex items-start gap-3">
                                 {/* Avatar */}
                                 <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gray-200 flex-shrink-0 overflow-hidden">
-                                    <div className="w-full h-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center">
-                                        <span className="text-white font-semibold text-xs sm:text-sm">
-                                            {testimonial.author.split(' ').map(n => n[0]).join('')}
-                                        </span>
-                                    </div>
+                                    {testimonial.avatar ? (
+                                        <Image 
+                                            src={testimonial.avatar} 
+                                            alt={`${testimonial.author} avatar`} 
+                                            width={40} 
+                                            height={40}
+                                            className="w-full h-full object-cover"
+                                        />
+                                    ) : (
+                                        <div className="w-full h-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center">
+                                            <span className="text-white font-semibold text-xs sm:text-sm">
+                                                {testimonial.author.split(' ').map(n => n[0]).join('')}
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Author Details */}
@@ -91,31 +99,22 @@ export function Customer() {
                                     <p className="text-gray-600 text-xs sm:text-sm">
                                         {testimonial.title}
                                     </p>
-                                    {testimonial.company && (
-                                        <p className="text-gray-500 text-xs sm:text-sm">
-                                            {testimonial.company}
-                                        </p>
-                                    )}
                                 </div>
                             </div>
 
                             {/* Company Logo */}
                             {testimonial.logo && (
-                                <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-gray-100">
+                                <div className="mt-3 sm:mt-4 pt-3 sm:pt-4">
                                     <div className="flex items-center">
                                         <div className="h-4 sm:h-6 flex items-center">
-                                            {testimonial.company === 'Stanford Graduate School of Education' && (
-                                                <div className="text-red-600 font-bold text-sm sm:text-lg">Stanford</div>
-                                            )}
-                                            {testimonial.company === 'FreeCodeCamp.org' && (
-                                                <div className="text-green-600 font-bold text-xs sm:text-sm">FreeCodeCamp.org</div>
-                                            )}
+                                            <Image 
+                                                src={testimonial.logo} 
+                                                alt={`${testimonial.author} company logo`} 
+                                                width={200} 
+                                                height={200}
+                                                className="w-auto object-contain"
+                                            />
                                         </div>
-                                        {testimonial.company === 'Stanford Graduate School of Education' && (
-                                            <div className="ml-2 text-xs text-gray-500 uppercase tracking-wide">
-                                                EDUCATION
-                                            </div>
-                                        )}
                                     </div>
                                 </div>
                             )}
