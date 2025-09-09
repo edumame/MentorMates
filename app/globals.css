@@ -122,3 +122,14 @@ body { font-family: Inter, sans-serif; }
   .dropdown li { padding: 8px; cursor: pointer; }
   .dropdown li:hover { background-color: hsl(var(--muted)); }
 }
+
+.material-symbols-outlined {
+  font-size: inherit !important; /* let Tailwind control the size */
+  line-height: 1;
+  font-variation-settings:
+    'FILL' 0,
+    'wght' 400,
+    'GRAD' 0,
+    'opsz' 48; /* stroke optimized for large sizes */
+}
+
