@@ -27,13 +27,13 @@ export function Impact() {
             {/* Left Side - Content */}
             <div className="space-y-6">
                 <div className="space-y-4">
-                <p className="text-sm font-medium uppercase tracking-wide">
+                <p className="text-sm font-medium tracking-wide">
                     Our Impact
                 </p>
                 <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 leading-tight">
                     Transforming Ideas into Reality
                 </h2>
-                <p className="text-base sm:text-lg text-gray-600 leading-relaxed">
+                <p className="text-base sm:text-md leading-relaxed">
                     MentorMates has successfully hosted over 10 events, empowering
                     thousands of students. Our platform has facilitated the creation
                     of more than 200 innovative projects.
