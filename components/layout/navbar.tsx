@@ -112,10 +112,13 @@ export function Navbar() {
                   <Link href="/about">About us</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="/resources">Research</Link>
+                  <Link href="/research">Research</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link href="/blog">Blog</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/services">Services</Link>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -225,7 +228,7 @@ export function Navbar() {
             >
               Host a hackathon
             </Link>
-            
+
             {/* Resources Dropdown in Mobile */}
             <div className="py-4">
               <button
@@ -242,12 +245,14 @@ export function Navbar() {
                   strokeWidth="2"
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  className={`transition-transform ${resourcesOpen ? 'rotate-180' : ''}`}
+                  className={`transition-transform ${resourcesOpen ? "rotate-180" : ""}`}
                 >
                   <polyline points="6 9 12 15 18 9"></polyline>
                 </svg>
               </button>
-              <div className={`${resourcesOpen ? 'block' : 'hidden'} ml-4 mt-2 space-y-1 bg-gray-50 rounded-lg p-4`}>
+              <div
+                className={`${resourcesOpen ? "block" : "hidden"} ml-4 mt-2 space-y-1 bg-gray-50 rounded-lg p-4`}
+              >
                 <Link
                   href="/about"
                   className="block py-3 text-base font-normal text-black hover:text-blue-600"
@@ -255,7 +260,7 @@ export function Navbar() {
                   About us
                 </Link>
                 <Link
-                  href="/resources"
+                  href="/research"
                   className="block py-3 text-base font-normal text-black hover:text-blue-600"
                 >
                   Research
@@ -266,6 +271,12 @@ export function Navbar() {
                 >
                   Blog
                 </Link>
+                <Link
+                  href="/services"
+                  className="block py-3 text-base font-normal text-black hover:text-blue-600"
+                >
+                  Services
+                </Link>
               </div>
             </div>
 
@@ -275,7 +286,9 @@ export function Navbar() {
                 <div className="space-y-4">
                   <div className="flex items-center gap-3 px-2 py-3">
                     <Avatar className="h-8 w-8">
-                      <AvatarImage src={session.user.user_metadata?.avatar_url} />
+                      <AvatarImage
+                        src={session.user.user_metadata?.avatar_url}
+                      />
                       <AvatarFallback>
                         {session.user.email?.charAt(0).toUpperCase()}
                       </AvatarFallback>
