@@ -40,7 +40,10 @@ export function Work() {
     return (
         <div 
             ref={containerRef}
-            className="mx-auto px-4 sm:px-8 lg:px-24 py-12 sm:py-16 rounded-t-[56px] sm:rounded-t-[80px] lg:rounded-t-[112px] bg-gradient-to-b from-blue-50/65 to-blue-50/42"
+            className="mx-auto px-4 sm:px-8 lg:px-24 py-12 sm:py-16 rounded-t-[56px] sm:rounded-t-[80px] lg:rounded-t-[112px]"
+            style={{
+                background: 'linear-gradient(180deg, rgba(229, 240, 254, 0.65) 0%, rgba(229, 240, 254, 0.42) 96.63%)'
+            }}
         >
             {/* Header */}
             <div className="text-center mb-16">
