@@ -11,7 +11,7 @@ import { LayoutConfigProvider } from "@/components/layout/LayoutConfigProvider";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "MentorMate",
+  title: "MentorMates",
   description: "Connecting mentors and students in hackathons",
 };
 
@@ -22,6 +22,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
       <body className={inter.className}>
         <Providers>
           <LayoutConfigProvider>

@@ -99,9 +99,7 @@ export default function HomePage() {
       <div className="min-h-screen w-full bg-gradient-to-b from-white to-blue-50 pb-4">
         <LandingHero />
         <ServiceWorkerRegistration />
-        <div className="pt-10">
-          <Footer />
-        </div>
+        <Footer />
       </div>
     );
   }

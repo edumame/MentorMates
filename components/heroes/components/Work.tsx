@@ -40,7 +40,7 @@ export function Work() {
     return (
         <div 
             ref={containerRef}
-            className="mx-auto px-10 lg:px-24 py-16"
+            className="mx-auto px-4 sm:px-8 lg:px-24 py-12 sm:py-16"
             style={{
                 borderRadius: '112px 112px 0 0',
                 background: 'linear-gradient(180deg, rgba(229, 240, 254, 0.65) 0%, rgba(229, 240, 254, 0.42) 96.63%)'
@@ -59,7 +59,7 @@ export function Work() {
             {/* Timeline Container */}
             <div className="relative">
             {/* Animated Center Line */}
-            <div className="absolute left-1/2 transform -translate-x-1/2 w-1 bg-gray-300 h-full">
+            <div className="hidden md:block absolute left-1/2 transform -translate-x-1/2 w-1 bg-gray-300 h-full">
                 <motion.div 
                 className="w-full bg-blue-600"
                 style={{ height: lineHeight }}
@@ -67,7 +67,7 @@ export function Work() {
             </div>
 
             {/* Steps */}
-            <div className="space-y-24">
+            <div className="space-y-12 sm:space-y-16 md:space-y-24">
                 {steps.map((step, index) => (
                 <motion.div
                     key={step.id}
@@ -75,23 +75,23 @@ export function Work() {
                     whileInView={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.6, delay: index * 0.2 }}
                     viewport={{ once: true, margin: "-100px" }}
-                    className={`flex items-center ${
+                    className={`flex items-center md:flex-row ${
                     step.position === "left" 
-                        ? "flex-row-reverse" 
-                        : "flex-row"
-                    } gap-8 lg:gap-16`}
+                        ? "md:flex-row-reverse" 
+                        : "md:flex-row"
+                    } flex-col gap-6 md:gap-8 lg:gap-16 text-center md:text-left`}
                 >
                     {/* Content Side */}
                     <div className={`flex-1 ${
-                    step.position === "left" ? "text-right" : "text-left"
+                    step.position === "left" ? "md:text-right" : "md:text-left"
                     }`}>
                     <div className={`max-w-md ${
-                        step.position === "left" ? "ml-auto" : "mr-auto"
-                    }`}>
-                        <h3 className="text-2xl font-bold text-gray-900 mb-4">
+                        step.position === "left" ? "md:ml-auto" : "md:mr-auto"
+                    } mx-auto`}>
+                        <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-3 sm:mb-4">
                         {step.title}
                         </h3>
-                        <p className="text-gray-600 text-lg leading-relaxed">
+                        <p className="text-gray-600 text-base sm:text-lg leading-relaxed">
                         {step.description}
                         </p>
                     </div>
@@ -113,15 +113,15 @@ export function Work() {
                     </div>
 
                     {/* Image Side */}
-                    <div className="flex-1">
+                    <div className="flex-1 w-full">
                     <motion.div
                         initial={{ opacity: 0, scale: 0.8 }}
                         whileInView={{ opacity: 1, scale: 1 }}
                         transition={{ duration: 0.6, delay: index * 0.2 + 0.4 }}
                         viewport={{ once: true }}
                         className={`max-w-md ${
-                        step.position === "left" ? "mr-auto" : "ml-auto"
-                        }`}
+                        step.position === "left" ? "md:mr-auto" : "md:ml-auto"
+                        } mx-auto`}
                     >
                         <div className="relative bg-white rounded-2xl p-4 shadow-xl">
                         {/* Phone Frame */}
@@ -130,7 +130,7 @@ export function Work() {
                             {/* Placeholder for now - replace with actual screenshots */}
                             <div className="aspect-[9/16] bg-gradient-to-b from-blue-50 to-blue-100 flex items-center justify-center">
                                 <div className="text-center">
-                                <div className="w-16 h-16 bg-blue-600 rounded-full mx-auto mb-4 flex items-center justify-center">
+                                <div className="w-14 h-14 sm:w-16 sm:h-16 bg-blue-600 rounded-full mx-auto mb-3 sm:mb-4 flex items-center justify-center">
                                     <span className="text-white font-bold text-lg">
                                     {index + 1}
                                     </span>
@@ -159,12 +159,12 @@ export function Work() {
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
             viewport={{ once: true }}
-            className="text-center mt-20"
+            className="text-center mt-12 sm:mt-16 md:mt-20"
             >
-            <h3 className="text-3xl font-bold text-gray-900 mb-6">
+            <h3 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4 sm:mb-6">
                 Join the Innovation Revolution Today
             </h3>
-            <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
+            <p className="text-base sm:text-lg text-gray-600 mb-6 sm:mb-8 max-w-2xl mx-auto px-2">
                 Become part of a vibrant community of innovators. Together, we can create impactful solutions.
             </p>
             <motion.button
