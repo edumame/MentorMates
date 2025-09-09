@@ -32,12 +32,12 @@ export function Research() {
     return (
         <div className="min-h-screen bg-white">
             <div className="bg-gradient-to-r from-blue-50 to-indigo-50 py-32 px-6">
-                <div className="max-w-6xl mx-auto flex items-center justify-between">
+                <div className="max-w-7xl mx-auto flex items-center justify-between">
                     <div className="flex-1">
-                        <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+                        <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-4">
                         Our research
                         </h1>
-                        <p className="text-lg text-gray-700 max-w-2xl">
+                        <p className="text-xl max-w-2xl">
                         At MentorMates, we integrate cutting-edge research on AI and 
                         learning to transform how students innovate. Dive into our insights 
                         to see the science behind our platform.
