@@ -3,6 +3,9 @@ import React, { useState } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { BackgroundBeams } from '@/components/ui/background-beams'
+import { SparklesCore } from '@/components/ui/sparkles'
+import { TextGenerateEffect } from '@/components/ui/text-generate-effect'
 
 function ShareForAccessForm() {
   const [email, setEmail] = useState('')
@@ -80,33 +83,55 @@ function ShareForAccessForm() {
 
 export default function GuideLanding() {
   return (
-    <section className="px-5 py-10">
-      <div className="max-w-5xl mx-auto">
-        <div className="text-center">
-          <h1 className="text-4xl font-bold">2025 Ultimate AI Vibe Coding Guide</h1>
-          <p className="text-gray-700 mt-3">A practical, weekly-released playbook for building with AI in 2025.</p>
+    <section className="relative overflow-hidden">
+      <div className="absolute inset-0 -z-10">
+        <BackgroundBeams className="opacity-50" />
+        <SparklesCore className="absolute inset-0" background="transparent" particleDensity={80} minSize={1} maxSize={3} speed={3} />
+      </div>
+      <div className="px-5 py-16 md:py-24">
+        <div className="max-w-5xl mx-auto text-center">
+          <TextGenerateEffect
+            words="2025 Ultimate AI Vibe Coding Guide"
+            className="text-4xl md:text-6xl font-extrabold tracking-tight"
+          />
+          <p className="text-gray-700 mt-4 md:text-lg max-w-3xl mx-auto">
+            A practical, weekly-released playbook for building with AI in 2025.
+          </p>
+          <div className="mt-6 flex items-center justify-center gap-3">
+            <Link href="/ai-vibe-guide/checkout">
+              <Button className="h-11 px-6 text-base">Get Instant Access - $20</Button>
+            </Link>
+            <Link href="/ai-vibe-guide/preview" className="inline-flex items-center text-blue-700 hover:underline">
+              Read Preview Chapter
+            </Link>
+          </div>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-6 mt-10">
+        <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-6 mt-14">
           <Card>
             <CardContent className="p-6">
               <h2 className="text-2xl font-semibold mb-2">Instant Access</h2>
-              <p className="text-gray-600 mb-4">Get the full guide now for <strong>$20</strong>. New chapters every week.</p>
-              <div className="flex gap-3">
-                <Link href="/ai-vibe-guide/checkout">
-                  <Button>Get Instant Access - $20</Button>
-                </Link>
-                <Link href="/ai-vibe-guide/preview" className="inline-flex items-center text-blue-600 hover:underline">
-                  Read Preview Chapter
-                </Link>
-              </div>
+              <p className="text-gray-600 mb-4">Pay once to unlock all current and upcoming chapters immediately.</p>
+              <ul className="text-sm text-gray-700 space-y-2 mb-4 list-disc pl-5">
+                <li>Lifetime access to the 2025 edition</li>
+                <li>Weekly chapter drops, delivered automatically</li>
+                <li>Practical code, prompts, and workflows</li>
+              </ul>
+              <Link href="/ai-vibe-guide/checkout">
+                <Button className="h-10 px-5">Unlock Now - $20</Button>
+              </Link>
             </CardContent>
           </Card>
 
           <Card>
             <CardContent className="p-6">
               <h2 className="text-2xl font-semibold mb-2">Weekly Release</h2>
-              <p className="text-gray-600">Access the first chapter now. Remaining chapters unlock weekly. Instant access purchasers get the upcoming chapters immediately on release.</p>
+              <p className="text-gray-600 mb-4">Start with the free preview. New chapters roll out every week—stay updated without the wait.</p>
+              <ul className="text-sm text-gray-700 space-y-2 list-disc pl-5">
+                <li>Free preview chapter</li>
+                <li>Clear roadmap and updates</li>
+                <li>No account required</li>
+              </ul>
             </CardContent>
           </Card>
         </div>
