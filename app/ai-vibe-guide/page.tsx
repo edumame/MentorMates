@@ -67,7 +67,7 @@ function ShareForAccessForm() {
             />
           </div>
           <div className="flex items-center gap-3">
-            <Button type="submit" disabled={status === 'loading'}>
+            <Button variant="cta" type="submit" disabled={status === 'loading'}>
               {status === 'loading' ? 'Submitting...' : 'Submit for Free Access'}
             </Button>
             <Link href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fmentormates.ai%2Fai-vibe-guide" target="_blank" className="text-blue-600 hover:underline text-sm">
@@ -104,7 +104,7 @@ export default function GuideLanding() {
           </p>
           <div className="mt-6 flex items-center justify-center gap-3">
             <Link href="/ai-vibe-guide/checkout">
-              <Button className="h-11 px-6 text-base">Get Instant Access - $20</Button>
+              <Button variant="cta" className="h-11 px-6 text-base">Get Instant Access - $20</Button>
             </Link>
             <Link href="/ai-vibe-guide/preview" className="inline-flex items-center text-blue-700 hover:underline">
               Read Preview Chapter
@@ -126,7 +126,7 @@ export default function GuideLanding() {
                 <li>Exclusive hands-on appendix guides</li>
               </ul>
               <Link href="/ai-vibe-guide/checkout">
-                <Button className="h-10 px-5">Unlock Now - $20</Button>
+                <Button variant="cta" className="h-10 px-5">Unlock Now - $20</Button>
               </Link>
             </CardContent>
           </Card>
