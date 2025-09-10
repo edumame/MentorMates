@@ -133,6 +133,14 @@ This is a Next.js 15 TypeScript application called "MentorMates" - a mentorship 
 - Use proper semantic HTML
 - Ensure accessibility standards
 
+### TypeScript Typing Rules
+- Avoid using the `any` type across the codebase. Prefer precise types or generics.
+- If a value is unknown at compile time, use `unknown` and narrow with type guards.
+- Do not disable `@typescript-eslint/no-explicit-any`. Fix types instead.
+- For dynamic data (e.g., JSON), validate with Zod and infer types from schemas.
+- For third‑party APIs without types, create minimal local types or wrappers.
+- Example: in configuration hooks (e.g., Tailwind plugin API), import proper types instead of `any`.
+
 ## When Working on This Project
 - Always check existing patterns before creating new ones
 - Use the established component library (shadcn/ui + Radix)
