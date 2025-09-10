@@ -1,5 +1,6 @@
 import { stripe } from '@/lib/stripe/stripe'
 import Link from 'next/link'
+import { Button } from '@/components/ui/button'
 
 export default async function GuideReturn({ searchParams }: { searchParams: Promise<{ session_id: string }> }) {
   const { session_id } = await searchParams
@@ -34,8 +35,8 @@ export default async function GuideReturn({ searchParams }: { searchParams: Prom
               Thank you! We&apos;ll email instant access to {customerEmail ?? 'your email'} shortly.
             </p>
             <div className="mt-4">
-              <Link href={`/ai-vibe-guide/access?session_id=${session_id}`} className="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg transition duration-200">
-                Open the Guide Now
+              <Link href={`/ai-vibe-guide/access?session_id=${session_id}`}>
+                <Button variant="cta">Open the Guide Now</Button>
               </Link>
             </div>
           </div>
@@ -56,8 +57,8 @@ export default async function GuideReturn({ searchParams }: { searchParams: Prom
         )}
 
         <div className="mt-6">
-          <Link href="/ai-vibe-guide" className="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg transition duration-200">
-            Back to Guide
+          <Link href="/ai-vibe-guide">
+            <Button variant="secondary">Back to Guide</Button>
           </Link>
         </div>
       </div>

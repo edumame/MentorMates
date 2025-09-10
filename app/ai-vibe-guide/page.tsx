@@ -34,10 +34,15 @@ function ShareForAccessForm() {
   return (
     <Card className="mt-6">
       <CardContent className="p-6">
-        <h3 className="text-xl font-semibold mb-2">Get it Free by Sharing</h3>
-        <p className="text-sm text-gray-600 mb-4">
-          Share this guide on LinkedIn and tag <strong>@Chinat</strong>. Paste your post URL below and we&apos;ll email you access.
+        <h3 className="text-xl font-semibold mb-2">Unlock the Appendix for Free</h3>
+        <p className="text-sm text-gray-600 mb-3">
+          You can still access the appendix without paying by helping us spread the word:
         </p>
+        <ol className="list-decimal pl-5 text-sm text-gray-700 space-y-1 mb-4">
+          <li>Share this guide on LinkedIn</li>
+          <li>Tag <strong>Chinat Yu</strong> in your post</li>
+          <li>Drop your LinkedIn post URL below</li>
+        </ol>
         <form onSubmit={onSubmit} className="space-y-3">
           <div>
             <label className="block text-sm font-medium mb-1">Your Email</label>
@@ -45,7 +50,7 @@ function ShareForAccessForm() {
               type="email"
               required
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
               className="w-full rounded-md border px-3 py-2"
               placeholder="you@example.com"
             />
@@ -56,13 +61,13 @@ function ShareForAccessForm() {
               type="url"
               required
               value={linkedinUrl}
-              onChange={(e) => setLinkedinUrl(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setLinkedinUrl(e.target.value)}
               className="w-full rounded-md border px-3 py-2"
               placeholder="https://www.linkedin.com/posts/..."
             />
           </div>
           <div className="flex items-center gap-3">
-            <Button type="submit" disabled={status === 'loading'}>
+            <Button variant="cta" type="submit" disabled={status === 'loading'}>
               {status === 'loading' ? 'Submitting...' : 'Submit for Free Access'}
             </Button>
             <Link href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fmentormates.ai%2Fai-vibe-guide" target="_blank" className="text-blue-600 hover:underline text-sm">
@@ -70,7 +75,7 @@ function ShareForAccessForm() {
             </Link>
           </div>
           {status === 'success' && (
-            <p className="text-green-700 text-sm">Thanks! We&apos;ll verify your post and send access shortly.</p>
+            <p className="text-green-700 text-sm">Thanks! We&apos;ll verify your post and give you full access to the guide—including the appendix.</p>
           )}
           {status === 'error' && error && (
             <p className="text-red-700 text-sm">{error}</p>
@@ -99,7 +104,7 @@ export default function GuideLanding() {
           </p>
           <div className="mt-6 flex items-center justify-center gap-3">
             <Link href="/ai-vibe-guide/checkout">
-              <Button className="h-11 px-6 text-base">Get Instant Access - $20</Button>
+              <Button variant="cta" className="h-11 px-6 text-base">Get Instant Access - $20</Button>
             </Link>
             <Link href="/ai-vibe-guide/preview" className="inline-flex items-center text-blue-700 hover:underline">
               Read Preview Chapter
@@ -108,39 +113,43 @@ export default function GuideLanding() {
         </div>
 
         <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-6 mt-14">
+          <div className="md:col-span-2">
+            <h2 className="text-2xl font-bold">Access Options</h2>
+          </div>
           <Card>
             <CardContent className="p-6">
-              <h2 className="text-2xl font-semibold mb-2">Instant Access</h2>
-              <p className="text-gray-600 mb-4">Pay once to unlock all current and upcoming chapters immediately.</p>
+              <h2 className="text-2xl font-semibold mb-2">Instant Access (Recommended)</h2>
+              <p className="text-gray-600 mb-4">If you pay now, you’ll unlock:</p>
               <ul className="text-sm text-gray-700 space-y-2 mb-4 list-disc pl-5">
-                <li>Lifetime access to the 2025 edition</li>
-                <li>Weekly chapter drops, delivered automatically</li>
-                <li>Practical code, prompts, and workflows</li>
+                <li>All existing preview chapters</li>
+                <li>All future updates to those chapters</li>
+                <li>Exclusive hands-on appendix guides</li>
               </ul>
               <Link href="/ai-vibe-guide/checkout">
-                <Button className="h-10 px-5">Unlock Now - $20</Button>
+                <Button variant="cta" className="h-10 px-5">Unlock Now - $20</Button>
               </Link>
             </CardContent>
           </Card>
 
           <Card>
             <CardContent className="p-6">
-              <h2 className="text-2xl font-semibold mb-2">Weekly Release</h2>
-              <p className="text-gray-600 mb-4">Start with the free preview. New chapters roll out every week—stay updated without the wait.</p>
+              <h2 className="text-2xl font-semibold mb-2">Weekly Free Release</h2>
+              <p className="text-gray-600 mb-4">If you don’t pay right away, you can still get access to new content each week:</p>
               <ul className="text-sm text-gray-700 space-y-2 list-disc pl-5">
-                <li>Free preview chapter</li>
-                <li>Clear roadmap and updates</li>
-                <li>No account required</li>
+                <li>Chapters released weekly in parts</li>
+                <li>Hands-on appendix guides (videos + tutorials) remain locked</li>
               </ul>
             </CardContent>
           </Card>
         </div>
 
+        <div className="my-10 text-center text-gray-400">⸻</div>
+
         <ShareForAccessForm />
 
         <div className="mt-10 text-center text-sm text-gray-600">
           <p>
-            Prefer to support later? Share on LinkedIn and tag <strong>@Chinat</strong> to get it free.
+            Prefer to support later? Share on LinkedIn and tag <strong>Chinat Yu</strong> to get it free.
           </p>
         </div>
       </div>

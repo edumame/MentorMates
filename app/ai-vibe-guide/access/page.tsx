@@ -1,5 +1,6 @@
 import { stripe } from '@/lib/stripe/stripe'
 import Link from 'next/link'
+import { Button } from '@/components/ui/button'
 
 export default async function GuideAccess({ searchParams }: { searchParams: Promise<{ session_id?: string }> }) {
   const { session_id } = await searchParams
@@ -12,8 +13,8 @@ export default async function GuideAccess({ searchParams }: { searchParams: Prom
             <h1 className="text-2xl font-bold text-yellow-800 mb-2">Missing Session</h1>
             <p className="text-yellow-700">Please complete checkout to access the guide.</p>
           </div>
-          <Link href="/ai-vibe-guide/checkout" className="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg transition duration-200">
-            Go to Checkout
+          <Link href="/ai-vibe-guide/checkout">
+            <Button variant="cta">Go to Checkout</Button>
           </Link>
         </div>
       </section>
@@ -30,8 +31,8 @@ export default async function GuideAccess({ searchParams }: { searchParams: Prom
             <h1 className="text-2xl font-bold text-red-800 mb-2">Access Not Available</h1>
             <p className="text-red-700">Your checkout is not completed. Please finish payment to access the guide.</p>
           </div>
-          <Link href="/ai-vibe-guide/checkout" className="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg transition duration-200">
-            Return to Checkout
+          <Link href="/ai-vibe-guide/checkout">
+            <Button variant="cta">Return to Checkout</Button>
           </Link>
         </div>
       </section>
