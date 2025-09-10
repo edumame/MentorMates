@@ -33,6 +33,11 @@ export default async function GuideReturn({ searchParams }: { searchParams: Prom
             <p className="text-green-700">
               Thank you! We&apos;ll email instant access to {customerEmail ?? 'your email'} shortly.
             </p>
+            <div className="mt-4">
+              <Link href={`/ai-vibe-guide/access?session_id=${session_id}`} className="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg transition duration-200">
+                Open the Guide Now
+              </Link>
+            </div>
           </div>
         )}
 
