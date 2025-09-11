@@ -140,9 +140,10 @@ export function PricingTab({
     const newTier: Partial<PricingTier> = {
       event_id: event.event_id,
       tier_id: tierId,
-      name: "",
+      name: "New Tier",
       price: 0,
       description: "",
+      stripe_price_id: "",
       is_active: true,
       sort_order: pricingTiers.length,
     };

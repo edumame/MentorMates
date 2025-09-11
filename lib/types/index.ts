@@ -121,6 +121,15 @@ export interface EventDetails extends EventItem {
   faq?: string; // Optional markdown FAQ content
   submission_time_start?: string; // Submission window start time
   submission_time_cutoff?: string; // Submission window end time
+  sponsorship_tiers?: {
+    tiers?: Array<{
+      id: string; // e.g., "bronze" | "silver" | "gold" or custom
+      label: string;
+      price: number; // in cents
+      benefits?: string[];
+      sort?: number;
+    }>;
+  } | null;
 }
 
 // Project Types
