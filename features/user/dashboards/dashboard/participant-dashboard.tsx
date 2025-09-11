@@ -8,6 +8,7 @@ import dynamic from "next/dynamic";
 import ReactMarkdown from "react-markdown";
 import { customMarkdownComponents } from "@/components/markdown/custom-components";
 import { markdownRehypePlugins } from "@/components/markdown/plugins";
+import { useHasJoinedEvent } from "@/lib/hooks/use-has-joined-event";
 
 const ProjectsTab = dynamic(() => import("../participant/ProjectsTab").then(mod => ({ default: mod.ProjectsTab })), {
   ssr: false,
@@ -44,6 +45,7 @@ export function ParticipantDashboard({ eventId }: ParticipantDashboardProps) {
   const [eventInfo, setEventInfo] = useState<EventInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("projects");
+  const { hasJoined } = useHasJoinedEvent(eventId);
   
   const [paywalledContent, setPaywalledContent] = useState<string | null>(null);
   const [goalsCount, setGoalsCount] = useState<number>(0);
@@ -267,7 +269,7 @@ export function ParticipantDashboard({ eventId }: ParticipantDashboardProps) {
             </CardContent>
           </Card>
 
-          {paywalledContent && (
+          {paywalledContent && hasJoined && (
             <Card className="border-2 border-yellow-200 bg-yellow-50 mt-6">
               <CardHeader>
                 <CardTitle className="text-yellow-800">
