@@ -124,8 +124,7 @@ export function Featured() {
             const [
             { data: pubPriv = [], error: ppErr },
             { data: drafts = [], error: drErr },
-            ]: [{ data: DBEvent[]; error: any }, { data: DBEvent[]; error: any }] =
-            await Promise.all([publicPrivatePromise, draftsPromise]);
+            ] = await Promise.all([publicPrivatePromise, draftsPromise]);
 
             if (ppErr) throw ppErr;
             if (drErr) throw drErr;

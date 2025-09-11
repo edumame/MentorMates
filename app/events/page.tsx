@@ -125,7 +125,7 @@ export default async function EventsPage() {
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-center text-blue-900">
             Events
           </h1>
-          <EventsPageClient eventsList={eventsList} isAdmin={isAdminGlobal} />
+          <EventsPageClient eventsList={eventsList} />
           
           {/* Discord CTA on events page */}
           <div className="mt-12">

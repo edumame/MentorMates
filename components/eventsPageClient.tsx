@@ -3,18 +3,14 @@
 import { useState, useMemo, useEffect } from "react";
 import { EventsList } from "@/components/events/events-list";
 import { Input } from "@/components/ui/input";
-import { EventItem, EventVisibility } from "@/lib/types";
+import { EventItem } from "@/lib/types";
 import { UI_TEXT, DEFAULT_VALUES } from "@/lib/config/constants";
-import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useToast } from "@/lib/hooks/use-toast";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 
-export function EventsPageClient({ eventsList, isAdmin }: { eventsList: EventItem[]; isAdmin?: boolean }) {
+export function EventsPageClient({ eventsList }: { eventsList: EventItem[] }) {
   const [searchTerm, setSearchTerm] = useState(DEFAULT_VALUES.SEARCH_TERM);
-  const { toast } = useToast();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   // Creating is now done on a separate page

@@ -82,7 +82,7 @@ export default function NewEventPage() {
       }
       toast({ title: "Event created", description: `${data.event.event_name} created successfully.` });
       router.push(`/events/${data.event.slug || data.event.event_id}/overview`);
-    } catch (_err) {
+    } catch {
       toast({ title: "Network error", description: "Unable to create event.", variant: "destructive" });
     } finally {
       setCreating(false);
