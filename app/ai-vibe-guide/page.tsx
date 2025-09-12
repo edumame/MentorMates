@@ -2,20 +2,19 @@ import { Footer } from "@/components/layout/Footer";
 import { Hero } from "@/components/ai-vibe-guide/Hero";
 import { AccessOptions } from "@/components/ai-vibe-guide/AccessOptions";
 import { ShareForAccessForm } from "@/components/ai-vibe-guide/ShareForAccessForm";
+import { CTAJoin } from "@/components/layout/CTAJoin";
 
 export default function GuideLandingPage() {
   return (
     <section className="relative overflow-hidden">
-      <div className="px-5 py-16 md:py-24">
+      <div className="px-5 py-8 md:py-16">
         <Hero />
 
         <AccessOptions />
 
-        <div className="my-10 text-center text-gray-400">⸻</div>
-
         <ShareForAccessForm />
 
-        <div className="mt-10 text-center text-sm text-gray-600">
+        <div className="text-center text-sm text-gray-600">
           <p>
             Prefer to support later? Share on LinkedIn and tag{" "}
             <strong>Chinat Yu</strong> to get it free.
@@ -23,6 +22,7 @@ export default function GuideLandingPage() {
         </div>
       </div>
 
+      <CTAJoin />
       <Footer />
     </section>
   );
