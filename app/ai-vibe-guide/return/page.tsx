@@ -34,6 +34,9 @@ export default async function GuideReturn({ searchParams }: { searchParams: Prom
             <p className="text-green-700">
               Thank you! We&apos;ll email instant access to {customerEmail ?? 'your email'} shortly.
             </p>
+            <p className="text-green-700 mt-2">
+              You should receive the digital book within the next 24 hours. Thank you so much for purchasing and supporting Chinat
+            </p>
             <div className="mt-4">
               <Link href={`/ai-vibe-guide/access?session_id=${session_id}`}>
                 <Button variant="cta">Open the Guide Now</Button>
