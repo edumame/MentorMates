@@ -3,9 +3,8 @@ import React, { useState } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { BackgroundBeams } from '@/components/ui/background-beams'
-import { SparklesCore } from '@/components/ui/sparkles'
 import { TextGenerateEffect } from '@/components/ui/text-generate-effect'
+import { Footer } from '@/components/layout/footer'
 
 function ShareForAccessForm() {
   const [email, setEmail] = useState('')
@@ -89,10 +88,6 @@ function ShareForAccessForm() {
 export default function GuideLanding() {
   return (
     <section className="relative overflow-hidden">
-      <div className="absolute inset-0 -z-10">
-        <BackgroundBeams className="opacity-50" />
-        <SparklesCore className="absolute inset-0" background="transparent" particleDensity={80} minSize={1} maxSize={3} speed={3} />
-      </div>
       <div className="px-5 py-16 md:py-24">
         <div className="max-w-5xl mx-auto text-center">
           <TextGenerateEffect
@@ -119,7 +114,7 @@ export default function GuideLanding() {
           <Card>
             <CardContent className="p-6">
               <h2 className="text-2xl font-semibold mb-2">Instant Access (Recommended)</h2>
-              <p className="text-gray-600 mb-4">If you pay now, you’ll unlock:</p>
+              <p className="text-gray-600 mb-4">If you pay now, you'll unlock:</p>
               <ul className="text-sm text-gray-700 space-y-2 mb-4 list-disc pl-5">
                 <li>All existing preview chapters</li>
                 <li>All future updates to those chapters</li>
@@ -134,7 +129,7 @@ export default function GuideLanding() {
           <Card>
             <CardContent className="p-6">
               <h2 className="text-2xl font-semibold mb-2">Weekly Free Release</h2>
-              <p className="text-gray-600 mb-4">If you don’t pay right away, you can still get access to new content each week:</p>
+              <p className="text-gray-600 mb-4">If you don't pay right away, you can still get access to new content each week:</p>
               <ul className="text-sm text-gray-700 space-y-2 list-disc pl-5">
                 <li>Chapters released weekly in parts</li>
                 <li>Hands-on appendix guides (videos + tutorials) remain locked</li>
@@ -153,7 +148,7 @@ export default function GuideLanding() {
           </p>
         </div>
       </div>
+      <Footer />
     </section>
   )
 }
-
