@@ -1,4 +1,4 @@
-import { Footer } from "@/components/layout/footer";
+import { Footer } from "@/components/layout/Footer";
 import { EventsPageClient } from "@/components/eventsPageClient";
 import { createSupabaseClient } from "../utils/supabase/server";
 import { EventRole, EventVisibility } from "@/lib/types";
@@ -126,7 +126,7 @@ export default async function EventsPage() {
             Events
           </h1>
           <EventsPageClient eventsList={eventsList} isAdmin={isAdminGlobal} />
-          
+
           {/* Discord CTA on events page */}
           <div className="mt-12">
             <DiscordCTA variant="default" />

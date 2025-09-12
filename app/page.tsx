@@ -9,7 +9,7 @@ import { Session } from "@supabase/supabase-js";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { TextGenerateEffect } from "@/components/ui/text-generate-effect";
-import { Footer } from "@/components/layout/footer";
+import { Footer } from "@/components/layout/Footer";
 import { Calendar, Folder, MessageSquare } from "lucide-react";
 import { toast } from "@/lib/hooks/use-toast";
 import { DiscordCTA } from "@/components/ui/discord-cta";
@@ -124,7 +124,10 @@ export default function HomePage() {
       const { data: userFeedback } = await supabase
         .from("feedback")
         .select("*")
-        .in("project_id", combinedProjects.map((project) => project.id));
+        .in(
+          "project_id",
+          combinedProjects.map((project) => project.id)
+        );
 
       const totalFeedbackCount = userFeedback?.length || 0;
 

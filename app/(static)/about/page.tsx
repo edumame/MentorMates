@@ -1,7 +1,7 @@
 import type React from "react";
 import Link from "next/link";
 import { ArrowRight, CheckCircle } from "lucide-react";
-import { Footer } from '@/components/layout/footer';
+import { Footer } from "@/components/layout/Footer";
 
 const AboutPage: React.FC = () => {
   return (
@@ -270,9 +270,9 @@ const AboutPage: React.FC = () => {
           </Link>
         </div>
       </div>
-      
-      <div className = "pt-10">
-          <Footer />    
+
+      <div className="pt-10">
+        <Footer />
       </div>
     </div>
   );

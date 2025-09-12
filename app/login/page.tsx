@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/app/utils/supabase/client";
-import { Footer } from "@/components/layout/footer";
+import { Footer } from "@/components/layout/Footer";
 import Image from "next/image";
 import { User } from "@supabase/supabase-js";
 
@@ -19,7 +19,7 @@ function LoginContent() {
   const [isSignUp, setIsSignUp] = useState(false);
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
-  const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+  const cleanBaseUrl = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
 
   useEffect(() => {
     const mode = searchParams.get("mode");
@@ -53,7 +53,8 @@ function LoginContent() {
     if (returnUrl) {
       localStorage.removeItem("returnUrl");
     }
-    const cleanReturnUrl = returnUrl && returnUrl.startsWith('/') ? returnUrl.slice(1) : returnUrl;
+    const cleanReturnUrl =
+      returnUrl && returnUrl.startsWith("/") ? returnUrl.slice(1) : returnUrl;
 
     if (isSignUp) {
       if (password.length < 6) {
@@ -71,7 +72,7 @@ function LoginContent() {
       });
 
       if (error) {
-        const errorMessage = error.message.includes("unique") 
+        const errorMessage = error.message.includes("unique")
           ? "This email is already registered. Please sign in instead."
           : error.message;
         setError(errorMessage);
@@ -80,11 +81,11 @@ function LoginContent() {
       }
 
       if (data?.user) {
-        
         const profileError = await syncUserProfile(data.user);
 
         if (profileError) {
-          const message = "Error signing up. Please sign in instead or try again."
+          const message =
+            "Error signing up. Please sign in instead or try again.";
           setError(message);
           setLoading(false);
           return;
@@ -110,7 +111,8 @@ function LoginContent() {
       if (data?.user) {
         const profileError = await syncUserProfile(data.user);
         if (profileError) {
-          const message = "Error signing in. Please sign up instead or try again."
+          const message =
+            "Error signing in. Please sign up instead or try again.";
           setError(message);
           setLoading(false);
           return;
@@ -144,7 +146,8 @@ function LoginContent() {
     if (returnUrl) {
       localStorage.removeItem("returnUrl");
     }
-    const cleanReturnUrl = returnUrl && returnUrl.startsWith('/') ? returnUrl.slice(1) : returnUrl;
+    const cleanReturnUrl =
+      returnUrl && returnUrl.startsWith("/") ? returnUrl.slice(1) : returnUrl;
     const options = {
       provider,
       options: {
@@ -165,14 +168,17 @@ function LoginContent() {
 
   const syncUserProfile = async (user: User) => {
     if (user) {
-      const { error } = await supabase.from("user_profiles").upsert({
-        uid: user.id,
-        email: user.email,
-        display_name: user.email?.split("@")[0],
-        created_at: new Date().toISOString(),
-      }, {
-        onConflict: "uid",
-      });
+      const { error } = await supabase.from("user_profiles").upsert(
+        {
+          uid: user.id,
+          email: user.email,
+          display_name: user.email?.split("@")[0],
+          created_at: new Date().toISOString(),
+        },
+        {
+          onConflict: "uid",
+        }
+      );
       if (error) {
         console.error("Error syncing user profile:", error);
         return error;
@@ -290,8 +296,8 @@ function LoginContent() {
                     ? "Signing up..."
                     : "Signing in..."
                   : isSignUp
-                  ? "Sign up"
-                  : "Sign in"}
+                    ? "Sign up"
+                    : "Sign in"}
               </button>
             </div>
           </form>
