@@ -36,7 +36,7 @@ export default async function GuideReturn({ searchParams }: { searchParams: Prom
             </p>
             <div className="mt-4">
               <Link href={`/ai-vibe-guide/access?session_id=${session_id}`}>
-                <Button variant="cta">Open the Guide Now</Button>
+                <Button variant="default">Open the Guide Now</Button>
               </Link>
             </div>
           </div>
