@@ -8,14 +8,21 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import type { Session } from "@supabase/supabase-js";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
- 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export function Navbar() {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
+  const [resourcesOpen, setResourcesOpen] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
 
   const toggleMenu = () => setIsOpen(!isOpen);
+  const toggleResources = () => setResourcesOpen(!resourcesOpen);
 
   useEffect(() => {
     const fetchSession = async () => {
@@ -58,56 +65,78 @@ export function Navbar() {
   return (
     <>
       <nav className="fixed top-0 left-0 right-0 bg-white/70 backdrop-blur-sm z-50">
-        <div className="flex justify-between items-center p-4">
-          {/* Logo */}
-          <Link href="/" className="flex items-center gap-2">
-            <Image
-              src="/mentormate.png"
-              alt="Mentor Mate Logo"
-              width={32}
-              height={32}
-              className="object-contain pl-2"
-            />
-            <span className="font-bold text-lg text-blue-900">MentorMates</span>
-          </Link>
-
-          {/* Desktop Menu */}
-          <div className="hidden md:flex flex-1 justify-center items-center gap-8">
-            <Link
-              href="/about"
-              className="text-base font-medium text-gray-700 hover:text-blue-600"
-            >
-              About
+        <div className="flex justify-between items-center py-4 px-10">
+          {/* Logo and Desktop Menu */}
+          <div className="hidden md:flex items-center gap-8">
+            <Link href="/" className="flex items-center gap-2">
+              <Image
+                src="/mentormate.png"
+                alt="Mentor Mate Logo"
+                width={200}
+                height={40}
+                className="object-contain pl-2"
+              />
             </Link>
             <Link
-              href="/teams"
+              href="/projects"
               className="text-base font-medium text-gray-700 hover:text-blue-600"
             >
-              Team
-            </Link>
-            <Link
-              href="/join"
-              className="text-base font-medium bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent hover:from-blue-700 hover:to-purple-700"
-            >
-              Join
+              Projects
             </Link>
             <Link
               href="/events"
               className="text-base font-medium text-gray-700 hover:text-blue-600"
             >
-              Events
+              Host a hackathon
             </Link>
-            <Link
-              href="/roles"
-              className="text-base font-medium text-gray-700 hover:text-blue-600"
-              title="How to use MentorMates"
-            >
-              Help
-            </Link>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="text-base font-medium text-gray-700 hover:text-blue-600 inline-flex items-center gap-1">
+                  Resources
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuItem asChild>
+                  <Link href="/about">About us</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/research">Research</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/blog">Blog</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/services">Services</Link>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
+          {/* Mobile Logo */}
+          <Link href="/" className="flex md:hidden items-center gap-2">
+            <Image
+              src="/mentormate.png"
+              alt="Mentor Mate Logo"
+              width={160}
+              height={32}
+              className="object-contain"
+            />
+          </Link>
+
           {/* Desktop Auth Buttons */}
-          <div className="hidden md:flex items-center gap-4">
+          <div className="hidden md:flex items-center gap-3">
             {session ? (
               <>
                 <Avatar className="h-8 w-8">
@@ -118,19 +147,26 @@ export function Navbar() {
                 </Avatar>
                 <button
                   onClick={handleSignOutClick}
-                  className="px-4 py-2 text-base font-medium text-red-600 hover:bg-red-50 rounded-full"
+                  className="px-4 py-4 text-base font-medium text-red-600 hover:bg-red-50 rounded-xl"
                 >
                   Sign Out
                 </button>
               </>
             ) : (
-              <Button
-                variant="logIn"
-                className="bg-black text-white font-semibold py-2 px-6 rounded-full hover:bg-gray-800"
-                onClick={handleLoginClick}
-              >
-                Log in
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  className="px-4 py-4 rounded-xl text-base"
+                  onClick={handleLoginClick}
+                >
+                  Log in
+                </Button>
+                <Link href="/select-role">
+                  <Button className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-4 rounded-xl text-base">
+                    Get started
+                  </Button>
+                </Link>
+              </>
             )}
           </div>
 
@@ -177,70 +213,116 @@ export function Navbar() {
         <div
           className={`${
             isOpen ? "block" : "hidden"
-          } bg-white border-t border-gray-100 md:hidden`}
+          } bg-white border-t border-gray-100 md:hidden min-h-screen`}
         >
-          <div className="px-4 pt-2 pb-4 space-y-3">
+          <div className="px-6 py-6 space-y-1">
             <Link
-              href="/about"
-              className="block py-2 text-base font-medium text-gray-700 hover:text-blue-600"
+              href="/projects"
+              className="block py-4 text-lg font-medium text-black hover:text-blue-600"
             >
-              About
-            </Link>
-            <Link
-              href="/teams"
-              className="block py-2 text-base font-medium text-gray-700 hover:text-blue-600"
-            >
-              Team
-            </Link>
-            <Link
-              href="/join"
-              className="block py-2 text-base font-medium bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent hover:from-blue-700 hover:to-purple-700"
-            >
-              Join
+              Projects
             </Link>
             <Link
               href="/events"
-              className="block py-2 text-base font-medium text-gray-700 hover:text-blue-600"
+              className="block py-4 text-lg font-medium text-black hover:text-blue-600"
             >
-              Events
+              Host a hackathon
             </Link>
-            <Link
-              href="/roles"
-              className="block py-2 text-base font-medium text-gray-700 hover:text-blue-600"
-            >
-              How to use MentorMates
-            </Link>
-            {session ? (
-              <div className="pt-2 border-t border-gray-100">
-                <div className="flex items-center gap-3 px-2 py-3">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src={session.user.user_metadata?.avatar_url} />
-                    <AvatarFallback>
-                      {session.user.email?.charAt(0).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-900">
-                      {session.user.email}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={handleSignOutClick}
-                  className="w-full mt-2 px-4 py-2 text-left text-base font-medium text-red-600 hover:bg-red-50"
-                >
-                  Sign Out
-                </button>
-              </div>
-            ) : (
-              <Button
-                variant="logIn"
-                className="w-full mt-2 bg-black text-white font-semibold py-2 rounded-full hover:bg-gray-800"
-                onClick={handleLoginClick}
+
+            {/* Resources Dropdown in Mobile */}
+            <div className="py-4">
+              <button
+                onClick={toggleResources}
+                className="w-full text-left text-lg font-medium text-black flex items-center justify-between hover:text-blue-600"
               >
-                Log in
-              </Button>
-            )}
+                Resources
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className={`transition-transform ${resourcesOpen ? "rotate-180" : ""}`}
+                >
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </button>
+              <div
+                className={`${resourcesOpen ? "block" : "hidden"} ml-4 mt-2 space-y-1 bg-gray-50 rounded-lg p-4`}
+              >
+                <Link
+                  href="/about"
+                  className="block py-3 text-base font-normal text-black hover:text-blue-600"
+                >
+                  About us
+                </Link>
+                <Link
+                  href="/research"
+                  className="block py-3 text-base font-normal text-black hover:text-blue-600"
+                >
+                  Research
+                </Link>
+                <Link
+                  href="/blog"
+                  className="block py-3 text-base font-normal text-black hover:text-blue-600"
+                >
+                  Blog
+                </Link>
+                <Link
+                  href="/services"
+                  className="block py-3 text-base font-normal text-black hover:text-blue-600"
+                >
+                  Services
+                </Link>
+              </div>
+            </div>
+
+            {/* Mobile Auth Buttons */}
+            <div className="pt-8 space-y-4">
+              {session ? (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3 px-2 py-3">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage
+                        src={session.user.user_metadata?.avatar_url}
+                      />
+                      <AvatarFallback>
+                        {session.user.email?.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-900">
+                        {session.user.email}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleSignOutClick}
+                    className="w-full px-4 py-3 text-center text-base font-medium text-red-600 hover:bg-red-50 rounded-lg"
+                  >
+                    Sign Out
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <Button
+                    variant="outline"
+                    className="w-full py-4 rounded-lg text-base font-medium"
+                    onClick={handleLoginClick}
+                  >
+                    Log in
+                  </Button>
+                  <Link href="/select-role" className="block">
+                    <Button className="w-full bg-blue-500 hover:bg-blue-600 text-white py-4 rounded-lg text-base font-medium">
+                      Get started
+                    </Button>
+                  </Link>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </nav>
