@@ -13,49 +13,42 @@ export const logos: LogoItem[] = [
 ];
 
 type LogoCarouselProps = {
-    /** Override the default logos if needed */
     items?: LogoItem[];
-    /** Height classes for the images (default keeps things mobile-safe) */
     itemHeightClass?: string;
-    /** Container className */
     className?: string;
-    /** Seconds per loop (desktop) */
     speed?: number;
-    /** Seconds per loop (mobile) */
     speedMobile?: number;
-    /** Reverse direction */
     reverse?: boolean;
-    /** Edge fades / mask gradient */
     fade?: boolean;
-    /** Pause on hover */
     pauseOnHover?: boolean;
-    };
+};
 
 export function LogoCarousel({
-        items,
-        itemHeightClass = "h-6 sm:h-8 lg:h-10",
-        className = "h-10 sm:h-12 lg:h-16",
-        speed = 24,
-        speedMobile = 20,
-        reverse = false,
-        fade = true,
-        pauseOnHover = true,
+    items,
+    itemHeightClass = "h-6 sm:h-8 lg:h-10",
+    className = "h-10 sm:h-12 lg:h-16",
+    speed = 24,
+    speedMobile = 20,
+    reverse = false,
+    fade = true,
+    pauseOnHover = true,
     }: LogoCarouselProps) {
     return (
-        <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 p-10 sm:p-16 lg:p-20">
-            <p className="text-center text-xs sm:text-sm lg:text-base text-gray-700 pb-12">
-                Trusted by top companies and innovative organizations
-            </p>
-            <LogoMarquee
-                logos={items ?? logos}
-                itemHeightClass={itemHeightClass}
-                className={className}
-                speed={speed}
-                speedMobile={speedMobile}
-                reverse={reverse}
-                fade={fade}
-                pauseOnHover={pauseOnHover}
-            />
-        </div>
+        <section className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 py-8 sm:py-10 lg:py-12 overflow-hidden">
+        <p className="text-center text-xs sm:text-sm lg:text-base text-gray-700 mb-6 sm:mb-8">
+            Trusted by top companies and innovative organizations
+        </p>
+
+        <LogoMarquee
+            logos={items ?? logos}
+            itemHeightClass={itemHeightClass}
+            className={className}
+            speed={speed}
+            speedMobile={speedMobile}
+            reverse={reverse}
+            fade={fade}
+            pauseOnHover={pauseOnHover}
+        />
+        </section>
     );
 }
