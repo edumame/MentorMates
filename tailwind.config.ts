@@ -9,6 +9,11 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      /* Font families */
+      fontFamily: {
+        sans: ["Inter", "system-ui", "sans-serif"],
+        geist: ["Geist", "Inter", "system-ui", "sans-serif"],
+      },
       /* Brand palette */
       colors: {
         background: "hsl(var(--background))",

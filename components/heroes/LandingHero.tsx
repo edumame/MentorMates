@@ -20,6 +20,12 @@ export function LandingHero() {
     () => ["Hackathons", "Projects", "Prototypes", "Builders"],
     []
   );
+
+  const longestTitle = useMemo(
+    () => titles.reduce((a, b) => (b.length > a.length ? b : a), ""),
+    [titles]
+  );
+
   useEffect(() => {
     const id = setTimeout(
       () => setTitleIndex((i) => (i === titles.length - 1 ? 0 : i + 1)),
@@ -30,36 +36,45 @@ export function LandingHero() {
 
   return (
     <div className="relative bg-white overflow-x-hidden">
-      {/* --- HERO --- */}
       <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 pt-8 sm:pt-14 lg:pt-24 pb-8 sm:pb-16 lg:pb-20">
         <div className="grid lg:grid-cols-12 gap-6 sm:gap-8 lg:gap-8 items-start">
           {/* Left: Huge headline */}
           <div className="lg:col-span-7 min-w-0">
-            <h1 className="leading-tight tracking-tight text-gray-900 font-extrabold text-3xl sm:text-4xl md:text-5xl lg:text-[72px]">
-              <span className="block">Your home for</span>
-              <span className="mt-3 sm:mt-5 p-2 relative inline-block text-[#4B89EF]">
-                <span className="relative flex w-full justify-start overflow-hidden md:pb-1">
-                  {titles.map((word, idx) => (
-                    <motion.span
-                      key={idx}
-                      className="absolute font-extrabold"
-                      initial={{ opacity: 0, y: -100 }}
-                      animate={
-                        titleIndex === idx
-                          ? { y: 0, opacity: 1 }
-                          : { y: titleIndex > idx ? -150 : 150, opacity: 0 }
-                      }
-                      transition={{ type: "spring", stiffness: 50 }}
-                      style={{ lineHeight: 1.1 }}
-                    >
-                      <span className="text-3xl sm:text-4xl md:text-5xl lg:text-[72px]">
-                        {word}
-                      </span>
-                    </motion.span>
-                  ))}
-                  {/* Spacer to preserve layout height */}
-                  <span className="invisible text-3xl sm:text-4xl md:text-5xl lg:text-[72px]">
-                    {titles[0]}
+            <h1 className="text-gray-900 font-semibold text-3xl sm:text-4xl md:text-5xl lg:text-[72px] font-geist tracking-[-0.06em] leading-[1.1]">
+              <span>
+                Your home for{" "}
+                <span className="relative inline-block align-baseline w-full">
+                  <span className="relative flex justify-start overflow-hidden w-full h-full">
+                    {titles.map((word, idx) => (
+                      <motion.span
+                        key={idx}
+                        className="absolute font-extrabold leading-[1.1] left-0 top-0"
+                        initial={{ opacity: 0, y: -100 }}
+                        animate={
+                          titleIndex === idx
+                            ? { y: 0, opacity: 1 }
+                            : { y: titleIndex > idx ? -150 : 150, opacity: 0 }
+                        }
+                        transition={{ type: "spring", stiffness: 50 }}
+                        style={{
+                          background:
+                            "linear-gradient(90deg, #DBEAFE 0%, #4286F4 48%, #1C64F2 100%)",
+                          WebkitBackgroundClip: "text",
+                          WebkitTextFillColor: "transparent",
+                          backgroundClip: "text",
+                          color: "transparent",
+                        }}
+                      >
+                        <span className="text-3xl sm:text-4xl md:text-5xl lg:text-[72px] leading-[1.1]">
+                          {word}
+                        </span>
+                      </motion.span>
+                    ))}
+
+                    {/* Spacer: use the LONGEST title to set width (and height) */}
+                    <span className="invisible font-extrabold text-3xl sm:text-4xl md:text-5xl lg:text-[72px] leading-[1.1]">
+                      {longestTitle}
+                    </span>
                   </span>
                 </span>
               </span>
