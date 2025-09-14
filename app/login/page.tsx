@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/app/utils/supabase/client";
-import { Footer } from "@/components/layout/Footer";
+import { Footer } from "@/components/layout/footer";
 import Image from "next/image";
 import { User } from "@supabase/supabase-js";
 
@@ -23,7 +23,6 @@ function LoginContent({
   const [isSignUp, setIsSignUp] = useState(false);
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
-  const cleanBaseUrl = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
   const cleanBaseUrl = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
 
   useEffect(() => {
@@ -64,8 +63,6 @@ function LoginContent({
     }
     const cleanReturnUrl =
       returnUrl && returnUrl.startsWith("/") ? returnUrl.slice(1) : returnUrl;
-    const cleanReturnUrl =
-      returnUrl && returnUrl.startsWith("/") ? returnUrl.slice(1) : returnUrl;
 
     if (isSignUp) {
       if (password.length < 6) {
@@ -74,7 +71,7 @@ function LoginContent({
         return;
       }
 
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -124,8 +121,6 @@ function LoginContent({
         if (profileError) {
           const message =
             "Error signing in. Please sign up instead or try again.";
-          const message =
-            "Error signing in. Please sign up instead or try again.";
           setError(message);
           setLoading(false);
           return;
@@ -161,8 +156,6 @@ function LoginContent({
     }
     const cleanReturnUrl =
       returnUrl && returnUrl.startsWith("/") ? returnUrl.slice(1) : returnUrl;
-    const cleanReturnUrl =
-      returnUrl && returnUrl.startsWith("/") ? returnUrl.slice(1) : returnUrl;
     const options = {
       provider,
       options: {
@@ -187,17 +180,6 @@ function LoginContent({
 
   const syncUserProfile = async (user: User) => {
     if (user) {
-      const { error } = await supabase.from("user_profiles").upsert(
-        {
-          uid: user.id,
-          email: user.email,
-          display_name: user.email?.split("@")[0],
-          created_at: new Date().toISOString(),
-        },
-        {
-          onConflict: "uid",
-        }
-      );
       const { error } = await supabase.from("user_profiles").upsert(
         {
           uid: user.id,

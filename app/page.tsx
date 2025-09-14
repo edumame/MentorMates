@@ -7,12 +7,7 @@ import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { ServiceWorkerRegistration } from "@/components/utils/ServiceWorkerRegistration";
 import { LandingHero } from "@/components/heroes/LandingHero";
-import { supabase } from "@/lib/supabase";
-import { Session } from "@supabase/supabase-js";
-import Link from "next/link";
-import { motion } from "framer-motion";
-import { TextGenerateEffect } from "@/components/ui/text-generate-effect";
-import { Footer } from "@/components/layout/Footer";
+import { Footer } from "@/components/layout/footer";
 import { Calendar, Folder, MessageSquare } from "lucide-react";
 
 export default function HomePage() {
@@ -50,7 +45,7 @@ export default function HomePage() {
   useEffect(() => {
     if (!session?.user) return;
 
-    (async () => {
+    const fetchStats = async () => {
       setLoadingStats(true);
       const userId = session.user.id;
       const userEmail = session.user.email!;
@@ -78,7 +73,9 @@ export default function HomePage() {
       ]);
 
       const projectIds = Array.from(
-        new Set([...(lead ?? []), ...(team ?? [])].map((p: { id: string }) => p.id))
+        new Set(
+          [...(lead ?? []), ...(team ?? [])].map((p: { id: string }) => p.id)
+        )
       );
       const projectsCount = projectIds.length;
 
@@ -86,19 +83,18 @@ export default function HomePage() {
       const { data: userFeedback } = await supabase
         .from("feedback")
         .select("*")
-        .in(
-          "project_id",
-          combinedProjects.map((project) => project.id)
-        );
+        .in("project_id", projectIds);
 
       const totalFeedbackCount = userFeedback?.length || 0;
 
       // Save to state
-      setTotalEvents(totalEventsCount);
-      setSubmittedProjects(submittedProjectsCount);
-      setFeedbackCount(totalFeedbackCount);
+      setStats({
+        events: eventsCount,
+        projects: projectsCount,
+        feedback: totalFeedbackCount,
+      });
 
-      setIsLoadingStats(false);
+      setLoadingStats(false);
     };
 
     if (session?.user?.email) {
@@ -111,7 +107,6 @@ export default function HomePage() {
   if (!session) {
     return (
       <div className="min-h-screen w-full bg-gradient-to-b from-white to-blue-50 pb-4">
-        <AnnouncementBanner href={bookUrl} />
         <LandingHero />
         <ServiceWorkerRegistration />
         <Footer />
@@ -121,7 +116,6 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen w-full flex flex-col bg-gray-50">
-      <AnnouncementBanner href={bookUrl} />
       <div className="flex-1">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
           <h1 className="text-4xl sm:text-5xl font-bold text-blue-900 mb-2">

@@ -6,6 +6,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { BackgroundBeams } from "@/components/ui/background-beams";
 import { SparklesCore } from "@/components/ui/sparkles";
 import { TextGenerateEffect } from "@/components/ui/text-generate-effect";
+import { Footer } from "@/components/layout/footer";
+import { CTAJoin } from "@/components/layout/CTAJoin";
 
 function ShareForAccessForm() {
   const [email, setEmail] = useState("");
