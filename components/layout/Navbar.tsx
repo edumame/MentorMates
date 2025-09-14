@@ -156,13 +156,13 @@ export function Navbar() {
               <>
                 <Button
                   variant="outline"
-                  className="px-4 rounded-xl text-sm hover:bg-gray-100"
+                  className="px-4 py-4 rounded-xl text-base"
                   onClick={handleLoginClick}
                 >
                   Log in
                 </Button>
                 <Link href="/select-role">
-                  <Button className="bg-blue-500 hover:bg-blue-600 text-white px-4 rounded-xl text-sm">
+                  <Button className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-4 rounded-xl text-base">
                     Get started
                   </Button>
                 </Link>
