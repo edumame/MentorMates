@@ -13,10 +13,12 @@ import { Footer } from "@/components/layout/footer";
 import { Calendar, Folder, MessageSquare } from "lucide-react";
 import { toast } from "@/lib/hooks/use-toast";
 import { DiscordCTA } from "@/components/ui/discord-cta";
+import { AnnouncementBanner } from "@/components/ui/announcement-banner";
 
 export default function HomePage() {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const bookUrl = "/ai-vibe-guide";
 
   // stats
   const [isLoadingStats, setIsLoadingStats] = useState(false);
@@ -148,6 +150,7 @@ export default function HomePage() {
   if (!session) {
     return (
       <div className="min-h-screen w-full bg-gradient-to-b from-white to-blue-50 pb-4">
+        <AnnouncementBanner href={bookUrl} />
         <LandingHero />
         <ServiceWorkerRegistration />
         <div className="pt-10">
@@ -159,6 +162,7 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen w-full flex flex-col bg-gray-50">
+      <AnnouncementBanner href={bookUrl} />
       <div className="flex-1">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
           <motion.div
