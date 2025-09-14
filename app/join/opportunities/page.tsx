@@ -1,4 +1,4 @@
-import { Footer } from "@/components/layout/footer";
+import { Footer } from "@/components/layout/Footer";
 
 const positions = [
   {
@@ -20,18 +20,18 @@ const positions = [
       "Per-episode compensation with opportunities for growth as the program expands.",
       "Flexible, remote-friendly role.",
     ],
-    why:
-      "You'll gain direct access to industry leaders from organizations like Google, Microsoft, Stanford, Johns Hopkins, and more. This is a chance to build your network, sharpen your skills in public speaking and community building, and contribute to the future of AI and education.",
+    why: "You'll gain direct access to industry leaders from organizations like Google, Microsoft, Stanford, Johns Hopkins, and more. This is a chance to build your network, sharpen your skills in public speaking and community building, and contribute to the future of AI and education.",
     contact: (
       <>
-        \uD83D\uDC49 Interested? Reach out to us at{' '}
+        \uD83D\uDC49 Interested? Reach out to us at{" "}
         <a
           href="mailto:admin@mentormates.ai"
           className="text-blue-900 underline hover:text-blue-700"
         >
           admin@mentormates.ai
-        </a>{' '}
-        with a short note about yourself and why you&apos;d be excited to take on this role.
+        </a>{" "}
+        with a short note about yourself and why you&apos;d be excited to take
+        on this role.
       </>
     ),
   },
@@ -54,26 +54,36 @@ export default function OpportunitiesPage() {
             key={role.title}
             className="bg-white/70 shadow-lg p-6 rounded-xl transition-shadow hover:shadow-2xl"
           >
-            <h2 className="text-2xl font-bold text-gray-900 mb-3">{role.title}</h2>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">About the Role</h3>
+            <h2 className="text-2xl font-bold text-gray-900 mb-3">
+              {role.title}
+            </h2>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+              About the Role
+            </h3>
             <ul className="list-disc list-inside text-gray-800 mb-4 space-y-1">
               {role.about.map((item, idx) => (
                 <li key={idx}>{item}</li>
               ))}
             </ul>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">What We&apos;re Looking For</h3>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+              What We&apos;re Looking For
+            </h3>
             <ul className="list-disc list-inside text-gray-800 mb-4 space-y-1">
               {role.lookingFor.map((item, idx) => (
                 <li key={idx}>{item}</li>
               ))}
             </ul>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">Compensation</h3>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+              Compensation
+            </h3>
             <ul className="list-disc list-inside text-gray-800 mb-4 space-y-1">
               {role.compensation.map((item, idx) => (
                 <li key={idx}>{item}</li>
               ))}
             </ul>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">Why Join Us</h3>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+              Why Join Us
+            </h3>
             <p className="text-gray-800 mb-4">{role.why}</p>
             <p className="text-gray-800">{role.contact}</p>
           </section>

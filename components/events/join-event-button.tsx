@@ -308,7 +308,7 @@ export function JoinEventButton({
     >
       <DialogTrigger asChild>
         <Button
-          variant="cta"
+          variant="default"
           size="lg"
           className="rounded-full px-6 py-5 gap-2"
         >
@@ -394,7 +394,7 @@ export function JoinEventButton({
               <Button
                 onClick={handleJoinEvent}
                 disabled={isLoading || (showPasswordInput && !password)}
-                variant="cta"
+                variant="default"
                 className="w-full rounded-full"
               >
                 {isLoading ? "Joining..." : "Confirm"}

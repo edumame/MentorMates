@@ -7,7 +7,7 @@ import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { ServiceWorkerRegistration } from "@/components/utils/ServiceWorkerRegistration";
 import { LandingHero } from "@/components/heroes/LandingHero";
-import { Footer } from "@/components/layout/footer";
+import { Footer } from "@/components/layout/Footer";
 import { Calendar, Folder, MessageSquare } from "lucide-react";
 
 export default function HomePage() {
@@ -45,7 +45,7 @@ export default function HomePage() {
   useEffect(() => {
     if (!session?.user) return;
 
-    (async () => {
+    const fetchStats = async () => {
       setLoadingStats(true);
       const userId = session.user.id;
       const userEmail = session.user.email!;
@@ -73,27 +73,33 @@ export default function HomePage() {
       ]);
 
       const projectIds = Array.from(
-        new Set([...(lead ?? []), ...(team ?? [])].map((p: { id: string }) => p.id))
+        new Set(
+          [...(lead ?? []), ...(team ?? [])].map((p: { id: string }) => p.id)
+        )
       );
       const projectsCount = projectIds.length;
 
-      // Feedback received on user's submitted projects
-      let feedbackCount = 0;
-      if (projectIds.length) {
-        const { data: feedback } = await supabase
-          .from("feedback")
-          .select("id")
-          .in("project_id", projectIds);
-        feedbackCount = feedback?.length ?? 0;
-      }
+      // FEEDBACK RECEIVED
+      const { data: userFeedback } = await supabase
+        .from("feedback")
+        .select("*")
+        .in("project_id", projectIds);
 
+      const totalFeedbackCount = userFeedback?.length || 0;
+
+      // Save to state
       setStats({
         events: eventsCount,
         projects: projectsCount,
-        feedback: feedbackCount,
+        feedback: totalFeedbackCount,
       });
+
       setLoadingStats(false);
-    })();
+    };
+
+    if (session?.user?.email) {
+      fetchStats();
+    }
   }, [session]);
 
   if (loading) return null;
@@ -101,7 +107,6 @@ export default function HomePage() {
   if (!session) {
     return (
       <div className="min-h-screen w-full bg-gradient-to-b from-white to-blue-50 pb-4">
-        <AnnouncementBanner href={bookUrl} />
         <LandingHero />
         <ServiceWorkerRegistration />
         <Footer />
@@ -111,7 +116,6 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen w-full flex flex-col bg-gray-50">
-      <AnnouncementBanner href={bookUrl} />
       <div className="flex-1">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
           <h1 className="text-4xl sm:text-5xl font-bold text-blue-900 mb-2">

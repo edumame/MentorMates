@@ -14,7 +14,7 @@ export default async function GuideAccess({ searchParams }: { searchParams: Prom
             <p className="text-yellow-700">Please complete checkout to access the guide.</p>
           </div>
           <Link href="/ai-vibe-guide/checkout">
-            <Button variant="cta">Go to Checkout</Button>
+            <Button variant="default">Go to Checkout</Button>
           </Link>
         </div>
       </section>
@@ -32,7 +32,7 @@ export default async function GuideAccess({ searchParams }: { searchParams: Prom
             <p className="text-red-700">Your checkout is not completed. Please finish payment to access the guide.</p>
           </div>
           <Link href="/ai-vibe-guide/checkout">
-            <Button variant="cta">Return to Checkout</Button>
+            <Button variant="outline">Return to Checkout</Button>
           </Link>
         </div>
       </section>

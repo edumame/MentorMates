@@ -1,6 +1,6 @@
 "use client";
 
-import { HackathonNav } from "@/components/layout/hackathon-nav";
+import { HackathonNav } from "@/components/layout/Hackathon-nav";
 import { Badge } from "@/components/ui/badge";
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";

@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/app/utils/supabase/client";
-import { Footer } from "@/components/layout/footer";
+import { Footer } from "@/components/layout/Footer";
 import Image from "next/image";
 import { User } from "@supabase/supabase-js";
 
@@ -71,7 +71,7 @@ function LoginContent({
         return;
       }
 
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -80,22 +80,24 @@ function LoginContent({
       });
 
       if (error) {
-        const errorMessage = "Error signing up. Please try again.";
+        const errorMessage = error.message.includes("unique")
+          ? "This email is already registered. Please sign in instead."
+          : error.message;
         setError(errorMessage);
         setLoading(false);
         return;
       }
 
-      const { data: existingProfile } = await supabase
-        .from("user_profiles")
-        .select("*")
-        .eq("email", email)
-        .single();
+      if (data?.user) {
+        const profileError = await syncUserProfile(data.user);
 
-      if (existingProfile) {
-        setError("Email already in use. Please sign in instead.");
-        setLoading(false);
-        return;
+        if (profileError) {
+          const message =
+            "Error signing up. Please sign in instead or try again.";
+          setError(message);
+          setLoading(false);
+          return;
+        }
       }
 
       setLoading(false);

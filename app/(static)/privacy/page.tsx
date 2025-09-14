@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Footer } from "@/components/layout/footer";
+import { Footer } from "@/components/layout/Footer";
 
 export default function PrivacyPolicy() {
   return (
@@ -28,7 +28,9 @@ export default function PrivacyPolicy() {
 
           {/* 2. Information We Collect */}
           <section className="border-b border-gray-200 pb-6 pt-6">
-            <h2 className="text-xl font-bold mb-3">2. Information We Collect</h2>
+            <h2 className="text-xl font-bold mb-3">
+              2. Information We Collect
+            </h2>
 
             <h3 className="text-base font-semibold mb-2">
               2.1 Information You Provide
@@ -36,7 +38,8 @@ export default function PrivacyPolicy() {
             <ul className="list-disc space-y-1 ml-6 text-gray-700 mb-4">
               <li>Account information (name, email address)</li>
               <li>
-                Profile information (professional background, areas of expertise)
+                Profile information (professional background, areas of
+                expertise)
               </li>
               <li>Project submissions and feedback</li>
               <li>Communications with other users</li>
@@ -134,7 +137,9 @@ export default function PrivacyPolicy() {
 
           {/* 8. Updates to This Policy */}
           <section className="border-b border-gray-200 pb-6 pt-6">
-            <h2 className="text-xl font-bold mb-3">8. Updates to This Policy</h2>
+            <h2 className="text-xl font-bold mb-3">
+              8. Updates to This Policy
+            </h2>
             <p className="text-gray-700">
               We may update this Privacy Policy from time to time. We will
               notify you of any significant changes through the platform or via
