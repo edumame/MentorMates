@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import type { Session } from "@supabase/supabase-js";
-import { AuthNavbar } from "./authNavbar";
+import { AuthNavbar } from "./AuthNavbar";
 import { Navbar } from "./Navbar";
 import { useLayoutConfig } from "./LayoutConfigProvider";
 
