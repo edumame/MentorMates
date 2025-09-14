@@ -18,7 +18,7 @@ import { AnnouncementBanner } from "@/components/ui/announcement-banner";
 export default function HomePage() {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const bookUrl = process.env.NEXT_PUBLIC_BOOK_URL || "/ai-vibe-guide/checkout";
+  const bookUrl = "/ai-vibe-guide";
 
   // stats
   const [isLoadingStats, setIsLoadingStats] = useState(false);
