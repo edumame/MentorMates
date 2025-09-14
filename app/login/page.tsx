@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/app/utils/supabase/client";
-import { Footer } from "@/components/layout/footer";
+import { Footer } from "@/components/layout/Footer";
 import Image from "next/image";
 import { User } from "@supabase/supabase-js";
 

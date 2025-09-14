@@ -7,7 +7,7 @@ import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { ServiceWorkerRegistration } from "@/components/utils/ServiceWorkerRegistration";
 import { LandingHero } from "@/components/heroes/LandingHero";
-import { Footer } from "@/components/layout/footer";
+import { Footer } from "@/components/layout/Footer";
 import { Calendar, Folder, MessageSquare } from "lucide-react";
 
 export default function HomePage() {

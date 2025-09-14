@@ -54,7 +54,7 @@ export default async function GuideReturn({
               <Link
                 href={`https://docs.google.com/document/d/1MmubWvPfRTsuvxetHJh1HTpHXLoF6JcnODrOVoR1IzY/edit?usp=sharing`}
               >
-                <Button variant="cta">Open the Guide Now</Button>
+                <Button variant="default">Open the Guide Now</Button>
               </Link>
             </div>
           </div>

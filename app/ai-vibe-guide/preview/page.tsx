@@ -11,8 +11,7 @@ function ReadingProgress() {
 
   useEffect(() => {
     const calc = () => {
-      const total =
-        document.documentElement.scrollHeight - window.innerHeight;
+      const total = document.documentElement.scrollHeight - window.innerHeight;
       const scrolled = window.scrollY;
       setProgress(total > 0 ? (scrolled / total) * 100 : 0);
     };
@@ -86,9 +85,7 @@ export default function GuidePreview() {
           {/* Desktop CTA under title */}
           <div className="hidden md:flex gap-3 mt-6">
             <Link href="/ai-vibe-guide/checkout">
-              <Button variant="default">
-                Get full access &ndash; $20
-              </Button>
+              <Button variant="default">Get full access &ndash; $20</Button>
             </Link>
           </div>
         </div>
@@ -103,22 +100,23 @@ export default function GuidePreview() {
             could do this one extra thing?
           </p>
           <p>
-            You don&apos;t wait until you&apos;re back at your desk. You don&apos;t crack open a
-            heavy terminal. You just pull out your phone, type the idea into
-            your AI coding assistant, and keep walking.
+            You don&apos;t wait until you&apos;re back at your desk. You
+            don&apos;t crack open a heavy terminal. You just pull out your
+            phone, type the idea into your AI coding assistant, and keep
+            walking.
           </p>
           <p>
-            By the time you get home, your idea isn&apos;t just an idea anymore—it&apos;s
-            alive. A preview clone of your app is waiting, already updated with
-            the new feature. You click through it, check the change, and with
-            one tap, it&apos;s shipped to the world.
+            By the time you get home, your idea isn&apos;t just an idea
+            anymore—it&apos;s alive. A preview clone of your app is waiting,
+            already updated with the new feature. You click through it, check
+            the change, and with one tap, it&apos;s shipped to the world.
           </p>
           <p>
-            <strong>That&apos;s vibe coding.</strong> It&apos;s not about building
-            throwaway demos that vanish after the hackathon, or spinning up toy
-            apps in the browser that nobody will ever use. It&apos;s about shipping
-            real, production-ready features—apps that can grow, scale, and
-            actually serve people.
+            <strong>That&apos;s vibe coding.</strong> It&apos;s not about
+            building throwaway demos that vanish after the hackathon, or
+            spinning up toy apps in the browser that nobody will ever use.
+            It&apos;s about shipping real, production-ready features—apps that
+            can grow, scale, and actually serve people.
           </p>
 
           <h2>The Promise</h2>
@@ -143,10 +141,10 @@ export default function GuidePreview() {
 
           <h2>The Philosophy</h2>
           <p>
-            This book isn&apos;t a shopping list of tools. Tools change. Today&apos;s
-            shiny assistant might be tomorrow&apos;s dusty relic. What doesn&apos;t
-            change is mindset, framework, and flow—the way you think about
-            coding with AI.
+            This book isn&apos;t a shopping list of tools. Tools change.
+            Today&apos;s shiny assistant might be tomorrow&apos;s dusty relic.
+            What doesn&apos;t change is mindset, framework, and flow—the way you
+            think about coding with AI.
           </p>
           <p>That&apos;s what vibe coding is all about:</p>
           <ul>
@@ -167,19 +165,22 @@ export default function GuidePreview() {
             </li>
           </ul>
           <p>
-            I&apos;ve been lucky to stand at the frontlines of this shift—working
-            with other AI builders in San Francisco and beyond, testing
-            workflows, breaking things, and learning the patterns that actually
-            hold up.
+            I&apos;ve been lucky to stand at the frontlines of this
+            shift—working with other AI builders in San Francisco and beyond,
+            testing workflows, breaking things, and learning the patterns that
+            actually hold up.
           </p>
           <p>
-            This book is my field guide. It&apos;s not just about coding—it&apos;s about
-            creating in the age of AI.
+            This book is my field guide. It&apos;s not just about
+            coding—it&apos;s about creating in the age of AI.
           </p>
 
           <h2>A Truth to Hold On To</h2>
           <p>AI won&apos;t replace you.</p>
-          <p>But the person who learns to work with AI will replace the person who doesn&apos;t.</p>
+          <p>
+            But the person who learns to work with AI will replace the person
+            who doesn&apos;t.
+          </p>
           <p>
             This book is your guide to becoming that builder and staying on the
             right side of that story.
@@ -189,9 +190,7 @@ export default function GuidePreview() {
           <div className="hidden md:block not-prose mt-10">
             <div className="flex items-center gap-3">
               <Link href="/ai-vibe-guide/checkout">
-                <Button variant="default">
-                  Get full access &ndash; $20
-                </Button>
+                <Button variant="default">Get full access &ndash; $20</Button>
               </Link>
             </div>
           </div>

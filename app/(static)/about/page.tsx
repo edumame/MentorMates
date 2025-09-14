@@ -5,17 +5,19 @@ import { Team } from "@/components/about/Team";
 import { LogoCarousel } from "@/components/heroes/components/LogoCarousel";
 import { EventHighlights } from "@/components/about/EventHighlights";
 import { CTA } from "@/components/heroes/components/CTA";
-import { Footer } from "@/components/layout/footer";
+import { Footer } from "@/components/layout/Footer";
 
 export default function AboutPage() {
-  return <>
-    <Hero />
-    <Mission />
-    <Impact />
-    <Team />
-    <LogoCarousel />
-    <EventHighlights />
-    <CTA />
-    <Footer />
-  </>;
+  return (
+    <>
+      <Hero />
+      <Mission />
+      <Impact />
+      <Team />
+      <LogoCarousel />
+      <EventHighlights />
+      <CTA />
+      <Footer />
+    </>
+  );
 }

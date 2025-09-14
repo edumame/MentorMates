@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { BackgroundBeams } from "@/components/ui/background-beams";
 import { SparklesCore } from "@/components/ui/sparkles";
 import { TextGenerateEffect } from "@/components/ui/text-generate-effect";
-import { Footer } from "@/components/layout/footer";
+import { Footer } from "@/components/layout/Footer";
 import { CTAJoin } from "@/components/layout/CTAJoin";
 
 function ShareForAccessForm() {
@@ -82,7 +82,7 @@ function ShareForAccessForm() {
             />
           </div>
           <div className="flex items-center gap-3">
-            <Button variant="cta" type="submit" disabled={status === "loading"}>
+            <Button variant="default" type="submit" disabled={status === "loading"}>
               {status === "loading"
                 ? "Submitting..."
                 : "Submit for Free Access"}
@@ -135,7 +135,7 @@ export default function GuideLanding() {
           </p>
           <div className="mt-6 flex items-center justify-center gap-3">
             <Link href="/ai-vibe-guide/checkout">
-              <Button variant="cta" className="h-11 px-6 text-base">
+              <Button variant="default" className="h-11 px-6 text-base">
                 Get Instant Access - $20
               </Button>
             </Link>
@@ -164,7 +164,7 @@ export default function GuideLanding() {
                 <li>Exclusive hands-on appendix guides</li>
               </ul>
               <Link href="/ai-vibe-guide/checkout">
-                <Button variant="cta" className="h-10 px-5">
+                <Button variant="default" className="h-10 px-5">
                   Unlock Now - $20
                 </Button>
               </Link>
@@ -177,7 +177,7 @@ export default function GuideLanding() {
                 Weekly Free Release
               </h2>
               <p className="text-gray-600 mb-4">
-                If you don’t pay right away, you can still get access to new
+                If you don&apos;t pay right away, you can still get access to new
                 content each week:
               </p>
               <ul className="text-sm text-gray-700 space-y-2 list-disc pl-5">
@@ -186,14 +186,14 @@ export default function GuideLanding() {
                   Hands-on appendix guides (videos + tutorials) remain locked
                 </li>
                 <li>
-                    Subscribe to our{" "}
-                    <Link
-                      href="https://mentormates.substack.com/"
-                      className="inline-flex items-center text-blue-700 hover:underline"
-                    >
-                      Substack
-                    </Link>, where we release new chapters
-                    weekly!
+                  Subscribe to our{" "}
+                  <Link
+                    href="https://mentormates.substack.com/"
+                    className="inline-flex items-center text-blue-700 hover:underline"
+                  >
+                    Substack
+                  </Link>
+                  , where we release new chapters weekly!
                 </li>
               </ul>
             </CardContent>
