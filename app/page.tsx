@@ -101,6 +101,7 @@ export default function HomePage() {
   if (!session) {
     return (
       <div className="min-h-screen w-full bg-gradient-to-b from-white to-blue-50 pb-4">
+        <AnnouncementBanner href={bookUrl} />
         <LandingHero />
         <ServiceWorkerRegistration />
         <Footer />
@@ -110,6 +111,7 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen w-full flex flex-col bg-gray-50">
+      <AnnouncementBanner href={bookUrl} />
       <div className="flex-1">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
           <h1 className="text-4xl sm:text-5xl font-bold text-blue-900 mb-2">
