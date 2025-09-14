@@ -71,6 +71,7 @@ export function ImageUpload({ handleUpload, noteText }: ImageUploadProps) {
 
             {/* Image Preview */}
             <div className="w-full h-32 rounded-lg overflow-hidden bg-gray-100">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={URL.createObjectURL(selectedImageFile)}
                 alt="Cover image preview"

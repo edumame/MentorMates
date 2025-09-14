@@ -1,16 +1,8 @@
 import type React from "react";
 import Link from "next/link";
-import {
-  ArrowRight,
-  CheckCircle,
-  Users,
-  FileText,
-  Shield,
-  Award,
-  BarChart3,
-  Play,
-} from "lucide-react";
-import { Footer } from "@/components/layout/Footer";
+import Image from "next/image";
+import { ArrowRight, CheckCircle, Users, FileText, Shield, Award, BarChart3, Play } from "lucide-react";
+import { Footer } from "@/components/layout/footer";
 
 const FeatureStep: React.FC<{
   number: string;
@@ -66,9 +58,11 @@ const DevpostIntegrationPage: React.FC = () => {
                 MentorMates
               </div>
               <span className="text-gray-400 text-2xl">×</span>
-              <img
-                src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSDoVbDqO8NGA73bz-BIDZstUea7bFlCFs17A&s"
-                alt="Devpost Logo"
+              <Image 
+                src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSDoVbDqO8NGA73bz-BIDZstUea7bFlCFs17A&s" 
+                alt="Devpost Logo" 
+                width={32}
+                height={32}
                 className="h-8 w-auto"
               />
             </div>

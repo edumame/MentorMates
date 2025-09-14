@@ -3,11 +3,16 @@
 @tailwind utilities;
 
 /* Fonts */
-body { font-family: Inter, sans-serif; }
-@media (min-width: 768px) { body { font-family: Geist, sans-serif; } }
+body { 
+  font-family: Inter, system-ui, sans-serif; 
+}
 
 @layer utilities {
   .text-balance { text-wrap: balance; }
+  
+  /* Font utility classes for easy switching */
+  .font-inter { font-family: Inter, system-ui, sans-serif; }
+  .font-geist { font-family: Geist, Inter, system-ui, sans-serif; }
 }
 
 /* =========================

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
@@ -684,7 +684,7 @@ export default function ProjectPage() {
     }
   };
 
-  const fetchEventParticipants = async () => {
+  const fetchEventParticipants = useCallback(async () => {
     if (!project?.event_id) return;
 
     setIsLoadingParticipants(true);
@@ -731,13 +731,13 @@ export default function ProjectPage() {
     } finally {
       setIsLoadingParticipants(false);
     }
-  };
+  }, [project?.event_id]);
 
   useEffect(() => {
     if (project?.event_id) {
       fetchEventParticipants();
     }
-  }, [project?.event_id]);
+  }, [project?.event_id, fetchEventParticipants]);
 
   const handleAddTeammate = async (email?: string) => {
     const emailToAdd = email || newTeammateEmail.trim();

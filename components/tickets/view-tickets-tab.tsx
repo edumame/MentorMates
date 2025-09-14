@@ -199,7 +199,7 @@ export function ViewTicketsTab({ eventId }: ViewTicketsTabProps) {
         title: "Success",
         description: `Ticket assigned to ${ticketEmail}. An invitation email has been sent.`,
       });
-    } catch (error) {
+    } catch {
       toast({
         title: "Error",
         description: "Failed to assign ticket. Please try again.",
