@@ -67,10 +67,10 @@ export function Build() {
                 {features.map((f, i) => (
                     <div key={i} className="flex items-start gap-4">
                     {/* Icon */}
-                    <div className="flex-shrink-0 pt-1">
+                    <div className="pt-1 text-4xl">
                         <Icon
                             name={f.icon}
-                            className="text-[22px] leading-none text-gray-900"
+                            className="leading-none text-gray-900"
                         />
                     </div>
 
