@@ -5,6 +5,7 @@ import Image from "next/image";
 import { ArrowRight, Users, Lightbulb, Target } from "lucide-react";
 // import { TextGenerateEffect } from "@/components/ui/text-generate-effect";
 import { Button } from "@/components/ui/button";
+import { DiscordCTA } from "@/components/ui/discord-cta";
 
 export function LandingHero() {
   return (
@@ -88,7 +89,7 @@ export function LandingHero() {
               key={index}
               className="flex flex-col items-center p-6 bg-white rounded-lg shadow-lg transition-transform hover:scale-105"
             >
-              <div className="flex items-center justify-center w-14 h-14 rounded-full bg-blue-100 text-blue-900 mb-4">
+              <div className="flex items-center justify-center w-14 h-14 rounded-full bg-blue-100 text-blue-900 mb-8">
                 <item.icon className="h-7 w-7" />
               </div>
               <h3 className="text-xl font-semibold text-gray-800 mb-2">
@@ -99,6 +100,96 @@ export function LandingHero() {
               </p>
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* Professional Support Section */}
+      <div className="relative z-10 mt-20 text-center px-4 sm:px-6 lg:px-8">
+        <h2 className="text-2xl md:text-3xl font-bold text-blue-900 mb-8">
+          Get support from professionals at…
+        </h2>
+        
+        
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-6 sm:gap-8 max-w-6xl mx-auto items-center justify-items-center">
+          {/* Microsoft */}
+          <div className="flex justify-center items-center h-12 sm:h-16 w-full max-w-[100px] sm:max-w-[120px]">
+            <img
+              src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/96/Microsoft_logo_%282012%29.svg/2560px-Microsoft_logo_%282012%29.svg.png"
+              alt="Microsoft"
+              className="object-contain opacity-70 hover:opacity-100 transition-opacity duration-300 w-full h-auto max-h-10"
+            />
+          </div>
+          
+          {/* PayPal */}
+          <div className="flex justify-center items-center h-12 sm:h-16 w-full max-w-[100px] sm:max-w-[120px]">
+            <img
+              src="https://zipbooks.com/wp-content/uploads/2018/09/paypal.png"
+              alt="PayPal"
+              className="object-contain opacity-70 hover:opacity-100 transition-opacity duration-300 w-full h-auto max-h-10"
+            />
+          </div>
+          
+          {/* U.S. Bank */}
+          <div className="flex justify-center items-center h-12 sm:h-16 w-full max-w-[100px] sm:max-w-[120px]">
+            <img
+              src="https://www.capitalopportunitiesnc.org/wp-content/uploads/2023/02/US-Bank-Logo.png"
+              alt="U.S. Bank"
+              className="object-contain opacity-70 hover:opacity-100 transition-opacity duration-300 w-full h-auto max-h-10"
+            />
+          </div>
+          
+          {/* Google */}
+          <div className="flex justify-center items-center h-12 sm:h-16 w-full max-w-[100px] sm:max-w-[120px]">
+            <img
+              src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Google_2015_logo.svg/800px-Google_2015_logo.svg.png"
+              alt="Google"
+              className="object-contain opacity-70 hover:opacity-100 transition-opacity duration-300 w-full h-auto max-h-10"
+            />
+          </div>
+          
+          {/* Amazon */}
+          <div className="flex justify-center items-center h-12 sm:h-16 w-full max-w-[100px] sm:max-w-[120px]">
+            <img
+              src="https://www.prideindustries.com/wp-content/uploads/2021/06/Customer-logo_Amazon-1-768x384.png.webp"
+              alt="Amazon"
+              className="object-contain opacity-70 hover:opacity-100 transition-opacity duration-300 w-full h-auto max-h-10"
+            />
+          </div>
+          
+          {/* Carnegie Mellon University */}
+          <div className="flex justify-center items-center h-12 sm:h-16 w-full max-w-[100px] sm:max-w-[120px]">
+            <img
+              src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRA2s1hmSEyKN2i06AOMX_dfvmVEk2zr7I8EuFKbu36O3y8YJJNVEeVkIv1MU66zttkeMI&usqp=CAU"
+              alt="Carnegie Mellon University"
+              className="object-contain opacity-70 hover:opacity-100 transition-opacity duration-300 w-full h-auto max-h-10"
+            />
+          </div>
+          
+          {/* Stanford University */}
+          <div className="flex justify-center items-center h-12 sm:h-16 w-full max-w-[100px] sm:max-w-[120px]">
+            <img
+              src="https://www.computersciencedegreehub.com/wp-content/uploads/2019/02/stanford-university.png"
+              alt="Stanford University"
+              className="object-contain opacity-70 hover:opacity-100 transition-opacity duration-300 w-full h-auto max-h-10"
+            />
+          </div>
+          
+          {/* Johns Hopkins University */}
+          <div className="flex justify-center items-center h-12 sm:h-16 w-full max-w-[100px] sm:max-w-[120px]">
+            <img
+              src="https://collegeaim.org/wp-content/uploads/2021/09/johnshopkins-large.jpg"
+              alt="Johns Hopkins University"
+              className="object-contain opacity-70 hover:opacity-100 transition-opacity duration-300 w-full h-auto max-h-10"
+            />
+          </div>
+        </div>
+
+        <div className="mt-10">
+          <div className="flex items-center justify-center gap-3">
+            <span className="h-px w-12 sm:w-24 bg-gray-200" />
+            <span className="text-sm sm:text-base tracking-wide text-gray-500 italic">And many more…</span>
+            <span className="h-px w-12 sm:w-24 bg-gray-200" />
+          </div>
         </div>
       </div>
 
@@ -130,6 +221,8 @@ export function LandingHero() {
         </p>
       </div>
 
+
+
       {/* Final CTA Section */}
       <div className="relative z-10 mt-20 mb-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="bg-blue-900 rounded-2xl shadow-xl overflow-hidden">
@@ -157,6 +250,11 @@ export function LandingHero() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Discord CTA at bottom */}
+      <div className="relative z-10 mt-20 mb-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+        <DiscordCTA variant="compact" />
       </div>
 
       {/* Word Slide Animation */}

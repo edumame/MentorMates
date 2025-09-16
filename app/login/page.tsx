@@ -9,7 +9,11 @@ import { User } from "@supabase/supabase-js";
 
 const supabase = createClient();
 
-function LoginContent() {
+function LoginContent({
+  onModeChange,
+}: {
+  onModeChange?: (isSignUp: boolean) => void;
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
@@ -19,14 +23,18 @@ function LoginContent() {
   const [isSignUp, setIsSignUp] = useState(false);
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
-  const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+  const cleanBaseUrl = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
 
   useEffect(() => {
     const mode = searchParams.get("mode");
     if (mode === "signup") {
       setIsSignUp(true);
+      onModeChange?.(true);
+    } else {
+      setIsSignUp(false);
+      onModeChange?.(false);
     }
-  }, [searchParams]);
+  }, [searchParams, onModeChange]);
 
   useEffect(() => {
     const checkSession = async () => {
@@ -53,7 +61,8 @@ function LoginContent() {
     if (returnUrl) {
       localStorage.removeItem("returnUrl");
     }
-    const cleanReturnUrl = returnUrl && returnUrl.startsWith('/') ? returnUrl.slice(1) : returnUrl;
+    const cleanReturnUrl =
+      returnUrl && returnUrl.startsWith("/") ? returnUrl.slice(1) : returnUrl;
 
     if (isSignUp) {
       if (password.length < 6) {
@@ -62,7 +71,7 @@ function LoginContent() {
         return;
       }
 
-      const { data, error } = await supabase.auth.signUp({
+      const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -71,24 +80,22 @@ function LoginContent() {
       });
 
       if (error) {
-        const errorMessage = error.message.includes("unique") 
-          ? "This email is already registered. Please sign in instead."
-          : error.message;
+        const errorMessage = "Error signing up. Please try again.";
         setError(errorMessage);
         setLoading(false);
         return;
       }
 
-      if (data?.user) {
-        
-        const profileError = await syncUserProfile(data.user);
+      const { data: existingProfile } = await supabase
+        .from("user_profiles")
+        .select("*")
+        .eq("email", email)
+        .single();
 
-        if (profileError) {
-          const message = "Error signing up. Please sign in instead or try again."
-          setError(message);
-          setLoading(false);
-          return;
-        }
+      if (existingProfile) {
+        setError("Email already in use. Please sign in instead.");
+        setLoading(false);
+        return;
       }
 
       setLoading(false);
@@ -110,7 +117,8 @@ function LoginContent() {
       if (data?.user) {
         const profileError = await syncUserProfile(data.user);
         if (profileError) {
-          const message = "Error signing in. Please sign up instead or try again."
+          const message =
+            "Error signing in. Please sign up instead or try again.";
           setError(message);
           setLoading(false);
           return;
@@ -144,7 +152,8 @@ function LoginContent() {
     if (returnUrl) {
       localStorage.removeItem("returnUrl");
     }
-    const cleanReturnUrl = returnUrl && returnUrl.startsWith('/') ? returnUrl.slice(1) : returnUrl;
+    const cleanReturnUrl =
+      returnUrl && returnUrl.startsWith("/") ? returnUrl.slice(1) : returnUrl;
     const options = {
       provider,
       options: {
@@ -159,20 +168,27 @@ function LoginContent() {
   };
 
   const handleToggleAuthMode = () => {
-    setIsSignUp((prev) => !prev);
+    setIsSignUp((prev) => {
+      const newMode = !prev;
+      onModeChange?.(newMode);
+      return newMode;
+    });
     setError("");
   };
 
   const syncUserProfile = async (user: User) => {
     if (user) {
-      const { error } = await supabase.from("user_profiles").upsert({
-        uid: user.id,
-        email: user.email,
-        display_name: user.email?.split("@")[0],
-        created_at: new Date().toISOString(),
-      }, {
-        onConflict: "uid",
-      });
+      const { error } = await supabase.from("user_profiles").upsert(
+        {
+          uid: user.id,
+          email: user.email,
+          display_name: user.email?.split("@")[0],
+          created_at: new Date().toISOString(),
+        },
+        {
+          onConflict: "uid",
+        }
+      );
       if (error) {
         console.error("Error syncing user profile:", error);
         return error;
@@ -199,13 +215,27 @@ function LoginContent() {
           height={40}
           className="mx-auto object-contain"
         />
-        <h2 className="m-2 text-center text-2xl font-bold tracking-tight text-gray-900">
-          {isSignUp ? "Sign Up" : "Sign in to your account"}
+        <h2
+          className={`m-2 text-center text-2xl font-bold tracking-tight ${isSignUp ? "text-green-700" : "text-gray-900"}`}
+        >
+          {isSignUp ? "Create Your Account" : "Sign in to your account"}
         </h2>
+        {isSignUp && (
+          <p className="mt-2 text-center text-sm text-green-600">
+            Join the MentorMates community and start your mentorship journey
+          </p>
+        )}
+        {!isSignUp && (
+          <p className="mt-2 text-center text-sm text-gray-600">
+            Welcome back! Please sign in to continue
+          </p>
+        )}
       </div>
 
       <div className="sm:mx-auto sm:w-full sm:max-w-[400px] pl-5 pr-5 pb-10">
-        <div className="bg-white px-6 py-12 shadow sm:rounded-lg sm:px-12">
+        <div
+          className={`px-6 py-12 shadow sm:rounded-lg sm:px-12 ${isSignUp ? "bg-gradient-to-br from-green-50 to-white border-2 border-green-200" : "bg-white"}`}
+        >
           {error && (
             <div className="mb-4 text-center text-sm text-red-600">{error}</div>
           )}
@@ -252,46 +282,60 @@ function LoginContent() {
               </div>
             </div>
 
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <input
-                  id="remember-me"
-                  name="remember-me"
-                  type="checkbox"
-                  className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                />
-                <label
-                  htmlFor="remember-me"
-                  className="ml-2 mr-4 block text-sm text-gray-900"
-                >
-                  Remember me
-                </label>
+            {!isSignUp ? (
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <input
+                    id="remember-me"
+                    name="remember-me"
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <label
+                    htmlFor="remember-me"
+                    className="ml-2 mr-4 block text-sm text-gray-900"
+                  >
+                    Remember me
+                  </label>
+                </div>
+                <div className="text-sm">
+                  <button
+                    onClick={handleForgotPassword}
+                    disabled={loading}
+                    className="font-semibold text-blue-900 hover:text-blue-500 disabled:opacity-50 min-w-[120px]"
+                  >
+                    {loading ? "Sending..." : "Forgot password?"}
+                  </button>
+                </div>
               </div>
-              <div className="text-sm">
-                <button
-                  onClick={handleForgotPassword}
-                  disabled={loading}
-                  className="font-semibold text-blue-900 hover:text-blue-500 disabled:opacity-50 min-w-[120px]"
-                >
-                  {loading ? "Sending..." : "Forgot password?"}
-                </button>
+            ) : (
+              <div className="text-sm text-green-700 bg-green-50 p-3 rounded-md border border-green-200">
+                <p className="font-medium">Password requirements:</p>
+                <ul className="mt-1 text-xs space-y-1">
+                  <li>• At least 6 characters long</li>
+                  <li>• Use a strong, unique password</li>
+                </ul>
               </div>
-            </div>
+            )}
 
             {/* Sign in / Sign up button */}
             <div>
               <button
                 type="submit"
                 disabled={loading}
-                className="flex w-full justify-center rounded-md bg-blue-900 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus:outline-none focus:outline-2 focus:outline-blue-500"
+                className={`flex w-full justify-center rounded-md px-3 py-1.5 text-sm font-semibold text-white shadow-sm focus:outline-none focus:outline-2 disabled:opacity-50 transition-colors ${
+                  isSignUp
+                    ? "bg-green-600 hover:bg-green-500 focus:outline-green-500"
+                    : "bg-blue-900 hover:bg-blue-500 focus:outline-blue-500"
+                }`}
               >
                 {loading
                   ? isSignUp
-                    ? "Signing up..."
+                    ? "Creating account..."
                     : "Signing in..."
                   : isSignUp
-                  ? "Sign up"
-                  : "Sign in"}
+                    ? "Create Account"
+                    : "Sign in"}
               </button>
             </div>
           </form>
@@ -360,19 +404,29 @@ function LoginContent() {
           </div>
 
           {/* Toggle between Sign In and Sign Up */}
-          <p className="mt-10 text-center text-sm text-gray-500">
-            {isSignUp ? "Already have an account? " : "Don't have an account? "}
-            <a
-              href="#"
-              onClick={(e) => {
-                e.preventDefault();
-                handleToggleAuthMode();
-              }}
-              className="font-semibold text-blue-900 hover:text-blue-500"
-            >
-              {isSignUp ? "Sign In" : "Sign Up"}
-            </a>
-          </p>
+          <div
+            className={`mt-10 text-center p-4 rounded-md ${isSignUp ? "bg-blue-50 border border-blue-200" : "bg-green-50 border border-green-200"}`}
+          >
+            <p className="text-sm text-gray-700">
+              {isSignUp
+                ? "Already have an account? "
+                : "Don't have an account? "}
+              <a
+                href="#"
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleToggleAuthMode();
+                }}
+                className={`font-semibold transition-colors ${
+                  isSignUp
+                    ? "text-blue-700 hover:text-blue-500"
+                    : "text-green-700 hover:text-green-500"
+                }`}
+              >
+                {isSignUp ? "Sign In instead" : "Sign Up for free"}
+              </a>
+            </p>
+          </div>
         </div>
       </div>
     </div>
@@ -380,10 +434,30 @@ function LoginContent() {
 }
 
 export default function LoginPage() {
+  const [isSignUp, setIsSignUp] = useState(false);
+
+  useEffect(() => {
+    const handleLocationChange = () => {
+      const params = new URLSearchParams(window.location.search);
+      setIsSignUp(params.get("mode") === "signup");
+    };
+
+    handleLocationChange();
+    window.addEventListener("popstate", handleLocationChange);
+
+    return () => window.removeEventListener("popstate", handleLocationChange);
+  }, []);
+
   return (
-    <div className="min-h-screen pb-10 bg-gradient-to-b from-white to-blue-100/80 flex flex-col items-center">
+    <div
+      className={`min-h-screen pb-10 flex flex-col items-center transition-colors duration-300 ${
+        isSignUp
+          ? "bg-gradient-to-b from-green-50 to-white"
+          : "bg-gradient-to-b from-white to-blue-100/80"
+      }`}
+    >
       <Suspense fallback={<div>Loading...</div>}>
-        <LoginContent />
+        <LoginContent onModeChange={setIsSignUp} />
       </Suspense>
       <Footer />
     </div>

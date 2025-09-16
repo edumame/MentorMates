@@ -20,9 +20,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { EventRole, EventItem, EventVisibility } from "@/lib/types";
+import {
+  EventRole,
+  EventItem,
+  EventVisibility,
+  PricingTier,
+} from "@/lib/types";
 import { toast } from "@/lib/hooks/use-toast";
-import { getRoleLabel } from "@/features/user/roles/roles";
+import { PricingTierSelector } from "./pricing-tier-selector";
+import { getCheapestPricingTier, formatPrice } from "@/lib/utils/pricing";
+import { getRoleLabel, isHigherOrEqualRole } from "@/features/user/roles/roles";
+import { Ticket } from "lucide-react";
 
 export interface JoinEventButtonProps {
   eventId: string;
@@ -34,9 +42,14 @@ export interface JoinEventButtonProps {
   label?: string;
 }
 
-export function JoinEventButton({ eventId, eventName, label }: JoinEventButtonProps) {
+export function JoinEventButton({
+  eventId,
+  eventName,
+  label,
+}: JoinEventButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [hasJoined, setHasJoined] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [selectedRole, setSelectedRole] = useState<EventRole>(
     EventRole.Participant
   );
@@ -48,8 +61,10 @@ export function JoinEventButton({ eventId, eventName, label }: JoinEventButtonPr
     null
   );
   const router = useRouter();
-  const [price, setPrice] = useState<number | null>(null);
-  const [isLoadingPrice, setIsLoadingPrice] = useState(false);
+  const [pricingTiers, setPricingTiers] = useState<PricingTier[]>([]);
+  const [selectedPricingTierId, setSelectedPricingTierId] =
+    useState<string>("");
+  const [showPricingTiers, setShowPricingTiers] = useState(false);
   const [isFull, setIsFull] = useState(false);
 
   useEffect(() => {
@@ -58,17 +73,19 @@ export function JoinEventButton({ eventId, eventName, label }: JoinEventButtonPr
         // Fetch the event details and role labels regardless of auth state
         const { data: eventData, error: eventError } = await supabase
           .from("events")
-          .select(`
+          .select(
+            `
             event_id,
             event_name,
             event_date,
             location,
             paid,
-            price,
             visibility,
             role_labels,
+            slug,
             participant_capacity
-          `)
+          `
+          )
           .eq("event_id", eventId)
           .maybeSingle();
 
@@ -94,16 +111,36 @@ export function JoinEventButton({ eventId, eventName, label }: JoinEventButtonPr
           setShowPasswordInput(true);
         }
 
-        // Fetch price if event is paid
-        if (eventData?.paid && eventData?.price) {
-          setIsLoadingPrice(true);
-          setPrice(eventData.price / 100);
-          setIsLoadingPrice(false);
+        // Fetch pricing tiers for paid events
+        if (eventData?.paid) {
+          const { data: pricingTiersData, error: pricingTiersError } =
+            await supabase
+              .from("pricing_tiers")
+              .select(
+                `
+              *
+            `
+              )
+              .eq("event_id", eventId)
+              .order("sort_order", { ascending: true });
+
+          console.log("pricingTiersData", pricingTiersData);
+          console.log("eventId", eventId);
+
+          if (pricingTiersError) {
+            console.error("Error fetching pricing tiers:", pricingTiersError);
+          }
+
+          if (pricingTiersData && pricingTiersData.length > 0) {
+            setPricingTiers(pricingTiersData);
+          }
         }
 
         const {
           data: { session },
         } = await supabase.auth.getSession();
+
+        setIsAuthenticated(!!session);
 
         if (!session) return;
 
@@ -133,9 +170,53 @@ export function JoinEventButton({ eventId, eventName, label }: JoinEventButtonPr
     if (event?.visibility === EventVisibility.Private) {
       setShowPasswordInput(true);
     } else {
-      setShowPasswordInput(
-        value === EventRole.Judge || value === EventRole.Organizer
+      setShowPasswordInput(isHigherOrEqualRole(value, EventRole.Judge));
+    }
+  };
+
+  const handlePricingTierContinue = async () => {
+    try {
+      setIsLoading(true);
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) {
+        localStorage.setItem("returnUrl", window.location.pathname);
+        router.push("/login");
+        return;
+      }
+
+      // Store the event join intent in localStorage for after payment
+      localStorage.setItem(
+        "joinEventIntent",
+        JSON.stringify({
+          eventId,
+          role: selectedRole,
+          password: showPasswordInput ? password : undefined,
+          userId: session.user.id,
+          pricingTierId: selectedPricingTierId,
+        })
       );
+
+      // Redirect to checkout with event and pricing tier information
+      const searchParams = new URLSearchParams({
+        eventId: eventId,
+        eventSlug: event?.slug || eventId,
+        eventName: event?.event_name || eventName,
+        pricingTierId: selectedPricingTierId,
+      });
+
+      router.push(`/checkout?${searchParams.toString()}`);
+    } catch (error) {
+      console.error("Error processing pricing tier selection:", error);
+      toast({
+        title: "Error",
+        description: "Failed to process pricing tier selection",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -152,40 +233,34 @@ export function JoinEventButton({ eventId, eventName, label }: JoinEventButtonPr
         return;
       }
 
-      // Check if event is paid and redirect to checkout
+      // Check if event is paid and handle pricing tier selection
       if (
         event?.paid &&
         selectedRole !== EventRole.Organizer &&
         selectedRole !== EventRole.Judge
       ) {
-        const { data: userPaidStatus } = await supabase
-          .from("user_event_payments")
-          .select("payment_status")
-          .eq("user_id", session.user.id)
+        const { data: userTicket } = await supabase
+          .from("event_tickets")
+          .select("ticket_status")
+          .eq("assigned_to_user_id", session.user.id)
           .eq("event_id", eventId)
           .maybeSingle();
 
-        if (userPaidStatus?.payment_status !== "paid") {
-          // Store the event join intent in localStorage for after payment
-          localStorage.setItem(
-            "joinEventIntent",
-            JSON.stringify({
-              eventId,
-              role: selectedRole,
-              password: showPasswordInput ? password : undefined,
-              userId: session.user.id,
-            })
-          );
-
-          // Redirect to checkout with event information
-          const searchParams = new URLSearchParams({
-            eventId: eventId,
-            eventSlug: event.slug || eventId,
-            eventName: event.event_name,
-          });
-
-          router.push(`/checkout?${searchParams.toString()}`);
-          return;
+        if (!userTicket?.ticket_status) {
+          // For paid events, always require pricing tier selection
+          if (pricingTiers.length > 0) {
+            setShowPricingTiers(true);
+            return;
+          } else {
+            // No pricing tiers available for paid event
+            toast({
+              title: "Error",
+              description:
+                "This event requires payment but no pricing tiers are available. Please contact the organizer.",
+              variant: "destructive",
+            });
+            return;
+          }
         }
       }
 
@@ -219,7 +294,7 @@ export function JoinEventButton({ eventId, eventName, label }: JoinEventButtonPr
 
       setHasJoined(true);
       setIsDialogOpen(false);
-      
+
       // Redirect to overview page after successful acceptance
       const overviewUrl = `/events/${event?.slug || eventId}/overview`;
       router.push(overviewUrl);
@@ -240,75 +315,110 @@ export function JoinEventButton({ eventId, eventName, label }: JoinEventButtonPr
   }
 
   return (
-    <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen} aria-describedby="join-event-dialog">
+    <Dialog
+      open={isDialogOpen}
+      onOpenChange={setIsDialogOpen}
+      aria-describedby="join-event-dialog"
+    >
       <DialogTrigger asChild>
-        <Button className="bg-blue-700 hover:bg-blue-800">
+        <Button
+          variant="cta"
+          size="lg"
+          className="rounded-full px-6 py-5 gap-2"
+        >
+          <Ticket className="h-5 w-5" />{" "}
           {label
             ? label
             : event?.paid
-              ? isLoadingPrice
-                ? `Join ${eventName} - Loading...`
-                : price !== null
-                  ? `Join ${eventName} - $${price.toFixed(2)}`
+              ? !isAuthenticated
+                ? `Join ${eventName}`
+                : pricingTiers.length > 0
+                  ? (() => {
+                      const cheapestTier = getCheapestPricingTier(pricingTiers);
+                      return cheapestTier
+                        ? `Join ${eventName} - From ${formatPrice(cheapestTier.price)}`
+                        : `Join ${eventName} - Multiple Tiers Available`;
+                    })()
                   : `Join ${eventName} - Paid Event`
-              : `Join ${eventName} - Free Event`}
+              : `Join ${eventName}`}
         </Button>
       </DialogTrigger>
-      <DialogContent aria-describedby="join-event-dialog">
+      <DialogContent
+        aria-describedby="join-event-dialog"
+        className="max-w-2xl max-h-[85vh] overflow-y-auto"
+      >
         <DialogHeader>
-          <DialogTitle>Choose Your Role</DialogTitle>
+          <DialogTitle>
+            {showPricingTiers ? "Select Pricing Tier" : "Choose Your Role"}
+          </DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Select your role:</label>
-            <Select value={selectedRole} onValueChange={handleRoleSelect}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={EventRole.Participant}>
-                  {getRoleLabel(EventRole.Participant, roleLabels)}
-                </SelectItem>
-                <SelectItem value={EventRole.Mentor}>
-                  {getRoleLabel(EventRole.Mentor, roleLabels)}
-                </SelectItem>
-                <SelectItem value={EventRole.Judge}>
-                  {getRoleLabel(EventRole.Judge, roleLabels)}
-                </SelectItem>
-                <SelectItem value={EventRole.Organizer}>
-                  {getRoleLabel(EventRole.Organizer, roleLabels)}
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {showPasswordInput && (
-            <div className="space-y-2">
-              <label className="text-sm font-medium">
-                {event?.visibility === EventVisibility.Private
-                  ? "Enter Event Password:"
-                  : `Enter ${getRoleLabel(selectedRole, roleLabels)} Password:`}
-              </label>
-              <Input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter password"
+          {showPricingTiers ? (
+            <div className="space-y-4 max-h-[65vh] overflow-y-auto px-1">
+              <Button
+                variant="outline"
+                onClick={() => setShowPricingTiers(false)}
+                className="mb-4"
+              >
+                ← Back to Role Selection
+              </Button>
+              <PricingTierSelector
+                pricingTiers={pricingTiers}
+                selectedTierId={selectedPricingTierId}
+                onTierSelect={setSelectedPricingTierId}
+                onContinue={handlePricingTierContinue}
+                isLoading={isLoading}
               />
             </div>
-          )}
+          ) : (
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Select your role:</label>
+              <Select value={selectedRole} onValueChange={handleRoleSelect}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={EventRole.Participant}>
+                    {getRoleLabel(EventRole.Participant, roleLabels)}
+                  </SelectItem>
+                  <SelectItem value={EventRole.Mentor}>
+                    {getRoleLabel(EventRole.Mentor, roleLabels)}
+                  </SelectItem>
+                  <SelectItem value={EventRole.Judge}>
+                    {getRoleLabel(EventRole.Judge, roleLabels)}
+                  </SelectItem>
+                  <SelectItem value={EventRole.Organizer}>
+                    {getRoleLabel(EventRole.Organizer, roleLabels)}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
 
-          <Button
-            onClick={handleJoinEvent}
-            disabled={
+              {showPasswordInput && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Enter password:</label>
+                  <Input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter event password"
+                  />
+                </div>
+              )}
+
+              <Button
+                onClick={handleJoinEvent}
+                disabled={
               isLoading ||
               (showPasswordInput && !password) ||
               (isFull && selectedRole === EventRole.Participant)
             }
-            className="w-full bg-blue-700 hover:bg-blue-800"
-          >
-            {isLoading ? "Joining..." : "Confirm"}
-          </Button>
+                variant="cta"
+                className="w-full rounded-full"
+              >
+                {isLoading ? "Joining..." : "Confirm"}
+              </Button>
+            </div>
+          )}
           {isFull && selectedRole === EventRole.Participant && (
             <p className="text-xs text-red-600 mt-2">This event is full for participants.</p>
           )}

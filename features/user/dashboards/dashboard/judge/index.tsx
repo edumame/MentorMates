@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
 import { Project, EventTrack } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { DefaultScoring } from "@/components/project-scoring/default-scoring";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { JudgeChecklist } from "./checklist";
@@ -22,6 +23,21 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
   const [showScoringComponents, setShowScoringComponents] = useState<
     Map<string, boolean>
   >(new Map());
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredProjects = useMemo(
+    () =>
+      projects.filter(
+        (project) =>
+          project.project_name
+            .toLowerCase()
+            .includes(searchQuery.toLowerCase()) ||
+          project.project_description
+            .toLowerCase()
+            .includes(searchQuery.toLowerCase())
+      ),
+    [projects, searchQuery]
+  );
 
   // Helper function to generate a unique key for track visibility
   const getTrackKey = (projectId: string, trackId: string) =>
@@ -107,6 +123,7 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
           `
           )
           .eq("event_id", eventId)
+          .eq("submitted", true)
           .in("id", projectIds);
 
         if (projectsError) {
@@ -240,8 +257,18 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
             <CardTitle>Project Scoring</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {projects.map((project) => (
+            <div className="space-y-4 mb-4">
+              <Input
+                placeholder="Search projects..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            {filteredProjects.length === 0 ? (
+              <p>No projects match your search.</p>
+            ) : (
+              <div className="space-y-4">
+                {filteredProjects.map((project) => (
                 <div key={project.id} className="border rounded-lg p-4">
                   <div className="flex justify-between items-center mb-4">
                     <h3 className="text-lg font-semibold">
@@ -312,7 +339,8 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                   })}
                 </div>
               ))}
-            </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

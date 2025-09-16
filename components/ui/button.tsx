@@ -22,6 +22,7 @@ const buttonVariants = cva(
         link: "text-primary underline-offset-4 hover:underline",
         logIn: "bg-blue-500 text-white hover:bg-blue-800",
         success: "bg-green-700 text-white hover:bg-blue-900",
+        cta: "text-white bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:via-purple-500 hover:to-pink-500 shadow-lg hover:shadow-xl",
       },
       size: {
         default: "h-10 px-4 py-2",

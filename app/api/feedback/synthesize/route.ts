@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import OpenAI from "openai";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+const openai = process.env.OPENAI_API_KEY
+  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  : null as unknown as OpenAI;
 
 export async function POST(request: Request) {
   const supabase = await createSupabaseClient();
@@ -56,6 +56,9 @@ ${f.feedback_text}
       .join("\n");
 
     console.log("Preparing OpenAI request...");
+    if (!process.env.OPENAI_API_KEY) {
+      return NextResponse.json({ error: "Synthesis service not configured" }, { status: 500 });
+    }
 
     const systemPrompt = `You are an expert at analyzing and synthesizing feedback. 
 Given multiple pieces of feedback about a project, your task is to:

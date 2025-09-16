@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { EventRole } from "@/lib/types";
+import { canAccessRole } from "@/features/user/roles/roles";
 
 export async function GET(request: NextRequest) {
   try {
@@ -33,7 +34,7 @@ export async function GET(request: NextRequest) {
       .eq("user_id", user.id)
       .single();
 
-    if (roleError || !currentUserRole || currentUserRole.role !== EventRole.Organizer) {
+    if (roleError || !currentUserRole || !canAccessRole(currentUserRole.role as EventRole, EventRole.Organizer)) {
       return NextResponse.json(
         { error: "Insufficient permissions. Must be an organizer." },
         { status: 403 }
@@ -132,7 +133,7 @@ export async function POST(request: Request) {
       .eq("user_id", user.id)
       .single();
 
-    if (roleError || !currentUserRole || currentUserRole.role !== EventRole.Organizer) {
+    if (roleError || !currentUserRole || !canAccessRole(currentUserRole.role as EventRole, EventRole.Organizer)) {
       return NextResponse.json(
         { error: "Insufficient permissions. Must be an organizer." },
         { status: 403 }
@@ -261,7 +262,7 @@ export async function DELETE(request: Request) {
       .eq("user_id", user.id)
       .single();
 
-    if (roleError || !currentUserRole || currentUserRole.role !== EventRole.Organizer) {
+    if (roleError || !currentUserRole || !canAccessRole(currentUserRole.role as EventRole, EventRole.Organizer)) {
       return NextResponse.json(
         { error: "Insufficient permissions. Must be an organizer." },
         { status: 403 }

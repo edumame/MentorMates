@@ -32,6 +32,7 @@ export async function fetchProjectById(
         additional_materials_url,
         cover_image_url,
         event_id,
+        contextus_project_id,
         created_at,
         project_tracks (
           event_tracks (
@@ -72,6 +73,7 @@ export async function fetchProjectById(
       additional_materials_url: data.additional_materials_url,
       cover_image_url: data.cover_image_url,
       event_id: data.event_id,
+      contextus_project_id: (data as unknown as { contextus_project_id?: string }).contextus_project_id,
       tracks:
         data.project_tracks
           ?.map((pt) => pt.event_tracks?.[0])

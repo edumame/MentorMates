@@ -72,6 +72,7 @@ export type Database = {
           faq: string | null
           location: string | null
           paid: boolean | null
+          pricing_tiers: Json | null
           role_labels: Json | null
           rules: Json
           scoring_config: Json | null
@@ -96,6 +97,7 @@ export type Database = {
           faq?: string | null
           location?: string | null
           paid?: boolean | null
+          pricing_tiers?: Json | null
           role_labels?: Json | null
           rules: Json
           scoring_config?: Json | null
@@ -120,6 +122,7 @@ export type Database = {
           faq?: string | null
           location?: string | null
           paid?: boolean | null
+          pricing_tiers?: Json | null
           role_labels?: Json | null
           rules?: Json
           scoring_config?: Json | null
@@ -422,6 +425,10 @@ export type Database = {
           project_name: string | null
           project_url: string | null
           teammates: string[] | null
+          contextus_project_id: string | null
+          video_url: string | null
+          submitted?: boolean | null
+          submitted_at?: string | null
         }
         Insert: {
           additional_materials_url?: string | null
@@ -435,6 +442,10 @@ export type Database = {
           project_name?: string | null
           project_url?: string | null
           teammates?: string[] | null
+          contextus_project_id?: string | null
+          video_url?: string | null
+          submitted?: boolean | null
+          submitted_at?: string | null
         }
         Update: {
           additional_materials_url?: string | null
@@ -448,6 +459,10 @@ export type Database = {
           project_name?: string | null
           project_url?: string | null
           teammates?: string[] | null
+          contextus_project_id?: string | null
+          video_url?: string | null
+          submitted?: boolean | null
+          submitted_at?: string | null
         }
         Relationships: []
       }
@@ -534,6 +549,7 @@ export type Database = {
           display_name: string | null
           email: string | null
           links: Json | null
+          onboarding_metadata: Json | null
           pulse: number
           stripe_customer_id: string | null
           uid: string
@@ -543,6 +559,7 @@ export type Database = {
           display_name?: string | null
           email?: string | null
           links?: Json | null
+          onboarding_metadata?: Json | null
           pulse?: number
           stripe_customer_id?: string | null
           uid: string
@@ -552,6 +569,7 @@ export type Database = {
           display_name?: string | null
           email?: string | null
           links?: Json | null
+          onboarding_metadata?: Json | null
           pulse?: number
           stripe_customer_id?: string | null
           uid?: string
@@ -610,6 +628,137 @@ export type Database = {
           }
         ]
       }
+      user_event_payments: {
+        Row: {
+          id: string
+          user_id: string
+          event_id: string
+          stripe_customer_id: string
+          payment_status: Database["public"]["Enums"]["payment_status"]
+          stripe_session_id: string | null
+          stripe_payment_intent_id: string | null
+          amount_paid: number | null
+          currency: string | null
+          tickets_quantity: number | null
+          is_bundle: boolean | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          event_id: string
+          stripe_customer_id: string
+          payment_status?: Database["public"]["Enums"]["payment_status"]
+          stripe_session_id?: string | null
+          stripe_payment_intent_id?: string | null
+          amount_paid?: number | null
+          currency?: string | null
+          tickets_quantity?: number | null
+          is_bundle?: boolean | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          event_id?: string
+          stripe_customer_id?: string
+          payment_status?: Database["public"]["Enums"]["payment_status"]
+          stripe_session_id?: string | null
+          stripe_payment_intent_id?: string | null
+          amount_paid?: number | null
+          currency?: string | null
+          tickets_quantity?: number | null
+          is_bundle?: boolean | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_event_payments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["uid"]
+          },
+          {
+            foreignKeyName: "user_event_payments_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["event_id"]
+          }
+        ]
+      }
+      event_tickets: {
+        Row: {
+          id: string
+          event_id: string
+          payment_id: string
+          purchased_by_user_id: string
+          assigned_to_user_id: string | null
+          assigned_to_email: string | null
+          ticket_status: Database["public"]["Enums"]["ticket_status_enum"]
+          assigned_at: string | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          event_id: string
+          payment_id: string
+          purchased_by_user_id: string
+          assigned_to_user_id?: string | null
+          assigned_to_email?: string | null
+          ticket_status?: Database["public"]["Enums"]["ticket_status_enum"]
+          assigned_at?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          event_id?: string
+          payment_id?: string
+          purchased_by_user_id?: string
+          assigned_to_user_id?: string | null
+          assigned_to_email?: string | null
+          ticket_status?: Database["public"]["Enums"]["ticket_status_enum"]
+          assigned_at?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_tickets_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["event_id"]
+          },
+          {
+            foreignKeyName: "event_tickets_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "user_event_payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_tickets_purchased_by_user_id_fkey"
+            columns: ["purchased_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["uid"]
+          },
+          {
+            foreignKeyName: "event_tickets_assigned_to_user_id_fkey"
+            columns: ["assigned_to_user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["uid"]
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -646,6 +795,8 @@ export type Database = {
         | "admin"
         | "event"
       event_visibility: "test" | "demo" | "private" | "public" | "draft"
+      payment_status: "processing" | "paid" | "canceled"
+      ticket_status_enum: "unassigned" | "assigned" | "used" | "transferred"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -770,6 +921,8 @@ export const Constants = {
         "event",
       ],
       event_visibility: ["test", "demo", "private", "public", "draft"],
+      payment_status: ["processing", "paid", "canceled"],
+      ticket_status_enum: ["unassigned", "assigned", "used", "transferred"],
     },
   },
 } as const
