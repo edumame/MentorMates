@@ -65,6 +65,7 @@ export type Database = {
           event_description: string | null
           event_id: string
           event_name: string
+          participant_capacity: number | null
           event_prizes: Json | null
           event_resources: Json | null
           event_schedule: Json | null
@@ -89,6 +90,7 @@ export type Database = {
           event_description?: string | null
           event_id?: string
           event_name: string
+          participant_capacity?: number | null
           event_prizes?: Json | null
           event_resources?: Json | null
           event_schedule?: Json | null
@@ -113,6 +115,7 @@ export type Database = {
           event_description?: string | null
           event_id?: string
           event_name?: string
+          participant_capacity?: number | null
           event_prizes?: Json | null
           event_resources?: Json | null
           event_schedule?: Json | null
