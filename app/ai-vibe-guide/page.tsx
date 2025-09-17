@@ -129,7 +129,7 @@ export default function GuideLanding() {
             className="text-4xl md:text-6xl font-extrabold tracking-tight"
           />
           <p className="text-gray-700 mt-4 md:text-lg max-w-3xl mx-auto">
-            A practical, weekly-released playbook for building with AI in 2025.
+            A practical, weekly-released playbook for building with AI in 2025. Chapters start releasing in November.
           </p>
           <div className="mt-6 flex items-center justify-center gap-3">
             <Link href="/ai-vibe-guide/checkout">
@@ -179,7 +179,7 @@ export default function GuideLanding() {
                 content each week:
               </p>
               <ul className="text-sm text-gray-700 space-y-2 list-disc pl-5">
-                <li>Chapters released weekly in parts</li>
+                <li>Chapters released weekly in parts starting in November</li>
                 <li>
                   Hands-on appendix guides (videos + tutorials) remain locked
                 </li>
@@ -191,7 +191,7 @@ export default function GuideLanding() {
                     >
                       Substack
                     </Link>, where we release new chapters
-                    weekly!
+                    weekly starting in November!
                 </li>
               </ul>
             </CardContent>
