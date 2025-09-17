@@ -10,7 +10,7 @@ import { Build } from "@/components/heroes/components/Build";
 import { Featured } from "@/components/heroes/components/Featured";
 import { Impact } from "@/components/heroes/components/Impact";
 import { Customer } from "@/components/heroes/components/Customer";
-import { CTA } from "@/components/heroes/components/CTA";
+import { CTAJoin } from "@/components/layout/CTAJoin";
 import { LogoCarousel } from "./components/LogoCarousel";
 
 export function LandingHero() {
@@ -110,7 +110,7 @@ export function LandingHero() {
       <Impact />
       <Build />
       <Customer />
-      <CTA />
+      <CTAJoin />
     </div>
   );
 }

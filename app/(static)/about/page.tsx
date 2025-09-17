@@ -4,7 +4,7 @@ import { Impact } from "@/components/heroes/components/Impact";
 import { Team } from "@/components/about/Team";
 import { LogoCarousel } from "@/components/heroes/components/LogoCarousel";
 import { EventHighlights } from "@/components/about/EventHighlights";
-import { CTA } from "@/components/heroes/components/CTA";
+import { CTAJoin } from "@/components/layout/CTAJoin";
 import { Footer } from "@/components/layout/Footer";
 
 export default function AboutPage() {
@@ -16,7 +16,7 @@ export default function AboutPage() {
       <Team />
       <LogoCarousel />
       <EventHighlights />
-      <CTA />
+      <CTAJoin />
       <Footer />
     </>
   );
