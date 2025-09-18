@@ -7,7 +7,7 @@ interface Track {
   name: string;
 }
 
-export function useProjectSubmissionData(eventId: string) {
+export function useProjectSubmissionData(eventId?: string) {
   const [allUsers, setAllUsers] = useState<string[]>([]);
   const [availableTracks, setAvailableTracks] = useState<Track[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -16,6 +16,12 @@ export function useProjectSubmissionData(eventId: string) {
     const fetchData = async () => {
       setIsLoading(true);
       try {
+        // If no event provided, return empty data for eventless flow
+        if (!eventId) {
+          setAllUsers([]);
+          setAvailableTracks([]);
+          return;
+        }
         // Fetch user emails
         const { data: userData, error: userError } = await supabase
           .from("user_event_roles")

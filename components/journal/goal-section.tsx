@@ -21,6 +21,7 @@ const supabase = createClient();
 
 interface GoalSectionProps {
   eventId?: string; // Optional: will get from URL if not provided
+  hideHeader?: boolean;
 }
 
 interface Goal {
@@ -43,6 +44,7 @@ const goalRecommendations = [
 
 export default function GoalSection({
   eventId: propEventId,
+  hideHeader,
 }: GoalSectionProps) {
   const params = useParams();
   const eventId = propEventId || (params.id as string);
@@ -308,116 +310,226 @@ export default function GoalSection({
 
   return (
     <>
-      <Card className="w-full bg-white shadow-lg rounded-xl">
-        <CardHeader className="flex flex-row items-center justify-between bg-blue-900 text-white p-4 rounded-t-xl">
-          <CardTitle className="text-2xl font-bold">Your Goals</CardTitle>
-          <Button
-            onClick={handleSetGoal}
-            className="bg-black hover:bg-black/90 text-white rounded-full px-4 py-2"
-          >
-            Set Goal
-          </Button>
-        </CardHeader>
-        <CardContent className="p-6">
-          {goals.length === 0 ? (
-            <p className="text-gray-600 text-center">
-              You haven&apos;t set any goals yet. Click{" "}
-              <span className="font-medium text-gray-800">Set Goal</span> to get
-              started!
-            </p>
-          ) : (
-            <ul className="space-y-4">
-              {goals.map((goal) => (
-                <li
-                  key={goal.id}
-                  className={`p-4 rounded-lg transition-all ${
-                    goal.status === "completed"
-                      ? "bg-green-50"
-                      : "bg-white hover:bg-gray-50"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      {goal.status === "completed" ? (
-                        <div className="flex items-center gap-2 text-green-600">
-                          <CheckCircle2 className="h-5 w-5" />
-                          <span className="text-sm font-medium">Done</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-2 text-gray-500">
-                          <div className="h-5 w-5 rounded-full border-2 border-gray-300" />
-                          <span className="text-sm font-medium">
-                            In Progress
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        size="sm"
-                        onClick={() => handleToggleStatus(goal)}
-                        variant="ghost"
-                        className={
-                          goal.status === "completed"
-                            ? "text-green-600 hover:text-green-700 hover:bg-green-50"
-                            : "text-gray-600 hover:text-gray-700 hover:bg-gray-50"
-                        }
-                      >
-                        {goal.status === "completed"
-                          ? "Mark as Not Done"
-                          : "Mark as Done"}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => handleEditGoal(goal)}
-                        className="text-gray-600 hover:text-gray-900"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                  {editingGoalId === goal.id ? (
-                    <div className="mt-4">
-                      <textarea
-                        value={editedContent}
-                        onChange={(e) => setEditedContent(e.target.value)}
-                        className="w-full p-2 border border-gray-300 rounded resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        rows={4}
-                      />
-                      <div className="mt-2 flex gap-2">
+      {hideHeader ? (
+        <div className="p-0">
+          <div className="flex justify-end">
+            <Button
+              onClick={handleSetGoal}
+              className="bg-black hover:bg-black/90 text-white rounded-full px-4 py-2"
+            >
+              Set Goal
+            </Button>
+          </div>
+          <div className="mt-4">
+            {goals.length === 0 ? (
+              <p className="text-gray-600">
+                You haven&apos;t set any goals yet.
+              </p>
+            ) : (
+              <ul className="space-y-4">
+                {goals.map((goal) => (
+                  <li
+                    key={goal.id}
+                    className={`p-4 rounded-lg transition-all ${
+                      goal.status === "completed"
+                        ? "bg-green-50"
+                        : "bg-white hover:bg-gray-50"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {goal.status === "completed" ? (
+                          <div className="flex items-center gap-2 text-green-600">
+                            <CheckCircle2 className="h-5 w-5" />
+                            <span className="text-sm font-medium">Done</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2 text-gray-500">
+                            <div className="h-5 w-5 rounded-full border-2 border-gray-300" />
+                            <span className="text-sm font-medium">
+                              In Progress
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
                         <Button
                           size="sm"
-                          onClick={() => handleSaveEdit(goal.id)}
-                          className="bg-blue-600 hover:bg-blue-700 text-white"
+                          onClick={() => handleToggleStatus(goal)}
+                          variant="ghost"
+                          className={
+                            goal.status === "completed"
+                              ? "text-green-600 hover:text-green-700 hover:bg-green-50"
+                              : "text-gray-600 hover:text-gray-700 hover:bg-gray-50"
+                          }
                         >
-                          Save
+                          {goal.status === "completed"
+                            ? "Mark as Not Done"
+                            : "Mark as Done"}
                         </Button>
                         <Button
                           size="sm"
-                          variant="outline"
-                          onClick={() => setEditingGoalId(null)}
+                          variant="ghost"
+                          onClick={() => handleEditGoal(goal)}
+                          className="text-gray-600 hover:text-gray-900"
                         >
-                          Cancel
+                          <Pencil className="h-4 w-4" />
                         </Button>
                       </div>
                     </div>
-                  ) : (
-                    <div className="mt-3">
-                      <p className="text-gray-800 whitespace-pre-wrap">
-                        {goal.content}
-                      </p>
-                      <p className="mt-2 text-xs text-gray-500">
-                        {new Date(goal.created_at).toLocaleDateString()}
-                      </p>
+                    {editingGoalId === goal.id ? (
+                      <div className="mt-4">
+                        <textarea
+                          value={editedContent}
+                          onChange={(e) => setEditedContent(e.target.value)}
+                          className="w-full p-2 border border-gray-300 rounded resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          rows={4}
+                        />
+                        <div className="mt-2 flex gap-2">
+                          <Button
+                            size="sm"
+                            onClick={() => handleSaveEdit(goal.id)}
+                            className="bg-blue-600 hover:bg-blue-700 text-white"
+                          >
+                            Save
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setEditingGoalId(null)}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="mt-3">
+                        <p className="text-gray-800 whitespace-pre-wrap">
+                          {goal.content}
+                        </p>
+                        <p className="mt-2 text-xs text-gray-500">
+                          {new Date(goal.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      ) : (
+        <Card className="w-full bg-white shadow-lg rounded-xl">
+          <CardHeader className="flex flex-row items-center justify-between bg-blue-900 text-white p-4 rounded-t-xl">
+            <CardTitle className="text-2xl font-bold">Your Goals</CardTitle>
+            <Button
+              onClick={handleSetGoal}
+              className="bg-black hover:bg-black/90 text-white rounded-full px-4 py-2"
+            >
+              Set Goal
+            </Button>
+          </CardHeader>
+          <CardContent className="p-6">
+            {goals.length === 0 ? (
+              <p className="text-gray-600 text-center">
+                You haven&apos;t set any goals yet. Click{" "}
+                <span className="font-medium text-gray-800">Set Goal</span> to get
+                started!
+              </p>
+            ) : (
+              <ul className="space-y-4">
+                {goals.map((goal) => (
+                  <li
+                    key={goal.id}
+                    className={`p-4 rounded-lg transition-all ${
+                      goal.status === "completed"
+                        ? "bg-green-50"
+                        : "bg-white hover:bg-gray-50"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {goal.status === "completed" ? (
+                          <div className="flex items-center gap-2 text-green-600">
+                            <CheckCircle2 className="h-5 w-5" />
+                            <span className="text-sm font-medium">Done</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2 text-gray-500">
+                            <div className="h-5 w-5 rounded-full border-2 border-gray-300" />
+                            <span className="text-sm font-medium">
+                              In Progress
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          onClick={() => handleToggleStatus(goal)}
+                          variant="ghost"
+                          className={
+                            goal.status === "completed"
+                              ? "text-green-600 hover:text-green-700 hover:bg-green-50"
+                              : "text-gray-600 hover:text-gray-700 hover:bg-gray-50"
+                          }
+                        >
+                          {goal.status === "completed"
+                            ? "Mark as Not Done"
+                            : "Mark as Done"}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleEditGoal(goal)}
+                          className="text-gray-600 hover:text-gray-900"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
+                    {editingGoalId === goal.id ? (
+                      <div className="mt-4">
+                        <textarea
+                          value={editedContent}
+                          onChange={(e) => setEditedContent(e.target.value)}
+                          className="w-full p-2 border border-gray-300 rounded resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          rows={4}
+                        />
+                        <div className="mt-2 flex gap-2">
+                          <Button
+                            size="sm"
+                            onClick={() => handleSaveEdit(goal.id)}
+                            className="bg-blue-600 hover:bg-blue-700 text-white"
+                          >
+                            Save
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setEditingGoalId(null)}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="mt-3">
+                        <p className="text-gray-800 whitespace-pre-wrap">
+                          {goal.content}
+                        </p>
+                        <p className="mt-2 text-xs text-gray-500">
+                          {new Date(goal.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="p-6">

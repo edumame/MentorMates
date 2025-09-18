@@ -21,17 +21,20 @@ interface PasswordTabProps {
 }
 
 export function PasswordTab({ eventId, roleLabels }: PasswordTabProps) {
-  const [rolePasswords, setRolePasswords] = useState<Record<string, string>>(
-    {}
+  const [rolePasswords, setRolePasswords] = useState<Record<EventRole, string>>(
+    {} as Record<EventRole, string>
   );
   const [isLoading, setIsLoading] = useState(false);
   const [visibility, setVisibility] = useState<EventVisibility | null>(null);
   const { toast } = useToast();
 
   // List of available roles from the EventRole enum, excluding Admin
-  const availableRoles = Object.values(EventRole).filter(
-    (role) => role !== EventRole.Admin
-  );
+  const availableRoles = [
+    EventRole.Participant,
+    EventRole.Mentor,
+    EventRole.Judge,
+    EventRole.Organizer
+  ] as EventRole[];
 
   useEffect(() => {
     // Fetch the current event visibility
@@ -52,14 +55,14 @@ export function PasswordTab({ eventId, roleLabels }: PasswordTabProps) {
     fetchEventVisibility();
   }, [eventId]);
 
-  const handlePasswordChange = (role: string, password: string) => {
+  const handlePasswordChange = (role: EventRole, password: string) => {
     setRolePasswords((prev) => ({
       ...prev,
       [role]: password,
     }));
   };
 
-  const handleSetPassword = async (role: string) => {
+  const handleSetPassword = async (role: EventRole) => {
     try {
       setIsLoading(true);
       const password = rolePasswords[role] || "";

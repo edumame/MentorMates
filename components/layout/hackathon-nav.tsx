@@ -6,67 +6,38 @@ import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { useEventRegistration } from "@/components/event-registration-provider";
 import { EventRole } from "@/lib/types";
+import { canAccessRole } from "@/features/user/roles/roles";
 
 const navItems = [
   {
     name: "Overview",
     href: "/overview",
     public: true,
-    roles: [
-      EventRole.Participant,
-      EventRole.Mentor,
-      EventRole.Judge,
-      EventRole.Organizer,
-      EventRole.Admin,
-    ],
+    minRole: EventRole.Participant, // All roles can access
   },
   {
     name: "Dashboard",
     href: "/dashboard",
     public: false,
-    roles: [
-      EventRole.Participant,
-      EventRole.Admin,
-      EventRole.Organizer,
-      EventRole.Judge,
-      EventRole.Mentor,
-    ],
+    minRole: EventRole.Participant, // All roles can access
   },
   {
     name: "Participants",
     href: "/participants",
     public: false,
-    roles: [
-      EventRole.Participant,
-      EventRole.Mentor,
-      EventRole.Judge,
-      EventRole.Organizer,
-      EventRole.Admin,
-    ],
+    minRole: EventRole.Participant, // All roles can access
   },
   {
     name: "Gallery",
     href: "/gallery",
     public: false,
-    roles: [
-      EventRole.Participant,
-      EventRole.Mentor,
-      EventRole.Judge,
-      EventRole.Organizer,
-      EventRole.Admin,
-    ],
+    minRole: EventRole.Participant, // All roles can access
   },
   {
     name: "Feed",
     href: "/feed",
     public: false,
-    roles: [
-      EventRole.Participant,
-      EventRole.Mentor,
-      EventRole.Judge,
-      EventRole.Organizer,
-      EventRole.Admin,
-    ],
+    minRole: EventRole.Participant, // All roles can access
   },
   // TODO: add admin data page?
 ];
@@ -76,10 +47,14 @@ export function HackathonNav({ id }: { id: string }) {
   const basePath = `/events/${id}`;
   const { isRegistered, userRole } = useEventRegistration();
 
-  const visibleNavItems = navItems.filter(
-    (item) =>
-      item.public || (isRegistered && userRole && item.roles.includes(userRole))
-  );
+  const visibleNavItems = navItems.filter((item) => {
+    const hasAccess =
+      item.public ||
+      (isRegistered &&
+        userRole &&
+        canAccessRole(userRole, item.minRole));
+    return hasAccess;
+  });
 
   return (
     <nav className="w-full">

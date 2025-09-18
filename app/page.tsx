@@ -12,10 +12,13 @@ import { TextGenerateEffect } from "@/components/ui/text-generate-effect";
 import { Footer } from "@/components/layout/footer";
 import { Calendar, Folder, MessageSquare } from "lucide-react";
 import { toast } from "@/lib/hooks/use-toast";
+import { DiscordCTA } from "@/components/ui/discord-cta";
+import { AnnouncementBanner } from "@/components/ui/announcement-banner";
 
 export default function HomePage() {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const bookUrl = "/ai-vibe-guide";
 
   // stats
   const [isLoadingStats, setIsLoadingStats] = useState(false);
@@ -39,7 +42,7 @@ export default function HomePage() {
             display_name: user.user_metadata.full_name,
           };
 
-          const { data: profile, error } = await supabase
+          const { error } = await supabase
             .from("user_profiles")
             .upsert(profileData, {
               onConflict: "email",
@@ -49,7 +52,7 @@ export default function HomePage() {
           if (error) {
             console.error("Error syncing profile:", error);
           } else {
-            console.log("Successfully synced profile:", profile);
+            console.log("Successfully synced profile.");
           }
         }
 
@@ -101,12 +104,14 @@ export default function HomePage() {
       const { data: leadProjects } = await supabase
         .from("projects")
         .select("*")
-        .eq("lead_email", userEmail);
+        .eq("lead_email", userEmail)
+        .eq("submitted", true);
 
       const { data: teamProjects } = await supabase
         .from("projects")
         .select("*")
-        .contains("teammates", [userEmail]);
+        .contains("teammates", [userEmail])
+        .eq("submitted", true);
 
       const combinedProjects = [
         ...(leadProjects || []),
@@ -145,6 +150,7 @@ export default function HomePage() {
   if (!session) {
     return (
       <div className="min-h-screen w-full bg-gradient-to-b from-white to-blue-50 pb-4">
+        <AnnouncementBanner href={bookUrl} />
         <LandingHero />
         <ServiceWorkerRegistration />
         <div className="pt-10">
@@ -156,28 +162,22 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen w-full flex flex-col bg-gray-50">
+      <AnnouncementBanner href={bookUrl} />
       <div className="flex-1">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
           <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="mb-8"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="mb-8"
           >
-        <h1 className="text-4xl sm:text-5xl font-bold text-blue-900 mb-3">
-          Welcome to MentorMates
-        </h1>
-        <TextGenerateEffect
-          words="Find your event to start getting personalized feedback and guidance for your projects."
-          className="text-lg text-gray-700 max-w-2xl font-light"
-        />
-        {/* <div className="mt-5"> */}
-          {/* <Link href="/events">
-            <Button className="bg-blue-900 hover:bg-blue-800 text-white px-6 text-md rounded-full shadow transition-all">
-          Browse Events
-            </Button>
-          </Link> */}
-        {/* </div> */}
+            <h1 className="text-4xl sm:text-5xl font-bold text-blue-900 mb-3">
+              Welcome to MentorMates
+            </h1>
+            <TextGenerateEffect
+              words="Find your event to start getting personalized feedback and guidance for your projects."
+              className="text-lg text-gray-700 max-w-2xl font-light"
+            />
           </motion.div>
 
           {/* Stats Section - Redesigned for mobile view */}
@@ -185,7 +185,7 @@ export default function HomePage() {
             <div className="h-20 flex items-center justify-center">
               <p className="text-gray-500 text-sm">Loading stats...</p>
             </div>
-              ) : (
+          ) : (
             <div className="flex items-center justify-around mb-4 text-blue-900">
               <div className="flex flex-col items-center">
                 <span className="text-gray-500 text-sm">Events</span>
@@ -200,72 +200,77 @@ export default function HomePage() {
                 <span className="text-xl">{feedbackCount}</span>
               </div>
             </div>
-            )}
+          )}
 
-              {/* Cards Section */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 px-4">
-                <motion.div
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.5 }}
-                  className="bg-white shadow rounded-lg p-6 flex flex-col"
-                >
-                  <div className="flex items-center mb-4">
-                  <Calendar className="w-8 h-8 text-blue-900 mr-2" />
-                  <h2 className="text-xl font-bold text-blue-900">Events</h2>
-                  </div>
-                  <p className="text-gray-600 text-sm sm:text-base mb-4">
-                  Check your upcoming events or create new ones.
-                  </p>
-                  <Link href="/events" className="mt-auto">
-                  <Button className="bg-blue-900 text-white w-full sm:w-auto">
-                    View Events
-                  </Button>
-                  </Link>
-                </motion.div>
+          {/* Cards Section */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 px-4">
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5 }}
+              className="bg-white shadow rounded-lg p-6 flex flex-col"
+            >
+              <div className="flex items-center mb-4">
+                <Calendar className="w-8 h-8 text-blue-900 mr-2" />
+                <h2 className="text-xl font-bold text-blue-900">Events</h2>
+              </div>
+              <p className="text-gray-600 text-sm sm:text-base mb-4">
+                Check your upcoming events or create new ones.
+              </p>
+              <Link href="/events" className="mt-auto">
+                <Button className="bg-blue-900 text-white w-full sm:w-auto">
+                  View Events
+                </Button>
+              </Link>
+            </motion.div>
 
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 0.2 }}
-                  className="bg-white shadow rounded-lg p-6 flex flex-col"
-                >
-                  <div className="flex items-center mb-4">
-                  <Folder className="w-8 h-8 text-blue-900 mr-2" />
-                  <h2 className="text-xl font-bold text-blue-900">Projects</h2>
-                  </div>
-                  <p className="text-gray-600 text-sm sm:text-base mb-4">
-                  Track and update your project progress.
-                  </p>
-                  <Link href="/projects" className="mt-auto">
-                  <Button className="bg-blue-900 text-white w-full sm:w-auto">
-                    View Projects
-                  </Button>
-                  </Link>
-                </motion.div>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              className="bg-white shadow rounded-lg p-6 flex flex-col"
+            >
+              <div className="flex items-center mb-4">
+                <Folder className="w-8 h-8 text-blue-900 mr-2" />
+                <h2 className="text-xl font-bold text-blue-900">Projects</h2>
+              </div>
+              <p className="text-gray-600 text-sm sm:text-base mb-4">
+                Track and update your project progress.
+              </p>
+              <Link href="/projects" className="mt-auto">
+                <Button className="bg-blue-900 text-white w-full sm:w-auto">
+                  View Projects
+                </Button>
+              </Link>
+            </motion.div>
 
-                <motion.div
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.5, delay: 0.4 }}
-                  className="bg-white shadow rounded-lg p-6 flex flex-col"
-                >
-                  <div className="flex items-center mb-4">
-                  <MessageSquare className="w-8 h-8 text-blue-900 mr-2" />
-                  <h2 className="text-xl font-bold text-blue-900">Feedback</h2>
-                  </div>
-                  <p className="text-gray-600 text-sm sm:text-base mb-4">
-                  Review the feedback you have provided.
-                  </p>
-                  <Link href="/feedback/given" className="mt-auto">
-                  <Button className="bg-blue-900 text-white w-full sm:w-auto">
-                    View Feedback
-                  </Button>
-                  </Link>
-                </motion.div>
-                </div>
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5, delay: 0.4 }}
+              className="bg-white shadow rounded-lg p-6 flex flex-col"
+            >
+              <div className="flex items-center mb-4">
+                <MessageSquare className="w-8 h-8 text-blue-900 mr-2" />
+                <h2 className="text-xl font-bold text-blue-900">Feedback</h2>
+              </div>
+              <p className="text-gray-600 text-sm sm:text-base mb-4">
+                Review the feedback you have provided.
+              </p>
+              <Link href="/feedback/given" className="mt-auto">
+                <Button className="bg-blue-900 text-white w-full sm:w-auto">
+                  View Feedback
+                </Button>
+              </Link>
+            </motion.div>
           </div>
         </div>
+
+        {/* Discord CTA for authenticated users */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
+          <DiscordCTA variant="default" className="mb-8" />
+        </div>
+      </div>
 
       <ServiceWorkerRegistration />
       <Footer />

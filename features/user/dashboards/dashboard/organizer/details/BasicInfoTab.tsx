@@ -9,6 +9,22 @@ import { Label } from "@/components/ui/label";
 import { EventDetails } from "@/lib/types";
 import { useRouter } from "next/navigation";
 import { toast as ToastType } from "@/lib/hooks/use-toast";
+import ReactMarkdown from "react-markdown";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { customMarkdownComponents } from "@/components/markdown/custom-components";
+import { markdownRehypePlugins } from "@/components/markdown/plugins";
 
 interface BasicInfoTabProps {
   event: EventDetails;
@@ -33,6 +49,7 @@ export function BasicInfoTab({
   const [useImageUrl, setUseImageUrl] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [updateSlug, setUpdateSlug] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const handleBasicInfoUpdate = async () => {
     if (!event) return;
@@ -76,6 +93,7 @@ export function BasicInfoTab({
           cover_image_url: coverImageUrl,
           submission_time_start: event.submission_time_start,
           submission_time_cutoff: event.submission_time_cutoff,
+          participant_capacity: event.participant_capacity ?? null,
         })
         .eq("event_id", event.event_id);
 
@@ -112,104 +130,119 @@ export function BasicInfoTab({
 
   return (
     <div className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="event_name">Event Name</Label>
-        <Input
-          id="event_name"
-          value={event.event_name || ""}
-          onChange={(e) =>
-            setEvent({ ...event, event_name: e.target.value })
-          }
-        />
-      </div>
+      {/* Compact top rows */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="event_name">Event Name</Label>
+          <Input
+            id="event_name"
+            value={event.event_name || ""}
+            onChange={(e) =>
+              setEvent({ ...event, event_name: e.target.value })
+            }
+          />
+        </div>
 
       <div className="space-y-2">
-        <Label htmlFor="slug">URL Slug</Label>
+        <Label htmlFor="participant_capacity">Participant Seat Cap</Label>
         <Input
-          id="slug"
-          value={event.slug || ""}
+          id="participant_capacity"
+          type="number"
+          min={0}
+          placeholder="Unlimited"
+          value={
+            typeof event.participant_capacity === "number"
+              ? String(event.participant_capacity)
+              : ""
+          }
           onChange={(e) => {
-            setEvent({ ...event, slug: e.target.value });
-            setUpdateSlug(true);
-          }}
-          placeholder="url-friendly-event-name"
-          className="font-mono text-sm"
-        />
-        <p className="text-xs text-gray-500">
-          URL-friendly identifier for your event (lowercase, hyphens only)
-        </p>
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="event_date">Event Date</Label>
-        <Input
-          id="event_date"
-          type="date"
-          value={event.event_date || ""}
-          onChange={(e) =>
-            setEvent({ ...event, event_date: e.target.value })
-          }
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="submission_time_start">
-          Submission Window Start (UTC)
-        </Label>
-        <Input
-          id="submission_time_start"
-          type="datetime-local"
-          value={event.submission_time_start?.slice(0, 16) || ""}
-          onChange={(e) =>
-            setEvent({ ...event, submission_time_start: e.target.value })
-          }
-        />
-        <p className="text-xs text-gray-500">
-          {new Date(event.submission_time_start || "").toString()}
-        </p>
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="submission_time_cutoff">
-          Submission Window End (UTC)
-        </Label>
-        <Input
-          id="submission_time_cutoff"
-          type="datetime-local"
-          value={event.submission_time_cutoff?.slice(0, 16) || ""}
-          onChange={(e) =>
-            setEvent({ ...event, submission_time_cutoff: e.target.value })
-          }
-        />
-        <p className="text-xs text-gray-500">
-          {new Date(event.submission_time_cutoff || "").toString()}
-        </p>
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="location">Location</Label>
-        <Input
-          id="location"
-          value={event.location || ""}
-          onChange={(e) =>
-            setEvent({ ...event, location: e.target.value })
-          }
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="event_description">Description (Markdown Supported)</Label>
-        <Textarea
-          id="event_description"
-          value={event.event_description || ""}
-          onChange={(e) =>
+            const value = e.target.value;
             setEvent({
               ...event,
-              event_description: e.target.value,
-            })
-          }
-          rows={4}
+              participant_capacity:
+                value === "" ? null : Math.max(0, parseInt(value, 10) || 0),
+            });
+          }}
         />
+        <p className="text-xs text-gray-500">
+          Leave blank for unlimited participants.
+        </p>
+      </div>
+        <div className="space-y-2">
+          <Label htmlFor="slug">URL Slug</Label>
+          <Input
+            id="slug"
+            value={event.slug || ""}
+            onChange={(e) => {
+              setEvent({ ...event, slug: e.target.value });
+              setUpdateSlug(true);
+            }}
+            placeholder="url-friendly-event-name"
+            className="font-mono text-sm"
+          />
+          <p className="text-xs text-gray-500">
+            URL-friendly identifier for your event (lowercase, hyphens only)
+          </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="event_date">Event Date</Label>
+          <Input
+            id="event_date"
+            type="date"
+            value={event.event_date || ""}
+            onChange={(e) =>
+              setEvent({ ...event, event_date: e.target.value })
+            }
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="location">Location</Label>
+          <Input
+            id="location"
+            value={event.location || ""}
+            onChange={(e) =>
+              setEvent({ ...event, location: e.target.value })
+            }
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="submission_time_start">
+            Submission Window Start (UTC)
+          </Label>
+          <Input
+            id="submission_time_start"
+            type="datetime-local"
+            value={event.submission_time_start?.slice(0, 16) || ""}
+            onChange={(e) =>
+              setEvent({ ...event, submission_time_start: e.target.value })
+            }
+          />
+          <p className="text-xs text-gray-500">
+            {new Date(event.submission_time_start || "").toString()}
+          </p>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="submission_time_cutoff">
+            Submission Window End (UTC)
+          </Label>
+          <Input
+            id="submission_time_cutoff"
+            type="datetime-local"
+            value={event.submission_time_cutoff?.slice(0, 16) || ""}
+            onChange={(e) =>
+              setEvent({ ...event, submission_time_cutoff: e.target.value })
+            }
+          />
+          <p className="text-xs text-gray-500">
+            {new Date(event.submission_time_cutoff || "").toString()}
+          </p>
+        </div>
       </div>
 
       <div className="space-y-2">
@@ -225,24 +258,83 @@ export function BasicInfoTab({
         />
       </div>
 
-      {/* Paywall Content - Only show for paid events */}
+      {/* Description moved directly under the blurb, inside a navy callout */}
+      <div className="space-y-2">
+        <Alert className="border-blue-200 bg-blue-50">
+          <AlertTitle className="text-blue-900">Important</AlertTitle>
+          <AlertDescription>
+            This section is really important. Please click the Preview tab to
+            confirm formatting and content before saving.
+          </AlertDescription>
+          <div className="mt-3 space-y-2">
+            <Label htmlFor="event_description">Description (Markdown Supported)</Label>
+            <Tabs defaultValue="edit" className="w-full">
+              <TabsList>
+                <TabsTrigger value="edit">Edit</TabsTrigger>
+                <TabsTrigger value="preview">Preview</TabsTrigger>
+              </TabsList>
+              <TabsContent value="edit" className="mt-0">
+                <Textarea
+                  id="event_description"
+                  value={event.event_description || ""}
+                  onChange={(e) =>
+                    setEvent({
+                      ...event,
+                      event_description: e.target.value,
+                    })
+                  }
+                  rows={4}
+                />
+              </TabsContent>
+              <TabsContent value="preview" className="mt-0">
+                <div className="prose prose-sm dark:prose-invert max-w-none rounded-md border bg-white p-3">
+                  <ReactMarkdown>{event.event_description || ""}</ReactMarkdown>
+                </div>
+              </TabsContent>
+            </Tabs>
+          </div>
+        </Alert>
+      </div>
+
+      {/* Paywall Content - Only show for paid events (below description) */}
       {event.paid && (
         <div className="space-y-2">
-          <Label htmlFor="paywall_content">
-            🔒 Exclusive Content for Participants
-          </Label>
-          <Textarea
-            id="paywall_content"
-            value={event.paywall_content || ""}
-            onChange={(e) =>
-              setEvent({ ...event, paywall_content: e.target.value })
-            }
-            rows={4}
-            placeholder="Content that will only be visible to users who have joined/paid for the event"
-          />
-          <p className="text-xs text-gray-500">
-            This content will only be shown to users who have joined the event. You can use Markdown formatting.
-          </p>
+          <Alert className="border-yellow-200 bg-yellow-50">
+            <AlertTitle className="text-yellow-800">🔒 Exclusive Content for Participants</AlertTitle>
+            <AlertDescription>
+              This content is visible only to participants who have joined/paid for the event.
+            </AlertDescription>
+            <div className="mt-3 space-y-2">
+              <Label htmlFor="paywall_content">Content (Markdown Supported)</Label>
+              <Tabs defaultValue="edit" className="w-full">
+                <TabsList>
+                  <TabsTrigger value="edit">Edit</TabsTrigger>
+                  <TabsTrigger value="preview">Preview</TabsTrigger>
+                </TabsList>
+                <TabsContent value="edit" className="mt-0">
+                  <Textarea
+                    id="paywall_content"
+                    value={event.paywall_content || ""}
+                    onChange={(e) =>
+                      setEvent({ ...event, paywall_content: e.target.value })
+                    }
+                    rows={4}
+                    placeholder="Content that will only be visible to users who have joined/paid for the event"
+                  />
+                </TabsContent>
+                <TabsContent value="preview" className="mt-0">
+                  <div className="prose prose-sm dark:prose-invert max-w-none rounded-md border bg-white p-3">
+                    <ReactMarkdown rehypePlugins={markdownRehypePlugins} components={customMarkdownComponents}>
+                      {event.paywall_content || ""}
+                    </ReactMarkdown>
+                  </div>
+                </TabsContent>
+              </Tabs>
+              <p className="text-xs text-gray-500">
+                This content will only be shown to users who have joined the event. You can use Markdown formatting.
+              </p>
+            </div>
+          </Alert>
         </div>
       )}
 
@@ -332,6 +424,8 @@ export function BasicInfoTab({
         )}
       </div>
 
+      {/* Description moved above; removed from bottom */}
+
       <Button
         onClick={handleBasicInfoUpdate}
         disabled={saving}
@@ -339,6 +433,62 @@ export function BasicInfoTab({
       >
         {saving ? "Saving..." : "Save Basic Information"}
       </Button>
+
+      {/* Danger zone */}
+      <div className="mt-8 border-t pt-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="font-semibold text-red-600">Delete Event</p>
+            <p className="text-sm text-muted-foreground">This action cannot be undone.</p>
+          </div>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" disabled={deleting}>
+                {deleting ? "Deleting..." : "Delete Event"}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete this event?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will permanently remove the event and related data (tickets, payments, tracks, feedback). This cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={async () => {
+                    try {
+                      setDeleting(true);
+                      const res = await fetch(`/api/events/${event.event_id}`, {
+                        method: "DELETE",
+                      });
+                      if (!res.ok) {
+                        const body = await res.json().catch(() => ({}));
+                        throw new Error(body?.error || "Failed to delete event");
+                      }
+                      toast({ title: "Event deleted" });
+                      // Navigate back to events list
+                      router.push("/events");
+                    } catch (err) {
+                      console.error(err);
+                      toast({
+                        title: "Error",
+                        description: (err as Error).message,
+                        variant: "destructive",
+                      });
+                    } finally {
+                      setDeleting(false);
+                    }
+                  }}
+                >
+                  Confirm Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      </div>
     </div>
   );
 } 

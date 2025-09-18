@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
-import { getProjectSubmissionEmailTemplate } from '@/lib/templates/project-submission';
-import { getProjectTeammateEmailTemplate } from '@/lib/templates/project-teammate';
-import { getFeedbackNotificationEmailTemplate } from '@/lib/templates/feedback-notification';
+import { getProjectSubmissionEmailTemplate } from '@/lib/email_templates/project-submission';
+import { getProjectTeammateEmailTemplate } from '@/lib/email_templates/project-teammate';
+import { getFeedbackNotificationEmailTemplate } from '@/lib/email_templates/feedback-notification';
 import { getOrganizerCustomEmailTemplate } from '@/lib/templates/organizer-custom';
 import { createSupabaseClient } from '@/app/utils/supabase/server';
 

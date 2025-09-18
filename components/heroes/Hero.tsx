@@ -4,6 +4,7 @@ import Image from "next/image";
 import { TextGenerateEffect } from "@/components/ui/text-generate-effect";
 import { supabase } from "@/lib/supabase";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 
 export function Hero() {
   const [userName, setUserName] = useState("");
@@ -42,13 +43,20 @@ export function Hero() {
               Supported by:
             </p>
             <div className="relative w-[200px] h-[100px] mx-auto">
-              <Image
-                src="https://clinicalmindai.stanford.edu/sites/g/files/sbiybj31566/files/styles/responsive_large/public/media/image/motif_text-stanford_accelerator_for_learning_rgb_1_1.png.webp?itok=b--D-kMe"
-                alt="Stanford Accelerator for Learning"
-                fill
-                className="object-contain opacity-90 hover:opacity-100 transition-opacity duration-300"
-                priority
-              />
+              <Link 
+                href="https://acceleratelearning.stanford.edu/funding/people-who-help-other-people-learn-pwhopl/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block w-full h-full"
+              >
+                <Image
+                  src="https://clinicalmindai.stanford.edu/sites/g/files/sbiybj31566/files/styles/responsive_large/public/media/image/motif_text-stanford_accelerator_for_learning_rgb_1_1.png.webp?itok=b--D-kMe"
+                  alt="Stanford Accelerator for Learning"
+                  fill
+                  className="object-contain opacity-90 hover:opacity-100 transition-opacity duration-300 cursor-pointer"
+                  priority
+                />
+              </Link>
             </div>
           </div>
         </div>
