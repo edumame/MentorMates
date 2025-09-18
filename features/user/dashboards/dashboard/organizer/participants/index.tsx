@@ -63,7 +63,19 @@ export function ParticipantsTab({ eventId }: ParticipantsTabProps) {
 
         if (error) throw error;
 
-        // Transform the data
+        // get all lead email and teammembers 
+        const { data: leadData, error: leadError } = await supabase
+        .from("projects")
+        .select(
+          `
+          lead_email, 
+          teammates
+          `)
+        .eq("event_id", eventId);
+
+        if (leadError) throw leadError;
+
+        // Transform the user_event_roles data
         const transformedData: Participant[] = (
           (data as UserEventRoleWithProfile[]) || []
         ).map((role) => ({
@@ -73,7 +85,56 @@ export function ParticipantsTab({ eventId }: ParticipantsTabProps) {
           email: role.profiles?.email || "",
         }));
 
-        setParticipants(transformedData);
+        // Transform project participants (lead_email and teammates)
+        const projectParticipants: Participant[] = [];
+        const allEmails = new Set<string>();
+
+        // Add existing participants' emails to the set
+        transformedData.forEach((participant) => {
+          if (participant.email) {
+            allEmails.add(participant.email.toLowerCase());
+          }
+        });
+
+        // Process project data
+        if (leadData && leadData.length > 0) {
+          leadData.forEach((project) => {
+            // Add lead email
+            if (project.lead_email) {
+              const leadEmail = project.lead_email.toLowerCase();
+              if (!allEmails.has(leadEmail)) {
+                projectParticipants.push({
+                  user_id: `project-lead-${leadEmail}`, // Generate a unique ID for project participants
+                  role: "participant" as EventRole,
+                  display_name: `project-lead-${project.lead_email}`, // Use email as display name since we don't have profile data
+                  email: project.lead_email,
+                });
+                allEmails.add(leadEmail);
+              }
+            }
+
+            // Add teammates
+            if (project.teammates && Array.isArray(project.teammates)) {
+              project.teammates.forEach((teammate: string) => {
+                const teammateEmail = teammate.toLowerCase();
+                if (teammate && !allEmails.has(teammateEmail)) {
+                  projectParticipants.push({
+                    user_id: `project-teammate-${teammateEmail}`, // Generate a unique ID for project participants
+                    role: "participant" as EventRole,
+                    display_name: `project-teammate-${teammate}`, // Use email as display name since we don't have profile data
+                    email: teammate,
+                  });
+                  allEmails.add(teammateEmail);
+                }
+              });
+            }
+          });
+        }
+
+        // Combine all participants and filter for unique emails
+        const allParticipants = [...transformedData, ...projectParticipants];
+        
+        setParticipants(allParticipants);
       } catch (error) {
         console.error("Error fetching participants:", error);
       } finally {
@@ -134,8 +195,17 @@ export function ParticipantsTab({ eventId }: ParticipantsTabProps) {
                   {participants.map((participant) => (
                     <TableRow
                       key={participant.user_id}
-                      onClick={() => navigateToProfile(participant.user_id)}
-                      className="cursor-pointer hover:bg-gray-50"
+                      onClick={() => {
+                        // Only navigate to profile for actual users, not project participants
+                        if (!participant.user_id.startsWith('project-')) {
+                          navigateToProfile(participant.user_id);
+                        }
+                      }}
+                      className={`${
+                        !participant.user_id.startsWith('project-') 
+                          ? 'cursor-pointer hover:bg-gray-50' 
+                          : 'cursor-default'
+                      }`}
                     >
                       <TableCell>{participant.display_name}</TableCell>
                       <TableCell>{participant.email}</TableCell>
