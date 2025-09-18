@@ -3,7 +3,7 @@ import nodemailer from 'nodemailer';
 import { getProjectSubmissionEmailTemplate } from '@/lib/email_templates/project-submission';
 import { getProjectTeammateEmailTemplate } from '@/lib/email_templates/project-teammate';
 import { getFeedbackNotificationEmailTemplate } from '@/lib/email_templates/feedback-notification';
-import { getOrganizerCustomEmailTemplate } from '@/lib/templates/organizer-custom';
+import { getOrganizerCustomEmailTemplate } from '@/lib/email_templates/organizer-custom';
 import { createSupabaseClient } from '@/app/utils/supabase/server';
 
 const transporter = nodemailer.createTransport({
