@@ -19,6 +19,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Mail, Send, Users, Eye, Loader2, LayoutTemplate } from "lucide-react";
 import { EventRole } from "@/lib/types";
 import { EmailTemplates } from "./templates";
+import { NOTIFICATIONS_EMAIL_FROM } from "@/lib/email_templates/constants";
 
 interface Recipient {
   id: string;
@@ -138,17 +139,17 @@ export function EmailTab({ eventId }: EmailTabProps) {
         .filter((r) => selectedRecipients.includes(r.id))
         .map((r) => r.email);
 
-      const response = await fetch("/api/email", {
+      const response = await fetch("/api/email_notification", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          type: "organizer_custom",
-          recipients: selectedEmails,
+          to: "admin@mentormates.ai",
+          from: NOTIFICATIONS_EMAIL_FROM,
           subject,
-          message,
-          eventId,
+          bcc: selectedEmails,
+          html: generateEmailPreview(),
         }),
       });
 
