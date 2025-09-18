@@ -16,7 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Mail, Send, Users, Eye, Loader2, Template } from "lucide-react";
+import { Mail, Send, Users, Eye, Loader2, LayoutTemplate } from "lucide-react";
 import { EventRole } from "@/lib/types";
 import { EmailTemplates } from "./templates";
 
@@ -255,7 +255,7 @@ export function EmailTab({ eventId }: EmailTabProps) {
               onClick={() => setShowTemplates(!showTemplates)}
               className="flex items-center gap-2"
             >
-              <Template className="h-4 w-4" />
+              <LayoutTemplate className="h-4 w-4" />
               {showTemplates ? "Hide Templates" : "Use Template"}
             </Button>
             <Button
