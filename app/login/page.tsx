@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/app/utils/supabase/client";
 import { Footer } from "@/components/layout/footer";
 import Image from "next/image";
+import Link from "next/link";
 import { User } from "@supabase/supabase-js";
 
 const supabase = createClient();
@@ -237,7 +238,21 @@ function LoginContent({
           className={`px-6 py-12 shadow sm:rounded-lg sm:px-12 ${isSignUp ? "bg-gradient-to-br from-green-50 to-white border-2 border-green-200" : "bg-white"}`}
         >
           {error && (
-            <div className="mb-4 text-center text-sm text-red-600">{error}</div>
+            <div className="mb-4 text-center text-sm">
+              <p className="text-red-600">{error}</p>
+              {!isSignUp && /invalid/i.test(error) && (
+                <p className="mt-1 text-gray-700">
+                  Don&apos;t have an account?{" "}
+                  <Link
+                    href="/login?mode=signup"
+                    className="font-semibold text-green-700 hover:text-green-500"
+                  >
+                    Sign up here
+                  </Link>
+                  .
+                </p>
+              )}
+            </div>
           )}
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
