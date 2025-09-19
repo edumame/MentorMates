@@ -42,6 +42,21 @@ export interface PricingTier {
   bundle_size?: number;
 }
 
+// Coupon Types
+export interface Coupon {
+  id: string;
+  event_id: string;
+  code: string;
+  percent_off?: number; // 1-100
+  amount_off?: number; // cents
+  max_redemptions?: number | null;
+  usage_count?: number;
+  expires_at?: string | null; // ISO date string
+  is_active?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface UserProfile {
   uid: string;
   display_name: string;

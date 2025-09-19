@@ -10,6 +10,7 @@ interface CheckoutOptions {
   eventSlug?: string | null;
   eventName?: string | null;
   pricingTierId?: string | null; // Required: id from pricing_tiers table
+  couponCode?: string | null;
 }
 
 export async function fetchClientSecret(options?: CheckoutOptions) {
@@ -54,6 +55,7 @@ export async function fetchClientSecret(options?: CheckoutOptions) {
   }
 
   let lineItems;
+  let appliedCouponId: string | undefined;
 
   if (options?.pricingTierId) {
     // Query the pricing_tiers table for the specific tier
@@ -98,6 +100,45 @@ export async function fetchClientSecret(options?: CheckoutOptions) {
     throw new Error("No pricing tier selected. Please select a pricing tier to continue.");
   }
 
+  // Validate coupon against DB and event end
+  if (options?.couponCode && options.eventId) {
+    const { data: couponData, error: couponError } = await supabase
+      .rpc("validate_coupon", { p_event_id: options.eventId, p_code: options.couponCode });
+
+    if (couponError) {
+      throw new Error(couponError.message || "Invalid coupon code");
+    }
+
+    if (couponData) {
+      appliedCouponId = couponData.id;
+    }
+  }
+
+  // If coupon is valid, create a one-off Stripe coupon and apply it to session
+  let discounts: Stripe.Checkout.SessionCreateParams.Discount[] | undefined = undefined;
+  if (appliedCouponId) {
+    // fetch coupon details again to get percent/amount
+    const { data: couponDetail } = await supabase
+      .from("coupons")
+      .select("id, percent_off, amount_off")
+      .eq("id", appliedCouponId)
+      .single();
+
+    if (couponDetail) {
+      const stripeCoupon = await stripe.coupons.create({
+        ...(couponDetail.percent_off
+          ? { percent_off: couponDetail.percent_off }
+          : {}),
+        ...(couponDetail.amount_off
+          ? { amount_off: couponDetail.amount_off, currency: "usd" }
+          : {}),
+        duration: "once",
+      });
+
+      discounts = [{ coupon: stripeCoupon.id }];
+    }
+  }
+
   // Create Checkout Sessions from body params.
   const session = await stripe.checkout.sessions.create({
     customer: userProfile?.stripe_customer_id,
@@ -107,6 +148,12 @@ export async function fetchClientSecret(options?: CheckoutOptions) {
     return_url: `${origin}/return?session_id={CHECKOUT_SESSION_ID}${options?.eventSlug ? `&eventSlug=${options.eventSlug}` : ""}`,
     // automatic_tax: { enabled: true },
     allow_promotion_codes: true,
+    ...(discounts ? { discounts } : {}),
+    metadata: {
+      ...(options?.eventId ? { event_id: options.eventId } : {}),
+      ...(options?.pricingTierId ? { pricing_id: options.pricingTierId } : {}),
+      ...(appliedCouponId ? { coupon_id: appliedCouponId } : {}),
+    },
   });
 
   // greedily create a user event payment record for the user in the processing state
@@ -123,6 +170,7 @@ export async function fetchClientSecret(options?: CheckoutOptions) {
         currency: session.currency,
         payment_status: "processing",
         pricing_id: options?.pricingTierId,
+        coupon_id: appliedCouponId,
       },
       {
         onConflict: "user_id,event_id",

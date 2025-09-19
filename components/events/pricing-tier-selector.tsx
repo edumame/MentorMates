@@ -3,8 +3,11 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Check, Clock, Package } from "lucide-react";
 import { PricingTier } from "@/lib/types";
+import { useState } from "react";
 import { formatPrice } from "@/lib/utils/pricing";
 
 interface PricingTierSelectorProps {
@@ -13,6 +16,8 @@ interface PricingTierSelectorProps {
   onTierSelect: (id: string) => void; // Passes id string (not the UUID id)
   onContinue: () => void;
   isLoading?: boolean;
+  couponCode?: string;
+  onCouponCodeChange?: (code: string) => void;
 }
 
 export function PricingTierSelector({
@@ -21,7 +26,16 @@ export function PricingTierSelector({
   onTierSelect,
   onContinue,
   isLoading = false,
+  couponCode,
+  onCouponCodeChange,
 }: PricingTierSelectorProps) {
+  const [internalCouponCode, setInternalCouponCode] = useState<string>("");
+  const couponValue = couponCode ?? internalCouponCode;
+
+  const handleCouponChange = (value: string) => {
+    onCouponCodeChange?.(value);
+    setInternalCouponCode(value);
+  };
   const isValidTier = (tier: PricingTier): boolean => {
     // Check if tier is still available
     if (tier.available_until) {
@@ -121,6 +135,21 @@ export function PricingTierSelector({
             </Card>
           );
         })}
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="couponCode">Coupon code (optional)</Label>
+        <div className="flex gap-2">
+          <Input
+            id="couponCode"
+            placeholder="Enter coupon"
+            value={couponValue}
+            onChange={(e) => handleCouponChange(e.target.value)}
+          />
+          <Button type="button" variant="outline" onClick={onContinue} disabled={!selectedTierId || isLoading}>
+            Apply & Continue
+          </Button>
+        </div>
       </div>
 
       <Button

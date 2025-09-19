@@ -275,6 +275,56 @@ export type Database = {
           },
         ]
       }
+      coupons: {
+        Row: {
+          id: string
+          event_id: string
+          code: string
+          percent_off: number | null
+          amount_off: number | null
+          max_redemptions: number | null
+          usage_count: number
+          expires_at: string | null
+          is_active: boolean
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          event_id: string
+          code: string
+          percent_off?: number | null
+          amount_off?: number | null
+          max_redemptions?: number | null
+          usage_count?: number
+          expires_at?: string | null
+          is_active?: boolean
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          event_id?: string
+          code?: string
+          percent_off?: number | null
+          amount_off?: number | null
+          max_redemptions?: number | null
+          usage_count?: number
+          expires_at?: string | null
+          is_active?: boolean
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coupons_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["event_id"]
+          },
+        ]
+      }
       prize_winners: {
         Row: {
           assigned_at: string | null
@@ -641,6 +691,8 @@ export type Database = {
           currency: string | null
           tickets_quantity: number | null
           is_bundle: boolean | null
+          pricing_id?: string | null
+          coupon_id?: string | null
           created_at: string | null
           updated_at: string | null
         }
@@ -656,6 +708,8 @@ export type Database = {
           currency?: string | null
           tickets_quantity?: number | null
           is_bundle?: boolean | null
+          pricing_id?: string | null
+          coupon_id?: string | null
           created_at?: string | null
           updated_at?: string | null
         }
@@ -671,6 +725,8 @@ export type Database = {
           currency?: string | null
           tickets_quantity?: number | null
           is_bundle?: boolean | null
+          pricing_id?: string | null
+          coupon_id?: string | null
           created_at?: string | null
           updated_at?: string | null
         }
@@ -688,6 +744,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "events"
             referencedColumns: ["event_id"]
+          },
+          {
+            foreignKeyName: "user_event_payments_coupon_id_fkey"
+            columns: ["coupon_id"]
+            isOneToOne: false
+            referencedRelation: "coupons"
+            referencedColumns: ["id"]
           }
         ]
       }

@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Trash2, Plus, DollarSign, Package } from "lucide-react";
-import { EventDetails, PricingTier } from "@/lib/types";
+import { EventDetails, PricingTier, Coupon } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/lib/hooks/use-toast";
 
@@ -27,6 +27,8 @@ export function PricingTab({
 }: PricingTabProps) {
   const [pricingTiers, setPricingTiers] = useState<PricingTier[]>([]);
   const [loading, setLoading] = useState(true);
+  const [coupons, setCoupons] = useState<Coupon[]>([]);
+  const [loadingCoupons, setLoadingCoupons] = useState(true);
 
   const { toast } = useToast();
 
@@ -62,6 +64,38 @@ export function PricingTab({
     }
 
     fetchPricingTiers();
+  }, [event.event_id, toast]);
+
+  // Fetch coupons for this event
+  useEffect(() => {
+    async function fetchCoupons() {
+      if (!event.event_id) return;
+
+      try {
+        const { data, error } = await supabase
+          .from("coupons")
+          .select("*")
+          .eq("event_id", event.event_id)
+          .order("created_at", { ascending: false });
+
+        if (error) {
+          console.error("Error fetching coupons:", error);
+          toast({
+            title: "Error",
+            description: "Failed to load coupons",
+            variant: "destructive",
+          });
+        } else {
+          setCoupons(data || []);
+        }
+      } catch (error) {
+        console.error("Error fetching coupons:", error);
+      } finally {
+        setLoadingCoupons(false);
+      }
+    }
+
+    fetchCoupons();
   }, [event.event_id, toast]);
 
   const handlePaidToggle = async (checked: boolean) => {
@@ -170,6 +204,89 @@ export function PricingTab({
         description: "Failed to add pricing tier",
         variant: "destructive",
       });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const addCoupon = async () => {
+    const newCode = `NEWCODE-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+    const newCoupon: Partial<Coupon> = {
+      event_id: event.event_id,
+      code: newCode,
+      percent_off: 10,
+      amount_off: undefined,
+      max_redemptions: null,
+      expires_at: null,
+      is_active: true,
+    };
+
+    setSaving(true);
+    try {
+      const { data, error } = await supabase
+        .from("coupons")
+        .insert([newCoupon])
+        .select("*")
+        .single();
+
+      if (error) throw error;
+
+      setCoupons([data, ...coupons]);
+      toast({ title: "Success", description: "New coupon added" });
+    } catch (error) {
+      console.error("Error adding coupon:", error);
+      toast({ title: "Error", description: "Failed to add coupon", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const updateCoupon = async (index: number, updates: Partial<Coupon>) => {
+    const coupon = coupons[index];
+    if (!coupon.id) return;
+
+    const updatedCoupons = coupons.map((c, i) => (i === index ? { ...c, ...updates } : c));
+    setCoupons(updatedCoupons);
+
+    try {
+      const { error } = await supabase
+        .from("coupons")
+        .update({
+          ...updates,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", coupon.id);
+
+      if (error) {
+        console.error("Error updating coupon:", error);
+        setCoupons(coupons);
+        toast({ title: "Error", description: "Failed to update coupon", variant: "destructive" });
+      }
+    } catch (error) {
+      console.error("Error updating coupon:", error);
+      setCoupons(coupons);
+    }
+  };
+
+  const removeCoupon = async (index: number) => {
+    const coupon = coupons[index];
+    if (!coupon.id) return;
+
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from("coupons")
+        .delete()
+        .eq("id", coupon.id);
+
+      if (error) throw error;
+
+      const updated = coupons.filter((_, i) => i !== index);
+      setCoupons(updated);
+      toast({ title: "Success", description: "Coupon removed" });
+    } catch (error) {
+      console.error("Error removing coupon:", error);
+      toast({ title: "Error", description: "Failed to remove coupon", variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -470,6 +587,133 @@ export function PricingTab({
             >
               <Plus className="h-4 w-4 mr-2" />
               Add Pricing Tier
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Coupons Configuration */}
+      {event.paid && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              Coupons
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {loadingCoupons ? (
+              <div className="text-center py-8 text-gray-500">
+                <p>Loading coupons...</p>
+              </div>
+            ) : coupons.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <p>No coupons configured</p>
+                <p className="text-sm">Add your first coupon to offer discounts</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {coupons.map((coupon, index) => (
+                  <Card key={coupon.id} className="relative">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-lg">Coupon {coupons.length - index}</CardTitle>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => removeCoupon(index)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>Code</Label>
+                          <Input
+                            value={coupon.code}
+                            onChange={(e) => updateCoupon(index, { code: e.target.value })}
+                            placeholder="e.g., EARLYBIRD, VIP20"
+                          />
+                          <p className="text-xs text-gray-500">Unique per event, not case-sensitive.</p>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Status</Label>
+                          <div className="flex items-center gap-2">
+                            <Switch
+                              id={`coupon-active-${index}`}
+                              checked={coupon.is_active ?? true}
+                              onCheckedChange={(checked) => updateCoupon(index, { is_active: checked })}
+                            />
+                            <Label htmlFor={`coupon-active-${index}`}>{(coupon.is_active ?? true) ? "Active" : "Inactive"}</Label>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>Percent Off</Label>
+                          <Input
+                            type="number"
+                            min="1"
+                            max="100"
+                            value={coupon.percent_off ?? ""}
+                            onChange={(e) => updateCoupon(index, { percent_off: e.target.value ? Math.min(100, Math.max(1, parseInt(e.target.value))) : null, amount_off: null })}
+                            placeholder="e.g., 20 for 20%"
+                          />
+                          <p className="text-xs text-gray-500">Set either Percent Off or Amount Off, not both.</p>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Amount Off (USD)</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={coupon.amount_off != null ? (coupon.amount_off / 100).toFixed(2) : ""}
+                            onChange={(e) => updateCoupon(index, { amount_off: e.target.value ? Math.round(parseFloat(e.target.value) * 100) : null, percent_off: null })}
+                            placeholder="e.g., 10.00"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>Max Redemptions</Label>
+                          <Input
+                            type="number"
+                            min="1"
+                            value={coupon.max_redemptions ?? ""}
+                            onChange={(e) => updateCoupon(index, { max_redemptions: e.target.value ? parseInt(e.target.value) : null })}
+                            placeholder="Unlimited"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Expires At (Optional)</Label>
+                          <Input
+                            type="datetime-local"
+                            value={coupon.expires_at ? new Date(coupon.expires_at).toISOString().slice(0, 16) : ""}
+                            onChange={(e) => updateCoupon(index, { expires_at: e.target.value ? new Date(e.target.value).toISOString() : null })}
+                          />
+                          <p className="text-xs text-gray-500">Coupons automatically become invalid after the event ends.</p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="space-y-1">
+                          <Label>Usage</Label>
+                          <div className="text-sm text-gray-700">{coupon.usage_count ?? 0}{coupon.max_redemptions ? ` / ${coupon.max_redemptions}` : ""} used</div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+
+            <Button onClick={addCoupon} variant="outline" className="w-full">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Coupon
             </Button>
           </CardContent>
         </Card>

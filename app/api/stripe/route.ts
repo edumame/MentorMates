@@ -113,7 +113,7 @@ async function handleEvent(event: Stripe.Event) {
       })
       .eq("stripe_customer_id", stripeCustomerId.customer)
       .eq("stripe_session_id", stripeCheckoutSessionId.id)
-      .select("id, event_id, user_id, pricing_id")
+      .select("id, event_id, user_id, pricing_id, coupon_id")
       .single();
 
     if (!userEventPayment) {
@@ -144,6 +144,15 @@ async function handleEvent(event: Stripe.Event) {
 
     if (!tickets) {
       throw new Error("Failed to create tickets");
+    }
+
+    // Increment coupon usage if applied
+    if (userEventPayment.coupon_id) {
+      try {
+        await supabase.rpc("increment_coupon_usage", { p_coupon_id: userEventPayment.coupon_id });
+      } catch (err) {
+        console.error("Failed to increment coupon usage:", err);
+      }
     }
 
     try {

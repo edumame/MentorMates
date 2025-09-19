@@ -66,6 +66,7 @@ export function JoinEventButton({
     useState<string>("");
   const [showPricingTiers, setShowPricingTiers] = useState(false);
   const [isFull, setIsFull] = useState(false);
+  const [couponCode, setCouponCode] = useState<string>("");
 
   useEffect(() => {
     async function init() {
@@ -196,6 +197,7 @@ export function JoinEventButton({
           password: showPasswordInput ? password : undefined,
           userId: session.user.id,
           pricingTierId: selectedPricingTierId,
+          couponCode: couponCode || undefined,
         })
       );
 
@@ -205,6 +207,7 @@ export function JoinEventButton({
         eventSlug: event?.slug || eventId,
         eventName: event?.event_name || eventName,
         pricingTierId: selectedPricingTierId,
+        ...(couponCode ? { couponCode } : {}),
       });
 
       router.push(`/checkout?${searchParams.toString()}`);
@@ -368,6 +371,8 @@ export function JoinEventButton({
                 onTierSelect={setSelectedPricingTierId}
                 onContinue={handlePricingTierContinue}
                 isLoading={isLoading}
+                couponCode={couponCode}
+                onCouponCodeChange={setCouponCode}
               />
             </div>
           ) : (
