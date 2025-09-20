@@ -199,10 +199,10 @@ export function Featured() {
 
   if (loading) {
     return (
-      <section className="w-full py-16 bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+      <section className="w-full py-12 sm:py-16 bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
         <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-10">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-2">
+            <h2 className="text-3xl md:text-4xl font-semibold text-gray-900 dark:text-white mb-2">
               Featured Events
             </h2>
             <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
@@ -240,7 +240,7 @@ export function Featured() {
     <section className="w-full py-16 bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
       <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-10">
         <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-2">
+          <h2 className="text-3xl md:text-4xl font-semibold text-gray-900 dark:text-white mb-2">
             Featured Events
           </h2>
           {error && (
