@@ -33,12 +33,12 @@ export function Hero() {
     <div className="relative flex flex-col overflow-hidden bg-artistic">
       <div className="flex items-center justify-center px-4 sm:px-6">
         <div className="relative text-center max-w-4xl w-full">
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold mb-4 sm:mb-6 flex items-center justify-center">
+          <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold mb-4 sm:mb-6 flex items-center justify-center font-geist tracking-[-0.06em]">
             <span className="flex items-center gap-1 bg-clip-text text-transparent bg-gradient-to-r from-blue-900 to-blue-300">
               Mentor Mates
             </span>
           </h1>
-          <h2 className="text-xl sm:text-2xl text-gray-800 mb-4 sm:mb-6">
+          <h2 className="text-xl sm:text-2xl text-gray-800 mb-4 sm:mb-6 font-geist tracking-[-0.06em]">
             Welcome back, {userName}!
           </h2>
           <TextGenerateEffect

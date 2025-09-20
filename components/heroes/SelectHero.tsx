@@ -37,7 +37,9 @@ export function SelectHero() {
   return (
     <div className="min-h-[80vh] flex items-center justify-center bg-artistic py-2 overflow-hidden">
       <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 py-4 text-center">
-        <h1 className="text-4xl font-bold text-blue-900">Choose Your Role</h1>
+        <h1 className="text-4xl font-bold text-blue-900 font-geist tracking-[-0.06em]">
+          Choose Your Role
+        </h1>
         <div className="space-y-4">
           <p className="text-xl text-gray-700 mb-8">
             Are you participating in the event or helping to mentor and judge?

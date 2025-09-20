@@ -47,7 +47,7 @@ export function Customer() {
       <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-10">
         {/* Header */}
         <header className="mb-10">
-          <h2 className="text-3xl md:text-5xl font-semibold text-black">
+          <h2 className="text-3xl md:text-5xl font-semibold text-black font-geist tracking-[-0.06em]">
             Customer testimonials
           </h2>
         </header>

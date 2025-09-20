@@ -70,10 +70,16 @@ function pickNearest<T extends { event_date?: string | null }>(
   const now = Date.now();
   const upcoming = withDate
     .filter((e) => Date.parse(e.event_date as string) >= now)
-    .sort((a, b) => Date.parse(a.event_date as string) - Date.parse(b.event_date as string));
+    .sort(
+      (a, b) =>
+        Date.parse(a.event_date as string) - Date.parse(b.event_date as string)
+    );
   const past = withDate
     .filter((e) => Date.parse(e.event_date as string) < now)
-    .sort((a, b) => Date.parse(b.event_date as string) - Date.parse(a.event_date as string));
+    .sort(
+      (a, b) =>
+        Date.parse(b.event_date as string) - Date.parse(a.event_date as string)
+    );
 
   const result: T[] = [];
   for (const e of upcoming) {
@@ -118,7 +124,10 @@ export function Featured() {
           return {
             id,
             title: e.event_name ?? "Untitled Event",
-            description: e.event_blurb ?? e.event_description ?? "No description available",
+            description:
+              e.event_blurb ??
+              e.event_description ??
+              "No description available",
             dateISO,
             dateLabel: fmtDate(dateISO),
             location: e.location ?? "Online",
@@ -149,7 +158,7 @@ export function Featured() {
       <section className="w-full py-12 sm:py-16">
         <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-10">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-semibold text-gray-900 dark:text-white mb-2">
+            <h2 className="text-3xl md:text-4xl font-semibold text-gray-900 dark:text-white mb-2 font-geist tracking-[-0.06em]">
               Featured Events
             </h2>
             <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
@@ -184,10 +193,14 @@ export function Featured() {
     <section className="w-full py-12">
       <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-10">
         <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-semibold text-gray-900 dark:text-white mb-2">
+          <h2 className="text-3xl md:text-4xl font-semibold text-gray-900 dark:text-white mb-2 font-geist tracking-[-0.06em]">
             Featured Events
           </h2>
-          {error && <p className="text-sm text-red-600 dark:text-red-400 mt-2">{error}</p>}
+          {error && (
+            <p className="text-sm text-red-600 dark:text-red-400 mt-2">
+              {error}
+            </p>
+          )}
         </div>
 
         {events.length === 0 ? (
@@ -213,8 +226,12 @@ export function Featured() {
                       const { dow, day, monYear } = getDateParts(e.dateISO);
                       return (
                         <div className="absolute right-4 top-4 rounded-2xl bg-white text-gray-900 shadow-md px-3 py-2 grid place-items-center leading-tight">
-                          <div className="text-xs font-medium">{dow || "TBD"}</div>
-                          <div className="text-3xl font-bold -my-1">{day || "--"}</div>
+                          <div className="text-xs font-medium">
+                            {dow || "TBD"}
+                          </div>
+                          <div className="text-3xl font-bold -my-1">
+                            {day || "--"}
+                          </div>
                           <div className="text-[11px]">{monYear || ""}</div>
                         </div>
                       );
@@ -234,7 +251,7 @@ export function Featured() {
                   </div>
 
                   <div className="px-5 pb-5 pt-3">
-                    <h3 className="text-xl font-semibold tracking-tight text-gray-900 dark:text-white">
+                    <h3 className="text-xl font-semibold tracking-tight text-gray-900 dark:text-white font-geist tracking-[-0.06em]">
                       {e.title}
                     </h3>
                     <div className="mt-1 text-sm text-gray-500 dark:text-gray-400">
