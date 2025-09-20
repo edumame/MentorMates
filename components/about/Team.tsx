@@ -9,37 +9,37 @@ export function Team() {
     {
       name: "Chinat Yu",
       title: "CEO & Founder",
-      image: "/img/Chinat.png",
+      image: "/team/Chinat.png",
       linkedin: "https://www.linkedin.com/in/chinat-yu/",
     },
     {
       name: "Kristen Blair",
       title: "Faculty Advisor",
-      image: "/img/Kristen.png",
+      image: "/team/Kristen.png",
       linkedin: "https://www.linkedin.com/in/kristen-blair-33454311/",
     },
     {
       name: "Glenn Fajardo",
       title: "Faculty Advisor",
-      image: "/img/Glenn.png",
+      image: "/team/Glenn.png",
       linkedin: "https://www.linkedin.com/in/glenn-fajardo-532174143/",
     },
     {
       name: "Chris Piech",
       title: "Faculty Advisor",
-      image: "/img/ChrisPiech.jpg",
+      image: "/team/ChrisPiech.jpg",
       linkedin: "https://www.linkedin.com/in/chris-piech-45678901/",
     },
     {
       name: "Aurelia Sindhunirmala",
       title: "Research Intern",
-      image: "/img/Lia.png",
+      image: "/team/Lia.png",
       linkedin: "https://www.linkedin.com/in/aurelia-sindhunirmala/",
     },
     {
       name: "Jeffery Zhou",
       title: "Research Intern",
-      image: "/img/Jeffery.png",
+      image: "/team/Jeffery.png",
       linkedin: "https://www.linkedin.com/in/jeffery-zhou-b8523816a/",
     },
   ];
