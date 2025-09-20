@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-
+import { Button } from "@/components/ui/button";
 // keep stats stable so the effect deps don't thrash
 const STATS = [
     { value: "95%", label: "Satisfaction Rate" },
@@ -54,7 +54,7 @@ export function Impact() {
             <div className="space-y-6">
                 <div className="space-y-4">
                 <p className="text-sm font-medium tracking-wide">Our Impact</p>
-                <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 leading-tight">
+                <h2 className="text-3xl sm:text-4xl lg:text-5xl font-semibold text-gray-900 leading-tight">
                     Transforming Ideas into Reality
                 </h2>
                 <p className="text-base sm:text-md leading-relaxed">
@@ -64,9 +64,9 @@ export function Impact() {
                 </p>
                 </div>
 
-                <button className="bg-[#4B89EF] text-white px-6 py-3 rounded-lg font-semibold text-sm hover:bg-blue-700 transition-colors">
+                <Button variant="default" className="px-6 py-3 rounded-lg font-semibold text-sm">
                 Get Started
-                </button>
+                </Button>
             </div>
 
             {/* Right - Stats */}

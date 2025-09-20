@@ -2,14 +2,19 @@
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Instagram, Facebook, Twitter, Linkedin, Youtube } from "lucide-react";
+import FacebookIcon from "@mui/icons-material/Facebook";
+import InstagramIcon from "@mui/icons-material/Instagram";
+import XIcon from "@mui/icons-material/X"; // Twitter/X
+import LinkedInIcon from "@mui/icons-material/LinkedIn";
+import YouTubeIcon from "@mui/icons-material/YouTube";
+import { Button } from "@/components/ui/button";
 
 export function Footer() {
     return (
         <footer className="w-full bg-white">
         <div className="mx-auto w-full max-w-8xl px-4 md:px-10 lg:px-24 py-8 md:py-12">
             {/* Card */}
-            <div className="rounded-xl border border-gray-200 p-6 md:p-10">
+            <div className="rounded-xl border border-gray-200 p-[32px] md:p-[64px]">
             <div className="grid grid-cols-1 gap-10 md:grid-cols-2">
                 {/* Brand + newsletter */}
                 <div className="text-center md:text-left">
@@ -34,12 +39,11 @@ export function Footer() {
                     placeholder="Enter your email"
                     className="h-11 w-full rounded-md border border-gray-300 px-4 text-sm outline-none focus:border-gray-400"
                     />
-                    <button
-                    type="button"
-                    className="h-11 rounded-md bg-gray-200 px-4 text-sm font-medium text-gray-800 hover:bg-gray-300"
+                    <Button
+                        variant="defaultGray"
                     >
                     Subscribe
-                    </button>
+                    </Button>
                 </form>
 
                 <p className="mt-3 text-xs text-gray-500">
@@ -51,7 +55,7 @@ export function Footer() {
                 </p>
                 </div>
 
-                {/* Links: three columns on sm+, stacked with dividers on mobile */}
+                {/* Links */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 sm:gap-0 text-left">
                 <div className="py-6 sm:py-0">
                     <p className="text-sm font-semibold text-gray-900">Hackathons</p>
@@ -116,22 +120,42 @@ export function Footer() {
 
             {/* Bottom bar */}
             <div className="mt-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-t border-transparent pt-0">
-            {/* Socials first on mobile, right-aligned on desktop */}
+            {/* Socials */}
             <div className="order-1 md:order-2 flex items-center gap-5 text-gray-700 justify-start md:justify-end">
-                <Link href="https://facebook.com" aria-label="Facebook" className="hover:text-black">
-                    <Facebook className="h-5 w-5" />
+                <Link
+                href="https://facebook.com"
+                aria-label="Facebook"
+                className="hover:text-black"
+                >
+                <FacebookIcon fontSize="medium" />
                 </Link>
-                <Link href="https://instagram.com" aria-label="Instagram" className="hover:text-black">
-                    <Instagram className="h-5 w-5" />
+                <Link
+                href="https://instagram.com"
+                aria-label="Instagram"
+                className="hover:text-black"
+                >
+                <InstagramIcon fontSize="medium" />
                 </Link>
-                <Link href="https://x.com" aria-label="X" className="hover:text-black">
-                    <Twitter className="h-5 w-5" />
+                <Link
+                href="https://x.com"
+                aria-label="X"
+                className="hover:text-black"
+                >
+                <XIcon fontSize="medium" />
                 </Link>
-                <Link href="https://linkedin.com" aria-label="LinkedIn" className="hover:text-black">
-                    <Linkedin className="h-5 w-5" />
+                <Link
+                href="https://linkedin.com"
+                aria-label="LinkedIn"
+                className="hover:text-black"
+                >
+                <LinkedInIcon fontSize="medium" />
                 </Link>
-                <Link href="https://youtube.com" aria-label="YouTube" className="hover:text-black">
-                    <Youtube className="h-5 w-5" />
+                <Link
+                href="https://youtube.com"
+                aria-label="YouTube"
+                className="hover:text-black"
+                >
+                <YouTubeIcon fontSize="medium" />
                 </Link>
             </div>
 

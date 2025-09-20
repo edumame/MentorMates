@@ -8,123 +8,116 @@ export function Customer() {
       id: 1,
       rating: 5,
       quote:
-        "These young entrepreneurs will thrive if they have the 'meta AI competency' mindset as early on as their high school age. Also, I am hoping that they will generate unique foundational questions that will lead to learning, change, and innovation.",
+        "Those young entrepreneurs will thrive if they have the “meta AI competency” which I coined at the SXSW a few years ago. Also, I am hoping that they will generate unique foundational questions that will lead to learning, change, and innovation.",
       author: "Paul Kim",
-      title: "Former Associate Dean, Stanford Graduate School of Education",
+      title:
+        "Former Associate Dean, Stanford Graduate School of Education",
       avatar: "/testimonials/paul.png",
       logo: "/testimonials/stanfordedu.png",
+      logoWidth: 117,
+      logoHeight: 66,
     },
     {
       id: 2,
       rating: 5,
       quote:
-        "This Hackathon provided invaluable insight - especially bridging the stigma of AI/Technology and providing foundational knowledge for these competitions.",
-      author: "Peter Song",
+        "This Hackathon provided invaluable insight – especially bridging the stigma of how you need crazy computer science knowledge for these competitions.",
+      author: "Elina Les",
       title: "Participant, Hong Kong",
       avatar: "/testimonials/avatarFallback.png",
+      logo: undefined,
+      logoWidth: 220,
+      logoHeight: 48,
     },
     {
       id: 3,
       rating: 5,
       quote:
-        "I've been to a LOT of hackathons, both as a judge and as a hacker. And all the speakers were excellent and brought creativity and efficiency I'd never seen before. These days were super enjoyable and responsive to feedback. They know how to ask the right questions better; looking forward to their next exciting things.",
+        "I've been to a LOT of hackathons, both as a judge and as a hacker. And at the MentorMates hackathon, I saw a level of creativity and efficiency I'd never seen before. These devs were super pragmatic and responsive to feedback. They knew how to ask the right questions before rolling up their sleeves and getting things done.",
       author: "Quincy Larson",
-      title: "Founder & Teacher, FreeCodeCamp.org",
+      title: "Founder & Teacher, freeCodeCamp.org",
       avatar: "/testimonials/quincy.png",
-      logo: "/testimonials/freecode.png",
+      logo: "/testimonials/freecode.png", 
+      logoWidth: 189,
+      logoHeight: 21,
     },
   ];
 
-  const renderStars = (rating: number) => {
-    return Array.from({ length: 5 }, (_, i) => (
-      <span
-        key={i}
-        className={`text-md ${i < rating ? "text-[#944524]" : "text-gray-300"}`}
-      >
-        ★
-      </span>
-    ));
-  };
-
   return (
-    <div className="w-full bg-white py-8 sm:py-12 lg:py-16">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10">
+    <section className="w-full bg-white py-12 sm:py-16 lg:py-20">
+      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-10">
         {/* Header */}
-        <div className="text-left mb-8 sm:mb-12 lg:mb-16">
-          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-4">
+        <header className="mb-10">
+          <h2 className="text-3xl md:text-5xl font-semibold text-black">
             Customer testimonials
           </h2>
-        </div>
+        </header>
 
-        {/* Testimonials Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
-          {testimonials.map((testimonial) => (
-            <div key={testimonial.id} className="p-4">
-              {/* Star Rating */}
-              <div className="flex items-center mb-3 sm:mb-4">
-                {renderStars(testimonial.rating)}
+        {/* Testimonials */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 lg:gap-12">
+          {testimonials.map((t) => (
+            <article key={t.id} className="max-w-none">
+              {/* Stars */}
+              <div className="flex gap-1 mb-4 text-[#B65A2B]">
+                {"★★★★★".split("").map((s, i) => (
+                  <span key={i} className="text-lg md:text-xl leading-none">
+                    {s}
+                  </span>
+                ))}
               </div>
 
               {/* Quote */}
-              <blockquote className="text-gray-700 text-sm sm:text-base leading-relaxed mb-4 sm:mb-6">
-                &ldquo;{testimonial.quote}&rdquo;
+              <blockquote className="text-black text-[16px] md:text-[18px] lg:text-[20px] leading-7">
+                “{t.quote}”
               </blockquote>
 
-              {/* Author Info */}
-              <div className="flex items-start gap-3">
-                {/* Avatar */}
-                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gray-200 flex-shrink-0 overflow-hidden">
-                  {testimonial.avatar ? (
+              {/* Author col */}
+              <div className="mt-6 flex flex-col items-left gap-3">
+                <div className="w-10 h-10 md:w-12 md:h-12 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center shrink-0">
+                  {t.avatar ? (
                     <Image
-                      src={testimonial.avatar}
-                      alt={`${testimonial.author} avatar`}
-                      width={40}
-                      height={40}
+                      src={t.avatar}
+                      alt={`${t.author} avatar`}
+                      width={48}
+                      height={48}
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center">
-                      <span className="text-white font-semibold text-xs sm:text-sm">
-                        {testimonial.author
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")}
-                      </span>
-                    </div>
+                    <span className="text-sm font-semibold text-white">
+                      {t.author
+                        .split(" ")
+                        .map((n) => n[0])
+                        .join("")}
+                    </span>
                   )}
                 </div>
 
-                {/* Author Details */}
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-gray-900 text-sm sm:text-base">
-                    {testimonial.author}
+                <div className="min-w-0">
+                  <p className="text-sm md:text-base font-semibold text-gray-900">
+                    {t.author}
                   </p>
-                  <p className="text-gray-600 text-xs sm:text-sm">
-                    {testimonial.title}
+                  <p className="text-xs md:text-sm text-gray-600">
+                    {t.title}
                   </p>
                 </div>
               </div>
 
-              {/* Company Logo */}
-              {testimonial.logo && (
-                <div className="mt-3 sm:mt-4 pt-3 sm:pt-4">
-                  <div className="flex items-center">
-                    <div className="h-4 sm:h-6 flex items-center">
-                      <Image
-                        src={testimonial.logo}
-                        alt={`${testimonial.author} company logo`}
-                        width={200}
-                        height={200}
-                        className="w-auto object-contain"
-                      />
-                    </div>
-                  </div>
+              {/* Logo (optional) */}
+              {t.logo && (
+                <div className="mt-4 md:mt-6">
+                  <Image
+                    src={t.logo}
+                    alt={`${t.author} organization`}
+                    width={t.logoWidth || 220}
+                    height={t.logoHeight || 48}
+                    className="h-6 md:h-8 w-auto object-contain"
+                  />
                 </div>
               )}
-            </div>
+            </article>
           ))}
         </div>
       </div>
-    </div>
+    </section>
   );
 }

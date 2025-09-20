@@ -96,10 +96,7 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
 
         if (
           !roleData ||
-          !canAccessRole(
-            roleData.role as EventRole,
-            EventRole.Organizer
-          )
+          !canAccessRole(roleData.role as EventRole, EventRole.Organizer)
         ) {
           toast({
             title: "Error",

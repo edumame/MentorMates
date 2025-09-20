@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import type { Session } from "@supabase/supabase-js";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Menu, X } from "lucide-react";
+import { Menu, Close } from "@mui/icons-material";
 
 export function AuthNavbar() {
   const router = useRouter();
@@ -119,7 +119,11 @@ export function AuthNavbar() {
             onClick={() => setIsOpen((o) => !o)}
             className="p-2 rounded-md hover:bg-gray-200 flex md:hidden"
           >
-            {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            {isOpen ? (
+              <Close className="h-5 w-5" />
+            ) : (
+              <Menu className="h-5 w-5" />
+            )}
           </button>
         </div>
       </nav>

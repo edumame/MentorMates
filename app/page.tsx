@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { ServiceWorkerRegistration } from "@/components/utils/ServiceWorkerRegistration";
 import { LandingHero } from "@/components/heroes/LandingHero";
 import { Footer } from "@/components/layout/Footer";
-import { Calendar, Folder, MessageSquare } from "lucide-react";
+import { CalendarToday, Folder, Message } from "@mui/icons-material";
 
 export default function HomePage() {
   const [session, setSession] = useState<Session | null>(null);
@@ -152,7 +152,7 @@ export default function HomePage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 px-4">
             <div className="bg-white shadow rounded-lg p-6 flex flex-col">
               <div className="flex items-center mb-4">
-                <Calendar className="w-8 h-8 text-blue-900 mr-2" />
+                <CalendarToday className="w-8 h-8 text-blue-900 mr-2" />
                 <h2 className="text-xl font-bold text-blue-900">Events</h2>
               </div>
               <p className="text-gray-600 text-sm sm:text-base mb-4">
@@ -182,7 +182,7 @@ export default function HomePage() {
 
             <div className="bg-white shadow rounded-lg p-6 flex flex-col">
               <div className="flex items-center mb-4">
-                <MessageSquare className="w-8 h-8 text-blue-900 mr-2" />
+                <Message className="w-8 h-8 text-blue-900 mr-2" />
                 <h2 className="text-xl font-bold text-blue-900">Feedback</h2>
               </div>
               <p className="text-gray-600 text-sm sm:text-base mb-4">

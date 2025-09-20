@@ -4,7 +4,7 @@ import { HackathonNav } from "@/components/layout/Hackathon-nav";
 import { Badge } from "@/components/ui/badge";
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ExpandMore, ExpandLess } from "@mui/icons-material";
 
 export interface EventHeaderProps {
   eventName: string;
@@ -33,11 +33,11 @@ export function EventHeader({
 
   const isSubmissionOpen = () => {
     if (!submissionTimeStart || !submissionTimeCutoff) return false;
-    
+
     const now = new Date();
     const start = new Date(submissionTimeStart);
     const end = new Date(submissionTimeCutoff);
-    
+
     return now >= start && now <= end;
   };
 
@@ -46,19 +46,21 @@ export function EventHeader({
       // Temporarily remove line-clamp to measure natural height
       const element = contentRef.current;
       const originalClassName = element.className;
-      
+
       // Remove line-clamp classes to measure full content
-      element.className = element.className.replace(/line-clamp-\d+|overflow-hidden/g, '').trim();
-      
+      element.className = element.className
+        .replace(/line-clamp-\d+|overflow-hidden/g, "")
+        .trim();
+
       const fullHeight = element.scrollHeight;
-      
+
       // Restore original classes
       element.className = originalClassName;
-      
+
       // Calculate approximate height of 3 lines
       const lineHeight = parseInt(getComputedStyle(element).lineHeight);
       const approximateThreeLineHeight = lineHeight * 2;
-      
+
       setNeedsTruncation(fullHeight > approximateThreeLineHeight);
     }
   }, [description, isExpanded]);
@@ -106,12 +108,14 @@ export function EventHeader({
             <Badge
               variant="secondary"
               className={`${
-                isSubmissionOpen() 
-                  ? "bg-green-500/20 text-green-300" 
+                isSubmissionOpen()
+                  ? "bg-green-500/20 text-green-300"
                   : "bg-red-500/20 text-red-300"
               } border-none text-xs sm:text-sm`}
             >
-              {isSubmissionOpen() ? "OPEN FOR SUBMISSION" : "CLOSED FOR SUBMISSION"}
+              {isSubmissionOpen()
+                ? "OPEN FOR SUBMISSION"
+                : "CLOSED FOR SUBMISSION"}
             </Badge>
           )}
         </div>
@@ -120,9 +124,7 @@ export function EventHeader({
             <p
               ref={contentRef}
               className={`text-white/80 text-sm sm:text-base max-w-3xl ${
-                isExpanded 
-                  ? "" 
-                  : "line-clamp-2 overflow-hidden"
+                isExpanded ? "" : "line-clamp-2 overflow-hidden"
               }`}
             >
               {description}
@@ -137,12 +139,12 @@ export function EventHeader({
                 {isExpanded ? (
                   <>
                     Show less{" "}
-                    <ChevronUp className="ml-1 h-3 w-3 sm:h-4 sm:w-4" />
+                    <ExpandLess className="ml-1 h-3 w-3 sm:h-4 sm:w-4" />
                   </>
                 ) : (
                   <>
                     Show more{" "}
-                    <ChevronDown className="ml-1 h-3 w-3 sm:h-4 sm:w-4" />
+                    <ExpandMore className="ml-1 h-3 w-3 sm:h-4 sm:w-4" />
                   </>
                 )}
               </Button>

@@ -84,7 +84,7 @@ export function Navbar() {
               Projects
             </Link>
             <Link
-              href="/events"
+              href="/services"
               className="text-base font-medium text-gray-700 hover:text-blue-600"
             >
               Host a hackathon
@@ -116,9 +116,6 @@ export function Navbar() {
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link href="/blog">Blog</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/services">Services</Link>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -155,7 +152,7 @@ export function Navbar() {
             ) : (
               <>
                 <Button
-                  variant="outline"
+                  variant="defaultGray"
                   className="px-4 py-4 rounded-xl text-base"
                   onClick={handleLoginClick}
                 >
@@ -223,7 +220,7 @@ export function Navbar() {
               Projects
             </Link>
             <Link
-              href="/events"
+              href="/services"
               className="block py-4 text-lg font-medium text-black hover:text-blue-600"
             >
               Host a hackathon
@@ -270,12 +267,6 @@ export function Navbar() {
                   className="block py-3 text-base font-normal text-black hover:text-blue-600"
                 >
                   Blog
-                </Link>
-                <Link
-                  href="/services"
-                  className="block py-3 text-base font-normal text-black hover:text-blue-600"
-                >
-                  Services
                 </Link>
               </div>
             </div>

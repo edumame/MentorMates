@@ -5,15 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  TrashIcon,
-  PlusIcon,
-} from "lucide-react";
-import {
-  EventScoringConfig,
-  ScoringCriterion,
-  EventTrack,
-} from "@/lib/types";
+import { TrashIcon, PlusIcon } from "lucide-react";
+import { EventScoringConfig, ScoringCriterion, EventTrack } from "@/lib/types";
 import { defaultCriteria } from "@/lib/config/constants";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/lib/hooks/use-toast";
@@ -29,7 +22,7 @@ interface ScoringConfigFormProps {
   initialConfig?: EventScoringConfig | null;
   onSave: (config: EventScoringConfig) => void;
   isSubmitting?: boolean;
-  tracks?: EventTrack[]; 
+  tracks?: EventTrack[];
 }
 
 export function ScoringConfigForm({
@@ -110,22 +103,19 @@ export function ScoringConfigForm({
         type: "numeric",
         weight: prev.defaultWeight,
         min: prev.defaultMin,
-        max: prev.defaultMax
+        max: prev.defaultMax,
       };
-      
+
       // Sanitize based on criterion type
       const sanitizedCriterion = sanitizeCriterion(baseCriterion);
-      
+
       return {
         ...prev,
         tracks: {
           ...prev.tracks,
           [trackId]: {
             ...prev.tracks[trackId],
-            criteria: [
-              ...prev.tracks[trackId].criteria,
-              sanitizedCriterion
-            ],
+            criteria: [...prev.tracks[trackId].criteria, sanitizedCriterion],
           },
         },
       };
@@ -155,13 +145,13 @@ export function ScoringConfigForm({
     setConfig((prev) => {
       const currentCriterion = prev.tracks[trackId].criteria[criterionIndex];
       const updatedCriterion = { ...currentCriterion, ...updates };
-      
+
       // Only sanitize when type changes or when specific properties need sanitization
       let finalCriterion = updatedCriterion;
       if (updates.type || updates.options !== undefined) {
         finalCriterion = sanitizeCriterion(updatedCriterion);
       }
-      
+
       return {
         ...prev,
         tracks: {
@@ -176,17 +166,17 @@ export function ScoringConfigForm({
       };
     });
   };
-  
+
   // Function to sanitize criterion properties based on type
   const sanitizeCriterion = (criterion: ScoringCriterion): ScoringCriterion => {
     const { type } = criterion;
     const sanitized = { ...criterion };
-    
+
     if (type === "multiplechoice") {
       // For choice-based criteria, remove numeric scoring properties
       delete sanitized.min;
       delete sanitized.max;
-      
+
       // Ensure options array exists
       if (!sanitized.options || !Array.isArray(sanitized.options)) {
         sanitized.options = [""];
@@ -194,13 +184,13 @@ export function ScoringConfigForm({
     } else if (type === "numeric") {
       // For numeric criteria, remove choice properties
       delete sanitized.options;
-      
+
       // Ensure numeric properties exist
       sanitized.min = sanitized.min ?? config.defaultMin;
       sanitized.max = sanitized.max ?? config.defaultMax;
       sanitized.weight = sanitized.weight ?? config.defaultWeight;
     }
-    
+
     return sanitized;
   };
 
@@ -263,9 +253,7 @@ export function ScoringConfigForm({
             <CardContent className="space-y-4">
               <div className="flex items-center gap-4">
                 <div className="flex-1">
-                  <h3 className="text-lg font-semibold">
-                    Track Name
-                  </h3>
+                  <h3 className="text-lg font-semibold">Track Name</h3>
                   <Input
                     value={track.name}
                     onChange={(e) => {

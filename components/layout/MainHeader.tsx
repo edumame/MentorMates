@@ -1,9 +1,14 @@
-"use client"
+"use client";
 
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { ChevronDown } from "lucide-react"
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ExpandMore } from "@mui/icons-material";
 
 export function MainHeader() {
   return (
@@ -17,7 +22,7 @@ export function MainHeader() {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost">
                 Join a hackathon
-                <ChevronDown className="ml-2 h-4 w-4" />
+                <ExpandMore className="ml-2 h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
@@ -29,7 +34,7 @@ export function MainHeader() {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost">
                 Host a hackathon
-                <ChevronDown className="ml-2 h-4 w-4" />
+                <ExpandMore className="ml-2 h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
@@ -41,7 +46,7 @@ export function MainHeader() {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost">
                 Resources
-                <ChevronDown className="ml-2 h-4 w-4" />
+                <ExpandMore className="ml-2 h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
@@ -52,5 +57,5 @@ export function MainHeader() {
         </div>
       </div>
     </header>
-  )
+  );
 }

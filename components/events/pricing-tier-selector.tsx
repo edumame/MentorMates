@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Check, Clock, Package } from "lucide-react";
+import { Check, AccessTime, Inventory } from "@mui/icons-material";
 import { PricingTier } from "@/lib/types";
 import { formatPrice } from "@/lib/utils/pricing";
 
@@ -103,7 +103,7 @@ export function PricingTierSelector({
                       variant="outline"
                       className="flex items-center gap-1"
                     >
-                      <Clock className="h-3 w-3" />
+                      <AccessTime className="h-3 w-3" />
                       Until {formatAvailableUntil(tier.available_until)}
                     </Badge>
                   )}
@@ -112,7 +112,7 @@ export function PricingTierSelector({
                       variant="outline"
                       className="flex items-center gap-1"
                     >
-                      <Package className="h-3 w-3" />
+                      <Inventory className="h-3 w-3" />
                       {tier.current_quantity || 0}/{tier.max_quantity} sold
                     </Badge>
                   )}

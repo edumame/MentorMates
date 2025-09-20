@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { MessageCircle, Zap } from "lucide-react";
+import { Message, FlashOn } from "@mui/icons-material";
 import Link from "next/link";
 
 interface DiscordCTAProps {
@@ -22,7 +22,7 @@ export function DiscordCTA({
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <MessageCircle className="w-5 h-5 text-blue-900" />
+            <Message className="w-5 h-5 text-blue-900" />
             <div>
               <p className="text-sm font-medium text-blue-900">
                 Join our Discord community
@@ -53,7 +53,7 @@ export function DiscordCTA({
         <div className="text-center">
           <div className="flex justify-center mb-4">
             <div className="bg-white/20 rounded-full p-3">
-              <MessageCircle className="w-8 h-8" />
+              <Message className="w-8 h-8" />
             </div>
           </div>
           <h3 className="text-2xl font-bold mb-2">
@@ -70,13 +70,13 @@ export function DiscordCTA({
                 variant="secondary"
                 className="bg-white text-indigo-600 hover:bg-gray-100 font-semibold"
               >
-                <MessageCircle className="w-5 h-5 mr-2" />
+                <Message className="w-5 h-5 mr-2" />
                 Join Discord
               </Button>
             </Link>
             <div className="flex items-center space-x-4 text-sm opacity-80">
               <div className="flex items-center">
-                <Zap className="w-4 h-4 mr-1" />
+                <FlashOn className="w-4 h-4 mr-1" />
                 <span>24/7 support</span>
               </div>
             </div>
@@ -93,7 +93,7 @@ export function DiscordCTA({
     >
       <div className="flex items-start space-x-4">
         <div className="bg-white/20 rounded-full p-2 flex-shrink-0">
-          <MessageCircle className="w-6 h-6" />
+          <Message className="w-6 h-6" />
         </div>
         <div className="flex-1">
           <h3 className="text-xl font-bold mb-2">
@@ -109,13 +109,13 @@ export function DiscordCTA({
                 variant="secondary"
                 className="bg-white text-indigo-600 hover:bg-gray-100 font-medium"
               >
-                <MessageCircle className="w-4 h-4 mr-2" />
+                <Message className="w-4 h-4 mr-2" />
                 Join Discord
               </Button>
             </Link>
             <div className="flex items-center space-x-4 text-xs opacity-80">
               <div className="flex items-center">
-                <Zap className="w-3 h-3 mr-1" />
+                <FlashOn className="w-3 h-3 mr-1" />
                 <span>24/7 support</span>
               </div>
             </div>

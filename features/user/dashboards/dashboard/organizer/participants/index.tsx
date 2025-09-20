@@ -14,7 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Download } from "lucide-react";
+import { Download } from "@mui/icons-material";
 import { useRouter } from "next/navigation";
 
 interface UserEventRoleWithProfile {

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowForward } from "@mui/icons-material";
 import { Button } from "@/components/ui/button";
 import { Work } from "@/components/heroes/components/Work";
 import { Build } from "@/components/heroes/components/Build";
@@ -91,9 +91,9 @@ export function LandingHero() {
 
             <div className="mt-4 sm:mt-6">
               <Link href="/login" className="inline-block w-full sm:w-auto">
-                <Button className="inline-flex items-center justify-center w-full sm:w-auto rounded-xl px-6 py-3 text-sm sm:text-base font-medium text-white bg-[#4B89EF] hover:bg-[#4B89EF]/90 transition-colors">
+                <Button variant="default">
                   Get started
-                  <ArrowRight
+                  <ArrowForward
                     className="ml-2 h-4 w-4 sm:h-5 sm:w-5"
                     aria-hidden="true"
                   />

@@ -1,5 +1,7 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
+
 export function CTAJoin() {
     return (
         <div className="mx-auto pt-8">
@@ -11,7 +13,7 @@ export function CTAJoin() {
             }}
         >
             <div className="relative z-10 text-center py-16 sm:py-24 px-4 sm:px-8">
-            <h2 className="text-3xl md:text-5xl font-bold text-white mb-4 md:mb-6">
+            <h2 className="text-3xl md:text-5xl font-semibold text-white mb-4 md:mb-6">
                 Join the Innovation Revolution
             </h2>
 
@@ -20,9 +22,9 @@ export function CTAJoin() {
                 information!
             </p>
 
-            <button className="bg-white text-black px-6 sm:px-8 py-2 rounded-lg font-semibold text-sm hover:bg-gray-50 transition-colors shadow-lg">
+            <Button variant="default" className="bg-white text-black hover:bg-gray-50 transition-colors shadow-lg">
                 Get started
-            </button>
+            </Button>
             </div>
 
             {/* Background Pattern */}

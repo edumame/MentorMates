@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Trash2, Plus, DollarSign, Package } from "lucide-react";
+import { Delete, Add, AttachMoney, Inventory } from "@mui/icons-material";
 import { EventDetails, PricingTier } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/lib/hooks/use-toast";
@@ -34,13 +34,15 @@ export function PricingTab({
   useEffect(() => {
     async function fetchPricingTiers() {
       if (!event.event_id) return;
-      
+
       try {
         const { data, error } = await supabase
           .from("pricing_tiers")
-          .select(`
+          .select(
+            `
             *
-          `)
+          `
+          )
           .eq("event_id", event.event_id)
           .order("sort_order", { ascending: true });
 
@@ -66,7 +68,7 @@ export function PricingTab({
 
   const handlePaidToggle = async (checked: boolean) => {
     setEvent({ ...event, paid: checked });
-    
+
     if (!checked) {
       // When making event free, deactivate all pricing tiers
       setSaving(true);
@@ -79,8 +81,10 @@ export function PricingTab({
         if (error) throw error;
 
         // Update local state
-        setPricingTiers(prev => prev.map(tier => ({ ...tier, is_active: false })));
-        
+        setPricingTiers((prev) =>
+          prev.map((tier) => ({ ...tier, is_active: false }))
+        );
+
         // Update event paid status
         const { error: eventError } = await supabase
           .from("events")
@@ -175,7 +179,10 @@ export function PricingTab({
     }
   };
 
-  const updatePricingTier = async (index: number, updates: Partial<PricingTier>) => {
+  const updatePricingTier = async (
+    index: number,
+    updates: Partial<PricingTier>
+  ) => {
     const tier = pricingTiers[index];
     if (!tier.id) return; // Don't update if tier doesn't have an ID
 
@@ -227,7 +234,7 @@ export function PricingTab({
 
       const updatedTiers = pricingTiers.filter((_, i) => i !== index);
       setPricingTiers(updatedTiers);
-      
+
       toast({
         title: "Success",
         description: "Pricing tier removed",
@@ -281,7 +288,7 @@ export function PricingTab({
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <DollarSign className="h-5 w-5" />
+            <AttachMoney className="h-5 w-5" />
             Event Pricing
           </CardTitle>
         </CardHeader>
@@ -295,7 +302,8 @@ export function PricingTab({
             <Label htmlFor="paid-event">This is a paid event</Label>
           </div>
           <p className="text-sm text-gray-600">
-            Toggle this on to set up pricing tiers for your event. Participants will need to pay to join.
+            Toggle this on to set up pricing tiers for your event. Participants
+            will need to pay to join.
           </p>
         </CardContent>
       </Card>
@@ -305,161 +313,179 @@ export function PricingTab({
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Package className="h-5 w-5" />
+              <Inventory className="h-5 w-5" />
               Pricing Tiers
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {loading ? (
               <div className="text-center py-8 text-gray-500">
-                <Package className="h-12 w-12 mx-auto mb-4 opacity-50 animate-pulse" />
+                <Inventory className="h-12 w-12 mx-auto mb-4 opacity-50 animate-pulse" />
                 <p>Loading pricing tiers...</p>
               </div>
-            ) : pricingTiers.filter(tier => tier.is_active !== false).length === 0 ? (
+            ) : pricingTiers.filter((tier) => tier.is_active !== false)
+                .length === 0 ? (
               <div className="text-center py-8 text-gray-500">
-                <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <Inventory className="h-12 w-12 mx-auto mb-4 opacity-50" />
                 <p>No pricing tiers configured</p>
-                <p className="text-sm">Add your first pricing tier to get started</p>
+                <p className="text-sm">
+                  Add your first pricing tier to get started
+                </p>
               </div>
             ) : (
               <div className="space-y-4">
-                {pricingTiers.filter(tier => tier.is_active !== false).map((tier, displayIndex) => {
-                  // Find the actual index in the original array
-                  const actualIndex = pricingTiers.findIndex(t => t.id === tier.id);
-                  return (
-                    <Card key={tier.id} className="relative">
-                      <CardHeader className="pb-3">
-                        <div className="flex items-center justify-between">
-                          <CardTitle className="text-lg">
-                            Tier {displayIndex + 1}
-                          </CardTitle>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => removePricingTier(actualIndex)}
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor={`tier-name-${actualIndex}`}>Tier Name</Label>
-                          <Input
-                            id={`tier-name-${actualIndex}`}
-                            value={tier.name}
-                            onChange={(e) =>
-                              updatePricingTier(actualIndex, { name: e.target.value })
-                            }
-                            placeholder="e.g., Early Bird, Regular, VIP"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor={`tier-price-${actualIndex}`}>
-                            Price (USD)
-                          </Label>
-                          <Input
-                            id={`tier-price-${actualIndex}`}
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={tier.price / 100}
-                            onChange={(e) =>
-                              updatePricingTier(actualIndex, {
-                                price: Math.round(parseFloat(e.target.value) * 100),
-                              })
-                            }
-                            placeholder="0.00"
-                          />
-                        </div>
-                      </div>
+                {pricingTiers
+                  .filter((tier) => tier.is_active !== false)
+                  .map((tier, displayIndex) => {
+                    // Find the actual index in the original array
+                    const actualIndex = pricingTiers.findIndex(
+                      (t) => t.id === tier.id
+                    );
+                    return (
+                      <Card key={tier.id} className="relative">
+                        <CardHeader className="pb-3">
+                          <div className="flex items-center justify-between">
+                            <CardTitle className="text-lg">
+                              Tier {displayIndex + 1}
+                            </CardTitle>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => removePricingTier(actualIndex)}
+                              className="text-red-600 hover:text-red-700"
+                            >
+                              <Delete className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor={`tier-name-${actualIndex}`}>
+                                Tier Name
+                              </Label>
+                              <Input
+                                id={`tier-name-${actualIndex}`}
+                                value={tier.name}
+                                onChange={(e) =>
+                                  updatePricingTier(actualIndex, {
+                                    name: e.target.value,
+                                  })
+                                }
+                                placeholder="e.g., Early Bird, Regular, VIP"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor={`tier-price-${actualIndex}`}>
+                                Price (USD)
+                              </Label>
+                              <Input
+                                id={`tier-price-${actualIndex}`}
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={tier.price / 100}
+                                onChange={(e) =>
+                                  updatePricingTier(actualIndex, {
+                                    price: Math.round(
+                                      parseFloat(e.target.value) * 100
+                                    ),
+                                  })
+                                }
+                                placeholder="0.00"
+                              />
+                            </div>
+                          </div>
 
-                      <div className="space-y-2">
-                        <Label htmlFor={`tier-description-${actualIndex}`}>
-                          Description
-                        </Label>
-                        <Textarea
-                          id={`tier-description-${actualIndex}`}
-                          value={tier.description || ""}
-                          onChange={(e) =>
-                            updatePricingTier(actualIndex, {
-                              description: e.target.value,
-                            })
-                          }
-                          placeholder="Describe what's included in this tier"
-                          rows={2}
-                        />
-                      </div>
+                          <div className="space-y-2">
+                            <Label htmlFor={`tier-description-${actualIndex}`}>
+                              Description
+                            </Label>
+                            <Textarea
+                              id={`tier-description-${actualIndex}`}
+                              value={tier.description || ""}
+                              onChange={(e) =>
+                                updatePricingTier(actualIndex, {
+                                  description: e.target.value,
+                                })
+                              }
+                              placeholder="Describe what's included in this tier"
+                              rows={2}
+                            />
+                          </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor={`tier-available-until-${actualIndex}`}>
-                            Available Until (Optional)
-                          </Label>
-                          <Input
-                            id={`tier-available-until-${actualIndex}`}
-                            type="datetime-local"
-                            value={
-                              tier.available_until
-                                ? new Date(tier.available_until)
-                                    .toISOString()
-                                    .slice(0, 16)
-                                : ""
-                            }
-                            onChange={(e) =>
-                              updatePricingTier(actualIndex, {
-                                available_until: e.target.value
-                                  ? new Date(e.target.value).toISOString()
-                                  : undefined,
-                              })
-                            }
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor={`tier-max-quantity-${actualIndex}`}>
-                            Max Quantity (Optional)
-                          </Label>
-                          <Input
-                            id={`tier-max-quantity-${actualIndex}`}
-                            type="number"
-                            min="1"
-                            value={tier.max_quantity || ""}
-                            onChange={(e) =>
-                              updatePricingTier(actualIndex, {
-                                max_quantity: e.target.value
-                                  ? parseInt(e.target.value)
-                                  : undefined,
-                              })
-                            }
-                            placeholder="Unlimited"
-                          />
-                        </div>
-                      </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label
+                                htmlFor={`tier-available-until-${actualIndex}`}
+                              >
+                                Available Until (Optional)
+                              </Label>
+                              <Input
+                                id={`tier-available-until-${actualIndex}`}
+                                type="datetime-local"
+                                value={
+                                  tier.available_until
+                                    ? new Date(tier.available_until)
+                                        .toISOString()
+                                        .slice(0, 16)
+                                    : ""
+                                }
+                                onChange={(e) =>
+                                  updatePricingTier(actualIndex, {
+                                    available_until: e.target.value
+                                      ? new Date(e.target.value).toISOString()
+                                      : undefined,
+                                  })
+                                }
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label
+                                htmlFor={`tier-max-quantity-${actualIndex}`}
+                              >
+                                Max Quantity (Optional)
+                              </Label>
+                              <Input
+                                id={`tier-max-quantity-${actualIndex}`}
+                                type="number"
+                                min="1"
+                                value={tier.max_quantity || ""}
+                                onChange={(e) =>
+                                  updatePricingTier(actualIndex, {
+                                    max_quantity: e.target.value
+                                      ? parseInt(e.target.value)
+                                      : undefined,
+                                  })
+                                }
+                                placeholder="Unlimited"
+                              />
+                            </div>
+                          </div>
 
-                      <div className="space-y-2">
-                        <Label htmlFor={`tier-stripe-id-${actualIndex}`}>
-                          Stripe Price ID (Optional)
-                        </Label>
-                        <Input
-                          id={`tier-stripe-id-${actualIndex}`}
-                          value={tier.stripe_price_id || ""}
-                          onChange={(e) =>
-                            updatePricingTier(actualIndex, {
-                              stripe_price_id: e.target.value || undefined,
-                            })
-                          }
-                          placeholder="price_1234567890abcdef"
-                        />
-                        <p className="text-xs text-gray-500">
-                          Create a Stripe price in your dashboard and paste the ID here
-                        </p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                  );
-                })}
+                          <div className="space-y-2">
+                            <Label htmlFor={`tier-stripe-id-${actualIndex}`}>
+                              Stripe Price ID (Optional)
+                            </Label>
+                            <Input
+                              id={`tier-stripe-id-${actualIndex}`}
+                              value={tier.stripe_price_id || ""}
+                              onChange={(e) =>
+                                updatePricingTier(actualIndex, {
+                                  stripe_price_id: e.target.value || undefined,
+                                })
+                              }
+                              placeholder="price_1234567890abcdef"
+                            />
+                            <p className="text-xs text-gray-500">
+                              Create a Stripe price in your dashboard and paste
+                              the ID here
+                            </p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
               </div>
             )}
 
@@ -468,18 +494,14 @@ export function PricingTab({
               variant="outline"
               className="w-full"
             >
-              <Plus className="h-4 w-4 mr-2" />
+              <Add className="h-4 w-4 mr-2" />
               Add Pricing Tier
             </Button>
           </CardContent>
         </Card>
       )}
 
-      <Button
-        onClick={handleSave}
-        disabled={saving}
-        className="w-full"
-      >
+      <Button onClick={handleSave} disabled={saving} className="w-full">
         {saving ? "Saving..." : "Save Pricing Configuration"}
       </Button>
     </div>
