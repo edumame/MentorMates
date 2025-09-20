@@ -12,12 +12,12 @@ import { Button } from "@/components/ui/button";
 export function Footer() {
     return (
         <footer className="w-full bg-white">
-        <div className="mx-auto w-full max-w-8xl px-4 md:px-10 lg:px-24 py-8 md:py-12">
+        <div className="mx-auto w-full max-w-8xl px-4 md:px-10 lg:px-24 py-20">
             {/* Card */}
-            <div className="rounded-xl border border-gray-200 p-[32px] md:p-[64px]">
-            <div className="grid grid-cols-1 gap-10 md:grid-cols-2">
+            <div className="rounded-xl border border-gray-200 px-[24px] md:p-[64px]">
+            <div className="grid grid-cols-1 justify-around gap-10 md:grid-cols-2 py-12">
                 {/* Brand + newsletter */}
-                <div className="text-center md:text-left">
+                <div className="text-center md:text-left justify-center">
                 <div className="flex justify-center md:justify-start items-center gap-2">
                     <Image
                     src="/mentormate.png"
@@ -40,7 +40,7 @@ export function Footer() {
                     className="h-11 w-full rounded-md border border-gray-300 px-4 text-sm outline-none focus:border-gray-400"
                     />
                     <Button
-                        variant="defaultGray"
+                    variant="defaultGray"
                     >
                     Subscribe
                     </Button>
@@ -61,7 +61,7 @@ export function Footer() {
                     <p className="text-sm font-semibold text-gray-900">Hackathons</p>
                     <ul className="mt-4 space-y-3 text-sm text-gray-700">
                     <li>
-                        <Link href="/events" className="hover:text-gray-900">
+                        <Link href="/services" className="hover:text-gray-900">
                         Host a hackathon
                         </Link>
                     </li>
