@@ -146,7 +146,7 @@ export function Featured() {
   // UI
   if (loading) {
     return (
-      <section className="w-full py-12 sm:py-16 bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+      <section className="w-full py-12 sm:py-16">
         <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-10">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-semibold text-gray-900 dark:text-white mb-2">
@@ -158,7 +158,7 @@ export function Featured() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[...Array(3)].map((_, i) => (
-              <Card key={i} className="overflow-hidden bg-white dark:bg-gray-800 animate-pulse">
+              <Card key={i} className="overflow-hidden bg-white animate-pulse">
                 <div className="w-full h-56 bg-gray-200 dark:bg-gray-700" />
                 <CardHeader className="pb-3">
                   <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded mb-2" />
@@ -181,7 +181,7 @@ export function Featured() {
   }
 
   return (
-    <section className="w-full py-12 bg-neutral-50 dark:bg-gray-950">
+    <section className="w-full py-12">
       <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-10">
         <div className="text-center mb-12">
           <h2 className="text-3xl md:text-4xl font-semibold text-gray-900 dark:text-white mb-2">
@@ -200,7 +200,7 @@ export function Featured() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
             {events.map((e) => (
               <Link key={e.id} href={e.href} className="group block">
-                <Card className="overflow-hidden rounded-2xl bg-white dark:bg-gray-900 border-0 shadow-sm ring-1 ring-black/5 dark:ring-white/10 transition-all duration-300 group-hover:shadow-lg group-hover:-translate-y-0.5">
+                <Card className="overflow-hidden rounded-2xl bg-white border-0 shadow-sm ring-1 ring-black/5 transition-all duration-300 group-hover:shadow-lg group-hover:-translate-y-0.5">
                   <div className="relative">
                     <Image
                       src={e.image}

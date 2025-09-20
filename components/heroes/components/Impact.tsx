@@ -47,7 +47,7 @@ export function Impact() {
     }, [parsed]); // parsed is memoized, so this still runs once
 
     return (
-        <div className="mx-auto px-4 sm:px-8 lg:px-24 py-12 sm:py-16 bg-white">
+        <div className="mx-auto px-4 sm:px-8 lg:px-24 py-28 bg-white">
         <div className="max-w-7xl mx-auto">
             <div className="grid lg:grid-cols-2 gap-10 sm:gap-12 lg:gap-16 items-center">
             {/* Left */}
