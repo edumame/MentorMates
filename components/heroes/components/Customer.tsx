@@ -8,7 +8,7 @@ export function Customer() {
       id: 1,
       rating: 5,
       quote:
-        "Those young entrepreneurs will thrive if they have the “meta AI competency” which I coined at the SXSW a few years ago. Also, I am hoping that they will generate unique foundational questions that will lead to learning, change, and innovation.",
+        "Those young entrepreneurs will thrive if they have the \"meta AI competency\" which I coined at the SXSW a few years ago. Also, I am hoping that they will generate unique foundational questions that will lead to learning, change, and innovation.",
       author: "Paul Kim",
       title:
         "Former Associate Dean, Stanford Graduate School of Education",
@@ -60,15 +60,15 @@ export function Customer() {
               {/* Stars */}
               <div className="flex gap-1 mb-4 text-[#B65A2B]">
                 {"★★★★★".split("").map((s, i) => (
-                  <span key={i} className="text-lg md:text-xl leading-none">
+                  <span key={i} className="text-2xl md:text-3xl leading-none">
                     {s}
                   </span>
                 ))}
               </div>
 
               {/* Quote */}
-              <blockquote className="text-black text-[16px] md:text-[18px] lg:text-[20px] leading-7">
-                “{t.quote}”
+              <blockquote className="text-black text-[14px] md:text-[15px] lg:text-[16px] leading-6">
+                "{t.quote}"
               </blockquote>
 
               {/* Author col */}
@@ -104,13 +104,13 @@ export function Customer() {
 
               {/* Logo (optional) */}
               {t.logo && (
-                <div className="mt-4 md:mt-6">
+                <div className="mt-4">
                   <Image
                     src={t.logo}
                     alt={`${t.author} organization`}
-                    width={t.logoWidth || 220}
-                    height={t.logoHeight || 48}
-                    className="h-6 md:h-8 w-auto object-contain"
+                    width={t.logoWidth}
+                    height={t.logoHeight}
+                    className="w-1/4 h-1/4 object-contain"
                   />
                 </div>
               )}
