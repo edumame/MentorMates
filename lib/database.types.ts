@@ -56,6 +56,82 @@ export type Database = {
           },
         ]
       }
+      coupons: {
+        Row: {
+          amount_off: number | null
+          codes: string[] | null
+          created_at: string | null
+          created_by_user_id: string | null
+          currency: string | null
+          duration: string
+          duration_in_months: number | null
+          event_id: string
+          id: string
+          max_redemptions: number | null
+          name: string
+          percent_off: number | null
+          redeem_by: string | null
+          status: Database["public"]["Enums"]["coupon_status_enum"] | null
+          stripe_coupon_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          amount_off?: number | null
+          codes?: string[] | null
+          created_at?: string | null
+          created_by_user_id?: string | null
+          currency?: string | null
+          duration: string
+          duration_in_months?: number | null
+          event_id: string
+          id?: string
+          max_redemptions?: number | null
+          name: string
+          percent_off?: number | null
+          redeem_by?: string | null
+          status?: Database["public"]["Enums"]["coupon_status_enum"] | null
+          stripe_coupon_id: string
+          times_redeemed?: number | null
+          updated_at?: string | null
+          valid_from?: string | null
+        }
+        Update: {
+          amount_off?: number | null
+          codes?: string[] | null
+          created_at?: string | null
+          created_by_user_id?: string | null
+          currency?: string | null
+          duration?: string
+          duration_in_months?: number | null
+          event_id?: string
+          id?: string
+          max_redemptions?: number | null
+          name?: string
+          percent_off?: number | null
+          redeem_by?: string | null
+          status?: Database["public"]["Enums"]["coupon_status_enum"] | null
+          stripe_coupon_id?: string
+          times_redeemed?: number | null
+          updated_at?: string | null
+          valid_from?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coupons_created_by_user_id_fkey"
+            columns: ["created_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["uid"]
+          },
+          {
+            foreignKeyName: "coupons_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["event_id"]
+          },
+        ]
+      }
       events: {
         Row: {
           cover_image_url: string | null
@@ -787,6 +863,7 @@ export type Database = {
       }
     }
     Enums: {
+      coupon_status_enum: "active" | "inactive" | "expired"
       event_role:
         | "participant"
         | "mentor"
@@ -795,7 +872,7 @@ export type Database = {
         | "admin"
         | "event"
       event_visibility: "test" | "demo" | "private" | "public" | "draft"
-      payment_status: "processing" | "paid" | "canceled"
+      payment_status: "processing" | "paid" | "canceled" | "refunded"
       ticket_status_enum: "unassigned" | "assigned" | "used" | "transferred"
     }
     CompositeTypes: {
