@@ -1,7 +1,7 @@
 // components/services/content.ts
 
 export type Bullet = {
-    icon: string | null; // MaterialIcon name
+    icon?: string; // MaterialIcon name
     title: string;
     body: string;
 };
@@ -28,7 +28,7 @@ export const SERVICES_SECTIONS: ServiceSectionData[] = [
         {
             icon: "inbox_customize",
             title: "Customization Options",
-            body: "Choose from various templates to suit your event’s theme and goals.",
+            body: "Choose from various templates to suit your event's theme and goals.",
         },
         {
             icon: "support",
@@ -37,7 +37,7 @@ export const SERVICES_SECTIONS: ServiceSectionData[] = [
         },
         ],
         cta: { label: "Book a demo", href: "/contact" },
-        image: { src: "/services/service1.png", alt: "Event Management Platform" },
+        image: { src: "/img/event.png", alt: "Event Management Platform" },
         imageSide: "right",
     },
     {
@@ -48,20 +48,18 @@ export const SERVICES_SECTIONS: ServiceSectionData[] = [
         "Partnering with us opens doors to innovative sponsorship opportunities. Enhance your brand visibility while supporting the next generation of creators.",
         bullets: [
         {
-            icon: null,
             title: "Partnership Opportunities",
             body:
             "Collaborate with us to create impactful events that resonate with your audience.",
         },
         {
-            icon: null,
             title: "Branding Exposure",
             body:
             "Showcase your brand prominently at events and engage with talented participants.",
         },
         ],
         cta: { label: "Book a demo", href: "/contact" },
-        image: { src: "/services/service2.png", alt: "Sponsorship Opportunities" },
+        image: { src: "/img/sponsorship.png", alt: "Sponsorship Opportunities" },
         imageSide: "left",
     },
     {
@@ -71,7 +69,7 @@ export const SERVICES_SECTIONS: ServiceSectionData[] = [
         body:
         "Our platform offers seamless event scheduling, ensuring that every aspect of your hackathon runs smoothly. With integrated communication tools and efficient resource management, you can focus on what matters most: fostering innovation and collaboration.",
         cta: { label: "Book a demo", href: "/contact" },
-        image: { src: "/services/service3.png", alt: "Operations & Logistics" },
+        image: { src: "/img/logistics.png", alt: "Operations & Logistics" },
         imageSide: "right",
     },
 ];  
