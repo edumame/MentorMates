@@ -8,10 +8,9 @@ export function Customer() {
       id: 1,
       rating: 5,
       quote:
-        "Those young entrepreneurs will thrive if they have the \"meta AI competency\" which I coined at the SXSW a few years ago. Also, I am hoping that they will generate unique foundational questions that will lead to learning, change, and innovation.",
+        'Those young entrepreneurs will thrive if they have the "meta AI competency" which I coined at the SXSW a few years ago. Also, I am hoping that they will generate unique foundational questions that will lead to learning, change, and innovation.',
       author: "Paul Kim",
-      title:
-        "Former Associate Dean, Stanford Graduate School of Education",
+      title: "Former Associate Dean, Stanford Graduate School of Education",
       avatar: "/testimonials/paul.png",
       logo: "/testimonials/stanfordedu.png",
       logoWidth: 117,
@@ -37,7 +36,7 @@ export function Customer() {
       author: "Quincy Larson",
       title: "Founder & Teacher, freeCodeCamp.org",
       avatar: "/testimonials/quincy.png",
-      logo: "/testimonials/freecode.png", 
+      logo: "/testimonials/freecode.png",
       logoWidth: 189,
       logoHeight: 21,
     },
@@ -68,7 +67,7 @@ export function Customer() {
 
               {/* Quote */}
               <blockquote className="text-black text-[14px] md:text-[15px] lg:text-[16px] leading-6">
-                "{t.quote}"
+                &ldquo;{t.quote}&rdquo;
               </blockquote>
 
               {/* Author col */}
@@ -96,9 +95,7 @@ export function Customer() {
                   <p className="text-sm md:text-base font-semibold text-gray-900">
                     {t.author}
                   </p>
-                  <p className="text-xs md:text-sm text-gray-600">
-                    {t.title}
-                  </p>
+                  <p className="text-xs md:text-sm text-gray-600">{t.title}</p>
                 </div>
               </div>
 
