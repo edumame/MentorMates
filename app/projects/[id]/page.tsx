@@ -1337,7 +1337,7 @@ export default function ProjectPage() {
                         disabled={isUpdating}
                         className="flex items-center gap-2"
                       >
-                        <OpenInNew className="h-4 w-4" />
+                        <ExternalLink className="h-4 w-4" />
                         Link on Contextus
                       </Button>
                     ) : (

@@ -2,7 +2,7 @@
 
 import { Footer } from "@/components/layout/Footer";
 import Link from "next/link";
-import { ArrowForward } from "@mui/icons-material";
+import { ArrowRight } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 export default function JoinPage() {
@@ -172,7 +172,7 @@ export default function JoinPage() {
                       className="inline-flex items-center px-4 py-2 bg-blue-900 text-white rounded-md hover:bg-blue-800 transition-colors duration-200 text-center justify-center"
                     >
                       Learn About DevPost Integration
-                      <ArrowForward className="ml-2 h-4 w-4" />
+                      <ArrowRight className="ml-2 h-4 w-4" />
                     </a>
                     <a
                       href="mailto:admin@mentormates.ai?subject=DevPost%20Integration%20Inquiry"

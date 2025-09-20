@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { PersonAdd, PersonCheck } from "@mui/icons-material";
+import { UserPen, UserCheck } from "lucide-react";
 
 export function SelectHero() {
   const router = useRouter();
@@ -47,7 +47,7 @@ export function SelectHero() {
               onClick={handleParticipantClick}
               className="bg-blue-900 text-white px-8 py-6 text-lg"
             >
-              <PersonAdd className="mr-2" /> Participant
+              <UserPen className="mr-2" /> Participant
             </Button>
             <Button
               variant="outline"
@@ -56,7 +56,7 @@ export function SelectHero() {
                 router.push("/mentor/login");
               }}
             >
-              <PersonCheck className="mr-2" /> Mentor/ Judge
+              <UserCheck className="mr-2" /> Mentor/ Judge
             </Button>
           </div>
         </div>

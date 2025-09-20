@@ -1,6 +1,6 @@
 import type React from "react";
 import Link from "next/link";
-import { ArrowForward, Help, PlayArrow } from "@mui/icons-material";
+import { ArrowRight, HelpCircle, Play } from "lucide-react";
 import { Footer } from "@/components/layout/Footer";
 
 const RoleCard: React.FC<{
@@ -23,12 +23,12 @@ const RoleCard: React.FC<{
           </p>
         </div>
         <div className="ml-4 mt-1 shrink-0 rounded-full bg-blue-50 p-3 text-blue-900 transition-transform group-hover:translate-x-1">
-          <PlayArrow className="h-5 w-5" />
+          <Play className="h-5 w-5" />
         </div>
       </div>
       <div className="mt-4 inline-flex items-center text-blue-900 font-medium">
         Watch guide
-        <ArrowForward className="ml-1 h-4 w-4" />
+        <ArrowRight className="ml-1 h-4 w-4" />
       </div>
     </Link>
   );
@@ -41,7 +41,7 @@ const RolesPage: React.FC = () => {
         <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 space-y-10 pt-16 pb-16">
           <div className="text-center">
             <div className="mx-auto mb-4 inline-flex items-center gap-2 rounded-full bg-blue-100 px-3 py-1 text-blue-900">
-              <Help className="h-4 w-4" />
+              <HelpCircle className="h-4 w-4" />
               <span className="text-sm font-medium">
                 How to use MentorMates
               </span>
