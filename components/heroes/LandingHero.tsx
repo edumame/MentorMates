@@ -93,10 +93,10 @@ export function LandingHero() {
               <Link href="/login" className="inline-block w-full sm:w-auto">
                 <Button variant="default">
                   Get started
-        <ArrowRight
-          className="ml-2 h-4 w-4 sm:h-5 sm:w-5"
-          aria-hidden="true"
-        />
+                  <ArrowRight
+                    className="ml-2 h-4 w-4 sm:h-5 sm:w-5"
+                    aria-hidden="true"
+                  />
                 </Button>
               </Link>
             </div>
