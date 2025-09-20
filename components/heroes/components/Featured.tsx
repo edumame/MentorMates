@@ -123,7 +123,7 @@ export function Featured() {
             dateLabel: fmtDate(dateISO),
             location: e.location ?? "Online",
             category: e.category ?? "General",
-            image: e.cover_image_url ?? "/api/placeholder/640/360",
+            image: e.cover_image_url ?? "/img/placeholder.png",
             href: e.slug ? `/events/${e.slug}` : `/events/${id}`,
           };
         });

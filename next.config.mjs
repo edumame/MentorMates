@@ -2,8 +2,13 @@
 const nextConfig = {
   reactStrictMode: true,
   images: {
-    domains: ["clinicalmindai.stanford.edu", "mentormates.ai"],
+    remotePatterns: [
+      new URL("https://lpxqfwyqandsortecbvu.supabase.co/**"),
+      new URL("https://moinycvhmmzjjtvqijzw.supabase.co/**"),
+      new URL("https://zqlopmbodkxlaunmkveo.supabase.co/**"),
+    ],
   },
+  skipTrailingSlashRedirect: true,
 };
 
 export default nextConfig;
