@@ -31,7 +31,7 @@ const RESEARCH_CARDS = [
 export function Research() {
     return (
         <div className="min-h-screen bg-white">
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 py-32 px-6">
+            <div className="py-32 px-6">
                 <div className="max-w-7xl mx-auto flex items-center justify-between">
                     <div className="flex-1">
                         <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-4">
@@ -45,24 +45,26 @@ export function Research() {
                     </div>
                     <div className="hidden md:block">
                         <div className="text-sm text-gray-600 mb-2 text-right">Supported by</div>
-                        <Image
-                            src="/research/stanfordAccLearning.png"
-                            alt="Research Supporter"
-                            width={120}
-                            height={80}
-                            className="object-contain"
-                        />
+                        <Link href="https://acceleratelearning.stanford.edu/funding/people-who-help-other-people-learn-pwhopl/" target="_blank" rel="noopener noreferrer">
+                            <Image
+                                src="/research/stanfordAccLearning.png"
+                                alt="Research Supporter"
+                                width={150}
+                                height={80}
+                                className="object-contain hover:opacity-80 transition-opacity duration-200"
+                            />
+                        </Link>
                     </div>
                 </div>
             </div>
 
             {/* Research Cards Section */}
             <div 
-            className="py-16 px-6 bg-gray-50"
-            style={{
-                borderRadius: '96px 96px 0 0',
-                background: 'linear-gradient(194deg, rgba(229, 240, 254, 0.65) 5.42%, rgba(229, 240, 254, 0.42) 87.43%), linear-gradient(0deg, rgba(255, 255, 255, 0.20) 0%, rgba(255, 255, 255, 0.20) 100%), linear-gradient(94deg, rgba(247, 246, 242, 0.80) -4.25%, rgba(66, 134, 244, 0.80) 52.72%, rgba(247, 246, 242, 0.80) 107.67%)'
-            }}
+                className="py-16 px-6 bg-gray-50"
+                style={{
+                    borderRadius: '96px 96px 0 0',
+                    background: 'linear-gradient(194deg, rgba(229, 240, 254, 0.65) 5.42%, rgba(229, 240, 254, 0.42) 87.43%), linear-gradient(0deg, rgba(255, 255, 255, 0.20) 0%, rgba(255, 255, 255, 0.20) 100%), linear-gradient(94deg, rgba(247, 246, 242, 0.80) -4.25%, rgba(66, 134, 244, 0.80) 52.72%, rgba(247, 246, 242, 0.80) 107.67%)'
+                }}
             >
                 <div className="max-w-6xl mx-auto">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
