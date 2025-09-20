@@ -70,14 +70,14 @@ export async function GET(request: Request) {
     : returnUrl;
 
   // If onboarding metadata is missing or empty, redirect to onboarding flow
-  const needsOnboarding = !existingProfile?.onboarding_metadata ||
-    (typeof existingProfile.onboarding_metadata === "object" &&
-      Object.keys(existingProfile.onboarding_metadata as Record<string, unknown>).length === 0);
+  // const needsOnboarding = !existingProfile?.onboarding_metadata ||
+  //   (typeof existingProfile.onboarding_metadata === "object" &&
+  //     Object.keys(existingProfile.onboarding_metadata as Record<string, unknown>).length === 0);
 
-  if (needsOnboarding) {
-    const onboardingUrl = `${cleanBaseUrl}/onboarding${cleanReturnUrl ? `?returnUrl=${encodeURIComponent(`/${cleanReturnUrl}`)}` : ""}`;
-    return NextResponse.redirect(onboardingUrl);
-  }
+  // if (needsOnboarding) {
+  //   const onboardingUrl = `${cleanBaseUrl}/onboarding${cleanReturnUrl ? `?returnUrl=${encodeURIComponent(`/${cleanReturnUrl}`)}` : ""}`;
+  //   return NextResponse.redirect(onboardingUrl);
+  // }
 
   const participantRedirectUrl = `${cleanBaseUrl}/${cleanReturnUrl}`;
   return NextResponse.redirect(participantRedirectUrl);
