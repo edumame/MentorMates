@@ -21,7 +21,7 @@ export function Customer() {
       id: 2,
       rating: 5,
       quote:
-        "This Hackathon provided invaluable insight – especially bridging the stigma of how you need crazy computer science knowledge for these competitions.",
+        "This Hackathon provided invaluable insight &mdash; especially bridging the stigma of how you need crazy computer science knowledge for these competitions.",
       author: "Elina Les",
       title: "Participant, Hong Kong",
       avatar: "/testimonials/avatarFallback.png",
