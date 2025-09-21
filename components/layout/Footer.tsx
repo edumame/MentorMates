@@ -123,39 +123,39 @@ export function Footer() {
             {/* Socials */}
             <div className="order-1 md:order-2 flex items-center gap-5 text-gray-700 justify-start md:justify-end">
                 <Link
-                href="https://facebook.com"
-                aria-label="Facebook"
-                className="hover:text-black"
+                    href="https://facebook.com"
+                    aria-label="Facebook"
+                    className="hover:text-black"
                 >
-                <FacebookIcon fontSize="medium" />
+                    <FacebookIcon fontSize="medium" />
                 </Link>
                 <Link
-                href="https://instagram.com"
-                aria-label="Instagram"
-                className="hover:text-black"
+                    href="https://www.instagram.com/mentormates.official"
+                    aria-label="Instagram"
+                    className="hover:text-black"
                 >
-                <InstagramIcon fontSize="medium" />
+                    <InstagramIcon fontSize="medium" />
                 </Link>
                 <Link
-                href="https://x.com"
-                aria-label="X"
-                className="hover:text-black"
+                    href="https://x.com/mentormates?s=11"
+                    aria-label="X"
+                    className="hover:text-black"
                 >
-                <XIcon fontSize="medium" />
+                    <XIcon fontSize="medium" />
                 </Link>
                 <Link
-                href="https://linkedin.com"
-                aria-label="LinkedIn"
-                className="hover:text-black"
+                    href="https://www.linkedin.com/in/mentor-mates-a6898036b/"
+                    aria-label="LinkedIn"
+                    className="hover:text-black"
                 >
-                <LinkedInIcon fontSize="medium" />
+                    <LinkedInIcon fontSize="medium" />
                 </Link>
                 <Link
-                href="https://youtube.com"
-                aria-label="YouTube"
-                className="hover:text-black"
+                    href="https://youtube.com"
+                    aria-label="YouTube"
+                    className="hover:text-black"
                 >
-                <YouTubeIcon fontSize="medium" />
+                    <YouTubeIcon fontSize="medium" />
                 </Link>
             </div>
 
