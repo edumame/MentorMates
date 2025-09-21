@@ -100,7 +100,7 @@ export function Work() {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true, margin: "-80px" }}
                   transition={{ duration: 0.5, delay: i * 0.06 }}
-                  className="relative pl-14 md:pl-0 pr-8 md:pr-0"
+                  className="relative px-16 md:px-0 py-16 md:py-0"
                 >
                   {/* Marker */}
                   {/* Desktop */}
@@ -135,7 +135,7 @@ export function Work() {
                     </div>
 
                     {/* Description */}
-                    <p className="mb-4 text-[16px] leading-6 text-gray-600">
+                    <p className="mb-6 text-[16px] leading-6 text-gray-600">
                       {s.description}
                     </p>
 
@@ -153,13 +153,13 @@ export function Work() {
                   </div>
 
                   {/* Desktop Layout - Two column grid */}
-                  <div className="hidden md:grid md:grid-cols-2 gap-8 md:gap-12 items-start">
+                  <div className="hidden md:grid md:grid-cols-2 gap-12 md:gap-16 items-start">
                     {/* TEXT column (id + title only) — aligns to center line on desktop */}
                     <div
                       className={[
                         isLeft
-                          ? "order-1 md:pr-12 md:ml-auto"
-                          : "order-2 md:pl-12 md:mr-auto",
+                          ? "order-1 md:pr-2 md:ml-auto"
+                          : "order-2 md:pl-2 md:mr-auto",
                         // desktop: left column text-right, right column text-left
                         isLeft ? "md:text-right" : "md:text-left",
                         "max-w-[520px]",
@@ -174,8 +174,11 @@ export function Work() {
                     </div>
 
                     {/* IMAGE column with description */}
-                    <div className={isLeft ? "order-2" : "order-1"}>
-                      <p className="mb-4 text-[16px] leading-6 text-gray-600">
+                    <div className={[
+                      isLeft ? "order-2" : "order-1",
+                      "md:pl-2 md:ml-auto"
+                    ].join(" ")}>
+                      <p className="mb-6 text-[16px] leading-6 text-gray-600">
                         {s.description}
                       </p>
                       <div
