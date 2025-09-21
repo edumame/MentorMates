@@ -30,8 +30,23 @@ export function PricingTab({
   const [pricingTiers, setPricingTiers] = useState<PricingTier[]>([]);
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [loading, setLoading] = useState(true);
+  const [originalPricingTiers, setOriginalPricingTiers] = useState<PricingTier[]>([]);
 
   const { toast } = useToast();
+
+  // Check if there are unsaved changes
+  const hasUnsavedChanges = () => {
+    const newTiers = pricingTiers.filter(tier => tier.id.startsWith('temp-'));
+    const deletedTiers = pricingTiers.filter(tier => tier._markedForDeletion);
+    const modifiedTiers = pricingTiers.filter(tier => {
+      if (tier.id.startsWith('temp-') || tier._markedForDeletion) return false;
+      const original = originalPricingTiers.find(orig => orig.id === tier.id);
+      if (!original) return false;
+      return JSON.stringify(original) !== JSON.stringify({...tier, _markedForDeletion: undefined});
+    });
+    
+    return newTiers.length > 0 || deletedTiers.length > 0 || modifiedTiers.length > 0;
+  };
 
   // Fetch pricing tiers and coupons from the database
   useEffect(() => {
@@ -55,9 +70,10 @@ export function PricingTab({
             description: "Failed to load pricing tiers",
             variant: "destructive",
           });
-        } else {
-          setPricingTiers(tiersData || []);
-        }
+          } else {
+            setPricingTiers(tiersData || []);
+            setOriginalPricingTiers(tiersData || []);
+          }
 
         // Fetch coupons
         const { data: couponsData, error: couponsError } = await supabase
@@ -171,129 +187,149 @@ export function PricingTab({
     }
   };
 
-  const addPricingTier = async () => {
+  const addPricingTier = () => {
     const tierId = `tier-${Date.now()}`;
-    const newTier: Partial<PricingTier> = {
+    const newTier: PricingTier = {
+      id: `temp-${Date.now()}`, // Temporary ID for local state
       event_id: event.event_id,
       tier_id: tierId,
       name: "New Tier",
       price: 0,
       description: "",
-      stripe_price_id: "",
+      stripe_price_id: "price_", // Provide a placeholder that users must complete
       is_active: true,
       sort_order: pricingTiers.length,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      _markedForDeletion: false,
     };
 
-    setSaving(true);
-    try {
-      const { data, error } = await supabase
-        .from("pricing_tiers")
-        .insert([newTier])
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      setPricingTiers([...pricingTiers, data]);
-      toast({
-        title: "Success",
-        description: "New pricing tier added",
-      });
-    } catch (error) {
-      console.error("Error adding pricing tier:", error);
-      toast({
-        title: "Error",
-        description: "Failed to add pricing tier",
-        variant: "destructive",
-      });
-    } finally {
-      setSaving(false);
-    }
+    setPricingTiers([...pricingTiers, newTier]);
+    toast({
+      title: "Tier Added",
+      description: "New pricing tier added. Remember to save your changes.",
+    });
   };
 
-  const updatePricingTier = async (index: number, updates: Partial<PricingTier>) => {
-    const tier = pricingTiers[index];
-    if (!tier.id) return; // Don't update if tier doesn't have an ID
-
-    // Update local state immediately for better UX
+  const updatePricingTier = (index: number, updates: Partial<PricingTier>) => {
+    // Update local state only - no database save until handleSave is called
     const updatedTiers = pricingTiers.map((t, i) =>
-      i === index ? { ...t, ...updates } : t
+      i === index ? { ...t, ...updates, updated_at: new Date().toISOString() } : t
     );
     setPricingTiers(updatedTiers);
-
-    // Debounce the database update
-    try {
-      const { error } = await supabase
-        .from("pricing_tiers")
-        .update({
-          ...updates,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", tier.id);
-
-      if (error) {
-        console.error("Error updating pricing tier:", error);
-        // Revert local state on error
-        setPricingTiers(pricingTiers);
-        toast({
-          title: "Error",
-          description: "Failed to update pricing tier",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      console.error("Error updating pricing tier:", error);
-      // Revert local state on error
-      setPricingTiers(pricingTiers);
-    }
   };
 
-  const removePricingTier = async (index: number) => {
+  const removePricingTier = (index: number) => {
     const tier = pricingTiers[index];
-    if (!tier.id) return;
-
-    setSaving(true);
-    try {
-      const { error } = await supabase
-        .from("pricing_tiers")
-        .delete()
-        .eq("id", tier.id);
-
-      if (error) throw error;
-
+    
+    // Mark tier for deletion if it exists in database, otherwise just remove from local state
+    if (tier.id.startsWith('temp-')) {
+      // New tier that hasn't been saved yet - just remove from local state
       const updatedTiers = pricingTiers.filter((_, i) => i !== index);
       setPricingTiers(updatedTiers);
-      
-      toast({
-        title: "Success",
-        description: "Pricing tier removed",
-      });
-    } catch (error) {
-      console.error("Error removing pricing tier:", error);
-      toast({
-        title: "Error",
-        description: "Failed to remove pricing tier",
-        variant: "destructive",
-      });
-    } finally {
-      setSaving(false);
+    } else {
+      // Existing tier - mark as deleted but keep in local state for save operation
+      const updatedTiers = pricingTiers.map((t, i) =>
+        i === index ? { ...t, is_active: false, _markedForDeletion: true } : t
+      );
+      setPricingTiers(updatedTiers);
     }
+    
+    toast({
+      title: "Tier Removed",
+      description: "Pricing tier will be removed when you save changes.",
+    });
   };
 
-  // Note: Individual pricing tier changes are now saved automatically
-  // This function is kept for any final event-level updates if needed
   const handleSave = async () => {
+    // Validate that all active pricing tiers have required stripe_price_id if event is paid
+    if (event.paid && pricingTiers.length > 0) {
+      const activeTiers = pricingTiers.filter(tier => 
+        tier.is_active !== false && !tier._markedForDeletion
+      );
+      const invalidTiers = activeTiers.filter(tier => 
+        !tier.stripe_price_id || tier.stripe_price_id.trim() === "" || tier.stripe_price_id === "price_"
+      );
+      
+      if (invalidTiers.length > 0) {
+        toast({
+          title: "Validation Error",
+          description: "All active pricing tiers must have a complete Stripe Price ID",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     setSaving(true);
     try {
-      // Just update the event's paid status if needed
-      const { error } = await supabase
+      // Separate tiers by operation type
+      const newTiers = pricingTiers.filter(tier => tier.id.startsWith('temp-'));
+      const existingTiers = pricingTiers.filter(tier => !tier.id.startsWith('temp-') && !tier._markedForDeletion);
+      const tiersToDelete = pricingTiers.filter(tier => tier._markedForDeletion);
+
+      // Insert new tiers
+      if (newTiers.length > 0) {
+        const tiersToInsert = newTiers.map(tier => {
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { id, _markedForDeletion, ...tierData } = tier;
+          return tierData;
+        });
+
+        const { error: insertError } = await supabase
+          .from("pricing_tiers")
+          .insert(tiersToInsert);
+
+        if (insertError) throw insertError;
+      }
+
+      // Update existing tiers
+      for (const tier of existingTiers) {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { _markedForDeletion, ...tierData } = tier;
+        const { error: updateError } = await supabase
+          .from("pricing_tiers")
+          .update({
+            ...tierData,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", tier.id);
+
+        if (updateError) throw updateError;
+      }
+
+      // Delete marked tiers
+      if (tiersToDelete.length > 0) {
+        const idsToDelete = tiersToDelete.map(tier => tier.id);
+        const { error: deleteError } = await supabase
+          .from("pricing_tiers")
+          .delete()
+          .in("id", idsToDelete);
+
+        if (deleteError) throw deleteError;
+      }
+
+      // Update the event's paid status
+      const { error: eventError } = await supabase
         .from("events")
         .update({
           paid: event.paid,
         })
         .eq("event_id", event.event_id);
 
-      if (error) throw error;
+      if (eventError) throw eventError;
+
+      // Refresh pricing tiers from database to get updated IDs and data
+      const { data: refreshedTiers, error: fetchError } = await supabase
+        .from("pricing_tiers")
+        .select("*")
+        .eq("event_id", event.event_id)
+        .order("sort_order", { ascending: true });
+
+      if (fetchError) throw fetchError;
+
+      setPricingTiers(refreshedTiers || []);
+      setOriginalPricingTiers(refreshedTiers || []);
 
       toast({
         title: "Success",
@@ -351,7 +387,7 @@ export function PricingTab({
                 <Package className="h-12 w-12 mx-auto mb-4 opacity-50 animate-pulse" />
                 <p>Loading pricing tiers...</p>
               </div>
-            ) : pricingTiers.filter(tier => tier.is_active !== false).length === 0 ? (
+             ) : pricingTiers.filter(tier => tier.is_active !== false && !tier._markedForDeletion).length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
                 <p>No pricing tiers configured</p>
@@ -359,7 +395,7 @@ export function PricingTab({
               </div>
             ) : (
               <div className="space-y-4">
-                {pricingTiers.filter(tier => tier.is_active !== false).map((tier, displayIndex) => {
+                 {pricingTiers.filter(tier => tier.is_active !== false && !tier._markedForDeletion).map((tier, displayIndex) => {
                   // Find the actual index in the original array
                   const actualIndex = pricingTiers.findIndex(t => t.id === tier.id);
                   return (
@@ -476,17 +512,18 @@ export function PricingTab({
 
                       <div className="space-y-2">
                         <Label htmlFor={`tier-stripe-id-${actualIndex}`}>
-                          Stripe Price ID (Optional)
+                          Stripe Price ID <span className="text-red-500">*</span>
                         </Label>
                         <Input
                           id={`tier-stripe-id-${actualIndex}`}
                           value={tier.stripe_price_id || ""}
                           onChange={(e) =>
                             updatePricingTier(actualIndex, {
-                              stripe_price_id: e.target.value || undefined,
+                              stripe_price_id: e.target.value,
                             })
                           }
                           placeholder="price_1234567890abcdef"
+                          required
                         />
                         <p className="text-xs text-gray-500">
                           Create a Stripe price in your dashboard and paste the ID here
@@ -528,12 +565,17 @@ export function PricingTab({
       )}
 
       <Button
-        onClick={handleSave}
-        disabled={saving}
-        className="w-full"
-      >
-        {saving ? "Saving..." : "Save Pricing Configuration"}
-      </Button>
+          onClick={handleSave}
+          disabled={saving}
+          className={`w-full ${hasUnsavedChanges() ? 'bg-orange-600 hover:bg-orange-700' : ''}`}
+        >
+          {saving ? "Saving..." : hasUnsavedChanges() ? "Save Changes" : "Save Pricing Configuration"}
+        </Button>
+        {hasUnsavedChanges() && (
+          <p className="text-sm text-orange-600 text-center">
+            You have unsaved changes
+          </p>
+        )}
     </div>
   );
 }

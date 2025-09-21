@@ -84,7 +84,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const { promoCode, couponId } = await req.json();
+  const { promoCode, couponId, overwrite } = await req.json();
   const supabase = await createSupabaseClient();
   const { data: user } = await supabase.auth.getUser();
   if (!user.user) {
@@ -101,11 +101,13 @@ export async function POST(req: Request) {
     }
   }
 
-  const existingCoupon = await stripe.promotionCodes.list({ code: promoCode });
+  const existingPromoCode = await stripe.promotionCodes.list({
+    code: promoCode,
+  });
 
-  if (existingCoupon.data.length > 0) {
+  if (existingPromoCode.data.length > 0 && !overwrite) {
     return NextResponse.json(
-      { error: "Coupon already exists" },
+      { error: "Promo code already exists" },
       { status: 400 }
     );
   }
@@ -118,6 +120,23 @@ export async function POST(req: Request) {
   if (!coupon) {
     return NextResponse.json({ error: "Coupon not found" }, { status: 404 });
   }
+
+  // if overwrite is true, archive the existing promo code first
+  if (existingPromoCode.data.length > 0 && overwrite) {
+    await stripe.promotionCodes.update(existingPromoCode.data[0].id, {
+      active: false,
+    });
+
+    const { error: deleteError } = await supabase
+      .from("promo_codes")
+      .delete()
+      .eq("code", promoCode);
+
+    if (deleteError) {
+      return NextResponse.json({ error: deleteError.message }, { status: 500 });
+    }
+  }
+
   const createdPromoCode = await stripe.promotionCodes.create({
     code: promoCode,
     coupon: coupon.stripe_coupon_id,

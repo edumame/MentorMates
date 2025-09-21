@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Trash2, Plus, Tag, Copy, Check } from "lucide-react";
 import { useToast } from "@/lib/hooks/use-toast";
 import { Coupon, PromoCode } from "@/lib/types";
@@ -20,6 +21,7 @@ interface PromoCodeManagementProps {
 export interface CreatePromoCodeRequest {
     promoCode: string;
     couponId: string;
+    overwrite?: boolean;
   }
 
 export function PromoCodeManagement({ 
@@ -37,6 +39,7 @@ export function PromoCodeManagement({
   const [newPromoCode, setNewPromoCode] = useState<CreatePromoCodeRequest>({
     promoCode: "",
     couponId: "",
+    overwrite: false,
   });
 
   const fetchPromoCodes = useCallback(async () => {
@@ -108,6 +111,7 @@ export function PromoCodeManagement({
       setNewPromoCode({
         promoCode: "",
         couponId: "",
+        overwrite: false,
       });
       setShowCreateForm(false);
       fetchPromoCodes();
@@ -276,6 +280,22 @@ export function PromoCodeManagement({
                 <p className="text-xs text-gray-500">
                   Use letters and numbers only. Code will be converted to uppercase.
                 </p>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="overwrite"
+                  checked={newPromoCode.overwrite}
+                  onCheckedChange={(checked) =>
+                    setNewPromoCode({ 
+                      ...newPromoCode, 
+                      overwrite: checked === true 
+                    })
+                  }
+                />
+                <Label htmlFor="overwrite" className="text-sm">
+                  Overwrite existing promo code if it exists
+                </Label>
               </div>
 
               <div className="flex gap-2">

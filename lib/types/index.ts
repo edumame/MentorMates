@@ -40,6 +40,7 @@ export interface PricingTier {
   created_at?: string;
   updated_at?: string;
   bundle_size?: number;
+  _markedForDeletion?: boolean; // Local state flag for pending deletion
 }
 
 // Coupon Types
