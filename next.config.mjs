@@ -4,6 +4,8 @@ const nextConfig = {
   images: {
     domains: ["clinicalmindai.stanford.edu", "mentormates.ai"],
   },
+
+  skipTrailingSlashRedirect: true,
 };
 
 export default nextConfig;
