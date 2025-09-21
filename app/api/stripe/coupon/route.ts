@@ -43,20 +43,20 @@ export async function GET(req: Request) {
       ) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
-
-      const { data: coupons, error } = await supabase
-        .from("coupons")
-        .select("*")
-        .eq("event_id", eventId)
-        .eq("status", "active")
-        .order("created_at", { ascending: false });
-
-      if (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
-      }
-
-      return NextResponse.json({ coupons });
     }
+
+    const { data: coupons, error } = await supabase
+      .from("coupons")
+      .select("*")
+      .eq("event_id", eventId)
+      .eq("status", "active")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ coupons });
   } catch (error) {
     console.error("Error fetching coupons:", error);
     return NextResponse.json(
@@ -77,7 +77,6 @@ export async function POST(req: Request) {
       duration,
       max_redemptions,
       redeem_by,
-      codes,
     } = await req.json();
 
     // Validate required fields
@@ -106,17 +105,6 @@ export async function POST(req: Request) {
     if (amount_off && !currency) {
       return NextResponse.json(
         { error: "Currency is required when using amount_off" },
-        { status: 400 }
-      );
-    }
-
-    // Validate codes array if provided
-    if (
-      codes &&
-      (!Array.isArray(codes) || codes.some((code) => typeof code !== "string"))
-    ) {
-      return NextResponse.json(
-        { error: "Codes must be an array of strings" },
         { status: 400 }
       );
     }
@@ -189,7 +177,6 @@ export async function POST(req: Request) {
         event_id: eventId,
         stripe_coupon_id: coupon.id,
         name: couponName,
-        codes: codes || null,
         percent_off: percent_off || null,
         amount_off: amount_off || null,
         currency: currency || null,
@@ -224,7 +211,6 @@ export async function POST(req: Request) {
         id: insertedCoupon.id,
         stripe_coupon_id: coupon.id,
         name: couponName,
-        codes: codes,
         percent_off: percent_off,
         amount_off: amount_off,
         currency: currency,
@@ -259,7 +245,17 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const deletedCoupon = await stripe.coupons.del(couponId);
+  const { data: coupon } = await supabase
+    .from("coupons")
+    .select("stripe_coupon_id")
+    .eq("id", couponId)
+    .single();
+
+  if (!coupon) {
+    return NextResponse.json({ error: "Coupon not found" }, { status: 404 });
+  }
+
+  const deletedCoupon = await stripe.coupons.del(coupon.stripe_coupon_id);
 
   if (!deletedCoupon) {
     return NextResponse.json({ error: "Coupon not found" }, { status: 404 });

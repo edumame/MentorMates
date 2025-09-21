@@ -8,9 +8,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Trash2, Plus, DollarSign, Package } from "lucide-react";
-import { EventDetails, PricingTier } from "@/lib/types";
+import { EventDetails, PricingTier, Coupon } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/lib/hooks/use-toast";
+import { CouponManagement } from "./CouponManagement";
+import { PromoCodeManagement } from "./PromoCodeManagement";
 
 interface PricingTabProps {
   event: EventDetails;
@@ -26,17 +28,19 @@ export function PricingTab({
   setSaving,
 }: PricingTabProps) {
   const [pricingTiers, setPricingTiers] = useState<PricingTier[]>([]);
+  const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [loading, setLoading] = useState(true);
 
   const { toast } = useToast();
 
-  // Fetch pricing tiers from the database
+  // Fetch pricing tiers and coupons from the database
   useEffect(() => {
-    async function fetchPricingTiers() {
+    async function fetchData() {
       if (!event.event_id) return;
       
       try {
-        const { data, error } = await supabase
+        // Fetch pricing tiers
+        const { data: tiersData, error: tiersError } = await supabase
           .from("pricing_tiers")
           .select(`
             *
@@ -44,25 +48,57 @@ export function PricingTab({
           .eq("event_id", event.event_id)
           .order("sort_order", { ascending: true });
 
-        if (error) {
-          console.error("Error fetching pricing tiers:", error);
+        if (tiersError) {
+          console.error("Error fetching pricing tiers:", tiersError);
           toast({
             title: "Error",
             description: "Failed to load pricing tiers",
             variant: "destructive",
           });
         } else {
-          setPricingTiers(data || []);
+          setPricingTiers(tiersData || []);
+        }
+
+        // Fetch coupons
+        const { data: couponsData, error: couponsError } = await supabase
+          .from("coupons")
+          .select("*")
+          .eq("event_id", event.event_id)
+          .eq("status", "active")
+          .order("created_at", { ascending: false });
+
+        if (couponsError) {
+          console.error("Error fetching coupons:", couponsError);
+        } else {
+          setCoupons(couponsData || []);
         }
       } catch (error) {
-        console.error("Error fetching pricing tiers:", error);
+        console.error("Error fetching data:", error);
       } finally {
         setLoading(false);
       }
     }
 
-    fetchPricingTiers();
+    fetchData();
   }, [event.event_id, toast]);
+
+  // Function to refresh coupons when they change
+  const handleCouponsChange = async () => {
+    try {
+      const { data: couponsData, error: couponsError } = await supabase
+        .from("coupons")
+        .select("*")
+        .eq("event_id", event.event_id)
+        .eq("status", "active")
+        .order("created_at", { ascending: false });
+
+      if (!couponsError) {
+        setCoupons(couponsData || []);
+      }
+    } catch (error) {
+      console.error("Error refreshing coupons:", error);
+    }
+  };
 
   const handlePaidToggle = async (checked: boolean) => {
     setEvent({ ...event, paid: checked });
@@ -473,6 +509,22 @@ export function PricingTab({
             </Button>
           </CardContent>
         </Card>
+      )}
+
+      {/* Coupons & Discounts Section */}
+      {event.paid && (
+        <>
+          <CouponManagement 
+            eventId={event.event_id}
+            onCouponsChange={handleCouponsChange}
+          />
+          
+          <PromoCodeManagement 
+            eventId={event.event_id}
+            coupons={coupons}
+            onPromoCodeChange={handleCouponsChange}
+          />
+        </>
       )}
 
       <Button

@@ -42,6 +42,56 @@ export interface PricingTier {
   bundle_size?: number;
 }
 
+// Coupon Types
+export type CouponStatus = 'active' | 'inactive' | 'expired';
+export type CouponDuration = 'once' | 'repeating' | 'forever';
+
+export interface Coupon {
+  id: string;
+  event_id: string;
+  stripe_coupon_id: string;
+  name: string;
+  percent_off?: number; // Percentage discount (1-100)
+  amount_off?: number; // Fixed amount discount in cents
+  currency?: string; // Currency for amount_off (e.g., 'usd')
+  duration: CouponDuration;
+  duration_in_months?: number; // For 'repeating' duration
+  max_redemptions?: number; // Maximum uses across all users
+  redeem_by?: string; // Expiration date (ISO string)
+  status: CouponStatus;
+  created_by_user_id?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PromoCode {
+  id: string;
+  coupon_id: string;
+  code: string; // The actual promo code (e.g., "EARLYBIRD2024")
+  usage_count: number; // Number of times this code has been used
+  max_uses?: number; // Maximum uses for this specific code (null = unlimited)
+  is_active: boolean; // Whether this code can be used
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CouponWithCodes extends Coupon {
+  promo_codes: PromoCode[];
+}
+
+export interface CreateCouponRequest {
+  couponName: string;
+  eventId: string;
+  percent_off?: number;
+  amount_off?: number;
+  currency?: string;
+  duration: CouponDuration;
+  duration_in_months?: number;
+  max_redemptions?: number;
+  redeem_by?: string;
+  codes?: string[]; // Optional promo codes to create with the coupon
+}
+
 export interface UserProfile {
   uid: string;
   display_name: string;

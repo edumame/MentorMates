@@ -1,5 +1,5 @@
 -- Create coupons table to track Stripe coupons associated with events
--- This table connects event_ids to Stripe coupon/promo codes
+-- This table connects event_ids to Stripe coupons
 
 -- Create enum for coupon status
 CREATE TYPE coupon_status_enum AS ENUM ('active', 'inactive', 'expired');
@@ -10,7 +10,6 @@ CREATE TABLE "public"."coupons" (
     "event_id" uuid NOT NULL REFERENCES "public"."events"("event_id") ON DELETE CASCADE,
     "stripe_coupon_id" text NOT NULL UNIQUE, -- Stripe coupon ID
     "name" text NOT NULL, -- Display name for the coupon
-    "codes" text[], -- Optional promo codes for manual entry
     "percent_off" integer, -- Percentage discount (e.g., 25 for 25%)
     "amount_off" integer, -- Fixed amount discount in cents
     "currency" text, -- Currency for amount_off (e.g., 'usd')
@@ -21,6 +20,7 @@ CREATE TABLE "public"."coupons" (
     "created_by_user_id" uuid REFERENCES "public"."user_profiles"("uid") ON DELETE SET NULL,
     "created_at" timestamptz DEFAULT now(),
     "updated_at" timestamptz DEFAULT now(),
+    "status" coupon_status_enum DEFAULT 'active' NOT NULL, -- Coupon status 
     
     -- Ensure either percent_off or amount_off is provided, but not both
     CONSTRAINT "coupons_discount_check" CHECK (
@@ -56,7 +56,6 @@ ALTER TABLE "public"."coupons" OWNER TO "postgres";
 COMMENT ON TABLE "public"."coupons" IS 'Event-specific coupons and promo codes managed through Stripe';
 COMMENT ON COLUMN "public"."coupons"."stripe_coupon_id" IS 'Unique Stripe coupon identifier';
 COMMENT ON COLUMN "public"."coupons"."name" IS 'Human-readable name for the coupon';
-COMMENT ON COLUMN "public"."coupons"."codes" IS 'Optional array of promo codes for user entry (if different from Stripe ID)';
 COMMENT ON COLUMN "public"."coupons"."percent_off" IS 'Percentage discount (1-100), mutually exclusive with amount_off';
 COMMENT ON COLUMN "public"."coupons"."amount_off" IS 'Fixed discount amount in cents, mutually exclusive with percent_off';
 COMMENT ON COLUMN "public"."coupons"."currency" IS 'Currency code for amount_off discounts (e.g., usd, eur)';
@@ -68,7 +67,6 @@ COMMENT ON COLUMN "public"."coupons"."redeem_by" IS 'Expiration timestamp for th
 -- Create indexes for performance
 CREATE INDEX "coupons_event_id_idx" ON "public"."coupons" ("event_id");
 CREATE INDEX "coupons_stripe_coupon_id_idx" ON "public"."coupons" ("stripe_coupon_id");
-CREATE INDEX "coupons_codes_idx" ON "public"."coupons" USING GIN ("codes") WHERE "codes" IS NOT NULL;
 CREATE INDEX "coupons_status_idx" ON "public"."coupons" ("status");
 CREATE INDEX "coupons_redeem_by_idx" ON "public"."coupons" ("redeem_by") WHERE "redeem_by" IS NOT NULL;
 CREATE INDEX "coupons_created_by_idx" ON "public"."coupons" ("created_by_user_id");
@@ -97,11 +95,7 @@ ALTER TABLE "public"."coupons" ENABLE ROW LEVEL SECURITY;
 -- Policy: Admin users can manage all coupons
 CREATE POLICY "Admin users can manage coupons" ON "public"."coupons"
     FOR ALL USING (
-        EXISTS (
-            SELECT 1 FROM "public"."user_profiles" up
-            WHERE up."uid" = auth.uid()
-            AND up."role" = 'admin'
-        )
+        is_admin_user(auth.uid()) = true
     );
 
 -- Policy: Event organizers can manage coupons for their events
@@ -112,23 +106,5 @@ CREATE POLICY "Event organizers can manage their event coupons" ON "public"."cou
             WHERE uer."user_id" = auth.uid()
             AND uer."event_id" = "coupons"."event_id"
             AND uer."role" = 'organizer'
-        )
-    );
-
--- Policy: Users can view active coupons for events they have access to
-CREATE POLICY "Users can view active coupons for accessible events" ON "public"."coupons"
-    FOR SELECT USING (
-        "status" = 'active'
-        AND EXISTS (
-            SELECT 1 FROM "public"."events" e
-            WHERE e."event_id" = "coupons"."event_id"
-            AND (
-                e."visibility" = 'public'
-                OR EXISTS (
-                    SELECT 1 FROM "public"."user_event_roles" uer
-                    WHERE uer."user_id" = auth.uid()
-                    AND uer."event_id" = e."event_id"
-                )
-            )
         )
     );
