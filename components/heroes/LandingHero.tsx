@@ -48,7 +48,7 @@ export function LandingHero() {
                     {titles.map((word, idx) => (
                       <motion.span
                         key={idx}
-                        className="absolute font-extrabold leading-[1.1] left-0 top-0"
+                        className="absolute font-bold leading-[1.1] left-0 top-0 w-full h-full"
                         initial={{ opacity: 0, y: -100 }}
                         animate={
                           titleIndex === idx
@@ -72,7 +72,7 @@ export function LandingHero() {
                     ))}
 
                     {/* Spacer: use the LONGEST title to set width (and height) */}
-                    <span className="invisible font-extrabold text-3xl sm:text-4xl md:text-5xl lg:text-[72px] leading-[1.1]">
+                    <span className="invisible font-bold text-3xl sm:text-4xl md:text-5xl lg:text-[72px] leading-[1.1]">
                       {longestTitle}
                     </span>
                   </span>
