@@ -14,7 +14,6 @@ import { CTAJoin } from "@/components/layout/CTAJoin";
 import { LogoCarousel } from "./components/LogoCarousel";
 
 export function LandingHero() {
-  // Rotating word animation
   const [titleIndex, setTitleIndex] = useState(0);
   const titles = useMemo(
     () => ["Hackathons", "Projects", "Prototypes", "Builders"],
@@ -26,6 +25,16 @@ export function LandingHero() {
     [titles]
   );
 
+  // --- NEW: detect small screens to adjust animation distances
+  const [isSmall, setIsSmall] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 640px)");
+    const set = () => setIsSmall(mq.matches);
+    set();
+    mq.addEventListener?.("change", set);
+    return () => mq.removeEventListener?.("change", set);
+  }, []);
+
   useEffect(() => {
     const id = setTimeout(
       () => setTitleIndex((i) => (i === titles.length - 1 ? 0 : i + 1)),
@@ -34,26 +43,39 @@ export function LandingHero() {
     return () => clearTimeout(id);
   }, [titleIndex, titles]);
 
+  // --- NEW: responsive translate distances to avoid clipping
+  const ENTER_Y = isSmall ? -40 : -100;
+  const EXIT_Y_UP = isSmall ? -60 : -150;
+  const EXIT_Y_DOWN = isSmall ? 60 : 150;
+
   return (
     <div className="relative bg-white overflow-x-hidden">
-      <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 pt-8 sm:pt-14 lg:pt-24 pb-8 sm:pb-16 lg:pb-20">
-        <div className="grid lg:grid-cols-12 gap-6 sm:gap-8 lg:gap-8 items-start">
+      <div className="relative z-10 w-full max-w-7xl mx-auto px-6 sm:px-8 lg:px-10 pt-8 sm:pt-14 lg:pt-24 pb-8 sm:pb-16 lg:pb-20">
+        <div className="grid lg:grid-cols-12 gap-2 items-start">
           {/* Left: Huge headline */}
           <div className="lg:col-span-7 min-w-0">
-            <h1 className="text-gray-900 font-semibold text-3xl sm:text-4xl md:text-5xl lg:text-[72px] font-geist tracking-[-0.06em] leading-[1.1]">
+            {/* Increased base (mobile) size from text-4xl -> text-5xl */}
+            <h1 className="text-gray-900 font-semibold text-5xl sm:text-6xl md:text-6xl lg:text-[72px] font-geist tracking-[-0.06em] leading-[1.1]">
               <span>
                 Your home for{" "}
                 <span className="relative inline-block align-baseline w-full">
-                  <span className="relative flex justify-start overflow-hidden w-full h-full">
+                  {/* NEW: small vertical padding buffer so translate doesn't clip */}
+                  <span className="relative flex justify-start overflow-hidden w-full h-full py-1 sm:py-0">
                     {titles.map((word, idx) => (
                       <motion.span
                         key={idx}
-                        className="absolute font-bold leading-[1.1] left-0 top-0 w-full h-full"
-                        initial={{ opacity: 0, y: -100 }}
+                        className="absolute font-bold leading-[1.1] left-0 top-0 w-full h-full will-change-transform"
+                        initial={{ opacity: 0, y: ENTER_Y }}
                         animate={
                           titleIndex === idx
                             ? { y: 0, opacity: 1 }
-                            : { y: titleIndex > idx ? -150 : 150, opacity: 0 }
+                            : {
+                                y:
+                                  titleIndex > idx
+                                    ? EXIT_Y_UP
+                                    : EXIT_Y_DOWN,
+                                opacity: 0,
+                              }
                         }
                         transition={{ type: "spring", stiffness: 50 }}
                         style={{
@@ -65,14 +87,15 @@ export function LandingHero() {
                           color: "transparent",
                         }}
                       >
-                        <span className="text-3xl sm:text-4xl md:text-5xl lg:text-[72px] leading-[1.1]">
+                        {/* Keep word size in sync with the h1 for consistent height */}
+                        <span className="text-5xl sm:text-6xl md:text-6xl lg:text-[72px] leading-[1.1]">
                           {word}
                         </span>
                       </motion.span>
                     ))}
 
                     {/* Spacer: use the LONGEST title to set width (and height) */}
-                    <span className="invisible font-bold text-3xl sm:text-4xl md:text-5xl lg:text-[72px] leading-[1.1]">
+                    <span className="invisible font-bold text-5xl sm:text-6xl md:text-6xl lg:text-[72px] leading-[1.1]">
                       {longestTitle}
                     </span>
                   </span>
@@ -82,14 +105,14 @@ export function LandingHero() {
           </div>
 
           {/* Right: Copy + CTA */}
-          <div className="lg:col-span-5 lg:pl-6 mt-4 lg:mt-0 min-w-0">
-            <p className="text-sm sm:text-base lg:text-md text-gray-700 leading-relaxed">
+          <div className="lg:col-span-5 mt-4 lg:mt-0">
+            <p className="text-base sm:text-[16px] lg:text-18px] leading-relaxed">
               MentorMates guides you through your entire hackathon journey.
               Built by students, for students, our platform helps you focus on
               what matters most — creating an impactful project.
             </p>
 
-            <div className="mt-4 sm:mt-6">
+            <div className="mt-6 sm:mt-8">
               <Link href="/login" className="inline-block w-full sm:w-auto">
                 <Button variant="default">
                   Get started
