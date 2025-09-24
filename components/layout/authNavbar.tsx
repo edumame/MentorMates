@@ -9,6 +9,7 @@ import { supabase } from "@/lib/supabase";
 import type { Session } from "@supabase/supabase-js";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Menu, X } from "lucide-react";
+import posthog from "posthog-js";
 
 export function AuthNavbar() {
   const router = useRouter();
@@ -38,6 +39,7 @@ export function AuthNavbar() {
   const handleSignOut = async () => {
     localStorage.removeItem("returnUrl");
     await supabase.auth.signOut();
+    posthog.reset();
     router.push("/");
     setIsOpen(false);
   };
