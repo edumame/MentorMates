@@ -116,7 +116,7 @@ export function Navbar() {
               />
             </Link>
             <Link
-              href="/projects"
+              href="/project"
               className="text-base font-medium text-black hover:text-[#4B89EF]"
             >
               Projects
@@ -273,7 +273,7 @@ export function Navbar() {
         >
           <div className="px-6 py-6 space-y-1">
             <Link
-              href="/projects"
+              href="/project"
               className="block py-4 text-lg font-medium text-black hover:text-[#4B89EF]"
             >
               Projects

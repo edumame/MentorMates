@@ -15,6 +15,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const PUBLIC_PATH_PATTERNS = useMemo(() => {
     const BASE_PUBLIC_PATHS = [
       "/",
+      "/project",
       "/login",
       "/auth/callback",
       "/auth/auth-code-error",
