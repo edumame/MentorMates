@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 const DISCORD_INVITE = "https://discord.gg/6pbUzK44eW";
+const MENTOR_FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSeKK8E8B63Sl4J0fjJZKDz3QdWImSqkrwPym-_EN6K2kcizsw/viewform";
 
 // Discord icon component
 function DiscordIcon({
@@ -119,7 +120,15 @@ export function Navbar() {
               href="/host"
               className="text-base font-medium text-black hover:text-[#4B89EF]"
             >
-              Host a hackathon
+              Host a Hackathon
+            </Link>
+            <Link
+              href={MENTOR_FORM_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-base font-medium text-black hover:text-[#4B89EF]"
+            >
+              Become a Mentor
             </Link>
 
             {/* Discord (desktop) */}
@@ -130,7 +139,7 @@ export function Navbar() {
               className="text-base font-medium text-black hover:text-[#4B89EF] inline-flex items-center gap-2"
             >
               <DiscordIcon className="mr-1 h-[1.1em] w-[1.1em] md:h-[1.2em] md:w-[1.2em]" />
-              Join discord community
+              Join Discord Community
             </Link>
 
             <DropdownMenu>
@@ -153,7 +162,7 @@ export function Navbar() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start">
                 <DropdownMenuItem asChild>
-                  <Link href="/about">About us</Link>
+                  <Link href="/about">About Us</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link href="/research">Research</Link>
@@ -203,11 +212,11 @@ export function Navbar() {
                   className="px-4 py-4 rounded-xl text-base"
                   onClick={handleLoginClick}
                 >
-                  Log in
+                  Log In
                 </Button>
                 <Link href="/select-role">
                   <Button className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-4 rounded-xl text-base">
-                    Get started
+                    Get Started
                   </Button>
                 </Link>
               </>
@@ -268,7 +277,15 @@ export function Navbar() {
               href="/host"
               className="block py-4 text-lg font-medium text-black hover:text-[#4B89EF]"
             >
-              Host a hackathon
+              Host a Hackathon
+            </Link>
+            <Link
+              href={MENTOR_FORM_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block py-4 text-lg font-medium text-black hover:text-[#4B89EF]"
+            >
+              Become a Mentor
             </Link>
 
             {/* Discord (mobile) */}
@@ -279,7 +296,7 @@ export function Navbar() {
               className="block py-4 text-lg font-medium text-black hover:text-[#4B89EF] inline-flex items-center gap-2"
             >
               <DiscordIcon className="mr-2 h-[1.2em] w-[1.2em]" />
-              Join discord community
+              Join Discord Community
             </Link>
 
             {/* Resources Dropdown in Mobile */}
@@ -310,7 +327,7 @@ export function Navbar() {
                   href="/about"
                   className="block py-3 text-base font-normal text-black hover:text-[#4B89EF]"
                 >
-                  About us
+                  About Us
                 </Link>
                 <Link
                   href="/research"
@@ -366,11 +383,11 @@ export function Navbar() {
                     className="w-full py-4 rounded-lg text-base font-medium"
                     onClick={handleLoginClick}
                   >
-                    Log in
+                    Log In
                   </Button>
                   <Link href="/select-role" className="block">
                     <Button className="w-full bg-blue-500 hover:bg-blue-600 text-white py-4 rounded-lg text-base font-medium">
-                      Get started
+                      Get Started
                     </Button>
                   </Link>
                 </div>
