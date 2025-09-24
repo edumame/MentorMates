@@ -35,4 +35,16 @@ export const blogContent: BlogPost[] = [
         thumbnail: "/blog/tencent-hero.jpg",
         slug: "2",
     },
+    {
+        title: "Designing the Future: The YU Challenge at PolyU's School of Design",
+        excerpt:
+        "A hackathon that brought together industry mentors, students, and university resources to create innovative solutions for real-world challenges.",
+        category: "Insights",
+        author: "Mentor Mates",
+        date: "Sep 24, 2025",
+        readTime: "5 min read",
+        authorAvatar: "/testimonials/avatarFallback.png",
+        thumbnail: "/blog/YUChallenge02.jpg",
+        slug: "3",
+    }
 ];  

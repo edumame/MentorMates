@@ -2,7 +2,7 @@ import { BlogCard } from "./BlogCard";
 
 export function BlogPage() {
     return (
-        <div className="flex flex-col items-center justify-center min-h-[400px] px-4">
+        <div className="flex flex-col items-center justify-center min-h-[400px] px-4 pt-16">
             <div className="text-center max-w-2xl">
                 <p className="text-sm font-medium mb-4">
                     Blog
