@@ -4,6 +4,8 @@ import { LatestAside } from "@/components/blog/LatestAside";
 import { CTAJoin } from "@/components/layout/CTAJoin";
 import { Footer } from "@/components/layout/Footer";
 import { blogContent } from "../Content";
+import { LinkIcon, Star } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export default function Article2() {
     return (
@@ -44,18 +46,20 @@ export default function Article2() {
                         </div>
                         <div className="ml-auto flex items-center gap-3 flex-end">
                             {/* Social icons placeholders */}
-                            <a 
+                            <Link
                                 href="https://mp.weixin.qq.com/s/Jfts5L9DYGAgaIm3VLfCtQ" 
                                 target="_blank" 
                                 rel="noopener noreferrer"
                                 aria-label="Share" 
-                                className="p-2 rounded-full hover:bg-neutral-100"
+                                className="rounded-full hover:text-black hover:bg-neutral-100"
                             >
-                                🔗
-                            </a>
-                            <button aria-label="Bookmark" className="p-2 rounded-full hover:bg-neutral-100">★</button>
+                                    <LinkIcon className="w-4 h-4" />
+                            </Link>
+                            <Button variant="ghost" aria-label="Bookmark" className="rounded-full">
+                                <Star className="w-4 h-4 hover:fill-yellow-500 hover:text-yellow-500" />
+                            </Button>
                         </div>
-                    </div>
+                    </div>  
                 </div>
             </header>
 

@@ -1,8 +1,7 @@
 import { notFound } from "next/navigation";
 import dynamic from "next/dynamic";
 
-
-const articleMap: Record<string, React.ComponentType<any>> = {
+const articleMap: Record<string, React.ComponentType> = {
     "1": dynamic(() => import("@/components/blog/articles/1")),
     "2": dynamic(() => import("@/components/blog/articles/2")),
     // "3": dynamic(() => import("@/components/blog/articles/3")),
