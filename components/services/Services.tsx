@@ -73,8 +73,8 @@ function ServiceRow({ data }: { data: ServiceSectionData }) {
             {data.bullets.map((b, i) => (
               <div key={i} className="flex flex-col items-start gap-3">
                 <MaterialIcon
-                  name={b.icon ?? ""}
-                  className="text-[6rem] sm:text-[8rem] md:text-[10rem] lg:text-[12rem] leading-none shrink-0 text-gray-900"
+                  name={b.icon?.name ?? ""}
+                  className="text-[8rem] sm:text-[12rem] md:text-[16rem] lg:text-[20rem] leading-none shrink-0 text-gray-900"
                   title={b.title}
                 />
                 <h3 className="text-lg sm:text-xl font-semibold text-gray-900">
