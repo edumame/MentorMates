@@ -119,6 +119,11 @@ export function Footer() {
                         Blog
                         </Link>
                     </li>
+                    <li>
+                        <Link href="/roles" className="hover:text-gray-900">
+                        Help
+                        </Link>
+                    </li>
                     </ul>
                 </div>
 
