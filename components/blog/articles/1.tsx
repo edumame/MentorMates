@@ -54,13 +54,9 @@ export default function Article1() {
 
         {/* Article Body */}
         <article className="prose prose-neutral mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 prose-h2:mt-10 prose-h2:mb-3 prose-li:marker:text-neutral-400">
-            <p>
-            In a focused, small-scale professional development session, twelve team members from Inspirit AI gathered for an intensive AI Vibe Coding workshop led by Chinat Yu. The goal: explore how emerging AI tools can enhance Inspirit AI&apos;s business operations and enrich the way they teach students worldwide.
-            </p>
-
             <h2>A Tailored Corporate Learning Experience</h2>
             <p>
-            The session was intentionally designed for a high-touch, high-relevance experience. With a small cohort, every participant received direct guidance and hands-on time to build, test, and iterate. The curriculum blended AI prototyping frameworks with real educational use cases—so what people learned in the room connected immediately to Inspirit AI&apos;s programs and operations.
+            In a focused, small-scale professional development session, 12 team members from Inspirit AI gathered for an intensive AI Vibe Coding workshop led by Chinat Yu. The goal: to explore how emerging AI tools can enhance Inspirit AI&apos;s business operations and enrich the way they teach students worldwide.
             </p>
 
             {/* Second Image */}
@@ -77,9 +73,9 @@ export default function Article1() {
 
             <h2>Why This Session Was Unique</h2>
             <ul>
-            <li><strong>Custom-Built Curriculum.</strong> Content tailored to Inspirit AI, combining rapid AI prototyping with real-world education scenarios.</li>
-            <li><strong>Hands-On, High-Touch Format.</strong> A small cohort ensured interactive support and personally relevant feedback for each participant.</li>
-            <li><strong>Business & Pedagogical Relevance.</strong> Beyond technical skills, the workshop explored how AI streamlines workflows, elevates student experiences, and inspires new program offerings.</li>
+            <li><strong>Custom-Built Curriculum</strong> — The content was designed specifically for Inspirit AI, blending AI prototyping frameworks with real-world applications in educational contexts.</li>
+            <li><strong>Hands-On, High-Touch Format</strong> — With a small cohort size, every participant received direct guidance, making the session interactive and personally relevant.</li>
+            <li><strong>Business and Pedagogical Relevance</strong> — The focus extended beyond technical skills, exploring how AI can streamline workflows, create engaging student experiences, and inspire new program offerings.</li>
             </ul>
 
             <h2>What Participants Learned</h2>
@@ -92,7 +88,7 @@ export default function Article1() {
 
             <h2>Workshop Outcomes</h2>
             <ul>
-            <li>All twelve participants successfully built functional prototypes during the session.</li>
+            <li>All 12 participants successfully built functional prototypes during the session</li>
             <li>Multiple project ideas identified for further development, including:</li>
             </ul>
             <ul>
@@ -101,29 +97,34 @@ export default function Article1() {
             <li>AI-driven tools for analyzing and visualizing student learning data</li>
             </ul>
             <p>
-            Participants reported feeling &ldquo;more confident&rdquo; and &ldquo;excited to integrate AI into both operations and teaching.&rdquo;
+            Participants reported feeling &ldquo;more confident&rdquo; and &ldquo;excited to integrate AI into both operations and teaching&rdquo;
             </p>
 
             <h2>Why It Matters for Corporate Training</h2>
             <p>
-            This workshop showed that even a small, focused corporate training can create immediate value when it aligns tools and techniques with the organization&apos;s mission, gives people time to experiment in a supportive setting, and bridges business impact with student learning outcomes.
+            This session showed that even a small, focused corporate workshop can create immediate value when it:
+            </p>
+            <ul>
+            <li>Aligns tools and techniques directly with the organization&apos;s mission</li>
+            <li>Gives participants time to experiment and iterate in a supportive setting</li>
+            <li>Bridges the gap between business impact and student learning outcomes</li>
+            </ul>
+
+            <h2>Chinat Yu&apos;s Role</h2>
+            <p>
+            As facilitator, Yu guided the Inspirit AI team through practical exercises, demonstrations, and project builds—ensuring every participant left with new technical capabilities, actionable ideas, and the confidence to implement them.
             </p>
 
-            <h2>Facilitation</h2>
+            <h2>Call to Action</h2>
             <p>
-            As facilitator, Chinat Yu guided the team through practical exercises, live demos, and end&mdash;to&mdash;end project builds—ensuring everyone left with new technical capabilities, actionable ideas, and the confidence to implement them.
-            </p>
-
-            <h2>Want Training Like This?</h2>
-            <p>
-            If your team is ready to explore how AI can transform business processes and educational offerings, a tailored Vibe Coding training can deliver both inspiration and tangible results in a single session.
+            If your team is ready to explore how AI can transform your business processes and educational offerings, a tailored Vibe Coding training can deliver both inspiration and tangible results in a single session.
             </p>
             <p className="not-prose">
             <a
                 href="mailto:mentormates.ai"
                 className="inline-flex items-center justify-center rounded-xl border border-neutral-200 px-4 py-2 text-sm font-medium hover:bg-neutral-50"
             >
-                Contact us: mentormates.ai
+                Contact: mentormates.ai
             </a>
             </p>
         </article>
