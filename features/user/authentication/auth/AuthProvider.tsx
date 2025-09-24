@@ -19,7 +19,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       "/auth/callback",
       "/auth/auth-code-error",
       "/about",
-      "/blog",
       "/research",
       "/host",
       "/teams",
@@ -31,8 +30,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       "/claim-ticket",
       "/help",
       "/devpost-integration",
-      "/blog",
-      "/blog/[slug]",
     ];
     return [
       ...BASE_PUBLIC_PATHS,
@@ -41,6 +38,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       /^\/events($|\/.*$)/, // Matches /events and all its sub-routes
       /^\/ai-vibe-guide($|\/.*$)/, // Matches /ai-vibe-guide and all sub-routes
       /^\/profile\/[a-zA-Z0-9_-]+($|\/.*$)/, // Matches /profile/user-id and all its sub-routes
+      /^\/blog($|\/.*$)/, // Make blog index and all posts public
+      /^\/article($|\/.*$)/, // Alias article routes public too
     ];
   }, []);
 
