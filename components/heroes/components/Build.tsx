@@ -82,7 +82,7 @@ export function Build() {
 
             <div>
               <Button variant="default" asChild>
-                <Link href="/services">Start building</Link>
+                <Link href="/host">Start building</Link>
               </Button>
             </div>
           </div>

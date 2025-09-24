@@ -17,8 +17,14 @@ import {
 
 const DISCORD_INVITE = "https://discord.gg/6pbUzK44eW";
 
-// Discord icon component 
-function DiscordIcon({ className = "", title }: { className?: string; title?: string }) {
+// Discord icon component
+function DiscordIcon({
+  className = "",
+  title,
+}: {
+  className?: string;
+  title?: string;
+}) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -110,7 +116,7 @@ export function Navbar() {
               Projects
             </Link>
             <Link
-              href="/services"
+              href="/host"
               className="text-base font-medium text-black hover:text-[#4B89EF]"
             >
               Host a hackathon
@@ -259,7 +265,7 @@ export function Navbar() {
               Projects
             </Link>
             <Link
-              href="/services"
+              href="/host"
               className="block py-4 text-lg font-medium text-black hover:text-[#4B89EF]"
             >
               Host a hackathon
@@ -297,7 +303,9 @@ export function Navbar() {
                   <polyline points="6 9 12 15 18 9"></polyline>
                 </svg>
               </button>
-              <div className={`${resourcesOpen ? "block" : "hidden"} ml-4 mt-2 space-y-1`}>
+              <div
+                className={`${resourcesOpen ? "block" : "hidden"} ml-4 mt-2 space-y-1`}
+              >
                 <Link
                   href="/about"
                   className="block py-3 text-base font-normal text-black hover:text-[#4B89EF]"
@@ -331,7 +339,9 @@ export function Navbar() {
                 <div className="space-y-4">
                   <div className="flex items-center gap-3 px-2 py-3">
                     <Avatar className="h-8 w-8">
-                      <AvatarImage src={session.user.user_metadata?.avatar_url} />
+                      <AvatarImage
+                        src={session.user.user_metadata?.avatar_url}
+                      />
                       <AvatarFallback>
                         {session.user.email?.charAt(0).toUpperCase()}
                       </AvatarFallback>

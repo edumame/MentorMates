@@ -21,7 +21,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       "/about",
       "/blog",
       "/research",
-      "/services",
+      "/host",
       "/teams",
       "/privacy",
       "/terms",

@@ -6,7 +6,7 @@ import { SERVICES_SECTIONS, type ServiceSectionData } from "./content";
 import { MaterialIcon } from "@/components/MaterialIcon"
 import { Button } from "@/components/ui/button";
 
-export function Services() {
+export function Host() {
   const sections = SERVICES_SECTIONS.map((s, i) => ({
     ...s,
     imageSide: s.imageSide ?? (i % 2 === 0 ? "right" : "left"),
