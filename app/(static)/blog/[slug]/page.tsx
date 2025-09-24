@@ -1,13 +1,14 @@
-import dynamic from "next/dynamic";
 import { notFound } from "next/navigation";
+import dynamic from "next/dynamic";
 
-const articleMap: Record<string, any> = {
+
+const articleMap: Record<string, React.ComponentType<any>> = {
     "1": dynamic(() => import("@/components/blog/articles/1")),
-    "2": dynamic(() => import("@/components/blog/articles/1")),
-    "3": dynamic(() => import("@/components/blog/articles/1")),
-    "4": dynamic(() => import("@/components/blog/articles/1")),
-    "5": dynamic(() => import("@/components/blog/articles/1")),
-    "6": dynamic(() => import("@/components/blog/articles/1")),
+    // "2": dynamic(() => import("@/components/blog/articles/2")),
+    // "3": dynamic(() => import("@/components/blog/articles/3")),
+    // "4": dynamic(() => import("@/components/blog/articles/4")),
+    // "5": dynamic(() => import("@/components/blog/articles/5")),
+    // "6": dynamic(() => import("@/components/blog/articles/6")),
 };
 
 export default function BlogArticlePage({
@@ -15,7 +16,10 @@ export default function BlogArticlePage({
     }: {
     params: { slug: string };
     }) {
-    const Component = articleMap[params.slug];
+    // guard against encoded slugs like %2F
+    const slug = decodeURIComponent(params.slug);
+    const Component = articleMap[slug];
+
     if (!Component) return notFound();
     return <Component />;
 }

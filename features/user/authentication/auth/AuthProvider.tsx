@@ -31,6 +31,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       "/claim-ticket",
       "/help",
       "/devpost-integration",
+      "/blog",
+      "/blog/[slug]",
     ];
     return [
       ...BASE_PUBLIC_PATHS,

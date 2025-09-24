@@ -33,7 +33,7 @@ export const blogContent: BlogPost[] = [
         readTime: "8 min read",
         authorAvatar: "/testimonials/avatarFallback.png",
         thumbnail: "/testimonials/avatarFallback.png",
-        slug: "1",
+        slug: "2",
     },
     {
         title: "Best Practices for Effective Mentorship",
@@ -45,7 +45,7 @@ export const blogContent: BlogPost[] = [
         readTime: "6 min read",
         authorAvatar: "/testimonials/avatarFallback.png",
         thumbnail: "/testimonials/avatarFallback.png",
-        slug: "1",
+        slug: "3",
     },
     {
         title: "Project Collaboration Tips",
@@ -57,7 +57,7 @@ export const blogContent: BlogPost[] = [
         readTime: "7 min read",
         authorAvatar: "/testimonials/avatarFallback.png",
         thumbnail: "/testimonials/avatarFallback.png",
-        slug: "1",
+        slug: "4",
     },
     {
         title: "Building Your Professional Network",
@@ -69,7 +69,7 @@ export const blogContent: BlogPost[] = [
         readTime: "9 min read",
         authorAvatar: "/testimonials/avatarFallback.png",
         thumbnail: "/testimonials/avatarFallback.png",
-        slug: "1",
+        slug: "5",
     },
     {
         title: "Event Hosting Guide",
@@ -81,6 +81,6 @@ export const blogContent: BlogPost[] = [
         readTime: "10 min read",
         authorAvatar: "/testimonials/avatarFallback.png",
         thumbnail: "/testimonials/avatarFallback.png",
-        slug: "1",
+        slug: "6",
     },
 ];
