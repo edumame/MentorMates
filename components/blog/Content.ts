@@ -20,7 +20,7 @@ export const blogContent: BlogPost[] = [
         date: "Sep 24, 2025",
         readTime: "5 min read",
         authorAvatar: "/testimonials/avatarFallback.png",
-        thumbnail: "/testimonials/avatarFallback.png",
+        thumbnail: "/blog/inspirit-ai-hero.jpg",
         slug: "1",
     },
     {

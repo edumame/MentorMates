@@ -63,6 +63,19 @@ export default function Article1() {
             The session was intentionally designed for a high-touch, high-relevance experience. With a small cohort, every participant received direct guidance and hands-on time to build, test, and iterate. The curriculum blended AI prototyping frameworks with real educational use cases—so what people learned in the room connected immediately to Inspirit AI&apos;s programs and operations.
             </p>
 
+            {/* Second Image */}
+            <div className="not-prose mx-auto mt-8 mb-8 max-w-4xl">
+                <div className="relative aspect-[16/9] w-full overflow-hidden rounded-lg bg-neutral-100">
+                    <Image 
+                        src="/blog/ai-coding-workshop.jpg" 
+                        alt="Participants engaged in hands-on AI coding session" 
+                        fill 
+                        className="object-cover w-full h-full" 
+                    />
+                </div>
+                <p className="mt-2 text-center text-xs text-neutral-500">Hands-on coding session with personalized guidance for each participant.</p>
+            </div>
+
             <h2>Why This Session Was Unique</h2>
             <ul>
             <li><strong>Custom-Built Curriculum.</strong> Content tailored to Inspirit AI, combining rapid AI prototyping with real-world education scenarios.</li>
@@ -89,8 +102,21 @@ export default function Article1() {
             <li>AI-driven tools for analyzing and visualizing student learning data</li>
             </ul>
             <p>
-            Participants reported feeling “more confident” and “excited to integrate AI into both operations and teaching.”
+            Participants reported feeling "more confident" and "excited to integrate AI into both operations and teaching."
             </p>
+
+            {/* Third Image */}
+            <div className="not-prose mx-auto mt-8 mb-8 max-w-4xl">
+                <div className="relative aspect-[16/9] w-full overflow-hidden rounded-lg bg-neutral-100">
+                    <Image 
+                        src="/blog/ai-impact-participants.jpg" 
+                        alt="Participants reporting feeling more confident and excited to integrate AI into both operations and teaching." 
+                        fill 
+                        className="object-cover w-full h-full" 
+                    />
+                </div>
+                <p className="mt-2 text-center text-xs text-neutral-500">Participants reporting feeling more confident and excited to integrate AI into both operations and teaching.</p>
+            </div>
 
             <h2>Why It Matters for Corporate Training</h2>
             <p>
