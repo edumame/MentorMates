@@ -120,7 +120,7 @@ export function Footer() {
                         </Link>
                     </li>
                     <li>
-                        <Link href="/roles" className="hover:text-gray-900">
+                        <Link href="/help" className="hover:text-gray-900">
                         Help
                         </Link>
                     </li>

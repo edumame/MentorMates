@@ -156,7 +156,7 @@ export function Navbar() {
                   <Link href="/blog">Blog</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="/roles">Help</Link>
+                  <Link href="/help">Help</Link>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -317,7 +317,7 @@ export function Navbar() {
                   Blog
                 </Link>
                 <Link
-                  href="/roles"
+                  href="/help"
                   className="block py-3 text-base font-normal text-black hover:text-[#4B89EF]"
                 >
                   Help
