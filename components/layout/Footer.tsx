@@ -8,7 +8,6 @@ import LinkedInIcon from "@mui/icons-material/LinkedIn";
 import { Button } from "@/components/ui/button";
 
 const SUBSTACK_BASE = "https://mentormates.substack.com/";
-const MENTOR_FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSeKK8E8B63Sl4J0fjJZKDz3QdWImSqkrwPym-_EN6K2kcizsw/viewform";
 
 export function Footer() {
     const [firstUrl, setFirstUrl] = useState("");
@@ -119,7 +118,7 @@ export function Footer() {
                         </Link>
                     </li>
                     <li>
-                        <Link href={MENTOR_FORM_URL} className="hover:text-gray-900">
+                        <Link href="/join/opportunities" className="hover:text-gray-900">
                         Join our team
                         </Link>
                     </li>
