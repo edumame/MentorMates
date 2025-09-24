@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import type { Session } from "@supabase/supabase-js";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -17,12 +17,19 @@ import {
 
 export function Navbar() {
   const router = useRouter();
+  const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [resourcesOpen, setResourcesOpen] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
 
   const toggleMenu = () => setIsOpen(!isOpen);
   const toggleResources = () => setResourcesOpen(!resourcesOpen);
+
+  // Auto-close mobile menu on route change
+  useEffect(() => {
+    setIsOpen(false);
+    setResourcesOpen(false);
+  }, [pathname]);
 
   useEffect(() => {
     const fetchSession = async () => {
@@ -248,7 +255,7 @@ export function Navbar() {
                 </svg>
               </button>
               <div
-                className={`${resourcesOpen ? "block" : "hidden"} ml-4 mt-2 space-y-1 bg-gray-50 rounded-lg p-4`}
+                className={`${resourcesOpen ? "block" : "hidden"} ml-4 mt-2 space-y-1`}
               >
                 <Link
                   href="/about"
