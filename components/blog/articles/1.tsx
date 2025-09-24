@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import { LatestAside } from "@/components/blog/LatestAside";
 import { CTAJoin } from "@/components/layout/CTAJoin";
 import { Footer } from "@/components/layout/Footer";
@@ -10,7 +11,7 @@ export default function Article1() {
         {/* Top Breadcrumbs */}
         <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 pt-6 text-sm text-neutral-500">
             <nav className="flex items-center gap-2">
-            <a href="/blog" className="hover:text-neutral-800">Blog</a>
+            <Link href="/blog" className="hover:text-neutral-800">Blog</Link>
             <span>{' > '}</span>
             <span className="text-neutral-800 font-medium">Insights</span>
             </nav>
@@ -47,9 +48,8 @@ export default function Article1() {
         <div className="mx-auto mt-6 max-w-4xl px-4 sm:px-6 lg:px-8">
             <div className="relative aspect-[16/9] w-full overflow-hidden rounded-lg bg-neutral-100">
             {/* Replace src with your real hero image */}
-            <Image src="/blog/inspirit-ai-hero.jpg" alt="Inspirit AI team group photo from Vibe Coding training" fill className="object-cover w-full h-full" />
+            <Image src="/blog/inspirit01.jpg" alt="Inspirit AI team group photo from Vibe Coding training" fill className="object-cover w-full h-full" />
             </div>
-            <p className="mt-2 text-center text-xs text-neutral-500 mb-8">Inspirit AI team after an intensive AI Vibe Coding workshop.</p>
         </div>
 
         {/* Article Body */}
@@ -67,13 +67,12 @@ export default function Article1() {
             <div className="not-prose mx-auto mt-8 mb-8 max-w-4xl">
                 <div className="relative aspect-[16/9] w-full overflow-hidden rounded-lg bg-neutral-100">
                     <Image 
-                        src="/blog/ai-coding-workshop.jpg" 
+                        src="/blog/inspirit02.jpg" 
                         alt="Participants engaged in hands-on AI coding session" 
                         fill 
                         className="object-cover w-full h-full" 
                     />
                 </div>
-                <p className="mt-2 text-center text-xs text-neutral-500">Hands-on coding session with personalized guidance for each participant.</p>
             </div>
 
             <h2>Why This Session Was Unique</h2>
@@ -102,21 +101,8 @@ export default function Article1() {
             <li>AI-driven tools for analyzing and visualizing student learning data</li>
             </ul>
             <p>
-            Participants reported feeling "more confident" and "excited to integrate AI into both operations and teaching."
+            Participants reported feeling &ldquo;more confident&rdquo; and &ldquo;excited to integrate AI into both operations and teaching.&rdquo;
             </p>
-
-            {/* Third Image */}
-            <div className="not-prose mx-auto mt-8 mb-8 max-w-4xl">
-                <div className="relative aspect-[16/9] w-full overflow-hidden rounded-lg bg-neutral-100">
-                    <Image 
-                        src="/blog/ai-impact-participants.jpg" 
-                        alt="Participants reporting feeling more confident and excited to integrate AI into both operations and teaching." 
-                        fill 
-                        className="object-cover w-full h-full" 
-                    />
-                </div>
-                <p className="mt-2 text-center text-xs text-neutral-500">Participants reporting feeling more confident and excited to integrate AI into both operations and teaching.</p>
-            </div>
 
             <h2>Why It Matters for Corporate Training</h2>
             <p>
