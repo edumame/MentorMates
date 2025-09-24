@@ -1,15 +1,23 @@
 "use client";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-// import FacebookIcon from "@mui/icons-material/Facebook";
 import InstagramIcon from "@mui/icons-material/Instagram";
-import XIcon from "@mui/icons-material/X"; // Twitter/X
+import XIcon from "@mui/icons-material/X";
 import LinkedInIcon from "@mui/icons-material/LinkedIn";
-// import YouTubeIcon from "@mui/icons-material/YouTube";
 import { Button } from "@/components/ui/button";
 
+const SUBSTACK_BASE = "https://mentormates.substack.com/";
+
 export function Footer() {
+    const [firstUrl, setFirstUrl] = useState("");
+    const [firstReferrer, setFirstReferrer] = useState("");
+
+    useEffect(() => {
+        setFirstUrl(window.location.href);
+        setFirstReferrer(document.referrer || "");
+    }, []);
+
     return (
         <footer className="w-full bg-white">
         <div className="mx-auto w-full max-w-8xl px-4 md:px-10 lg:px-24 py-20">
@@ -32,16 +40,31 @@ export function Footer() {
                     Join our newsletter to stay up to date on features and releases.
                 </p>
 
-                {/* Inline on desktop, stacked on mobile */}
-                <form className="mt-4 flex w-full max-w-xl gap-3 mx-auto md:mx-0 flex-col md:flex-row">
+                {/* Substack subscribe form */}
+                <form
+                    action={`${SUBSTACK_BASE}/api/v1/free`}
+                    method="post"
+                    target="_blank" // open Substack confirm page in new tab
+                    className="mt-4 flex w-full max-w-xl gap-3 mx-auto md:mx-0 flex-col md:flex-row"
+                >
                     <input
                     type="email"
+                    name="email" // <-- Substack expects this name
                     placeholder="Enter your email"
+                    required
                     className="h-11 w-full rounded-md border border-gray-300 px-4 text-sm outline-none focus:border-gray-400"
                     />
-                    <Button
-                    variant="defaultGray"
-                    >
+                    {/* optional tracking fields */}
+                    <input type="hidden" name="first_url" value={firstUrl} />
+                    <input type="hidden" name="first_referrer" value={firstReferrer} />
+                    <input type="hidden" name="utm_source" value="footer" />
+                    {/* optional redirect after Substack processes the signup */}
+                    <input
+                    type="hidden"
+                    name="redirect"
+                    value={`${SUBSTACK_BASE}/welcome`}
+                    />
+                    <Button type="submit" variant="defaultGray">
                     Subscribe
                     </Button>
                 </form>
@@ -122,41 +145,27 @@ export function Footer() {
             <div className="mt-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-t border-transparent pt-0">
             {/* Socials */}
             <div className="order-1 md:order-2 flex items-center gap-5 text-gray-700 justify-start md:justify-end">
-                {/* <Link
-                    href="https://facebook.com"
-                    aria-label="Facebook"
-                    className="hover:text-black"
-                >
-                    <FacebookIcon fontSize="medium" />
-                </Link> */}
                 <Link
-                    href="https://www.instagram.com/mentormates.official"
-                    aria-label="Instagram"
-                    className="hover:text-black"
+                href="https://www.instagram.com/mentormates.official"
+                aria-label="Instagram"
+                className="hover:text-black"
                 >
-                    <InstagramIcon fontSize="medium" />
+                <InstagramIcon fontSize="medium" />
                 </Link>
                 <Link
-                    href="https://x.com/mentormates?s=11"
-                    aria-label="X"
-                    className="hover:text-black"
+                href="https://x.com/mentormates?s=11"
+                aria-label="X"
+                className="hover:text-black"
                 >
-                    <XIcon fontSize="medium" />
+                <XIcon fontSize="medium" />
                 </Link>
                 <Link
-                    href="https://www.linkedin.com/in/mentor-mates-a6898036b/"
-                    aria-label="LinkedIn"
-                    className="hover:text-black"
+                href="https://www.linkedin.com/in/mentor-mates-a6898036b/"
+                aria-label="LinkedIn"
+                className="hover:text-black"
                 >
-                    <LinkedInIcon fontSize="medium" />
+                <LinkedInIcon fontSize="medium" />
                 </Link>
-                {/* <Link
-                    href="https://youtube.com"
-                    aria-label="YouTube"
-                    className="hover:text-black"
-                >
-                    <YouTubeIcon fontSize="medium" />
-                </Link> */}
             </div>
 
             <p className="order-2 md:order-1 text-xs md:text-sm text-gray-600">
