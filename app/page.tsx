@@ -14,6 +14,7 @@ import { Calendar, Folder, MessageSquare } from "lucide-react";
 import { toast } from "@/lib/hooks/use-toast";
 import { DiscordCTA } from "@/components/ui/discord-cta";
 import { AnnouncementBanner } from "@/components/ui/announcement-banner";
+import posthog from "posthog-js";
 
 export default function HomePage() {
   const [session, setSession] = useState<Session | null>(null);
@@ -54,6 +55,11 @@ export default function HomePage() {
           } else {
             console.log("Successfully synced profile.");
           }
+
+          posthog.identify(user.id, {
+            email: user.email,
+            display_name: user.user_metadata.full_name,
+          });
         }
 
         setSession(currentSession);
