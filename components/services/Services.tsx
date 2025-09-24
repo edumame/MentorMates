@@ -25,7 +25,7 @@ export function Services() {
           </p>
           <div className="mt-6 sm:mt-8">
             <Button variant="default" asChild>
-              <Link href="/contact">
+              <Link href="https://docs.google.com/forms/d/e/1FAIpQLSdu89X2k657kx6wYSrVcZLP81J9OT-nkqe1zU7V2H73mM0XgA/viewform?usp=sharing&ouid=111944773401134137978">
                 Book a demo
               </Link>
             </Button>
@@ -74,7 +74,7 @@ function ServiceRow({ data }: { data: ServiceSectionData }) {
               <div key={i} className="flex flex-col items-start gap-3">
                 <MaterialIcon
                   name={b.icon?.name ?? ""}
-                  className="text-[8rem] sm:text-[12rem] md:text-[16rem] lg:text-[20rem] leading-none shrink-0 text-gray-900"
+                  className="text-[6rem] sm:text-[8rem] md:text-[10rem] lg:text-[12rem] leading-none shrink-0 text-gray-900"
                   title={b.title}
                 />
                 <h3 className="text-lg sm:text-xl font-semibold text-gray-900">
