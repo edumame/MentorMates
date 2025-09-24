@@ -10,14 +10,15 @@ const articleMap: Record<string, React.ComponentType> = {
     // "6": dynamic(() => import("@/components/blog/articles/6")),
 };
 
-export default function BlogArticlePage({
+export default async function BlogArticlePage({
     params,
     }: {
-    params: { slug: string };
+    params: Promise<{ slug: string }>;
     }) {
+    const { slug } = await params;
     // guard against encoded slugs like %2F
-    const slug = decodeURIComponent(params.slug);
-    const Component = articleMap[slug];
+    const decodedSlug = decodeURIComponent(slug);
+    const Component = articleMap[decodedSlug];
 
     if (!Component) return notFound();
     return <Component />;
