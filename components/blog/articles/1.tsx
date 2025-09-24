@@ -48,7 +48,7 @@ export default function Article1() {
         <div className="mx-auto mt-6 max-w-4xl px-4 sm:px-6 lg:px-8">
             <div className="relative aspect-[16/9] w-full overflow-hidden rounded-lg bg-neutral-100">
             {/* Replace src with your real hero image */}
-            <Image src="/blog/inspirit01.jpg" alt="Inspirit AI team group photo from Vibe Coding training" fill className="object-cover w-full h-full" />
+            <Image src="/blog/inspirit01.jpg" alt="Inspirit AI team group photo from Vibe Coding training" fill className="object-cover w-full h-full mb-8" />
             </div>
         </div>
 
