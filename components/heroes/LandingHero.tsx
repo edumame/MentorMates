@@ -70,10 +70,7 @@ export function LandingHero() {
                           titleIndex === idx
                             ? { y: 0, opacity: 1 }
                             : {
-                                y:
-                                  titleIndex > idx
-                                    ? EXIT_Y_UP
-                                    : EXIT_Y_DOWN,
+                                y: titleIndex > idx ? EXIT_Y_UP : EXIT_Y_DOWN,
                                 opacity: 0,
                               }
                         }

@@ -16,7 +16,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 const DISCORD_INVITE = "https://discord.gg/6pbUzK44eW";
-const MENTOR_FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSeKK8E8B63Sl4J0fjJZKDz3QdWImSqkrwPym-_EN6K2kcizsw/viewform";
+const MENTOR_FORM_URL =
+  "https://docs.google.com/forms/d/e/1FAIpQLSeKK8E8B63Sl4J0fjJZKDz3QdWImSqkrwPym-_EN6K2kcizsw/viewform";
 
 // Discord icon component
 function DiscordIcon({
@@ -47,6 +48,8 @@ export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [resourcesOpen, setResourcesOpen] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
+
+  const isHome = pathname === "/";
 
   const toggleMenu = () => setIsOpen(!isOpen);
   const toggleResources = () => setResourcesOpen(!resourcesOpen);
@@ -97,7 +100,9 @@ export function Navbar() {
 
   return (
     <>
-      <nav className="fixed top-0 left-0 right-0 bg-white/70 backdrop-blur-sm z-50">
+      <nav
+        className={`fixed left-0 right-0 bg-white z-50 ${isHome ? "top-14" : "top-0"}`}
+      >
         <div className="flex justify-between items-center py-4 px-10">
           {/* Logo and Desktop Menu */}
           <div className="hidden md:flex items-center gap-8">
@@ -120,7 +125,7 @@ export function Navbar() {
               href="/host"
               className="text-base font-medium text-black hover:text-[#4B89EF]"
             >
-              Host a Hackathon
+              Host a hackathon
             </Link>
             <Link
               href={MENTOR_FORM_URL}
@@ -139,7 +144,7 @@ export function Navbar() {
               className="text-base font-medium text-black hover:text-[#4B89EF] inline-flex items-center gap-2"
             >
               <DiscordIcon className="mr-1 h-[1.1em] w-[1.1em] md:h-[1.2em] md:w-[1.2em]" />
-              Join Discord Community
+              Join discord community
             </Link>
 
             <DropdownMenu>
@@ -162,7 +167,7 @@ export function Navbar() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start">
                 <DropdownMenuItem asChild>
-                  <Link href="/about">About Us</Link>
+                  <Link href="/about">About us</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link href="/research">Research</Link>
@@ -212,11 +217,11 @@ export function Navbar() {
                   className="px-4 py-4 rounded-xl text-base"
                   onClick={handleLoginClick}
                 >
-                  Log In
+                  Log in
                 </Button>
                 <Link href="/select-role">
                   <Button className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-4 rounded-xl text-base">
-                    Get Started
+                    Get started
                   </Button>
                 </Link>
               </>
@@ -277,7 +282,7 @@ export function Navbar() {
               href="/host"
               className="block py-4 text-lg font-medium text-black hover:text-[#4B89EF]"
             >
-              Host a Hackathon
+              Host a hackathon
             </Link>
             <Link
               href={MENTOR_FORM_URL}
@@ -296,7 +301,7 @@ export function Navbar() {
               className="block py-4 text-lg font-medium text-black hover:text-[#4B89EF] inline-flex items-center gap-2"
             >
               <DiscordIcon className="mr-2 h-[1.2em] w-[1.2em]" />
-              Join Discord Community
+              Join discord community
             </Link>
 
             {/* Resources Dropdown in Mobile */}
@@ -327,7 +332,7 @@ export function Navbar() {
                   href="/about"
                   className="block py-3 text-base font-normal text-black hover:text-[#4B89EF]"
                 >
-                  About Us
+                  About us
                 </Link>
                 <Link
                   href="/research"
@@ -383,11 +388,11 @@ export function Navbar() {
                     className="w-full py-4 rounded-lg text-base font-medium"
                     onClick={handleLoginClick}
                   >
-                    Log In
+                    Log in
                   </Button>
                   <Link href="/select-role" className="block">
                     <Button className="w-full bg-blue-500 hover:bg-blue-600 text-white py-4 rounded-lg text-base font-medium">
-                      Get Started
+                      Get started
                     </Button>
                   </Link>
                 </div>
