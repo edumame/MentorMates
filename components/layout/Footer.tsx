@@ -2,11 +2,11 @@
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
-import FacebookIcon from "@mui/icons-material/Facebook";
+// import FacebookIcon from "@mui/icons-material/Facebook";
 import InstagramIcon from "@mui/icons-material/Instagram";
 import XIcon from "@mui/icons-material/X"; // Twitter/X
 import LinkedInIcon from "@mui/icons-material/LinkedIn";
-import YouTubeIcon from "@mui/icons-material/YouTube";
+// import YouTubeIcon from "@mui/icons-material/YouTube";
 import { Button } from "@/components/ui/button";
 
 export function Footer() {
@@ -122,13 +122,13 @@ export function Footer() {
             <div className="mt-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-t border-transparent pt-0">
             {/* Socials */}
             <div className="order-1 md:order-2 flex items-center gap-5 text-gray-700 justify-start md:justify-end">
-                <Link
+                {/* <Link
                     href="https://facebook.com"
                     aria-label="Facebook"
                     className="hover:text-black"
                 >
                     <FacebookIcon fontSize="medium" />
-                </Link>
+                </Link> */}
                 <Link
                     href="https://www.instagram.com/mentormates.official"
                     aria-label="Instagram"
@@ -150,13 +150,13 @@ export function Footer() {
                 >
                     <LinkedInIcon fontSize="medium" />
                 </Link>
-                <Link
+                {/* <Link
                     href="https://youtube.com"
                     aria-label="YouTube"
                     className="hover:text-black"
                 >
                     <YouTubeIcon fontSize="medium" />
-                </Link>
+                </Link> */}
             </div>
 
             <p className="order-2 md:order-1 text-xs md:text-sm text-gray-600">
