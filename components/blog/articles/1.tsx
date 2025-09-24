@@ -1,52 +1,55 @@
 import Image from "next/image";
+import { LatestAside } from "@/components/blog/LatestAside";
 import { CTAJoin } from "@/components/layout/CTAJoin";
 import { Footer } from "@/components/layout/Footer";
-
-// Blog Article Layout inspired by provided reference image
-// Hero image should be placed in /public/images/blog/inspirit-ai-hero.jpg (replace src below if different)
-// Thumbnail images in Related Posts can be swapped later
+import { blogContent } from "../Content";
 
 export default function Article1() {
     return (
         <div className="min-h-screen bg-white text-neutral-900">
         {/* Top Breadcrumbs */}
-        <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 pt-6 text-sm text-neutral-500">
+        <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 pt-6 text-sm text-neutral-500">
             <nav className="flex items-center gap-2">
             <a href="/blog" className="hover:text-neutral-800">Blog</a>
-            <span>·</span>
-            <a href="/blog/insights" className="hover:text-neutral-800">Insights</a>
+            <span>{' > '}</span>
+            <span className="text-neutral-800 font-medium">Insights</span>
             </nav>
         </div>
 
         {/* Title & Meta */}
         <header className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 pt-4">
             <h1 className="text-3xl md:text-4xl font-semibold leading-tight tracking-tight">
-            AI for Impact: Inspirit AI&apos;s Vibe Coding Training
+                AI for Impact: Inspirit AI&apos;s Vibe Coding Training
             </h1>
             <div className="mt-4 flex items-center gap-3 text-sm text-neutral-500">
-            <div className="flex items-center gap-2">
-                <div className="h-8 w-8 rounded-full bg-neutral-200" />
-                <span className="text-neutral-800">Chinat Yu</span>
-            </div>
-            <span>·</span>
-            <time dateTime="2025-09-24">Sep 24, 2025</time>
-            <span>·</span>
-            <span>5 min read</span>
-            <div className="ml-auto flex items-center gap-3">
-                {/* Social icons placeholders */}
-                <button aria-label="Share" className="p-2 rounded-full hover:bg-neutral-100">🔗</button>
-                <button aria-label="Bookmark" className="p-2 rounded-full hover:bg-neutral-100">★</button>
+            <div className="flex items-start gap-3 w-full">
+                <div className="relative h-10 w-10 rounded-full bg-neutral-200 flex-shrink-0">
+                    <Image src={blogContent[0].authorAvatar} alt={blogContent[0].author} fill className="object-cover rounded-full" />
+                </div>
+                <div className="flex flex-col">
+                    <span className="text-neutral-800 font-medium">{blogContent[0].author}</span>
+                    <div className="text-neutral-500 text-sm">
+                        <time dateTime={blogContent[0].date}>{blogContent[0].date}</time>
+                        <span className="mx-1">·</span>
+                        <span>{blogContent[0].readTime}</span>
+                    </div>
+                </div>
+                <div className="ml-auto flex items-center gap-3 flex-end">
+                    {/* Social icons placeholders */}
+                    <button aria-label="Share" className="p-2 rounded-full hover:bg-neutral-100">🔗</button>
+                    <button aria-label="Bookmark" className="p-2 rounded-full hover:bg-neutral-100">★</button>
+                </div>
             </div>
             </div>
         </header>
 
         {/* Hero Image */}
         <div className="mx-auto mt-6 max-w-4xl px-4 sm:px-6 lg:px-8">
-            <div className="relative aspect-[16/9] w-full overflow-hidden rounded-2xl bg-neutral-100">
+            <div className="relative aspect-[16/9] w-full overflow-hidden rounded-lg bg-neutral-100">
             {/* Replace src with your real hero image */}
-            <Image src="/images/blog/inspirit-ai-hero.jpg" alt="Inspirit AI team group photo from Vibe Coding training" fill className="object-cover" />
+            <Image src="/blog/inspirit-ai-hero.jpg" alt="Inspirit AI team group photo from Vibe Coding training" fill className="object-cover w-full h-full" />
             </div>
-            <p className="mt-2 text-center text-xs text-neutral-500">Inspirit AI team after an intensive AI Vibe Coding workshop.</p>
+            <p className="mt-2 text-center text-xs text-neutral-500 mb-8">Inspirit AI team after an intensive AI Vibe Coding workshop.</p>
         </div>
 
         {/* Article Body */}
@@ -113,50 +116,8 @@ export default function Article1() {
             </p>
         </article>
 
-        {/* Related Posts */}
-        <section className="mx-auto mt-12 max-w-5xl px-4 sm:px-6 lg:px-8">
-            <h3 className="text-lg font-semibold">Related Posts</h3>
-            <div className="mt-4 grid gap-6 md:grid-cols-3">
-            {/* Card 1 */}
-            <a href="#" className="group block overflow-hidden rounded-2xl border border-neutral-200 hover:shadow-md transition-shadow">
-                <div className="relative h-40 w-full bg-neutral-100">
-                <Image src="/images/blog/related-1.jpg" alt="Maximizing Hackathon Success" fill className="object-cover" />
-                </div>
-                <div className="p-4">
-                <p className="text-xs text-neutral-500">Innovation</p>
-                <h4 className="mt-1 text-sm font-medium group-hover:underline">Maximizing Hackathon Success</h4>
-                <p className="mt-2 line-clamp-2 text-sm text-neutral-600">Gain strategies to supercharge your hackathon experiences—before, during, and after.</p>
-                </div>
-            </a>
-
-            {/* Card 2 */}
-            <a href="#" className="group block overflow-hidden rounded-2xl border border-neutral-200 hover:shadow-md transition-shadow">
-                <div className="relative h-40 w-full bg-neutral-100">
-                <Image src="/images/blog/related-2.jpg" alt="The Future of Game Jams" fill className="object-cover" />
-                </div>
-                <div className="p-4">
-                <p className="text-xs text-neutral-500">Tech & Making</p>
-                <h4 className="mt-1 text-sm font-medium group-hover:underline">The Future of Game Jams</h4>
-                <p className="mt-2 line-clamp-2 text-sm text-neutral-600">Explore emerging tools in fast&mdash;paced, collaborative build events.</p>
-                </div>
-            </a>
-
-            {/* Card 3 */}
-            <a href="#" className="group block overflow-hidden rounded-2xl border border-neutral-200 hover:shadow-md transition-shadow">
-                <div className="relative h-40 w-full bg-neutral-100">
-                <Image src="/images/blog/related-3.jpg" alt="Pitch Competitions Explained" fill className="object-cover" />
-                </div>
-                <div className="p-4">
-                <p className="text-xs text-neutral-500">Events</p>
-                <h4 className="mt-1 text-sm font-medium group-hover:underline">Pitch Competitions Explained</h4>
-                <p className="mt-2 line-clamp-2 text-sm text-neutral-600">Understand the essentials of successful pitches and how to prepare your team.</p>
-                </div>
-            </a>
-            </div>
-        </section>
-
-        {/* CTA & Footer */}
         <div className="mt-16">
+            <LatestAside currentSlug="1" />
             <CTAJoin />
             <Footer />
         </div>

@@ -4,9 +4,9 @@
 import Link from "next/link";
 import Image from "next/image";
 import { blogContent } from "@/components/blog/Content";
+import { Button } from "@/components/ui/button";
 
 function parseDate(d: string) {
-    // Your dates are like "Dec 15, 2024"
     return new Date(d);
 }
 
@@ -17,50 +17,90 @@ export function LatestAside({ currentSlug }: { currentSlug: string }) {
         .slice(0, 3);
 
     return (
-        <section aria-labelledby="latest-heading" className="mt-10">
-        <h2 id="latest-heading" className="mb-4 text-base font-semibold text-slate-900">
-            Latest articles
-        </h2>
-
-        <ul className="space-y-4">
-            {latest.map((post) => (
-            <li key={post.slug}>
-                <Link
-                href={`/blog/${post.slug}`}
-                className="group grid grid-cols-[96px,1fr] gap-3 rounded-xl border border-slate-200 bg-white p-3 transition hover:-translate-y-0.5 hover:shadow-sm"
+        <section className="mx-auto mt-12 max-w-5xl px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between">
+                <h3 className="text-xl md:text-3xl font-semibold">Related Posts</h3>
+                <Button 
+                    variant="defaultGray"
+                    asChild
                 >
-                <div className="relative h-24 w-24 overflow-hidden rounded-lg bg-slate-100">
-                    {post.thumbnail ? (
-                    <Image
-                        src={post.thumbnail}
-                        alt={post.title}
-                        fill
-                        className="object-cover"
-                        sizes="96px"
-                    />
-                    ) : (
-                    <div className="absolute inset-0 grid place-items-center text-xs text-slate-400">
-                        No image
-                    </div>
-                    )}
-                </div>
+                    <Link href="/blog">
+                        View all
+                    </Link>
+                </Button>
+            </div>
+            <div className="mt-4 grid gap-6 md:grid-cols-3">
+                {latest.map((post) => (
+                    <Link
+                        key={post.slug}
+                        href={`/blog/${post.slug}`}
+                        className="block h-full"
+                    >
+                        <article className="group flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_1px_0_0_rgba(0,0,0,0.02)] transition-all hover:-translate-y-0.5 hover:shadow-md">
+                            {/* Image */}
+                            <div className="relative aspect-[16/9] w-full bg-slate-100">
+                                {post.thumbnail ? (
+                                    <Image
+                                        src={post.thumbnail}
+                                        alt={post.title}
+                                        fill
+                                        sizes="(min-width:1024px) 33vw, (min-width:768px) 50vw, 100vw"
+                                        className="object-cover"
+                                    />
+                                ) : (
+                                    <div className="absolute inset-0 flex items-center justify-center text-sm text-slate-400">
+                                        Placeholder Image
+                                    </div>
+                                )}
+                            </div>
 
-                <div className="min-w-0">
-                    <p className="text-xs font-medium text-slate-500">{post.category}</p>
-                    <h3 className="truncate text-sm font-semibold text-slate-900 group-hover:underline">
-                    {post.title}
-                    </h3>
-                    <p className="mt-1 line-clamp-2 text-xs text-slate-600">{post.excerpt}</p>
-                    <p className="mt-2 flex items-center gap-2 text-[11px] text-slate-500">
-                    <span>{post.date}</span>
-                    <span aria-hidden="true">•</span>
-                    <span>{post.readTime}</span>
-                    </p>
-                </div>
-                </Link>
-            </li>
-            ))}
-        </ul>
+                            {/* Content */}
+                            <div className="flex flex-1 flex-col p-5 md:p-6">
+                                {/* Category */}
+                                <span className="mb-2 block text-[13px] font-medium text-slate-500">
+                                    {post.category}
+                                </span>
+
+                                {/* Title */}
+                                <h3 className="text-[20px] font-semibold leading-tight text-slate-900 line-clamp-2">
+                                    {post.title}
+                                </h3>
+
+                                {/* Excerpt */}
+                                <p className="mt-2 text-[14px] leading-6 text-slate-600 line-clamp-2">
+                                    {post.excerpt}
+                                </p>
+
+                                {/* Meta: avatar spans 2 rows; right side has two stacked rows */}
+                                <div className="mt-5 grid grid-cols-[auto,1fr] grid-rows-2 items-center gap-x-3 gap-y-1">
+                                    {/* Avatar (left col, spans both rows) */}
+                                    <Image
+                                        src={post.authorAvatar || "/testimonials/avatarFallback.png"}
+                                        alt={`${post.author} avatar`}
+                                        width={32}
+                                        height={32}
+                                        className="row-span-2 h-8 w-8 rounded-full object-cover"
+                                    />
+
+                                    {/* Row 1 (right col): Author */}
+                                    <span className="text-xs text-slate-600">
+                                        Authored by {post.author}
+                                    </span>
+
+                                    {/* Row 2 (right col): Date + read time */}
+                                    <div className="flex items-center gap-2 text-xs text-slate-600">
+                                        {/* calendar */}
+                                        <span>{post.date}</span>
+                                        <span aria-hidden="true">•</span>
+                                        {/* clock */}
+                                        <span>{post.readTime}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </article>
+                    </Link>
+                ))}
+            </div>
         </section>
     );
 }
