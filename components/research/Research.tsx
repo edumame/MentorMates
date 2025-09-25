@@ -19,12 +19,12 @@ const RESEARCH_CARDS = [
         title: "MentorMate: Elevate Hackathon Feedback"
     },
     {
-        href: "/",
+        href: "https://acceleratelearning.stanford.edu/story/what-does-ai-mean-for-learners-with-disabilities/",
         imageSrc: "/research/r13.png",
         imageAlt: "Experiential Learning Research",
         badgeColor: "bg-white",
-        badgeText: "Theory",
-        title: "Experiential Learning"
+        badgeText: "Toolkit",
+        title: "Inclusive by design: Stanford initiative releases new paper that explores how AI can support learners with disabilities"
     }
 ];
 
@@ -74,6 +74,8 @@ export function Research() {
                             <Link 
                                 key={index}
                                 href={card.href}
+                                target="_blank"
+                                rel="noopener noreferrer"
                                 className="group relative overflow-hidden rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300"
                             >
                                 <div className="relative">
