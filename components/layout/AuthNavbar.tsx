@@ -52,11 +52,10 @@ export function AuthNavbar() {
             <Image
               src="/mentormate.png"
               alt="Logo"
-              width={32}
-              height={32}
+              width={40}
+              height={40}
               className="object-contain pl-2"
             />
-            <span className="font-bold text-lg text-blue-900">MentorMates</span>
           </Link>
 
           {/* Desktop Menu */}
