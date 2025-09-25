@@ -23,8 +23,8 @@ const RESEARCH_CARDS = [
         imageSrc: "/research/r13.png",
         imageAlt: "Experiential Learning Research",
         badgeColor: "bg-white",
-        badgeText: "Theory",
-        title: "Experiential Learning"
+        badgeText: "Toolkit",
+        title: "Inclusive by design: Stanford initiative releases new paper that explores how AI can support learners with disabilities"
     }
 ];
 
