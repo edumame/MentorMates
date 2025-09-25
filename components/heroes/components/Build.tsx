@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Group, Build as BuildIcon, Mediation } from "@mui/icons-material";
+import Link from "next/link";
 
 type Feature = {
   icon: React.ComponentType<{ className?: string }>;
@@ -80,7 +81,9 @@ export function Build() {
             </div>
 
             <div>
-              <Button variant="default">Start building</Button>
+              <Button variant="default" asChild>
+                <Link href="/host">Start building</Link>
+              </Button>
             </div>
           </div>
         </div>

@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import type { Session } from "@supabase/supabase-js";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -15,14 +15,50 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+const DISCORD_INVITE = "https://discord.gg/6pbUzK44eW";
+const MENTOR_FORM_URL =
+  "https://docs.google.com/forms/d/e/1FAIpQLSeKK8E8B63Sl4J0fjJZKDz3QdWImSqkrwPym-_EN6K2kcizsw/viewform";
+
+// Discord icon component
+function DiscordIcon({
+  className = "",
+  title,
+}: {
+  className?: string;
+  title?: string;
+}) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-hidden={title ? undefined : true}
+      role="img"
+      aria-label={title}
+      className={`inline-block align-[-0.125em] h-[1em] w-[1em] ${className}`}
+    >
+      <path d="M14.82 4.26001C14.6214 4.6157 14.4444 4.98303 14.29 5.36001C12.7728 5.12006 11.2272 5.12006 9.70999 5.36001C9.55558 4.98303 9.3786 4.6157 9.17999 4.26001C7.75078 4.50421 6.3614 4.94155 5.04999 5.56001C2.70493 8.9443 1.64143 13.053 2.04999 17.15C3.57823 18.2989 5.29345 19.1751 7.11999 19.74C7.53591 19.1906 7.9071 18.6087 8.22999 18C7.63407 17.7803 7.06129 17.5023 6.51999 17.17C6.66845 17.0712 6.80889 16.9609 6.93999 16.84C8.51845 17.6003 10.248 17.9952 12 17.9952C13.752 17.9952 15.4815 17.6003 17.06 16.84C17.2 16.96 17.34 17.07 17.48 17.17C16.9358 17.4997 16.3635 17.7807 15.77 18.01C16.0795 18.6325 16.4408 19.228 16.85 19.79C18.6743 19.227 20.3865 18.3506 21.91 17.2C22.3284 13.1022 21.264 8.99019 18.91 5.61001C17.6133 4.97875 16.2377 4.52468 14.82 4.26001ZM8.67999 14.81C8.17958 14.7741 7.71254 14.5457 7.37691 14.1728C7.04129 13.7999 6.86319 13.3114 6.87999 12.81C6.86065 12.3079 7.03788 11.8181 7.37401 11.4446C7.71013 11.0711 8.17865 10.8435 8.67999 10.81C9.18133 10.8435 9.64986 11.0711 9.98598 11.4446C10.3221 11.8181 10.4993 12.3079 10.48 12.81C10.4993 13.3121 10.3221 13.8019 9.98598 14.1754C9.64986 14.5489 9.18133 14.7765 8.67999 14.81ZM15.32 14.81C14.8196 14.7741 14.3525 14.5457 14.0169 14.1728C13.6813 13.7999 13.5032 13.3114 13.52 12.81C13.5007 12.3079 13.6779 11.8181 14.014 11.4446C14.3501 11.0711 14.8187 10.8435 15.32 10.81C15.8223 10.841 16.2923 11.0679 16.6289 11.442C16.9656 11.816 17.1419 12.3073 17.12 12.81C17.1419 13.3128 16.9656 13.804 16.6289 14.1781C16.2923 14.5521 15.8223 14.779 15.32 14.81Z" />
+    </svg>
+  );
+}
+
 export function Navbar() {
   const router = useRouter();
+  const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [resourcesOpen, setResourcesOpen] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
 
+  const isHome = pathname === "/";
+
   const toggleMenu = () => setIsOpen(!isOpen);
   const toggleResources = () => setResourcesOpen(!resourcesOpen);
+
+  // Auto-close mobile menu on route change
+  useEffect(() => {
+    setIsOpen(false);
+    setResourcesOpen(false);
+  }, [pathname]);
 
   useEffect(() => {
     const fetchSession = async () => {
@@ -64,7 +100,9 @@ export function Navbar() {
 
   return (
     <>
-      <nav className="fixed top-0 left-0 right-0 bg-white/70 backdrop-blur-sm z-50">
+      <nav
+        className={`fixed left-0 right-0 bg-white z-50 ${isHome ? "top-[var(--banner-h,0px)]" : "top-0"}`}
+      >
         <div className="flex justify-between items-center py-4 px-10">
           {/* Logo and Desktop Menu */}
           <div className="hidden md:flex items-center gap-8">
@@ -78,20 +116,40 @@ export function Navbar() {
               />
             </Link>
             <Link
-              href="/projects"
-              className="text-base font-medium text-gray-700 hover:text-blue-600"
+              href="/project"
+              className="text-base font-medium text-black hover:text-[#4B89EF]"
             >
               Projects
             </Link>
             <Link
-              href="/services"
-              className="text-base font-medium text-gray-700 hover:text-blue-600"
+              href="/host"
+              className="text-base font-medium text-black hover:text-[#4B89EF]"
             >
               Host a hackathon
             </Link>
+            <Link
+              href={MENTOR_FORM_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-base font-medium text-black hover:text-[#4B89EF]"
+            >
+              Become a Mentor
+            </Link>
+
+            {/* Discord (desktop) */}
+            <Link
+              href={DISCORD_INVITE}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-base font-medium text-black hover:text-[#4B89EF] inline-flex items-center gap-2"
+            >
+              <DiscordIcon className="mr-1 h-[1.1em] w-[1.1em] md:h-[1.2em] md:w-[1.2em]" />
+              Join discord community
+            </Link>
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="text-base font-medium text-gray-700 hover:text-blue-600 inline-flex items-center gap-1">
+                <button className="text-base font-medium text-black hover:text-[#4B89EF] inline-flex items-center gap-1">
                   Resources
                   <svg
                     width="16"
@@ -116,6 +174,9 @@ export function Navbar() {
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link href="/blog">Blog</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/help">Help</Link>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -208,29 +269,46 @@ export function Navbar() {
 
         {/* Mobile Menu */}
         <div
-          className={`${
-            isOpen ? "block" : "hidden"
-          } bg-white border-t border-gray-100 md:hidden min-h-screen`}
+          className={`${isOpen ? "block" : "hidden"} bg-white border-t border-gray-100 md:hidden min-h-screen`}
         >
           <div className="px-6 py-6 space-y-1">
             <Link
-              href="/projects"
-              className="block py-4 text-lg font-medium text-black hover:text-blue-600"
+              href="/project"
+              className="block py-4 text-lg font-medium text-black hover:text-[#4B89EF]"
             >
               Projects
             </Link>
             <Link
-              href="/services"
-              className="block py-4 text-lg font-medium text-black hover:text-blue-600"
+              href="/host"
+              className="block py-4 text-lg font-medium text-black hover:text-[#4B89EF]"
             >
               Host a hackathon
+            </Link>
+            <Link
+              href={MENTOR_FORM_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block py-4 text-lg font-medium text-black hover:text-[#4B89EF]"
+            >
+              Become a Mentor
+            </Link>
+
+            {/* Discord (mobile) */}
+            <Link
+              href={DISCORD_INVITE}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block py-4 text-lg font-medium text-black hover:text-[#4B89EF] inline-flex items-center gap-2"
+            >
+              <DiscordIcon className="mr-2 h-[1.2em] w-[1.2em]" />
+              Join discord community
             </Link>
 
             {/* Resources Dropdown in Mobile */}
             <div className="py-4">
               <button
                 onClick={toggleResources}
-                className="w-full text-left text-lg font-medium text-black flex items-center justify-between hover:text-blue-600"
+                className="w-full text-left text-lg font-medium text-black flex items-center justify-between hover:text-[#4B89EF]"
               >
                 Resources
                 <svg
@@ -248,25 +326,31 @@ export function Navbar() {
                 </svg>
               </button>
               <div
-                className={`${resourcesOpen ? "block" : "hidden"} ml-4 mt-2 space-y-1 bg-gray-50 rounded-lg p-4`}
+                className={`${resourcesOpen ? "block" : "hidden"} ml-4 mt-2 space-y-1`}
               >
                 <Link
                   href="/about"
-                  className="block py-3 text-base font-normal text-black hover:text-blue-600"
+                  className="block py-3 text-base font-normal text-black hover:text-[#4B89EF]"
                 >
                   About us
                 </Link>
                 <Link
                   href="/research"
-                  className="block py-3 text-base font-normal text-black hover:text-blue-600"
+                  className="block py-3 text-base font-normal text-black hover:text-[#4B89EF]"
                 >
                   Research
                 </Link>
                 <Link
                   href="/blog"
-                  className="block py-3 text-base font-normal text-black hover:text-blue-600"
+                  className="block py-3 text-base font-normal text-black hover:text-[#4B89EF]"
                 >
                   Blog
+                </Link>
+                <Link
+                  href="/help"
+                  className="block py-3 text-base font-normal text-black hover:text-[#4B89EF]"
+                >
+                  Help
                 </Link>
               </div>
             </div>

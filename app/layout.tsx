@@ -7,6 +7,7 @@ import { StagewiseToolbarWrapper } from "@/components/StagewiseToolbarWrapper";
 import { ConditionalNavbar } from "@/components/layout/ConditionalNavbar";
 import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
 import { LayoutConfigProvider } from "@/components/layout/LayoutConfigProvider";
+import { ConditionalAnnouncement } from "@/components/layout/ConditionalAnnouncement";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -35,6 +36,7 @@ export default function RootLayout({
       <body className={inter.className}>
         <Providers>
           <LayoutConfigProvider>
+            <ConditionalAnnouncement />
             <ConditionalNavbar />
             <AuthProvider>
               <ConditionalLayout>

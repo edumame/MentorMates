@@ -15,13 +15,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const PUBLIC_PATH_PATTERNS = useMemo(() => {
     const BASE_PUBLIC_PATHS = [
       "/",
+      "/project",
       "/login",
       "/auth/callback",
       "/auth/auth-code-error",
       "/about",
-      "/blog",
       "/research",
-      "/services",
+      "/host",
       "/teams",
       "/privacy",
       "/terms",
@@ -29,7 +29,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       "/previous-contributors",
       "/curriculum",
       "/claim-ticket",
-      "/roles",
+      "/help",
       "/devpost-integration",
     ];
     return [
@@ -39,6 +39,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       /^\/events($|\/.*$)/, // Matches /events and all its sub-routes
       /^\/ai-vibe-guide($|\/.*$)/, // Matches /ai-vibe-guide and all sub-routes
       /^\/profile\/[a-zA-Z0-9_-]+($|\/.*$)/, // Matches /profile/user-id and all its sub-routes
+      /^\/blog($|\/.*$)/, // Make blog index and all posts public
+      /^\/article($|\/.*$)/, // Alias article routes public too
     ];
   }, []);
 

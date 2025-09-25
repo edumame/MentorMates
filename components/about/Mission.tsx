@@ -14,14 +14,13 @@ export function Mission() {
                                 Mission
                             </p>
                             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 leading-tight">
-                                Built for students, with a mission to empower
+                                Built for learners, with a mission to empower
                             </h2>
                             <p className="text-base sm:text-md leading-relaxed">
-                                MentorMates was born from the synergy of student experience and 
-                                innovative research. Through meaningful project-based learning, we aim to 
-                                provide the personalized feedback and resources you need to not just 
-                                participate, but to truly excel in hackathons, demo days, and 
-                                innovation challenges.
+                            Hackathons are great for engaging with new tech, but they often intimidate beginners and those from underrepresented backgrounds. This is because many participants are told to &quot;build something&quot; in a short amount of time with little guidance, making the events feel overwhelming and exclusive.
+                            </p>
+                            <p className="text-base sm:text-md leading-relaxed">
+                            MentorMates addresses this by providing structured mentorship and support, turning hackathons into inclusive, accessible environments where anyone can confidently explore technology and create meaningful impact.
                             </p>
                         </div>
                     </div>

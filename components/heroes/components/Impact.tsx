@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
-// keep stats stable so the effect deps don't thrash
+
 const STATS = [
   { value: "95%", label: "Satisfaction Rate" },
   { value: "200+", label: "Projects Created" },
@@ -13,6 +13,9 @@ const STATS = [
 type CSSVarStyle = React.CSSProperties & { ["--value"]?: number };
 
 export function Impact() {
+  const sectionRef = useRef<HTMLDivElement>(null);
+  const [hasAnimated, setHasAnimated] = useState(false);
+
   // Parse once: digits (for width), target number, and suffix (%, +, etc.)
   const parsed = useMemo(() => {
     return STATS.map((s) => {
@@ -28,8 +31,37 @@ export function Impact() {
 
   const [curr, setCurr] = useState<number[]>(() => parsed.map(() => 0));
 
-  // Simple one-time count-up animation (ease-out)
+  // Intersection Observer to trigger animation when section is visible
   useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && !hasAnimated) {
+            setHasAnimated(true);
+          }
+        });
+      },
+      {
+        threshold: 0.3, // Trigger when 30% of the section is visible
+        rootMargin: "-50px",
+      }
+    );
+
+    if (sectionRef.current) {
+      observer.observe(sectionRef.current);
+    }
+
+    return () => {
+      if (sectionRef.current) {
+        observer.unobserve(sectionRef.current);
+      }
+    };
+  }, [hasAnimated]);
+
+  // Simple one-time count-up animation (ease-out) triggered by intersection
+  useEffect(() => {
+    if (!hasAnimated) return;
+
     const easeOut = (t: number) => 1 - Math.pow(1 - t, 3);
     const start = performance.now();
     const duration = 1200; // ms
@@ -44,10 +76,10 @@ export function Impact() {
 
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [parsed]); // parsed is memoized, so this still runs once
+  }, [hasAnimated, parsed]);
 
   return (
-    <div className="mx-auto px-4 sm:px-8 lg:px-24 py-28 bg-white">
+    <div ref={sectionRef} className="mx-auto px-4 sm:px-8 lg:px-24 py-28 bg-white">
       <div className="max-w-7xl mx-auto">
         <div className="grid lg:grid-cols-2 gap-10 sm:gap-12 lg:gap-16 items-center">
           {/* Left */}

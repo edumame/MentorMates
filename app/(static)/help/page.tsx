@@ -11,14 +11,14 @@ const RoleCard: React.FC<{
   return (
     <Link
       href={href}
-      className="group block rounded-xl bg-white/70 p-6 shadow-lg transition-all hover:shadow-2xl hover:bg-white"
+      className="group block rounded-xl bg-white p-6 shadow-lg transition-all hover:shadow-2xl hover:bg-white/90"
       target="_blank"
       rel="noopener noreferrer"
     >
       <div className="flex items-start justify-between">
         <div>
           <h3 className="text-xl font-semibold text-blue-900">{title}</h3>
-          <p className="mt-2 text-gray-700 text-sm leading-relaxed">
+          <p className="mt-2 text-gray-600 text-sm leading-relaxed">
             {description}
           </p>
         </div>
@@ -37,7 +37,7 @@ const RoleCard: React.FC<{
 const RolesPage: React.FC = () => {
   return (
     <>
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-2">
+      <div className="min-h-screen py-2">
         <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 space-y-10 pt-16 pb-16">
           <div className="text-center">
             <div className="mx-auto mb-4 inline-flex items-center gap-2 rounded-full bg-blue-100 px-3 py-1 text-blue-900">
@@ -48,7 +48,7 @@ const RolesPage: React.FC = () => {
             </div>
             <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-gray-900 tracking-tight">
               Navigate Roles in{" "}
-              <span className="bg-clip-text text-blue-900 bg-gradient-to-r from-blue-900 to-blue-300">
+              <span className="text-blue-900">
                 MentorMates
               </span>
             </h1>
@@ -81,9 +81,9 @@ const RolesPage: React.FC = () => {
             />
           </div>
 
-          <div className="rounded-xl bg-white/70 p-6 shadow-lg">
+          <div className="rounded-xl bg-white p-6 shadow-lg">
             <h2 className="text-2xl font-bold text-blue-900">Tips</h2>
-            <ul className="mt-3 list-disc pl-5 text-gray-700">
+            <ul className="mt-3 list-disc pl-5 text-gray-600">
               <li>Use your role dashboard to find tasks and deadlines.</li>
               <li>
                 Check event pages for submission timelines and judging criteria.

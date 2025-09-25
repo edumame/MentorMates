@@ -32,28 +32,30 @@ export function Research() {
     return (
         <div className="min-h-screen bg-white">
             <div className="py-32 px-6">
-                <div className="max-w-7xl mx-auto flex items-center justify-between">
-                    <div className="flex-1">
-                        <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-4">
-                        Our research
-                        </h1>
-                        <p className="text-xl max-w-2xl">
-                        At MentorMates, we integrate cutting-edge research on AI and 
-                        learning to transform how students innovate. Dive into our insights 
-                        to see the science behind our platform.
-                        </p>
-                    </div>
-                    <div className="hidden md:block">
-                        <div className="text-sm text-gray-600 mb-2 text-right">Supported by</div>
-                        <Link href="https://acceleratelearning.stanford.edu/funding/people-who-help-other-people-learn-pwhopl/" target="_blank" rel="noopener noreferrer">
-                            <Image
-                                src="/research/stanfordAccLearning.png"
-                                alt="Research Supporter"
-                                width={150}
-                                height={80}
-                                className="object-contain hover:opacity-80 transition-opacity duration-200"
-                            />
-                        </Link>
+                <div className="max-w-7xl mx-auto px-4">
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-8">
+                        <div className="flex-1">
+                            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-black mb-4">
+                                Our research
+                            </h1>
+                            <p className="text-xs sm:text-base max-w-2xl">
+                            At MentorMates, we integrate cutting-edge research on AI and 
+                            learning to transform how students innovate. Dive into our insights 
+                            to see the science behind our platform.
+                            </p>
+                        </div>
+                        <div className="flex flex-col items-end">
+                            <div className="text-sm text-gray-600 mb-2 text-right">Supported by</div>
+                            <Link href="https://acceleratelearning.stanford.edu/funding/people-who-help-other-people-learn-pwhopl/" target="_blank" rel="noopener noreferrer">
+                                <Image
+                                    src="/research/stanfordAccLearning.png"
+                                    alt="Research Supporter"
+                                    width={150}
+                                    height={80}
+                                    className="object-contain hover:opacity-80 transition-opacity duration-200"
+                                />
+                            </Link>
+                        </div>
                     </div>
                 </div>
             </div>

@@ -1,11 +1,11 @@
-import { Services } from "@/components/services/Services";
+import { Host  } from "@/components/host/Host";
 import { Customer } from "@/components/heroes/components/Customer";
 import { Footer } from "@/components/layout/Footer";
 
 export default function ServicesPage() {
   return (
     <>
-      <Services />
+      <Host />
       <Customer />
       <Footer />
     </>
