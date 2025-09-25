@@ -12,7 +12,6 @@ import {
   AccordionTrigger,
   AccordionContent,
 } from "@/components/ui/accordion";
-import { Customer } from "@/components/heroes/components/Customer";
 import {
   Users,
   CalendarClock,
@@ -252,10 +251,7 @@ export default function AIVibeMasterclassPage() {
           </div>
         </section>
 
-        {/* Social proof */}
-        <Customer />
-
-        <hr className="my-12 border-gray-200" />
+        
 
         {/* Pricing */}
         <section id="reserve" className="mx-auto w-full max-w-3xl text-center">
