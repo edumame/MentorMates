@@ -271,6 +271,7 @@ export function Featured() {
               </Link>
             ))}
           </div>
+          
         )}
 
         <div className="text-center">
