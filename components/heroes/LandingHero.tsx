@@ -50,7 +50,7 @@ export function LandingHero() {
 
   return (
     <div className="relative bg-white overflow-x-hidden">
-      <div className="relative z-10 w-full max-w-7xl mx-auto px-6 sm:px-8 lg:px-10 pt-8 sm:pt-14 lg:pt-24 pb-8 sm:pb-16 lg:pb-20">
+      <div className="relative z-10 w-full max-w-7xl mx-auto px-6 sm:px-8 lg:px-10 pt-24 sm:pt-20 lg:pt-24 pb-8 sm:pb-16 lg:pb-20">
         <div className="grid lg:grid-cols-12 gap-2 items-start">
           {/* Left: Huge headline */}
           <div className="lg:col-span-7 min-w-0">
