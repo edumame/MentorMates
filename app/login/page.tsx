@@ -4,7 +4,6 @@ import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/app/utils/supabase/client";
 import { Footer } from "@/components/layout/Footer";
-import Image from "next/image";
 import Link from "next/link";
 import { User } from "@supabase/supabase-js";
 
@@ -211,13 +210,6 @@ function LoginContent({
   return (
     <div>
       <div className="sm:mx-auto sm:w-full sm:max-w-md pt-5">
-        <Image
-          alt="MentorMates"
-          src="/mentormate.png"
-          width={40}
-          height={40}
-          className="mx-auto object-contain"
-        />
         <h2
           className={`m-2 text-center text-2xl font-bold tracking-tight ${isSignUp ? "text-green-700" : "text-gray-900"}`}
         >
