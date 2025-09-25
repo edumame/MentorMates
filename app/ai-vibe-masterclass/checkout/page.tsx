@@ -16,7 +16,7 @@ function CheckoutContent() {
   }), [])
 
   return (
-    <div id="checkout" className='justify-center mt-2.5'>
+    <div id="checkout" className='px-4 sm:px-6 lg:px-8 mt-2.5'>
       <div className="text-center mb-4">
         <h1 className="text-2xl font-bold">Reserve Your Seat</h1>
         <p className="text-gray-600">AI Vibe Coding Masterclass</p>
@@ -25,7 +25,9 @@ function CheckoutContent() {
         stripe={stripePromise}
         options={options}
       >
-        <EmbeddedCheckout />
+        <div className="mx-auto w-full max-w-2xl">
+          <EmbeddedCheckout />
+        </div>
       </EmbeddedCheckoutProvider>
     </div>
   )

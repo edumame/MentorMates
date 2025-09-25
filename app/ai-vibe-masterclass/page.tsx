@@ -33,11 +33,11 @@ export default function AIVibeMasterclassPage() {
     <section className="relative overflow-hidden">
       {/* Hero */}
       <div className="relative bg-gradient-to-b from-blue-50/70 to-white">
-        <BackgroundBeams className="opacity-60" />
+        <BackgroundBeams className="opacity-60 pointer-events-none" />
         <div className="relative px-5 pt-12 md:pt-20 pb-10 md:pb-16">
           <div className="max-w-7xl mx-auto grid md:grid-cols-12 gap-8 items-center">
             {/* Left: Copy */}
-            <div className="md:col-span-5 text-center md:text-left">
+            <div className="md:col-span-5 text-center md:text-left order-2 md:order-1">
               <span className="inline-flex items-center rounded-full bg-blue-100 text-blue-800 text-xs font-medium px-3 py-1">
                 AI Vibe Coding Masterclass
               </span>
@@ -58,15 +58,15 @@ export default function AIVibeMasterclassPage() {
                   <Rocket className="mr-1 h-3.5 w-3.5" /> Build live
                 </span>
               </div>
-              <div className="mt-6 flex items-center gap-3 justify-center md:justify-start">
+              <div className="mt-6 flex flex-wrap items-center gap-3 justify-center md:justify-start">
                 <Link href="/ai-vibe-masterclass/checkout">
-                  <Button variant="default" className="px-4 py-2 text-base">
+                  <Button variant="default" className="px-4 py-2 text-base w-full sm:w-auto">
                     Reserve Your Seat
                   </Button>
                 </Link>
                 <Link
                   href="#curriculum"
-                  className="inline-flex items-center bg-gray-100 px-4 py-2 rounded-xl hover:bg-gray-200"
+                  className="inline-flex items-center bg-gray-100 px-4 py-2 rounded-xl hover:bg-gray-200 w-full sm:w-auto justify-center"
                 >
                   View curriculum
                 </Link>
@@ -90,7 +90,7 @@ export default function AIVibeMasterclassPage() {
               </div>
             </div>
             {/* Right: Video */}
-            <div className="md:col-span-7">
+            <div className="md:col-span-7 order-1 md:order-2">
               <div className="relative mx-auto w-full max-w-3xl overflow-hidden rounded-xl shadow-xl ring-1 ring-gray-200 bg-white">
                 <div className="relative pt-[56.25%]">
                   <iframe
@@ -99,6 +99,7 @@ export default function AIVibeMasterclassPage() {
                     title="AI Vibe Coding Masterclass Intro"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                     referrerPolicy="strict-origin-when-cross-origin"
+                    loading="lazy"
                     allowFullScreen
                   />
                 </div>
