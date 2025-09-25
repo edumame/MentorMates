@@ -221,12 +221,6 @@ export function Featured() {
                       width={1200}
                       height={630}
                       className="h-56 w-full object-cover"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        if (target.src !== "/img/placeholder.png") {
-                          target.src = "/img/placeholder.png";
-                        }
-                      }}
                     />
                     {(() => {
                       const { dow, day, monYear } = getDateParts(e.dateISO);
