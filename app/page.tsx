@@ -140,7 +140,7 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen w-full flex flex-col bg-gray-50">
+    <div className="min-h-screen w-full flex flex-col bg-background">
       <div className="flex-1">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32">
           <h1 className="text-4xl sm:text-5xl font-bold text-blue-900 mb-2">
