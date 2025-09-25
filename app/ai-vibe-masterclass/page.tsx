@@ -35,16 +35,16 @@ export default function AIVibeMasterclassPage() {
       <div className="relative bg-gradient-to-b from-blue-50/70 to-white">
         <BackgroundBeams className="opacity-60" />
         <div className="relative px-5 pt-12 md:pt-20 pb-10 md:pb-16">
-          <div className="max-w-7xl mx-auto grid md:grid-cols-12 gap-8 items-center">
+          <div className="max-w-7xl mx-auto grid md:grid-cols-12 gap-6 md:gap-8 items-center">
             {/* Left: Copy */}
             <div className="md:col-span-5 text-center md:text-left">
               <span className="inline-flex items-center rounded-full bg-blue-100 text-blue-800 text-xs font-medium px-3 py-1">
                 AI Vibe Coding Masterclass
               </span>
-              <h1 className="mt-6 text-4xl md:text-6xl font-extrabold tracking-tight">
+              <h1 className="mt-4 sm:mt-6 text-3xl sm:text-4xl md:text-6xl font-extrabold tracking-tight">
                 Unlock Your AI Vibe
               </h1>
-              <p className="text-gray-700 mt-4 text-base md:text-lg">
+              <p className="text-gray-700 mt-3 sm:mt-4 text-sm sm:text-base md:text-lg">
                 A 5-week, high-impact masterclass blending AI, code, and entrepreneurial energy. Only 12 seats. $2,500.
               </p>
               <div className="mt-4 flex flex-wrap items-center gap-2 justify-center md:justify-start">
@@ -94,7 +94,7 @@ export default function AIVibeMasterclassPage() {
               <div className="relative mx-auto w-full max-w-3xl overflow-hidden rounded-xl shadow-xl ring-1 ring-gray-200 bg-white">
                 <div className="relative pt-[56.25%]">
                   <iframe
-                    className="absolute inset-0 h-full w-full"
+                    className="absolute inset-0 h-full w-full max-w-full"
                     src="https://www.youtube.com/embed/qYBzs7-GTx8?rel=0"
                     title="AI Vibe Coding Masterclass Intro"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
@@ -256,10 +256,10 @@ export default function AIVibeMasterclassPage() {
         {/* Pricing */}
         <section id="reserve" className="mx-auto w-full max-w-3xl text-center">
           <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Pricing</h2>
-          <div className="mt-6 rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
+          <div className="mt-6 rounded-2xl border border-gray-200 bg-white p-6 sm:p-8 shadow-sm">
             <div className="flex flex-col items-center gap-2">
               <Badge variant="secondary" className="text-gray-800">Cohort-based • Limited to 12</Badge>
-              <p className="text-4xl font-extrabold tracking-tight">$2,500</p>
+              <p className="text-3xl sm:text-4xl font-extrabold tracking-tight">$2,500</p>
               <p className="text-sm text-gray-600">Includes all workshops, weekly sessions, frameworks, and community.</p>
             </div>
             <ul className="mt-6 text-left text-sm text-gray-800 grid gap-2 max-w-md mx-auto">

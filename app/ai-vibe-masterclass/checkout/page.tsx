@@ -16,17 +16,21 @@ function CheckoutContent() {
   }), [])
 
   return (
-    <div id="checkout" className='justify-center mt-2.5'>
-      <div className="text-center mb-4">
-        <h1 className="text-2xl font-bold">Reserve Your Seat</h1>
-        <p className="text-gray-600">AI Vibe Coding Masterclass</p>
+    <div id="checkout" className='px-4 sm:px-6 md:px-8 mt-4 sm:mt-6'>
+      <div className="mx-auto w-full max-w-3xl">
+        <div className="text-center mb-4 sm:mb-6">
+          <h1 className="text-xl sm:text-2xl font-bold">Reserve Your Seat</h1>
+          <p className="text-gray-600 text-sm sm:text-base">AI Vibe Coding Masterclass</p>
+        </div>
+        <EmbeddedCheckoutProvider
+          stripe={stripePromise}
+          options={options}
+        >
+          <div className="rounded-xl border border-gray-200 bg-white p-2 sm:p-4">
+            <EmbeddedCheckout />
+          </div>
+        </EmbeddedCheckoutProvider>
       </div>
-      <EmbeddedCheckoutProvider
-        stripe={stripePromise}
-        options={options}
-      >
-        <EmbeddedCheckout />
-      </EmbeddedCheckoutProvider>
     </div>
   )
 }
