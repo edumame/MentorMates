@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/app/utils/supabase/client";
-import { Footer } from "@/components/layout/footer";
+import { Footer } from "@/components/layout/Footer";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -24,13 +24,17 @@ function ResetPasswordContent() {
         data: { session },
         error: sessionError,
       } = await supabase.auth.getSession();
-      
+
       if (sessionError) {
-        setError("Unable to verify your session. Please try requesting a new password reset link.");
+        setError(
+          "Unable to verify your session. Please try requesting a new password reset link."
+        );
       }
 
       if (!session) {
-        setError("Unable to verify your session. Please try requesting a new password reset link.");
+        setError(
+          "Unable to verify your session. Please try requesting a new password reset link."
+        );
       }
     };
 
@@ -67,14 +71,16 @@ function ResetPasswordContent() {
       }
 
       setSuccess("Password updated successfully! Redirecting to home...");
-      
+
       // Redirect to login page after a short delay
       setTimeout(() => {
         router.push("/");
       }, 2000);
-
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : "An error occurred while updating your password. Please try again.";
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "An error occurred while updating your password. Please try again.";
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -103,7 +109,7 @@ function ResetPasswordContent() {
               {error}
             </div>
           )}
-          
+
           {success && (
             <div className="mb-4 text-center text-sm text-green-600 bg-green-50 border border-green-200 rounded-md p-3">
               {success}

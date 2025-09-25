@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
@@ -101,7 +101,7 @@ export default function ProjectPage() {
   // Event details state
   const [eventName, setEventName] = useState<string>("");
   const [eventSlug, setEventSlug] = useState<string>("");
-  
+
   // Contextus ID state
   const [showContextusId, setShowContextusId] = useState(false);
 
@@ -160,10 +160,12 @@ export default function ProjectPage() {
   const fetchProject = async () => {
     const { data, error } = await supabase
       .from("projects")
-      .select(`
+      .select(
+        `
         *,
         contextus_project_id
-      `)
+      `
+      )
       .eq("id", projectId)
       .single();
 
@@ -684,7 +686,7 @@ export default function ProjectPage() {
     }
   };
 
-  const fetchEventParticipants = async () => {
+  const fetchEventParticipants = useCallback(async () => {
     if (!project?.event_id) return;
 
     setIsLoadingParticipants(true);
@@ -731,13 +733,13 @@ export default function ProjectPage() {
     } finally {
       setIsLoadingParticipants(false);
     }
-  };
+  }, [project?.event_id]);
 
   useEffect(() => {
     if (project?.event_id) {
       fetchEventParticipants();
     }
-  }, [project?.event_id]);
+  }, [project?.event_id, fetchEventParticipants]);
 
   const handleAddTeammate = async (email?: string) => {
     const emailToAdd = email || newTeammateEmail.trim();
@@ -870,7 +872,7 @@ export default function ProjectPage() {
 
   const handleCreateContextusLink = async () => {
     if (!project) return;
-    
+
     setIsUpdating(true);
     try {
       // Create the Contextus project
@@ -879,17 +881,19 @@ export default function ProjectPage() {
         metadata: {
           event: eventName || "Unknown Event",
           lead: project.lead_name,
-          team_size: String((project.teammates?.length || 0) + 1)
+          team_size: String((project.teammates?.length || 0) + 1),
         },
-        artifacts: project.project_url ? {
-          type: "link",
-          title: "Project Repository",
-          url: project.project_url
-        } : undefined
+        artifacts: project.project_url
+          ? {
+              type: "link",
+              title: "Project Repository",
+              url: project.project_url,
+            }
+          : undefined,
       };
 
       const contextusId = await createContextusProject(contextusPayload);
-      
+
       if (!contextusId) {
         toast({
           title: "Error",
@@ -1308,7 +1312,6 @@ export default function ProjectPage() {
             </div>
           </CardContent>
         </Card>
-        
 
         {/* Integrations Card */}
         {!canEdit && isAdmin && (
@@ -1324,11 +1327,11 @@ export default function ProjectPage() {
                     <div>
                       <h3 className="font-medium text-gray-900">Contextus</h3>
                       <p className="text-sm text-gray-600 mt-1">
-                        Connect your project to Contextus for enhanced visibility
+                        Connect your project to Contextus for enhanced
+                        visibility
                       </p>
                     </div>
-                    {
-                      !project.contextus_project_id ? (
+                    {!project.contextus_project_id ? (
                       <Button
                         onClick={handleCreateContextusLink}
                         disabled={isUpdating}
@@ -1339,7 +1342,10 @@ export default function ProjectPage() {
                       </Button>
                     ) : (
                       <div className="flex items-center gap-2">
-                        <Badge variant="secondary" className="bg-green-100 text-green-800">
+                        <Badge
+                          variant="secondary"
+                          className="bg-green-100 text-green-800"
+                        >
                           Connected
                         </Badge>
                         <Button
@@ -1359,10 +1365,9 @@ export default function ProjectPage() {
                               Show ID
                             </>
                           )}
-                          </Button>
-                        </div>
-                      )
-                    }
+                        </Button>
+                      </div>
+                    )}
                   </div>
                   {project.contextus_project_id && showContextusId && (
                     <div className="mt-3 flex items-center gap-2">
@@ -1372,7 +1377,9 @@ export default function ProjectPage() {
                       </code>
                       <Button
                         onClick={() => {
-                          navigator.clipboard.writeText(project.contextus_project_id!);
+                          navigator.clipboard.writeText(
+                            project.contextus_project_id!
+                          );
                           toast({
                             title: "Copied",
                             description: "Contextus ID copied to clipboard",
@@ -1477,7 +1484,9 @@ export default function ProjectPage() {
                         </code>
                         <Button
                           onClick={() => {
-                            navigator.clipboard.writeText(project.contextus_project_id!);
+                            navigator.clipboard.writeText(
+                              project.contextus_project_id!
+                            );
                             toast({
                               title: "Copied",
                               description: "Contextus ID copied to clipboard",

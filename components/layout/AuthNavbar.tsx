@@ -8,7 +8,8 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import type { Session } from "@supabase/supabase-js";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Menu, X } from "lucide-react";
+import { Menu, Close } from "@mui/icons-material";
+import posthog from "posthog-js";
 
 export function AuthNavbar() {
   const router = useRouter();
@@ -38,23 +39,23 @@ export function AuthNavbar() {
   const handleSignOut = async () => {
     localStorage.removeItem("returnUrl");
     await supabase.auth.signOut();
+    posthog.reset();
     router.push("/");
     setIsOpen(false);
   };
 
   return (
     <>
-      <nav className="fixed top-0 inset-x-0 bg-white/90 backdrop-blur z-50 shadow">
+      <nav className="fixed top-0 inset-x-0 bg-white/90 backdrop-blur z-50 shadow top-[var(--banner-h,0px)]">
         <div className="flex items-center justify-between p-4">
           <Link href="/" className="flex items-center gap-2">
             <Image
               src="/mentormate.png"
               alt="Logo"
-              width={32}
-              height={32}
+              width={200}
+              height={40}
               className="object-contain pl-2"
             />
-            <span className="font-bold text-lg text-blue-900">MentorMates</span>
           </Link>
 
           {/* Desktop Menu */}
@@ -119,7 +120,11 @@ export function AuthNavbar() {
             onClick={() => setIsOpen((o) => !o)}
             className="p-2 rounded-md hover:bg-gray-200 flex md:hidden"
           >
-            {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            {isOpen ? (
+              <Close className="h-5 w-5" />
+            ) : (
+              <Menu className="h-5 w-5" />
+            )}
           </button>
         </div>
       </nav>

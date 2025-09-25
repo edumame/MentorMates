@@ -99,7 +99,7 @@ export function ViewTicketsTab({ eventId }: ViewTicketsTabProps) {
 
   const assignTicket = async (ticketId: string) => {
     const ticketEmail = ticketEmails[ticketId]?.trim();
-    
+
     if (!ticketEmail) {
       toast({
         title: "Error",
@@ -194,12 +194,12 @@ export function ViewTicketsTab({ eventId }: ViewTicketsTabProps) {
       }
 
       // Clear the email input for this specific ticket
-      setTicketEmails(prev => ({ ...prev, [ticketId]: "" }));
+      setTicketEmails((prev) => ({ ...prev, [ticketId]: "" }));
       toast({
         title: "Success",
         description: `Ticket assigned to ${ticketEmail}. An invitation email has been sent.`,
       });
-    } catch (error) {
+    } catch {
       toast({
         title: "Error",
         description: "Failed to assign ticket. Please try again.",
@@ -288,8 +288,8 @@ export function ViewTicketsTab({ eventId }: ViewTicketsTabProps) {
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
                 You can assign these tickets to friends or colleagues by
-                entering their email address. They&apos;ll receive an invitation to
-                claim their ticket.
+                entering their email address. They&apos;ll receive an invitation
+                to claim their ticket.
               </AlertDescription>
             </Alert>
 
@@ -319,10 +319,10 @@ export function ViewTicketsTab({ eventId }: ViewTicketsTabProps) {
                       type="email"
                       placeholder="Enter email address"
                       value={ticketEmails[ticket.id] || ""}
-                      onChange={(e) => 
-                        setTicketEmails(prev => ({ 
-                          ...prev, 
-                          [ticket.id]: e.target.value 
+                      onChange={(e) =>
+                        setTicketEmails((prev) => ({
+                          ...prev,
+                          [ticket.id]: e.target.value,
                         }))
                       }
                       disabled={assigning === ticket.id}
@@ -330,7 +330,10 @@ export function ViewTicketsTab({ eventId }: ViewTicketsTabProps) {
                   </div>
                   <Button
                     onClick={() => assignTicket(ticket.id)}
-                    disabled={assigning === ticket.id || !ticketEmails[ticket.id]?.trim()}
+                    disabled={
+                      assigning === ticket.id ||
+                      !ticketEmails[ticket.id]?.trim()
+                    }
                     className="w-full"
                   >
                     {assigning === ticket.id ? (

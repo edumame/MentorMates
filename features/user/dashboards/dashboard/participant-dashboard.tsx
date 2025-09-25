@@ -3,7 +3,7 @@ import { supabase } from "@/lib/supabase";
 import { Project } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FolderOpen, Ticket, BarChart } from "lucide-react";
+import { FolderOpen, ConfirmationNumber, BarChart } from "@mui/icons-material";
 import dynamic from "next/dynamic";
 import ReactMarkdown from "react-markdown";
 import { customMarkdownComponents } from "@/components/markdown/custom-components";
@@ -215,7 +215,7 @@ export function ParticipantDashboard({ eventId }: ParticipantDashboardProps) {
           </TabsTrigger>
           {isPaidEvent && (
             <TabsTrigger value="tickets" className="flex items-center gap-2">
-              <Ticket className="h-4 w-4" />
+              <ConfirmationNumber className="h-4 w-4" />
               View Tickets
             </TabsTrigger>
           )}

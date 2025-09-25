@@ -19,7 +19,12 @@ export async function GET() {
       const { data: visibleEvents, error: visibleError } = await supabase
         .from("events")
         .select(
-          "event_id, event_name, slug, event_blurb"
+          `event_id, 
+          event_name, 
+          slug, 
+          event_blurb, 
+          cover_image_url,
+          event_date`
         )
         .in("visibility", [EventVisibility.Public, EventVisibility.Private]);
 
@@ -94,11 +99,9 @@ export async function GET() {
 
 const eventSchema = z.object({
   event_name: z.string().min(3, "Event name must be at least 3 characters"),
-  event_date: z
-    .string()
-    .refine((v) => !Number.isNaN(Date.parse(v)), {
-      message: "Invalid event_date - expected ISO date string",
-    }),
+  event_date: z.string().refine((v) => !Number.isNaN(Date.parse(v)), {
+    message: "Invalid event_date - expected ISO date string",
+  }),
   location: z.string().min(1, "Location is required"),
   visibility: z.nativeEnum(EventVisibility).optional(),
   slug: z.string().min(1).optional(),
@@ -157,8 +160,8 @@ export async function POST(req: Request) {
       event_date: event.event_date,
       location: event.location,
       rules: defaultRules as unknown as Json,
-      visibility:
-        (event.visibility ?? EventVisibility.Draft) as Database["public"]["Enums"]["event_visibility"],
+      visibility: (event.visibility ??
+        EventVisibility.Draft) as Database["public"]["Enums"]["event_visibility"],
       slug: event.slug ?? null,
       cover_image_url: event.cover_image_url ?? null,
       event_description: event.event_description ?? null,
@@ -187,7 +190,9 @@ export async function POST(req: Request) {
     const missingEmails: string[] = [];
 
     if (organizerEmails.length > 0) {
-      const normalizedEmails = organizerEmails.map((e) => e.trim().toLowerCase());
+      const normalizedEmails = organizerEmails.map((e) =>
+        e.trim().toLowerCase()
+      );
 
       // Fetch all users by email in one query
       const { data: usersByEmail, error: usersError } = await supabase
@@ -203,7 +208,9 @@ export async function POST(req: Request) {
         );
       }
 
-      const foundEmails = new Set((usersByEmail || []).map((u) => (u.email || "").toLowerCase()));
+      const foundEmails = new Set(
+        (usersByEmail || []).map((u) => (u.email || "").toLowerCase())
+      );
       for (const email of normalizedEmails) {
         if (!foundEmails.has(email)) missingEmails.push(email);
       }

@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { TrashIcon } from "lucide-react";
+import { Delete } from "@mui/icons-material";
 import { EventDetails } from "@/lib/types";
 import { toast as ToastType } from "@/lib/hooks/use-toast";
 
@@ -54,10 +54,7 @@ export function RulesTab({
   return (
     <div className="space-y-4">
       {event.rules.map((rule, ruleIndex) => (
-        <div
-          key={ruleIndex}
-          className="space-y-4 border-b pb-4 last:border-0"
-        >
+        <div key={ruleIndex} className="space-y-4 border-b pb-4 last:border-0">
           <div className="flex justify-between items-center">
             <div className="space-y-2 flex-1">
               <Label>Section Title</Label>
@@ -75,13 +72,11 @@ export function RulesTab({
               size="icon"
               className="ml-2"
               onClick={() => {
-                const newRules = event.rules.filter(
-                  (_, i) => i !== ruleIndex
-                );
+                const newRules = event.rules.filter((_, i) => i !== ruleIndex);
                 setEvent({ ...event, rules: newRules });
               }}
             >
-              <TrashIcon className="h-4 w-4" />
+              <Delete className="h-4 w-4" />
             </Button>
           </div>
 
@@ -103,13 +98,13 @@ export function RulesTab({
                 size="icon"
                 onClick={() => {
                   const newRules = [...event.rules];
-                  newRules[ruleIndex].items = newRules[
-                    ruleIndex
-                  ].items.filter((_, i) => i !== itemIndex);
+                  newRules[ruleIndex].items = newRules[ruleIndex].items.filter(
+                    (_, i) => i !== itemIndex
+                  );
                   setEvent({ ...event, rules: newRules });
                 }}
               >
-                <TrashIcon className="h-4 w-4" />
+                <Delete className="h-4 w-4" />
               </Button>
             </div>
           ))}
@@ -148,4 +143,4 @@ export function RulesTab({
       </Button>
     </div>
   );
-} 
+}
