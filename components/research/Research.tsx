@@ -74,6 +74,8 @@ export function Research() {
                             <Link 
                                 key={index}
                                 href={card.href}
+                                target="_blank"
+                                rel="noopener noreferrer"
                                 className="group relative overflow-hidden rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300"
                             >
                                 <div className="relative">
