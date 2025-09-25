@@ -33,7 +33,6 @@ export async function POST(request: NextRequest) {
     };
 
     const { error: resendError } = await resend.emails.send(emailData);
-    console.error(resendError);
 
     if (resendError) {
       return NextResponse.json(

@@ -3,7 +3,6 @@ import nodemailer from 'nodemailer';
 import { getProjectSubmissionEmailTemplate } from '@/lib/email_templates/project-submission';
 import { getProjectTeammateEmailTemplate } from '@/lib/email_templates/project-teammate';
 import { getFeedbackNotificationEmailTemplate } from '@/lib/email_templates/feedback-notification';
-import { getOrganizerCustomEmailTemplate } from '@/lib/email_templates/organizer-custom';
 import { createSupabaseClient } from '@/app/utils/supabase/server';
 
 const transporter = nodemailer.createTransport({
@@ -122,71 +121,6 @@ export async function POST(request: Request) {
           )
         );
       }
-    } else if (type === 'organizer_custom') {
-      const { recipients, subject, message, eventId } = data;
-
-      if (!recipients || !Array.isArray(recipients) || recipients.length === 0) {
-        return NextResponse.json(
-          { error: 'Missing or invalid recipients' },
-          { status: 400 }
-        );
-      }
-
-      if (!subject || !message || !eventId) {
-        return NextResponse.json(
-          { error: 'Missing required fields for custom email' },
-          { status: 400 }
-        );
-      }
-
-      // Verify the user is an organizer for this event
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      
-      if (!session) {
-        return NextResponse.json(
-          { error: 'Unauthorized' },
-          { status: 401 }
-        );
-      }
-
-      const { data: roleData } = await supabase
-        .from("user_event_roles")
-        .select("role")
-        .eq("user_id", session.user.id)
-        .eq("event_id", eventId)
-        .in("role", ["organizer", "admin"])
-        .maybeSingle();
-
-      if (!roleData) {
-        return NextResponse.json(
-          { error: 'You do not have permission to send emails for this event' },
-          { status: 403 }
-        );
-      }
-
-      const emailTemplate = getOrganizerCustomEmailTemplate(subject, message);
-
-      // Send emails to all recipients
-      const results = await Promise.all(
-        recipients.map(email =>
-          sendEmail(email, emailTemplate.subject, emailTemplate.html)
-        )
-      );
-
-      const successCount = results.filter(Boolean).length;
-      const failureCount = results.length - successCount;
-
-      if (failureCount > 0) {
-        console.warn(`Failed to send ${failureCount} out of ${results.length} emails`);
-      }
-
-      return NextResponse.json({ 
-        success: true, 
-        sent: successCount,
-        failed: failureCount 
-      });
     } else {
       return NextResponse.json(
         { error: 'Invalid email type' },

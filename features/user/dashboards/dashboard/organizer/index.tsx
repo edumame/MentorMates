@@ -15,9 +15,8 @@ import {
   FolderKanban,
   UserCheck,
   Import,
+  Upload,
   DollarSign,
-  Mail,
-  Bell,
 } from "lucide-react";
 
 import {
@@ -37,9 +36,8 @@ import { EventTracksContainer } from "./tracks";
 import { AccessTab } from "./access";
 import { AssignTab } from "./assign";
 import { ProjectImport } from "./import/ProjectImportButton";
-import { EmailTab } from "./email";
+import SendGeneralNotification from "./notifications/SendNotification";
 import { PricingTab } from "./pricing/PricingTab";
-import EmailDashboard from "./notifications/EmailDashboard";
 
 export function OrganizerDashboard({ eventId }: { eventId: string }) {
   const [event, setEvent] = useState<EventDetails | null>(null);
@@ -72,8 +70,7 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
 
   const overflowTabs = [
     { value: "import", label: "Import", icon: Import },
-    { value: "notify", label: "Notify", icon: Bell },
-    { value: "email", label: "Email", icon: Mail },
+    { value: "notify", label: "Notify", icon: Upload },
   ];
 
   useEffect(() => {
@@ -220,7 +217,7 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
   return (
     <div className="space-y-6">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="mb-8 w-full h-auto flex flex-wrap gap-2 grid lg:grid-cols-3 md:grid-cols-2 grid-cols-2">
+        <TabsList className="mb-8 w-full h-auto flex flex-wrap gap-2">
           {[...primaryTabs, ...overflowTabs].map((item) => (
             <TabsTrigger
               key={item.value}
@@ -309,12 +306,8 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
           <ProjectImport eventId={eventId} />
         </TabsContent>
 
-        <TabsContent value="email">
-          <EmailTab eventId={eventId} />
-        </TabsContent>
-
         <TabsContent value="notify">
-          <EmailDashboard eventId={eventId} eventName={event.event_name} />
+          <SendGeneralNotification eventId={eventId} />
         </TabsContent>
       </Tabs>
     </div>
