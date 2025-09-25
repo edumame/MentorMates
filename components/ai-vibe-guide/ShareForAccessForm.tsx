@@ -47,7 +47,7 @@ export function ShareForAccessForm() {
             <div className="mb-4 sm:mb-5">
                 <p className="text-5xl mb-2">🥰</p>
                 <h3 className="text-base sm:text-lg md:text-xl font-semibold leading-tight">
-                    Unlock the Appendix for Free
+                    Unlock the Appendix
                 </h3>
             </div>
 

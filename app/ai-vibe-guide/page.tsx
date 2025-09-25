@@ -17,7 +17,7 @@ export default function GuideLandingPage() {
         <div className="text-center text-sm text-gray-600">
           <p>
             Prefer to support later? Share on LinkedIn and tag{" "}
-            <strong>Chinat Yu</strong> to get it free.
+            <strong>Chinat Yu</strong> to get access.
           </p>
         </div>
       </div>
