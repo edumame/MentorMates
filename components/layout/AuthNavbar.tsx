@@ -52,7 +52,7 @@ export function AuthNavbar() {
             <Image
               src="/mentormate.png"
               alt="Logo"
-              width={40}
+              width={200}
               height={40}
               className="object-contain pl-2"
             />
