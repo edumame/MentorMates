@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 const STATS = [
   { value: "95%", label: "Satisfaction Rate" },
@@ -96,11 +97,8 @@ export function Impact() {
               </p>
             </div>
 
-            <Button
-              variant="default"
-              className="px-6 py-3 rounded-lg font-semibold text-sm"
-            >
-              Get Started
+            <Button asChild variant="default" className="px-6 py-3 rounded-lg font-semibold text-sm">
+              <Link href="/join">Get Started</Link>
             </Button>
           </div>
 
