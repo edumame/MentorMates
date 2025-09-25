@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
+// Replaced Next.js Image with native img per request
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -215,18 +215,21 @@ export function Featured() {
               <Link key={e.id} href={e.href} className="group block">
                 <Card className="overflow-hidden rounded-2xl bg-white border-0 shadow-sm ring-1 ring-black/5 transition-all duration-300 group-hover:shadow-lg group-hover:-translate-y-0.5">
                   <div className="relative">
-                    <Image
+                    <img
                       src={e.image}
                       alt={e.title}
                       width={1200}
                       height={630}
                       className="h-56 w-full object-cover"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
+                      onError={(ev) => {
+                        const target = ev.currentTarget as HTMLImageElement;
                         if (target.src !== "/img/placeholder.png") {
                           target.src = "/img/placeholder.png";
                         }
                       }}
+                      loading="lazy"
+                      decoding="async"
+                      referrerPolicy="no-referrer"
                     />
                     {(() => {
                       const { dow, day, monYear } = getDateParts(e.dateISO);
