@@ -57,7 +57,7 @@ export function ConditionalEventLayout({
   );
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-background">
       {showEventWrapper ? (
         <EventRegistrationWrapper eventId={event.event_id}>
           {content}
