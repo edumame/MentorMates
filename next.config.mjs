@@ -7,6 +7,7 @@ const nextConfig = {
       new URL("https://moinycvhmmzjjtvqijzw.supabase.co/**"),
       new URL("https://zqlopmbodkxlaunmkveo.supabase.co/**"),
       new URL("https://nsxcypmjpizdjxrdncpe.supabase.co/**"),
+      new URL("https://clinicalmindai.stanford.edu"),
     ],
   },
   skipTrailingSlashRedirect: true,

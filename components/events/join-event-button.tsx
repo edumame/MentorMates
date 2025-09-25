@@ -412,7 +412,7 @@ export function JoinEventButton({
               (showPasswordInput && !password) ||
               (isFull && selectedRole === EventRole.Participant)
             }
-                variant="cta"
+                variant="default"
                 className="w-full rounded-full"
               >
                 {isLoading ? "Joining..." : "Confirm"}

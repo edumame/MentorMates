@@ -1,17 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { Session } from "@supabase/supabase-js";
-import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { ServiceWorkerRegistration } from "@/components/utils/ServiceWorkerRegistration";
-import { LandingHero } from "@/components/heroes/LandingHero";
+import { supabase } from "@/lib/supabase";
+import { Session } from "@supabase/supabase-js";
+import Link from "next/link";
 import { Footer } from "@/components/layout/Footer";
+import { LandingHero } from "@/components/heroes/LandingHero";
 import { Calendar, Folder, MessageSquare } from "lucide-react";
-import { toast } from "@/lib/hooks/use-toast";
-import { DiscordCTA } from "@/components/ui/discord-cta";
-import { AnnouncementBanner } from "@/components/ui/announcement-banner";
 import posthog from "posthog-js";
 
 export default function HomePage() {
@@ -21,12 +18,14 @@ export default function HomePage() {
   const [loadingStats, setLoadingStats] = useState(false);
   const [stats, setStats] = useState({ events: 0, projects: 0, feedback: 0 });
 
-  // Get session and sync basic profile
+    // Get session and sync basic profile
+
   useEffect(() => {
-    (async () => {
-      const {
-        data: { session: currentSession },
-      } = await supabase.auth.getSession();
+    const syncUserProfile = async () => {
+      try {
+        const {
+          data: { session: currentSession },
+        } = await supabase.auth.getSession();
 
         if (currentSession?.user) {
           const user = currentSession.user;
@@ -57,10 +56,10 @@ export default function HomePage() {
         }
 
         setSession(currentSession);
-        setIsLoading(false);
+        setLoading(false);
       } catch (error) {
         console.error("Error in syncUserProfile:", error);
-        setIsLoading(false);
+        setLoading(false);
       }
     };
 
