@@ -38,6 +38,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       /^\/projects\/public($|\/.*$)/, // Matches /projects/public and all its sub-routes
       /^\/events($|\/.*$)/, // Matches /events and all its sub-routes
       /^\/ai-vibe-guide($|\/.*$)/, // Matches /ai-vibe-guide and all sub-routes
+      /^\/ai-vibe-masterclass($|\/.*$)/, // Matches /ai-vibe-masterclass and all sub-routes
       /^\/profile\/[a-zA-Z0-9_-]+($|\/.*$)/, // Matches /profile/user-id and all its sub-routes
       /^\/blog($|\/.*$)/, // Make blog index and all posts public
       /^\/article($|\/.*$)/, // Alias article routes public too

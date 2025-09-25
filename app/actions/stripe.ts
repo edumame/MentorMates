@@ -206,3 +206,68 @@ export async function fetchGuideClientSecret() {
 
   return session.client_secret;
 }
+
+export async function fetchMasterclassClientSecret() {
+  const origin = (await headers()).get("origin");
+
+  if (!origin) {
+    throw new Error("Missing origin header");
+  }
+
+  // Best effort: attach customer email if logged in, but do not require auth
+  let customerEmail: string | undefined = undefined;
+  try {
+    const supabase = await createSupabaseClient();
+    const { data } = await supabase.auth.getUser();
+    customerEmail = data.user?.email ?? undefined;
+  } catch {
+    // ignore auth errors; allow guest checkout
+  }
+
+  type SimpleLineItem = { price: string; quantity: number };
+  type InlinePriceLineItem = {
+    price_data: {
+      currency: string;
+      unit_amount: number;
+      product_data: { name: string };
+    };
+    quantity: number;
+  };
+  const lineItems: Array<SimpleLineItem | InlinePriceLineItem> = [];
+
+  const masterclassPriceId = process.env.MASTERCLASS_STRIPE_PRICE_ID;
+  if (masterclassPriceId) {
+    lineItems.push({ price: masterclassPriceId, quantity: 1 });
+  } else {
+    // Fallback: inline price data for $2,500 USD
+    lineItems.push({
+      price_data: {
+        currency: "usd",
+        unit_amount: 250000,
+        product_data: {
+          name: "AI Vibe Coding Masterclass - 5 Week Program",
+        },
+      },
+      quantity: 1,
+    });
+  }
+
+  const session = await stripe.checkout.sessions.create({
+    ui_mode: "embedded",
+    mode: "payment",
+    line_items: lineItems,
+    return_url: `${origin}/ai-vibe-masterclass`,
+    allow_promotion_codes: true,
+    metadata: {
+      product: "ai-vibe-masterclass",
+      product_type: "course",
+    },
+    ...(customerEmail ? { customer_email: customerEmail } : {}),
+  });
+
+  if (!session.client_secret) {
+    throw new Error("Failed to create checkout session");
+  }
+
+  return session.client_secret;
+}
