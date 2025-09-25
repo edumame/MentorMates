@@ -22,7 +22,7 @@ export function AccessOptions() {
             />
 
             <AccessOptionCard
-                title="Weekly Free Release"
+                title="Weekly Release"
                 price="Starting in November"
                 points={[
                     "Chapters released weekly in parts",
