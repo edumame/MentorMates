@@ -30,7 +30,7 @@ export function LogoMarquee({
   const track = [...logos, ...logos]; // duplicate to remove loop seam
 
   return (
-    <div className={clsx("relative overflow-hidden", className)}>
+    <div className={clsx("relative w-full max-w-full overflow-hidden", className)}>
       {/* optional edge fade */}
       {fade && (
         <>
@@ -41,7 +41,7 @@ export function LogoMarquee({
 
       <div
         className={clsx(
-          "flex w-max min-w-full items-center gap-10 sm:gap-14 lg:gap-16",
+          "flex w-max min-w-full items-center gap-6 sm:gap-10 lg:gap-16",
           "will-change-transform transform-gpu",
           reverse ? "marquee-reverse" : "marquee",
           pauseOnHover && "hover:[animation-play-state:paused]"
