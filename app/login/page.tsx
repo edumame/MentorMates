@@ -210,7 +210,7 @@ function LoginContent({
 
   return (
     <div>
-      <div className="sm:mx-auto sm:w-full sm:max-w-md pt-5">
+      <div className="mx-auto w-full max-w-[400px] md:max-w-md lg:max-w-lg xl:max-w-xl pt-5">
         <h2
           className="m-2 text-center text-2xl font-semibold tracking-tight text-gray-900"
         >
@@ -228,7 +228,7 @@ function LoginContent({
         )}
       </div>
 
-      <div className="sm:mx-auto sm:w-full sm:max-w-[400px] pl-5 pr-5 pb-10">
+      <div className="mx-auto w-full max-w-[400px] md:max-w-md lg:max-w-lg xl:max-w-xl pl-5 pr-5 pb-10">
         <div
           className="px-6 py-12 bg-white border border-gray-200 shadow-sm sm:rounded-lg sm:px-12"
         >
