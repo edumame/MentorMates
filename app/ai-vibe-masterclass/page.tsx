@@ -35,7 +35,7 @@ export default function AIVibeMasterclassPage() {
             A 5-week, high-impact masterclass blending AI, code, and entrepreneurial energy. Only 12 seats. $2,500.
           </p>
           <div className="mt-6 flex items-center justify-center gap-3">
-            <Link href="#reserve">
+            <Link href="/ai-vibe-masterclass/checkout">
               <Button variant="default" className="px-4 py-2 text-base">
                 Reserve Your Seat
               </Button>
@@ -116,7 +116,7 @@ export default function AIVibeMasterclassPage() {
           <p className="text-gray-700 mt-2">Includes all workshops, weekly sessions, frameworks, and community.</p>
           <p className="text-gray-800 mt-2 font-medium">Early bird bonus: 30-min 1:1 with Chinat.</p>
           <div className="mt-6 flex items-center justify-center gap-3">
-            <Link href="#reserve">
+            <Link href="/ai-vibe-masterclass/checkout">
               <Button variant="default" className="px-4 py-2 text-base">
                 Reserve Your Seat
               </Button>
@@ -169,7 +169,7 @@ export default function AIVibeMasterclassPage() {
             12 Seats. 5 Weeks. Code, Scale, Launch.
           </h2>
           <div className="mt-6 flex items-center justify-center gap-3">
-            <Link href="#reserve">
+            <Link href="/ai-vibe-masterclass/checkout">
               <Button variant="default" className="px-4 py-2 text-base">
                 Reserve Your Seat Now
               </Button>
