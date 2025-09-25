@@ -50,6 +50,7 @@ export function Navbar() {
   const [session, setSession] = useState<Session | null>(null);
 
   const isHome = pathname === "/";
+  const hideLogoOnAuthPages = pathname === "/login";
 
   const toggleMenu = () => setIsOpen(!isOpen);
   const toggleResources = () => setResourcesOpen(!resourcesOpen);
@@ -107,15 +108,17 @@ export function Navbar() {
           {/* Logo and Desktop Menu */}
           {/* Desktop shows at lg+ to avoid wrapping on tablets/smaller laptops */}
           <div className="hidden lg:flex items-center gap-8">
-            <Link href="/" className="flex items-center gap-2">
-              <Image
-                src="/mentormate.png"
-                alt="Mentor Mate Logo"
-                width={200}
-                height={40}
-                className="object-contain pl-2"
-              />
-            </Link>
+            {!hideLogoOnAuthPages && (
+              <Link href="/" className="flex items-center gap-2">
+                <Image
+                  src="/mentormate.png"
+                  alt="Mentor Mate Logo"
+                  width={200}
+                  height={40}
+                  className="object-contain pl-2"
+                />
+              </Link>
+            )}
 
             <Link
               href="/project"
@@ -185,15 +188,17 @@ export function Navbar() {
           </div>
 
           {/* Logo for <lg screens */}
-          <Link href="/" className="flex lg:hidden items-center gap-2">
-            <Image
-              src="/mentormate.png"
-              alt="Mentor Mate Logo"
-              width={140}
-              height={28}
-              className="object-contain"
-            />
-          </Link>
+          {!hideLogoOnAuthPages && (
+            <Link href="/" className="flex lg:hidden items-center gap-2">
+              <Image
+                src="/mentormate.png"
+                alt="Mentor Mate Logo"
+                width={140}
+                height={28}
+                className="object-contain"
+              />
+            </Link>
+          )}
 
           {/* Desktop Auth Buttons (lg+) */}
           <div className="hidden lg:flex items-center gap-3">
