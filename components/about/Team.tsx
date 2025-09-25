@@ -8,7 +8,7 @@ export function Team() {
   const team = [
     {
       name: "Chinat Yu",
-      title: "CEO & Founder",
+      title: "Project Lead",
       image: "/team/Chinat.png",
       linkedin: "https://www.linkedin.com/in/chinat-yu/",
     },
