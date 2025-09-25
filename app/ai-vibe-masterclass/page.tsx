@@ -180,9 +180,10 @@ export default function AIVibeMasterclassPage() {
         </div>
 
         {/* Logo marquee */}
-        <div className="px-5 pb-8">
+        <div className="px-4 sm:px-5 pb-8">
           <div className="max-w-7xl mx-auto">
-            <LogoMarquee
+            <div className="hidden sm:block">
+              <LogoMarquee
               logos={[
                 { alt: "Stanford", src: "/partners/stanford.png" },
                 { alt: "Goodnotes", src: "/partners/goodnotes.png" },
@@ -191,7 +192,8 @@ export default function AIVibeMasterclassPage() {
                 { alt: "Tencent", src: "/partners/tencent.png" },
                 { alt: "Inspirit AI", src: "/partners/inspirit.png" },
               ]}
-            />
+              />
+            </div>
           </div>
         </div>
       </div>
