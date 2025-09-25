@@ -34,8 +34,80 @@ export default function AIVibeMasterclassPage() {
       {/* Hero */}
       <div className="relative bg-gradient-to-b from-blue-50/70 to-white">
         <BackgroundBeams className="opacity-60" />
-        <div className="relative px-5 pt-12 md:pt-20 pb-10 md:pb-16">
-          <div className="max-w-7xl mx-auto grid md:grid-cols-12 gap-6 md:gap-8 items-center">
+        <div className="relative px-4 sm:px-5 pt-10 md:pt-20 pb-8 md:pb-16">
+          {/* Mobile-first hero (video first) */}
+          <div className="md:hidden mx-auto w-full max-w-md">
+            {/* Video */}
+            <div className="relative mx-auto w-full overflow-hidden rounded-xl shadow-xl ring-1 ring-gray-200 bg-white">
+              <div className="relative pt-[56.25%]">
+                <iframe
+                  className="absolute inset-0 h-full w-full max-w-full"
+                  src="https://www.youtube.com/embed/qYBzs7-GTx8?rel=0"
+                  title="AI Vibe Coding Masterclass Intro"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  referrerPolicy="strict-origin-when-cross-origin"
+                  allowFullScreen
+                />
+              </div>
+            </div>
+
+            {/* Copy */}
+            <div className="mt-6 text-center">
+              <span className="inline-flex items-center rounded-full bg-blue-100 text-blue-800 text-xs font-medium px-3 py-1">
+                AI Vibe Coding Masterclass
+              </span>
+              <h1 className="mt-4 text-3xl sm:text-4xl font-extrabold tracking-tight">
+                Unlock Your AI Vibe
+              </h1>
+              <p className="text-gray-700 mt-3 text-sm sm:text-base">
+                A 5-week, high-impact masterclass blending AI, code, and entrepreneurial energy. Only 12 seats. $2,500.
+              </p>
+              <div className="mt-4 flex flex-wrap items-center gap-2 justify-center">
+                <span className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-700">
+                  <CalendarClock className="mr-1 h-3.5 w-3.5" /> 5 Weeks
+                </span>
+                <span className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-700">
+                  <Users className="mr-1 h-3.5 w-3.5" /> Only 12 seats
+                </span>
+                <span className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-700">
+                  <Rocket className="mr-1 h-3.5 w-3.5" /> Build live
+                </span>
+              </div>
+              <div className="mt-6 flex items-center gap-3 justify-center">
+                <Link href="/ai-vibe-masterclass/checkout">
+                  <Button variant="default" className="px-4 py-2 text-base">
+                    Reserve Your Seat
+                  </Button>
+                </Link>
+                <Link
+                  href="#curriculum"
+                  className="inline-flex items-center bg-gray-100 px-4 py-2 rounded-xl hover:bg-gray-200"
+                >
+                  View curriculum
+                </Link>
+              </div>
+              <div className="mt-4 text-sm text-gray-700 flex items-center justify-center gap-2">
+                <ShieldCheck className="h-4 w-4 text-green-600" />
+                Early bird bonus: 30-min 1:1 with Chinat
+              </div>
+              <div className="mt-6 flex items-center justify-center gap-3">
+                <Image
+                  src="/team/Chinat.png"
+                  alt="Chinat Yu"
+                  width={44}
+                  height={44}
+                  className="rounded-full"
+                />
+                <div>
+                  <p className="text-sm font-semibold">Chinat Yu</p>
+                  <p className="text-xs text-gray-600">Instructor • MentorMates</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Desktop/tablet hero */}
+          <div className="hidden md:grid max-w-7xl mx-auto md:grid-cols-12 gap-6 md:gap-8 items-center">
             {/* Left: Copy */}
             <div className="md:col-span-5 text-center md:text-left">
               <span className="inline-flex items-center rounded-full bg-blue-100 text-blue-800 text-xs font-medium px-3 py-1">
@@ -125,8 +197,8 @@ export default function AIVibeMasterclassPage() {
       </div>
 
       {/* Program Overview */}
-      <div className="px-5 py-10 md:py-16">
-        <section className="mx-auto w-full max-w-7xl">
+      <div className="px-4 sm:px-5 py-10 md:py-16">
+        <section className="mx-auto w-full max-w-6xl md:max-w-7xl">
           <h2 className="text-center text-2xl sm:text-3xl font-bold tracking-tight">
             Program Overview
           </h2>
@@ -176,11 +248,11 @@ export default function AIVibeMasterclassPage() {
         <hr className="my-12 border-gray-200" />
 
         {/* Curriculum Breakdown */}
-        <section id="curriculum" className="mx-auto w-full max-w-7xl">
+        <section id="curriculum" className="mx-auto w-full max-w-6xl md:max-w-7xl">
           <h2 className="text-center text-2xl sm:text-3xl font-bold tracking-tight">
             Curriculum Breakdown (Week by Week)
           </h2>
-          <div className="mt-8 grid gap-6 sm:grid-cols-2">
+          <div className="mt-8 grid gap-4 sm:gap-6 sm:grid-cols-2">
             <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
               <h3 className="font-semibold text-lg">Week 1: The BRICK Vibe Coding Ladder</h3>
               <p className="text-gray-700 mt-2">How to climb from spark → prototype → execution using structured creativity.</p>
@@ -207,7 +279,7 @@ export default function AIVibeMasterclassPage() {
         <hr className="my-12 border-gray-200" />
 
         {/* Why Join */}
-        <section className="mx-auto w-full max-w-7xl">
+        <section className="mx-auto w-full max-w-6xl md:max-w-7xl">
           <h2 className="text-center text-2xl sm:text-3xl font-bold tracking-tight">
             Why Join?
           </h2>
@@ -254,7 +326,7 @@ export default function AIVibeMasterclassPage() {
         
 
         {/* Pricing */}
-        <section id="reserve" className="mx-auto w-full max-w-3xl text-center">
+        <section id="reserve" className="mx-auto w-full max-w-lg sm:max-w-xl md:max-w-3xl text-center">
           <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Pricing</h2>
           <div className="mt-6 rounded-2xl border border-gray-200 bg-white p-6 sm:p-8 shadow-sm">
             <div className="flex flex-col items-center gap-2">
@@ -281,7 +353,7 @@ export default function AIVibeMasterclassPage() {
         <hr className="my-12 border-gray-200" />
 
         {/* Who Is This For */}
-        <section className="mx-auto w-full max-w-5xl">
+        <section className="mx-auto w-full max-w-3xl sm:max-w-5xl">
           <h2 className="text-center text-2xl sm:text-3xl font-bold tracking-tight">
             Who Is This For?
           </h2>
@@ -326,7 +398,7 @@ export default function AIVibeMasterclassPage() {
         <hr className="my-12 border-gray-200" />
 
         {/* Final CTA */}
-        <section className="mx-auto w-full max-w-5xl text-center">
+        <section className="mx-auto w-full max-w-3xl sm:max-w-5xl text-center">
           <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
             12 Seats. 5 Weeks. Code, Scale, Launch.
           </h2>
