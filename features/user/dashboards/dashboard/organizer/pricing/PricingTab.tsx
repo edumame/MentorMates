@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Delete, Add, AttachMoney, Inventory } from "@mui/icons-material";
+import { Delete, Add, AttachMoney, Inventory} from "@mui/icons-material";
 import { EventDetails, PricingTier, Coupon } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/lib/hooks/use-toast";
@@ -418,7 +418,7 @@ export function PricingTab({
                             onClick={() => removePricingTier(actualIndex)}
                             className="text-red-600 hover:text-red-700"
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Delete className="h-4 w-4" />
                           </Button>
                       </div>
                     </CardHeader>

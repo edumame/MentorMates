@@ -8,12 +8,8 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import type { Session } from "@supabase/supabase-js";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-<<<<<<< HEAD:components/layout/AuthNavbar.tsx
 import { Menu, Close } from "@mui/icons-material";
-=======
-import { Menu, X } from "lucide-react";
 import posthog from "posthog-js";
->>>>>>> 58fbb506f0d89f83d0ca46850dca69cab5b05750:components/layout/authNavbar.tsx
 
 export function AuthNavbar() {
   const router = useRouter();
