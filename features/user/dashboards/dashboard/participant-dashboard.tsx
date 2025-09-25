@@ -201,7 +201,9 @@ export function ParticipantDashboard({ eventId }: ParticipantDashboardProps) {
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList
-          className={`grid w-full ${isPaidEvent ? "grid-cols-3" : "grid-cols-2"}`}
+          className={`grid w-full ${
+            isPaidEvent ? "grid-cols-3" : "grid-cols-2"
+          }`}
         >
           <TabsTrigger value="projects" className="flex items-center gap-2">
             <FolderOpen className="h-4 w-4" />
@@ -283,7 +285,7 @@ export function ParticipantDashboard({ eventId }: ParticipantDashboardProps) {
             </CardContent>
           </Card>
 
-          {hasJoined && (
+          {hasJoined && paywalledContent && (
             <Card className="border-2 border-yellow-200 bg-yellow-50 mt-6">
               <CardHeader>
                 <CardTitle className="text-yellow-800">
