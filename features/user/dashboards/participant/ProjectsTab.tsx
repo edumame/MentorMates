@@ -3,7 +3,7 @@ import { Project } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2 } from "lucide-react";
+import { Add, Delete } from "@mui/icons-material";
 import { toast } from "@/lib/hooks/use-toast";
 
 interface ProjectsTabProps {
@@ -57,7 +57,7 @@ export function ProjectsTab({
         <h2 className="text-2xl font-bold">Projects</h2>
         <Link href={`/events/${eventId}/submit`}>
           <Button className="button-gradient text-white font-semibold rounded-full shadow-lg hover:shadow-xl transition-all duration-300 flex items-center gap-2">
-            <Plus className="h-5 w-5" />
+            <Add className="h-5 w-5" />
             Create Project
           </Button>
         </Link>
@@ -132,7 +132,7 @@ export function ProjectsTab({
                             onClick={() => handleDeleteProject(project.id)}
                             disabled={isDeleting === project.id}
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Delete className="h-4 w-4" />
                             <span className="sr-only">Delete project</span>
                           </Button>
                         </div>

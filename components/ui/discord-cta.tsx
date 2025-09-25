@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { MessageCircle, Users, Zap } from "lucide-react";
+import { Message, FlashOn } from "@mui/icons-material";
 import Link from "next/link";
 
 interface DiscordCTAProps {
@@ -9,22 +9,34 @@ interface DiscordCTAProps {
   className?: string;
 }
 
-export function DiscordCTA({ variant = "default", className = "" }: DiscordCTAProps) {
+export function DiscordCTA({
+  variant = "default",
+  className = "",
+}: DiscordCTAProps) {
   const discordUrl = "https://discord.gg/6pbUzK44eW";
 
   if (variant === "compact") {
     return (
-      <div className={`bg-blue-50 border border-blue-200 rounded-xl p-4 shadow-sm ${className}`}>
+      <div
+        className={`bg-blue-50 border border-blue-200 rounded-xl p-4 shadow-sm ${className}`}
+      >
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <MessageCircle className="w-5 h-5 text-blue-900" />
+            <Message className="w-5 h-5 text-blue-900" />
             <div>
-              <p className="text-sm font-medium text-blue-900">Join our Discord community</p>
-              <p className="text-xs text-blue-700">Connect with mentors and peers</p>
+              <p className="text-sm font-medium text-blue-900">
+                Join our Discord community
+              </p>
+              <p className="text-xs text-blue-700">
+                Connect with mentors and peers
+              </p>
             </div>
           </div>
           <Link href={discordUrl} target="_blank" rel="noopener noreferrer">
-            <Button size="sm" className="bg-blue-900 text-white hover:bg-blue-800 text-xs px-4 py-2">
+            <Button
+              size="sm"
+              className="bg-blue-900 text-white hover:bg-blue-800 text-xs px-4 py-2"
+            >
               Join Discord
             </Button>
           </Link>
@@ -35,27 +47,36 @@ export function DiscordCTA({ variant = "default", className = "" }: DiscordCTAPr
 
   if (variant === "hero") {
     return (
-      <div className={`bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 rounded-2xl p-8 text-white shadow-xl ${className}`}>
+      <div
+        className={`bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 rounded-2xl p-8 text-white shadow-xl ${className}`}
+      >
         <div className="text-center">
           <div className="flex justify-center mb-4">
             <div className="bg-white/20 rounded-full p-3">
-              <MessageCircle className="w-8 h-8" />
+              <Message className="w-8 h-8" />
             </div>
           </div>
-          <h3 className="text-2xl font-bold mb-2">Join Our Discord Community!</h3>
+          <h3 className="text-2xl font-bold mb-2">
+            Join Our Discord Community!
+          </h3>
           <p className="text-lg opacity-90 mb-6 max-w-md mx-auto">
-            Connect with mentors, peers, and stay updated on the latest events and opportunities.
+            Connect with mentors, peers, and stay updated on the latest events
+            and opportunities.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
             <Link href={discordUrl} target="_blank" rel="noopener noreferrer">
-              <Button size="lg" variant="secondary" className="bg-white text-indigo-600 hover:bg-gray-100 font-semibold">
-                <MessageCircle className="w-5 h-5 mr-2" />
+              <Button
+                size="lg"
+                variant="secondary"
+                className="bg-white text-indigo-600 hover:bg-gray-100 font-semibold"
+              >
+                <Message className="w-5 h-5 mr-2" />
                 Join Discord
               </Button>
             </Link>
             <div className="flex items-center space-x-4 text-sm opacity-80">
               <div className="flex items-center">
-                <Zap className="w-4 h-4 mr-1" />
+                <FlashOn className="w-4 h-4 mr-1" />
                 <span>24/7 support</span>
               </div>
             </div>
@@ -67,26 +88,34 @@ export function DiscordCTA({ variant = "default", className = "" }: DiscordCTAPr
 
   // Default variant
   return (
-    <div className={`bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl p-6 text-white shadow-lg ${className}`}>
+    <div
+      className={`bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl p-6 text-white shadow-lg ${className}`}
+    >
       <div className="flex items-start space-x-4">
         <div className="bg-white/20 rounded-full p-2 flex-shrink-0">
-          <MessageCircle className="w-6 h-6" />
+          <Message className="w-6 h-6" />
         </div>
         <div className="flex-1">
-          <h3 className="text-xl font-bold mb-2">Join Our Discord Community!</h3>
+          <h3 className="text-xl font-bold mb-2">
+            Join Our Discord Community!
+          </h3>
           <p className="text-sm opacity-90 mb-4">
-            Connect with mentors, peers, and stay updated on the latest events, opportunities, and exclusive resources.
+            Connect with mentors, peers, and stay updated on the latest events,
+            opportunities, and exclusive resources.
           </p>
           <div className="flex flex-col sm:flex-row gap-3">
             <Link href={discordUrl} target="_blank" rel="noopener noreferrer">
-              <Button variant="secondary" className="bg-white text-indigo-600 hover:bg-gray-100 font-medium">
-                <MessageCircle className="w-4 h-4 mr-2" />
+              <Button
+                variant="secondary"
+                className="bg-white text-indigo-600 hover:bg-gray-100 font-medium"
+              >
+                <Message className="w-4 h-4 mr-2" />
                 Join Discord
               </Button>
             </Link>
             <div className="flex items-center space-x-4 text-xs opacity-80">
               <div className="flex items-center">
-                <Zap className="w-3 h-3 mr-1" />
+                <FlashOn className="w-3 h-3 mr-1" />
                 <span>24/7 support</span>
               </div>
             </div>

@@ -12,7 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, Eye } from "lucide-react";
+import { ExpandMore, Visibility } from "@mui/icons-material";
 
 interface RoleSwitcherProps {
   /**
@@ -78,11 +78,11 @@ export function RoleSwitcher({
           >
             <div className="flex items-center gap-2">
               {activeRole !== actualRole && (
-                <Eye className="h-4 w-4 text-muted-foreground" />
+                <Visibility className="h-4 w-4 text-muted-foreground" />
               )}
               <span>{getCurrentRoleLabel(activeRole)}</span>
             </div>
-            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            <ExpandMore className="h-4 w-4 text-muted-foreground" />
           </Button>
         </DropdownMenuTrigger>
 
@@ -104,7 +104,7 @@ export function RoleSwitcher({
                 <div className="flex items-center justify-between w-full">
                   <div className="flex items-center gap-2">
                     {!isActualRole && (
-                      <Eye className="h-4 w-4 text-muted-foreground" />
+                      <Visibility className="h-4 w-4 text-muted-foreground" />
                     )}
                     <span>
                       {isActualRole

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { TrashIcon } from "lucide-react";
+import { Delete } from "@mui/icons-material";
 import { EventDetails } from "@/lib/types";
 import { toast as ToastType } from "@/lib/hooks/use-toast";
 import { EMAIL_TYPES } from "@/lib/email_templates/constants";
@@ -25,15 +25,17 @@ export function ScheduleTab({
   setSaving,
   toast,
 }: ScheduleTabProps) {
-
   const handleScheduleUpdateNotification = async () => {
-    const response = await fetch(`/api/email_notification/event/${event.event_id}`, {
-      method: "POST",
-      body: JSON.stringify({
-        eventId: event.event_id,
-        emailType: EMAIL_TYPES.EVENT_SCHEDULE_UPDATE,
-      }),
-    });
+    const response = await fetch(
+      `/api/email_notification/event/${event.event_id}`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          eventId: event.event_id,
+          emailType: EMAIL_TYPES.EVENT_SCHEDULE_UPDATE,
+        }),
+      }
+    );
 
     if (response.ok) {
       toast({
@@ -77,13 +79,14 @@ export function ScheduleTab({
       });
 
       // Compare schedules to determine if notification is needed
-      const hasScheduleChanged = JSON.stringify(currentData.event_schedule) !== JSON.stringify(event.event_schedule);
-      
+      const hasScheduleChanged =
+        JSON.stringify(currentData.event_schedule) !==
+        JSON.stringify(event.event_schedule);
+
       if (hasScheduleChanged) {
         // Only send notification if schedule actually changed
         await handleScheduleUpdateNotification();
       }
-
     } catch (error) {
       console.error("Error updating schedule:", error);
       toast({
@@ -126,7 +129,7 @@ export function ScheduleTab({
                 setEvent({ ...event, event_schedule: newSchedule });
               }}
             >
-              <TrashIcon className="h-4 w-4" />
+              <Delete className="h-4 w-4" />
             </Button>
           </div>
 
@@ -181,7 +184,7 @@ export function ScheduleTab({
                     });
                   }}
                 >
-                  <TrashIcon className="h-4 w-4" />
+                  <Delete className="h-4 w-4" />
                 </Button>
               </div>
 

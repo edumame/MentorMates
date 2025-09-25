@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { TrashIcon } from "lucide-react";
+import { Delete } from "@mui/icons-material";
 import { EventDetails } from "@/lib/types";
 import { toast as ToastType } from "@/lib/hooks/use-toast";
 
@@ -100,7 +100,7 @@ export function ResourcesTab({
               setEvent({ ...event, event_resources: newResources });
             }}
           >
-            <TrashIcon className="h-4 w-4" />
+            <Delete className="h-4 w-4" />
           </Button>
         </div>
       ))}
@@ -110,10 +110,7 @@ export function ResourcesTab({
         onClick={() => {
           setEvent({
             ...event,
-            event_resources: [
-              ...event.event_resources,
-              { name: "", link: "" },
-            ],
+            event_resources: [...event.event_resources, { name: "", link: "" }],
           });
         }}
       >
@@ -129,4 +126,4 @@ export function ResourcesTab({
       </Button>
     </div>
   );
-} 
+}

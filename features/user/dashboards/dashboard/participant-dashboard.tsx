@@ -3,15 +3,21 @@ import { supabase } from "@/lib/supabase";
 import { Project } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FolderOpen, Ticket, BarChart } from "lucide-react";
+import { FolderOpen, ConfirmationNumber, BarChart } from "@mui/icons-material";
 import dynamic from "next/dynamic";
 import ReactMarkdown from "react-markdown";
 import { customMarkdownComponents } from "@/components/markdown/custom-components";
 import { markdownRehypePlugins } from "@/components/markdown/plugins";
 
-const ProjectsTab = dynamic(() => import("../participant/ProjectsTab").then(mod => ({ default: mod.ProjectsTab })), {
-  ssr: false,
-});
+const ProjectsTab = dynamic(
+  () =>
+    import("../participant/ProjectsTab").then((mod) => ({
+      default: mod.ProjectsTab,
+    })),
+  {
+    ssr: false,
+  }
+);
 
 const GoalSection = dynamic(() => import("@/components/journal/goal-section"), {
   ssr: false,
@@ -25,7 +31,10 @@ const JournalSection = dynamic(
 );
 
 const ViewTicketsTab = dynamic(
-  () => import("@/components/tickets/view-tickets-tab").then(mod => ({ default: mod.ViewTicketsTab })),
+  () =>
+    import("@/components/tickets/view-tickets-tab").then((mod) => ({
+      default: mod.ViewTicketsTab,
+    })),
   {
     ssr: false,
   }
@@ -44,7 +53,7 @@ export function ParticipantDashboard({ eventId }: ParticipantDashboardProps) {
   const [eventInfo, setEventInfo] = useState<EventInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("projects");
-  
+
   const [paywalledContent, setPaywalledContent] = useState<string | null>(null);
   const [goalsCount, setGoalsCount] = useState<number>(0);
   const [journalCount, setJournalCount] = useState<number>(0);
@@ -55,7 +64,7 @@ export function ParticipantDashboard({ eventId }: ParticipantDashboardProps) {
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      if (!session) return
+      if (!session) return;
 
       // Fetch event info to check if it's paid
       const { data: event } = await supabase
@@ -63,7 +72,7 @@ export function ParticipantDashboard({ eventId }: ParticipantDashboardProps) {
         .select("paid")
         .eq("event_id", eventId)
         .single();
-      
+
       setEventInfo(event);
 
       const { data: leadProjects, error: leadProjectsError } = await supabase
@@ -90,7 +99,10 @@ export function ParticipantDashboard({ eventId }: ParticipantDashboardProps) {
         );
 
       if (leadProjectsError || teamProjectsError) {
-        console.error("Error fetching projects:", leadProjectsError || teamProjectsError);
+        console.error(
+          "Error fetching projects:",
+          leadProjectsError || teamProjectsError
+        );
       } else {
         setMyProjects(allProjects || []);
       }
@@ -186,7 +198,9 @@ export function ParticipantDashboard({ eventId }: ParticipantDashboardProps) {
       <h2 className="text-2xl font-bold">Participant Dashboard</h2>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className={`grid w-full ${isPaidEvent ? 'grid-cols-3' : 'grid-cols-2'}`}>
+        <TabsList
+          className={`grid w-full ${isPaidEvent ? "grid-cols-3" : "grid-cols-2"}`}
+        >
           <TabsTrigger value="projects" className="flex items-center gap-2">
             <FolderOpen className="h-4 w-4" />
             Projects
@@ -197,7 +211,7 @@ export function ParticipantDashboard({ eventId }: ParticipantDashboardProps) {
           </TabsTrigger>
           {isPaidEvent && (
             <TabsTrigger value="tickets" className="flex items-center gap-2">
-              <Ticket className="h-4 w-4" />
+              <ConfirmationNumber className="h-4 w-4" />
               View Tickets
             </TabsTrigger>
           )}
@@ -205,11 +219,11 @@ export function ParticipantDashboard({ eventId }: ParticipantDashboardProps) {
 
         <TabsContent value="projects">
           <Suspense fallback={<div>Loading projects...</div>}>
-            <ProjectsTab 
-              eventId={eventId} 
-              myProjects={myProjects} 
+            <ProjectsTab
+              eventId={eventId}
+              myProjects={myProjects}
               setMyProjects={setMyProjects}
-              isLoading={isLoading} 
+              isLoading={isLoading}
             />
           </Suspense>
         </TabsContent>
@@ -276,7 +290,12 @@ export function ParticipantDashboard({ eventId }: ParticipantDashboardProps) {
               </CardHeader>
               <CardContent>
                 <div className="prose prose-blue max-w-none">
-                  <ReactMarkdown rehypePlugins={markdownRehypePlugins} components={customMarkdownComponents}>{paywalledContent}</ReactMarkdown>
+                  <ReactMarkdown
+                    rehypePlugins={markdownRehypePlugins}
+                    components={customMarkdownComponents}
+                  >
+                    {paywalledContent}
+                  </ReactMarkdown>
                 </div>
               </CardContent>
             </Card>
