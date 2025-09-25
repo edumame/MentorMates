@@ -93,6 +93,7 @@ export function BasicInfoTab({
           cover_image_url: coverImageUrl,
           submission_time_start: event.submission_time_start,
           submission_time_cutoff: event.submission_time_cutoff,
+          participant_capacity: event.participant_capacity ?? null,
         })
         .eq("event_id", event.event_id);
 
@@ -141,6 +142,32 @@ export function BasicInfoTab({
             }
           />
         </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="participant_capacity">Participant Seat Cap</Label>
+        <Input
+          id="participant_capacity"
+          type="number"
+          min={0}
+          placeholder="Unlimited"
+          value={
+            typeof event.participant_capacity === "number"
+              ? String(event.participant_capacity)
+              : ""
+          }
+          onChange={(e) => {
+            const value = e.target.value;
+            setEvent({
+              ...event,
+              participant_capacity:
+                value === "" ? null : Math.max(0, parseInt(value, 10) || 0),
+            });
+          }}
+        />
+        <p className="text-xs text-gray-500">
+          Leave blank for unlimited participants.
+        </p>
+      </div>
         <div className="space-y-2">
           <Label htmlFor="slug">URL Slug</Label>
           <Input

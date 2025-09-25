@@ -9,6 +9,10 @@ import { ServiceWorkerRegistration } from "@/components/utils/ServiceWorkerRegis
 import { LandingHero } from "@/components/heroes/LandingHero";
 import { Footer } from "@/components/layout/Footer";
 import { Calendar, Folder, MessageSquare } from "lucide-react";
+import { toast } from "@/lib/hooks/use-toast";
+import { DiscordCTA } from "@/components/ui/discord-cta";
+import { AnnouncementBanner } from "@/components/ui/announcement-banner";
+import posthog from "posthog-js";
 
 export default function HomePage() {
   const [session, setSession] = useState<Session | null>(null);
@@ -24,21 +28,43 @@ export default function HomePage() {
         data: { session: currentSession },
       } = await supabase.auth.getSession();
 
-      if (currentSession?.user) {
-        const u = currentSession.user;
-        await supabase.from("user_profiles").upsert(
-          {
-            uid: u.id,
-            email: u.email,
-            display_name: u.user_metadata?.full_name ?? null,
-          },
-          { onConflict: "email" }
-        );
-      }
+        if (currentSession?.user) {
+          const user = currentSession.user;
 
-      setSession(currentSession ?? null);
-      setLoading(false);
-    })();
+          const profileData = {
+            uid: user.id,
+            email: user.email,
+            display_name: user.user_metadata.full_name,
+          };
+
+          const { error } = await supabase
+            .from("user_profiles")
+            .upsert(profileData, {
+              onConflict: "email",
+            })
+            .select();
+
+          if (error) {
+            console.error("Error syncing profile:", error);
+          } else {
+            console.log("Successfully synced profile.");
+          }
+
+          posthog.identify(user.id, {
+            email: user.email,
+            display_name: user.user_metadata.full_name,
+          });
+        }
+
+        setSession(currentSession);
+        setIsLoading(false);
+      } catch (error) {
+        console.error("Error in syncUserProfile:", error);
+        setIsLoading(false);
+      }
+    };
+
+    syncUserProfile();
   }, []);
 
   // Fetch stats for the signed-in user

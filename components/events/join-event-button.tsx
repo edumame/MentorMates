@@ -65,6 +65,7 @@ export function JoinEventButton({
   const [selectedPricingTierId, setSelectedPricingTierId] =
     useState<string>("");
   const [showPricingTiers, setShowPricingTiers] = useState(false);
+  const [isFull, setIsFull] = useState(false);
 
   useEffect(() => {
     async function init() {
@@ -81,7 +82,8 @@ export function JoinEventButton({
             paid,
             visibility,
             role_labels,
-            slug
+            slug,
+            participant_capacity
           `
           )
           .eq("event_id", eventId)
@@ -94,6 +96,15 @@ export function JoinEventButton({
 
         setEvent(eventData);
         setRoleLabels(eventData?.role_labels || null);
+        // Check current participant count if capacity set
+        if (eventData?.participant_capacity != null) {
+          const { count } = await supabase
+            .from("user_event_roles")
+            .select("id", { count: "exact", head: true })
+            .eq("event_id", eventId)
+            .eq("role", EventRole.Participant);
+          setIsFull((count || 0) >= eventData.participant_capacity);
+        }
 
         // Set initial password visibility based on event settings
         if (eventData?.visibility === EventVisibility.Private) {
@@ -275,6 +286,9 @@ export function JoinEventButton({
           description: data.error || "Failed to join event",
           variant: "destructive",
         });
+        if (response.status === 409) {
+          setIsFull(true);
+        }
         return;
       }
 
@@ -393,13 +407,22 @@ export function JoinEventButton({
 
               <Button
                 onClick={handleJoinEvent}
-                disabled={isLoading || (showPasswordInput && !password)}
-                variant="default"
+                disabled={
+                  isLoading ||
+                  (showPasswordInput && !password) ||
+                  (isFull && selectedRole === EventRole.Participant)
+                }
+                variant="cta"
                 className="w-full rounded-full"
               >
                 {isLoading ? "Joining..." : "Confirm"}
               </Button>
             </div>
+          )}
+          {isFull && selectedRole === EventRole.Participant && (
+            <p className="text-xs text-red-600 mt-2">
+              This event is full for participants.
+            </p>
           )}
         </div>
       </DialogContent>
