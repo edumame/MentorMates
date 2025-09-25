@@ -31,14 +31,16 @@ export function EventHeader({
   const [needsTruncation, setNeedsTruncation] = useState(false);
   const contentRef = useRef<HTMLParagraphElement>(null);
 
-  const isSubmissionOpen = () => {
-    if (!submissionTimeStart || !submissionTimeCutoff) return false;
-
+  const getSubmissionStatus = () => {
+    // "open" | "before" | "closed"
     const now = new Date();
-    const start = new Date(submissionTimeStart);
-    const end = new Date(submissionTimeCutoff);
+    const start = submissionTimeStart ? new Date(submissionTimeStart) : null;
+    const end = submissionTimeCutoff ? new Date(submissionTimeCutoff) : null;
 
-    return now >= start && now <= end;
+    if (start && now < start) return "before";
+    if (start && end && now >= start && now <= end) return "open";
+    if (!start && end && now <= end) return "open";
+    return "closed";
   };
 
   useEffect(() => {
@@ -104,20 +106,29 @@ export function EventHeader({
               {location}
             </Badge>
           )}
-          {(submissionTimeStart || submissionTimeCutoff) && (
-            <Badge
-              variant="secondary"
-              className={`${
-                isSubmissionOpen()
-                  ? "bg-green-500/20 text-green-300"
-                  : "bg-red-500/20 text-red-300"
-              } border-none text-xs sm:text-sm`}
-            >
-              {isSubmissionOpen()
+          {(submissionTimeStart || submissionTimeCutoff) && (() => {
+            const status = getSubmissionStatus();
+            const badgeClass =
+              status === "open"
+                ? "bg-green-500/20 text-green-300"
+                : status === "before"
+                ? "bg-gray-500/20 text-gray-300"
+                : "bg-red-500/20 text-red-300";
+            const label =
+              status === "open"
                 ? "OPEN FOR SUBMISSION"
-                : "CLOSED FOR SUBMISSION"}
-            </Badge>
-          )}
+                : status === "before"
+                ? "EVENT STARTING SOON"
+                : "CLOSED FOR SUBMISSION";
+            return (
+              <Badge
+                variant="secondary"
+                className={`${badgeClass} border-none text-xs sm:text-sm`}
+              >
+                {label}
+              </Badge>
+            );
+          })()}
         </div>
         {description && (
           <div>
