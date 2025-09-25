@@ -23,11 +23,13 @@ export function AccessOptions() {
 
             <AccessOptionCard
                 title="Weekly Free Release"
-                price="free"
+                price="Starting in November"
                 points={[
                     "Chapters released weekly in parts",
                     "Hands-on appendix guides (videos + tutorials) remain locked",
+                    "Subscribe to our Substack, where we release new chapters weekly starting in November!",
                 ]}
+                cta={{ href: "https://mentormates.substack.com/", label: "Subscribe to our Substack" }}
             />
         </div>
         </section>

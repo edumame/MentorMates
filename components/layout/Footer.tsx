@@ -100,7 +100,7 @@ export function Footer() {
                         </Link>
                     </li>
                     <li>
-                        <Link href="/projects" className="hover:text-gray-900">
+                        <Link href="/project" className="hover:text-gray-900">
                         Projects
                         </Link>
                     </li>
@@ -123,7 +123,7 @@ export function Footer() {
                         </Link>
                     </li>
                     <li>
-                        <Link href="/resources" className="hover:text-gray-900">
+                        <Link href="/research" className="hover:text-gray-900">
                         Research
                         </Link>
                     </li>

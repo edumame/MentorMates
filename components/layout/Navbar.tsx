@@ -103,9 +103,10 @@ export function Navbar() {
       <nav
         className={`fixed left-0 right-0 bg-white z-50 ${isHome ? "top-[var(--banner-h,0px)]" : "top-0"}`}
       >
-        <div className="flex justify-between items-center py-4 px-10">
+        <div className="flex justify-between items-center py-4 px-4 sm:px-6 lg:px-10">
           {/* Logo and Desktop Menu */}
-          <div className="hidden md:flex items-center gap-8">
+          {/* Desktop shows at lg+ to avoid wrapping on tablets/smaller laptops */}
+          <div className="hidden lg:flex items-center gap-8">
             <Link href="/" className="flex items-center gap-2">
               <Image
                 src="/mentormate.png"
@@ -115,15 +116,16 @@ export function Navbar() {
                 className="object-contain pl-2"
               />
             </Link>
+
             <Link
               href="/project"
-              className="text-base font-medium text-black hover:text-[#4B89EF]"
+              className="text-base font-medium text-black hover:text-[#4B89EF] whitespace-nowrap"
             >
               Projects
             </Link>
             <Link
               href="/host"
-              className="text-base font-medium text-black hover:text-[#4B89EF]"
+              className="text-base font-medium text-black hover:text-[#4B89EF] whitespace-nowrap"
             >
               Host a hackathon
             </Link>
@@ -131,7 +133,7 @@ export function Navbar() {
               href={MENTOR_FORM_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-base font-medium text-black hover:text-[#4B89EF]"
+              className="text-base font-medium text-black hover:text-[#4B89EF] whitespace-nowrap"
             >
               Become a Mentor
             </Link>
@@ -141,15 +143,15 @@ export function Navbar() {
               href={DISCORD_INVITE}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-base font-medium text-black hover:text-[#4B89EF] inline-flex items-center gap-2"
+              className="text-base font-medium text-black hover:text-[#4B89EF] inline-flex items-center gap-2 whitespace-nowrap"
             >
-              <DiscordIcon className="mr-1 h-[1.1em] w-[1.1em] md:h-[1.2em] md:w-[1.2em]" />
+              <DiscordIcon className="mr-1 h-[1.1em] w-[1.1em]" />
               Join discord community
             </Link>
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="text-base font-medium text-black hover:text-[#4B89EF] inline-flex items-center gap-1">
+                <button className="text-base font-medium text-black hover:text-[#4B89EF] inline-flex items-center gap-1 whitespace-nowrap">
                   Resources
                   <svg
                     width="16"
@@ -182,19 +184,19 @@ export function Navbar() {
             </DropdownMenu>
           </div>
 
-          {/* Mobile Logo */}
-          <Link href="/" className="flex md:hidden items-center gap-2">
+          {/* Logo for <lg screens */}
+          <Link href="/" className="flex lg:hidden items-center gap-2">
             <Image
               src="/mentormate.png"
               alt="Mentor Mate Logo"
-              width={160}
-              height={32}
+              width={140}
+              height={28}
               className="object-contain"
             />
           </Link>
 
-          {/* Desktop Auth Buttons */}
-          <div className="hidden md:flex items-center gap-3">
+          {/* Desktop Auth Buttons (lg+) */}
+          <div className="hidden lg:flex items-center gap-3">
             {session ? (
               <>
                 <Avatar className="h-8 w-8">
@@ -205,7 +207,7 @@ export function Navbar() {
                 </Avatar>
                 <button
                   onClick={handleSignOutClick}
-                  className="px-4 py-4 text-base font-medium text-red-600 hover:bg-red-50 rounded-xl"
+                  className="px-4 py-3 text-base font-medium text-red-600 hover:bg-red-50 rounded-xl whitespace-nowrap"
                 >
                   Sign Out
                 </button>
@@ -214,13 +216,13 @@ export function Navbar() {
               <>
                 <Button
                   variant="defaultGray"
-                  className="px-4 py-4 rounded-xl text-base"
+                  className="px-3 py-2 rounded-lg text-sm xl:px-4 xl:py-3 xl:rounded-xl xl:text-base whitespace-nowrap"
                   onClick={handleLoginClick}
                 >
                   Log in
                 </Button>
                 <Link href="/select-role">
-                  <Button className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-4 rounded-xl text-base">
+                  <Button className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-lg text-sm xl:px-4 xl:py-3 xl:rounded-xl xl:text-base whitespace-nowrap">
                     Get started
                   </Button>
                 </Link>
@@ -228,10 +230,11 @@ export function Navbar() {
             )}
           </div>
 
-          {/* Mobile Menu Button */}
+          {/* Mobile Menu Button (<lg only) */}
           <button
             onClick={toggleMenu}
-            className="text-gray-600 hover:text-gray-900 flex md:hidden"
+            className="text-gray-600 hover:text-gray-900 flex lg:hidden"
+            aria-label="Toggle menu"
           >
             {isOpen ? (
               <svg
@@ -267,9 +270,9 @@ export function Navbar() {
           </button>
         </div>
 
-        {/* Mobile Menu */}
+        {/* Mobile Menu (<lg only) */}
         <div
-          className={`${isOpen ? "block" : "hidden"} bg-white border-t border-gray-100 md:hidden min-h-screen`}
+          className={`${isOpen ? "block" : "hidden"} bg-white border-t border-gray-100 lg:hidden min-h-screen`}
         >
           <div className="px-6 py-6 space-y-1">
             <Link
