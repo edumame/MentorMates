@@ -8,6 +8,7 @@ import dynamic from "next/dynamic";
 import ReactMarkdown from "react-markdown";
 import { customMarkdownComponents } from "@/components/markdown/custom-components";
 import { markdownRehypePlugins } from "@/components/markdown/plugins";
+import { useHasJoinedEvent } from "@/lib/hooks/use-has-joined-event";
 
 const ProjectsTab = dynamic(
   () =>
@@ -53,6 +54,7 @@ export function ParticipantDashboard({ eventId }: ParticipantDashboardProps) {
   const [eventInfo, setEventInfo] = useState<EventInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("projects");
+  const { hasJoined } = useHasJoinedEvent(eventId);
 
   const [paywalledContent, setPaywalledContent] = useState<string | null>(null);
   const [goalsCount, setGoalsCount] = useState<number>(0);
@@ -199,7 +201,9 @@ export function ParticipantDashboard({ eventId }: ParticipantDashboardProps) {
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList
-          className={`grid w-full ${isPaidEvent ? "grid-cols-3" : "grid-cols-2"}`}
+          className={`grid w-full ${
+            isPaidEvent ? "grid-cols-3" : "grid-cols-2"
+          }`}
         >
           <TabsTrigger value="projects" className="flex items-center gap-2">
             <FolderOpen className="h-4 w-4" />
@@ -281,7 +285,7 @@ export function ParticipantDashboard({ eventId }: ParticipantDashboardProps) {
             </CardContent>
           </Card>
 
-          {paywalledContent && (
+          {hasJoined && paywalledContent && (
             <Card className="border-2 border-yellow-200 bg-yellow-50 mt-6">
               <CardHeader>
                 <CardTitle className="text-yellow-800">
