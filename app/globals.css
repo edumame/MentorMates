@@ -140,3 +140,9 @@ body {
     'opsz' 48; /* stroke optimized for large sizes */
 }
 
+.two-line {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
