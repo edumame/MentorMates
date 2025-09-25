@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 export function CTAJoin() {
     return (
@@ -22,8 +23,8 @@ export function CTAJoin() {
                 information!
             </p>
 
-            <Button variant="default" className="bg-white text-black hover:bg-gray-50 transition-colors shadow-lg">
-                Get started
+            <Button asChild variant="default" className="bg-white text-black hover:bg-gray-50 transition-colors shadow-lg">
+                <Link href="/join">Get started</Link>
             </Button>
             </div>
 
