@@ -67,7 +67,9 @@ export async function generateMetadata({
 
   const isUUID = isValidUUID(id);
 
-  let query = supabase.from("events").select("event_name");
+  let query = supabase
+    .from("events")
+    .select("event_name, slug, event_blurb, event_description, cover_image_url");
 
   if (isUUID) {
     // If it's a UUID, check both slug and event_id
@@ -79,7 +81,36 @@ export async function generateMetadata({
 
   const { data: event } = await query.single();
 
+  const path = event?.slug ? `/events/${event.slug}` : `/events/${id}`;
+  const description = event?.event_blurb || event?.event_description || undefined;
+
   return {
     title: event?.event_name || "Event",
+    description,
+    openGraph: {
+      title: event?.event_name || "Event",
+      description,
+      url: path,
+      type: "website",
+      images: event?.cover_image_url
+        ? [
+            {
+              url: event.cover_image_url,
+              width: 1200,
+              height: 630,
+              alt: `${event?.event_name ?? "Event"} cover`,
+            },
+          ]
+        : undefined,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: event?.event_name || "Event",
+      description,
+      images: event?.cover_image_url ? [event.cover_image_url] : undefined,
+    },
+    alternates: {
+      canonical: path,
+    },
   };
 }
