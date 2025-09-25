@@ -17,7 +17,7 @@ export function Hero() {
                 2025 Ultimate AI Vibe Coding Guide
             </h3>
         <p className="text-gray-700 mt-8 text-sm max-w-3xl mx-auto">
-            A practical, weekly-released playbook for building with AI in 2025.
+            A practical, weekly-released playbook for building with AI in 2025. Chapters start releasing in November.
         </p>
         <div className="mt-6 flex items-center justify-center gap-3">
             <Link href="/ai-vibe-guide/checkout">
