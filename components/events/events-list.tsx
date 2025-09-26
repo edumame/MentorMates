@@ -5,7 +5,7 @@ import { Card, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { EventRole } from "@/lib/types";
+import { EventRole, EventVisibility } from "@/lib/types";
 import { getRoleLabel } from "@/features/user/roles/roles";
 
 interface Event {
@@ -16,6 +16,7 @@ interface Event {
   location: string;
   cover_image_url?: string;
   role_labels?: Record<string, string>;
+  visibility?: EventVisibility;
 }
 
 interface UserEventRole {
@@ -120,6 +121,11 @@ export function EventsList({ events }: EventsListProps) {
                   <Badge variant="outline" className="text-xs sm:text-sm">
                     {event.location}
                   </Badge>
+                  {event.visibility === EventVisibility.Archived && (
+                    <Badge variant="secondary" className="bg-orange-100 text-orange-800 text-xs sm:text-sm">
+                      📁 Archived
+                    </Badge>
+                  )}
                 </div>
                 {userRole && (
                   <Badge

@@ -43,6 +43,7 @@ interface PrizesTabProps {
     description: string;
     variant?: "default" | "destructive";
   }) => void;
+  isArchived: boolean;
 }
 
 export function PrizesTab({
@@ -51,6 +52,7 @@ export function PrizesTab({
   saving,
   setSaving,
   toast,
+  isArchived,
 }: PrizesTabProps) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [prizesWithWinners, setPrizesWithWinners] = useState<ExtendedPrize[]>(
@@ -384,6 +386,7 @@ export function PrizesTab({
                       </div>
                       <Button
                         variant="ghost"
+                        disabled={isArchived}
                         size="sm"
                         onClick={async () => {
                           if (isDatabasePrize(prize.id)) {
@@ -469,6 +472,7 @@ export function PrizesTab({
                         <Label>Prize Amount</Label>
                         <Input
                           value={prize.prize_amount}
+                          disabled={isArchived}
                           onChange={(e) => {
                             const newTracks = [...event.event_tracks!];
                             const trackIndex = newTracks.findIndex(
@@ -494,6 +498,7 @@ export function PrizesTab({
                         <Label>Description</Label>
                         <Textarea
                           value={prize.prize_description}
+                          disabled={isArchived}
                           onChange={(e) => {
                             const newTracks = [...event.event_tracks!];
                             const trackIndex = newTracks.findIndex(
@@ -551,7 +556,7 @@ export function PrizesTab({
                                 value === "none" ? null : value
                               )
                             }
-                            disabled={saving || loadingProjects}
+                            disabled={saving || loadingProjects || isArchived}
                           >
                             <SelectTrigger className="flex-1">
                               <SelectValue placeholder="Select winning project..." />
@@ -625,7 +630,7 @@ export function PrizesTab({
                                       winner.project_id
                                     )
                                   }
-                                  disabled={saving}
+                                  disabled={saving || isArchived}
                                   title="Remove winner"
                                   className="text-red-500 hover:text-red-700 hover:bg-red-50"
                                 >
@@ -659,6 +664,7 @@ export function PrizesTab({
                     setEvent({ ...event, event_tracks: newTracks });
                   }
                 }}
+                disabled={isArchived}
               >
                 Add Prize to {track.name}
               </Button>
@@ -675,7 +681,7 @@ export function PrizesTab({
         </Card>
       )}
 
-      <Button onClick={handlePrizesUpdate} disabled={saving} className="w-full">
+      <Button onClick={handlePrizesUpdate} disabled={saving || isArchived} className="w-full">
         {saving ? "Saving..." : "Save All Prizes"}
       </Button>
     </div>

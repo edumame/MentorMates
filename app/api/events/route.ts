@@ -24,9 +24,10 @@ export async function GET() {
           slug, 
           event_blurb, 
           cover_image_url,
-          event_date`
+          event_date,
+          visibility`
         )
-        .in("visibility", [EventVisibility.Public, EventVisibility.Private]);
+        .in("visibility", [EventVisibility.Public, EventVisibility.Private, EventVisibility.Archived]);
 
       if (visibleError) throw visibleError;
       return NextResponse.json({ events: visibleEvents });
@@ -60,18 +61,19 @@ export async function GET() {
       // No additional filter needed
     } else if (organizerEventIds.length > 0) {
       // For organizers:
-      // - Public and private events (visible to everyone)
+      // - Public, private, and archived events (visible to everyone)
       // - Draft events where user is an organizer
       // - No demo or test events
       query = query.or(
-        `visibility.in.(${[EventVisibility.Public, EventVisibility.Private].join(",")}),` +
+        `visibility.in.(${[EventVisibility.Public, EventVisibility.Private, EventVisibility.Archived].join(",")}),` +
           `and(visibility.eq.${EventVisibility.Draft},event_id.in.(${organizerEventIds.join(",")}))`
       );
     } else {
-      // Regular users only see public and private events
+      // Regular users only see public, private, and archived events
       query = query.in("visibility", [
         EventVisibility.Public,
         EventVisibility.Private,
+        EventVisibility.Archived,
       ]);
     }
 

@@ -9,6 +9,8 @@ import { Delete } from "@mui/icons-material";
 import { EventDetails } from "@/lib/types";
 import { toast as ToastType } from "@/lib/hooks/use-toast";
 import { EMAIL_TYPES } from "@/lib/email_templates/constants";
+import { useEventArchiveStatus } from "@/lib/hooks/use-event-archive-status";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 interface ScheduleTabProps {
   event: EventDetails;
@@ -25,6 +27,7 @@ export function ScheduleTab({
   setSaving,
   toast,
 }: ScheduleTabProps) {
+  const { isArchived, checkArchiveStatus } = useEventArchiveStatus(event);
   const handleScheduleUpdateNotification = async () => {
     const response = await fetch(
       `/api/email_notification/event/${event.event_id}`,
@@ -52,6 +55,10 @@ export function ScheduleTab({
 
   const handleScheduleUpdate = async () => {
     if (!event) return;
+
+    if (!checkArchiveStatus("update the schedule")) {
+      return;
+    }
 
     try {
       setSaving(true);
@@ -101,6 +108,15 @@ export function ScheduleTab({
 
   return (
     <div className="space-y-4">
+      {/* Archived Event Warning */}
+      {isArchived && (
+        <Alert className="border-orange-200 bg-orange-50">
+          <AlertTitle className="text-orange-900">⚠️ Event is Archived</AlertTitle>
+          <AlertDescription>
+            This event is archived and the schedule cannot be edited. To make changes, you must first unarchive the event.
+          </AlertDescription>
+        </Alert>
+      )}
       {event.event_schedule.map((day, dayIndex) => (
         <div key={dayIndex} className="space-y-4 border-b pb-4 last:border-0">
           <div className="flex justify-between items-center">
@@ -108,6 +124,7 @@ export function ScheduleTab({
               <Label>Day Title</Label>
               <Input
                 value={day.time}
+                disabled={isArchived}
                 onChange={(e) => {
                   const newSchedule = [...event.event_schedule];
                   newSchedule[dayIndex].time = e.target.value;
@@ -122,6 +139,7 @@ export function ScheduleTab({
               variant="destructive"
               size="icon"
               className="ml-2"
+              disabled={isArchived}
               onClick={() => {
                 const newSchedule = event.event_schedule.filter(
                   (_, i) => i !== dayIndex
@@ -143,6 +161,7 @@ export function ScheduleTab({
                   <Label>Event Name</Label>
                   <Input
                     value={scheduleEvent.name}
+                    disabled={isArchived}
                     onChange={(e) => {
                       const newSchedule = [...event.event_schedule];
                       newSchedule[dayIndex].events[eventIndex].name =
@@ -158,6 +177,7 @@ export function ScheduleTab({
                   <Label>Time</Label>
                   <Input
                     value={scheduleEvent.time}
+                    disabled={isArchived}
                     onChange={(e) => {
                       const newSchedule = [...event.event_schedule];
                       newSchedule[dayIndex].events[eventIndex].time =
@@ -173,6 +193,7 @@ export function ScheduleTab({
                   variant="destructive"
                   size="icon"
                   className="self-end"
+                  disabled={isArchived}
                   onClick={() => {
                     const newSchedule = [...event.event_schedule];
                     newSchedule[dayIndex].events = newSchedule[
@@ -192,6 +213,7 @@ export function ScheduleTab({
                 <Label>Description (Optional - Markdown Supported)</Label>
                 <Textarea
                   value={scheduleEvent.description || ""}
+                  disabled={isArchived}
                   onChange={(e) => {
                     const newSchedule = [...event.event_schedule];
                     newSchedule[dayIndex].events[eventIndex].description =
@@ -210,6 +232,7 @@ export function ScheduleTab({
 
           <Button
             variant="outline"
+            disabled={isArchived}
             onClick={() => {
               const newSchedule = [...event.event_schedule];
               newSchedule[dayIndex].events.push({
@@ -227,6 +250,7 @@ export function ScheduleTab({
 
       <Button
         variant="outline"
+        disabled={isArchived}
         onClick={() => {
           setEvent({
             ...event,
@@ -250,7 +274,7 @@ export function ScheduleTab({
 
       <Button
         onClick={handleScheduleUpdate}
-        disabled={saving}
+        disabled={saving || isArchived}
         className="w-full mt-4"
       >
         {saving ? "Saving..." : "Save Schedule"}

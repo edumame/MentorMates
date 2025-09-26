@@ -7,6 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Delete } from "@mui/icons-material";
 import { EventDetails } from "@/lib/types";
 import { toast as ToastType } from "@/lib/hooks/use-toast";
+import { useEventArchiveStatus } from "@/lib/hooks/use-event-archive-status";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 interface ResourcesTabProps {
   event: EventDetails;
@@ -23,8 +25,13 @@ export function ResourcesTab({
   setSaving,
   toast,
 }: ResourcesTabProps) {
+  const { isArchived, checkArchiveStatus } = useEventArchiveStatus(event);
   const handleResourcesUpdate = async () => {
     if (!event) return;
+
+    if (!checkArchiveStatus("update the resources")) {
+      return;
+    }
 
     try {
       setSaving(true);
@@ -53,6 +60,15 @@ export function ResourcesTab({
 
   return (
     <div className="space-y-4">
+      {/* Archived Event Warning */}
+      {isArchived && (
+        <Alert className="border-orange-200 bg-orange-50">
+          <AlertTitle className="text-orange-900">⚠️ Event is Archived</AlertTitle>
+          <AlertDescription>
+            This event is archived and the resources cannot be edited. To make changes, you must first unarchive the event.
+          </AlertDescription>
+        </Alert>
+      )}
       {event.event_resources.map((resource, index) => (
         <div
           key={index}
@@ -62,6 +78,7 @@ export function ResourcesTab({
             <Label>Resource Name</Label>
             <Input
               value={resource.name}
+              disabled={isArchived}
               onChange={(e) => {
                 const newResources = [...event.event_resources];
                 newResources[index].name = e.target.value;
@@ -78,6 +95,7 @@ export function ResourcesTab({
             <Input
               type="url"
               value={resource.link}
+              disabled={isArchived}
               onChange={(e) => {
                 const newResources = [...event.event_resources];
                 newResources[index].link = e.target.value;
@@ -93,6 +111,7 @@ export function ResourcesTab({
             variant="destructive"
             size="icon"
             className="self-end"
+            disabled={isArchived}
             onClick={() => {
               const newResources = event.event_resources.filter(
                 (_, i) => i !== index
@@ -107,6 +126,7 @@ export function ResourcesTab({
 
       <Button
         variant="outline"
+        disabled={isArchived}
         onClick={() => {
           setEvent({
             ...event,
@@ -119,7 +139,7 @@ export function ResourcesTab({
 
       <Button
         onClick={handleResourcesUpdate}
-        disabled={saving}
+        disabled={saving || isArchived}
         className="w-full mt-4"
       >
         {saving ? "Saving..." : "Save Resources"}

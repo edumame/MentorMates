@@ -94,11 +94,11 @@ export default async function EventsPage() {
 
   async function fetchPublicEvents() {
     try {
-      // Only fetch public and private events
+      // Fetch public, private, and archived events
       const { data: events, error } = await supabase
         .from("events")
         .select("*")
-        .in("visibility", [EventVisibility.Public, EventVisibility.Private])
+        .in("visibility", [EventVisibility.Public, EventVisibility.Private, EventVisibility.Archived])
         .order("event_date", { ascending: false });
 
       if (error) throw error;

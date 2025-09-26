@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { EventDetails } from "@/lib/types";
+import { EventDetails, EventVisibility } from "@/lib/types";
 import { useRouter } from "next/navigation";
 import { toast as ToastType } from "@/lib/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
@@ -50,6 +50,7 @@ export function BasicInfoTab({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [updateSlug, setUpdateSlug] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [archiving, setArchiving] = useState(false);
 
   const handleBasicInfoUpdate = async () => {
     if (!event) return;
@@ -128,8 +129,64 @@ export function BasicInfoTab({
     }
   };
 
+  const handleArchiveToggle = async () => {
+    if (!event) return;
+
+    try {
+      setArchiving(true);
+      const action = event.visibility === EventVisibility.Archived ? "unarchive" : "archive";
+      
+      const res = await fetch(`/api/events/${event.event_id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ action }),
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.error || `Failed to ${action} event`);
+      }
+
+      const result = await res.json();
+      
+      // Update local state
+      setEvent({ ...event, visibility: result.newVisibility });
+      
+      toast({
+        title: "Success",
+        description: `Event ${action}d successfully`,
+      });
+
+      // Refresh the page to update any cached data
+      router.refresh();
+    } catch (error) {
+      console.error(`Error ${event.visibility === EventVisibility.Archived ? "unarchiving" : "archiving"} event:`, error);
+      toast({
+        title: "Error",
+        description: (error as Error).message,
+        variant: "destructive",
+      });
+    } finally {
+      setArchiving(false);
+    }
+  };
+
+  const isArchived = event.visibility === EventVisibility.Archived;
+
   return (
     <div className="space-y-4">
+      {/* Archived Event Warning */}
+      {isArchived && (
+        <Alert className="border-orange-200 bg-orange-50">
+          <AlertTitle className="text-orange-900">⚠️ Event is Archived</AlertTitle>
+          <AlertDescription>
+            This event is archived and cannot be edited. To make changes, you must first unarchive the event using the controls below.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Compact top rows */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
@@ -137,6 +194,7 @@ export function BasicInfoTab({
           <Input
             id="event_name"
             value={event.event_name || ""}
+            disabled={isArchived}
             onChange={(e) =>
               setEvent({ ...event, event_name: e.target.value })
             }
@@ -150,6 +208,7 @@ export function BasicInfoTab({
           type="number"
           min={0}
           placeholder="Unlimited"
+          disabled={isArchived}
           value={
             typeof event.participant_capacity === "number"
               ? String(event.participant_capacity)
@@ -173,6 +232,7 @@ export function BasicInfoTab({
           <Input
             id="slug"
             value={event.slug || ""}
+            disabled={isArchived}
             onChange={(e) => {
               setEvent({ ...event, slug: e.target.value });
               setUpdateSlug(true);
@@ -193,6 +253,7 @@ export function BasicInfoTab({
             id="event_date"
             type="date"
             value={event.event_date || ""}
+            disabled={isArchived}
             onChange={(e) =>
               setEvent({ ...event, event_date: e.target.value })
             }
@@ -203,6 +264,7 @@ export function BasicInfoTab({
           <Input
             id="location"
             value={event.location || ""}
+            disabled={isArchived}
             onChange={(e) =>
               setEvent({ ...event, location: e.target.value })
             }
@@ -219,6 +281,7 @@ export function BasicInfoTab({
             id="submission_time_start"
             type="datetime-local"
             value={event.submission_time_start?.slice(0, 16) || ""}
+            disabled={isArchived}
             onChange={(e) =>
               setEvent({ ...event, submission_time_start: e.target.value })
             }
@@ -235,6 +298,7 @@ export function BasicInfoTab({
             id="submission_time_cutoff"
             type="datetime-local"
             value={event.submission_time_cutoff?.slice(0, 16) || ""}
+            disabled={isArchived}
             onChange={(e) =>
               setEvent({ ...event, submission_time_cutoff: e.target.value })
             }
@@ -250,6 +314,7 @@ export function BasicInfoTab({
         <Textarea
           id="event_blurb"
           value={event.event_blurb || ""}
+          disabled={isArchived}
           onChange={(e) =>
             setEvent({ ...event, event_blurb: e.target.value })
           }
@@ -277,6 +342,7 @@ export function BasicInfoTab({
                 <Textarea
                   id="event_description"
                   value={event.event_description || ""}
+                  disabled={isArchived}
                   onChange={(e) =>
                     setEvent({
                       ...event,
@@ -315,6 +381,7 @@ export function BasicInfoTab({
                   <Textarea
                     id="paywall_content"
                     value={event.paywall_content || ""}
+                    disabled={isArchived}
                     onChange={(e) =>
                       setEvent({ ...event, paywall_content: e.target.value })
                     }
@@ -345,6 +412,7 @@ export function BasicInfoTab({
             type="button"
             variant={!useImageUrl ? "default" : "outline"}
             size="sm"
+            disabled={isArchived}
             onClick={() => setUseImageUrl(false)}
           >
             Upload File
@@ -353,6 +421,7 @@ export function BasicInfoTab({
             type="button"
             variant={useImageUrl ? "default" : "outline"}
             size="sm"
+            disabled={isArchived}
             onClick={() => setUseImageUrl(true)}
           >
             Use URL
@@ -365,6 +434,7 @@ export function BasicInfoTab({
               type="file"
               id="cover_image"
               accept="image/*"
+              disabled={isArchived}
               onChange={(e) => {
                 const file = e.target.files?.[0];
                 if (file) {
@@ -381,6 +451,7 @@ export function BasicInfoTab({
                 type="button"
                 variant="destructive"
                 size="sm"
+                disabled={isArchived}
                 onClick={() => {
                   setSelectedCoverImage(null);
                   setPreviewUrl(null);
@@ -399,9 +470,10 @@ export function BasicInfoTab({
             )}
           </div>
         ) : (
-          <Input
+            <Input
             type="url"
             value={event.cover_image_url || ""}
+            disabled={isArchived}
             onChange={(e) => {
               setEvent({
                 ...event,
@@ -428,11 +500,54 @@ export function BasicInfoTab({
 
       <Button
         onClick={handleBasicInfoUpdate}
-        disabled={saving}
+        disabled={saving || isArchived}
         className="w-full mt-4"
       >
         {saving ? "Saving..." : "Save Basic Information"}
       </Button>
+
+      {/* Archive Section */}
+      <div className="mt-8 border-t pt-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="font-semibold text-orange-600">
+              {event.visibility === EventVisibility.Archived ? "Unarchive Event" : "Archive Event"}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {event.visibility === EventVisibility.Archived 
+                ? "Make this event editable again and restore it to private visibility."
+                : "Archive this event to prevent further editing while keeping it visible."}
+            </p>
+          </div>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" disabled={archiving || isArchived}>
+                {archiving 
+                  ? (event.visibility === EventVisibility.Archived ? "Unarchiving..." : "Archiving...") 
+                  : (event.visibility === EventVisibility.Archived ? "Unarchive" : "Archive")}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>
+                  {event.visibility === EventVisibility.Archived ? "Unarchive this event?" : "Archive this event?"}
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  {event.visibility === EventVisibility.Archived 
+                    ? "This will make the event editable again and change its visibility to private. You can change the visibility afterwards if needed."
+                    : "Archived events remain visible to users but cannot be edited by organizers. You can unarchive it later if needed."}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleArchiveToggle}>
+                  {event.visibility === EventVisibility.Archived ? "Confirm Unarchive" : "Confirm Archive"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      </div>
 
       {/* Danger zone */}
       <div className="mt-8 border-t pt-6">

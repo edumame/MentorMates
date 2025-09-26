@@ -40,6 +40,7 @@ import { ProjectImport } from "./import/ProjectImportButton";
 import { EmailTab } from "./email";
 import { PricingTab } from "./pricing/PricingTab";
 import EmailDashboard from "./notifications/EmailDashboard";
+import { useEventArchiveStatus } from "@/lib/hooks/use-event-archive-status";
 
 export function OrganizerDashboard({ eventId }: { eventId: string }) {
   const [event, setEvent] = useState<EventDetails | null>(null);
@@ -59,6 +60,7 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
       setActiveTab("details");
     }
   }, [activeTab, isAdmin]);
+
   const primaryTabs = [
     { value: "details", label: "Event Details", icon: Edit },
     { value: "access", label: "Access", icon: Shield },
@@ -200,6 +202,8 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
 
     fetchEvent();
   }, [eventId, router, toast]);
+
+  const { isArchived } = useEventArchiveStatus(event);
 
   if (loading) {
     return (

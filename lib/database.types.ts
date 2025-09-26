@@ -871,7 +871,7 @@ export type Database = {
         | "organizer"
         | "admin"
         | "event"
-      event_visibility: "test" | "demo" | "private" | "public" | "draft"
+      event_visibility: "test" | "demo" | "private" | "public" | "draft" | "archived"
       payment_status: "processing" | "paid" | "canceled" | "refunded"
       ticket_status_enum: "unassigned" | "assigned" | "used" | "transferred"
     }
