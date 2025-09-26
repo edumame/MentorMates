@@ -5,6 +5,7 @@ import { EventRegistrationWrapper } from "@/components/event-registration-wrappe
 import { EventHeader } from "@/components/events/event-header";
 import { Footer } from "@/components/layout/Footer";
 import { useLayoutConfig } from "@/components/layout/LayoutConfigProvider";
+import { EventVisibility } from "@/lib/types";
 
 interface ConditionalEventLayoutProps {
   children: ReactNode;
@@ -19,6 +20,7 @@ interface ConditionalEventLayoutProps {
     slug: string | null;
     submission_time_start: string | null;
     submission_time_cutoff: string | null;
+    visibility: EventVisibility;
   };
 }
 
@@ -49,6 +51,7 @@ export function ConditionalEventLayout({
             eventId={event.slug || event.event_id}
             submissionTimeStart={event.submission_time_start || undefined}
             submissionTimeCutoff={event.submission_time_cutoff || undefined}
+            visibility={event.visibility}
           />
         )}
         {children}

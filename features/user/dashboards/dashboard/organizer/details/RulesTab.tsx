@@ -7,6 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Delete } from "@mui/icons-material";
 import { EventDetails } from "@/lib/types";
 import { toast as ToastType } from "@/lib/hooks/use-toast";
+import { useEventArchiveStatus } from "@/lib/hooks/use-event-archive-status";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 interface RulesTabProps {
   event: EventDetails;
@@ -23,8 +25,13 @@ export function RulesTab({
   setSaving,
   toast,
 }: RulesTabProps) {
+  const { isArchived, checkArchiveStatus } = useEventArchiveStatus(event);
   const handleRulesUpdate = async () => {
     if (!event) return;
+
+    if (!checkArchiveStatus("update the rules")) {
+      return;
+    }
 
     try {
       setSaving(true);
@@ -53,6 +60,15 @@ export function RulesTab({
 
   return (
     <div className="space-y-4">
+      {/* Archived Event Warning */}
+      {isArchived && (
+        <Alert className="border-orange-200 bg-orange-50">
+          <AlertTitle className="text-orange-900">⚠️ Event is Archived</AlertTitle>
+          <AlertDescription>
+            This event is archived and the rules cannot be edited. To make changes, you must first unarchive the event.
+          </AlertDescription>
+        </Alert>
+      )}
       {event.rules.map((rule, ruleIndex) => (
         <div key={ruleIndex} className="space-y-4 border-b pb-4 last:border-0">
           <div className="flex justify-between items-center">
@@ -60,6 +76,7 @@ export function RulesTab({
               <Label>Section Title</Label>
               <Input
                 value={rule.title}
+                disabled={isArchived}
                 onChange={(e) => {
                   const newRules = [...event.rules];
                   newRules[ruleIndex].title = e.target.value;
@@ -71,6 +88,7 @@ export function RulesTab({
               variant="destructive"
               size="icon"
               className="ml-2"
+              disabled={isArchived}
               onClick={() => {
                 const newRules = event.rules.filter((_, i) => i !== ruleIndex);
                 setEvent({ ...event, rules: newRules });
@@ -86,6 +104,7 @@ export function RulesTab({
                 <Label>Rule {itemIndex + 1}</Label>
                 <Input
                   value={item}
+                  disabled={isArchived}
                   onChange={(e) => {
                     const newRules = [...event.rules];
                     newRules[ruleIndex].items[itemIndex] = e.target.value;
@@ -96,6 +115,7 @@ export function RulesTab({
               <Button
                 variant="destructive"
                 size="icon"
+                disabled={isArchived}
                 onClick={() => {
                   const newRules = [...event.rules];
                   newRules[ruleIndex].items = newRules[ruleIndex].items.filter(
@@ -111,6 +131,7 @@ export function RulesTab({
 
           <Button
             variant="outline"
+            disabled={isArchived}
             onClick={() => {
               const newRules = [...event.rules];
               newRules[ruleIndex].items.push("");
@@ -124,6 +145,7 @@ export function RulesTab({
 
       <Button
         variant="outline"
+        disabled={isArchived}
         onClick={() => {
           setEvent({
             ...event,
@@ -136,7 +158,7 @@ export function RulesTab({
 
       <Button
         onClick={handleRulesUpdate}
-        disabled={saving}
+        disabled={saving || isArchived}
         className="w-full mt-4"
       >
         {saving ? "Saving..." : "Save Rules"}

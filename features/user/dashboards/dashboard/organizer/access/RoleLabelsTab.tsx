@@ -15,6 +15,7 @@ interface RoleLabelsTabProps {
   setEvent: React.Dispatch<React.SetStateAction<EventDetails | null>>;
   saving: boolean;
   setSaving: React.Dispatch<React.SetStateAction<boolean>>;
+  isArchived: boolean;
 }
 
 export function RoleLabelsTab({
@@ -23,6 +24,7 @@ export function RoleLabelsTab({
   setEvent,
   saving,
   setSaving,
+  isArchived,
 }: RoleLabelsTabProps) {
   const [roleLabels, setRoleLabels] =
     useState<Record<string, string>>(DEFAULT_ROLE_LABELS);
@@ -106,6 +108,7 @@ export function RoleLabelsTab({
                   value={roleLabels[role.toString()] ?? ""}
                   onChange={(e) => handleLabelChange(role.toString(), e.target.value)}
                   placeholder={`Custom label for ${getRoleLabel(role)}`}
+                  disabled={isArchived}
                 />
                 <p className="text-xs text-muted-foreground">
                   Default: {getRoleLabel(role)}
@@ -115,10 +118,10 @@ export function RoleLabelsTab({
         </div>
 
         <div className="flex gap-4 justify-end">
-          <Button variant="outline" onClick={resetToDefaults} disabled={saving}>
+          <Button variant="outline" onClick={resetToDefaults} disabled={saving || isArchived}>
             Reset to Defaults
           </Button>
-          <Button onClick={handleSaveLabels} disabled={saving}>
+          <Button onClick={handleSaveLabels} disabled={saving || isArchived}>
             {saving ? "Saving..." : "Save Labels"}
           </Button>
         </div>

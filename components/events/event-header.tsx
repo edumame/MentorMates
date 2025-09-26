@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ExpandMore, ExpandLess } from "@mui/icons-material";
+import { EventVisibility } from "@/lib/types";
 
 export interface EventHeaderProps {
   eventName: string;
@@ -15,6 +16,7 @@ export interface EventHeaderProps {
   eventId: string;
   submissionTimeStart?: string;
   submissionTimeCutoff?: string;
+  visibility?: EventVisibility;
 }
 
 export function EventHeader({
@@ -26,6 +28,7 @@ export function EventHeader({
   eventId,
   submissionTimeStart,
   submissionTimeCutoff,
+  visibility,
 }: EventHeaderProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [needsTruncation, setNeedsTruncation] = useState(false);
@@ -129,6 +132,14 @@ export function EventHeader({
               </Badge>
             );
           })()}
+          {visibility === EventVisibility.Archived && (
+            <Badge
+              variant="secondary"
+              className="bg-orange-500/20 text-orange-300 border-none text-xs sm:text-sm"
+            >
+              📁 ARCHIVED
+            </Badge>
+          )}
         </div>
         {description && (
           <div>

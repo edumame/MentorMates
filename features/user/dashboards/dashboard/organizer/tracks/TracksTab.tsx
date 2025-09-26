@@ -20,6 +20,7 @@ interface TracksTabProps {
     description: string;
     variant?: "default" | "destructive";
   }) => void;
+  isArchived: boolean;
 }
 
 export function TracksTab({
@@ -31,6 +32,7 @@ export function TracksTab({
   saving,
   setSaving,
   toast,
+  isArchived,
 }: TracksTabProps) {
   const [tracks, setTracks] = useState<EventTrack[]>([]);
 
@@ -143,6 +145,7 @@ export function TracksTab({
         isSubmitting={saving}
         onSave={handleScoreUpdate}
         tracks={tracks}
+        isArchived={isArchived}
       />
     </div>
   );

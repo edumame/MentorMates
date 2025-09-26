@@ -50,26 +50,47 @@ export function EmailTab({ eventId }: EmailTabProps) {
       try {
         const { data, error } = await supabase
           .from("user_event_roles")
-          .select(`
+          .select(
+            `
             user_id,
             role,
             profiles:user_id (
               display_name,
               email
             )
-          `)
-          .eq("event_id", eventId);
+          `
+          )
+          .eq("event_id", eventId)
+          .overrideTypes<
+            {
+              user_id: string;
+              role: EventRole;
+              profiles: { email: string; display_name: string };
+            }[]
+          >();
 
         if (error) throw error;
 
         const recipientList: Recipient[] = (data || [])
-          .filter((role: any) => role.profiles?.email)
-          .map((role: any) => ({
-            id: role.user_id,
-            email: role.profiles.email,
-            display_name: role.profiles.display_name || role.profiles.email,
-            role: role.role as EventRole,
-          }));
+          .filter(
+            (role: {
+              user_id: string;
+              role: EventRole;
+              profiles: { email: string; display_name: string };
+            }) => role.profiles?.email
+          )
+          .map(
+            (role: {
+              user_id: string;
+              role: EventRole;
+              profiles: { email: string; display_name: string };
+            }) => ({
+              id: role.user_id,
+              email: role.profiles.email,
+              display_name: role.profiles.display_name,
+              role: role.role as EventRole,
+            })
+          );
 
         setRecipients(recipientList);
       } catch (error) {
@@ -183,7 +204,7 @@ export function EmailTab({ eventId }: EmailTabProps) {
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h1 style="color: #2563eb; margin-bottom: 24px;">${subject}</h1>
         <div style="font-size: 16px; line-height: 1.5; color: #374151; margin-bottom: 24px; white-space: pre-wrap;">
-          ${message.replace(/\n/g, '<br>')}
+          ${message.replace(/\n/g, "<br>")}
         </div>
         <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #e5e7eb;">
           <p style="font-size: 16px; line-height: 1.5; color: #374151; margin-bottom: 8px;">
@@ -198,7 +219,11 @@ export function EmailTab({ eventId }: EmailTabProps) {
   };
 
   // Handle template selection
-  const handleSelectTemplate = (template: any) => {
+  const handleSelectTemplate = (template: {
+    subject: string;
+    message: string;
+    name: string;
+  }) => {
     setSubject(template.subject);
     setMessage(template.message);
     setShowTemplates(false);
@@ -311,16 +336,23 @@ export function EmailTab({ eventId }: EmailTabProps) {
           <div className="flex flex-wrap gap-4 items-center">
             <div className="flex items-center gap-2">
               <Label>Filter by role:</Label>
-              <Select value={recipientFilter} onValueChange={setRecipientFilter}>
+              <Select
+                value={recipientFilter}
+                onValueChange={setRecipientFilter}
+              >
                 <SelectTrigger className="w-40">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Roles</SelectItem>
-                  <SelectItem value={EventRole.Participant}>Participants</SelectItem>
+                  <SelectItem value={EventRole.Participant}>
+                    Participants
+                  </SelectItem>
                   <SelectItem value={EventRole.Mentor}>Mentors</SelectItem>
                   <SelectItem value={EventRole.Judge}>Judges</SelectItem>
-                  <SelectItem value={EventRole.Organizer}>Organizers</SelectItem>
+                  <SelectItem value={EventRole.Organizer}>
+                    Organizers
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -367,7 +399,9 @@ export function EmailTab({ eventId }: EmailTabProps) {
               ) : (
                 <Send className="h-4 w-4" />
               )}
-              {isSending ? "Sending..." : `Send to ${selectedRecipients.length} recipients`}
+              {isSending
+                ? "Sending..."
+                : `Send to ${selectedRecipients.length} recipients`}
             </Button>
           </div>
         </CardContent>

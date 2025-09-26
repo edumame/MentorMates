@@ -23,12 +23,14 @@ interface ScoringConfigFormProps {
   onSave: (config: EventScoringConfig) => void;
   isSubmitting?: boolean;
   tracks?: EventTrack[];
+  isArchived: boolean;
 }
 
 export function ScoringConfigForm({
   initialConfig,
   onSave,
   isSubmitting = false,
+  isArchived,
 }: ScoringConfigFormProps) {
   const [config, setConfig] = useState<EventScoringConfig>(
     initialConfig || {
@@ -208,6 +210,7 @@ export function ScoringConfigForm({
             <Input
               type="number"
               value={config.defaultMin}
+              disabled={isArchived}
               onChange={(e) =>
                 setConfig((prev) => ({
                   ...prev,
@@ -222,6 +225,7 @@ export function ScoringConfigForm({
             <Input
               type="number"
               value={config.defaultMax}
+              disabled={isArchived}
               onChange={(e) =>
                 setConfig((prev) => ({
                   ...prev,
@@ -236,6 +240,7 @@ export function ScoringConfigForm({
             <Input
               type="number"
               value={config.defaultWeight}
+              disabled={isArchived}
               onChange={(e) =>
                 setConfig((prev) => ({
                   ...prev,
@@ -256,6 +261,7 @@ export function ScoringConfigForm({
                   <h3 className="text-lg font-semibold">Track Name</h3>
                   <Input
                     value={track.name}
+                    disabled={isArchived}
                     onChange={(e) => {
                       updateTrackName(trackId, e.target.value);
                     }}
@@ -268,6 +274,7 @@ export function ScoringConfigForm({
                   variant="destructive"
                   size="icon"
                   onClick={() => removeTrack(trackId)}
+                  disabled={isArchived}
                 >
                   <TrashIcon className="h-4 w-4" />
                 </Button>
@@ -284,6 +291,7 @@ export function ScoringConfigForm({
                           </label>
                           <Input
                             value={criterion.name}
+                            disabled={isArchived}
                             onChange={(e) =>
                               updateCriterion(trackId, index, {
                                 name: e.target.value,
@@ -298,6 +306,7 @@ export function ScoringConfigForm({
                           </label>
                           <Textarea
                             value={criterion.description}
+                            disabled={isArchived}
                             onChange={(e) =>
                               updateCriterion(trackId, index, {
                                 description: e.target.value,
@@ -314,6 +323,7 @@ export function ScoringConfigForm({
                           </label>
                           <Select
                             value={criterion.type || "numeric"}
+                            disabled={isArchived}
                             onValueChange={(value) =>
                               updateCriterion(trackId, index, {
                                 type: value as "numeric" | "multiplechoice",
@@ -345,6 +355,7 @@ export function ScoringConfigForm({
                                 <div key={optionIndex} className="flex gap-2">
                                   <Input
                                     value={option}
+                                    disabled={isArchived}
                                     onChange={(e) => {
                                       const newOptions = [
                                         ...(criterion.options || []),
@@ -360,6 +371,7 @@ export function ScoringConfigForm({
                                     type="button"
                                     variant="destructive"
                                     size="icon"
+                                    disabled={isArchived}
                                     onClick={() => {
                                       const newOptions =
                                         criterion.options?.filter(
@@ -378,6 +390,7 @@ export function ScoringConfigForm({
                                 type="button"
                                 variant="outline"
                                 size="sm"
+                                disabled={isArchived}
                                 onClick={() => {
                                   const newOptions = [
                                     ...(criterion.options || []),
@@ -402,6 +415,7 @@ export function ScoringConfigForm({
                               <Input
                                 type="number"
                                 value={criterion.min ?? config.defaultMin}
+                                disabled={isArchived}
                                 onChange={(e) =>
                                   updateCriterion(trackId, index, {
                                     min: parseInt(e.target.value),
@@ -417,6 +431,7 @@ export function ScoringConfigForm({
                               <Input
                                 type="number"
                                 value={criterion.max ?? config.defaultMax}
+                                disabled={isArchived}
                                 onChange={(e) =>
                                   updateCriterion(trackId, index, {
                                     max: parseInt(e.target.value),
@@ -432,6 +447,7 @@ export function ScoringConfigForm({
                               <Input
                                 type="number"
                                 value={criterion.weight ?? config.defaultWeight}
+                                disabled={isArchived}
                                 onChange={(e) =>
                                   updateCriterion(trackId, index, {
                                     weight: parseFloat(e.target.value),
@@ -449,6 +465,7 @@ export function ScoringConfigForm({
                         variant="destructive"
                         size="icon"
                         onClick={() => removeCriterion(trackId, index)}
+                        disabled={isArchived}
                       >
                         <TrashIcon className="h-4 w-4" />
                       </Button>
@@ -462,6 +479,7 @@ export function ScoringConfigForm({
                 variant="outline"
                 onClick={() => addCriterion(trackId)}
                 className="w-full"
+                disabled={isArchived}
               >
                 <PlusIcon className="h-4 w-4 mr-2" />
                 Add Criterion
@@ -477,12 +495,13 @@ export function ScoringConfigForm({
           variant="outline"
           onClick={addTrack}
           className="w-full"
+          disabled={isArchived}
         >
           <PlusIcon className="h-4 w-4 mr-2" />
           Add Track
         </Button>
 
-        <Button type="submit" disabled={isSubmitting} className="w-full">
+        <Button type="submit" disabled={isSubmitting || isArchived} className="w-full">
           {isSubmitting ? "Saving..." : "Save Scoring Configuration"}
         </Button>
       </div>

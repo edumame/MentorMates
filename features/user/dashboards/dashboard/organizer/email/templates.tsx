@@ -11,7 +11,7 @@ interface EmailTemplate {
   category: string;
   subject: string;
   message: string;
-  icon: React.ComponentType<any>;
+  icon: React.ComponentType<{ className?: string }>;
   description: string;
 }
 
@@ -34,7 +34,7 @@ We look forward to seeing your innovative projects and creative solutions!
 
 If you have any questions, please don't hesitate to reach out.`,
     icon: Users,
-    description: "Welcome new participants to the event"
+    description: "Welcome new participants to the event",
   },
   {
     id: "reminder",
@@ -54,7 +54,7 @@ Make sure you're prepared and ready to participate. We can't wait to see what yo
 
 Good luck!`,
     icon: Bell,
-    description: "Remind participants about upcoming deadlines"
+    description: "Remind participants about upcoming deadlines",
   },
   {
     id: "schedule_update",
@@ -76,7 +76,7 @@ Updated schedule: [Insert link]
 
 Thank you for your understanding!`,
     icon: Calendar,
-    description: "Notify about schedule or event changes"
+    description: "Notify about schedule or event changes",
   },
   {
     id: "submission_reminder",
@@ -101,7 +101,7 @@ We're excited to see your amazing projects!
 
 Best of luck with your final preparations!`,
     icon: FileText,
-    description: "Remind teams about submission deadlines"
+    description: "Remind teams about submission deadlines",
   },
   {
     id: "results",
@@ -127,7 +127,7 @@ Thank you all for your participation and congratulations to all teams for their 
 
 We hope to see you in future events!`,
     icon: Trophy,
-    description: "Announce event results and winners"
+    description: "Announce event results and winners",
   },
   {
     id: "feedback_available",
@@ -152,8 +152,8 @@ We encourage you to review the feedback carefully as it contains valuable insigh
 
 Keep building amazing things!`,
     icon: FileText,
-    description: "Notify about available project feedback"
-  }
+    description: "Notify about available project feedback",
+  },
 ];
 
 interface EmailTemplatesProps {
@@ -161,64 +161,76 @@ interface EmailTemplatesProps {
 }
 
 export function EmailTemplates({ onSelectTemplate }: EmailTemplatesProps) {
-  const categories = [...new Set(EMAIL_TEMPLATES.map(t => t.category))];
+  const categories = [...new Set(EMAIL_TEMPLATES.map((t) => t.category))];
 
   return (
     <div className="space-y-6">
       <div>
         <h3 className="text-lg font-semibold mb-2">Email Templates</h3>
         <p className="text-sm text-gray-600">
-          Choose from predefined templates to get started quickly. You can customize them as needed.
+          Choose from predefined templates to get started quickly. You can
+          customize them as needed.
         </p>
       </div>
 
-      {categories.map(category => (
+      {categories.map((category) => (
         <div key={category}>
           <h4 className="font-medium mb-3 flex items-center gap-2">
             {category}
             <Badge variant="secondary" className="text-xs">
-              {EMAIL_TEMPLATES.filter(t => t.category === category).length}
+              {EMAIL_TEMPLATES.filter((t) => t.category === category).length}
             </Badge>
           </h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {EMAIL_TEMPLATES
-              .filter(template => template.category === category)
-              .map(template => {
-                const IconComponent = template.icon;
-                return (
-                  <Card key={template.id} className="cursor-pointer hover:shadow-md transition-shadow">
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-sm flex items-center gap-2">
-                        <IconComponent className="h-4 w-4 text-blue-600" />
-                        {template.name}
-                      </CardTitle>
-                      <p className="text-xs text-gray-600">{template.description}</p>
-                    </CardHeader>
-                    <CardContent className="pt-0">
-                      <div className="space-y-2">
-                        <div>
-                          <p className="text-xs font-medium text-gray-700">Subject:</p>
-                          <p className="text-xs text-gray-600 truncate">{template.subject}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs font-medium text-gray-700">Preview:</p>
-                          <p className="text-xs text-gray-600 line-clamp-3">
-                            {template.message.substring(0, 100)}...
-                          </p>
-                        </div>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="w-full"
-                          onClick={() => onSelectTemplate(template)}
-                        >
-                          Use Template
-                        </Button>
+            {EMAIL_TEMPLATES.filter(
+              (template) => template.category === category
+            ).map((template) => {
+              const IconComponent = template.icon;
+              return (
+                <Card
+                  key={template.id}
+                  className="cursor-pointer hover:shadow-md transition-shadow"
+                >
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <IconComponent className="h-4 w-4 text-blue-600" />
+                      {template.name}
+                    </CardTitle>
+                    <p className="text-xs text-gray-600">
+                      {template.description}
+                    </p>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <div className="space-y-2">
+                      <div>
+                        <p className="text-xs font-medium text-gray-700">
+                          Subject:
+                        </p>
+                        <p className="text-xs text-gray-600 truncate">
+                          {template.subject}
+                        </p>
                       </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
+                      <div>
+                        <p className="text-xs font-medium text-gray-700">
+                          Preview:
+                        </p>
+                        <p className="text-xs text-gray-600 line-clamp-3">
+                          {template.message.substring(0, 100)}...
+                        </p>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-full"
+                        onClick={() => onSelectTemplate(template)}
+                      >
+                        Use Template
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         </div>
       ))}

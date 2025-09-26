@@ -13,6 +13,8 @@ import { supabase } from "@/lib/supabase";
 import { useToast } from "@/lib/hooks/use-toast";
 import { CouponManagement } from "./CouponManagement";
 import { PromoCodeManagement } from "./PromoCodeManagement";
+import { useEventArchiveStatus } from "@/lib/hooks/use-event-archive-status";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface PricingTabProps {
   event: EventDetails;
@@ -31,6 +33,7 @@ export function PricingTab({
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [loading, setLoading] = useState(true);
   const [originalPricingTiers, setOriginalPricingTiers] = useState<PricingTier[]>([]);
+  const { isArchived } = useEventArchiveStatus(event);
 
   const { toast } = useToast();
 
@@ -360,6 +363,14 @@ export function PricingTab({
             <AttachMoney className="h-5 w-5" />
             Event Pricing
           </CardTitle>
+          {isArchived && (
+            <div className="mt-2 py-4">
+              <Alert className="border-orange-200 bg-orange-50">
+                <AlertTitle className="text-orange-900">⚠️ Event is Archived</AlertTitle>
+                <AlertDescription>This event is archived and cannot be edited. To make changes, you must first unarchive the event using the controls below.</AlertDescription>
+              </Alert>
+            </div>
+          )}
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center space-x-2">
@@ -367,6 +378,7 @@ export function PricingTab({
               id="paid-event"
               checked={event.paid || false}
               onCheckedChange={handlePaidToggle}
+              disabled={isArchived}
             />
             <Label htmlFor="paid-event">This is a paid event</Label>
           </div>
@@ -385,6 +397,14 @@ export function PricingTab({
               <Inventory className="h-5 w-5" />
               Pricing Tiers
             </CardTitle>
+            {isArchived && (
+              <div className="mt-2 py-4">
+                <Alert className="border-orange-200 bg-orange-50">
+                  <AlertTitle className="text-orange-900">⚠️ Event is Archived</AlertTitle>
+                  <AlertDescription>This event is archived and cannot be edited. To make changes, you must first unarchive the event using the controls below.</AlertDescription>
+                </Alert>
+              </div>
+            )}
           </CardHeader>
           <CardContent className="space-y-4">
             {loading ? (
@@ -417,6 +437,7 @@ export function PricingTab({
                             size="sm"
                             onClick={() => removePricingTier(actualIndex)}
                             className="text-red-600 hover:text-red-700"
+                            disabled={isArchived}
                           >
                             <Delete className="h-4 w-4" />
                           </Button>
@@ -433,6 +454,7 @@ export function PricingTab({
                               updatePricingTier(actualIndex, { name: e.target.value })
                             }
                             placeholder="e.g., Early Bird, Regular, VIP"
+                            disabled={isArchived}
                           />
                         </div>
                         <div className="space-y-2">
@@ -451,6 +473,7 @@ export function PricingTab({
                               })
                             }
                             placeholder="0.00"
+                            disabled={isArchived}
                           />
                         </div>
                       </div>
@@ -469,6 +492,7 @@ export function PricingTab({
                               }
                               placeholder="Describe what's included in this tier"
                               rows={2}
+                              disabled={isArchived}
                             />
                           </div>
 
@@ -496,6 +520,7 @@ export function PricingTab({
                                       : undefined,
                                   })
                                 }
+                                disabled={isArchived}
                               />
                             </div>
                             <div className="space-y-2">
@@ -517,6 +542,7 @@ export function PricingTab({
                                   })
                                 }
                                 placeholder="Unlimited"
+                                disabled={isArchived}
                               />
                             </div>
                           </div>
@@ -535,6 +561,7 @@ export function PricingTab({
                           }
                           placeholder="price_1234567890abcdef"
                           required
+                          disabled={isArchived}
                         />
                         <p className="text-xs text-gray-500">
                           Create a Stripe price in your dashboard and paste the ID here

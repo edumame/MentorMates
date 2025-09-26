@@ -18,9 +18,10 @@ import {
 interface PasswordTabProps {
   eventId: string;
   roleLabels?: Record<string, string> | null;
+  isArchived: boolean;
 }
 
-export function PasswordTab({ eventId, roleLabels }: PasswordTabProps) {
+export function PasswordTab({ eventId, roleLabels, isArchived }: PasswordTabProps) {
   const [rolePasswords, setRolePasswords] = useState<Record<EventRole, string>>(
     {} as Record<EventRole, string>
   );
@@ -157,6 +158,7 @@ export function PasswordTab({ eventId, roleLabels }: PasswordTabProps) {
             onValueChange={(value) =>
               handleVisibilityChange(value as EventVisibility)
             }
+            disabled={isArchived}
           >
             <SelectTrigger>
               <SelectValue placeholder="Select visibility" />
@@ -188,10 +190,11 @@ export function PasswordTab({ eventId, roleLabels }: PasswordTabProps) {
                     value={rolePasswords[role] || ""}
                     onChange={(e) => handlePasswordChange(role, e.target.value)}
                     placeholder={`Set ${label.toLowerCase()} password`}
+                    disabled={isArchived}
                   />
                   <Button
                     onClick={() => handleSetPassword(role)}
-                    disabled={isLoading || !rolePasswords[role]}
+                    disabled={isLoading || !rolePasswords[role] || isArchived}
                   >
                     Save
                   </Button>

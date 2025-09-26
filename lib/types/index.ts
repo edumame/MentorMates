@@ -21,6 +21,7 @@ export enum EventVisibility {
   Private = "private",
   Public = "public",
   Draft = "draft",
+  Archived = "archived",
 }
 
 // Pricing Types
