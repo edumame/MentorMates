@@ -3,7 +3,6 @@
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/app/utils/supabase/client";
-import Link from "next/link";
 import { User } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
@@ -29,11 +28,11 @@ function TestimonialPanel() {
       <div className="mx-auto w-full max-w-2xl px-10 text-center">
         <Stars />
         <blockquote className="mt-6 text-xl leading-8 text-slate-800">
-          "I've been to a LOT of hackathons, both as a judge and as a hacker.
+          &ldquo;I&apos;ve been to a LOT of hackathons, both as a judge and as a hacker.
           And at the MentorMates hackathon, I saw a level of creativity and
-          efficiency I'd never seen before. These devs were super pragmatic and
+          efficiency I&apos;d never seen before. These devs were super pragmatic and
           responsive to feedback. They knew how to ask the right questions
-          before rolling up their sleeves and getting things done."
+          before rolling up their sleeves and getting things done.&rdquo;
         </blockquote>
 
         <div className="mt-8 flex flex-col items-center gap-2">
@@ -416,12 +415,11 @@ function LoginContent({
 }
 
 export default function LoginPage() {
-  const [isSignUp, setIsSignUp] = useState(false);
-
   useEffect(() => {
     const handleLocationChange = () => {
       const params = new URLSearchParams(window.location.search);
-      setIsSignUp(params.get("mode") === "signup");
+      // Could potentially use this to update UI based on signup mode
+      params.get("mode") === "signup";
     };
     handleLocationChange();
     window.addEventListener("popstate", handleLocationChange);
@@ -431,7 +429,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-white">
       <Suspense fallback={<div className="p-6">Loading…</div>}>
-        <LoginContent onModeChange={setIsSignUp} />
+        <LoginContent />
       </Suspense>
     </div>
   );
