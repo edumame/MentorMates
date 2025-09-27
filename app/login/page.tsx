@@ -10,8 +10,6 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const supabase = createClient();
 
-/* ----------------------- Shared data + bits ---------------------- */
-
 const testimonials = [
   {
     id: 1,
@@ -66,8 +64,7 @@ function Stars({ count = 5 }: { count?: number }) {
   );
 }
 
-/* --------------------- Testimonial components -------------------- */
-
+// testimonial components
 function useCarousel(total: number) {
   const [index, setIndex] = useState(0);
   useEffect(() => {
@@ -146,7 +143,7 @@ function TestimonialPanelMobile() {
   const t = testimonials[index];
 
   return (
-    <section className="lg:hidden px-6 mt-6">
+    <section className="lg:hidden mt-6">
       <div className="bg-sky-50 rounded-3xl px-6 py-10 text-center">
         <Stars />
         <blockquote className="mt-4 text-base leading-7 text-slate-800">
@@ -197,15 +194,15 @@ function TestimonialPanelMobile() {
             <ChevronRight className="h-5 w-5" />
           </button>
         </div>
-
-        {/* © inside the blue card on mobile */}
-        <div className="mt-8 text-xs text-slate-500">© 2025 MentorMates</div>
       </div>
+      
+      {/* © moved below the blue card on mobile */}
+      <div className="px-6 mt-4 text-xs text-slate-500 text-center lg:text-left">© 2025 MentorMates</div>
     </section>
   );
 }
 
-/* ---------------------------- Auth page --------------------------- */
+// auth 
 
 function LoginContent({ onModeChange }: { onModeChange?: (isSignUp: boolean) => void }) {
   const router = useRouter();
@@ -475,12 +472,10 @@ function LoginContent({ onModeChange }: { onModeChange?: (isSignUp: boolean) => 
           </div>
         </div>
 
-        {/* Mobile testimonials block */}
         <TestimonialPanelMobile />
 
-        {/* Footer: show only on desktop; mobile © is inside the blue card above */}
         <div className="px-6 pb-6 hidden lg:block">
-          <div className="text-xs text-slate-500">© 2025 MentorMates</div>
+          <div className="text-xs text-slate-500 text-center lg:text-left">© 2025 MentorMates</div>
         </div>
       </main>
 
@@ -490,8 +485,7 @@ function LoginContent({ onModeChange }: { onModeChange?: (isSignUp: boolean) => 
   );
 }
 
-/* ------------------------------- Page ---------------------------- */
-
+// login page
 export default function LoginPage() {
   const router = useRouter();
   useEffect(() => {
