@@ -1,48 +1,65 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { usePathname } from "next/navigation";
 import type { Session } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabase";
 import { AuthNavbar } from "./AuthNavbar";
 import { Navbar } from "./Navbar";
 import { useLayoutConfig } from "./LayoutConfigProvider";
 
+const AUTH_ROUTE_PREFIXES = ["/login", "/signup", "/auth"];
+
 export function ConditionalNavbar() {
-  const [session, setSession] = useState<Session | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const pathname = usePathname();
   const { showNavbar } = useLayoutConfig();
 
+  // 1) Never render on auth routes
+  const isAuthRoute =
+    !pathname
+      ? false
+      : AUTH_ROUTE_PREFIXES.some((p) =>
+          pathname === p || pathname.startsWith(`${p}/`)
+        );
+
+  if (isAuthRoute || !showNavbar) {
+    return null;
+  }
+
+  // 2) For non-auth routes, render based on session
+  const [session, setSession] = useState<Session | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
   useEffect(() => {
-    // Get initial session
-    const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setSession(session);
-      setIsLoading(false);
-    };
+    let isMounted = true;
 
-    getSession();
+    (async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (isMounted) {
+        setSession(session);
+        setIsLoading(false);
+      }
+    })();
 
-    // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_, session) => {
-      setSession(session);
-      setIsLoading(false);
+    } = supabase.auth.onAuthStateChange((_, newSession) => {
+      if (isMounted) {
+        setSession(newSession);
+        setIsLoading(false);
+      }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted = false;
+      subscription?.unsubscribe();
+    };
   }, []);
 
-  // Don't render anything while loading to prevent flash
-  if (isLoading) {
-    return null;
-  }
+  // While resolving session, render nothing to avoid flash (or swap this for a skeleton if you prefer)
+  if (isLoading) return null;
 
-  // Hide navbar if showNavbar is false
-  if (!showNavbar) {
-    return null;
-  }
-
-  // Render AuthNavbar if user is authenticated, otherwise render Navbar
   return session ? <AuthNavbar /> : <Navbar />;
-} 
+}
