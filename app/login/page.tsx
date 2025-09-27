@@ -7,17 +7,18 @@ import Link from "next/link";
 import { User } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
+import { Star } from "lucide-react";
 
 const supabase = createClient();
 
 function Stars() {
   return (
     <div className="flex items-center justify-center gap-1 text-amber-500 text-xl">
-      <span>★</span>
-      <span>★</span>
-      <span>★</span>
-      <span>★</span>
-      <span>★</span>
+      <Star className="w-5 h-5 fill-current" />
+      <Star className="w-5 h-5 fill-current" />
+      <Star className="w-5 h-5 fill-current" />
+      <Star className="w-5 h-5 fill-current" />
+      <Star className="w-5 h-5 fill-current" />
     </div>
   );
 }
