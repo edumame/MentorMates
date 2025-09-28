@@ -423,7 +423,7 @@ function LoginContent({ onModeChange }: { onModeChange?: (isSignUp: boolean) => 
                 </div>
               )}
 
-              <Button type="submit" size="lg" disabled={loading} className="w-full text-center">
+              <Button type="submit" size="default" disabled={loading} className="w-full text-center">
                 {loading ? (isSignUp ? "Creating account..." : "Signing in...") : isSignUp ? "Sign Up" : "Sign In"}
               </Button>
 
@@ -441,7 +441,7 @@ function LoginContent({ onModeChange }: { onModeChange?: (isSignUp: boolean) => 
               <Button
                 onClick={() => handleOAuthSignIn("google")}
                 variant="defaultGray"
-                size="lg"
+                size="default"
                 className="w-full justify-center gap-3 text-slate-900"
                 type="button"
               >
