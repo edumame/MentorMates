@@ -7,47 +7,9 @@ import { User } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { TESTIMONIALS } from "@/lib/constants/testimonials";
 
 const supabase = createClient();
-
-const testimonials = [
-  {
-    id: 1,
-    rating: 5,
-    quote:
-      'Those young entrepreneurs will thrive if they have the "meta AI competency" which I coined at the SXSW a few years ago. Also, I am hoping that they will generate unique foundational questions that will lead to learning, change, and innovation.',
-    author: "Paul Kim",
-    title: "Former Associate Dean, Stanford Graduate School of Education",
-    avatar: "/testimonials/paul.png",
-    logo: "/testimonials/stanfordedu.png",
-    logoWidth: 117,
-    logoHeight: 66,
-  },
-  {
-    id: 2,
-    rating: 5,
-    quote:
-      "This Hackathon provided invaluable insight &mdash; especially bridging the stigma of how you need crazy computer science knowledge for these competitions.",
-    author: "Elina Les",
-    title: "Participant, Hong Kong",
-    avatar: "/testimonials/avatarFallback.png",
-    logo: undefined,
-    logoWidth: 220,
-    logoHeight: 48,
-  },
-  {
-    id: 3,
-    rating: 5,
-    quote:
-      "I've been to a LOT of hackathons, both as a judge and as a hacker. And at the MentorMates hackathon, I saw a level of creativity and efficiency I'd never seen before. These devs were super pragmatic and responsive to feedback. They knew how to ask the right questions before rolling up their sleeves and getting things done.",
-    author: "Quincy Larson",
-    title: "Founder & Teacher, freeCodeCamp.org",
-    avatar: "/testimonials/quincy.png",
-    logo: "/testimonials/freecode.png",
-    logoWidth: 189,
-    logoHeight: 21,
-  },
-];
 
 function Stars({ count = 5 }: { count?: number }) {
   return (
@@ -78,15 +40,17 @@ function useCarousel(total: number) {
 
 /** Desktop right-side panel */
 function TestimonialPanelDesktop() {
-  const { index, setIndex, prev, next } = useCarousel(testimonials.length);
-  const t = testimonials[index];
+  const { index, setIndex, prev, next } = useCarousel(TESTIMONIALS.length);
+  const t = TESTIMONIALS[index];
 
   return (
     <aside className="relative hidden lg:flex items-center justify-center bg-sky-50 rounded-l-3xl">
       <div className="mx-auto w-full max-w-2xl px-10 py-10 text-center">
         <Stars />
         <blockquote className="mt-6 text-xl leading-8 text-slate-800">
-          <span dangerouslySetInnerHTML={{ __html: `&ldquo;${t.quote}&rdquo;` }} />
+          <span
+            dangerouslySetInnerHTML={{ __html: `&ldquo;${t.quote}&rdquo;` }}
+          />
         </blockquote>
 
         <div className="mt-8 flex flex-col items-center gap-2">
@@ -113,11 +77,15 @@ function TestimonialPanelDesktop() {
         </div>
 
         <div className="mt-8 flex items-center justify-center gap-8">
-          <button onClick={prev} aria-label="Previous" className="rounded-full p-2 hover:bg-white/60 transition">
+          <button
+            onClick={prev}
+            aria-label="Previous"
+            className="rounded-full p-2 hover:bg-white/60 transition"
+          >
             <ChevronLeft className="h-5 w-5" />
           </button>
           <div className="flex items-center gap-2">
-            {testimonials.map((_, i) => (
+            {TESTIMONIALS.map((_, i) => (
               <button
                 key={i}
                 onClick={() => setIndex(i)}
@@ -128,7 +96,11 @@ function TestimonialPanelDesktop() {
               />
             ))}
           </div>
-          <button onClick={next} aria-label="Next" className="rounded-full p-2 hover:bg-white/60 transition">
+          <button
+            onClick={next}
+            aria-label="Next"
+            className="rounded-full p-2 hover:bg-white/60 transition"
+          >
             <ChevronRight className="h-5 w-5" />
           </button>
         </div>
@@ -139,15 +111,17 @@ function TestimonialPanelDesktop() {
 
 /** Mobile block (like your screenshot) */
 function TestimonialPanelMobile() {
-  const { index, setIndex, prev, next } = useCarousel(testimonials.length);
-  const t = testimonials[index];
+  const { index, setIndex, prev, next } = useCarousel(TESTIMONIALS.length);
+  const t = TESTIMONIALS[index];
 
   return (
     <section className="lg:hidden mt-6">
       <div className="bg-sky-50 rounded-3xl px-6 py-10 text-center">
         <Stars />
         <blockquote className="mt-4 text-base leading-7 text-slate-800">
-          <span dangerouslySetInnerHTML={{ __html: `&ldquo;${t.quote}&rdquo;` }} />
+          <span
+            dangerouslySetInnerHTML={{ __html: `&ldquo;${t.quote}&rdquo;` }}
+          />
         </blockquote>
 
         <div className="mt-6 flex flex-col items-center gap-2">
@@ -175,11 +149,15 @@ function TestimonialPanelMobile() {
 
         {/* controls like the comp */}
         <div className="mt-8 flex items-center justify-center gap-8">
-          <button onClick={prev} aria-label="Previous" className="rounded-full p-2 hover:bg-white/60 transition">
+          <button
+            onClick={prev}
+            aria-label="Previous"
+            className="rounded-full p-2 hover:bg-white/60 transition"
+          >
             <ChevronLeft className="h-5 w-5" />
           </button>
           <div className="flex items-center gap-2">
-            {testimonials.map((_, i) => (
+            {TESTIMONIALS.map((_, i) => (
               <button
                 key={i}
                 onClick={() => setIndex(i)}
@@ -190,21 +168,31 @@ function TestimonialPanelMobile() {
               />
             ))}
           </div>
-          <button onClick={next} aria-label="Next" className="rounded-full p-2 hover:bg-white/60 transition">
+          <button
+            onClick={next}
+            aria-label="Next"
+            className="rounded-full p-2 hover:bg-white/60 transition"
+          >
             <ChevronRight className="h-5 w-5" />
           </button>
         </div>
       </div>
-      
+
       {/* © moved below the blue card on mobile */}
-      <div className="px-6 mt-4 text-xs text-slate-500 text-center lg:text-left">© 2025 MentorMates</div>
+      <div className="px-6 mt-4 text-xs text-slate-500 text-center lg:text-left">
+        © 2025 MentorMates
+      </div>
     </section>
   );
 }
 
-// auth 
+// auth
 
-function LoginContent({ onModeChange }: { onModeChange?: (isSignUp: boolean) => void }) {
+function LoginContent({
+  onModeChange,
+}: {
+  onModeChange?: (isSignUp: boolean) => void;
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
@@ -225,7 +213,10 @@ function LoginContent({ onModeChange }: { onModeChange?: (isSignUp: boolean) => 
 
   useEffect(() => {
     const check = async () => {
-      const { data: { session }, error: sErr } = await supabase.auth.getSession();
+      const {
+        data: { session },
+        error: sErr,
+      } = await supabase.auth.getSession();
       if (sErr) console.error(sErr);
       if (session) router.push("/login");
     };
@@ -259,7 +250,8 @@ function LoginContent({ onModeChange }: { onModeChange?: (isSignUp: boolean) => 
 
     const returnUrl = localStorage.getItem("returnUrl");
     if (returnUrl) localStorage.removeItem("returnUrl");
-    const cleanReturnUrl = returnUrl && returnUrl.startsWith("/") ? returnUrl.slice(1) : returnUrl;
+    const cleanReturnUrl =
+      returnUrl && returnUrl.startsWith("/") ? returnUrl.slice(1) : returnUrl;
 
     if (isSignUp) {
       if (password.length < 6) {
@@ -273,9 +265,11 @@ function LoginContent({ onModeChange }: { onModeChange?: (isSignUp: boolean) => 
         options: { emailRedirectTo: `${cleanBaseUrl}/${cleanReturnUrl || ""}` },
       });
       if (error) {
-        setError(error.message.includes("unique")
-          ? "This email is already registered. Please sign in instead."
-          : error.message);
+        setError(
+          error.message.includes("unique")
+            ? "This email is already registered. Please sign in instead."
+            : error.message
+        );
         setLoading(false);
         return;
       }
@@ -292,9 +286,16 @@ function LoginContent({ onModeChange }: { onModeChange?: (isSignUp: boolean) => 
       return;
     }
 
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
     if (error) {
-      setError(error.message.includes("Invalid") ? "Invalid email or password" : error.message);
+      setError(
+        error.message.includes("Invalid")
+          ? "Invalid email or password"
+          : error.message
+      );
       setLoading(false);
       return;
     }
@@ -320,17 +321,22 @@ function LoginContent({ onModeChange }: { onModeChange?: (isSignUp: boolean) => 
       redirectTo: `${cleanBaseUrl}/auth/reset-request`,
     });
     setLoading(false);
-    setError(error ? error.message : "Password reset instructions sent to your email!");
+    setError(
+      error ? error.message : "Password reset instructions sent to your email!"
+    );
   };
 
   const handleOAuthSignIn = async (provider: "google" | "github") => {
     setLoading(true);
     const returnUrl = localStorage.getItem("returnUrl");
     if (returnUrl) localStorage.removeItem("returnUrl");
-    const cleanReturnUrl = returnUrl && returnUrl.startsWith("/") ? returnUrl.slice(1) : returnUrl;
+    const cleanReturnUrl =
+      returnUrl && returnUrl.startsWith("/") ? returnUrl.slice(1) : returnUrl;
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
-      options: { redirectTo: `${cleanBaseUrl}/auth/callback?returnUrl=${cleanReturnUrl || ""}` },
+      options: {
+        redirectTo: `${cleanBaseUrl}/auth/callback?returnUrl=${cleanReturnUrl || ""}`,
+      },
     });
     if (error) {
       setError(error.message);
@@ -353,7 +359,12 @@ function LoginContent({ onModeChange }: { onModeChange?: (isSignUp: boolean) => 
       <main className="flex flex-col h-screen">
         {/* NAV / logo */}
         <div className="flex items-center gap-3 px-6 pt-6">
-          <Image src="/mentormate.png" alt="MentorMates" width={180} height={48} />
+          <Image
+            src="/mentormate.png"
+            alt="MentorMates"
+            width={180}
+            height={48}
+          />
         </div>
 
         {/* centered content; extra pt on mobile */}
@@ -423,8 +434,19 @@ function LoginContent({ onModeChange }: { onModeChange?: (isSignUp: boolean) => 
                 </div>
               )}
 
-              <Button type="submit" size="default" disabled={loading} className="w-full text-center">
-                {loading ? (isSignUp ? "Creating account..." : "Signing in...") : isSignUp ? "Sign Up" : "Sign In"}
+              <Button
+                type="submit"
+                size="default"
+                disabled={loading}
+                className="w-full text-center"
+              >
+                {loading
+                  ? isSignUp
+                    ? "Creating account..."
+                    : "Signing in..."
+                  : isSignUp
+                    ? "Sign Up"
+                    : "Sign In"}
               </Button>
 
               {/* divider */}
@@ -433,7 +455,9 @@ function LoginContent({ onModeChange }: { onModeChange?: (isSignUp: boolean) => 
                   <div className="w-full border-t border-slate-200" />
                 </div>
                 <div className="relative flex justify-center">
-                  <span className="bg-white px-4 text-sm text-slate-600">or</span>
+                  <span className="bg-white px-4 text-sm text-slate-600">
+                    or
+                  </span>
                 </div>
               </div>
 
@@ -446,14 +470,27 @@ function LoginContent({ onModeChange }: { onModeChange?: (isSignUp: boolean) => 
                 type="button"
               >
                 {/* G icon */}
-                <svg xmlns="http://www.w3.org/2000/svg" width="19" height="18" viewBox="0 0 19 18" fill="none">
-                  <path d="M18.5 8.79C18.5 12.94 16.29 18 9.63 18C4.62461 18.0332 0.53852 14.0053 0.5 9C0.53852 3.99461 4.62461 -0.0332996 9.63 -3.96349e-05C11.7007 0.00764036 13.7085 0.71213 15.33 1.99996C15.442 2.09149 15.5109 2.22557 15.52 2.36996C15.5206 2.51605 15.463 2.65637 15.36 2.75996C14.709 3.35516 14.0882 3.98261 13.5 4.63996C13.3289 4.82826 13.0422 4.85432 12.84 4.69996C11.9161 4.01624 10.7888 3.66394 9.64 3.69996C6.68528 3.69996 4.29 6.09524 4.29 9.05C4.29 12.0047 6.68528 14.4 9.64 14.4C12.64 14.4 13.91 13.12 14.57 10.85H10C9.7239 10.85 9.5 10.6261 9.5 10.35V7.7C9.5 7.4238 9.7239 7.2 10 7.2H18C18.2302 7.1985 18.4244 7.3711 18.45 7.6C18.4871 7.9955 18.5038 8.3927 18.5 8.79Z" fill="black"/>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="19"
+                  height="18"
+                  viewBox="0 0 19 18"
+                  fill="none"
+                >
+                  <path
+                    d="M18.5 8.79C18.5 12.94 16.29 18 9.63 18C4.62461 18.0332 0.53852 14.0053 0.5 9C0.53852 3.99461 4.62461 -0.0332996 9.63 -3.96349e-05C11.7007 0.00764036 13.7085 0.71213 15.33 1.99996C15.442 2.09149 15.5109 2.22557 15.52 2.36996C15.5206 2.51605 15.463 2.65637 15.36 2.75996C14.709 3.35516 14.0882 3.98261 13.5 4.63996C13.3289 4.82826 13.0422 4.85432 12.84 4.69996C11.9161 4.01624 10.7888 3.66394 9.64 3.69996C6.68528 3.69996 4.29 6.09524 4.29 9.05C4.29 12.0047 6.68528 14.4 9.64 14.4C12.64 14.4 13.91 13.12 14.57 10.85H10C9.7239 10.85 9.5 10.6261 9.5 10.35V7.7C9.5 7.4238 9.7239 7.2 10 7.2H18C18.2302 7.1985 18.4244 7.3711 18.45 7.6C18.4871 7.9955 18.5038 8.3927 18.5 8.79Z"
+                    fill="black"
+                  />
                 </svg>
-                <span className="text-sm font-semibold">Sign up with Google</span>
+                <span className="text-sm font-semibold">
+                  Sign up with Google
+                </span>
               </Button>
 
               <p className="mt-4 text-center text-sm text-gray-700">
-                {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
+                {isSignUp
+                  ? "Already have an account?"
+                  : "Don't have an account?"}{" "}
                 <a
                   href="#"
                   onClick={(e) => {
@@ -472,7 +509,9 @@ function LoginContent({ onModeChange }: { onModeChange?: (isSignUp: boolean) => 
         <TestimonialPanelMobile />
 
         <div className="px-6 pb-6 hidden lg:block">
-          <div className="text-xs text-slate-500 text-center lg:text-left">© 2025 MentorMates</div>
+          <div className="text-xs text-slate-500 text-center lg:text-left">
+            © 2025 MentorMates
+          </div>
         </div>
       </main>
 
