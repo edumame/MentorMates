@@ -226,7 +226,7 @@ export function Navbar() {
                 >
                   Log in
                 </Button>
-                <Link href="/select-role">
+                <Link href="/login">
                   <Button className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-lg text-sm xl:px-4 xl:py-3 xl:rounded-xl xl:text-base whitespace-nowrap">
                     Get started
                   </Button>
@@ -398,7 +398,7 @@ export function Navbar() {
                   >
                     Log in
                   </Button>
-                  <Link href="/select-role" className="block">
+                  <Link href="/login" className="block">
                     <Button className="w-full bg-blue-500 hover:bg-blue-600 text-white py-4 rounded-lg text-base font-medium">
                       Get started
                     </Button>

@@ -1,47 +1,9 @@
 "use client";
 
 import Image from "next/image";
+import { TESTIMONIALS } from "@/lib/constants/testimonials";
 
 export function Customer() {
-  const testimonials = [
-    {
-      id: 1,
-      rating: 5,
-      quote:
-        'Those young entrepreneurs will thrive if they have the "meta AI competency" which I coined at the SXSW a few years ago. Also, I am hoping that they will generate unique foundational questions that will lead to learning, change, and innovation.',
-      author: "Paul Kim",
-      title: "Former Associate Dean, Stanford Graduate School of Education",
-      avatar: "/testimonials/paul.png",
-      logo: "/testimonials/stanfordedu.png",
-      logoWidth: 117,
-      logoHeight: 66,
-    },
-    {
-      id: 2,
-      rating: 5,
-      quote:
-        "This Hackathon provided invaluable insight &mdash; especially bridging the stigma of how you need crazy computer science knowledge for these competitions.",
-      author: "Elina Les",
-      title: "Participant, Hong Kong",
-      avatar: "/testimonials/avatarFallback.png",
-      logo: undefined,
-      logoWidth: 220,
-      logoHeight: 48,
-    },
-    {
-      id: 3,
-      rating: 5,
-      quote:
-        "I've been to a LOT of hackathons, both as a judge and as a hacker. And at the MentorMates hackathon, I saw a level of creativity and efficiency I'd never seen before. These devs were super pragmatic and responsive to feedback. They knew how to ask the right questions before rolling up their sleeves and getting things done.",
-      author: "Quincy Larson",
-      title: "Founder & Teacher, freeCodeCamp.org",
-      avatar: "/testimonials/quincy.png",
-      logo: "/testimonials/freecode.png",
-      logoWidth: 189,
-      logoHeight: 21,
-    },
-  ];
-
   return (
     <section className="w-full bg-white py-12 sm:py-16 lg:py-20">
       <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-10">
@@ -54,7 +16,7 @@ export function Customer() {
 
         {/* Testimonials */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 lg:gap-12">
-          {testimonials.map((t) => (
+          {TESTIMONIALS.map((t) => (
             <article key={t.id} className="max-w-none">
               {/* Stars */}
               <div className="flex gap-1 mb-4 text-[#B65A2B]">
