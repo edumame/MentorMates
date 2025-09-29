@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { TESTIMONIALS } from "@/lib/constants/testimonials";
+import Link from "next/link";
 
 const supabase = createClient();
 
@@ -359,12 +360,14 @@ function LoginContent({
       <main className="flex flex-col h-screen">
         {/* NAV / logo */}
         <div className="flex items-center gap-3 px-6 pt-6">
-          <Image
-            src="/mentormate.png"
-            alt="MentorMates"
-            width={180}
-            height={48}
-          />
+          <Link href="/">
+            <Image
+              src="/mentormate.png"
+              alt="MentorMates"
+              width={180}
+              height={48}
+            />
+          </Link>
         </div>
 
         {/* centered content; extra pt on mobile */}
