@@ -245,7 +245,7 @@ export async function fetchMasterclassClientSecret() {
         currency: "usd",
         unit_amount: 250000,
         product_data: {
-          name: "AI Vibe Coding Masterclass - 5 Week Program",
+          name: "AI Vibe Coding Masterclass - 3 Week Program",
         },
       },
       quantity: 1,
