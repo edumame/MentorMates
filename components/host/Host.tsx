@@ -25,7 +25,7 @@ export function Host() {
           </p>
           <div className="mt-6 sm:mt-8">
             <Button variant="default" asChild>
-              <Link href="https://docs.google.com/forms/d/e/1FAIpQLSdu89X2k657kx6wYSrVcZLP81J9OT-nkqe1zU7V2H73mM0XgA/viewform?usp=sharing&ouid=111944773401134137978">
+              <Link href="https://calendly.com/edumameofficial/30min">
                 Book a demo
               </Link>
             </Button>
