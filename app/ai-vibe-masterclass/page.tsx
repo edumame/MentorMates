@@ -355,7 +355,7 @@ export default function AIVibeMasterclassPage() {
         <section className="mx-auto w-full max-w-3xl text-center">
           <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Tools You’ll Use</h2>
           <p className="text-gray-700 mt-6">
-            OpenAI • Claude • Replit • GitHub • LangChain • Supabase • MentorMates templates
+            OpenAI • Claude • Replit • GitHub • Supabase • MentorMates templates
           </p>
         </section>
 
