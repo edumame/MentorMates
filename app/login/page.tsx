@@ -248,9 +248,10 @@ function LoginContent({
     e.preventDefault();
     setLoading(true);
     setError("");
-
     const returnUrl = localStorage.getItem("returnUrl");
-    if (returnUrl) localStorage.removeItem("returnUrl");
+    if (returnUrl) {
+      localStorage.removeItem("returnUrl");
+    }
     const cleanReturnUrl =
       returnUrl && returnUrl.startsWith("/") ? returnUrl.slice(1) : returnUrl;
 
@@ -260,55 +261,62 @@ function LoginContent({
         setLoading(false);
         return;
       }
-      const { data, error } = await supabase.auth.signUp({
+
+      const { error } = await supabase.auth.signUp({
         email,
         password,
-        options: { emailRedirectTo: `${cleanBaseUrl}/${cleanReturnUrl || ""}` },
+        options: {
+          emailRedirectTo: `${cleanBaseUrl}/${cleanReturnUrl || ""}`,
+        },
+      });
+
+      if (error) {
+        const errorMessage = "Error signing up. Please try again.";
+        setError(errorMessage);
+        setLoading(false);
+        return;
+      }
+
+      const { data: existingProfile } = await supabase
+        .from("user_profiles")
+        .select("*")
+        .eq("email", email)
+        .single();
+
+      if (existingProfile) {
+        setError("Email already in use. Please sign in instead.");
+        setLoading(false);
+        return;
+      }
+
+      setLoading(false);
+      router.push(`${cleanBaseUrl}/confirmation`);
+      return;
+    } else {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
       });
       if (error) {
-        setError(
-          error.message.includes("unique")
-            ? "This email is already registered. Please sign in instead."
-            : error.message
-        );
+        const errorMessage = error.message.includes("Invalid")
+          ? "Invalid email or password"
+          : error.message;
+        setError(errorMessage);
         setLoading(false);
         return;
       }
       if (data?.user) {
-        const pErr = await syncUserProfile(data.user);
-        if (pErr) {
-          setError("Error signing up. Please sign in instead or try again.");
+        const profileError = await syncUserProfile(data.user);
+        if (profileError) {
+          const message =
+            "Error signing in. Please sign up instead or try again.";
+          setError(message);
           setLoading(false);
           return;
         }
       }
-      setLoading(false);
-      router.push(`${cleanBaseUrl}/confirmation`);
-      return;
+      router.push(`${cleanBaseUrl}/${cleanReturnUrl || ""}`);
     }
-
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    if (error) {
-      setError(
-        error.message.includes("Invalid")
-          ? "Invalid email or password"
-          : error.message
-      );
-      setLoading(false);
-      return;
-    }
-    if (data?.user) {
-      const pErr = await syncUserProfile(data.user);
-      if (pErr) {
-        setError("Error signing in. Please sign up instead or try again.");
-        setLoading(false);
-        return;
-      }
-    }
-    router.push(`${cleanBaseUrl}/${cleanReturnUrl || ""}`);
   };
 
   const handleForgotPassword = async (e: React.MouseEvent) => {
@@ -424,6 +432,7 @@ function LoginContent({
                     Remember me
                   </label>
                   <button
+                    type="button"
                     onClick={handleForgotPassword}
                     disabled={loading}
                     className="text-sm font-medium text-blue-700 hover:underline disabled:opacity-50"
