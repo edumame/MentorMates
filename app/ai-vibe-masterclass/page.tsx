@@ -25,7 +25,7 @@ import {
 export const metadata: Metadata = {
   title: "AI Vibe Coding Masterclass | MentorMates",
   description:
-    "A 5-week, high-impact masterclass blending AI, code, and entrepreneurial energy. Only 12 seats. $2,500.",
+    "A 3-week, high-impact masterclass blending AI, code, and entrepreneurial energy. Only 12 seats. $2,500.",
 };
 
 export default function AIVibeMasterclassPage() {
@@ -60,17 +60,20 @@ export default function AIVibeMasterclassPage() {
                 Unlock Your AI Vibe
               </h1>
               <p className="text-gray-700 mt-3 text-sm sm:text-base">
-                A 5-week, high-impact masterclass blending AI, code, and entrepreneurial energy. Only 12 seats. $2,500.
+                A 3-week, high-impact masterclass blending AI, code, and entrepreneurial energy. Only 12 seats. $2,500.
               </p>
               <div className="mt-4 flex flex-wrap items-center gap-2 justify-center">
                 <span className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-700">
-                  <CalendarClock className="mr-1 h-3.5 w-3.5" /> 5 Weeks
+                  <CalendarClock className="mr-1 h-3.5 w-3.5" /> 3 Weeks
                 </span>
                 <span className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-700">
                   <Users className="mr-1 h-3.5 w-3.5" /> Only 12 seats
                 </span>
                 <span className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-700">
                   <Rocket className="mr-1 h-3.5 w-3.5" /> Build live
+                </span>
+                <span className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-700">
+                  <Sparkles className="mr-1 h-3.5 w-3.5" /> Private WhatsApp Group
                 </span>
               </div>
               <div className="mt-6 flex items-center gap-3 justify-center">
@@ -117,17 +120,20 @@ export default function AIVibeMasterclassPage() {
                 Unlock Your AI Vibe
               </h1>
               <p className="text-gray-700 mt-3 sm:mt-4 text-sm sm:text-base md:text-lg">
-                A 5-week, high-impact masterclass blending AI, code, and entrepreneurial energy. Only 12 seats. $2,500.
+                A 3-week, high-impact masterclass blending AI, code, and entrepreneurial energy. Only 12 seats. $2,500.
               </p>
               <div className="mt-4 flex flex-wrap items-center gap-2 justify-center md:justify-start">
                 <span className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-700">
-                  <CalendarClock className="mr-1 h-3.5 w-3.5" /> 5 Weeks
+                  <CalendarClock className="mr-1 h-3.5 w-3.5" /> 3 Weeks
                 </span>
                 <span className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-700">
                   <Users className="mr-1 h-3.5 w-3.5" /> Only 12 seats
                 </span>
                 <span className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-700">
                   <Rocket className="mr-1 h-3.5 w-3.5" /> Build live
+                </span>
+                <span className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-700">
+                  <Sparkles className="mr-1 h-3.5 w-3.5" /> Private WhatsApp Group
                 </span>
               </div>
               <div className="mt-6 flex items-center gap-3 justify-center md:justify-start">
@@ -198,6 +204,29 @@ export default function AIVibeMasterclassPage() {
         </div>
       </div>
 
+      {/* Meet Your Instructor */}
+      <div className="px-4 sm:px-5 py-8">
+        <section className="mx-auto w-full max-w-4xl text-center">
+          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Meet Your Instructor</h2>
+          <div className="mt-6 flex items-center justify-center gap-4">
+            <Image
+              src="/team/Chinat.png"
+              alt="Chinat Yu"
+              width={64}
+              height={64}
+              className="rounded-full"
+            />
+            <div className="text-left">
+              <p className="font-semibold">Chinat Yu</p>
+              <p className="text-sm text-gray-600">Instructor • Founder of MentorMates • MLH Top 50 Hacker • Stanford LDT</p>
+            </div>
+          </div>
+          <p className="text-gray-700 mt-4 max-w-3xl mx-auto">
+            I’ve built AR science labs, hackathon platforms, and AI feedback systems backed by Stanford and Microsoft. I’ve mentored 200+ builders and led projects recognized by Johns Hopkins, MLH, and Stanford HAI.
+          </p>
+        </section>
+      </div>
+
       {/* Program Overview */}
       <div className="px-4 sm:px-5 py-10 md:py-16">
         <section className="mx-auto w-full max-w-6xl md:max-w-7xl">
@@ -205,15 +234,15 @@ export default function AIVibeMasterclassPage() {
             Program Overview
           </h2>
           <p className="text-gray-700 mt-6 max-w-3xl mx-auto text-center">
-            AI Vibe Coding isn’t just about code — it’s about creating with energy, scaling with AI, and thinking like an entrepreneur. In 5 weeks, you’ll climb the BRICK Vibe Coding Ladder, build cloud-powered agents, and prepare to launch with confidence.
+            AI Vibe Coding isn’t just about code — it’s about creating with energy, scaling with AI, and thinking like an entrepreneur. In 3 weeks, you’ll climb the BRICK Vibe Ladder, design SNOW Agents, and launch with confidence.
           </p>
           <div className="mt-8 grid gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-4">
             <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
               <div className="flex items-start gap-3">
                 <CalendarClock className="h-5 w-5 text-blue-600" />
                 <div>
-                  <p className="font-semibold">5 Weekend Workshops</p>
-                  <p className="text-sm text-gray-700 mt-1">2 hours each → build live.</p>
+                  <p className="font-semibold">Live Weekend Workshops</p>
+                  <p className="text-sm text-gray-700 mt-1">2 hours each → build in real time</p>
                 </div>
               </div>
             </div>
@@ -222,7 +251,7 @@ export default function AIVibeMasterclassPage() {
                 <Users className="h-5 w-5 text-blue-600" />
                 <div>
                   <p className="font-semibold">Weekly Deep Dive</p>
-                  <p className="text-sm text-gray-700 mt-1">1 hour with Chinat → mentorship.</p>
+                  <p className="text-sm text-gray-700 mt-1">1 hour mentorship with Chinat</p>
                 </div>
               </div>
             </div>
@@ -231,7 +260,7 @@ export default function AIVibeMasterclassPage() {
                 <BrainCircuit className="h-5 w-5 text-blue-600" />
                 <div>
                   <p className="font-semibold">Exclusive Frameworks</p>
-                  <p className="text-sm text-gray-700 mt-1">BRICK, ALERT, SNOW Agent.</p>
+                  <p className="text-sm text-gray-700 mt-1">BRICK, ALERT, SNOW Agent</p>
                 </div>
               </div>
             </div>
@@ -239,8 +268,8 @@ export default function AIVibeMasterclassPage() {
               <div className="flex items-start gap-3">
                 <Sparkles className="h-5 w-5 text-blue-600" />
                 <div>
-                  <p className="font-semibold">Cohort of 12</p>
-                  <p className="text-sm text-gray-700 mt-1">High-touch, collaborative learning.</p>
+                  <p className="font-semibold">Private WhatsApp Group</p>
+                  <p className="text-sm text-gray-700 mt-1">Peer exchange + lifetime access</p>
                 </div>
               </div>
             </div>
@@ -252,28 +281,23 @@ export default function AIVibeMasterclassPage() {
         {/* Curriculum Breakdown */}
         <section id="curriculum" className="mx-auto w-full max-w-6xl md:max-w-7xl">
           <h2 className="text-center text-2xl sm:text-3xl font-bold tracking-tight">
-            Curriculum Breakdown (Week by Week)
+            Curriculum (Week by Week)
           </h2>
           <div className="mt-8 grid gap-4 sm:gap-6 sm:grid-cols-2">
             <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
-              <h3 className="font-semibold text-lg">Week 1: The BRICK Vibe Coding Ladder</h3>
-              <p className="text-gray-700 mt-2">How to climb from spark → prototype → execution using structured creativity.</p>
+              <h3 className="font-semibold text-lg">Week 1 – The BRICK Vibe Ladder</h3>
+              <p className="text-gray-700 mt-2">Go from spark → prototype → execution with structured creativity.</p>
+              <p className="text-gray-800 mt-2"><span className="font-semibold">Outcome:</span> You’ll have your first coded micro-product demo.</p>
             </div>
             <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
-              <h3 className="font-semibold text-lg">Week 2: ALERT Risk Level</h3>
-              <p className="text-gray-700 mt-2">How to push innovation while managing risks and guardrails.</p>
-            </div>
-            <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
-              <h3 className="font-semibold text-lg">Week 3: SNOW Agent Framework</h3>
-              <p className="text-gray-700 mt-2">Design adaptive, responsive AI agents that feel alive.</p>
-            </div>
-            <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
-              <h3 className="font-semibold text-lg">Week 4: Parallelization with Cloud Agents</h3>
-              <p className="text-gray-700 mt-2">Scale your work: run multiple agents in the cloud, experiment with orchestration and parallel workflows.</p>
+              <h3 className="font-semibold text-lg">Week 2 – SNOW Agent Framework</h3>
+              <p className="text-gray-700 mt-2">Design adaptive AI agents that feel alive.</p>
+              <p className="text-gray-800 mt-2"><span className="font-semibold">Outcome:</span> You’ll build and deploy your first cloud-powered agent.</p>
             </div>
             <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-100 sm:col-span-2">
-              <h3 className="font-semibold text-lg">Week 5: Go-To-Market & Entrepreneur Mindset</h3>
-              <p className="text-gray-700 mt-2">Turn prototypes into products. Learn how to pitch, validate markets, and embody the mindset of an AI entrepreneur.</p>
+              <h3 className="font-semibold text-lg">Week 3 – Go-to-Market & Entrepreneur Mindset</h3>
+              <p className="text-gray-700 mt-2">Turn prototypes into products. Pitch, validate, and embody the AI entrepreneur.</p>
+              <p className="text-gray-800 mt-2"><span className="font-semibold">Outcome:</span> You’ll leave with a portfolio project + go-to-market plan.</p>
             </div>
           </div>
         </section>
@@ -291,7 +315,7 @@ export default function AIVibeMasterclassPage() {
                 <Rocket className="h-5 w-5 text-blue-600" />
                 <div>
                   <p className="font-semibold">Hands-on</p>
-                  <p className="text-sm text-gray-700 mt-1">You won’t just learn — you’ll build.</p>
+                  <p className="text-sm text-gray-700 mt-1">You’ll ship projects, not just watch slides</p>
                 </div>
               </div>
             </div>
@@ -300,7 +324,7 @@ export default function AIVibeMasterclassPage() {
                 <Users className="h-5 w-5 text-blue-600" />
                 <div>
                   <p className="font-semibold">Personalized</p>
-                  <p className="text-sm text-gray-700 mt-1">Only 12 seats for deep interaction.</p>
+                  <p className="text-sm text-gray-700 mt-1">Only 12 seats, high-touch learning</p>
                 </div>
               </div>
             </div>
@@ -309,7 +333,7 @@ export default function AIVibeMasterclassPage() {
                 <BrainCircuit className="h-5 w-5 text-blue-600" />
                 <div>
                   <p className="font-semibold">End-to-End</p>
-                  <p className="text-sm text-gray-700 mt-1">From coding vibes to launching ventures.</p>
+                  <p className="text-sm text-gray-700 mt-1">From code to launch</p>
                 </div>
               </div>
             </div>
@@ -318,9 +342,46 @@ export default function AIVibeMasterclassPage() {
                 <ShieldCheck className="h-5 w-5 text-blue-600" />
                 <div>
                   <p className="font-semibold">Mentorship</p>
-                  <p className="text-sm text-gray-700 mt-1">Weekly sessions with Chinat to guide your journey.</p>
+                  <p className="text-sm text-gray-700 mt-1">Weekly sessions + private WhatsApp group</p>
                 </div>
               </div>
+            </div>
+          </div>
+        </section>
+
+        <hr className="my-12 border-gray-200" />
+
+        {/* Tools You’ll Use */}
+        <section className="mx-auto w-full max-w-3xl text-center">
+          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Tools You’ll Use</h2>
+          <p className="text-gray-700 mt-6">
+            OpenAI • Claude • Replit • GitHub • Supabase • MentorMates templates
+          </p>
+        </section>
+
+        <hr className="my-12 border-gray-200" />
+
+        {/* Capstone Showcase */}
+        <section className="mx-auto w-full max-w-4xl text-center">
+          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Capstone Showcase</h2>
+          <p className="text-gray-700 mt-6 max-w-3xl mx-auto">
+            At the end, you’ll demo your project to the cohort (and invited guests if you choose). Perfect for portfolios, pitches, or your first investor email.
+          </p>
+        </section>
+
+        <hr className="my-12 border-gray-200" />
+
+        {/* Testimonials */}
+        <section className="mx-auto w-full max-w-5xl">
+          <h2 className="text-center text-2xl sm:text-3xl font-bold tracking-tight">Testimonials</h2>
+          <div className="mt-8 grid gap-4 sm:gap-6 sm:grid-cols-2">
+            <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
+              <p className="text-gray-800 italic">“Chinat helped me go from idea to working prototype in one weekend. His frameworks are game-changing.”</p>
+              <p className="text-sm text-gray-600 mt-3">— Student, Stanford Hackathon</p>
+            </div>
+            <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
+              <p className="text-gray-800 italic">“I never thought I’d ship an AI agent this fast. The vibe in the cohort was unreal.”</p>
+              <p className="text-sm text-gray-600 mt-3">— Early Cohort Participant</p>
             </div>
           </div>
         </section>
@@ -337,9 +398,9 @@ export default function AIVibeMasterclassPage() {
               <p className="text-sm text-gray-600">Includes all workshops, weekly sessions, frameworks, and community.</p>
             </div>
             <ul className="mt-6 text-left text-sm text-gray-800 grid gap-2 max-w-md mx-auto">
-              <li className="inline-flex items-start gap-2"><CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5" /> 5 workshops + 5 deep dives</li>
+              <li className="inline-flex items-start gap-2"><CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5" /> 3 live workshops + 3 mentorship sessions</li>
               <li className="inline-flex items-start gap-2"><CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5" /> Exclusive frameworks + templates</li>
-              <li className="inline-flex items-start gap-2"><CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5" /> Community access and support</li>
+              <li className="inline-flex items-start gap-2"><CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5" /> Private WhatsApp community</li>
               <li className="inline-flex items-start gap-2"><CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5" /> Early bird 1:1 with Chinat</li>
             </ul>
             <div className="mt-6 flex items-center justify-center gap-3">
@@ -360,9 +421,9 @@ export default function AIVibeMasterclassPage() {
             Who Is This For?
           </h2>
           <ul className="mt-6 grid gap-3 sm:gap-4 sm:grid-cols-2 max-w-3xl mx-auto text-gray-800">
-            <li className="inline-flex items-start gap-2"><CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5" /> Builders who want to scale from idea → product.</li>
-            <li className="inline-flex items-start gap-2"><CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5" /> Creatives and hackers interested in coding AND entrepreneurship.</li>
-            <li className="inline-flex items-start gap-2 sm:col-span-2"><CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5" /> Early-stage founders, students, and professionals who want to apply AI in a playful yet practical way.</li>
+            <li className="inline-flex items-start gap-2"><CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5" /> Builders who want to scale from idea → product</li>
+            <li className="inline-flex items-start gap-2"><CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5" /> Creatives & hackers interested in AI + entrepreneurship</li>
+            <li className="inline-flex items-start gap-2 sm:col-span-2"><CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5" /> Students, early-stage founders, and professionals who want playful, practical AI fluency</li>
           </ul>
         </section>
 
@@ -378,19 +439,31 @@ export default function AIVibeMasterclassPage() {
               <AccordionItem value="item-1">
                 <AccordionTrigger>Do I need coding background?</AccordionTrigger>
                 <AccordionContent>
-                  A little helps, but this is about creativity + entrepreneurship as much as coding.
+                  No, curiosity is enough.
                 </AccordionContent>
               </AccordionItem>
               <AccordionItem value="item-2">
                 <AccordionTrigger>Will I launch a startup by the end?</AccordionTrigger>
                 <AccordionContent>
-                  You’ll walk away with the skills, mindset, and frameworks to take your projects to market.
+                  You’ll leave with a launch-ready project and a roadmap.
                 </AccordionContent>
               </AccordionItem>
               <AccordionItem value="item-3">
                 <AccordionTrigger>Can I use my own project idea?</AccordionTrigger>
                 <AccordionContent>
-                  Absolutely — the frameworks apply directly.
+                  Yes, bring it — or jam with the cohort.
+                </AccordionContent>
+              </AccordionItem>
+              <AccordionItem value="item-4">
+                <AccordionTrigger>What if I can’t attend live?</AccordionTrigger>
+                <AccordionContent>
+                  All sessions are recorded, and you’ll have community support.
+                </AccordionContent>
+              </AccordionItem>
+              <AccordionItem value="item-5">
+                <AccordionTrigger>Refund policy?</AccordionTrigger>
+                <AccordionContent>
+                  Full refund if requested before Week 2 begins.
                 </AccordionContent>
               </AccordionItem>
             </Accordion>
@@ -402,7 +475,7 @@ export default function AIVibeMasterclassPage() {
         {/* Final CTA */}
         <section className="mx-auto w-full max-w-3xl sm:max-w-5xl text-center">
           <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-            12 Seats. 5 Weeks. Code, Scale, Launch.
+            12 Seats. 3 Weeks. Code, Scale, Launch.
           </h2>
           <div className="mt-6 flex items-center justify-center gap-3">
             <Link href="/ai-vibe-masterclass/checkout">
