@@ -224,7 +224,7 @@ export default function HomePage() {
       </div>
 
       <ServiceWorkerRegistration />
-      <Footer />
+      {/* <Footer /> */}
     </div>
   );
 }
