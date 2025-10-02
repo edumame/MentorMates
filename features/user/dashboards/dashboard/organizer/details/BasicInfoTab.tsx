@@ -280,6 +280,7 @@ export function BasicInfoTab({
                 const imported = data?.import || {};
                 const merged = {
                   ...event,
+                  slug: imported.slug ?? event.slug,
                   event_name: imported.event_name ?? event.event_name,
                   event_date: imported.event_date ?? event.event_date,
                   location: imported.location ?? event.location,

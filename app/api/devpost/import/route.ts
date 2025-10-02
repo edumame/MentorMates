@@ -34,6 +34,7 @@ const ResourceSchema = z.object({
 });
 
 const EventImportSchema = z.object({
+  slug: z.string().optional(),
   event_name: z.string().optional(),
   event_date: z.string().optional(),
   location: z.string().optional(),
@@ -73,6 +74,29 @@ function extractJsonFromText(text: string): unknown {
     }
   }
   return null;
+}
+
+function slugify(input: string): string {
+  return input
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+function deriveSlugFromUrl(url: string): string | undefined {
+  try {
+    const u = new URL(url);
+    // e.g., stormhacks2025.devpost.com => stormhacks2025
+    const host = u.hostname;
+    const firstLabel = host.split(".")[0] || "";
+    const s = slugify(firstLabel);
+    return s || undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 export async function POST(req: Request) {
@@ -162,6 +186,7 @@ export async function POST(req: Request) {
 
     const systemPrompt = `You are an assistant that converts Devpost hackathon pages into a structured hackathon event JSON used by a Next.js app. Extract ONLY event-level details (not project-level). Output MUST be STRICT JSON with no code fences or commentary and match this TypeScript-like shape:
 {
+  "slug"?: string,                        // url-friendly lowercase-hyphen slug
   "event_name"?: string,
   "event_date"?: string,                 // Prefer YYYY-MM-DD if determinable
   "location"?: string,
@@ -183,6 +208,7 @@ export async function POST(req: Request) {
 
 Rules:
 - If a field is unknown, omit it.
+- If slug is available or derivable (from the page branding/name), include a url-safe lowercase-hyphen slug.
 - Prefer concise, human-friendly markdown in event_description.
 - Derive a short blurb from the first paragraph if possible.
 - Convert dates/times into clear human-readable strings; use YYYY-MM-DD for event_date when possible.
@@ -225,6 +251,21 @@ Rules:
       const iso = coerceToIsoDate(normalized.event_date);
       if (iso) normalized.event_date = iso;
     }
+
+    // Ensure a valid slug is present if derivable
+    const allowed = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+    let finalSlug = normalized.slug && allowed.test(normalized.slug)
+      ? normalized.slug
+      : undefined;
+    if (!finalSlug && normalized.event_name) {
+      const s = slugify(normalized.event_name);
+      if (allowed.test(s)) finalSlug = s;
+    }
+    if (!finalSlug) {
+      const fromUrl = deriveSlugFromUrl(url);
+      if (fromUrl && allowed.test(fromUrl)) finalSlug = fromUrl;
+    }
+    if (finalSlug) normalized.slug = finalSlug;
 
     return NextResponse.json({ import: normalized });
   } catch (error) {
