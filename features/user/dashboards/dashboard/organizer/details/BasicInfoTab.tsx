@@ -51,6 +51,8 @@ export function BasicInfoTab({
   const [updateSlug, setUpdateSlug] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [archiving, setArchiving] = useState(false);
+  const [devpostUrl, setDevpostUrl] = useState("");
+  const [importing, setImporting] = useState(false);
 
   const handleBasicInfoUpdate = async () => {
     if (!event) return;
@@ -244,6 +246,74 @@ export function BasicInfoTab({
             URL-friendly identifier for your event (lowercase, hyphens only)
           </p>
         </div>
+      </div>
+
+      {/* Import from Devpost */}
+      <div className="space-y-2">
+        <Label htmlFor="devpost_url">Import from Devpost</Label>
+        <div className="flex gap-2">
+          <Input
+            id="devpost_url"
+            type="url"
+            placeholder="https://<event>.devpost.com/"
+            value={devpostUrl}
+            disabled={isArchived || importing}
+            onChange={(e) => setDevpostUrl(e.target.value)}
+          />
+          <Button
+            type="button"
+            disabled={isArchived || importing || !devpostUrl}
+            onClick={async () => {
+              if (!event?.event_id) return;
+              try {
+                setImporting(true);
+                const res = await fetch("/api/devpost/import", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ eventId: event.event_id, url: devpostUrl }),
+                });
+                if (!res.ok) {
+                  const body = await res.json().catch(() => ({}));
+                  throw new Error(body?.error || "Failed to import Devpost data");
+                }
+                const data = await res.json();
+                const imported = data?.import || {};
+                const merged = {
+                  ...event,
+                  event_name: imported.event_name ?? event.event_name,
+                  event_date: imported.event_date ?? event.event_date,
+                  location: imported.location ?? event.location,
+                  event_blurb: imported.event_blurb ?? event.event_blurb,
+                  event_description: imported.event_description ?? event.event_description,
+                  submission_time_start: imported.submission_time_start ?? event.submission_time_start,
+                  submission_time_cutoff: imported.submission_time_cutoff ?? event.submission_time_cutoff,
+                  event_schedule: imported.event_schedule ?? event.event_schedule,
+                  rules: imported.rules ?? event.rules,
+                  event_resources: imported.event_resources ?? event.event_resources,
+                } as typeof event;
+                setEvent(merged);
+                toast({
+                  title: "Imported",
+                  description: "Devpost details imported. Review and save your changes.",
+                });
+              } catch (err) {
+                console.error(err);
+                toast({
+                  title: "Import failed",
+                  description: (err as Error).message,
+                  variant: "destructive",
+                });
+              } finally {
+                setImporting(false);
+              }
+            }}
+          >
+            {importing ? "Importing..." : "Import"}
+          </Button>
+        </div>
+        <p className="text-xs text-gray-500">
+          Paste your Devpost event page URL. We'll fetch details and prefill this form using AI.
+        </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
