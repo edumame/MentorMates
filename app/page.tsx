@@ -10,8 +10,8 @@ import { Footer } from "@/components/layout/Footer";
 import { LandingHero } from "@/components/heroes/LandingHero";
 import { Calendar, Folder, MessageSquare } from "lucide-react";
 import posthog from "posthog-js";
-import { SideNav } from "@/components/heroes/components/SideNav";
 import { AuthHero } from "@/components/heroes/AutHero";
+import { SidebarLayout } from "@/components/layout/SidebarLayout";
 
 
 export default function HomePage() {
@@ -143,13 +143,10 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen w-full flex flex-col bg-background">
-      <div className="flex flex-col gap-4">
-        <SideNav />
-        <AuthHero />
-      </div>
+    <SidebarLayout>
+      <AuthHero />
       <ServiceWorkerRegistration />
       {/* <Footer /> */}
-    </div>
+    </SidebarLayout>
   );
 }
