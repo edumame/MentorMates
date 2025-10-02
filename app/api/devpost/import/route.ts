@@ -33,6 +33,29 @@ const ResourceSchema = z.object({
   link: z.string(),
 });
 
+const PrizeImportSchema = z.object({
+  prize_amount: z.string(),
+  prize_description: z.string(),
+});
+
+const CriterionImportSchema = z.object({
+  name: z.string(),
+  description: z.string().optional(),
+  weight: z.number().optional(),
+  min: z.number().optional(),
+  max: z.number().optional(),
+  type: z.enum(["numeric", "multiplechoice"]).optional(),
+  options: z.array(z.string()).optional(),
+});
+
+const TrackImportSchema = z.object({
+  name: z.string(),
+  description: z.string().optional(),
+  label: z.string().optional(),
+  prizes: z.array(PrizeImportSchema).optional(),
+  criteria: z.array(CriterionImportSchema).optional(),
+});
+
 const EventImportSchema = z.object({
   slug: z.string().optional(),
   event_name: z.string().optional(),
@@ -45,6 +68,8 @@ const EventImportSchema = z.object({
   event_schedule: z.array(ScheduleDaySchema).optional(),
   rules: z.array(RuleSectionSchema).optional(),
   event_resources: z.array(ResourceSchema).optional(),
+  faq: z.string().optional(),
+  tracks: z.array(TrackImportSchema).optional(),
 });
 
 function coerceToIsoDate(dateString?: string): string | undefined {
@@ -204,6 +229,22 @@ export async function POST(req: Request) {
   }>,
   "rules"?: Array<{ "title": string, "items": string[] }>,
   "event_resources"?: Array<{ "name": string, "link": string }>
+  "faq"?: string,                        // markdown FAQ if present
+  "tracks"?: Array<{
+    "name": string,
+    "description"?: string,
+    "label"?: string,
+    "prizes"?: Array<{ "prize_amount": string, "prize_description": string }>,
+    "criteria"?: Array<{
+      "name": string,
+      "description"?: string,
+      "weight"?: number,
+      "min"?: number,
+      "max"?: number,
+      "type"?: "numeric" | "multiplechoice",
+      "options"?: string[]
+    }>
+  }>
 }
 
 Rules:
@@ -214,6 +255,7 @@ Rules:
 - Convert dates/times into clear human-readable strings; use YYYY-MM-DD for event_date when possible.
 - Include "What to Submit" items under rules with a suitable section title.
 - Include prominent prize or track summaries in description if relevant.
+ - When tracks or prizes are listed (judging tracks, prize categories), include them in "tracks" and attach prizes to the corresponding track.
 `;
 
     const completion = await openai.chat.completions.create({

@@ -43,6 +43,38 @@ export function BasicInfoTab({
   toast,
   router,
 }: BasicInfoTabProps) {
+  type ImportedPrize = { prize_amount: string; prize_description: string };
+  type ImportedCriterion = {
+    name: string;
+    description?: string;
+    weight?: number;
+    min?: number;
+    max?: number;
+    type?: "numeric" | "multiplechoice";
+    options?: string[];
+  };
+  type ImportedTrack = {
+    name: string;
+    description?: string;
+    label?: string;
+    prizes?: ImportedPrize[];
+    criteria?: ImportedCriterion[];
+  };
+  type ImportedPayload = {
+    slug?: string;
+    event_name?: string;
+    event_date?: string;
+    location?: string;
+    event_blurb?: string;
+    event_description?: string;
+    submission_time_start?: string;
+    submission_time_cutoff?: string;
+    event_schedule?: EventDetails["event_schedule"];
+    rules?: EventDetails["rules"];
+    event_resources?: EventDetails["event_resources"];
+    faq?: string;
+    tracks?: ImportedTrack[];
+  };
   const [selectedCoverImage, setSelectedCoverImage] = useState<File | null>(
     null
   );
@@ -291,7 +323,39 @@ export function BasicInfoTab({
                   event_schedule: imported.event_schedule ?? event.event_schedule,
                   rules: imported.rules ?? event.rules,
                   event_resources: imported.event_resources ?? event.event_resources,
+                  faq: imported.faq ?? event.faq,
                 } as typeof event;
+                // If tracks are provided, prefill into event.event_tracks with minimal structure
+                if (Array.isArray(imported.tracks) && imported.tracks.length > 0) {
+                  const newTracks = imported.tracks.map((t: any) => {
+                    const trackId = crypto.randomUUID();
+                    const prizes = Array.isArray(t?.prizes)
+                      ? t.prizes.map((p: any) => ({
+                          id: `local-${crypto.randomUUID()}`,
+                          track_id: trackId,
+                          prize_amount: String(p?.prize_amount || ""),
+                          prize_description: String(p?.prize_description || ""),
+                        }))
+                      : [];
+                    return {
+                      track_id: trackId,
+                      event_id: event.event_id,
+                      name: String(t?.name || ""),
+                      description: String(t?.description || t?.name || ""),
+                      label: t?.label ? String(t.label) : undefined,
+                      prizes,
+                      scoring_criteria: t?.criteria
+                        ? {
+                            name: String(t.name || "Track"),
+                            criteria: t.criteria,
+                          }
+                        : { name: String(t.name || "Track"), criteria: [] },
+                      created_at: new Date().toISOString(),
+                      updated_at: new Date().toISOString(),
+                    };
+                  });
+                  (merged as any).event_tracks = newTracks;
+                }
                 setEvent(merged);
                 toast({
                   title: "Imported",
