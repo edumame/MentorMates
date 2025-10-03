@@ -46,7 +46,7 @@ export function SideNav() {
         <div className="p-8 w-fit">
             <div className="flex flex-col gap-4">
                 {data.map((item) => (
-                    <Link href={item.href} key={item.name} className="flex items-center gap-2">
+                    <Link href={item.href} key={item.name} className="flex items-center gap-2 hover:bg-blue-100/50 hover:rounded-md hover:w-full p-2">
                         {item.icon}
                         {item.name}
                     </Link>

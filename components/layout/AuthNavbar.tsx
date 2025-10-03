@@ -58,34 +58,6 @@ export function AuthNavbar() {
             />
           </Link>
 
-          {/* Desktop Menu */}
-          <div className="hidden md:flex flex-1 justify-center items-center gap-8">
-            <Link
-              href={`/profile/${session?.user.id}`}
-              className="text-base font-medium text-gray-700 hover:text-blue-600"
-            >
-              My Profile
-            </Link>
-            <Link
-              href="/events"
-              className="text-base font-medium text-gray-700 hover:text-blue-600"
-            >
-              Events
-            </Link>
-            <Link
-              href="/projects"
-              className="text-base font-medium text-gray-700 hover:text-blue-600"
-            >
-              My Projects
-            </Link>
-            <Link
-              href="/resources"
-              className="text-base font-medium text-gray-700 hover:text-blue-600"
-            >
-              Resources
-            </Link>
-          </div>
-
           {/* Desktop Auth Buttons */}
           <div className="hidden md:flex items-center gap-4">
             {session ? (
