@@ -18,9 +18,20 @@ export function AnnouncementBanner() {
         >
             <div className="flex items-center w-full max-w-7xl mx-auto px-4 sm:px-2 py-2 relative">
                 <p className="text-center text-white drop-shadow-md text-sm sm:text-[15px] flex-1 pr-8 sm:pr-12">
-                    <span className="block sm:inline">We just launched the AI Vibe Guide —{" "}</span>
+                    {/* Previous announcement: */}
+                    {/* <span className="block sm:inline">We just launched the AI Vibe Guide —{" "}</span>
                     <Link href="/ai-vibe-guide" className="underline font-medium hover:text-gray-200 whitespace-nowrap">
                         Check it Out.
+                    </Link> */}
+
+                    <span className="block sm:inline">Check out our AI agent bounty program 🤖 —{" "}</span>
+                    <Link
+                        href="https://docs.google.com/document/d/1BWgz7OZ046o60Swv_p9bvPi57yrqt19om_kcpinv_Ao/edit?usp=sharing"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="underline font-medium hover:text-gray-200 whitespace-nowrap"
+                    >
+                        Learn more
                     </Link>
                 </p>
                 <button
