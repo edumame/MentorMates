@@ -24,7 +24,7 @@ export function AnnouncementBanner() {
                         Check it Out.
                     </Link> */}
 
-                    <span className="block sm:inline">Hey, check out our AI agent bounty program —{" "}</span>
+                    <span className="block sm:inline">Check out our AI agent bounty program 🤖 —{" "}</span>
                     <Link
                         href="https://docs.google.com/document/d/1BWgz7OZ046o60Swv_p9bvPi57yrqt19om_kcpinv_Ao/edit?usp=sharing"
                         target="_blank"
