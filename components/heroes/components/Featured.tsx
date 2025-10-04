@@ -260,7 +260,7 @@ export function Featured() {
                   </div>
 
                   <div className="px-5 pb-5 pt-3">
-                    <h3 className="text-xl font-semibold tracking-tight text-gray-900 dark:text-white font-geist tracking-[-0.06em]">
+                    <h3 className="text-xl font-semibold tracking-tight text-gray-900 dark:text-white font-geist tracking-[-0.06em] line-clamp-2 min-h-14">
                       {e.title}
                     </h3>
                     <div className="mt-1 text-sm text-gray-500 dark:text-gray-400">
