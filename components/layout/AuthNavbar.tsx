@@ -8,13 +8,22 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import type { Session } from "@supabase/supabase-js";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Menu, Close } from "@mui/icons-material";
+import { Menu, Close, NotificationsNone } from "@mui/icons-material";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useAdmin } from "@/lib/hooks/use-admin";
 import posthog from "posthog-js";
 
 export function AuthNavbar() {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
+  const isAdmin = useAdmin();
 
   // fetch & subscribe to session
   useEffect(() => {
@@ -58,31 +67,83 @@ export function AuthNavbar() {
             />
           </Link>
 
-          {/* Desktop Auth Buttons */}
+          {/* Desktop Right Controls: notifications + avatar */}
           <div className="hidden md:flex items-center gap-4">
+            <Link
+              href="/notifications"
+              aria-label="Notifications"
+              className="p-2 rounded-full hover:bg-gray-100 text-gray-800"
+            >
+              <NotificationsNone className="h-6 w-6" />
+            </Link>
+
             {session ? (
-              <>
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src={session.user.user_metadata?.avatar_url} />
-                  <AvatarFallback>
-                    {session.user.email?.charAt(0).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <button
-                  onClick={handleSignOut}
-                  className="px-4 py-2 text-base font-medium text-red-600 hover:bg-red-50 rounded-full"
-                >
-                  Sign Out
-                </button>
-              </>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button aria-label="Account menu" className="rounded-full">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage
+                        src={session.user.user_metadata?.avatar_url}
+                      />
+                      <AvatarFallback>
+                        {session.user.email?.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="p-3">
+                  <div className="px-2 pb-3">
+                    <div className="flex items-center gap-2">
+                      <p className="text-xl font-bold leading-tight">
+                        {session.user.user_metadata?.full_name ||
+                          session.user.user_metadata?.name ||
+                          session.user.email?.split("@")[0]}
+                      </p>
+                      {isAdmin && (
+                        <span className="text-sm rounded-full bg-blue-100 text-blue-700 px-3 py-0.5">
+                          Admin
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-base text-gray-700 mt-1">
+                      {session.user.email}
+                    </p>
+                    <Button
+                      variant="defaultGray"
+                      onClick={() => router.push("/onboarding")}
+                      className="mt-4 w-full text-base font-semibold"
+                    >
+                      Set up profile
+                    </Button>
+                  </div>
+                  <DropdownMenuSeparator />
+                  <div className="py-1">
+                    <DropdownMenuItem onClick={() => router.push("/help")}>
+                      Support
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => router.push("/blog")}>
+                      Blog
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={handleSignOut}
+                      className="text-red-600 hover:bg-red-50"
+                    >
+                      Log out
+                    </DropdownMenuItem>
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
             ) : (
-              <Button
-                variant="logIn"
-                className="bg-blue-900 text-white font-semibold py-2 px-6 rounded-full hover:bg-blue-800"
+              <button
                 onClick={handleLogin}
+                aria-label="Log in"
+                className="rounded-full focus:outline-none"
               >
-                Log in
-              </Button>
+                <Avatar className="h-8 w-8">
+                  <AvatarImage src="" />
+                  <AvatarFallback>U</AvatarFallback>
+                </Avatar>
+              </button>
             )}
           </div>
 
