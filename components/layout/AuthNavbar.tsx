@@ -111,7 +111,7 @@ export function AuthNavbar() {
                     <Button
                       variant="defaultGray"
                       onClick={() => router.push("/onboarding")}
-                      className="mt-4 w-full text-base font-semibold"
+                      className="mt-4 w-full text-base"
                     >
                       Set up profile
                     </Button>
