@@ -1,93 +1,94 @@
 import { Calendar, Folder, MessageSquare } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { createClient } from "@/app/utils/supabase/client";
+import { Session } from "@supabase/supabase-js";
+
+interface Stats {
+    events: number;
+    projects: number;
+    feedback: number;
+}
 
 export function AuthHero() {
-    const [loadingStats, setLoadingStats] = useState(false);
-    const [stats, setStats] = useState({ events: 0, projects: 0, feedback: 0 });
+    const [loadingStats, setLoadingStats] = useState<boolean>(true);
+    const [stats, setStats] = useState<Stats>({
+        events: 0,
+        projects: 0,
+        feedback: 0,
+    });
+    const [userName, setUserName] = useState<string>("MentorMate");
+
+    useEffect(() => {
+        const fetchStatsAndUser = async () => {
+        setLoadingStats(true);
+        try {
+            const supabase = createClient();
+
+            // Get user session
+            const {
+            data: { session },
+            } = await supabase.auth.getSession();
+
+            if (session?.user) {
+            // Fetch user profile (assuming 'profiles' table with 'full_name' or 'username')
+            const { data: profile } = await supabase
+                .from("profiles")
+                .select("full_name, username")
+                .eq("id", session.user.id)
+                .single();
+
+            const full =
+                profile?.full_name ||
+                profile?.username ||
+                session.user.email?.split("@")[0] ||
+                "MentorMate";
+            const first = full.trim().split(/\s+/)[0];
+            setUserName(first);
+            }
+
+            // Fetch stats (replace with actual table names and logic)
+            const [
+            { count: eventsCount },
+            { count: projectsCount },
+            { count: feedbackCount },
+            ] = await Promise.all([
+            supabase.from("events").select("*", { count: "exact", head: true }),
+            supabase.from("projects").select("*", { count: "exact", head: true }),
+            supabase.from("feedback").select("*", { count: "exact", head: true }),
+            ]);
+
+            setStats({
+            events: eventsCount ?? 0,
+            projects: projectsCount ?? 0,
+            feedback: feedbackCount ?? 0,
+            });
+        } catch (error) {
+            // Optionally log error
+            setStats({ events: 0, projects: 0, feedback: 0 });
+        } finally {
+            setLoadingStats(false);
+        }
+        };
+
+        fetchStatsAndUser();
+    }, []);
 
     return (
-        <div className="flex-1">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32">
-            <h1 className="text-4xl sm:text-5xl font-bold text-blue-900 mb-2">
-                Welcome to MentorMates
-            </h1>
-            <p className="text-lg text-gray-700 max-w-2xl font-light mb-6">
-                Find your event to start getting personalized feedback and guidance
-                for your projects.
-            </p>
-
-            {/* Stats */}
-            {loadingStats ? (
-                <div className="h-20 flex items-center justify-center">
-                <p className="text-gray-500 text-sm">Loading stats...</p>
-                </div>
-            ) : (
-                <div className="flex items-center justify-around mb-4 text-blue-900">
-                <div className="flex flex-col items-center">
-                    <span className="text-gray-500 text-sm">Events</span>
-                    <span className="text-xl">{stats.events}</span>
-                </div>
-                <div className="flex flex-col items-center">
-                    <span className="text-gray-500 text-sm">Projects</span>
-                    <span className="text-xl">{stats.projects}</span>
-                </div>
-                <div className="flex flex-col items-center">
-                    <span className="text-gray-500 text-sm">Feedback</span>
-                    <span className="text-xl">{stats.feedback}</span>
-                </div>
-                </div>
-            )}
-
-            {/* Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 px-4">
-                <div className="bg-white shadow rounded-lg p-6 flex flex-col">
-                <div className="flex items-center mb-4">
-                    <Calendar className="w-8 h-8 text-blue-900 mr-2" />
-                    <h2 className="text-xl font-bold text-blue-900">Events</h2>
-                </div>
-                <p className="text-gray-600 text-sm sm:text-base mb-4">
-                    Check your upcoming events or create new ones.
-                </p>
-                <Link href="/events" className="mt-auto">
-                    <Button className="bg-blue-900 text-white w-full sm:w-auto">
-                    View Events
-                    </Button>
-                </Link>
-                </div>
-
-                <div className="bg-white shadow rounded-lg p-6 flex flex-col">
-                <div className="flex items-center mb-4">
-                    <Folder className="w-8 h-8 text-blue-900 mr-2" />
-                    <h2 className="text-xl font-bold text-blue-900">Projects</h2>
-                </div>
-                <p className="text-gray-600 text-sm sm:text-base mb-4">
-                    Track and update your project progress.
-                </p>
-                <Link href="/projects" className="mt-auto">
-                    <Button className="bg-blue-900 text-white w-full sm:w-auto">
-                    View Projects
-                    </Button>
-                </Link>
-                </div>
-
-                <div className="bg-white shadow rounded-lg p-6 flex flex-col">
-                <div className="flex items-center mb-4">
-                    <MessageSquare className="w-8 h-8 text-blue-900 mr-2" />
-                    <h2 className="text-xl font-bold text-blue-900">Feedback</h2>
-                </div>
-                <p className="text-gray-600 text-sm sm:text-base mb-4">
-                    Review the feedback you have provided.
-                </p>
-                <Link href="/feedback/given" className="mt-auto">
-                    <Button className="bg-blue-900 text-white w-full sm:w-auto">
-                    View Feedback
-                    </Button>
-                </Link>
-                </div>
-            </div>
-            </div>
+        <div
+        className="
+                flex flex-col items-start gap-12 flex-1
+                rounded-tl-2xl
+                border-t border-l border-[#D8D8D8]
+                bg-white
+                [background:linear-gradient(203deg,rgba(219,234,254,0.25)_13.19%,rgba(255,255,255,0.00)_65.83%),#FFF]
+                px-8 py-6
+            "
+        >
+        <div className="flex flex-col items-start gap-4">
+            <h1 className="text-2xl font-bold">Welcome, {userName}!</h1>
         </div>
-    )
+        </div>
+    );
 }

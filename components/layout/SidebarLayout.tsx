@@ -9,7 +9,7 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
   return (
     <div className="min-h-screen flex pt-5">
       {/* Desktop Sidebar - Hidden on mobile */}
-      <aside className="hidden lg:block bg-white border-r border-gray-200 flex-shrink-0">
+      <aside className="hidden lg:block bg-white flex-shrink-0">
         <SideNav />
       </aside>
 
