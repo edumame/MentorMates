@@ -71,12 +71,13 @@ export default async function EventOverviewPage({ params }: PageProps) {
   const typedEvent = eventData as EventDetails;
   const tracks = (tracksData || []) as EventTrack[];
 
-  // Check if user has joined
+  // Check if user has joined and get their role
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
   let hasJoined = false;
+  let isParticipant = false;
 
   if (user) {
     const { data: userEventRole } = await supabase
@@ -87,6 +88,7 @@ export default async function EventOverviewPage({ params }: PageProps) {
       .maybeSingle();
 
     hasJoined = !!userEventRole;
+    isParticipant = userEventRole?.role === "participant";
   }
 
   return (
@@ -120,6 +122,22 @@ export default async function EventOverviewPage({ params }: PageProps) {
           </div>
         </CardContent>
       </Card>
+
+      {/* Paywall Content - Only shown to participants */}
+      {isParticipant && typedEvent.paywall_content && (
+        <Card className="mb-8 border-2 border-yellow-200 bg-yellow-50">
+          <CardHeader>
+            <CardTitle className="text-yellow-800">
+              🔒 Exclusive Content for Participants
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="prose prose-blue max-w-none">
+              <ReactMarkdown>{typedEvent.paywall_content}</ReactMarkdown>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Rules */}
       {typedEvent.rules && typedEvent.rules.length > 0 && (

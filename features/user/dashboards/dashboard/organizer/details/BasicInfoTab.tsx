@@ -497,8 +497,8 @@ export function BasicInfoTab({
         </Alert>
       </div>
 
-      {/* Paywall Content - Only show for paid events (below description) */}
-      {event.paid && (
+      {/* Paywall Content - Only show for participants (below description) */}
+
         <div className="space-y-2">
           <Alert className="border-yellow-200 bg-yellow-50">
             <AlertTitle className="text-yellow-800">🔒 Exclusive Content for Participants</AlertTitle>
@@ -538,7 +538,6 @@ export function BasicInfoTab({
             </div>
           </Alert>
         </div>
-      )}
 
       <div className="space-y-2">
         <Label htmlFor="cover_image">Cover Image</Label>
