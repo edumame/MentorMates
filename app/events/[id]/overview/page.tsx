@@ -77,7 +77,6 @@ export default async function EventOverviewPage({ params }: PageProps) {
   } = await supabase.auth.getUser();
 
   let hasJoined = false;
-  let isParticipant = false;
 
   if (user) {
     const { data: userEventRole } = await supabase
@@ -88,7 +87,6 @@ export default async function EventOverviewPage({ params }: PageProps) {
       .maybeSingle();
 
     hasJoined = !!userEventRole;
-    isParticipant = userEventRole?.role === "participant";
   }
 
   return (
@@ -123,12 +121,12 @@ export default async function EventOverviewPage({ params }: PageProps) {
         </CardContent>
       </Card>
 
-      {/* Paywall Content - Only shown to participants */}
-      {isParticipant && typedEvent.paywall_content && (
+      {/* Paywall Content - Only shown to people who have joined */}
+      {hasJoined && typedEvent.paywall_content && (
         <Card className="mb-8 border-2 border-yellow-200 bg-yellow-50">
           <CardHeader>
             <CardTitle className="text-yellow-800">
-              🔒 Exclusive Content for Participants
+              🔒 Exclusive Content for People In the Event
             </CardTitle>
           </CardHeader>
           <CardContent>
