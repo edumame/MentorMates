@@ -301,7 +301,7 @@ export function AuthNavbar() {
             Learn
           </Link>
           <Link
-            href="/project"
+            href="/events"
             className="flex items-center gap-2 text-gray-700 font-medium hover:text-blue-600"
             onClick={() => setIsOpen(false)}
           >
@@ -325,7 +325,7 @@ export function AuthNavbar() {
                 fill="currentColor"
               />
             </svg>
-            Project
+            Events
           </Link>
           <Link
             href="/feedback"
@@ -359,11 +359,11 @@ export function AuthNavbar() {
             My Profile
           </Link>
           <Link
-            href="/projects"
+            href="/events"
             className="block text-gray-700 font-medium hover:text-blue-600"
             onClick={() => setIsOpen(false)}
           >
-            My Projects
+            My Events
           </Link>
           <Link
             href="/resources"
