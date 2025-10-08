@@ -53,6 +53,6 @@ export const data: LearnItem[] = [
         description: "Step-by-step to set up your Lovable.dev workspace and Pro Plan.",
         source: "https://docs.google.com/document/d/1237DrCLjCJKUY65Sh2gfHhWYe8Ids6e7AK9yn-ZkHs8/edit?usp=drivesdk",
         readingTime: 5,
-        thumbnail: "/img/placeholder.png",
+        thumbnail: "/img/lovable.svg",
     },
 ];
