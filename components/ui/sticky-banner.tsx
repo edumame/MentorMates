@@ -1,6 +1,5 @@
 "use client";
 import React, {
-  useEffect,
   useLayoutEffect,
   useRef,
   useState,
@@ -11,7 +10,6 @@ import { cn } from "@/lib/utils";
 export const StickyBanner = ({
   className,
   children,
-  hideOnScroll = false,
   style,
 }: {
   className?: string;

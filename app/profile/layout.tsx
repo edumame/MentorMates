@@ -1,6 +1,6 @@
 import React from "react";
 import { SidebarLayout } from "@/components/layout/SidebarLayout";
-import { AuthNavbar } from "@/components/layout/AuthNavbar";
+import { ConditionalNavbar } from "@/components/layout/ConditionalNavbar";
 
 export default function ProfileLayout({
   children,
@@ -9,8 +9,8 @@ export default function ProfileLayout({
 }) {
   return (
     <div className="min-h-screen bg-gray-50">
-      <AuthNavbar />
-      <div className="pt-16">
+      <ConditionalNavbar />
+      <div className="pt-2">
         <SidebarLayout>{children}</SidebarLayout>
       </div>
     </div>

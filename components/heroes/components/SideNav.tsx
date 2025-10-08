@@ -129,7 +129,7 @@ const ProfileIcon = (
 
 const data = [
   { name: "Home", href: "/", icon: HomeIcon },
-  { name: "Event", href: "/events", icon: EventIcon },
+  { name: "Events", href: "/events", icon: EventIcon },
   { name: "Learn", href: "/learn", icon: BookIcon },
   { name: "Projects", href: "/projects", icon: ProjectIcon },
   { name: "Feedback", href: "/feedback", icon: FeedbackIcon },

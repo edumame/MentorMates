@@ -1,6 +1,6 @@
 import React from "react";
 import { SidebarLayout } from "@/components/layout/SidebarLayout";
-import { AuthNavbar } from "@/components/layout/AuthNavbar";
+import { ConditionalNavbar } from "@/components/layout/ConditionalNavbar";
 
 export default function EventsLayout({
   children,
@@ -9,7 +9,7 @@ export default function EventsLayout({
 }) {
   return (
     <div className="min-h-screen bg-white">
-      <AuthNavbar />
+      <ConditionalNavbar />
       <div>
         <SidebarLayout>{children}</SidebarLayout>
       </div>

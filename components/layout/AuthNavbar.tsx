@@ -18,23 +18,53 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAdmin } from "@/lib/hooks/use-admin";
 import posthog from "posthog-js";
+import { UserProfile } from "@/lib/types";
+
+interface ExtendedUserProfile extends UserProfile {
+  onboarding_metadata: object;
+}
 
 export function AuthNavbar() {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
   const isAdmin = useAdmin();
+  const [userProfile, setUserProfile] = useState<ExtendedUserProfile | null>(
+    null
+  );
+  const [isLoading, setIsLoading] = useState(true);
 
   // fetch & subscribe to session
   useEffect(() => {
+    setIsLoading(true);
     supabase.auth
       .getSession()
       .then(({ data: { session } }) => setSession(session));
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_, s) => setSession(s));
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+      setIsLoading(false);
+    };
+
   }, []);
+
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      setIsLoading(true);
+      const { data: userProfileData } = await supabase
+        .from("user_profiles")
+        .select("*")
+        .eq("uid", session?.user?.id)
+        .single();
+      setUserProfile(userProfileData);
+      setIsLoading(false);
+    };
+    if (session) {
+      fetchUserProfile();
+    }
+  }, [session]);
 
   const handleLogin = () => {
     if (typeof window !== "undefined") {
@@ -108,13 +138,26 @@ export function AuthNavbar() {
                     <p className="text-base text-gray-700 mt-1">
                       {session.user.email}
                     </p>
-                    <Button
-                      variant="defaultGray"
-                      onClick={() => router.push("/onboarding")}
-                      className="mt-4 w-full text-base"
-                    >
-                      Set up profile
-                    </Button>
+
+                    {!userProfile?.onboarding_metadata ? (
+                      <Button
+                        variant="defaultGray"
+                        onClick={() => router.push("/onboarding")}
+                        className="mt-4 w-full text-base"
+                      >
+                        Set up profile
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="defaultGray"
+                        onClick={() =>
+                          router.push(`/profile/${session?.user?.id}`)
+                        }
+                        className="mt-4 w-full text-base"
+                      >
+                        View profile
+                      </Button>
+                    )}
                   </div>
                   <DropdownMenuSeparator />
                   <div className="py-1">
