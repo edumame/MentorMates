@@ -7,7 +7,7 @@ interface SidebarLayoutProps {
 
 export function SidebarLayout({ children }: SidebarLayoutProps) {
   return (
-    <div className="min-h-screen flex pt-5">
+    <div className="min-h-screen flex">
       {/* Desktop Sidebar - Hidden on mobile */}
       <aside className="hidden lg:block bg-white flex-shrink-0">
         <SideNav />
