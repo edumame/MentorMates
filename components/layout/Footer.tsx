@@ -100,8 +100,8 @@ export function Footer() {
                         </Link>
                     </li>
                     <li>
-                        <Link href="/project" className="hover:text-gray-900">
-                        Projects
+                        <Link href="/events" className="hover:text-gray-900">
+                        Events
                         </Link>
                     </li>
                     </ul>
