@@ -15,7 +15,7 @@ export async function GET() {
     } = await supabase.auth.getUser();
 
     if (!user) {
-      // If not authenticated, only return public and private events
+      // If not authenticated, only return public and private events (exclude archived)
       const { data: visibleEvents, error: visibleError } = await supabase
         .from("events")
         .select(
@@ -27,7 +27,7 @@ export async function GET() {
           event_date,
           visibility`
         )
-        .in("visibility", [EventVisibility.Public, EventVisibility.Private, EventVisibility.Archived]);
+        .in("visibility", [EventVisibility.Public, EventVisibility.Private]);
 
       if (visibleError) throw visibleError;
       return NextResponse.json({ events: visibleEvents });
@@ -61,19 +61,20 @@ export async function GET() {
       // No additional filter needed
     } else if (organizerEventIds.length > 0) {
       // For organizers:
-      // - Public, private, and archived events (visible to everyone)
+      // - Public and private events (visible to everyone)
       // - Draft events where user is an organizer
+      // - Archived events where user is an organizer
       // - No demo or test events
       query = query.or(
-        `visibility.in.(${[EventVisibility.Public, EventVisibility.Private, EventVisibility.Archived].join(",")}),` +
-          `and(visibility.eq.${EventVisibility.Draft},event_id.in.(${organizerEventIds.join(",")}))`
+        `visibility.in.(${[EventVisibility.Public, EventVisibility.Private].join(",")}),` +
+          `and(visibility.eq.${EventVisibility.Draft},event_id.in.(${organizerEventIds.join(",")})),` +
+          `and(visibility.eq.${EventVisibility.Archived},event_id.in.(${organizerEventIds.join(",")}))`
       );
     } else {
-      // Regular users only see public, private, and archived events
+      // Regular users only see public and private events (exclude archived)
       query = query.in("visibility", [
         EventVisibility.Public,
         EventVisibility.Private,
-        EventVisibility.Archived,
       ]);
     }
 
