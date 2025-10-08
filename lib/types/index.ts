@@ -1,4 +1,12 @@
 // Core Event Types
+export enum EventRoleEnum {
+  Participant = 1,
+  Mentor = 2,
+  Judge = 3,
+  Organizer = 4,
+  Admin = 5,
+}
+
 export enum EventRole {
   Participant = "participant",
   Mentor = "mentor",
@@ -13,6 +21,77 @@ export enum EventVisibility {
   Private = "private",
   Public = "public",
   Draft = "draft",
+  Archived = "archived",
+}
+
+// Pricing Types
+export interface PricingTier {
+  id: string;
+  event_id: string;
+  tier_id: string; // Unique identifier within the event (e.g., "early-bird", "regular")
+  name: string;
+  price: number; // Price in cents
+  stripe_price_id?: string;
+  description?: string;
+  available_until?: string; // ISO date string for limited-time offers
+  max_quantity?: number; // Maximum number of tickets for this tier
+  current_quantity?: number; // Current number sold (for tracking)
+  is_active?: boolean;
+  sort_order?: number;
+  created_at?: string;
+  updated_at?: string;
+  bundle_size?: number;
+  _markedForDeletion?: boolean; // Local state flag for pending deletion
+}
+
+// Coupon Types
+export type CouponStatus = 'active' | 'inactive' | 'expired';
+export type CouponDuration = 'once' | 'repeating' | 'forever';
+
+export interface Coupon {
+  id: string;
+  event_id: string;
+  stripe_coupon_id: string;
+  name: string;
+  percent_off?: number; // Percentage discount (1-100)
+  amount_off?: number; // Fixed amount discount in cents
+  currency?: string; // Currency for amount_off (e.g., 'usd')
+  duration: CouponDuration;
+  duration_in_months?: number; // For 'repeating' duration
+  max_redemptions?: number; // Maximum uses across all users
+  redeem_by?: string; // Expiration date (ISO string)
+  status: CouponStatus;
+  created_by_user_id?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PromoCode {
+  id: string;
+  coupon_id: string;
+  code: string; // The actual promo code (e.g., "EARLYBIRD2024")
+  usage_count: number; // Number of times this code has been used
+  max_uses?: number; // Maximum uses for this specific code (null = unlimited)
+  is_active: boolean; // Whether this code can be used
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CouponWithCodes extends Coupon {
+  promo_codes: PromoCode[];
+}
+
+export interface CreateCouponRequest {
+  couponName: string;
+  eventId: string;
+  percent_off?: number;
+  amount_off?: number;
+  currency?: string;
+  duration: CouponDuration;
+  duration_in_months?: number;
+  max_redemptions?: number;
+  redeem_by?: string;
+  codes?: string[]; // Optional promo codes to create with the coupon
 }
 
 export interface UserProfile {
@@ -29,8 +108,9 @@ export type EventItem = {
   visibility?: EventVisibility;
   cover_image_url?: string;
   scoring_config?: EventScoringConfig;
-  paid?: boolean; 
+  paid?: boolean;
   stripe_price_id?: string; // Stripe price ID for paid events
+  participant_capacity?: number | null; // Max participants; null = unlimited
 };
 
 // Event Overview Types
@@ -94,6 +174,15 @@ export interface EventDetails extends EventItem {
   faq?: string; // Optional markdown FAQ content
   submission_time_start?: string; // Submission window start time
   submission_time_cutoff?: string; // Submission window end time
+  sponsorship_tiers?: {
+    tiers?: Array<{
+      id: string; // e.g., "bronze" | "silver" | "gold" or custom
+      label: string;
+      price: number; // in cents
+      benefits?: string[];
+      sort?: number;
+    }>;
+  } | null;
 }
 
 // Project Types
@@ -114,6 +203,8 @@ export interface Project {
   cover_image_url?: string;
   event_name?: string;
   prizes_won?: Prize[];
+  contextus_project_id?: string;
+  submitted?: boolean;
 }
 
 export enum ProjectBoardContext {
@@ -198,6 +289,7 @@ export interface SupabaseProjectData {
   cover_image_url?: string;
   event_id: string;
   created_at: string;
+  submitted?: boolean;
   project_tracks?: Array<{
     track_id: string;
     event_tracks?: Array<{
@@ -244,6 +336,7 @@ export interface ProjectFromDatabase {
   cover_image_url?: string;
   event_id: string;
   created_at: string;
+  submitted?: boolean;
   project_tracks?: Array<{
     event_tracks?: EventTrack;
   }>;
@@ -265,4 +358,5 @@ export interface DevpostProjectImport {
   lead_email: string;
   event_id: string;
   video_url?: string;
+  teammates?: string[];
 }

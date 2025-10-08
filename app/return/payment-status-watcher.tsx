@@ -137,7 +137,7 @@ export function PaymentStatusWatcher({ sessionId, eventId, customerEmail }: Paym
         clearTimeout(processingTimer);
       }
     };
-  }, [sessionId, remountKey]); // Include remountKey in dependencies to trigger remount
+  }, [sessionId, remountKey, retryCount]); // Include remountKey in dependencies to trigger remount
 
   // Show loading state while fetching payment record
   if (isLoading) {

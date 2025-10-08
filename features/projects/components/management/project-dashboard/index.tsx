@@ -1,11 +1,21 @@
 "use client";
 
+// TODO: CHECK TO SEE IF THIS IS STILL USED/NEEDED, ELSE DELETE!!!
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import QRCode from "react-qr-code";
 import { Button } from "@/components/ui/button";
 import { notFound, useRouter } from "next/navigation";
-import { Edit2, X, Download, Copy, ExternalLink, Trash2 } from "lucide-react";
+import {
+  Edit2,
+  X,
+  Download,
+  Copy,
+  ExternalLink,
+  Trash2,
+  Eye,
+  EyeOff,
+} from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -47,6 +57,7 @@ export default function ProjectDashboardSection({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [feedback, setFeedback] = useState<FeedbackItem[]>([]);
   const [isLoadingFeedback, setIsLoadingFeedback] = useState(true);
+  const [showContextusId, setShowContextusId] = useState(false);
 
   const handleDelete = async () => {
     try {
@@ -117,11 +128,12 @@ export default function ProjectDashboardSection({
       if (!project) {
         notFound();
       } else {
-
         setProjectData(project as Project);
         setEditedData(project as Project);
         if (project.additional_materials_url) {
-          setCurrentFileName(getFileNameFromUrl(project.additional_materials_url));
+          setCurrentFileName(
+            getFileNameFromUrl(project.additional_materials_url)
+          );
         }
       }
 
@@ -348,7 +360,6 @@ export default function ProjectDashboardSection({
     }
   };
 
-
   if (isLoading) {
     return (
       <Card className="p-6">
@@ -572,6 +583,59 @@ export default function ProjectDashboardSection({
                         >
                           Download Project Materials
                         </a>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {projectData.contextus_project_id && (
+                  <div className="bg-purple-50 p-4 rounded-lg">
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-lg font-semibold text-purple-900">
+                        Contextus Integration
+                      </h3>
+                      <Button
+                        onClick={() => setShowContextusId(!showContextusId)}
+                        variant="ghost"
+                        size="sm"
+                        className="flex items-center gap-2"
+                      >
+                        {showContextusId ? (
+                          <>
+                            <EyeOff className="w-4 h-4" />
+                            Hide ID
+                          </>
+                        ) : (
+                          <>
+                            <Eye className="w-4 h-4" />
+                            Reveal ID
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                    {showContextusId && (
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-gray-600">
+                          Project ID:
+                        </span>
+                        <code className="bg-white px-2 py-1 rounded text-sm font-mono text-purple-700">
+                          {projectData.contextus_project_id}
+                        </code>
+                        <Button
+                          onClick={() => {
+                            navigator.clipboard.writeText(
+                              projectData.contextus_project_id!
+                            );
+                            toast({
+                              title: "Copied",
+                              description: "Contextus ID copied to clipboard",
+                            });
+                          }}
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2"
+                        >
+                          <Copy className="w-3 h-3" />
+                        </Button>
                       </div>
                     )}
                   </div>

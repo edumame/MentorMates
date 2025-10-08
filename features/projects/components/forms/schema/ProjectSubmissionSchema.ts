@@ -20,9 +20,7 @@ export const formSchema = z.object({
   teammates: z.array(z.string()).optional(),
   projectUrl: z.string().url().optional().or(z.literal("")),
   videoUrl: z.string().url().optional().or(z.literal("")),
-  trackIds: z.array(z.string()).min(1, {
-    message: "Please select at least one track.",
-  }),
+  trackIds: z.array(z.string()),
   coverImage: z
     .custom<FileList>()
     .optional()

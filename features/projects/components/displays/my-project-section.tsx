@@ -65,13 +65,12 @@ export default function MyProjectSection({ eventId }: MyProjectSectionProps) {
             <h2 className="text-2xl font-semibold">My Project</h2>
             <Link href={`/events/${eventId}/submit`}>
               <Button className="bg-black text-white hover:bg-black/90">
-                Submit My Project
+                Create Project
               </Button>
             </Link>
           </div>
           <p className="text-gray-600">
-            No project submitted yet! Click the button above to submit your
-            project.
+            No project yet! Click the button above to create your project and save as you go.
           </p>
         </div>
       </Card>

@@ -46,11 +46,11 @@ export function StepNavigation({
     >
       {isSubmitting ? (
         <>
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          <Loader2 className="mr-2 h-4 w-4 animate-spin text-blue-900" />
           Submitting...
         </>
       ) : (
-        "Submit Project"
+        "Finalize & Submit"
       )}
     </Button>
   );

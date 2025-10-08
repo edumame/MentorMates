@@ -5,7 +5,8 @@ import { Card, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { EventRole } from "@/lib/types";
+import { EventRole, EventVisibility } from "@/lib/types";
+import { getRoleLabel } from "@/features/user/roles/roles";
 
 interface Event {
   event_id: string;
@@ -14,6 +15,8 @@ interface Event {
   event_date: string;
   location: string;
   cover_image_url?: string;
+  role_labels?: Record<string, string>;
+  visibility?: EventVisibility;
 }
 
 interface UserEventRole {
@@ -66,22 +69,20 @@ export function EventsList({ events }: EventsListProps) {
     return userEventRole ? userEventRole.role : null;
   };
 
-  const getRoleBadgeVariant = (
-    role: EventRole
-  ): "participant" | "mentor" | "judge" | "organizer" | "admin" => {
+  const getRoleBadgeVariant = (role: EventRole): EventRole => {
     switch (role) {
       case EventRole.Admin:
-        return "admin";
+        return EventRole.Admin;
       case EventRole.Organizer:
-        return "organizer";
+        return EventRole.Organizer;
       case EventRole.Judge:
-        return "judge";
+        return EventRole.Judge;
       case EventRole.Mentor:
-        return "mentor";
+        return EventRole.Mentor;
       case EventRole.Participant:
-        return "participant";
+        return EventRole.Participant;
       default:
-        return "participant";
+        return EventRole.Participant;
     }
   };
 
@@ -120,13 +121,18 @@ export function EventsList({ events }: EventsListProps) {
                   <Badge variant="outline" className="text-xs sm:text-sm">
                     {event.location}
                   </Badge>
+                  {event.visibility === EventVisibility.Archived && (
+                    <Badge variant="secondary" className="bg-orange-100 text-orange-800 text-xs sm:text-sm">
+                      📁 Archived
+                    </Badge>
+                  )}
                 </div>
                 {userRole && (
                   <Badge
                     variant={getRoleBadgeVariant(userRole)}
                     className="capitalize text-xs sm:text-sm mt-1 sm:mt-2"
                   >
-                    {userRole}
+                    {getRoleLabel(userRole, event.role_labels)}
                   </Badge>
                 )}
               </div>

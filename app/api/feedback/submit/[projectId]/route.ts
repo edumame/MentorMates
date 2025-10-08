@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import OpenAI from "openai";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+const openai = process.env.OPENAI_API_KEY
+  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  : null as unknown as OpenAI;
 
 export async function POST(
   request: Request,
@@ -42,6 +42,10 @@ export async function POST(
       { error: "Could not find project" },
       { status: 404 }
     );
+  }
+
+  if (!process.env.OPENAI_API_KEY) {
+    return NextResponse.json({ error: "Moderation service not configured" }, { status: 500 });
   }
 
   const moderation = await openai.moderations.create({

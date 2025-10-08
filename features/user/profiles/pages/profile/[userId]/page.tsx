@@ -1,6 +1,6 @@
 "use client";
 import { useParams } from "next/navigation";
-import { supabase } from "@/lib/supabase";  
+import { supabase } from "@/lib/supabase";
 import { useState, useEffect } from "react";
 import type { Session } from "@supabase/supabase-js";
 import {
@@ -12,7 +12,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Pencil, Globe } from "lucide-react";
+import { Edit, Language } from "@mui/icons-material";
 import { FaLinkedin, FaGithub, FaXTwitter } from "react-icons/fa6";
 import Link from "next/link";
 import ProjectBoard from "@/features/projects/components/displays/ProjectBoard/ProjectBoard";
@@ -20,6 +20,8 @@ import { motion } from "framer-motion";
 import { useToast } from "@/lib/hooks/use-toast";
 import { Toaster } from "@/components/ui/toaster";
 import Image from "next/image";
+import { getRoleLabel } from "@/features/user/roles/roles";
+import { Loader2 } from "lucide-react";
 
 interface EventWithRole extends EventItem {
   user_event_roles: {
@@ -72,15 +74,14 @@ export default function ProfilePage() {
         // Fetch user profile data using API
         const response = await fetch(`/api/users/${userId}/profile`);
         if (!response.ok) {
-          throw new Error('Failed to fetch profile data');
+          throw new Error("Failed to fetch profile data");
         }
-        
+
         const data = await response.json();
         setUserProfile(data.profile);
         setNewSocialLinks(data.profile.links || {});
         setProjects(data.projects);
         setEvents(data.events);
-        
       } catch (error) {
         console.error("Error fetching data:", error);
       } finally {
@@ -96,14 +97,14 @@ export default function ProfilePage() {
 
     try {
       const response = await fetch(`/api/users/${userId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ display_name: newDisplayName }),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to update display name');
+        throw new Error(errorData.error || "Failed to update display name");
       }
 
       toast({
@@ -117,7 +118,8 @@ export default function ProfilePage() {
     } catch (error) {
       toast({
         title: "Error updating display name",
-        description: error instanceof Error ? error.message : "Please try again later",
+        description:
+          error instanceof Error ? error.message : "Please try again later",
         variant: "destructive",
       });
       console.error("Error updating display name:", error);
@@ -127,14 +129,14 @@ export default function ProfilePage() {
   const handleUpdateSocialLinks = async () => {
     try {
       const response = await fetch(`/api/users/${userId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ links: newSocialLinks }),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to update social links');
+        throw new Error(errorData.error || "Failed to update social links");
       }
 
       toast({
@@ -148,7 +150,8 @@ export default function ProfilePage() {
     } catch (error) {
       toast({
         title: "Error updating social links",
-        description: error instanceof Error ? error.message : "Please try again later",
+        description:
+          error instanceof Error ? error.message : "Please try again later",
         variant: "destructive",
       });
       console.error("Error updating social links:", error);
@@ -203,7 +206,7 @@ export default function ProfilePage() {
                     }}
                     className="absolute -right-8 top-1/2 -translate-y-1/2 p-1 opacity-0 group-hover:opacity-100 hover:bg-gray-100 rounded-full transition-all"
                   >
-                    <Pencil className="w-5 h-5 text-gray-600" />
+                    <Edit className="w-5 h-5 text-gray-600" />
                   </button>
                 )} */}
               </>
@@ -235,8 +238,8 @@ export default function ProfilePage() {
             <div>
               {isLoading ? (
                 <div className="text-center py-8">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
-                  <p className="mt-4 text-gray-600">Loading projects...</p>
+                  <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                
                 </div>
               ) : projects.length === 0 ? (
                 <div className="text-center py-8">
@@ -260,8 +263,7 @@ export default function ProfilePage() {
             <div>
               {isLoading ? (
                 <div className="text-center py-8">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
-                  <p className="mt-4 text-gray-600">Loading events...</p>
+                  <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
                 </div>
               ) : events.length === 0 ? (
                 <div className="text-center py-8">
@@ -310,7 +312,9 @@ export default function ProfilePage() {
                             )}
                           </div>
                           <Badge variant={event.user_event_roles?.[0]?.role}>
-                            {event.user_event_roles?.[0]?.role}
+                            {getRoleLabel(
+                              event.user_event_roles?.[0]?.role as EventRole
+                            )}
                           </Badge>
                         </div>
                       </CardContent>
@@ -334,7 +338,7 @@ export default function ProfilePage() {
                         }}
                         className="p-2 hover:bg-gray-100 rounded-full transition-all"
                       >
-                        <Pencil className="w-5 h-5 text-gray-600" />
+                        <Edit className="w-5 h-5 text-gray-600" />
                       </button>
                     )}
                   </CardTitle>
@@ -385,7 +389,7 @@ export default function ProfilePage() {
                         />
                       </div>
                       <div className="flex items-center gap-2">
-                        <Globe className="w-5 h-5 text-gray-600" />
+                        <Language className="w-5 h-5 text-gray-600" />
                         <Input
                           type="url"
                           placeholder="Portfolio Website URL"
@@ -455,7 +459,7 @@ export default function ProfilePage() {
                           rel="noopener noreferrer"
                           className="flex items-center gap-2 text-gray-600 hover:text-gray-800"
                         >
-                          <Globe className="w-5 h-5" />
+                          <Language className="w-5 h-5" />
                           <span>Portfolio Website</span>
                         </a>
                       )}

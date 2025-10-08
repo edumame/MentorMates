@@ -1,19 +1,16 @@
-import withPWA from "next-pwa";
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
   images: {
-    domains: [
-      "clinicalmindai.stanford.edu",
-      
+    remotePatterns: [
+      new URL("https://lpxqfwyqandsortecbvu.supabase.co/**"),
+      new URL("https://moinycvhmmzjjtvqijzw.supabase.co/**"),
+      new URL("https://zqlopmbodkxlaunmkveo.supabase.co/**"),
+      new URL("https://nsxcypmjpizdjxrdncpe.supabase.co/**"),
+      new URL("https://clinicalmindai.stanford.edu"),
     ],
   },
+  skipTrailingSlashRedirect: true,
 };
 
-const config = withPWA({
-  dest: "public",
-  disable: process.env.NODE_ENV === "development",
-})(nextConfig);
-
-export default config;
+export default nextConfig;

@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { JoinEventButton } from "@/components/events/join-event-button";
 import { EventStatusBar } from "@/components/events/event-status-bar";
 import ReactMarkdown from "react-markdown";
+import { customMarkdownComponents } from "@/components/markdown/custom-components";
 import {
   EventDetails,
   ScheduleDay,
@@ -13,6 +14,7 @@ import {
 } from "@/lib/types";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { isValidUUID } from "@/app/utils/supabase/queries";
+import { markdownRehypePlugins } from "@/components/markdown/plugins";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -35,7 +37,8 @@ export default async function EventOverviewPage({ params }: PageProps) {
     event_schedule, 
     event_prizes, 
     event_resources,
-    paywall_content
+    paywall_content,
+    participant_capacity
   `);
 
   if (isUUID) {
@@ -95,11 +98,16 @@ export default async function EventOverviewPage({ params }: PageProps) {
 
       {/* Join Button */}
       {!hasJoined && (
-        <div className="flex justify-center mb-8">
-          <JoinEventButton
-            eventId={eventData.event_id}
-            eventName={typedEvent.event_name}
-          />
+        <div className="mb-8">
+          <div className="mx-auto max-w-2xl text-center mb-3">
+            <p className="text-sm text-muted-foreground">Secure your spot now</p>
+          </div>
+          <div className="flex justify-center">
+            <JoinEventButton
+              eventId={eventData.event_id}
+              eventName={typedEvent.event_name}
+            />
+          </div>
         </div>
       )}
 
@@ -110,7 +118,7 @@ export default async function EventOverviewPage({ params }: PageProps) {
         </CardHeader>
         <CardContent>
           <div className="prose prose-blue max-w-none">
-            <ReactMarkdown>{typedEvent.event_description}</ReactMarkdown>
+            <ReactMarkdown rehypePlugins={markdownRehypePlugins} components={customMarkdownComponents}>{typedEvent.event_description}</ReactMarkdown>
           </div>
         </CardContent>
       </Card>
@@ -189,7 +197,7 @@ export default async function EventOverviewPage({ params }: PageProps) {
                         </div>
                         {event.description && (
                           <div className="prose prose-sm prose-blue max-w-none text-gray-600 mt-2">
-                            <ReactMarkdown>{event.description}</ReactMarkdown>
+                            <ReactMarkdown rehypePlugins={markdownRehypePlugins} components={customMarkdownComponents}>{event.description}</ReactMarkdown>
                           </div>
                         )}
                       </div>
@@ -283,7 +291,7 @@ export default async function EventOverviewPage({ params }: PageProps) {
           </CardHeader>
           <CardContent>
             <div className="prose prose-blue max-w-none">
-              <ReactMarkdown>{typedEvent.faq}</ReactMarkdown>
+              <ReactMarkdown rehypePlugins={markdownRehypePlugins} components={customMarkdownComponents}>{typedEvent.faq}</ReactMarkdown>
             </div>
           </CardContent>
         </Card>

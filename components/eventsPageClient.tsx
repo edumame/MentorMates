@@ -1,19 +1,39 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { EventsList } from "@/components/events/events-list";
 import { Input } from "@/components/ui/input";
 import { EventItem } from "@/lib/types";
 import { UI_TEXT, DEFAULT_VALUES } from "@/lib/config/constants";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { supabase } from "@/lib/supabase";
 
 export function EventsPageClient({ eventsList }: { eventsList: EventItem[] }) {
   const [searchTerm, setSearchTerm] = useState(DEFAULT_VALUES.SEARCH_TERM);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  // Creating is now done on a separate page
 
   const filteredEvents = useMemo(() => {
     return eventsList.filter((event) =>
       event.event_name.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [eventsList, searchTerm]);
+
+  useEffect(() => {
+    async function checkSession() {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        setIsLoggedIn(!!session);
+      } catch (error) {
+        console.error("Error checking session:", error);
+      }
+    }
+    checkSession();
+  }, []);
+
+  
 
   return (
     <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-6 sm:py-8">
@@ -38,6 +58,16 @@ export function EventsPageClient({ eventsList }: { eventsList: EventItem[] }) {
             d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
           />
         </svg>
+      </div>
+
+      <div className="flex justify-between items-center mb-6 gap-4 flex-col sm:flex-row">
+        {isLoggedIn ? (
+          <div className="w-full">
+            <Button asChild>
+              <Link href="/events/new">Create an event</Link>
+            </Button>
+          </div>
+        ) : null }
       </div>
 
       {filteredEvents.length > 0 ? (

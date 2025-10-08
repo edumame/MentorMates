@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { EventScoringConfig, ScoringCriterion, EventTrack } from "@/lib/types";
 import Papa from "papaparse";
 import { supabase } from "@/lib/supabase";
-import { Download } from "lucide-react";
+import { Download } from "@mui/icons-material";
 import {
   Table,
   TableBody,
@@ -77,7 +77,7 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
 
     // Group data by track
     const trackGroups: Record<string, RawScoreData[]> = {};
-    
+
     rawScoreData.forEach((score) => {
       const trackName = score.event_tracks.name;
       if (!trackGroups[trackName]) {
@@ -97,24 +97,27 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
       const csvData = trackData.map((score) => {
         const baseData: Record<string, string | number | null> = {
           "Project Name": score.projects.project_name || "",
-          "Track": score.event_tracks.name || "",
-          "Comments": score.comments || "",
+          Track: score.event_tracks.name || "",
+          Comments: score.comments || "",
           "Lead Email": score.projects.lead_email || "",
         };
 
         // Add individual criterion scores with proper names
         if (score.scores && trackConfig) {
           Object.entries(score.scores).forEach(([criterionId, scoreValue]) => {
-            const criterion = trackConfig.criteria.find(c => c.id === criterionId);
-            const criterionName = criterion 
-              ? criterion.name
-              : criterionId;
+            const criterion = trackConfig.criteria.find(
+              (c) => c.id === criterionId
+            );
+            const criterionName = criterion ? criterion.name : criterionId;
             baseData[criterionName] = scoreValue as string | number | null;
           });
         } else if (score.scores) {
           // Fallback if no track config found
           Object.entries(score.scores).forEach(([criterionId, scoreValue]) => {
-            baseData[`Score_${criterionId}`] = scoreValue as string | number | null;
+            baseData[`Score_${criterionId}`] = scoreValue as
+              | string
+              | number
+              | null;
           });
         }
 
@@ -126,7 +129,7 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `raw-scores-${trackName.replace(/[^a-zA-Z0-9]/g, '_')}-${eventId}.csv`;
+      a.download = `raw-scores-${trackName.replace(/[^a-zA-Z0-9]/g, "_")}-${eventId}.csv`;
       a.click();
       window.URL.revokeObjectURL(url);
     });
@@ -148,17 +151,16 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
         )?.name ||
         trackId;
 
-      const trackConfig = scoringConfig.tracks[trackId] ||
-        Object.values(scoringConfig.tracks).find(
-          (t) => t.name === trackName
-        );
+      const trackConfig =
+        scoringConfig.tracks[trackId] ||
+        Object.values(scoringConfig.tracks).find((t) => t.name === trackName);
 
       if (!trackConfig) return;
 
       const numericCriteria = trackConfig.criteria.filter(
         (c) => c.type !== "multiplechoice"
       );
-      
+
       const choiceCriteria = trackConfig.criteria.filter(
         (c) => c.type === "multiplechoice"
       );
@@ -166,27 +168,30 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
       // Build CSV data matching the table structure
       const csvData = scores.map((score, index) => {
         const row: Record<string, string | number> = {
-          "Rank": index + 1,
-          "Project": score.projectName,
-          "Lead": score.leadName,
+          Rank: index + 1,
+          Project: score.projectName,
+          Lead: score.leadName,
           "Total Average": score.averageScore.toFixed(2),
         };
 
         // Add individual criterion scores
         numericCriteria.forEach((criterion) => {
           const criterionScore = score.criterionScores[criterion.id];
-          const columnName = criterion.weight && criterion.weight !== 1 
-            ? `${criterion.name} (×${criterion.weight})`
-            : criterion.name;
-          row[columnName] = criterionScore ? criterionScore.average.toFixed(2) : "—";
+          const columnName =
+            criterion.weight && criterion.weight !== 1
+              ? `${criterion.name} (×${criterion.weight})`
+              : criterion.name;
+          row[columnName] = criterionScore
+            ? criterionScore.average.toFixed(2)
+            : "—";
         });
 
         // Add choice criteria counts
         choiceCriteria.forEach((criterion) => {
           const counts = score.choiceCounts?.[criterion.id] || {};
-          const choiceData = (criterion.options || []).map(opt => 
-            `${opt}: ${counts[opt] || 0}`
-          ).join(", ");
+          const choiceData = (criterion.options || [])
+            .map((opt) => `${opt}: ${counts[opt] || 0}`)
+            .join(", ");
           row[criterion.name] = choiceData || "—";
         });
 
@@ -197,13 +202,13 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
 
       // Generate CSV
       const csv = Papa.unparse(csvData);
-      
+
       // Create and download file
       const blob = new Blob([csv], { type: "text/csv" });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `scores-${trackName.replace(/[^a-zA-Z0-9]/g, '_')}-${eventId}.csv`;
+      a.download = `scores-${trackName.replace(/[^a-zA-Z0-9]/g, "_")}-${eventId}.csv`;
       a.click();
       window.URL.revokeObjectURL(url);
     });
@@ -278,10 +283,13 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
             if (!isNaN(numeric)) {
               const weightedScore = numeric * (criterion.weight || 1);
               totalScore += weightedScore;
-              
+
               // Track individual criterion scores
               if (!projectScore.criterionScores[criterionId]) {
-                projectScore.criterionScores[criterionId] = { total: 0, average: 0 };
+                projectScore.criterionScores[criterionId] = {
+                  total: 0,
+                  average: 0,
+                };
               }
               projectScore.criterionScores[criterionId].total += numeric;
             }
@@ -291,11 +299,12 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
         projectScore.numberOfJudges += 1;
         projectScore.averageScore =
           projectScore.totalScore / projectScore.numberOfJudges;
-        
+
         // Calculate individual criterion averages
         Object.keys(projectScore.criterionScores).forEach((criterionId) => {
           projectScore.criterionScores[criterionId].average =
-            projectScore.criterionScores[criterionId].total / projectScore.numberOfJudges;
+            projectScore.criterionScores[criterionId].total /
+            projectScore.numberOfJudges;
         });
       });
 
@@ -389,9 +398,13 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
 
         // Store raw data for exports
         const rawData: RawScoreData[] = data.map((item) => {
-          const projects = Array.isArray(item.projects) ? item.projects[0] : item.projects;
-          const eventTracks = Array.isArray(item.event_tracks) ? item.event_tracks[0] : item.event_tracks;
-          
+          const projects = Array.isArray(item.projects)
+            ? item.projects[0]
+            : item.projects;
+          const eventTracks = Array.isArray(item.event_tracks)
+            ? item.event_tracks[0]
+            : item.event_tracks;
+
           return {
             scores: item.scores as Record<string, string | number>,
             comments: item.comments,
@@ -483,7 +496,7 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
                       scoringConfig.tracks[trackId]?.criteria.filter(
                         (c) => c.type === "multiplechoice"
                       ) || [];
-                    
+
                     const numericCriteria =
                       scoringConfig.tracks[trackId]?.criteria.filter(
                         (c) => c.type !== "multiplechoice"
@@ -501,14 +514,23 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
                             <Table>
                               <TableHeader>
                                 <TableRow>
-                                  <TableHead className="w-16 text-center">Rank</TableHead>
-                                  <TableHead className="min-w-[150px] max-w-[200px]">Project</TableHead>
-                                  <TableHead className="min-w-[120px] max-w-[150px]">Lead</TableHead>
+                                  <TableHead className="w-16 text-center">
+                                    Rank
+                                  </TableHead>
+                                  <TableHead className="min-w-[150px] max-w-[200px]">
+                                    Project
+                                  </TableHead>
+                                  <TableHead className="min-w-[120px] max-w-[150px]">
+                                    Lead
+                                  </TableHead>
                                   <TableHead className="text-right min-w-[100px] px-4">
                                     Total Average
                                   </TableHead>
                                   {numericCriteria.map((c) => (
-                                    <TableHead key={c.id} className="text-right min-w-[100px] max-w-[120px] px-4">
+                                    <TableHead
+                                      key={c.id}
+                                      className="text-right min-w-[100px] max-w-[120px] px-4"
+                                    >
                                       <div className="break-words">
                                         {c.name}
                                         {c.weight && c.weight !== 1 && (
@@ -520,7 +542,10 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
                                     </TableHead>
                                   ))}
                                   {choiceCriteria.map((c) => (
-                                    <TableHead key={c.id} className="text-right min-w-[120px] max-w-[150px] px-4">
+                                    <TableHead
+                                      key={c.id}
+                                      className="text-right min-w-[120px] max-w-[150px] px-4"
+                                    >
                                       <div className="break-words">
                                         {c.name}
                                       </div>
@@ -551,10 +576,16 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
                                       {score.averageScore.toFixed(2)}
                                     </TableCell>
                                     {numericCriteria.map((c) => {
-                                      const criterionScore = score.criterionScores[c.id];
+                                      const criterionScore =
+                                        score.criterionScores[c.id];
                                       return (
-                                        <TableCell key={c.id} className="text-right min-w-[100px] max-w-[120px] px-4 tabular-nums">
-                                          {criterionScore ? criterionScore.average.toFixed(2) : "—"}
+                                        <TableCell
+                                          key={c.id}
+                                          className="text-right min-w-[100px] max-w-[120px] px-4 tabular-nums"
+                                        >
+                                          {criterionScore
+                                            ? criterionScore.average.toFixed(2)
+                                            : "—"}
                                         </TableCell>
                                       );
                                     })}
@@ -567,19 +598,15 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
                                           className="text-right min-w-[120px] max-w-[150px] px-4"
                                         >
                                           <div className="break-words text-sm tabular-nums">
-                                            {(c.options || []).map(
-                                              (opt, i) => (
-                                                (
-                                                  <span key={opt}>
-                                                    {i > 0 && ", "}
-                                                    <span className="text-blue-500">
-                                                      {opt}
-                                                    </span>
-                                                    : {counts[opt] || 0}
-                                                  </span>
-                                                )
-                                              )
-                                            )}
+                                            {(c.options || []).map((opt, i) => (
+                                              <span key={opt}>
+                                                {i > 0 && ", "}
+                                                <span className="text-blue-500">
+                                                  {opt}
+                                                </span>
+                                                : {counts[opt] || 0}
+                                              </span>
+                                            ))}
                                           </div>
                                         </TableCell>
                                       );

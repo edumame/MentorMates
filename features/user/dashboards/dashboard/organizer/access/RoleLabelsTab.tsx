@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/lib/hooks/use-toast";
 import { EventRole } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
-import { DEFAULT_ROLE_LABELS } from "@/features/user/roles/roles";
+import { DEFAULT_ROLE_LABELS, getRoleLabel } from "@/features/user/roles/roles";
 import { EventDetails } from "@/lib/types";
 
 interface RoleLabelsTabProps {
@@ -15,6 +15,7 @@ interface RoleLabelsTabProps {
   setEvent: React.Dispatch<React.SetStateAction<EventDetails | null>>;
   saving: boolean;
   setSaving: React.Dispatch<React.SetStateAction<boolean>>;
+  isArchived: boolean;
 }
 
 export function RoleLabelsTab({
@@ -23,6 +24,7 @@ export function RoleLabelsTab({
   setEvent,
   saving,
   setSaving,
+  isArchived,
 }: RoleLabelsTabProps) {
   const [roleLabels, setRoleLabels] =
     useState<Record<string, string>>(DEFAULT_ROLE_LABELS);
@@ -95,31 +97,31 @@ export function RoleLabelsTab({
         </p>
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          {Object.entries(EventRole)
-            .filter(([, value]) => value !== EventRole.Admin)
-            .map(([, role]) => (
+          {[EventRole.Participant, EventRole.Mentor, EventRole.Judge, EventRole.Organizer]
+            .map((role) => (
               <div key={role} className="space-y-2">
                 <label className="text-sm font-medium" htmlFor={`role-${role}`}>
-                  {role.charAt(0).toUpperCase() + role.slice(1)} Label
+                  {getRoleLabel(role)} Label
                 </label>
                 <Input
                   id={`role-${role}`}
-                  value={roleLabels[role] ?? ""}
-                  onChange={(e) => handleLabelChange(role, e.target.value)}
-                  placeholder={`Custom label for ${role}`}
+                  value={roleLabels[role.toString()] ?? ""}
+                  onChange={(e) => handleLabelChange(role.toString(), e.target.value)}
+                  placeholder={`Custom label for ${getRoleLabel(role)}`}
+                  disabled={isArchived}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Default: {DEFAULT_ROLE_LABELS[role]}
+                  Default: {getRoleLabel(role)}
                 </p>
               </div>
             ))}
         </div>
 
         <div className="flex gap-4 justify-end">
-          <Button variant="outline" onClick={resetToDefaults} disabled={saving}>
+          <Button variant="outline" onClick={resetToDefaults} disabled={saving || isArchived}>
             Reset to Defaults
           </Button>
-          <Button onClick={handleSaveLabels} disabled={saving}>
+          <Button onClick={handleSaveLabels} disabled={saving || isArchived}>
             {saving ? "Saving..." : "Save Labels"}
           </Button>
         </div>

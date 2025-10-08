@@ -6,6 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { EventDetails } from "@/lib/types";
 import { toast as ToastType } from "@/lib/hooks/use-toast";
+import { useEventArchiveStatus } from "@/lib/hooks/use-event-archive-status";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 interface FAQTabProps {
   event: EventDetails;
@@ -22,6 +24,7 @@ export function FAQTab({
   setSaving,
   toast,
 }: FAQTabProps) {
+  const { isArchived } = useEventArchiveStatus(event);
   const handleFAQUpdate = async () => {
     if (!event) return;
 
@@ -53,6 +56,14 @@ export function FAQTab({
   return (
     <div className="space-y-4">
       <div className="space-y-2">
+        {isArchived && (
+          <div className="mt-2 py-4">
+            <Alert className="border-orange-200 bg-orange-50">
+              <AlertTitle className="text-orange-900">⚠️ Event is Archived</AlertTitle>
+              <AlertDescription>This event is archived and cannot be edited. To make changes, you must first unarchive the event using the controls below.</AlertDescription>
+            </Alert>
+          </div>
+        )}
         <Label>Frequently Asked Questions (Markdown Supported)</Label>
         <Textarea
           value={event.faq || ""}
@@ -76,6 +87,7 @@ Simply click the "Join Event" button and follow the instructions.
 Registration closes 24 hours before the event starts.`}
           rows={15}
           className="font-mono text-sm"
+          disabled={isArchived}
         />
       </div>
 
@@ -92,7 +104,7 @@ Registration closes 24 hours before the event starts.`}
 
       <Button
         onClick={handleFAQUpdate}
-        disabled={saving}
+        disabled={saving || isArchived}
         className="w-full mt-4"
       >
         {saving ? "Saving..." : "Save FAQ"}

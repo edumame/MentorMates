@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/lib/hooks/use-toast";
+import { canAccessRole } from "@/features/user/roles/roles";
 import {
   Edit,
   Users,
@@ -14,8 +15,11 @@ import {
   FolderKanban,
   UserCheck,
   Import,
-  Upload, 
+  DollarSign,
+  Mail,
+  Bell,
 } from "lucide-react";
+
 import {
   EventDetails,
   EventRole,
@@ -33,7 +37,10 @@ import { EventTracksContainer } from "./tracks";
 import { AccessTab } from "./access";
 import { AssignTab } from "./assign";
 import { ProjectImport } from "./import/ProjectImportButton";
-import SendGeneralNotification from "./notifications/SendNotification";
+import { EmailTab } from "./email";
+import { PricingTab } from "./pricing/PricingTab";
+import EmailDashboard from "./notifications/EmailDashboard";
+import { useEventArchiveStatus } from "@/lib/hooks/use-event-archive-status";
 
 export function OrganizerDashboard({ eventId }: { eventId: string }) {
   const [event, setEvent] = useState<EventDetails | null>(null);
@@ -43,8 +50,33 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
     null
   );
   const [activeTab, setActiveTab] = useState("details");
+  const [isAdmin, setIsAdmin] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
+
+  // Redirect from pricing tab if user is not admin
+  useEffect(() => {
+    if (activeTab === "pricing" && !isAdmin) {
+      setActiveTab("details");
+    }
+  }, [activeTab, isAdmin]);
+
+  const primaryTabs = [
+    { value: "details", label: "Event Details", icon: Edit },
+    { value: "access", label: "Access", icon: Shield },
+    { value: "tracks", label: "Tracks", icon: FolderKanban },
+    { value: "participants", label: "Participants", icon: Users },
+    { value: "assign", label: "Assign", icon: UserCheck },
+    { value: "submissions", label: "Submissions", icon: FileText },
+    { value: "scores", label: "Live Scores", icon: BarChart },
+    { value: "pricing", label: "Pricing", icon: DollarSign },
+  ];
+
+  const overflowTabs = [
+    { value: "import", label: "Import", icon: Import },
+    { value: "notify", label: "Notify", icon: Bell },
+    { value: "email", label: "Email", icon: Mail },
+  ];
 
   useEffect(() => {
     async function fetchEvent() {
@@ -59,24 +91,32 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
 
         const userId = session.user.id;
 
-        // Check if user is an organizer for this event
+        // Fetch user's role for this event and check access in app code
         const { data: roleData } = await supabase
           .from("user_event_roles")
           .select("role")
           .eq("user_id", userId)
           .eq("event_id", eventId)
-          .eq("role", EventRole.Organizer)
           .maybeSingle();
 
-        if (!roleData) {
+        if (
+          !roleData ||
+          !canAccessRole(roleData.role as EventRole, EventRole.Organizer)
+        ) {
           toast({
             title: "Error",
             description: "You don't have permission to edit this event",
             variant: "destructive",
           });
-          router.push("/organizer/dashboard");
+          router.push(`/events/${eventId}/dashboard`);
           return;
         }
+
+        // Check if user is an admin
+        const { data: adminData } = await supabase.rpc("is_admin_user", {
+          user_id: userId,
+        });
+        setIsAdmin(adminData || false);
 
         const { data: eventData, error } = await supabase
           .from("events")
@@ -163,6 +203,8 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
     fetchEvent();
   }, [eventId, router, toast]);
 
+  const { isArchived } = useEventArchiveStatus(event);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -182,44 +224,18 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
   return (
     <div className="space-y-6">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4 mb-8 w-full h-auto">
-          <TabsTrigger value="details" className="flex-1 items-center gap-2">
-            <Edit className="h-4 w-4" />
-            Event Details
-          </TabsTrigger>
-
-          <TabsTrigger value="access" className="flex items-center gap-2">
-            <Shield className="h-4 w-4" />
-            Access
-          </TabsTrigger>
-          <TabsTrigger value="tracks" className="flex items-center gap-2">
-            <FolderKanban className="h-4 w-4" />
-            Tracks
-          </TabsTrigger>
-          <TabsTrigger value="participants" className="flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            Participants
-          </TabsTrigger>
-          <TabsTrigger value="assign" className="flex items-center gap-2">
-            <UserCheck className="h-4 w-4" />
-            Assign
-          </TabsTrigger>
-          <TabsTrigger value="submissions" className="flex items-center gap-2">
-            <FileText className="h-4 w-4" />
-            Submissions
-          </TabsTrigger>
-          <TabsTrigger value="scores" className="flex items-center gap-2">
-            <BarChart className="h-4 w-4" />
-            Live Scores
-          </TabsTrigger>
-          <TabsTrigger value="import" className="flex items-center gap-2">
-            <Import className="h-4 w-4" />
-            Import
-          </TabsTrigger>
-          <TabsTrigger value="notify" className="flex items-center gap-2">
-            <Upload className="h-4 w-4" />
-            Notify
-          </TabsTrigger>
+        <TabsList className="mb-8 w-full h-auto flex flex-wrap gap-2 grid lg:grid-cols-3 md:grid-cols-2 grid-cols-2">
+          {[...primaryTabs, ...overflowTabs].map((item) => (
+            <TabsTrigger
+              key={item.value}
+              value={item.value}
+              title={item.label}
+              className="inline-flex items-center gap-2 px-3 py-1.5"
+            >
+              <item.icon className="h-4 w-4" />
+              {item.label}
+            </TabsTrigger>
+          ))}
         </TabsList>
 
         <TabsContent value="details">
@@ -232,6 +248,17 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
             toast={toast}
           />
         </TabsContent>
+
+        {isAdmin && (
+          <TabsContent value="pricing">
+            <PricingTab
+              event={event}
+              setEvent={setEvent}
+              saving={saving}
+              setSaving={setSaving}
+            />
+          </TabsContent>
+        )}
 
         <TabsContent value="access">
           <AccessTab
@@ -286,8 +313,12 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
           <ProjectImport eventId={eventId} />
         </TabsContent>
 
+        <TabsContent value="email">
+          <EmailTab eventId={eventId} />
+        </TabsContent>
+
         <TabsContent value="notify">
-          <SendGeneralNotification eventId={eventId} />
+          <EmailDashboard eventId={eventId} eventName={event.event_name} />
         </TabsContent>
       </Tabs>
     </div>
