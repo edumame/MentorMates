@@ -236,7 +236,7 @@ export function EmailTab({ eventId }: EmailTabProps) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
-        <Loader2 className="h-8 w-8 animate-spin" />
+        <Loader2 className="h-8 w-8 animate-spin text-blue-900" />
       </div>
     );
   }
@@ -395,7 +395,7 @@ export function EmailTab({ eventId }: EmailTabProps) {
               className="flex items-center gap-2"
             >
               {isSending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="h-4 w-4 animate-spin text-blue-900" />
               ) : (
                 <Send className="h-4 w-4" />
               )}

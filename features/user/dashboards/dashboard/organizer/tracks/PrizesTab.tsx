@@ -22,6 +22,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Delete, EmojiEvents, Close } from "@mui/icons-material";
 import { EventDetails, Prize, Project } from "@/lib/types";
+import { Loader2 } from "lucide-react";
 
 interface ExtendedPrize extends Prize {
   prize_winners?: {
@@ -568,7 +569,7 @@ export function PrizesTab({
                               {projects.length === 0 ? (
                                 <SelectItem value="loading" disabled>
                                   {loadingProjects
-                                    ? "Loading projects..."
+                                    ? <Loader2 className="h-4 w-4 animate-spin text-blue-900" />
                                     : "No projects found"}
                                 </SelectItem>
                               ) : (

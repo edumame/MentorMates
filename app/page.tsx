@@ -7,7 +7,7 @@ import { Session } from "@supabase/supabase-js";
 import { Footer } from "@/components/layout/Footer";
 import { LandingHero } from "@/components/heroes/LandingHero";
 import posthog from "posthog-js";
-import { AuthHero } from "@/components/heroes/AutHero";
+import { AuthHero } from "@/components/heroes/AuthHero";
 import { SidebarLayout } from "@/components/layout/SidebarLayout";
 
 export default function HomePage() {

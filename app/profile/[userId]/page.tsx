@@ -20,6 +20,7 @@ import { motion } from "framer-motion";
 import { useToast } from "@/lib/hooks/use-toast";
 import { Toaster } from "@/components/ui/toaster";
 import { getRoleLabel } from "@/features/user/roles/roles";
+import { Loader2 } from "lucide-react";
 
 interface EventWithRole extends EventDetails {
   user_event_roles: {
@@ -299,8 +300,8 @@ export default function ProfilePage() {
             <div>
               {isLoading ? (
                 <div className="text-center py-8">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
-                  <p className="mt-4 text-gray-600">Loading projects...</p>
+                  <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+
                 </div>
               ) : projects.length === 0 ? (
                 <div className="text-center py-8">
@@ -324,8 +325,8 @@ export default function ProfilePage() {
             <div>
               {isLoading ? (
                 <div className="text-center py-8">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
-                  <p className="mt-4 text-gray-600">Loading events...</p>
+                  <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+
                 </div>
               ) : events.length === 0 ? (
                 <div className="text-center py-8">

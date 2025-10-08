@@ -242,7 +242,7 @@ export function ViewTicketsTab({ eventId }: ViewTicketsTabProps) {
     return (
       <div className="flex items-center justify-center p-8">
         <div className="flex items-center space-x-2">
-          <Loader2 className="h-5 w-5 animate-spin" />
+          <Loader2 className="h-5 w-5 animate-spin text-blue-900" />
           <span>Loading tickets...</span>
         </div>
       </div>
@@ -338,7 +338,7 @@ export function ViewTicketsTab({ eventId }: ViewTicketsTabProps) {
                   >
                     {assigning === ticket.id ? (
                       <>
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        <Loader2 className="h-4 w-4 animate-spin mr-2 text-blue-900" />
                         Assigning...
                       </>
                     ) : (

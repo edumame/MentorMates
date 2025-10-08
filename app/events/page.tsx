@@ -119,7 +119,7 @@ export default async function EventsPage() {
   const eventsList = events || [];
 
   return (
-    <div className="min-h-[90vh] flex flex-col bg-gray-50">
+    <div className="min-h-[90vh] flex flex-col bg-white">
       <div className="flex-grow">
         <div className="max-w-7xl mx-auto py-8 px-6 lg:px-10">
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-center text-blue-900">
