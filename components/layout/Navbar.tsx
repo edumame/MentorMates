@@ -121,10 +121,10 @@ export function Navbar() {
             )}
 
             <Link
-              href="/project"
+              href="/events"
               className="text-base font-medium text-black hover:text-[#4B89EF] whitespace-nowrap"
             >
-              Projects
+              Events
             </Link>
             <Link
               href="/host"
@@ -281,10 +281,10 @@ export function Navbar() {
         >
           <div className="px-6 py-6 space-y-1">
             <Link
-              href="/project"
+              href="/events"
               className="block py-4 text-lg font-medium text-black hover:text-[#4B89EF]"
             >
-              Projects
+              Events
             </Link>
             <Link
               href="/host"
