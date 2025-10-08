@@ -5,6 +5,7 @@ interface LearnItem {
     source: string;
     readingTime: number;
     thumbnail: string;
+    video: boolean;
 }
 export const data: LearnItem[] = [
     {
@@ -14,6 +15,7 @@ export const data: LearnItem[] = [
         source: "https://www.canva.com/design/DAGiIjTZwwU/qZ9YyzVj0Qw_mPg10wFePQ/view?utm_content=DAGiIjTZwwU&utm_campaign=designshare&utm_medium=link2&utm_source=uniquelinks&utlId=h02954ba739",
         readingTime: 20,
         thumbnail: "/img/resource01.png",
+        video: true,
     },
     {
         id: 2,
@@ -22,6 +24,7 @@ export const data: LearnItem[] = [
         source: "https://www.canva.com/design/DAGjnPa_Ko8/CLjZvYNfP1l3s4VZgN9Mjg/view?utm_content=DAGjnPa_Ko8&utm_campaign=designshare&utm_medium=link2&utm_source=uniquelinks&utlId=hf6cbf39f60",
         readingTime: 20,
         thumbnail: "/img/resource02.png",
+        video: true,
     },
     {
         id: 3,
@@ -30,6 +33,7 @@ export const data: LearnItem[] = [
         source: "https://www.canva.com/design/DAGjZKp9f58/JdJFk47M4tC9sQqHw8uUQQ/view?utm_content=DAGjZKp9f58&utm_campaign=designshare&utm_medium=link2&utm_source=uniquelinks&utlId=h9852926523",
         readingTime: 20,
         thumbnail: "/img/placeholder.png",
+        video: true,
     },
     {
         id: 4,
@@ -38,6 +42,7 @@ export const data: LearnItem[] = [
         source: "https://www.canva.com/design/DAGjZKp9f58/JdJFk47M4tC9sQqHw8uUQQ/view?utm_content=DAGjZKp9f58&utm_campaign=designshare&utm_medium=link2&utm_source=uniquelinks&utlId=h9852926523",
         readingTime: 20,
         thumbnail: "/img/placeholder.png",
+        video: true,
     },
     {
         id: 5,
@@ -46,6 +51,7 @@ export const data: LearnItem[] = [
         source: "https://www.canva.com/design/DAGjZKp9f58/JdJFk47M4tC9sQqHw8uUQQ/view?utm_content=DAGjZKp9f58&utm_campaign=designshare&utm_medium=link2&utm_source=uniquelinks&utlId=h9852926523",
         readingTime: 20,
         thumbnail: "/img/placeholder.png",
+        video: true,
     },
     {
         id: 6,
@@ -54,5 +60,6 @@ export const data: LearnItem[] = [
         source: "https://docs.google.com/document/d/1237DrCLjCJKUY65Sh2gfHhWYe8Ids6e7AK9yn-ZkHs8/edit?usp=drivesdk",
         readingTime: 5,
         thumbnail: "/img/lovable.svg",
+        video: false,
     },
 ];
