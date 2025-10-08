@@ -8,9 +8,7 @@ import { Session } from "@supabase/supabase-js";
 import Link from "next/link";
 import { Footer } from "@/components/layout/Footer";
 import { LandingHero } from "@/components/heroes/LandingHero";
-import { Calendar, MessageSquare } from "lucide-react";
-import { EventsList } from "@/components/events/events-list";
-import { EventItem, EventVisibility } from "@/lib/types";
+import { Calendar, Folder, MessageSquare } from "lucide-react";
 import posthog from "posthog-js";
 
 export default function HomePage() {
@@ -19,8 +17,6 @@ export default function HomePage() {
 
   const [loadingStats, setLoadingStats] = useState(false);
   const [stats, setStats] = useState({ events: 0, projects: 0, feedback: 0 });
-  const [loadingEvents, setLoadingEvents] = useState(true);
-  const [events, setEvents] = useState<EventItem[]>([]);
 
     // Get session and sync basic profile
 
@@ -68,36 +64,6 @@ export default function HomePage() {
     };
 
     syncUserProfile();
-  }, []);
-
-  // Fetch upcoming events for the landing page
-  useEffect(() => {
-    const fetchUpcomingEvents = async () => {
-      try {
-        setLoadingEvents(true);
-        const nowIso = new Date().toISOString();
-        const { data, error } = await supabase
-          .from("events")
-          .select("*")
-          .in("visibility", [EventVisibility.Public, EventVisibility.Private])
-          .gte("event_date", nowIso)
-          .order("event_date", { ascending: true });
-
-        if (error) {
-          console.error("Error fetching upcoming events:", error);
-          setEvents([]);
-        } else {
-          setEvents((data as unknown as EventItem[]) || []);
-        }
-      } catch (err) {
-        console.error("Unexpected error fetching events:", err);
-        setEvents([]);
-      } finally {
-        setLoadingEvents(false);
-      }
-    };
-
-    fetchUpcomingEvents();
   }, []);
 
   // Fetch stats for the signed-in user
@@ -167,18 +133,6 @@ export default function HomePage() {
     return (
       <div className="min-h-screen w-full">
         <LandingHero />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <h2 className="text-3xl sm:text-4xl font-bold text-blue-900 mb-6">Upcoming Events</h2>
-          {loadingEvents ? (
-            <div className="h-20 flex items-center justify-center">
-              <p className="text-gray-500 text-sm">Loading events...</p>
-            </div>
-          ) : events.length > 0 ? (
-            <EventsList events={events} />
-          ) : (
-            <p className="text-gray-600">No upcoming events found.</p>
-          )}
-        </div>
         <ServiceWorkerRegistration />
         <Footer />
       </div>
@@ -219,27 +173,51 @@ export default function HomePage() {
             </div>
           )}
 
-          {/* Upcoming Events Section */}
-          <div className="px-4 mt-6">
-            <div className="bg-white shadow rounded-lg p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center">
-                  <Calendar className="w-6 h-6 text-blue-900 mr-2" />
-                  <h2 className="text-xl font-bold text-blue-900">Upcoming Events</h2>
-                </div>
-                <Link href="/events">
-                  <Button variant="secondary">Browse all</Button>
-                </Link>
+          {/* Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 px-4">
+            <div className="bg-white shadow rounded-lg p-6 flex flex-col">
+              <div className="flex items-center mb-4">
+                <Calendar className="w-8 h-8 text-blue-900 mr-2" />
+                <h2 className="text-xl font-bold text-blue-900">Events</h2>
               </div>
-              {loadingEvents ? (
-                <div className="h-20 flex items-center justify-center">
-                  <p className="text-gray-500 text-sm">Loading events...</p>
-                </div>
-              ) : events.length > 0 ? (
-                <EventsList events={events} />
-              ) : (
-                <p className="text-gray-600">No upcoming events found.</p>
-              )}
+              <p className="text-gray-600 text-sm sm:text-base mb-4">
+                Check your upcoming events or create new ones.
+              </p>
+              <Link href="/events" className="mt-auto">
+                <Button className="bg-blue-900 text-white w-full sm:w-auto">
+                  View Events
+                </Button>
+              </Link>
+            </div>
+
+            <div className="bg-white shadow rounded-lg p-6 flex flex-col">
+              <div className="flex items-center mb-4">
+                <Folder className="w-8 h-8 text-blue-900 mr-2" />
+                <h2 className="text-xl font-bold text-blue-900">Projects</h2>
+              </div>
+              <p className="text-gray-600 text-sm sm:text-base mb-4">
+                Track and update your project progress.
+              </p>
+              <Link href="/projects" className="mt-auto">
+                <Button className="bg-blue-900 text-white w-full sm:w-auto">
+                  View Projects
+                </Button>
+              </Link>
+            </div>
+
+            <div className="bg-white shadow rounded-lg p-6 flex flex-col">
+              <div className="flex items-center mb-4">
+                <MessageSquare className="w-8 h-8 text-blue-900 mr-2" />
+                <h2 className="text-xl font-bold text-blue-900">Feedback</h2>
+              </div>
+              <p className="text-gray-600 text-sm sm:text-base mb-4">
+                Review the feedback you have provided.
+              </p>
+              <Link href="/feedback/given" className="mt-auto">
+                <Button className="bg-blue-900 text-white w-full sm:w-auto">
+                  View Feedback
+                </Button>
+              </Link>
             </div>
           </div>
         </div>
