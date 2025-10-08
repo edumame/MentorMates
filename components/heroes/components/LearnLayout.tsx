@@ -36,25 +36,28 @@ export function LearnLayout() {
                   fill
                   className="object-cover"
                 />
-                <div className="flex items-center justify-center">
-                  <svg
-                    width="48"
-                    height="48"
-                    viewBox="0 0 48 48"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="drop-shadow-lg"
-                  >
-                    <circle
-                      cx="24"
-                      cy="24"
-                      r="24"
-                      fill="white"
-                      fillOpacity="0.85"
-                    />
-                    <polygon points="20,16 34,24 20,32" fill="#222" />
-                  </svg>
-                </div>
+
+                {item.video && (
+                  <div className="flex items-center justify-center">
+                    <svg
+                      width="48"
+                      height="48"
+                      viewBox="0 0 48 48"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="drop-shadow-lg"
+                    >
+                      <circle
+                        cx="24"
+                        cy="24"
+                        r="24"
+                        fill="white"
+                        fillOpacity="0.85"
+                      />
+                      <polygon points="20,16 34,24 20,32" fill="#222" />
+                    </svg>
+                  </div>
+                )}
               </div>
             </div>
             <div className="p-4 flex-1 flex flex-col">
