@@ -428,7 +428,7 @@ export function NewProjectSubmissionFormSinglePage({
             ) : (
               <>
                 <Sparkles className="h-4 w-4" />
-                Fill out this form for me
+                {/* Fill out this form for me */}
               </>
             )}
           </Button>
