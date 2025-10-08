@@ -613,7 +613,7 @@ export function DraftProjectSubmissionFormSinglePage({
             >
               {isSubmitting ? (
                 <>
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin text-blue-900" />
                   Sharing...
                 </>
               ) : (

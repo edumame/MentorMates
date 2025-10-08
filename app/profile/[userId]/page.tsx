@@ -20,6 +20,7 @@ import { motion } from "framer-motion";
 import { useToast } from "@/lib/hooks/use-toast";
 import { Toaster } from "@/components/ui/toaster";
 import { getRoleLabel } from "@/features/user/roles/roles";
+import { Loader2 } from "lucide-react";
 
 interface EventWithRole extends EventDetails {
   user_event_roles: {
@@ -87,13 +88,13 @@ export default function ProfilePage() {
           throw new Error("Failed to fetch profile data");
         }
         const profileData = await response.json();
-        
+
         // Set profile data
         setUserProfile(profileData.profile);
         setNewSocialLinks(profileData.profile.links || {});
-        
+
         const projectsData: { projects: ProjectWithTracks[] } = {
-          projects: profileData.projects
+          projects: profileData.projects,
         };
 
         // Combine and deduplicate projects
@@ -140,10 +141,8 @@ export default function ProfilePage() {
         setProjects(allProjects);
 
         // Check if the profile user is an admin (global)
-        const { data: adminCheckData, error: adminCheckError } = await supabase.rpc(
-          "is_admin_user",
-          { user_id: String(userId) }
-        );
+        const { data: adminCheckData, error: adminCheckError } =
+          await supabase.rpc("is_admin_user", { user_id: String(userId) });
         if (adminCheckError) {
           console.error("Error checking admin status:", adminCheckError);
         }
@@ -298,9 +297,8 @@ export default function ProfilePage() {
           {activeTab === "projects" && (
             <div>
               {isLoading ? (
-                <div className="text-center py-8">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
-                  <p className="mt-4 text-gray-600">Loading projects...</p>
+                <div className="flex justify-center items-center py-8 w-full">
+                  <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
                 </div>
               ) : projects.length === 0 ? (
                 <div className="text-center py-8">
@@ -323,9 +321,8 @@ export default function ProfilePage() {
           {activeTab === "events" && (
             <div>
               {isLoading ? (
-                <div className="text-center py-8">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
-                  <p className="mt-4 text-gray-600">Loading events...</p>
+                <div className="flex justify-center items-center py-8 w-full">
+                  <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
                 </div>
               ) : events.length === 0 ? (
                 <div className="text-center py-8">
@@ -383,7 +380,10 @@ export default function ProfilePage() {
                             )}
                           </div>
                           <Badge variant={event.user_event_roles?.[0]?.role}>
-                            {getRoleLabel(event.user_event_roles?.[0]?.role as EventRole, event.role_labels)}
+                            {getRoleLabel(
+                              event.user_event_roles?.[0]?.role as EventRole,
+                              event.role_labels
+                            )}
                           </Badge>
                         </div>
                       </CardContent>

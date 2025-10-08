@@ -495,7 +495,7 @@ function LoginContent({
                   />
                 </svg>
                 <span className="text-sm font-semibold">
-                  Sign up with Google
+                  {isSignUp ? "Sign up with Google" : "Sign in with Google"}
                 </span>
               </Button>
 

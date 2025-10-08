@@ -9,6 +9,7 @@ import ReactMarkdown from "react-markdown";
 import { customMarkdownComponents } from "@/components/markdown/custom-components";
 import { markdownRehypePlugins } from "@/components/markdown/plugins";
 import { useHasJoinedEvent } from "@/lib/hooks/use-has-joined-event";
+import { Loader2 } from "lucide-react";
 
 const ProjectsTab = dynamic(
   () =>
@@ -222,7 +223,7 @@ export function ParticipantDashboard({ eventId }: ParticipantDashboardProps) {
         </TabsList>
 
         <TabsContent value="projects">
-          <Suspense fallback={<div>Loading projects...</div>}>
+          <Suspense fallback={<Loader2 className="h-4 w-4 animate-spin text-blue-900" />}>
             <ProjectsTab
               eventId={eventId}
               myProjects={myProjects}
@@ -244,12 +245,12 @@ export function ParticipantDashboard({ eventId }: ParticipantDashboardProps) {
                   </TabsList>
                 </div>
                 <TabsContent value="goals" className="p-4">
-                  <Suspense fallback={<div>Loading goals...</div>}>
+                  <Suspense fallback={<Loader2 className="h-4 w-4 animate-spin text-blue-900" />}>
                     <GoalSection eventId={eventId} hideHeader />
                   </Suspense>
                 </TabsContent>
                 <TabsContent value="journal" className="p-4">
-                  <Suspense fallback={<div>Loading journal...</div>}>
+                  <Suspense fallback={<Loader2 className="h-4 w-4 animate-spin text-blue-900" />}>
                     <JournalSection eventId={eventId} hideHeader />
                   </Suspense>
                 </TabsContent>
@@ -308,7 +309,7 @@ export function ParticipantDashboard({ eventId }: ParticipantDashboardProps) {
 
         {isPaidEvent && (
           <TabsContent value="tickets">
-            <Suspense fallback={<div>Loading tickets...</div>}>
+            <Suspense fallback={<Loader2 className="h-4 w-4 animate-spin text-blue-900" />}>
               <ViewTicketsTab eventId={eventId} />
             </Suspense>
           </TabsContent>
