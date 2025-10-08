@@ -50,6 +50,7 @@ export default async function EventsPage() {
         // For organizers:
         // - Public and private events (visible to everyone)
         // - Draft events where user is an organizer
+        // - Archived events where user is an organizer
         // - No demo or test events
         query = query.or(
           `visibility.in.(${[
@@ -58,6 +59,9 @@ export default async function EventsPage() {
           ].join(",")}),` +
             `and(visibility.eq.${
               EventVisibility.Draft
+            },event_id.in.(${organizerEventIds.join(",")})),` +
+            `and(visibility.eq.${
+              EventVisibility.Archived
             },event_id.in.(${organizerEventIds.join(",")}))`
         );
       } else {
@@ -94,11 +98,11 @@ export default async function EventsPage() {
 
   async function fetchPublicEvents() {
     try {
-      // Fetch public, private, and archived events
+      // Fetch only public and private events
       const { data: events, error } = await supabase
         .from("events")
         .select("*")
-        .in("visibility", [EventVisibility.Public, EventVisibility.Private, EventVisibility.Archived])
+        .in("visibility", [EventVisibility.Public, EventVisibility.Private])
         .order("event_date", { ascending: false });
 
       if (error) throw error;

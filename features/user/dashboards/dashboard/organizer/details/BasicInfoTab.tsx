@@ -670,7 +670,7 @@ export function BasicInfoTab({
                 <AlertDialogDescription>
                   {event.visibility === EventVisibility.Archived 
                     ? "This will make the event editable again and change its visibility to private. You can change the visibility afterwards if needed."
-                    : "Archived events remain visible to users but cannot be edited by organizers. You can unarchive it later if needed."}
+                : "Archived events are hidden from non-organizers and the public, and cannot be edited by organizers. You can unarchive it later if needed."}
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
