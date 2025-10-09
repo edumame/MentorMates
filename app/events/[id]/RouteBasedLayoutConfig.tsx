@@ -10,7 +10,7 @@ interface RouteBasedLayoutConfigProps {
 
 export function RouteBasedLayoutConfig({ children }: RouteBasedLayoutConfigProps) {
   const pathname = usePathname();
-  const isAcceptPage = pathname?.includes('/accept');
+  const isAcceptPage = !!pathname && /\/events\/[\w-]+\/accept(\/.*)?$/.test(pathname);
 
   const layoutConfig = isAcceptPage
     ? {

@@ -1,6 +1,5 @@
 import React from "react";
 import { SidebarLayout } from "@/components/layout/SidebarLayout";
-import { AuthNavbar } from "@/components/layout/AuthNavbar";
 
 export default function LearnLayout({
     children,
@@ -9,7 +8,6 @@ export default function LearnLayout({
     }) {
     return (
         <div className="min-h-screen">
-        <AuthNavbar />
         <SidebarLayout>{children}</SidebarLayout>
         </div>
     );

@@ -9,6 +9,7 @@ interface ConditionalLayoutProps {
 }
 
 const AUTH_ROUTE_PREFIXES = ["/login", "/signup", "/auth"];
+const HIDE_PADDING_ROUTES = [/^\/events\/[\w-]+\/accept(\/.*)?$/];
 
 export function ConditionalLayout({ children }: ConditionalLayoutProps) {
   const { showPadding } = useLayoutConfig();
@@ -20,8 +21,10 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
       (p) => pathname === p || pathname.startsWith(`${p}/`)
     );
 
+  const isNoPadRoute = !!pathname && HIDE_PADDING_ROUTES.some((r) => r.test(pathname));
+
   // Only pad for navbar when not on auth routes
-  const shouldPad = showPadding && !isAuthRoute;
+  const shouldPad = showPadding && !isAuthRoute && !isNoPadRoute;
 
   return (
     <div className="min-h-screen flex flex-col">
