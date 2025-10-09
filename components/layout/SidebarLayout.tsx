@@ -45,8 +45,14 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
     <>
       {session ? (
         <div className="min-h-screen flex">
-          {/* Desktop Sidebar - Hidden on mobile, fixed position */}
-          <aside className="hidden lg:block bg-white flex-shrink-0 fixed left-0 top-0 h-screen overflow-y-auto pt-5">
+          {/* Desktop Sidebar - Hidden on mobile, fixed position (offset below banner + navbar) */}
+          <aside
+            className="hidden lg:block bg-white flex-shrink-0 fixed left-0 overflow-y-auto pt-5"
+            style={{
+              top: "calc(var(--banner-h, 0px) + 64px)",
+              height: "calc(100vh - var(--banner-h, 0px) - 64px)",
+            }}
+          >
             <SideNav />
           </aside>
 

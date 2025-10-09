@@ -25,11 +25,8 @@ export const StickyBanner = ({
     if (!el) return;
 
     const setVar = () => {
-      const h = el.clientHeight;
-      document.documentElement.style.setProperty(
-        "--banner-h",
-        `${open ? h : 0}px`
-      );
+      const heightPx = open ? el.clientHeight : 0;
+      document.documentElement.style.setProperty("--banner-h", `${heightPx}px`);
     };
 
     setVar();

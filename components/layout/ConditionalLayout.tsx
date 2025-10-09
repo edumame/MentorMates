@@ -26,7 +26,7 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
   return (
     <div className="min-h-screen flex flex-col">
       {/* Add top padding only when needed */}
-      <div className={`flex flex-1 ${shouldPad ? "pt-16" : ""}`}>
+      <div className={`flex flex-1 ${shouldPad ? "pt-[calc(var(--banner-h,0px)+64px)]" : ""}`}>
         <main className="flex-1 flex flex-col">
           <div className="flex-1">{children}</div>
         </main>

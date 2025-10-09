@@ -1,6 +1,5 @@
 import React from "react";
 import { SidebarLayout } from "@/components/layout/SidebarLayout";
-import { ConditionalNavbar } from "@/components/layout/ConditionalNavbar";
 
 export default function StaticLayout({
   children,
@@ -9,7 +8,6 @@ export default function StaticLayout({
 }) {
   return (
     <div className="min-h-screen">
-      <ConditionalNavbar />
       <div className="pt-2">
         <SidebarLayout>{children}</SidebarLayout>
       </div>

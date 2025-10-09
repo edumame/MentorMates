@@ -102,7 +102,7 @@ export function Navbar() {
   return (
     <>
       <nav
-        className={`fixed left-0 right-0 bg-white z-50 ${isHome ? "top-[var(--banner-h,0px)]" : "top-0"}`}
+        className={`fixed left-0 right-0 bg-white z-50 border-b border-[#D8D8D8] top-[var(--banner-h,0px)]`}
       >
         <div className="flex justify-between items-center py-4 px-4 sm:px-6 lg:px-10">
           {/* Logo and Desktop Menu */}
