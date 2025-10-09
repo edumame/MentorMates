@@ -52,7 +52,7 @@ function ServiceRow({ data }: { data: ServiceSectionData }) {
 
   return (
     // 2 cols on md+, stacked on mobile
-    <div className="grid grid-cols-1 md:grid-cols-2 items-center gap-10 lg:gap-16">
+    <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 items-center gap-10 lg:gap-16">
       {/* TEXT — mobile first; on desktop it zigzags opposite to image */}
       <div className={`order-1 ${imgOnLeft ? "md:order-2" : "md:order-1"}`}>
         {data.eyebrow && (

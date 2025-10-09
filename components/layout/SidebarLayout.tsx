@@ -56,9 +56,7 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
           </main>
         </div>
       ) : (
-        <div className="min-h-screen flex">
-          {children}
-        </div>
+        <div className="min-h-screen w-full">{children}</div>
       )}
     </>
   );
