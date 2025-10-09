@@ -48,6 +48,7 @@ const TabsContent = React.forwardRef<
       className
     )}
     {...props}
+    forceMount
   />
 ))
 TabsContent.displayName = TabsPrimitive.Content.displayName
