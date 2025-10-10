@@ -123,10 +123,10 @@ export default async function EventsPage() {
   const eventsList = events || [];
 
   return (
-    <div className="min-h-[90vh] flex flex-col bg-white">
+    <div className="min-h-[90vh] flex flex-col" style={{ background: "linear-gradient(203deg, rgba(219, 234, 254, 0.25) 13.19%, rgba(255, 255, 255, 0.00) 65.83%), #FFF" }}>
       <div className="flex-grow">
-        <div className="max-w-7xl mx-auto py-8 px-6 lg:px-10">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-center text-blue-900">
+        <div className="max-w-[1128px] mx-auto py-6 px-6 sm:py-6 sm:px-8">
+          <h1 className="text-[20px] sm:text-[28px] font-semibold leading-[1.4] tracking-[-0.06em] text-black mb-4">
             Events
           </h1>
           <EventsPageClient eventsList={eventsList}/>
