@@ -125,7 +125,7 @@ const ProjectBoard = ({
                         </div>
 
                         {/* Metatags */}
-                        <div className="flex flex-wrap gap-[12px] items-center w-full">
+                        <div className="flex flex-wrap gap-[16px] items-center w-full">
                           <div className="flex gap-[4px] items-center">
                             <CalendarClock className="h-5 w-5 text-[#575d65]" />
                             <span className="text-sm text-[#575d65] leading-[1.5]">
@@ -148,9 +148,27 @@ const ProjectBoard = ({
                         <div className="flex items-center">
                           <div className="flex gap-[16px] items-center">
                             <div className="flex items-center pr-[8px]">
-                              <div className="w-10 h-10 rounded-full bg-gray-300 border-2 border-white mr-[-8px]"></div>
-                              <div className="w-10 h-10 rounded-full bg-gray-400 border-2 border-white mr-[-8px]"></div>
-                              <div className="w-10 h-10 rounded-full bg-gray-500 border-2 border-white mr-[-8px]"></div>
+                              {/* Lead Avatar */}
+                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 border-2 border-white mr-[-8px] flex items-center justify-center text-white font-semibold text-sm">
+                                {project.lead_name?.charAt(0).toUpperCase() || 'L'}
+                              </div>
+                              {/* Teammate Avatars */}
+                              {project.teammates && project.teammates.slice(0, 3).map((teammate, index) => {
+                                const colors = [
+                                  'from-purple-400 to-purple-600',
+                                  'from-pink-400 to-pink-600',
+                                  'from-orange-400 to-orange-600',
+                                ];
+                                return (
+                                  <div
+                                    key={index}
+                                    className={`w-10 h-10 rounded-full bg-gradient-to-br ${colors[index % colors.length]} border-2 border-white mr-[-8px] flex items-center justify-center text-white font-semibold text-sm`}
+                                    title={teammate}
+                                  >
+                                    {teammate.charAt(0).toUpperCase()}
+                                  </div>
+                                );
+                              })}
                             </div>
                           </div>
                         </div>
