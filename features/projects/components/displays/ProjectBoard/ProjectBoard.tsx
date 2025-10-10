@@ -125,7 +125,7 @@ const ProjectBoard = ({
                         </div>
 
                         {/* Metatags */}
-                        <div className="flex flex-wrap gap-[12px] items-center w-full">
+                        <div className="flex flex-wrap gap-[20px] items-center w-full">
                           <div className="flex gap-[4px] items-center">
                             <CalendarClock className="h-5 w-5 text-[#575d65]" />
                             <span className="text-sm text-[#575d65] leading-[1.5]">
