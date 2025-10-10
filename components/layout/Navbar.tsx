@@ -95,7 +95,8 @@ export function Navbar() {
     } else {
       setSession(null);
       localStorage.removeItem("returnUrl");
-      window.location.href = "/";
+      router.push("/");
+      router.refresh();
     }
   };
 
