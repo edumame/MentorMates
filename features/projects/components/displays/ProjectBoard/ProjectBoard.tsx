@@ -51,9 +51,9 @@ const ProjectBoard = ({
                   : `/projects/public/${project.id}`;
 
                 return (
-                  <Link href={projectUrl} key={project.id} className="block">
+                  <Link href={projectUrl} key={project.id} className="block min-h-[400px]">
                     <Card
-                      className={`bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] overflow-hidden relative flex flex-col hover:shadow-lg transition-shadow ${
+                      className={`bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] overflow-hidden relative flex flex-col h-full hover:shadow-lg transition-shadow ${
                         project.prizes_won && project.prizes_won.length > 0
                           ? "ring-2 ring-yellow-400"
                           : ""
