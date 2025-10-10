@@ -94,8 +94,9 @@ const ProjectBoard = ({
                     </div>
                     <div className="px-6 py-4 flex flex-col gap-[12px]">
                       {/* Title and Badges */}
-                      <div className="flex flex-col gap-[8px]">
-                        <div className="flex gap-[8px] items-center flex-wrap">
+                      <div className="flex flex-col gap-[16px]">
+                        <div className="flex flex-col gap-[8px]">
+                          <div className="flex gap-[8px] items-center flex-wrap">
                           <CardTitle className="text-[22px] font-semibold leading-[1.4] tracking-[-0.06em] text-black">
                             {project.project_name}
                           </CardTitle>
@@ -115,25 +116,25 @@ const ProjectBoard = ({
                               </div>
                             </>
                           )}
+                          </div>
+                          <CardDescription className="text-base text-black leading-[1.5] line-clamp-2 h-12">
+                            {project.project_description}
+                          </CardDescription>
                         </div>
-                        <CardDescription className="text-base text-black leading-[1.5] line-clamp-2 h-12">
-                          {project.project_description}
-                        </CardDescription>
-                      </div>
 
-                      {/* Metadata */}
-                      <div className="flex flex-wrap gap-3 items-center">
-                        <div className="flex gap-1 items-center">
+                        {/* Metadata */}
+                      <div className="flex flex-wrap gap-[12px] items-center">
+                        <div className="flex gap-[4px] items-center">
                           <CalendarClock className="h-5 w-5 text-[#575d65]" />
                           <span className="text-sm text-[#575d65]">
                             {project.created_at ? new Date(project.created_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A'}
                           </span>
                         </div>
-                        <div className="flex gap-1 items-center">
+                        <div className="flex gap-[4px] items-center">
                           <ThumbsUp className="h-5 w-5 text-[#575d65]" />
                           <span className="text-sm text-[#575d65]">0</span>
                         </div>
-                        <div className="flex gap-1 items-center">
+                        <div className="flex gap-[4px] items-center">
                           <MessageSquare className="h-5 w-5 text-[#575d65]" />
                           <span className="text-sm text-[#575d65]">0</span>
                         </div>
