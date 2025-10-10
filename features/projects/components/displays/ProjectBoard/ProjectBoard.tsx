@@ -51,7 +51,7 @@ const ProjectBoard = ({
                   : `/projects/public/${project.id}`;
 
                 return (
-                  <Link href={projectUrl} key={project.id} className="block min-h-[400px]">
+                  <Link href={projectUrl} key={project.id} className="block">
                     <Card
                       className={`bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] overflow-hidden relative flex flex-col h-full hover:shadow-lg transition-shadow ${
                         project.prizes_won && project.prizes_won.length > 0
@@ -75,7 +75,7 @@ const ProjectBoard = ({
 
                     {/* Cover Image or Gradient Fallback */}
                     <div
-                      className="h-48 w-full relative"
+                      className="aspect-[338.667/220] w-full relative"
                       style={{
                         backgroundImage: `url(${
                           project.cover_image_url || "/img/placeholder.png"
