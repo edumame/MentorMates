@@ -2,7 +2,7 @@ import React, { useState } from "react";
 
 import Link from "next/link";
 import { Card, CardTitle, CardDescription } from "@/components/ui/card";
-import { Loader2, Trophy, CalendarClock, ThumbsUp, User, MoreHorizontal, MessageSquare, QrCode, ExternalLink } from "lucide-react";
+import { Loader, Trophy, CalendarClock, ThumbsUp, User, MoreHorizontal, MessageSquare, QrCode, ExternalLink } from "lucide-react";
 import { motion } from "framer-motion";
 import {
   DropdownMenu,
@@ -34,7 +34,7 @@ const ProjectBoard = ({
     <>
       {isLoading ? (
         <div className="flex justify-center items-center h-64">
-          <Loader2 className="h-12 w-12 animate-spin text-blue-400" />
+          <Loader className="h-12 w-12 animate-spin text-blue-400" />
         </div>
       ) : (
         <motion.div
@@ -92,10 +92,10 @@ const ProjectBoard = ({
                         </div>
                       )}
                     </div>
-                    <div className="px-6 py-4 flex flex-col gap-[12px]">
+                    <div className="px-[24px] py-[16px] flex flex-col gap-[12px]">
                       {/* Content */}
                       <div className="flex flex-col gap-[16px]">
-                        {/* Title and Badges */}
+                        {/* Title */}
                         <div className="flex flex-col gap-[8px]">
                           <div className="flex gap-[8px] items-center flex-wrap">
                             <CardTitle className="text-[22px] font-semibold leading-[1.4] tracking-[-0.06em] text-black">
@@ -103,41 +103,46 @@ const ProjectBoard = ({
                             </CardTitle>
                             {projectBoardContext === ProjectBoardContext.MyProjects && (
                               <>
-                                <div className="bg-white border border-[rgba(0,0,0,0.15)] px-2 py-1 rounded-full flex items-center gap-1">
-                                  <Loader2 className="h-[18px] w-[18px] text-black" />
-                                  <span className="text-sm text-black">
+                                <div className="bg-white border border-[rgba(0,0,0,0.15)] px-[8px] py-[4px] rounded-full flex items-center gap-[4px]">
+                                  <Loader className="h-[18px] w-[18px] text-black" />
+                                  <span className="text-sm text-black leading-[1.5]">
                                     {project.submitted ? "Public" : "Draft"}
                                   </span>
                                 </div>
-                                <div className="bg-white border border-[rgba(0,0,0,0.15)] px-2 py-1 rounded-full flex items-center gap-1">
+                                <div className="bg-white border border-[rgba(0,0,0,0.15)] px-[8px] py-[4px] rounded-full flex items-center gap-[4px]">
                                   <User className="h-5 w-5 text-black" />
-                                  <span className="text-sm text-black">
+                                  <span className="text-sm text-black leading-[1.5]">
                                     {project.lead_email === session?.user?.email ? "Owner" : "Team Member"}
                                   </span>
                                 </div>
                               </>
                             )}
                           </div>
-                          <CardDescription className="text-base text-black leading-[1.5] line-clamp-2 h-12">
+                          <p className="text-base text-black leading-[1.5] overflow-hidden h-[48px]" style={{
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden'
+                          }}>
                             {project.project_description}
-                          </CardDescription>
+                          </p>
                         </div>
 
-                        {/* Metadata */}
+                        {/* Metatags */}
                         <div className="flex flex-wrap gap-[12px] items-center">
                           <div className="flex gap-[4px] items-center">
                             <CalendarClock className="h-5 w-5 text-[#575d65]" />
-                            <span className="text-sm text-[#575d65]">
+                            <span className="text-sm text-[#575d65] leading-[1.5]">
                               {project.created_at ? new Date(project.created_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A'}
                             </span>
                           </div>
                           <div className="flex gap-[4px] items-center">
                             <ThumbsUp className="h-5 w-5 text-[#575d65]" />
-                            <span className="text-sm text-[#575d65]">0</span>
+                            <span className="text-sm text-[#575d65] leading-[1.5]">0</span>
                           </div>
                           <div className="flex gap-[4px] items-center">
                             <MessageSquare className="h-5 w-5 text-[#575d65]" />
-                            <span className="text-sm text-[#575d65]">0</span>
+                            <span className="text-sm text-[#575d65] leading-[1.5]">0</span>
                           </div>
                         </div>
                       </div>
