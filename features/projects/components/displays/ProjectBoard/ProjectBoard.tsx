@@ -94,13 +94,13 @@ const ProjectBoard = ({
                     </div>
                     <div className="px-[24px] py-[16px] flex flex-col gap-[12px]">
                       {/* Content */}
-                      <div className="flex flex-col gap-[16px]">
+                      <div className="flex flex-col gap-[16px] w-full">
                         {/* Title */}
-                        <div className="flex flex-col gap-[8px]">
-                          <div className="flex gap-[8px] items-center flex-wrap">
-                            <CardTitle className="text-[22px] font-semibold leading-[1.4] tracking-[-0.06em] text-black">
+                        <div className="flex flex-col gap-[8px] w-full">
+                          <div className="flex gap-[8px] items-center flex-wrap w-full">
+                            <p className="text-[22px] font-semibold leading-[1.4] tracking-[-0.06em] text-black shrink-0">
                               {project.project_name}
-                            </CardTitle>
+                            </p>
                             {projectBoardContext === ProjectBoardContext.MyProjects && (
                               <>
                                 <div className="bg-white border border-[rgba(0,0,0,0.15)] px-[8px] py-[4px] rounded-full flex items-center gap-[4px]">
@@ -129,7 +129,7 @@ const ProjectBoard = ({
                         </div>
 
                         {/* Metatags */}
-                        <div className="flex flex-wrap gap-[12px] items-center">
+                        <div className="flex flex-wrap gap-[12px] items-center w-full">
                           <div className="flex gap-[4px] items-center">
                             <CalendarClock className="h-5 w-5 text-[#575d65]" />
                             <span className="text-sm text-[#575d65] leading-[1.5]">
@@ -148,13 +148,14 @@ const ProjectBoard = ({
                       </div>
 
                       {/* Team Members and More Options */}
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between w-full">
                         <div className="flex items-center">
-                          {/* Placeholder for team member avatars */}
-                          <div className="flex items-center -space-x-2">
-                            <div className="w-10 h-10 rounded-full bg-gray-300 border-2 border-white"></div>
-                            <div className="w-10 h-10 rounded-full bg-gray-400 border-2 border-white"></div>
-                            <div className="w-10 h-10 rounded-full bg-gray-500 border-2 border-white"></div>
+                          <div className="flex gap-[16px] items-center">
+                            <div className="flex items-center pr-[8px]">
+                              <div className="w-10 h-10 rounded-full bg-gray-300 border-2 border-white mr-[-8px]"></div>
+                              <div className="w-10 h-10 rounded-full bg-gray-400 border-2 border-white mr-[-8px]"></div>
+                              <div className="w-10 h-10 rounded-full bg-gray-500 border-2 border-white mr-[-8px]"></div>
+                            </div>
                           </div>
                         </div>
                         {projectBoardContext === ProjectBoardContext.MyProjects && (
