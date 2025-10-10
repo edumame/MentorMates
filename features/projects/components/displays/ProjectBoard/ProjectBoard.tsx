@@ -1,12 +1,9 @@
-import React, { useState } from "react";
+import React from "react";
 
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import { Card, CardTitle, CardDescription } from "@/components/ui/card";
-import { Loader2, QrCode, MessageSquare, Copy, Trophy } from "lucide-react";
+import { Loader2, Trophy, CalendarClock, ThumbsUp, User, MoreHorizontal, MessageSquare } from "lucide-react";
 import { motion } from "framer-motion";
-import QRCode from "react-qr-code";
-import { toast } from "@/lib/hooks/use-toast";
 
 import { Project, ProjectBoardContext } from "@/lib/types";
 
@@ -23,25 +20,6 @@ const ProjectBoard = ({
   session,
   projectBoardContext,
 }: ProjectBoardProps) => {
-  const [showQRCodes, setShowQRCodes] = useState<{ [key: string]: boolean }>(
-    {}
-  );
-
-  const toggleQRCode = (projectId: string) => {
-    setShowQRCodes((prev) => ({
-      ...prev,
-      [projectId]: !prev[projectId],
-    }));
-  };
-
-  const copyFeedbackUrl = (projectId: string) => {
-    const feedbackUrl = `${window.location.origin}/projects/public/${projectId}`;
-    navigator.clipboard.writeText(feedbackUrl);
-    toast({
-      title: "Copied!",
-      description: "Feedback URL copied to clipboard",
-    });
-  };
 
   return (
     <>
@@ -59,19 +37,19 @@ const ProjectBoard = ({
           {projectList.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[24px]">
               {projectList.map((project) => {
-                const feedbackUrl = `${
-                  typeof window !== "undefined" ? window.location.origin : ""
-                }/projects/public/${project.id}`;
+                const projectUrl = projectBoardContext === ProjectBoardContext.MyProjects
+                  ? `/projects/${project.id}`
+                  : `/projects/public/${project.id}`;
 
                 return (
-                  <Card
-                    key={project.id}
-                    className={`bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] overflow-hidden relative flex flex-col ${
-                      project.prizes_won && project.prizes_won.length > 0
-                        ? "ring-2 ring-yellow-400"
-                        : ""
-                    }`}
-                  >
+                  <Link href={projectUrl} key={project.id} className="block">
+                    <Card
+                      className={`bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] overflow-hidden relative flex flex-col hover:shadow-lg transition-shadow ${
+                        project.prizes_won && project.prizes_won.length > 0
+                          ? "ring-2 ring-yellow-400"
+                          : ""
+                      }`}
+                    >
                     {/* Winner Banner - Overlay */}
                     {project.prizes_won && project.prizes_won.length > 0 && (
                       <div className="absolute top-4 left-4 right-4 z-20">
@@ -105,114 +83,70 @@ const ProjectBoard = ({
                         </div>
                       )}
                     </div>
-                    <div className="p-4 flex flex-col flex-grow">
-                      <div className="flex justify-between items-start mb-3">
-                        <CardTitle className="text-lg font-semibold leading-tight flex-1 pr-2">
-                          {project.project_name}
-                        </CardTitle>
+                    <div className="px-6 py-4 flex flex-col gap-[12px]">
+                      {/* Title and Badges */}
+                      <div className="flex flex-col gap-[8px]">
+                        <div className="flex gap-[8px] items-center flex-wrap">
+                          <CardTitle className="text-[22px] font-semibold leading-[1.4] tracking-[-0.06em] text-black">
+                            {project.project_name}
+                          </CardTitle>
+                          {projectBoardContext === ProjectBoardContext.MyProjects && (
+                            <>
+                              <div className="bg-white border border-[rgba(0,0,0,0.15)] px-2 py-1 rounded-full flex items-center gap-1">
+                                <Loader2 className="h-[18px] w-[18px] text-black" />
+                                <span className="text-sm text-black">
+                                  {project.submitted ? "Public" : "Draft"}
+                                </span>
+                              </div>
+                              <div className="bg-white border border-[rgba(0,0,0,0.15)] px-2 py-1 rounded-full flex items-center gap-1">
+                                <User className="h-5 w-5 text-black" />
+                                <span className="text-sm text-black">
+                                  {project.lead_email === session?.user?.email ? "Owner" : "Team Member"}
+                                </span>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                        <CardDescription className="text-base text-black leading-[1.5] line-clamp-2 h-12">
+                          {project.project_description}
+                        </CardDescription>
                       </div>
-                      <div className="flex flex-wrap gap-2 mb-3">
-                        {projectBoardContext ===
-                          ProjectBoardContext.MyProjects && (
-                          <>
-                            <span className="px-2 py-1 bg-[rgba(0,0,0,0.05)] text-black text-xs rounded-full flex items-center gap-1">
-                              {project.submitted ? "Public" : "Draft"}
-                            </span>
-                            <span className="px-2 py-1 bg-[rgba(0,0,0,0.05)] text-black text-xs rounded-full flex items-center gap-1">
-                              {project.lead_email === session?.user?.email
-                                ? "Owner"
-                                : "Team Member"}
-                            </span>
-                          </>
-                        )}
-                      </div>
-                      <CardDescription className="text-gray-600 text-sm line-clamp-3 overflow-hidden mb-4">
-                        {project.project_description}
-                      </CardDescription>
 
-                      {/* QR Code Section */}
-                      {showQRCodes[project.id] && (
-                        <div className="mb-4 p-4 bg-gray-50 rounded-lg">
-                          <div className="flex flex-col items-center">
-                            <div className="bg-white p-2 rounded border">
-                              <QRCode value={feedbackUrl} size={120} />
-                            </div>
-                            <p className="text-xs text-gray-600 mt-2 text-center">
-                              Scan for feedback page
-                            </p>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => copyFeedbackUrl(project.id)}
-                              className="mt-2 text-xs"
-                            >
-                              <Copy className="h-3 w-3 mr-1" />
-                              Copy Link
-                            </Button>
+                      {/* Metadata */}
+                      <div className="flex flex-wrap gap-3 items-center">
+                        <div className="flex gap-1 items-center">
+                          <CalendarClock className="h-5 w-5 text-[#575d65]" />
+                          <span className="text-sm text-[#575d65]">
+                            {project.created_at ? new Date(project.created_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A'}
+                          </span>
+                        </div>
+                        <div className="flex gap-1 items-center">
+                          <ThumbsUp className="h-5 w-5 text-[#575d65]" />
+                          <span className="text-sm text-[#575d65]">0</span>
+                        </div>
+                        <div className="flex gap-1 items-center">
+                          <MessageSquare className="h-5 w-5 text-[#575d65]" />
+                          <span className="text-sm text-[#575d65]">0</span>
+                        </div>
+                      </div>
+
+                      {/* Team Members and More Options */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          {/* Placeholder for team member avatars */}
+                          <div className="flex items-center -space-x-2">
+                            <div className="w-10 h-10 rounded-full bg-gray-300 border-2 border-white"></div>
+                            <div className="w-10 h-10 rounded-full bg-gray-400 border-2 border-white"></div>
+                            <div className="w-10 h-10 rounded-full bg-gray-500 border-2 border-white"></div>
                           </div>
                         </div>
-                      )}
-
-                      <div className="mt-auto space-y-2">
-                        {(() => {
-                          switch (projectBoardContext) {
-                            case ProjectBoardContext.MyProjects:
-                              return (
-                                <Link
-                                  href={`/projects/${project.id}`}
-                                  className="block"
-                                >
-                                  <Button className="w-full button-gradient text-white font-semibold py-2 px-4 rounded-full shadow hover:shadow-xl transition-all duration-300">
-                                    View Project
-                                  </Button>
-                                </Link>
-                              );
-                            case ProjectBoardContext.EventGallery:
-                              return (
-                                <Link
-                                  href={`/projects/public/${project.id}`}
-                                  target="_blank"
-                                  className="block"
-                                >
-                                  <Button className="w-full button-gradient text-white font-semibold py-2 px-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-300">
-                                    View Details
-                                  </Button>
-                                </Link>
-                              );
-                          }
-                        })()}
-
-                        {/* QR Code and Feedback buttons for MyProjects context */}
-                        {projectBoardContext ===
-                          ProjectBoardContext.MyProjects && (
-                          <div className="flex gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => toggleQRCode(project.id)}
-                              className="flex-1 text-xs"
-                            >
-                              <QrCode className="h-3 w-3 mr-1" />
-                              {showQRCodes[project.id] ? "Hide QR" : "Show QR"}
-                            </Button>
-                            <Link
-                              href={`/projects/public/${project.id}`}
-                              className="flex-1"
-                            >
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="w-full text-xs"
-                              >
-                                <MessageSquare className="h-3 w-3 mr-1" />
-                                Feedback Page
-                              </Button>
-                            </Link>
-                          </div>
-                        )}
+                        <button className="p-0">
+                          <MoreHorizontal className="h-6 w-6 text-[#7f7f7f]" />
+                        </button>
                       </div>
                     </div>
-                  </Card>
+                    </Card>
+                  </Link>
                 );
               })}
             </div>
