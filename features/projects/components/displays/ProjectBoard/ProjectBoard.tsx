@@ -74,11 +74,11 @@ const ProjectBoard = ({
                     )}
 
                     {/* Cover Image */}
-                    <div className="aspect-[338.667/220] w-full relative shrink-0">
+                    <div className="w-full h-48 relative shrink-0">
                       <img
                         src={project.cover_image_url || "/img/placeholder.png"}
                         alt={project.project_name}
-                        className="absolute inset-0 w-full h-full object-cover object-center"
+                        className="w-full h-full object-cover object-center"
                       />
                       {!project.cover_image_url && (
                         <div className="absolute inset-0 flex items-center justify-center p-4 bg-gradient-to-br from-gray-400 to-gray-600">
