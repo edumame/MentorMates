@@ -73,19 +73,15 @@ const ProjectBoard = ({
                       </div>
                     )}
 
-                    {/* Cover Image or Gradient Fallback */}
-                    <div
-                      className="aspect-[338.667/220] w-full relative"
-                      style={{
-                        backgroundImage: `url(${
-                          project.cover_image_url || "/img/placeholder.png"
-                        })`,
-                        backgroundSize: "cover",
-                        backgroundPosition: "center",
-                      }}
-                    >
+                    {/* Cover Image */}
+                    <div className="aspect-[338.667/220] w-full relative shrink-0">
+                      <img
+                        src={project.cover_image_url || "/img/placeholder.png"}
+                        alt={project.project_name}
+                        className="absolute inset-0 w-full h-full object-cover object-center"
+                      />
                       {!project.cover_image_url && (
-                        <div className="absolute inset-0 flex items-center justify-center p-4">
+                        <div className="absolute inset-0 flex items-center justify-center p-4 bg-gradient-to-br from-gray-400 to-gray-600">
                           <h3 className="text-white text-xl font-semibold text-center break-words">
                             {project.project_name}
                           </h3>
