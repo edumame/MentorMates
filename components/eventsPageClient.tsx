@@ -6,16 +6,16 @@ import { EventItem } from "@/lib/types";
 import { UI_TEXT } from "@/lib/config/constants";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/features/user/authentication/auth/AuthContext";
 import { Search, ChevronDown } from "lucide-react";
 
 type SortOption = "date" | "name" | "type";
 
 export function EventsPageClient({ eventsList }: { eventsList: EventItem[] }) {
   const [searchTerm, setSearchTerm] = useState("");
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>("date");
   const [showSortMenu, setShowSortMenu] = useState(false);
+  const { isAuthenticated } = useAuth();
 
   const filteredAndSortedEvents = useMemo(() => {
     // First filter by search term
@@ -42,18 +42,6 @@ export function EventsPageClient({ eventsList }: { eventsList: EventItem[] }) {
 
     return sorted;
   }, [eventsList, searchTerm, sortBy]);
-
-  useEffect(() => {
-    async function checkSession() {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        setIsLoggedIn(!!session);
-      } catch (error) {
-        console.error("Error checking session:", error);
-      }
-    }
-    checkSession();
-  }, []);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -133,7 +121,7 @@ export function EventsPageClient({ eventsList }: { eventsList: EventItem[] }) {
             </div>
 
             {/* Create Event Button - Desktop only */}
-            {isLoggedIn && (
+            {isAuthenticated && (
               <Button asChild className="h-10 hidden sm:inline-flex">
                 <Link href="/events/new">Create an event</Link>
               </Button>
@@ -142,7 +130,7 @@ export function EventsPageClient({ eventsList }: { eventsList: EventItem[] }) {
         </div>
 
         {/* Create Event Button - Mobile only */}
-        {isLoggedIn && (
+        {isAuthenticated && (
           <Button asChild className="h-10 sm:hidden w-full">
             <Link href="/events/new">Create an event</Link>
           </Button>

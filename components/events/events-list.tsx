@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { EventRole, EventVisibility } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { getRoleLabel } from "@/features/user/roles/roles";
+import { useAuth } from "@/features/user/authentication/auth/AuthContext";
 
 interface Event {
   event_id: string;
@@ -32,13 +33,11 @@ export interface EventsListProps {
 
 export function EventsList({ events }: EventsListProps) {
   const [userEventRoles, setUserEventRoles] = useState<UserEventRole[]>([]);
+  const { session } = useAuth();
 
   useEffect(() => {
     async function fetchUserEventRoles() {
       try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
         if (!session) return;
 
         const userId = session.user.id;
@@ -62,7 +61,7 @@ export function EventsList({ events }: EventsListProps) {
     }
 
     fetchUserEventRoles();
-  }, []);
+  }, [session]);
 
   const getUserRoleForEvent = (eventId: string): EventRole | null => {
     const userEventRole = userEventRoles.find(
