@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/utils/Providers";
 import { AuthProvider } from "@/features/user/authentication/auth/AuthProvider";
+import { AuthContextProvider } from "@/features/user/authentication/auth/AuthContext";
 import { StagewiseToolbarWrapper } from "@/components/StagewiseToolbarWrapper";
 import { ConditionalNavbar } from "@/components/layout/ConditionalNavbar";
 import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
@@ -35,18 +36,20 @@ export default function RootLayout({
       </head>
       <body className={inter.className}>
         <Providers>
-          <LayoutConfigProvider>
-            <ConditionalAnnouncement />
-            <ConditionalNavbar />
-            <AuthProvider>
-              <ConditionalLayout>
-                {process.env.NODE_ENV === "development" && (
-                  <StagewiseToolbarWrapper />
-                )}
-                {children}
-              </ConditionalLayout>
-            </AuthProvider>
-          </LayoutConfigProvider>
+          <AuthContextProvider>
+            <LayoutConfigProvider>
+              <ConditionalAnnouncement />
+              <ConditionalNavbar />
+              <AuthProvider>
+                <ConditionalLayout>
+                  {process.env.NODE_ENV === "development" && (
+                    <StagewiseToolbarWrapper />
+                  )}
+                  {children}
+                </ConditionalLayout>
+              </AuthProvider>
+            </LayoutConfigProvider>
+          </AuthContextProvider>
         </Providers>
       </body>
     </html>

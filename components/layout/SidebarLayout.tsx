@@ -1,49 +1,19 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { SideNav } from "@/components/heroes/components/SideNav";
-import { supabase } from "@/lib/supabase";
-import { Session } from "@supabase/supabase-js";
+import { useAuth } from "@/features/user/authentication/auth/AuthContext";
 
 interface SidebarLayoutProps {
   children: React.ReactNode;
 }
 
 export function SidebarLayout({ children }: SidebarLayoutProps) {
-  const [session, setSession] = useState<Session | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    (async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (isMounted) {
-        setSession(session);
-        setIsLoading(false);
-      }
-    })();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_, newSession) => {
-      if (isMounted) {
-        setSession(newSession);
-        setIsLoading(false);
-      }
-    });
-
-    return () => {
-      isMounted = false;
-      subscription?.unsubscribe();
-    };
-  }, []);
+  const { isAuthenticated } = useAuth();
 
   return (
     <>
-      {session ? (
+      {isAuthenticated ? (
         <div className="min-h-screen flex">
           {/* Desktop Sidebar - Hidden on mobile, fixed position */}
           <aside className="hidden lg:block bg-white flex-shrink-0 fixed left-0 top-0 h-screen overflow-y-auto pt-5">
