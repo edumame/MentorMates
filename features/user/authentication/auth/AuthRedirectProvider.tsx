@@ -17,7 +17,11 @@ export function AuthRedirectProvider({
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_IN" && session) {
-        // Refresh the page when signed in to ensure proper auth state
+        // Refresh when signed in to ensure proper auth state
+        router.refresh();
+      }
+      if (event === "SIGNED_OUT") {
+        // Ensure UI reflects logged-out state immediately
         router.refresh();
       }
     });
