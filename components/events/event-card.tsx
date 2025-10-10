@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { MapPin } from "lucide-react";
 import { EventItem } from "@/lib/types";
@@ -35,11 +34,10 @@ export function EventCard({ event }: EventCardProps) {
         {/* Image Section */}
         <div className="relative w-full aspect-[405.333/270]">
           {event.cover_image_url ? (
-            <Image
+            <img
               src={event.cover_image_url}
               alt={event.event_name}
-              fill
-              className="object-cover"
+              className="absolute inset-0 w-full h-full object-cover"
             />
           ) : (
             <div className="absolute inset-0 w-full h-full bg-gradient-to-br from-blue-100 to-blue-50" />
