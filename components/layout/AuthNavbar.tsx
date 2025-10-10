@@ -87,15 +87,26 @@ export function AuthNavbar() {
     <>
       <nav className="fixed top-0 inset-x-0 z-50 bg-white border-b border-[#D8D8D8] top-[var(--banner-h,0px)]">
         <div className="flex items-center justify-between p-4">
-          <Link href="/" className="flex items-center gap-2">
-            <Image
-              src="/mentormate.png"
-              alt="Logo"
-              width={200}
-              height={40}
-              className="object-contain pl-2"
-            />
-          </Link>
+          <div className="flex items-center gap-6">
+            <Link href="/" className="flex items-center gap-2">
+              <Image
+                src="/mentormate.png"
+                alt="Logo"
+                width={200}
+                height={40}
+                className="object-contain pl-2"
+              />
+            </Link>
+            {/* Desktop primary links */}
+            <div className="hidden md:flex items-center gap-6">
+              <Link
+                href="/"
+                className="text-base font-medium text-gray-800 hover:text-blue-600"
+              >
+                Home
+              </Link>
+            </div>
+          </div>
 
           {/* Desktop Right Controls: notifications + avatar */}
           <div className="hidden md:flex items-center gap-4">
