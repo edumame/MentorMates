@@ -2,7 +2,7 @@ import React, { useState } from "react";
 
 import Link from "next/link";
 import { Card, CardTitle, CardDescription } from "@/components/ui/card";
-import { Loader, Trophy, CalendarClock, ThumbsUp, User, MoreHorizontal, MessageSquare, QrCode, ExternalLink } from "lucide-react";
+import { Loader, Trophy, CalendarClock, ThumbsUp, User, MoreHorizontal, MessageSquare, QrCode, ExternalLink, Edit, Trash2 } from "lucide-react";
 import { motion } from "framer-motion";
 import {
   DropdownMenu,
@@ -10,7 +10,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
+import { toast } from "@/lib/hooks/use-toast";
 import QRCode from "react-qr-code";
 
 import { Project, ProjectBoardContext } from "@/lib/types";
@@ -29,6 +32,9 @@ const ProjectBoard = ({
   projectBoardContext,
 }: ProjectBoardProps) => {
   const [qrDialogOpen, setQrDialogOpen] = useState<string | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const router = useRouter();
 
   return (
     <>
@@ -88,11 +94,11 @@ const ProjectBoard = ({
                         </div>
                       )}
                     </div>
-                    <div className="px-[24px] py-[16px] flex flex-col gap-[12px]">
+                    <div className="px-[24px] py-[24px] flex flex-col gap-[24px]">
                       {/* Content */}
-                      <div className="flex flex-col gap-[16px] w-full">
+                      <div className="flex flex-col gap-[24px] w-full">
                         {/* Title */}
-                        <div className="flex flex-col gap-[8px] w-full">
+                        <div className="flex flex-col gap-[16px] w-full">
                           <div className="flex gap-[8px] items-center flex-wrap w-full">
                             <p className="text-[22px] font-semibold leading-[1.4] tracking-[-0.06em] text-black shrink-0">
                               {project.project_name}
@@ -132,19 +138,19 @@ const ProjectBoard = ({
                               {project.created_at ? new Date(project.created_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A'}
                             </span>
                           </div>
-                          <div className="flex gap-[4px] items-center">
+                          {/* <div className="flex gap-[4px] items-center">
                             <ThumbsUp className="h-5 w-5 text-[#575d65]" />
                             <span className="text-sm text-[#575d65] leading-[1.5]">0</span>
                           </div>
                           <div className="flex gap-[4px] items-center">
                             <MessageSquare className="h-5 w-5 text-[#575d65]" />
                             <span className="text-sm text-[#575d65] leading-[1.5]">0</span>
-                          </div>
+                          </div> */}
                         </div>
                       </div>
 
-                      {/* Team Members and More Options */}
-                      <div className="flex items-center justify-between w-full">
+                      {/* Team Members */}
+                      <div className="flex items-center w-full">
                         <div className="flex items-center">
                           <div className="flex items-center pr-[8px]">
                             {/* Lead Avatar */}
@@ -170,35 +176,50 @@ const ProjectBoard = ({
                             })}
                           </div>
                         </div>
-                        {projectBoardContext === ProjectBoardContext.MyProjects && (
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild onClick={(e) => e.preventDefault()}>
-                              <button className="p-0 hover:bg-gray-100 rounded-full p-1 transition-colors">
-                                <MoreHorizontal className="h-6 w-6 text-[#7f7f7f]" />
-                              </button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                              <DropdownMenuItem onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                setQrDialogOpen(project.id);
-                              }}>
-                                <QrCode className="h-4 w-4 mr-2" />
-                                Show QR Code
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                window.open(`/projects/public/${project.id}`, '_blank');
-                              }}>
-                                <ExternalLink className="h-4 w-4 mr-2" />
-                                Feedback Page
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        )}
                       </div>
                     </div>
+
+                    {/* Three Dots Menu - Absolute Position Bottom Right */}
+                    {projectBoardContext === ProjectBoardContext.MyProjects && (
+                      <div className="absolute bottom-4 right-4 z-10">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild onClick={(e) => e.preventDefault()}>
+                            <button className="p-1 hover:bg-gray-100 rounded-full transition-colors bg-white">
+                              <MoreHorizontal className="h-6 w-6 text-[#7f7f7f]" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                            <DropdownMenuItem onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setQrDialogOpen(project.id);
+                            }}>
+                              <QrCode className="h-4 w-4 mr-2" />
+                              Show QR Code
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              window.open(`/projects/public/${project.id}`, '_blank');
+                            }}>
+                              <ExternalLink className="h-4 w-4 mr-2" />
+                              Feedback Page
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="text-red-600 focus:text-red-600"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setDeleteDialogOpen(project.id);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete Project
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    )}
                     </Card>
                   </Link>
                 );
@@ -261,6 +282,65 @@ const ProjectBoard = ({
               </>
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!deleteDialogOpen} onOpenChange={() => setDeleteDialogOpen(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Project</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-gray-600">
+              Are you sure you want to delete this project? This action cannot be undone.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(null)}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={async () => {
+                if (!deleteDialogOpen) return;
+
+                setIsDeleting(true);
+                try {
+                  const response = await fetch(`/api/projects/${deleteDialogOpen}`, {
+                    method: 'DELETE',
+                  });
+
+                  if (!response.ok) {
+                    throw new Error('Failed to delete project');
+                  }
+
+                  toast({
+                    title: "Success",
+                    description: "Project deleted successfully",
+                  });
+
+                  setDeleteDialogOpen(null);
+                  router.refresh();
+                } catch {
+                  toast({
+                    title: "Error",
+                    description: "Failed to delete project. Please try again.",
+                    variant: "destructive",
+                  });
+                } finally {
+                  setIsDeleting(false);
+                }
+              }}
+              disabled={isDeleting}
+            >
+              {isDeleting ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>
