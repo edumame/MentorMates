@@ -1,9 +1,17 @@
-import React from "react";
+import React, { useState } from "react";
 
 import Link from "next/link";
 import { Card, CardTitle, CardDescription } from "@/components/ui/card";
-import { Loader2, Trophy, CalendarClock, ThumbsUp, User, MoreHorizontal, MessageSquare } from "lucide-react";
+import { Loader2, Trophy, CalendarClock, ThumbsUp, User, MoreHorizontal, MessageSquare, QrCode, ExternalLink } from "lucide-react";
 import { motion } from "framer-motion";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import QRCode from "react-qr-code";
 
 import { Project, ProjectBoardContext } from "@/lib/types";
 
@@ -20,6 +28,7 @@ const ProjectBoard = ({
   session,
   projectBoardContext,
 }: ProjectBoardProps) => {
+  const [qrDialogOpen, setQrDialogOpen] = useState<string | null>(null);
 
   return (
     <>
@@ -140,9 +149,33 @@ const ProjectBoard = ({
                             <div className="w-10 h-10 rounded-full bg-gray-500 border-2 border-white"></div>
                           </div>
                         </div>
-                        <button className="p-0">
-                          <MoreHorizontal className="h-6 w-6 text-[#7f7f7f]" />
-                        </button>
+                        {projectBoardContext === ProjectBoardContext.MyProjects && (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild onClick={(e) => e.preventDefault()}>
+                              <button className="p-0 hover:bg-gray-100 rounded-full p-1 transition-colors">
+                                <MoreHorizontal className="h-6 w-6 text-[#7f7f7f]" />
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                              <DropdownMenuItem onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setQrDialogOpen(project.id);
+                              }}>
+                                <QrCode className="h-4 w-4 mr-2" />
+                                Show QR Code
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                window.open(`/projects/public/${project.id}`, '_blank');
+                              }}>
+                                <ExternalLink className="h-4 w-4 mr-2" />
+                                Feedback Page
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )}
                       </div>
                     </div>
                     </Card>
@@ -185,6 +218,30 @@ const ProjectBoard = ({
           )}
         </motion.div>
       )}
+
+      {/* QR Code Dialog */}
+      <Dialog open={!!qrDialogOpen} onOpenChange={() => setQrDialogOpen(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Project QR Code</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col items-center gap-4 py-4">
+            {qrDialogOpen && (
+              <>
+                <div className="bg-white p-4 rounded-lg border">
+                  <QRCode
+                    value={`${typeof window !== "undefined" ? window.location.origin : ""}/projects/public/${qrDialogOpen}`}
+                    size={200}
+                  />
+                </div>
+                <p className="text-sm text-gray-600 text-center">
+                  Scan this QR code to view the project feedback page
+                </p>
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
