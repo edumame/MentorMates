@@ -57,7 +57,7 @@ const ProjectBoard = ({
           className="mx-auto"
         >
           {projectList.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[24px]">
               {projectList.map((project) => {
                 const feedbackUrl = `${
                   typeof window !== "undefined" ? window.location.origin : ""
@@ -66,7 +66,7 @@ const ProjectBoard = ({
                 return (
                   <Card
                     key={project.id}
-                    className={`overflow-hidden shadow-lg relative h-[500px] flex flex-col ${
+                    className={`bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] overflow-hidden relative flex flex-col ${
                       project.prizes_won && project.prizes_won.length > 0
                         ? "ring-2 ring-yellow-400"
                         : ""
@@ -104,38 +104,29 @@ const ProjectBoard = ({
                           </h3>
                         </div>
                       )}
-                      {projectBoardContext === ProjectBoardContext.MyProjects && (
-                        <div className="absolute top-4 left-2 z-20">
-                          {project.submitted ? (
-                            <span className="px-4 py-1 bg-white text-blue-800 text-xs rounded-full shadow-lg">
-                              Submitted
-                            </span>
-                          ) : (
-                            <span className="px-4 py-1 bg-white text-gray-600 text-xs rounded-full shadow-lg">
-                              Draft
-                            </span>
-                          )}
-                        </div>
-                      )}
                     </div>
-                    <div className="p-6 flex flex-col flex-grow">
-                      <div className="flex justify-between items-center mb-3">
-                        <CardTitle className="text-xl font-semibold truncate">
+                    <div className="p-4 flex flex-col flex-grow">
+                      <div className="flex justify-between items-start mb-3">
+                        <CardTitle className="text-lg font-semibold leading-tight flex-1 pr-2">
                           {project.project_name}
                         </CardTitle>
+                      </div>
+                      <div className="flex flex-wrap gap-2 mb-3">
                         {projectBoardContext ===
                           ProjectBoardContext.MyProjects && (
-                          <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-                            {project.lead_email === session?.user?.email
-                              ? "Owner"
-                              : "Team Member"}
-                          </span>
+                          <>
+                            <span className="px-2 py-1 bg-[rgba(0,0,0,0.05)] text-black text-xs rounded-full flex items-center gap-1">
+                              {project.submitted ? "Public" : "Draft"}
+                            </span>
+                            <span className="px-2 py-1 bg-[rgba(0,0,0,0.05)] text-black text-xs rounded-full flex items-center gap-1">
+                              {project.lead_email === session?.user?.email
+                                ? "Owner"
+                                : "Team Member"}
+                            </span>
+                          </>
                         )}
                       </div>
-                      <p className="text-sm text-gray-500 mb-3">
-                        Lead: {project.lead_name}
-                      </p>
-                      <CardDescription className="text-gray-600 text-sm line-clamp-4 overflow-hidden h-20 mb-4">
+                      <CardDescription className="text-gray-600 text-sm line-clamp-3 overflow-hidden mb-4">
                         {project.project_description}
                       </CardDescription>
 

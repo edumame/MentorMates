@@ -10,19 +10,16 @@ import { Toaster } from "@/components/ui/toaster";
 import ProjectBoard from "@/features/projects/components/displays/ProjectBoard/ProjectBoard";
 import { Project, ProjectBoardContext } from "@/lib/types";
 import { DiscordCTA } from "@/components/ui/discord-cta";
+import { Footer } from "@/components/layout/Footer";
+import { useAuth } from "@/features/user/authentication/auth/AuthContext";
 
 export default function ProjectsPage() {
-  const [session, setSession] = useState<Session | null>(null);
+  const { session, isAuthenticated } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const getSession = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      setSession(session);
-
       if (session?.user?.email) {
         await fetchProjects();
       }
@@ -30,7 +27,7 @@ export default function ProjectsPage() {
     };
 
     getSession();
-  }, []);
+  }, [session]);
 
   const fetchProjects = async () => {
     try {
@@ -72,45 +69,41 @@ export default function ProjectsPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className={`min-h-screen flex flex-col ${isAuthenticated ? 'lg:rounded-tl-2xl lg:border-t lg:border-l lg:border-[#D8D8D8] bg-white [background:linear-gradient(203deg,rgba(219,234,254,0.25)_13.19%,rgba(255,255,255,0.00)_65.83%),#FFF]' : ''}`} style={!isAuthenticated ? { background: "linear-gradient(203deg, rgba(219, 234, 254, 0.25) 13.19%, rgba(255, 255, 255, 0.00) 65.83%), #FFF" } : undefined}>
       <Toaster />
-      <div className="justify-between items-center mb-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">My Projects</h1>
-          <p className="text-gray-600">
-            Manage and track your project portfolio
-          </p>
-        </div>
-        <Link href="/projects/submit">
-          <Button className="flex items-center gap-2 bg-blue-900 text-white hover:bg-blue-800">
-            <Plus className="h-4 w-4" />
-            New Project
-          </Button>
-        </Link>
-      </div>
+      <div className="flex-grow px-8 py-6">
+        <div className="max-w-[1064px] mx-auto">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <h1 className="text-[20px] sm:text-[28px] font-semibold leading-[1.4] tracking-[-0.06em] text-black">
+                Project
+              </h1>
+              {projects.length > 0 && (
+                <span className="px-3 py-1 bg-[rgba(0,0,0,0.05)] text-black text-sm rounded-full">
+                  {projects.length}
+                </span>
+              )}
+            </div>
+            {isAuthenticated && (
+              <Button asChild className="h-10">
+                <Link href="/projects/submit">Create a project</Link>
+              </Button>
+            )}
+          </div>
+          <ProjectBoard
+            isLoading={isLoading}
+            projectList={projects}
+            session={session}
+            projectBoardContext={ProjectBoardContext.MyProjects}
+          />
 
-      {projects.length === 0 ? (
-        <div className="text-center py-12">
-          <div className="text-gray-500 mb-4">No projects found</div>
-          <Link href="/projects/submit">
-            <Button className="bg-blue-900 text-white hover:bg-blue-800">
-              Create a Project
-            </Button>
-          </Link>
+          {/* Discord CTA on projects page */}
+          <div className="mt-12">
+            <DiscordCTA variant="default" />
+          </div>
         </div>
-      ) : (
-        <ProjectBoard
-          isLoading={isLoading}
-          projectList={projects}
-          session={session}
-          projectBoardContext={ProjectBoardContext.MyProjects}
-        />
-      )}
-
-      {/* Discord CTA on projects page */}
-      <div className="mt-12">
-        <DiscordCTA variant="default" />
       </div>
+      <Footer />
     </div>
   );
 }
