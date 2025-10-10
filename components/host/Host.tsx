@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { SERVICES_SECTIONS, type ServiceSectionData } from "./content";
-import { MaterialIcon } from "@/components/MaterialIcon"
+import { MaterialIcon } from "@/components/MaterialIcon";
 import { Button } from "@/components/ui/button";
 
 export function Host() {
@@ -15,13 +15,16 @@ export function Host() {
   return (
     <section className="bg-white">
       {/* Hero */}
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-4 sm:px-6 py-16 sm:py-20 md:py-24">
+      <div
+        className="px-4 sm:px-6 py-16 sm:py-20 md:py-24 min-h-[400px]"
+      >
         <div className="max-w-7xl mx-auto text-center">
           <h1 className="mx-auto max-w-4xl text-3xl sm:text-5xl md:text-6xl font-semibold tracking-tight text-gray-900">
             Turn your organization to an innovation hub
           </h1>
           <p className="mt-4 sm:mt-6 text-gray-700 text-base sm:text-lg max-w-4xl mx-auto">
-            Unlock creativity and innovation with our comprehensive services for organizing successful hackathons.
+            Unlock creativity and innovation with our comprehensive services for
+            organizing successful hackathons.
           </p>
           <div className="mt-6 sm:mt-8">
             <Button variant="default" asChild>
@@ -52,7 +55,7 @@ function ServiceRow({ data }: { data: ServiceSectionData }) {
 
   return (
     // 2 cols on md+, stacked on mobile
-    <div className="grid grid-cols-1 md:grid-cols-2 items-center gap-10 lg:gap-16">
+    <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 items-center gap-10 lg:gap-16">
       {/* TEXT — mobile first; on desktop it zigzags opposite to image */}
       <div className={`order-1 ${imgOnLeft ? "md:order-2" : "md:order-1"}`}>
         {data.eyebrow && (
@@ -88,13 +91,8 @@ function ServiceRow({ data }: { data: ServiceSectionData }) {
 
         {data.cta && (
           <div className="mt-6">
-            <Button
-              asChild
-              variant="defaultGray"
-            >
-              <Link href={data.cta.href}>
-                {data.cta.label}
-              </Link>
+            <Button asChild variant="defaultGray">
+              <Link href={data.cta.href}>{data.cta.label}</Link>
             </Button>
           </div>
         )}
