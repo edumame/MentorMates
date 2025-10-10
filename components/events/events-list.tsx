@@ -1,11 +1,10 @@
 "use client";
 
-import Link from "next/link";
-import { Card, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { EventCard } from "@/components/events/event-card";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { EventRole, EventVisibility } from "@/lib/types";
+import { Badge } from "@/components/ui/badge";
 import { getRoleLabel } from "@/features/user/roles/roles";
 
 interface Event {
@@ -17,6 +16,9 @@ interface Event {
   cover_image_url?: string;
   role_labels?: Record<string, string>;
   visibility?: EventVisibility;
+  event_blurb?: string;
+  paid?: boolean;
+  stripe_price_id?: string;
 }
 
 interface UserEventRole {
@@ -87,57 +89,36 @@ export function EventsList({ events }: EventsListProps) {
   };
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 px-4 sm:px-6 lg:px-8">
+    <div className="flex flex-col sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:auto-rows-fr">
       {events.map((event) => {
         const userRole = getUserRoleForEvent(event.event_id);
 
         return (
-          <Link
-            href={`/events/${event.slug || event.event_id}/overview`}
-            key={event.event_id}
-            className="block h-full"
-          >
-            <Card className="flex flex-col h-full hover:shadow-lg transition-all duration-300 overflow-hidden border-2 hover:border-primary/50">
-              <div
-                className="w-full h-[150px] sm:h-[200px] bg-gradient-to-br from-primary/20 to-primary/10"
-                style={
-                  event.cover_image_url
-                    ? {
-                        backgroundImage: `url(${event.cover_image_url})`,
-                        backgroundSize: "cover",
-                        backgroundPosition: "center",
-                      }
-                    : undefined
-                }
-              />
-              <div className="p-3 sm:p-4 space-y-2 sm:space-y-3 flex-grow">
-                <CardTitle className="text-lg sm:text-xl font-semibold line-clamp-2">
-                  {event.event_name}
-                </CardTitle>
-                <div className="flex flex-wrap gap-1.5 sm:gap-2">
-                  <Badge variant="secondary" className="text-xs sm:text-sm">
-                    {event.event_date}
-                  </Badge>
-                  <Badge variant="outline" className="text-xs sm:text-sm">
-                    {event.location}
-                  </Badge>
-                  {event.visibility === EventVisibility.Archived && (
-                    <Badge variant="secondary" className="bg-orange-100 text-orange-800 text-xs sm:text-sm">
-                      📁 Archived
-                    </Badge>
-                  )}
-                </div>
-                {userRole && (
-                  <Badge
-                    variant={getRoleBadgeVariant(userRole)}
-                    className="capitalize text-xs sm:text-sm mt-1 sm:mt-2"
-                  >
-                    {getRoleLabel(userRole, event.role_labels)}
-                  </Badge>
-                )}
+          <div key={event.event_id} className="relative">
+            <EventCard event={event} />
+            {/* User Role Badge Overlay */}
+            {userRole && (
+              <div className="absolute top-3 left-3 z-10">
+                <Badge
+                  variant={getRoleBadgeVariant(userRole)}
+                  className="capitalize text-xs shadow-md"
+                >
+                  {getRoleLabel(userRole, event.role_labels)}
+                </Badge>
               </div>
-            </Card>
-          </Link>
+            )}
+            {/* Archived Badge */}
+            {event.visibility === EventVisibility.Archived && (
+              <div className="absolute top-3 right-3 z-10">
+                <Badge
+                  variant="secondary"
+                  className="bg-orange-100 text-orange-800 text-xs shadow-md"
+                >
+                  📁 Archived
+                </Badge>
+              </div>
+            )}
+          </div>
         );
       })}
     </div>
