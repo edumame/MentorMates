@@ -1,11 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
-import { Session } from "@supabase/supabase-js";
 import { Toaster } from "@/components/ui/toaster";
 import ProjectBoard from "@/features/projects/components/displays/ProjectBoard/ProjectBoard";
 import { Project, ProjectBoardContext } from "@/lib/types";
