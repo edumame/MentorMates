@@ -8,6 +8,7 @@ import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { useToast } from "@/lib/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useReadStatus } from "@/lib/hooks/use-read-status";
 
 interface FeedbackWithProject {
   id: string;
@@ -115,48 +116,7 @@ export default function GivenFeedbackPage() {
         ) : feedbackList.length > 0 ? (
           <div className="space-y-6">
             {feedbackList.map((item) => (
-              <Card
-                key={item.id}
-                className="bg-white shadow hover:shadow-md transition-shadow"
-              >
-                <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-xl text-blue-900">
-                      {item.project_name}
-                    </CardTitle>
-                    <span className="text-sm text-gray-500">
-                      {formatDistanceToNow(new Date(item.created_at), {
-                        addSuffix: true,
-                      })}
-                    </span>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-start space-x-4">
-                    <div className="flex-shrink-0">
-                      <div className="h-10 w-10 rounded-full bg-blue-900 flex items-center justify-center text-white font-bold">
-                        {getInitials(item.mentor_name)}
-                      </div>
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-gray-700 whitespace-pre-wrap">
-                        {item.feedback_text}
-                      </p>
-                      <div className="mt-4">
-                        <Link href={`/projects/public/${item.project_id}`}>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-blue-900 hover:text-blue-700"
-                          >
-                            View Project
-                          </Button>
-                        </Link>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+              <FeedbackGivenCard key={item.id} item={item} />
             ))}
           </div>
         ) : (
@@ -176,5 +136,55 @@ export default function GivenFeedbackPage() {
         )}
       </div>
     </div>
+  );
+}
+
+function FeedbackGivenCard({ item }: { item: FeedbackWithProject }) {
+  const { isRead, markAsRead } = useReadStatus(`feedback:${item.id}`);
+  return (
+    <Card
+      onClick={markAsRead}
+      className="bg-white shadow hover:shadow-md transition-shadow cursor-pointer"
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") markAsRead();
+      }}
+    >
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className={`w-2 h-6 rounded ${isRead ? "bg-red-500" : "bg-gray-200"}`} />
+            <CardTitle className="text-xl text-blue-900">
+              {item.project_name}
+            </CardTitle>
+          </div>
+          <span className="text-sm text-gray-500">
+            {formatDistanceToNow(new Date(item.created_at), {
+              addSuffix: true,
+            })}
+          </span>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="flex items-start space-x-4">
+          <div className="flex-shrink-0">
+            <div className="h-10 w-10 rounded-full bg-blue-900 flex items-center justify-center text-white font-bold">
+              {getInitials(item.mentor_name)}
+            </div>
+          </div>
+          <div className="flex-1">
+            <p className="text-gray-700 whitespace-pre-wrap">{item.feedback_text}</p>
+            <div className="mt-4">
+              <Link href={`/projects/public/${item.project_id}`}>
+                <Button variant="outline" size="sm" className="text-blue-900 hover:text-blue-700">
+                  View Project
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

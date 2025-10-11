@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Project, EventItem, FeedbackItem } from "@/lib/types";
+import { useReadStatus } from "@/lib/hooks/use-read-status";
 
 interface AdminDashboardProps {
   event?: EventItem;
@@ -183,6 +184,7 @@ export function AdminDashboard({ event }: AdminDashboardProps) {
           </TableCaption>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-4">Read</TableHead>
               <TableHead>Project Name</TableHead>
               <TableHead>Project Description</TableHead>
               <TableHead>Mentor Name</TableHead>
@@ -193,20 +195,36 @@ export function AdminDashboard({ event }: AdminDashboardProps) {
           </TableHeader>
           <TableBody>
             {feedback.map((item) => (
-              <TableRow key={item.id}>
-                <TableCell>{item.project_name}</TableCell>
-                <TableCell>{item.project_description}</TableCell>
-                <TableCell>{item.mentor_name}</TableCell>
-                <TableCell>{item.feedback_text}</TableCell>
-                <TableCell>{item.rating}</TableCell>
-                <TableCell>
-                  {new Date(item.created_at).toLocaleString()}
-                </TableCell>
-              </TableRow>
+              <AdminFeedbackRow key={item.id} item={item} />
             ))}
           </TableBody>
         </Table>
       </TabsContent>
     </Tabs>
+  );
+}
+
+function AdminFeedbackRow({ item }: { item: ExtendedFeedback }) {
+  const { isRead, markAsRead } = useReadStatus(`feedback:${item.id}`);
+  return (
+    <TableRow
+      onClick={markAsRead}
+      className="cursor-pointer"
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") markAsRead();
+      }}
+    >
+      <TableCell>
+        <div className={`w-2 h-4 rounded ${isRead ? "bg-red-500" : "bg-gray-200"}`} />
+      </TableCell>
+      <TableCell>{item.project_name}</TableCell>
+      <TableCell>{item.project_description}</TableCell>
+      <TableCell>{item.mentor_name}</TableCell>
+      <TableCell>{item.feedback_text}</TableCell>
+      <TableCell>{item.rating}</TableCell>
+      <TableCell>{new Date(item.created_at).toLocaleString()}</TableCell>
+    </TableRow>
   );
 }

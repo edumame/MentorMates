@@ -4,6 +4,8 @@ import { useFeedbackData } from "@/features/projects/components/management/proje
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MessageSquare } from "lucide-react";
 import { getInitials } from "@/lib/utils/string";
+import { useReadStatus } from "@/lib/hooks/use-read-status";
+import type { FeedbackItem } from "@/lib/types";
 
 interface FeedbackDisplayProps {
   projectId: string;
@@ -60,37 +62,7 @@ export default function FeedbackDisplay({
         {feedback.length > 0 ? (
           <div className="space-y-6">
             {feedback.map((item) => (
-              <div
-                key={item.id}
-                className="flex items-start space-x-4 bg-gray-50 p-4 rounded-lg border"
-              >
-                <div className="flex-shrink-0">
-                  <div className="h-10 w-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold">
-                    {getInitials(item.mentor_name)}
-                  </div>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center space-x-2 mb-2">
-                    <span className="font-semibold text-gray-900">
-                      {item.mentor_name || "Anonymous"}
-                    </span>
-                    {item.mentor_email && (
-                      <span className="text-sm text-gray-500">
-                        ({item.mentor_email})
-                      </span>
-                    )}
-                    <span className="text-sm text-gray-500">
-                      •
-                    </span>
-                    <span className="text-sm text-gray-500">
-                      {new Date(item.created_at).toLocaleDateString()}
-                    </span>
-                  </div>
-                  <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
-                    {item.feedback_text}
-                  </p>
-                </div>
-              </div>
+              <FeedbackRow key={item.id} item={item} />
             ))}
           </div>
         ) : (
@@ -113,3 +85,45 @@ export default function FeedbackDisplay({
     </Card>
   );
 } 
+
+function FeedbackRow({ item }: { item: FeedbackItem }) {
+  const { isRead, markAsRead } = useReadStatus(`feedback:${item.id}`);
+
+  return (
+    <div
+      onClick={markAsRead}
+      className="flex items-start space-x-4 bg-gray-50 p-4 rounded-lg border cursor-pointer"
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          markAsRead();
+        }
+      }}
+    >
+      <div className={`w-1 self-stretch rounded ${isRead ? "bg-red-500" : "bg-gray-200"}`} />
+      <div className="flex-shrink-0">
+        <div className="h-10 w-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold">
+          {getInitials(item.mentor_name)}
+        </div>
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center space-x-2 mb-2">
+          <span className="font-semibold text-gray-900">
+            {item.mentor_name || "Anonymous"}
+          </span>
+          {item.mentor_email && (
+            <span className="text-sm text-gray-500">({item.mentor_email})</span>
+          )}
+          <span className="text-sm text-gray-500">•</span>
+          <span className="text-sm text-gray-500">
+            {new Date(item.created_at).toLocaleDateString()}
+          </span>
+        </div>
+        <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
+          {item.feedback_text}
+        </p>
+      </div>
+    </div>
+  );
+}

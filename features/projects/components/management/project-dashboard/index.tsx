@@ -33,6 +33,7 @@ import { Toaster } from "@/components/ui/toaster";
 import UserSearch from "@/components/utils/UserSearch";
 import { Card } from "@/components/ui/card";
 import { Project, FeedbackItem } from "@/lib/types";
+import { useReadStatus } from "@/lib/hooks/use-read-status";
 import { fetchProjectById } from "@/features/projects/utils/projects";
 import { getFileNameFromUrl } from "@/lib/utils/file";
 import { getInitials } from "@/lib/utils/string";
@@ -874,33 +875,7 @@ export default function ProjectDashboardSection({
           ) : feedback.length > 0 ? (
             <ul className="space-y-6">
               {feedback.map((item) => (
-                <li
-                  key={item.id}
-                  className="flex items-start space-x-4 bg-white p-4 rounded-lg shadow backdrop-blur-md"
-                >
-                  <div className="flex-shrink-0">
-                    <div className="h-10 w-10 rounded-full bg-blue-900 flex items-center justify-center text-white font-bold">
-                      {getInitials(item.mentor_name)}
-                    </div>
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-2">
-                      <span className="font-semibold text-gray-800">
-                        {item.mentor_name || "Anonymous"}
-                      </span>
-                      {item.mentor_email && (
-                        <span className="text-sm text-gray-500">
-                          ({item.mentor_email})
-                        </span>
-                      )}
-                      <span className="text-sm text-gray-500">
-                        {new Date(item.created_at).toLocaleDateString()}
-                      </span>
-                      <div className="ml-auto flex items-center"></div>
-                    </div>
-                    <p className="mt-2 text-gray-700">{item.feedback_text}</p>
-                  </div>
-                </li>
+                <FeedbackListItem key={item.id} item={item} />
               ))}
             </ul>
           ) : (
@@ -937,5 +912,44 @@ export default function ProjectDashboardSection({
         </AlertDialogContent>
       </AlertDialog>
     </Card>
+  );
+}
+
+function FeedbackListItem({ item }: { item: FeedbackItem }) {
+  const { isRead, markAsRead } = useReadStatus(`feedback:${item.id}`);
+  return (
+    <li
+      onClick={markAsRead}
+      className="flex items-start space-x-4 bg-white p-4 rounded-lg shadow backdrop-blur-md cursor-pointer"
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          markAsRead();
+        }
+      }}
+    >
+      <div className={`w-1 self-stretch rounded ${isRead ? "bg-red-500" : "bg-gray-200"}`} />
+      <div className="flex-shrink-0">
+        <div className="h-10 w-10 rounded-full bg-blue-900 flex items-center justify-center text-white font-bold">
+          {getInitials(item.mentor_name)}
+        </div>
+      </div>
+      <div className="flex-1">
+        <div className="flex items-center space-x-2">
+          <span className="font-semibold text-gray-800">
+            {item.mentor_name || "Anonymous"}
+          </span>
+          {item.mentor_email && (
+            <span className="text-sm text-gray-500">({item.mentor_email})</span>
+          )}
+          <span className="text-sm text-gray-500">
+            {new Date(item.created_at).toLocaleDateString()}
+          </span>
+          <div className="ml-auto flex items-center"></div>
+        </div>
+        <p className="mt-2 text-gray-700">{item.feedback_text}</p>
+      </div>
+    </li>
   );
 }
