@@ -266,6 +266,45 @@ export type Database = {
           },
         ]
       }
+      feedback_read_status: {
+        Row: {
+          id: string
+          feedback_id: string
+          user_id: string
+          read_at: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          feedback_id: string
+          user_id: string
+          read_at?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          feedback_id?: string
+          user_id?: string
+          read_at?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feedback_read_status_feedback_id_fkey"
+            columns: ["feedback_id"]
+            isOneToOne: false
+            referencedRelation: "feedback"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feedback_read_status_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       platform_engagement: {
         Row: {
           content: string
