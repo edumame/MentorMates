@@ -83,19 +83,6 @@ export default async function EventOverviewPage({ params }: PageProps) {
     hasJoined = !!userEventRole;
   }
 
-  // Fetch participant count
-  const { count: participantCount } = await supabase
-    .from("user_event_roles")
-    .select("*", { count: "exact", head: true })
-    .eq("event_id", eventData.event_id)
-    .eq("role", "participant");
-
-  // Fetch project count
-  const { count: projectCount } = await supabase
-    .from("projects")
-    .select("*", { count: "exact", head: true })
-    .eq("event_id", eventData.event_id);
-
   return (
     <EventPageLayout
       eventName={typedEvent.event_name}
@@ -105,8 +92,7 @@ export default async function EventOverviewPage({ params }: PageProps) {
       coverImageUrl={typedEvent.cover_image_url}
       eventId={id}
       hasJoined={hasJoined}
-      participantCount={participantCount || 0}
-      projectCount={projectCount || 0}
+      dbEventId={eventData.event_id}
     >
       {/* Main Content */}
       <EventPageContent

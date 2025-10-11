@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import { EventPageHeader } from "./event-page-header";
 import { EventPageTabs } from "./event-page-tabs";
+import { createSupabaseClient } from "@/app/utils/supabase/server";
 
 interface EventPageLayoutProps {
   children: ReactNode;
@@ -11,11 +12,10 @@ interface EventPageLayoutProps {
   coverImageUrl?: string;
   eventId: string;
   hasJoined: boolean;
-  participantCount?: number;
-  projectCount?: number;
+  dbEventId: string; // The actual database UUID for the event
 }
 
-export function EventPageLayout({
+export async function EventPageLayout({
   children,
   eventName,
   eventBlurb,
@@ -24,9 +24,22 @@ export function EventPageLayout({
   coverImageUrl,
   eventId,
   hasJoined,
-  participantCount,
-  projectCount,
+  dbEventId,
 }: EventPageLayoutProps) {
+  const supabase = await createSupabaseClient();
+
+  // Fetch participant count
+  const { count: participantCount } = await supabase
+    .from("user_event_roles")
+    .select("*", { count: "exact", head: true })
+    .eq("event_id", dbEventId)
+    .eq("role", "participant");
+
+  // Fetch project count
+  const { count: projectCount } = await supabase
+    .from("projects")
+    .select("*", { count: "exact", head: true })
+    .eq("event_id", dbEventId);
   return (
     <div className="bg-white border-l border-[#d8d8d8] flex flex-col min-h-screen w-full">
       <div className="flex flex-col w-full">
@@ -42,7 +55,7 @@ export function EventPageLayout({
         />
 
         {/* Tabs Navigation */}
-        <EventPageTabs eventId={eventId} participantCount={participantCount} projectCount={projectCount} />
+        <EventPageTabs eventId={eventId} participantCount={participantCount || 0} projectCount={projectCount || 0} />
 
         {/* Main Content */}
         <div className="w-full">
