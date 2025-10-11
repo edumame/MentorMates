@@ -58,9 +58,20 @@ export default function NewEventPage() {
       toast({ title: "Missing fields", description: "Name, date, and location are required.", variant: "destructive" });
       return;
     }
-    const organizerEmails = (form.organizer_emails || "").split(",").map((e) => e.trim()).filter(Boolean);
     setCreating(true);
     try {
+      // Get current user's email
+      const { data: sessionData } = await supabase.auth.getSession();
+      const currentUserEmail = sessionData?.session?.user?.email;
+
+      // Parse organizer emails from form and add current user
+      const organizerEmails = (form.organizer_emails || "").split(",").map((e) => e.trim()).filter(Boolean);
+
+      // Add current user's email if not already in the list
+      if (currentUserEmail && !organizerEmails.includes(currentUserEmail)) {
+        organizerEmails.unshift(currentUserEmail); // Add at the beginning
+      }
+
       const res = await fetch("/api/events", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
