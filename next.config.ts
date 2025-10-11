@@ -1,10 +1,16 @@
-
 const nextConfig = {
   reactStrictMode: true,
   images: {
-    domains: ['clinicalmindai.stanford.edu'],
+    remotePatterns: [
+      new URL("https://lpxqfwyqandsortecbvu.supabase.co/**"),
+      new URL("https://moinycvhmmzjjtvqijzw.supabase.co/**"),
+      new URL("https://zqlopmbodkxlaunmkveo.supabase.co/**"),
+      new URL("https://nsxcypmjpizdjxrdncpe.supabase.co/**"),
+      new URL("https://clinicalmindai.stanford.edu"),
+    ],
   },
+  // This is required to support PostHog trailing slash API requests
+  skipTrailingSlashRedirect: true,
 };
-
 
 export default nextConfig;

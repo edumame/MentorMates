@@ -9,6 +9,14 @@ export async function GET(
     const supabase = await createSupabaseClient();
     const { userId } = await params;
 
+    // build query to fetch draft projects if the user is the logged in user
+    let fetchDraftProjects = 'submitted.eq.true';
+
+    const { data: loggedInUser } = await supabase.auth.getUser();
+    if (loggedInUser.user?.id === userId) {
+      fetchDraftProjects = 'submitted.eq.false,submitted.eq.true';
+    }
+
     if (!userId) {
       return NextResponse.json(
         { error: "User ID is required" },
@@ -51,10 +59,12 @@ export async function GET(
             track_id,
             name
           )
-        )
+        ),
+        submitted
       `
       )
-      .eq("lead_email", profile.email);
+      .eq("lead_email", profile.email)
+      .or(fetchDraftProjects);  
 
     if (leadError) {
       console.error("Error fetching lead projects:", leadError);
@@ -84,10 +94,12 @@ export async function GET(
             track_id,
             name
           )
-        )
+        ),
+        submitted
       `
       )
-      .contains("teammates", [profile.email]);
+      .contains("teammates", [profile.email])
+      .or(fetchDraftProjects);
 
     if (teamError) {
       console.error("Error fetching team projects:", teamError);
@@ -148,6 +160,7 @@ export async function GET(
         visibility,
         cover_image_url,
         scoring_config,
+        role_labels,
         user_event_roles!inner (
           role
         )

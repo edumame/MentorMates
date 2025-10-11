@@ -7,6 +7,8 @@ import {
   ProjectFromDatabase,
   ProjectWithPrizes,
 } from "@/lib/types";
+import { canAccessRole } from "@/features/user/roles/roles";
+import { createContextusProject } from "@/lib/integrations/contextus";
 
 export async function GET(request: NextRequest) {
   try {
@@ -33,7 +35,9 @@ export async function GET(request: NextRequest) {
           additional_materials_url,
           cover_image_url,
           event_id,
+          contextus_project_id,
           created_at,
+          submitted,
           project_tracks (
             event_tracks (
               track_id,
@@ -51,6 +55,7 @@ export async function GET(request: NextRequest) {
         `
         )
         .eq("event_id", eventId)
+        .eq("submitted", true)
         .order("project_name")
         .overrideTypes<
           Array<{ project_tracks: Array<{ event_tracks: EventTrack }> }>
@@ -75,6 +80,11 @@ export async function GET(request: NextRequest) {
         additional_materials_url: item.additional_materials_url,
         cover_image_url: item.cover_image_url,
         event_id: item.event_id,
+        contextus_project_id: (
+          item as unknown as { contextus_project_id?: string }
+        ).contextus_project_id,
+        submitted:
+          (item as unknown as { submitted?: boolean }).submitted ?? true,
         tracks:
           item.project_tracks?.map((pt) => pt.event_tracks).filter(Boolean) ||
           [],
@@ -174,7 +184,9 @@ export async function GET(request: NextRequest) {
           additional_materials_url,
           cover_image_url,
           event_id,
+          contextus_project_id,
           created_at,
+          submitted,
           project_tracks (
             event_tracks (
               track_id,
@@ -217,6 +229,11 @@ export async function GET(request: NextRequest) {
         additional_materials_url: project.additional_materials_url,
         cover_image_url: project.cover_image_url,
         event_id: project.event_id,
+        contextus_project_id: (
+          project as unknown as { contextus_project_id?: string }
+        ).contextus_project_id,
+        submitted:
+          (project as unknown as { submitted?: boolean }).submitted ?? false,
         tracks:
           project.project_tracks
             ?.map((pt) => pt.event_tracks)
@@ -279,7 +296,10 @@ export async function GET(request: NextRequest) {
         .eq("user_id", user.id)
         .single();
 
-      if (!userRole || userRole.role !== EventRole.Organizer) {
+      if (
+        !userRole ||
+        !canAccessRole(userRole.role as EventRole, EventRole.Organizer)
+      ) {
         return NextResponse.json(
           { error: "Insufficient permissions" },
           { status: 403 }
@@ -330,6 +350,90 @@ export async function GET(request: NextRequest) {
     );
   } catch (error) {
     console.error("API Error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const supabase = await createSupabaseClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { eventId, leadName, leadEmail, projectName, contextus } = body as {
+      eventId?: string;
+      leadName?: string;
+      leadEmail?: string;
+      projectName?: string;
+      contextus?: boolean;
+    };
+
+    const insertPayload: Record<string, unknown> = {
+      event_id: eventId || null,
+      lead_name: leadName || user.user_metadata?.full_name || user.email || "",
+      lead_email: leadEmail || user.email,
+      project_name: projectName || null,
+      submitted: false,
+    };
+
+    const { data, error } = await supabase
+      .from("projects")
+      .insert(insertPayload)
+      .select("id, lead_name, lead_email, event_id, project_name")
+      .single();
+
+    if (error) {
+      return NextResponse.json(
+        { error: error.message || "Failed to create draft project" },
+        { status: 400 }
+      );
+    }
+
+    if (contextus) {
+      // Immediately create a Contextus project (best-effort)
+      let createdContextusId: string | null = null;
+      try {
+        const label =
+          (data.project_name as string | null) ||
+          (data.lead_name as string | null) ||
+          "Project";
+        const contextusPayload = {
+          label,
+          metadata: {
+            mentor_mates_project_id: data.id,
+            team_lead_name: data.lead_name,
+            team_lead_email: data.lead_email,
+            ...(data.event_id ? { event_id: data.event_id } : {}),
+          },
+        };
+        createdContextusId = await createContextusProject(contextusPayload);
+        if (createdContextusId) {
+          await supabase
+            .from("projects")
+            .update({ contextus_project_id: createdContextusId })
+            .eq("id", data.id);
+        }
+      } catch (ctxErr) {
+        console.error("Contextus create-on-draft failed:", ctxErr);
+        // non-blocking
+      }
+      return NextResponse.json({
+        id: data.id,
+        contextus_project_id: createdContextusId,
+      });
+    }
+    return NextResponse.json({ id: data.id });
+  } catch (error) {
+    console.error("Error creating draft project:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

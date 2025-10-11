@@ -1,7 +1,8 @@
-import { Footer } from "@/components/layout/footer";
+import { Footer } from "@/components/layout/Footer";
 import { EventsPageClient } from "@/components/eventsPageClient";
 import { createSupabaseClient } from "../utils/supabase/server";
 import { EventRole, EventVisibility } from "@/lib/types";
+import { DiscordCTA } from "@/components/ui/discord-cta";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +12,9 @@ export default async function EventsPage() {
     data: { user },
   } = await supabase.auth.getUser();
   const isAuthenticated = !!user;
+  const isAdminGlobal = isAuthenticated
+    ? (await supabase.rpc("is_admin_user", { user_id: user!.id })).data || false
+    : false;
 
   async function fetchAuthenticatedUserEvents() {
     try {
@@ -29,10 +33,7 @@ export default async function EventsPage() {
 
       if (rolesError) throw rolesError;
 
-      // Check if user is an admin in any event
-      const { data } = await supabase.rpc("is_admin_user", { user_id: userId });
-
-      const isAdmin = data || false;
+      const isAdmin = isAdminGlobal;
 
       // Get event IDs where user is an organizer
       const organizerEventIds = userRoles
@@ -49,6 +50,7 @@ export default async function EventsPage() {
         // For organizers:
         // - Public and private events (visible to everyone)
         // - Draft events where user is an organizer
+        // - Archived events where user is an organizer
         // - No demo or test events
         query = query.or(
           `visibility.in.(${[
@@ -57,6 +59,9 @@ export default async function EventsPage() {
           ].join(",")}),` +
             `and(visibility.eq.${
               EventVisibility.Draft
+            },event_id.in.(${organizerEventIds.join(",")})),` +
+            `and(visibility.eq.${
+              EventVisibility.Archived
             },event_id.in.(${organizerEventIds.join(",")}))`
         );
       } else {
@@ -93,7 +98,7 @@ export default async function EventsPage() {
 
   async function fetchPublicEvents() {
     try {
-      // Only fetch public and private events
+      // Fetch only public and private events
       const { data: events, error } = await supabase
         .from("events")
         .select("*")
@@ -118,13 +123,18 @@ export default async function EventsPage() {
   const eventsList = events || [];
 
   return (
-    <div className="min-h-[90vh] flex flex-col bg-gray-50">
-      <div className="flex-grow">
-        <div className="max-w-7xl mx-auto py-8 px-6 lg:px-10">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-center text-blue-900">
+    <div className={`min-h-screen flex flex-col ${isAuthenticated ? 'lg:rounded-tl-2xl lg:border-t lg:border-l lg:border-[#D8D8D8] bg-white [background:linear-gradient(203deg,rgba(219,234,254,0.25)_13.19%,rgba(255,255,255,0.00)_65.83%),#FFF]' : ''}`} style={!isAuthenticated ? { background: "linear-gradient(203deg, rgba(219, 234, 254, 0.25) 13.19%, rgba(255, 255, 255, 0.00) 65.83%), #FFF" } : undefined}>
+      <div className="flex-grow px-8 py-6">
+        <div className="max-w-[1064px]">
+          <h1 className="text-[20px] sm:text-[28px] font-semibold leading-[1.4] tracking-[-0.06em] text-black mb-6">
             Events
           </h1>
-          <EventsPageClient eventsList={eventsList} />
+          <EventsPageClient eventsList={eventsList}/>
+
+          {/* Discord CTA on events page */}
+          <div className="mt-12">
+            <DiscordCTA variant="default" />
+          </div>
         </div>
       </div>
       <Footer />

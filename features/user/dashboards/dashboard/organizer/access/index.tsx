@@ -2,11 +2,19 @@
 
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { PasswordTab } from "./PasswordTab";
 import { RoleLabelsTab } from "./RoleLabelsTab";
 import { InviteOrganizersTab } from "./InviteOrganizersTab";
 import { EventDetails } from "@/lib/types";
+import { useEventArchiveStatus } from "@/lib/hooks/use-event-archive-status";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface AccessTabProps {
   eventId: string;
@@ -24,11 +32,25 @@ export function AccessTab({
   setSaving,
 }: AccessTabProps) {
   const [activeTab, setActiveTab] = useState("password");
+  const { isArchived } = useEventArchiveStatus(event);
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>Access Controls</CardTitle>
+        {isArchived && (
+          <div className="mt-2 py-4">
+            <Alert className="border-orange-200 bg-orange-50">
+              <AlertTitle className="text-orange-900">
+                ⚠️ Event is Archived
+              </AlertTitle>
+              <AlertDescription>
+                This event is archived and cannot be edited. To make changes,
+                you must first unarchive the event using the controls below.
+              </AlertDescription>
+            </Alert>
+          </div>
+        )}
       </CardHeader>
       <CardContent className="space-y-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -41,7 +63,11 @@ export function AccessTab({
           </TabsList>
 
           <TabsContent value="password" className="mt-6">
-            <PasswordTab eventId={eventId} roleLabels={event.role_labels} />
+            <PasswordTab
+              eventId={eventId}
+              roleLabels={event.role_labels}
+              isArchived={isArchived}
+            />
           </TabsContent>
 
           <TabsContent value="role-labels" className="mt-6">
@@ -51,11 +77,12 @@ export function AccessTab({
               setEvent={setEvent}
               saving={saving}
               setSaving={setSaving}
+              isArchived={isArchived}
             />
           </TabsContent>
 
           <TabsContent value="invite-organizers" className="mt-6">
-            <InviteOrganizersTab eventId={eventId} />
+            <InviteOrganizersTab eventId={eventId} isArchived={isArchived} />
           </TabsContent>
         </Tabs>
       </CardContent>

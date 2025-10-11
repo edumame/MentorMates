@@ -1,10 +1,11 @@
 "use client";
 
-import { HackathonNav } from "@/components/layout/hackathon-nav";
+import { HackathonNav } from "@/components/layout/Hackathon-nav";
 import { Badge } from "@/components/ui/badge";
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ExpandMore, ExpandLess } from "@mui/icons-material";
+import { EventVisibility } from "@/lib/types";
 
 export interface EventHeaderProps {
   eventName: string;
@@ -15,6 +16,7 @@ export interface EventHeaderProps {
   eventId: string;
   submissionTimeStart?: string;
   submissionTimeCutoff?: string;
+  visibility?: EventVisibility;
 }
 
 export function EventHeader({
@@ -26,19 +28,22 @@ export function EventHeader({
   eventId,
   submissionTimeStart,
   submissionTimeCutoff,
+  visibility,
 }: EventHeaderProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [needsTruncation, setNeedsTruncation] = useState(false);
   const contentRef = useRef<HTMLParagraphElement>(null);
 
-  const isSubmissionOpen = () => {
-    if (!submissionTimeStart || !submissionTimeCutoff) return false;
-    
+  const getSubmissionStatus = () => {
+    // "open" | "before" | "closed"
     const now = new Date();
-    const start = new Date(submissionTimeStart);
-    const end = new Date(submissionTimeCutoff);
-    
-    return now >= start && now <= end;
+    const start = submissionTimeStart ? new Date(submissionTimeStart) : null;
+    const end = submissionTimeCutoff ? new Date(submissionTimeCutoff) : null;
+
+    if (start && now < start) return "before";
+    if (start && end && now >= start && now <= end) return "open";
+    if (!start && end && now <= end) return "open";
+    return "closed";
   };
 
   useEffect(() => {
@@ -46,19 +51,21 @@ export function EventHeader({
       // Temporarily remove line-clamp to measure natural height
       const element = contentRef.current;
       const originalClassName = element.className;
-      
+
       // Remove line-clamp classes to measure full content
-      element.className = element.className.replace(/line-clamp-\d+|overflow-hidden/g, '').trim();
-      
+      element.className = element.className
+        .replace(/line-clamp-\d+|overflow-hidden/g, "")
+        .trim();
+
       const fullHeight = element.scrollHeight;
-      
+
       // Restore original classes
       element.className = originalClassName;
-      
+
       // Calculate approximate height of 3 lines
       const lineHeight = parseInt(getComputedStyle(element).lineHeight);
       const approximateThreeLineHeight = lineHeight * 2;
-      
+
       setNeedsTruncation(fullHeight > approximateThreeLineHeight);
     }
   }, [description, isExpanded]);
@@ -102,16 +109,35 @@ export function EventHeader({
               {location}
             </Badge>
           )}
-          {(submissionTimeStart || submissionTimeCutoff) && (
+          {(submissionTimeStart || submissionTimeCutoff) && (() => {
+            const status = getSubmissionStatus();
+            const badgeClass =
+              status === "open"
+                ? "bg-green-500/20 text-green-300"
+                : status === "before"
+                ? "bg-gray-500/20 text-gray-300"
+                : "bg-red-500/20 text-red-300";
+            const label =
+              status === "open"
+                ? "OPEN FOR SUBMISSION"
+                : status === "before"
+                ? "EVENT STARTING SOON"
+                : "CLOSED FOR SUBMISSION";
+            return (
+              <Badge
+                variant="secondary"
+                className={`${badgeClass} border-none text-xs sm:text-sm`}
+              >
+                {label}
+              </Badge>
+            );
+          })()}
+          {visibility === EventVisibility.Archived && (
             <Badge
               variant="secondary"
-              className={`${
-                isSubmissionOpen() 
-                  ? "bg-green-500/20 text-green-300" 
-                  : "bg-red-500/20 text-red-300"
-              } border-none text-xs sm:text-sm`}
+              className="bg-orange-500/20 text-orange-300 border-none text-xs sm:text-sm"
             >
-              {isSubmissionOpen() ? "OPEN FOR SUBMISSION" : "CLOSED FOR SUBMISSION"}
+              📁 ARCHIVED
             </Badge>
           )}
         </div>
@@ -120,9 +146,7 @@ export function EventHeader({
             <p
               ref={contentRef}
               className={`text-white/80 text-sm sm:text-base max-w-3xl ${
-                isExpanded 
-                  ? "" 
-                  : "line-clamp-2 overflow-hidden"
+                isExpanded ? "" : "line-clamp-2 overflow-hidden"
               }`}
             >
               {description}
@@ -137,12 +161,12 @@ export function EventHeader({
                 {isExpanded ? (
                   <>
                     Show less{" "}
-                    <ChevronUp className="ml-1 h-3 w-3 sm:h-4 sm:w-4" />
+                    <ExpandLess className="ml-1 h-3 w-3 sm:h-4 sm:w-4" />
                   </>
                 ) : (
                   <>
                     Show more{" "}
-                    <ChevronDown className="ml-1 h-3 w-3 sm:h-4 sm:w-4" />
+                    <ExpandMore className="ml-1 h-3 w-3 sm:h-4 sm:w-4" />
                   </>
                 )}
               </Button>

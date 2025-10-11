@@ -38,7 +38,7 @@ export async function GET(request: Request) {
   // Try to check user profile first
   const { data: existingProfile, error: profileCheckError } = await supabase
     .from("user_profiles")
-    .select("uid")
+    .select("uid, onboarding_metadata")
     .eq("uid", user.id)
     .single();
 
@@ -68,6 +68,16 @@ export async function GET(request: Request) {
   const cleanReturnUrl = returnUrl.startsWith("/")
     ? returnUrl.slice(1)
     : returnUrl;
+
+  // If onboarding metadata is missing or empty, redirect to onboarding flow
+  // const needsOnboarding = !existingProfile?.onboarding_metadata ||
+  //   (typeof existingProfile.onboarding_metadata === "object" &&
+  //     Object.keys(existingProfile.onboarding_metadata as Record<string, unknown>).length === 0);
+
+  // if (needsOnboarding) {
+  //   const onboardingUrl = `${cleanBaseUrl}/onboarding${cleanReturnUrl ? `?returnUrl=${encodeURIComponent(`/${cleanReturnUrl}`)}` : ""}`;
+  //   return NextResponse.redirect(onboardingUrl);
+  // }
 
   const participantRedirectUrl = `${cleanBaseUrl}/${cleanReturnUrl}`;
   return NextResponse.redirect(participantRedirectUrl);

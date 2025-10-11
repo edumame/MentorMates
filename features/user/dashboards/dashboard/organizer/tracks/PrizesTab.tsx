@@ -20,8 +20,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { TrashIcon, Trophy, X } from "lucide-react";
+import { Delete, EmojiEvents, Close } from "@mui/icons-material";
 import { EventDetails, Prize, Project } from "@/lib/types";
+import { Loader2 } from "lucide-react";
 
 interface ExtendedPrize extends Prize {
   prize_winners?: {
@@ -43,6 +44,7 @@ interface PrizesTabProps {
     description: string;
     variant?: "default" | "destructive";
   }) => void;
+  isArchived: boolean;
 }
 
 export function PrizesTab({
@@ -51,6 +53,7 @@ export function PrizesTab({
   saving,
   setSaving,
   toast,
+  isArchived,
 }: PrizesTabProps) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [prizesWithWinners, setPrizesWithWinners] = useState<ExtendedPrize[]>(
@@ -129,11 +132,11 @@ export function PrizesTab({
                 project_id: projectId,
                 assigned_at: new Date().toISOString(),
                 assigned_by: data.assignedBy,
-                projects: projects.find((p) => p.id === projectId)!
+                projects: projects.find((p) => p.id === projectId)!,
               };
               return {
                 ...prize,
-                prize_winners: [...(prize.prize_winners || []), newWinner]
+                prize_winners: [...(prize.prize_winners || []), newWinner],
               };
             }
           }
@@ -182,7 +185,10 @@ export function PrizesTab({
           if (prize.id === prizeId) {
             return {
               ...prize,
-              prize_winners: prize.prize_winners?.filter(w => w.project_id !== projectId) || []
+              prize_winners:
+                prize.prize_winners?.filter(
+                  (w) => w.project_id !== projectId
+                ) || [],
             };
           }
           return prize;
@@ -253,7 +259,9 @@ export function PrizesTab({
 
         if (!updateResponse.ok) {
           const errorData = await updateResponse.json();
-          throw new Error(errorData.error || "Failed to update existing prizes");
+          throw new Error(
+            errorData.error || "Failed to update existing prizes"
+          );
         }
       }
 
@@ -279,7 +287,7 @@ export function PrizesTab({
         // Update local state to replace local IDs with database IDs
         const newTracks = [...event.event_tracks!];
         const localPrizeIds = Object.keys(localPrizeTrackMap);
-        
+
         // Create a mapping of track_id to new prizes for that track
         const newPrizesByTrack: Record<string, Prize[]> = {};
         newPrizes.forEach((newPrize: Prize) => {
@@ -291,24 +299,28 @@ export function PrizesTab({
 
         // Replace local prizes with database prizes in each track
         for (const trackId of Object.keys(newPrizesByTrack)) {
-          const trackIndex = newTracks.findIndex(t => t.track_id === trackId);
+          const trackIndex = newTracks.findIndex((t) => t.track_id === trackId);
           if (trackIndex > -1 && newTracks[trackIndex].prizes) {
             // Find local prizes for this track
-            const localPrizesForTrack = localPrizeIds.filter(id => localPrizeTrackMap[id] === trackId);
+            const localPrizesForTrack = localPrizeIds.filter(
+              (id) => localPrizeTrackMap[id] === trackId
+            );
             let newPrizeIndex = 0;
 
             // Replace local prizes with new database prizes
-            newTracks[trackIndex].prizes = newTracks[trackIndex].prizes!.map(prize => {
-              if (localPrizesForTrack.includes(prize.id)) {
-                const newPrize = newPrizesByTrack[trackId][newPrizeIndex];
-                newPrizeIndex++;
-                return {
-                  ...prize,
-                  id: newPrize.id,
-                };
+            newTracks[trackIndex].prizes = newTracks[trackIndex].prizes!.map(
+              (prize) => {
+                if (localPrizesForTrack.includes(prize.id)) {
+                  const newPrize = newPrizesByTrack[trackId][newPrizeIndex];
+                  newPrizeIndex++;
+                  return {
+                    ...prize,
+                    id: newPrize.id,
+                  };
+                }
+                return prize;
               }
-              return prize;
-            });
+            );
           }
         }
 
@@ -316,7 +328,9 @@ export function PrizesTab({
       }
 
       // Refresh the prizes data to get the latest state
-      const updatedPrizesResponse = await fetch(`/api/prizes?eventId=${event.event_id}`);
+      const updatedPrizesResponse = await fetch(
+        `/api/prizes?eventId=${event.event_id}`
+      );
       if (updatedPrizesResponse.ok) {
         const updatedPrizesData = await updatedPrizesResponse.json();
         setPrizesWithWinners(updatedPrizesData.prizes || []);
@@ -340,7 +354,7 @@ export function PrizesTab({
   };
 
   // Helper function to check if a prize is saved to database
-  const isDatabasePrize = (prizeId: string) => !prizeId.startsWith('local-');
+  const isDatabasePrize = (prizeId: string) => !prizeId.startsWith("local-");
 
   return (
     <div className="space-y-6">
@@ -366,13 +380,14 @@ export function PrizesTab({
                     {/* Prize Header with Delete Button */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <Trophy className="h-4 w-4 text-yellow-500" />
+                        <EmojiEvents className="h-4 w-4 text-yellow-500" />
                         <span className="font-medium text-sm">
                           Prize {prizeIndex + 1}
                         </span>
                       </div>
                       <Button
                         variant="ghost"
+                        disabled={isArchived}
                         size="sm"
                         onClick={async () => {
                           if (isDatabasePrize(prize.id)) {
@@ -449,7 +464,7 @@ export function PrizesTab({
                         }}
                         className="text-red-500 hover:text-red-700 hover:bg-red-50"
                       >
-                        <TrashIcon className="h-4 w-4" />
+                        <Delete className="h-4 w-4" />
                       </Button>
                     </div>
 
@@ -458,6 +473,7 @@ export function PrizesTab({
                         <Label>Prize Amount</Label>
                         <Input
                           value={prize.prize_amount}
+                          disabled={isArchived}
                           onChange={(e) => {
                             const newTracks = [...event.event_tracks!];
                             const trackIndex = newTracks.findIndex(
@@ -483,6 +499,7 @@ export function PrizesTab({
                         <Label>Description</Label>
                         <Textarea
                           value={prize.prize_description}
+                          disabled={isArchived}
                           onChange={(e) => {
                             const newTracks = [...event.event_tracks!];
                             const trackIndex = newTracks.findIndex(
@@ -510,17 +527,25 @@ export function PrizesTab({
                       <div className="space-y-2 border-t pt-4 mt-4">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <Trophy className="h-4 w-4 text-yellow-500" />
+                            <EmojiEvents className="h-4 w-4 text-yellow-500" />
                             <Label>Winner Assignment</Label>
                           </div>
-                          {prizesWithWinners.find((p) => p.id === prize.id)?.prize_winners && prizesWithWinners.find((p) => p.id === prize.id)!.prize_winners!.length > 0 && (
-                            <Badge
-                              variant="secondary"
-                              className="bg-yellow-100 text-yellow-800"
-                            >
-                              {prizesWithWinners.find((p) => p.id === prize.id)?.prize_winners?.length} Winners
-                            </Badge>
-                          )}
+                          {prizesWithWinners.find((p) => p.id === prize.id)
+                            ?.prize_winners &&
+                            prizesWithWinners.find((p) => p.id === prize.id)!
+                              .prize_winners!.length > 0 && (
+                              <Badge
+                                variant="secondary"
+                                className="bg-yellow-100 text-yellow-800"
+                              >
+                                {
+                                  prizesWithWinners.find(
+                                    (p) => p.id === prize.id
+                                  )?.prize_winners?.length
+                                }{" "}
+                                Winners
+                              </Badge>
+                            )}
                         </div>
 
                         <div className="flex gap-2">
@@ -532,7 +557,7 @@ export function PrizesTab({
                                 value === "none" ? null : value
                               )
                             }
-                            disabled={saving || loadingProjects}
+                            disabled={saving || loadingProjects || isArchived}
                           >
                             <SelectTrigger className="flex-1">
                               <SelectValue placeholder="Select winning project..." />
@@ -544,7 +569,7 @@ export function PrizesTab({
                               {projects.length === 0 ? (
                                 <SelectItem value="loading" disabled>
                                   {loadingProjects
-                                    ? "Loading projects..."
+                                    ? <Loader2 className="h-4 w-4 animate-spin text-blue-900" />
                                     : "No projects found"}
                                 </SelectItem>
                               ) : (
@@ -552,17 +577,21 @@ export function PrizesTab({
                                   .filter((project) =>
                                     project.track_ids?.includes(track.track_id)
                                   )
-                                  .filter(project => 
-                                    !prizesWithWinners
-                                      .find(p => p.id === prize.id)
-                                      ?.prize_winners?.some(w => w.project_id === project.id)
+                                  .filter(
+                                    (project) =>
+                                      !prizesWithWinners
+                                        .find((p) => p.id === prize.id)
+                                        ?.prize_winners?.some(
+                                          (w) => w.project_id === project.id
+                                        )
                                   )
                                   .map((project) => (
                                     <SelectItem
                                       key={project.id}
                                       value={project.id}
                                     >
-                                      {project.project_name} - {project.lead_name}
+                                      {project.project_name} -{" "}
+                                      {project.lead_name}
                                     </SelectItem>
                                   ))
                               )}
@@ -571,33 +600,46 @@ export function PrizesTab({
                         </div>
 
                         {/* Display current winners */}
-                        {prizesWithWinners.find((p) => p.id === prize.id)?.prize_winners?.map((winner) => (
-                          <div key={winner.id} className="p-3 bg-green-50 rounded-lg border border-green-200">
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <div className="text-sm font-medium text-green-800">
-                                  🏆 {winner.projects.project_name}
+                        {prizesWithWinners
+                          .find((p) => p.id === prize.id)
+                          ?.prize_winners?.map((winner) => (
+                            <div
+                              key={winner.id}
+                              className="p-3 bg-green-50 rounded-lg border border-green-200"
+                            >
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <div className="text-sm font-medium text-green-800">
+                                    🏆 {winner.projects.project_name}
+                                  </div>
+                                  <div className="text-xs text-green-600">
+                                    Led by {winner.projects.lead_name}
+                                  </div>
+                                  <div className="text-xs text-green-500 mt-1">
+                                    Assigned{" "}
+                                    {new Date(
+                                      winner.assigned_at
+                                    ).toLocaleDateString()}
+                                  </div>
                                 </div>
-                                <div className="text-xs text-green-600">
-                                  Led by {winner.projects.lead_name}
-                                </div>
-                                <div className="text-xs text-green-500 mt-1">
-                                  Assigned {new Date(winner.assigned_at).toLocaleDateString()}
-                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() =>
+                                    handleRemoveWinner(
+                                      prize.id,
+                                      winner.project_id
+                                    )
+                                  }
+                                  disabled={saving || isArchived}
+                                  title="Remove winner"
+                                  className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                >
+                                  <Close className="h-4 w-4" />
+                                </Button>
                               </div>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleRemoveWinner(prize.id, winner.project_id)}
-                                disabled={saving}
-                                title="Remove winner"
-                                className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
                             </div>
-                          </div>
-                        ))}
+                          ))}
                       </div>
                     )}
                   </div>
@@ -623,6 +665,7 @@ export function PrizesTab({
                     setEvent({ ...event, event_tracks: newTracks });
                   }
                 }}
+                disabled={isArchived}
               >
                 Add Prize to {track.name}
               </Button>
@@ -639,7 +682,7 @@ export function PrizesTab({
         </Card>
       )}
 
-      <Button onClick={handlePrizesUpdate} disabled={saving} className="w-full">
+      <Button onClick={handlePrizesUpdate} disabled={saving || isArchived} className="w-full">
         {saving ? "Saving..." : "Save All Prizes"}
       </Button>
     </div>

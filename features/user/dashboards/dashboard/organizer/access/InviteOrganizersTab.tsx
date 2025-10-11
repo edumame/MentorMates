@@ -7,9 +7,10 @@ import { useToast } from "@/lib/hooks/use-toast";
 
 interface InviteOrganizersTabProps {
   eventId: string;
+  isArchived: boolean;
 }
 
-export function InviteOrganizersTab({ eventId }: InviteOrganizersTabProps) {
+export function InviteOrganizersTab({ eventId, isArchived }: InviteOrganizersTabProps) {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
@@ -106,11 +107,11 @@ export function InviteOrganizersTab({ eventId }: InviteOrganizersTabProps) {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && !loading && email.trim() && handleInvite()}
-          disabled={loading}
+          disabled={loading || isArchived}
           aria-label="Organizer email address"
           maxLength={254}
         />
-        <Button onClick={handleInvite} disabled={loading || !email.trim()}>
+        <Button onClick={handleInvite} disabled={loading || !email.trim() || isArchived}>
           {loading ? "Inviting..." : "Invite"}
         </Button>
       </div>

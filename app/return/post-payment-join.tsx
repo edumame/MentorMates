@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { toast } from "@/lib/hooks/use-toast";
 
 interface PostPaymentJoinProps {
@@ -14,7 +14,7 @@ export function PostPaymentJoin({ eventId }: PostPaymentJoinProps) {
   const [hasProcessed, setHasProcessed] = useState(false);
   const router = useRouter();
 
-  const processEventJoin = async () => {
+  const processEventJoin = useCallback(async () => {
     if (isProcessing || hasProcessed) return;
     
     setIsProcessing(true);
@@ -75,7 +75,7 @@ export function PostPaymentJoin({ eventId }: PostPaymentJoinProps) {
     } finally {
       setIsProcessing(false);
     }
-  };
+  }, [isProcessing, hasProcessed, eventId, router]);
 
   // Auto-process on component mount
   useEffect(() => {
@@ -84,7 +84,7 @@ export function PostPaymentJoin({ eventId }: PostPaymentJoinProps) {
     }, 1000); // Small delay to ensure the page has loaded
 
     return () => clearTimeout(timeoutId);
-  }, []);
+  }, [processEventJoin]);
 
   if (hasProcessed) {
     return (

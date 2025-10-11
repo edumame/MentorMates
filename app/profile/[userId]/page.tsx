@@ -6,8 +6,8 @@ import type { Session } from "@supabase/supabase-js";
 import {
   Project,
   EventRole,
-  EventItem,
   ProjectBoardContext,
+  EventDetails,
 } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -19,8 +19,10 @@ import ProjectBoard from "@/features/projects/components/displays/ProjectBoard/P
 import { motion } from "framer-motion";
 import { useToast } from "@/lib/hooks/use-toast";
 import { Toaster } from "@/components/ui/toaster";
+import { getRoleLabel } from "@/features/user/roles/roles";
+import { Loader2 } from "lucide-react";
 
-interface EventWithRole extends EventItem {
+interface EventWithRole extends EventDetails {
   user_event_roles: {
     role: EventRole;
   }[];
@@ -61,6 +63,7 @@ export default function ProfilePage() {
   const [newSocialLinks, setNewSocialLinks] = useState<SocialLinks>({});
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("projects");
+  const [isProfileAdmin, setIsProfileAdmin] = useState(false);
 
   const tabs = [
     { key: "projects", label: "Projects" },
@@ -85,13 +88,13 @@ export default function ProfilePage() {
           throw new Error("Failed to fetch profile data");
         }
         const profileData = await response.json();
-        
+
         // Set profile data
         setUserProfile(profileData.profile);
         setNewSocialLinks(profileData.profile.links || {});
-        
+
         const projectsData: { projects: ProjectWithTracks[] } = {
-          projects: profileData.projects
+          projects: profileData.projects,
         };
 
         // Combine and deduplicate projects
@@ -136,6 +139,14 @@ export default function ProfilePage() {
         // Set events and projects from API response
         setEvents(profileData.events || []);
         setProjects(allProjects);
+
+        // Check if the profile user is an admin (global)
+        const { data: adminCheckData, error: adminCheckError } =
+          await supabase.rpc("is_admin_user", { user_id: String(userId) });
+        if (adminCheckError) {
+          console.error("Error checking admin status:", adminCheckError);
+        }
+        setIsProfileAdmin(Boolean(adminCheckData));
       } catch (error) {
         console.error("Error fetching data:", error);
       } finally {
@@ -205,7 +216,7 @@ export default function ProfilePage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Toaster />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
           <div className="group relative inline-block">
             {isEditing ? (
@@ -239,9 +250,14 @@ export default function ProfilePage() {
               </div>
             ) : (
               <>
-                <h1 className="text-3xl font-bold text-gray-900">
-                  {userProfile?.display_name || "User Profile"}
-                </h1>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-3xl font-bold text-gray-900">
+                    {userProfile?.display_name || "User Profile"}
+                  </h1>
+                  <Badge variant={isProfileAdmin ? "admin" : "secondary"}>
+                    {isProfileAdmin ? "Admin" : "User"}
+                  </Badge>
+                </div>
                 {/* {session?.user?.id === userId && (
                   <button
                     onClick={() => {
@@ -281,9 +297,8 @@ export default function ProfilePage() {
           {activeTab === "projects" && (
             <div>
               {isLoading ? (
-                <div className="text-center py-8">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
-                  <p className="mt-4 text-gray-600">Loading projects...</p>
+                <div className="flex justify-center items-center py-8 w-full">
+                  <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
                 </div>
               ) : projects.length === 0 ? (
                 <div className="text-center py-8">
@@ -306,9 +321,8 @@ export default function ProfilePage() {
           {activeTab === "events" && (
             <div>
               {isLoading ? (
-                <div className="text-center py-8">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
-                  <p className="mt-4 text-gray-600">Loading events...</p>
+                <div className="flex justify-center items-center py-8 w-full">
+                  <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
                 </div>
               ) : events.length === 0 ? (
                 <div className="text-center py-8">
@@ -366,7 +380,10 @@ export default function ProfilePage() {
                             )}
                           </div>
                           <Badge variant={event.user_event_roles?.[0]?.role}>
-                            {event.user_event_roles?.[0]?.role}
+                            {getRoleLabel(
+                              event.user_event_roles?.[0]?.role as EventRole,
+                              event.role_labels
+                            )}
                           </Badge>
                         </div>
                       </CardContent>

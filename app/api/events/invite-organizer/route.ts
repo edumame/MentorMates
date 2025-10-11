@@ -4,6 +4,7 @@ import { EventRole } from '@/lib/types';
 import { Resend } from 'resend';
 import { NOTIFICATIONS_EMAIL_FROM } from '@/lib/email_templates/constants';
 import { getOrganizerInvitationEmailTemplate } from '@/lib/email_templates/organizer-invitation';
+import { canAccessRole } from '@/features/user/roles/roles';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -29,16 +30,28 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid email format' }, { status: 400 });
   }
 
-  const { data: role } = await supabase
+  // Allow organizers of this event OR global admins
+  const { data: userRole } = await supabase
     .from('user_event_roles')
     .select('role')
     .eq('event_id', eventId)
     .eq('user_id', auth.user.id)
     .maybeSingle();
+  
+  let isAllowed = false;
+  if (userRole && canAccessRole(userRole.role as EventRole, EventRole.Organizer)) {
+    isAllowed = true;
+  } else {
+    const { data: isAdmin } = await supabase.rpc('is_admin_user', {
+      user_id: auth.user.id,
+    });
+    isAllowed = Boolean(isAdmin);
+  }
 
-  if (!role || (role.role !== EventRole.Organizer && role.role !== EventRole.Admin)) {
+  if (!isAllowed) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
+
 
   // Fetch event details for the email
   const { data: eventData } = await supabase

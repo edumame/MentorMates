@@ -10,9 +10,13 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90",
+        default: "font-normal px-24 py-8 text-white bg-[#4B89EF] rounded-[12px] text-[16px] hover:bg-[#3E7EEA] [box-shadow:inset_0_32px_24px_0_rgba(255,255,255,0.05),inset_0_2px_1px_0_rgba(255,255,255,0.25),inset_0_0_0_1px_rgba(0,0,0,0.15),inset_0_-2px_1px_0_rgba(0,0,0,0.20),0_1px_2px_0_rgba(0,0,0,0.05)]",
+        defaultGray: "font-normal px-24 py-8 rounded-[12px] bg-[rgba(0,0,0,0.05)] text-[16px] transition-colors duration-200 " +
+          "[box-shadow:inset_0_0_0_1px_rgba(0,0,0,0.05),inset_0_-2px_1px_0_rgba(0,0,0,0.05),0_1px_2px_0_rgba(0,0,0,0.05)] " +
+          "hover:bg-[rgba(0,0,0,0.07)] hover:[box-shadow:inset_0_0_0_1px_rgba(0,0,0,0.08),inset_0_-2px_1px_0_rgba(0,0,0,0.08),0_2px_4px_0_rgba(0,0,0,0.08)] " +
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/10",
         destructive:
-          "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+          "bg-destructive text-destructive-foreground hover:bg-destructive/90 ",
         outline:
           "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
         secondary:

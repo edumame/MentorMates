@@ -14,6 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import Link from "next/link";
+import { Loader2 } from "lucide-react";
 
 interface ProjectData {
   id: string;
@@ -27,6 +28,7 @@ interface ProjectData {
   cover_image_url: string | null;
   event_id: string;
   created_at: string;
+  submitted: boolean;
   project_tracks: {
     event_tracks: {
       track_id: string;
@@ -53,7 +55,8 @@ export function SubmissionsTab({ eventId }: SubmissionsTabProps) {
         lead_email,
         project_description,
         project_url,
-        teammates
+        teammates,
+        submitted
       `
       )
       .eq("event_id", eventId);
@@ -67,6 +70,7 @@ export function SubmissionsTab({ eventId }: SubmissionsTabProps) {
           Description: project.project_description,
           "Project URL": project.project_url,
           "Team Members": project.teammates.join(", "),
+          Submitted: project.submitted,
         }))
       );
 
@@ -93,6 +97,7 @@ export function SubmissionsTab({ eventId }: SubmissionsTabProps) {
             project_description,
             project_url,
             teammates,
+            submitted,
             created_at,
             project_tracks (
               event_tracks (
@@ -144,6 +149,7 @@ export function SubmissionsTab({ eventId }: SubmissionsTabProps) {
                 project_description,
                 project_url,
                 teammates,
+                submitted,
                 created_at,
                 project_tracks (
                   event_tracks (
@@ -186,7 +192,7 @@ export function SubmissionsTab({ eventId }: SubmissionsTabProps) {
           </div>
 
           {loading ? (
-            <div>Loading projects...</div>
+            <Loader2 className="h-4 w-4 animate-spin text-blue-900" />
           ) : (
             <Table>
               <TableHeader>
@@ -213,14 +219,12 @@ export function SubmissionsTab({ eventId }: SubmissionsTabProps) {
                         .filter(Boolean)
                         .join(", ") || "No tracks"}
                     </TableCell>
+                    <TableCell>{project.submitted ? "Yes" : "No"}</TableCell>
                     <TableCell>
                       {new Date(project.created_at).toLocaleDateString()}
                     </TableCell>
                     <TableCell>
-                      <Link
-                        href={`/projects/public/${project.id}`}
-                        passHref
-                      >
+                      <Link href={`/projects/public/${project.id}`} passHref>
                         <Button variant="outline" size="sm" className="text-xs">
                           View Details
                         </Button>

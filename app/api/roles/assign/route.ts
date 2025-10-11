@@ -42,7 +42,8 @@ export async function POST(req: Request) {
         id 
       `
     )
-    .eq("event_id", eventId);
+    .eq("event_id", eventId)
+    .eq("submitted", true);
 
   if (projectsError) {
     return NextResponse.json(
@@ -97,9 +98,12 @@ export async function POST(req: Request) {
     for (const projectId of projectIds) {
       await supabase
         .from("project_assignments")
-        .upsert(
-          { project_id: projectId, user_id: roleId, role: role, event_id: eventId }
-        )
+        .upsert({
+          project_id: projectId,
+          user_id: roleId,
+          role: role,
+          event_id: eventId,
+        });
     }
   }
 

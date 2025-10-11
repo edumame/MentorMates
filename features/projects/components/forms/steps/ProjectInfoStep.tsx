@@ -64,17 +64,19 @@ export function ProjectInfoStep({ form, availableTracks }: ProjectInfoStepProps)
         )}
       />
       
-      <FormField
-        control={form.control}
-        name="trackIds"
-        render={({ field }) => (
-          <TrackSelector
-            tracks={availableTracks}
-            selectedTrackIds={field.value}
-            onChange={field.onChange}
-          />
-        )}
-      />
+      {availableTracks.length > 0 && (
+        <FormField
+          control={form.control}
+          name="trackIds"
+          render={({ field }) => (
+            <TrackSelector
+              tracks={availableTracks}
+              selectedTrackIds={field.value}
+              onChange={field.onChange}
+            />
+          )}
+        />
+      )}
       
       <FormField
         control={form.control}

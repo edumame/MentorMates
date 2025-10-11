@@ -49,9 +49,11 @@ export default function GalleryPage() {
       setIsLoading(true);
       try {
         // Use the consolidated API route with public flag
-        const response = await fetch(`/api/projects?eventId=${eventId}&public=true`);
+        const response = await fetch(
+          `/api/projects?eventId=${eventId}&public=true`
+        );
         if (!response.ok) {
-          throw new Error('Failed to fetch projects');
+          throw new Error("Failed to fetch projects");
         }
         const data = await response.json();
         setProjects(data.projects || []);
@@ -71,9 +73,9 @@ export default function GalleryPage() {
 
   const filteredProjects = projects.filter(
     (project) =>
-      project.project_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      project.project_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       project.project_description
-        .toLowerCase()
+        ?.toLowerCase()
         .includes(searchQuery.toLowerCase())
   );
 
@@ -85,7 +87,7 @@ export default function GalleryPage() {
           <Link href={`/events/${eventId}/submit`}>
             <Button className="button-gradient text-white font-semibold rounded-full shadow-lg hover:shadow-xl transition-all duration-300 flex items-center gap-2">
               <Plus className="h-5 w-5" />
-              Submit Project
+              Create Project
             </Button>
           </Link>
         )}

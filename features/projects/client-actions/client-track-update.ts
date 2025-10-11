@@ -2,10 +2,6 @@ import { supabase } from "@/lib/supabase";
 import { EventTrack } from "@/lib/types";
 import { PostgrestError } from "@supabase/supabase-js";
 
-interface ProjectTrackResponse {
-  event_tracks: EventTrack[];
-}
-
 // Fetch available tracks for an event
 export async function fetchEventTracks(
   eventId: string

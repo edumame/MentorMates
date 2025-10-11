@@ -133,3 +133,10 @@ app/
 - Requires `.env.local` with Supabase credentials
 - Development includes Stagewise toolbar for debugging
 - Database setup via `npm run setup-db` command
+
+## Pre-PR Checklist
+
+Before creating a pull request, always:
+1. Remove all console.log() statements added during development (console.error for error handling is acceptable)
+2. Run `npm run build` to ensure the project builds successfully
+3. Run `npm run lint` to check for linting errors

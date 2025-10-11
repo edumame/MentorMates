@@ -14,6 +14,7 @@ import {
 } from "@/lib/types";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { isValidUUID } from "@/app/utils/supabase/queries";
+import { markdownRehypePlugins } from "@/components/markdown/plugins";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -36,7 +37,8 @@ export default async function EventOverviewPage({ params }: PageProps) {
     event_schedule, 
     event_prizes, 
     event_resources,
-    paywall_content
+    paywall_content,
+    participant_capacity
   `);
 
   if (isUUID) {
@@ -69,7 +71,7 @@ export default async function EventOverviewPage({ params }: PageProps) {
   const typedEvent = eventData as EventDetails;
   const tracks = (tracksData || []) as EventTrack[];
 
-  // Check if user has joined
+  // Check if user has joined and get their role
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -94,11 +96,16 @@ export default async function EventOverviewPage({ params }: PageProps) {
 
       {/* Join Button */}
       {!hasJoined && (
-        <div className="flex justify-center mb-8">
-          <JoinEventButton
-            eventId={eventData.event_id}
-            eventName={typedEvent.event_name}
-          />
+        <div className="mb-8">
+          <div className="mx-auto max-w-2xl text-center mb-3">
+            <p className="text-sm text-muted-foreground">Secure your spot now</p>
+          </div>
+          <div className="flex justify-center">
+            <JoinEventButton
+              eventId={eventData.event_id}
+              eventName={typedEvent.event_name}
+            />
+          </div>
         </div>
       )}
 
@@ -109,22 +116,22 @@ export default async function EventOverviewPage({ params }: PageProps) {
         </CardHeader>
         <CardContent>
           <div className="prose prose-blue max-w-none">
-            <ReactMarkdown components={customMarkdownComponents}>{typedEvent.event_description}</ReactMarkdown>
+            <ReactMarkdown rehypePlugins={markdownRehypePlugins} components={customMarkdownComponents}>{typedEvent.event_description}</ReactMarkdown>
           </div>
         </CardContent>
       </Card>
 
-      {/* Paywall Content - Only shown if user has joined */}
+      {/* Paywall Content - Only shown to people who have joined */}
       {hasJoined && typedEvent.paywall_content && (
         <Card className="mb-8 border-2 border-yellow-200 bg-yellow-50">
           <CardHeader>
             <CardTitle className="text-yellow-800">
-              🔒 Exclusive Content for Participants
+              🔒 Exclusive Content for People In the Event
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="prose prose-blue max-w-none">
-              <ReactMarkdown components={customMarkdownComponents}>{typedEvent.paywall_content}</ReactMarkdown>
+              <ReactMarkdown>{typedEvent.paywall_content}</ReactMarkdown>
             </div>
           </CardContent>
         </Card>
@@ -188,7 +195,7 @@ export default async function EventOverviewPage({ params }: PageProps) {
                         </div>
                         {event.description && (
                           <div className="prose prose-sm prose-blue max-w-none text-gray-600 mt-2">
-                            <ReactMarkdown components={customMarkdownComponents}>{event.description}</ReactMarkdown>
+                            <ReactMarkdown rehypePlugins={markdownRehypePlugins} components={customMarkdownComponents}>{event.description}</ReactMarkdown>
                           </div>
                         )}
                       </div>
@@ -282,7 +289,7 @@ export default async function EventOverviewPage({ params }: PageProps) {
           </CardHeader>
           <CardContent>
             <div className="prose prose-blue max-w-none">
-              <ReactMarkdown components={customMarkdownComponents}>{typedEvent.faq}</ReactMarkdown>
+              <ReactMarkdown rehypePlugins={markdownRehypePlugins} components={customMarkdownComponents}>{typedEvent.faq}</ReactMarkdown>
             </div>
           </CardContent>
         </Card>
