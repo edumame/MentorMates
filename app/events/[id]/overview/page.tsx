@@ -85,8 +85,8 @@ export default async function EventOverviewPage({ params }: PageProps) {
   }
 
   return (
-    <div className="bg-white border-l border-[#d8d8d8] flex flex-col min-h-screen rounded-tl-[16px]">
-      <div className="flex flex-col gap-12">
+    <div className="bg-white border-l border-[#d8d8d8] flex flex-col min-h-screen">
+      <div className="flex flex-col">
         {/* Page Header with Cover Image */}
         <EventPageHeader
           eventName={typedEvent.event_name}
@@ -102,7 +102,7 @@ export default async function EventOverviewPage({ params }: PageProps) {
         <EventPageTabs eventId={id} />
 
         {/* Main Content Area with Sidebar */}
-        <div className="max-w-[1280px] w-full px-6 pb-12">
+        <div className="max-w-[1280px] w-full px-6 py-12">
           <div className="flex gap-6">
             {/* Main Content */}
             <EventPageContent
