@@ -4,23 +4,20 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { Plus, Search } from "lucide-react";
 import ProjectBoard from "@/features/projects/components/displays/ProjectBoard/ProjectBoard";
 import { ProjectBoardContext, Project } from "@/lib/types";
-import { useEventRegistration } from "@/components/event-registration-provider";
-import { EventRole } from "@/lib/types";
-
 interface GalleryContentProps {
   eventId: string;
   slug: string;
+  hasJoined: boolean;
+  userRole?: string | null;
 }
 
-export function GalleryContent({ eventId, slug }: GalleryContentProps) {
+export function GalleryContent({ eventId, slug, hasJoined, userRole }: GalleryContentProps) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const { isRegistered, userRole } = useEventRegistration();
 
   useEffect(() => {
     const fetchProjects = async () => {
@@ -53,28 +50,32 @@ export function GalleryContent({ eventId, slug }: GalleryContentProps) {
   );
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center mb-8">
-        <h2 className="text-3xl sm:text-4xl font-bold">Project Gallery</h2>
-        {isRegistered && userRole === EventRole.Participant && (
+    <div className="flex flex-col flex-1 w-full">
+      {/* Search Bar */}
+      <div className="bg-transparent border border-[rgba(0,0,0,0.15)] rounded-xl flex gap-3 items-center px-3 py-2 mb-6 w-full">
+        <Search className="w-6 h-6 text-black shrink-0" />
+        <input
+          type="text"
+          placeholder="Search projects by name or team members"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="font-normal text-[16px] leading-[1.5] text-black placeholder:text-[rgba(0,0,0,0.6)] bg-transparent border-none outline-none flex-1"
+        />
+      </div>
+
+      {/* Create Project Button - Only show for participants */}
+      {hasJoined && userRole === "participant" && (
+        <div className="mb-6">
           <Link href={`/events/${slug}/submit`}>
             <Button className="button-gradient text-white font-semibold rounded-full shadow-lg hover:shadow-xl transition-all duration-300 flex items-center gap-2">
               <Plus className="h-5 w-5" />
               Create Project
             </Button>
           </Link>
-        )}
-      </div>
+        </div>
+      )}
 
-      <div className="mb-8">
-        <Input
-          placeholder="Search projects..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full p-3 border rounded-md"
-        />
-      </div>
-
+      {/* Project Board */}
       <ProjectBoard
         isLoading={isLoading}
         projectList={filteredProjects}

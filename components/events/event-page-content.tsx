@@ -21,7 +21,7 @@ export function EventPageContent({
   hasJoined,
 }: EventPageContentProps) {
   return (
-    <div className="flex flex-col max-w-[768px] w-[747px]">
+    <div className="flex flex-col flex-1">
       {/* Introduction */}
       <div className="flex flex-col pb-4 pt-0 px-0 w-full">
         <h2 className="font-semibold text-[24px] leading-[32px] text-black tracking-[-0.6px]">

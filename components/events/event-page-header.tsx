@@ -28,7 +28,7 @@ export function EventPageHeader({
   });
 
   return (
-    <div className="bg-white border-b border-[#f2f2f2] flex flex-col items-center w-full">
+    <div className="bg-white border-b border-[#f2f2f2] flex flex-col w-full">
       {/* Cover Image */}
       <div className="h-[240px] w-full rounded-tl-[16px] relative overflow-hidden">
         {coverImageUrl ? (
@@ -51,71 +51,65 @@ export function EventPageHeader({
       </div>
 
       {/* Content */}
-      <div className="border border-[#f2f2f2] max-w-[1280px] w-full">
-        <div className="flex flex-col gap-6 pb-0 pt-6">
-          <div className="flex flex-col gap-6 items-start justify-end px-6">
-            <div className="flex flex-col gap-4 w-full">
-              <div className="flex items-start justify-between w-full">
-                {/* Left: Event Info */}
-                <div className="flex flex-col gap-2 max-w-[617px]">
-                  <div className="flex flex-col gap-2">
-                    <h1 className="font-semibold text-[28px] leading-[1.4] tracking-[-0.06em] text-black">
-                      {eventName}
-                    </h1>
-                    <p className="font-normal text-base leading-[1.5] text-black line-clamp-3">
-                      {eventBlurb}
+      <div className="w-full px-6 pt-6 pb-0">
+        <div className="flex items-start justify-between w-full gap-6">
+          {/* Left: Event Info */}
+          <div className="flex flex-col gap-2 max-w-[617px]">
+            <div className="flex flex-col gap-2">
+              <h1 className="font-semibold text-[28px] leading-[1.4] tracking-[-0.06em] text-black">
+                {eventName}
+              </h1>
+              <p className="font-normal text-base leading-[1.5] text-black line-clamp-3">
+                {eventBlurb}
+              </p>
+            </div>
+
+            {/* Organization Badge - TODO: Add event creator/organization display in the future */}
+            {/* <div className="flex gap-1 items-center">
+              <div className="flex gap-1 items-center">
+                <div className="w-7 h-7 rounded-full bg-gray-300" />
+                <p className="font-normal text-sm text-[#191919]">
+                  HerWorkspace
+                </p>
+              </div>
+              <ChevronRight className="w-6 h-6 text-black" />
+            </div> */}
+          </div>
+
+          {/* Right: Join Button and Meta */}
+          <div className="flex flex-col gap-3 items-end justify-center w-[411px]">
+            <div className="flex gap-4 items-center justify-center">
+              {!hasJoined ? (
+                <div className="bg-[#4b89ef] flex gap-1.5 items-center justify-center px-5 py-2 rounded-xl shadow-sm w-[341px]">
+                  <Ticket className="w-6 h-6 text-white" />
+                  <span className="font-medium text-base text-white">
+                    Join {eventName}
+                  </span>
+                </div>
+              ) : (
+                <div className="bg-green-500 flex gap-1.5 items-center justify-center px-5 py-2 rounded-xl shadow-sm w-[341px]">
+                  <span className="font-medium text-base text-white">
+                    Joined
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Date and Location */}
+            <div className="flex flex-col gap-1.5 w-full">
+              <div className="flex flex-col gap-2 items-end">
+                <div className="flex gap-2 items-center">
+                  <div className="flex gap-2 items-center">
+                    <CalendarDays className="w-6 h-6 text-black" />
+                    <p className="font-normal text-sm text-black">
+                      {formattedDate}
                     </p>
                   </div>
-
-                  {/* Organization Badge */}
-                  <div className="flex gap-1 items-center">
-                    <div className="flex gap-1 items-center">
-                      <div className="w-7 h-7 rounded-full bg-gray-300" />
-                      <p className="font-normal text-sm text-[#191919]">
-                        HerWorkspace
-                      </p>
-                    </div>
-                    <ChevronRight className="w-6 h-6 text-black" />
-                  </div>
-                </div>
-
-                {/* Right: Join Button and Meta */}
-                <div className="flex flex-col gap-3 items-end justify-center w-[411px]">
-                  <div className="flex gap-4 items-center justify-center">
-                    {!hasJoined ? (
-                      <div className="bg-[#4b89ef] flex gap-1.5 items-center justify-center px-5 py-2 rounded-xl shadow-sm w-[341px]">
-                        <Ticket className="w-6 h-6 text-white" />
-                        <span className="font-medium text-base text-white">
-                          Join {eventName}
-                        </span>
-                      </div>
-                    ) : (
-                      <div className="bg-green-500 flex gap-1.5 items-center justify-center px-5 py-2 rounded-xl shadow-sm w-[341px]">
-                        <span className="font-medium text-base text-white">
-                          Joined
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Date and Location */}
-                  <div className="flex flex-col gap-1.5 w-full">
-                    <div className="flex flex-col gap-2 items-end">
-                      <div className="flex gap-2 items-center">
-                        <div className="flex gap-2 items-center">
-                          <CalendarDays className="w-6 h-6 text-black" />
-                          <p className="font-normal text-sm text-black">
-                            {formattedDate}
-                          </p>
-                        </div>
-                        <div className="flex gap-2 items-center">
-                          <MapPin className="w-6 h-6 text-black" />
-                          <p className="font-normal text-sm text-black">
-                            {location}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
+                  <div className="flex gap-2 items-center">
+                    <MapPin className="w-6 h-6 text-black" />
+                    <p className="font-normal text-sm text-black">
+                      {location}
+                    </p>
                   </div>
                 </div>
               </div>

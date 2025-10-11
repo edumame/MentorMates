@@ -11,7 +11,7 @@ interface RouteBasedLayoutConfigProps {
 export function RouteBasedLayoutConfig({ children }: RouteBasedLayoutConfigProps) {
   const pathname = usePathname();
   const isAcceptPage = pathname?.includes('/accept');
-  const isRedesignedPage = pathname?.includes('/overview') || pathname?.includes('/gallery') || pathname?.includes('/feed');
+  const isRedesignedPage = pathname?.includes('/overview') || pathname?.includes('/gallery') || pathname?.includes('/feed') || pathname?.includes('/schedule') || pathname?.includes('/participants') || pathname?.includes('/faqs');
 
   let layoutConfig;
 

@@ -42,6 +42,7 @@ export default async function GalleryPage({ params }: PageProps) {
   } = await supabase.auth.getUser();
 
   let hasJoined = false;
+  let userRole: string | null = null;
 
   if (user) {
     const { data: userEventRole } = await supabase
@@ -52,6 +53,7 @@ export default async function GalleryPage({ params }: PageProps) {
       .maybeSingle();
 
     hasJoined = !!userEventRole;
+    userRole = userEventRole?.role || null;
   }
 
   return (
@@ -64,7 +66,12 @@ export default async function GalleryPage({ params }: PageProps) {
       eventId={id}
       hasJoined={hasJoined}
     >
-      <GalleryContent eventId={eventData.event_id} slug={id} />
+      <GalleryContent
+        eventId={eventData.event_id}
+        slug={id}
+        hasJoined={hasJoined}
+        userRole={userRole}
+      />
     </EventPageLayout>
   );
 }
