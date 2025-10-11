@@ -32,13 +32,21 @@ export function EventPageHeader({
       {/* Cover Image */}
       <div className="h-[240px] w-full rounded-tl-[16px] relative overflow-hidden">
         {coverImageUrl ? (
-          <img
-            src={coverImageUrl}
-            alt={eventName}
-            className="w-full h-full object-cover"
-          />
+          <>
+            <img
+              src={coverImageUrl}
+              alt={eventName}
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                // Hide broken image and show gradient background
+                const target = e.target as HTMLImageElement;
+                target.style.display = 'none';
+              }}
+            />
+            <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-[#1e3a8a] to-[#3c73bd] -z-10" />
+          </>
         ) : (
-          <div className="w-full h-full bg-gradient-to-r from-[rgba(30,58,138,0.9)] to-[rgba(60,115,189,0.9)]" />
+          <div className="w-full h-full bg-gradient-to-r from-[#1e3a8a] to-[#3c73bd]" />
         )}
       </div>
 
