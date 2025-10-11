@@ -24,8 +24,8 @@ export function EventPageLayout({
   hasJoined,
 }: EventPageLayoutProps) {
   return (
-    <div className="bg-white border-l border-[#d8d8d8] flex flex-col min-h-screen rounded-tl-[16px]">
-      <div className="flex flex-col gap-12">
+    <div className="bg-white border-l border-[#d8d8d8] flex flex-col min-h-screen">
+      <div className="flex flex-col">
         {/* Page Header with Cover Image */}
         <EventPageHeader
           eventName={eventName}
@@ -41,7 +41,7 @@ export function EventPageLayout({
         <EventPageTabs eventId={eventId} />
 
         {/* Main Content */}
-        <div className="max-w-[1280px] w-full px-6 pb-12">
+        <div className="max-w-[1280px] w-full px-6 py-12">
           {children}
         </div>
       </div>
