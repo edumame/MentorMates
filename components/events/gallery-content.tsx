@@ -1,0 +1,85 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { supabase } from "@/lib/supabase";
+import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import ProjectBoard from "@/features/projects/components/displays/ProjectBoard/ProjectBoard";
+import { ProjectBoardContext, Project } from "@/lib/types";
+import { useEventRegistration } from "@/components/event-registration-provider";
+import { EventRole } from "@/lib/types";
+
+interface GalleryContentProps {
+  eventId: string;
+  slug: string;
+}
+
+export function GalleryContent({ eventId, slug }: GalleryContentProps) {
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const { isRegistered, userRole } = useEventRegistration();
+
+  useEffect(() => {
+    const fetchProjects = async () => {
+      setIsLoading(true);
+      try {
+        const response = await fetch(
+          `/api/projects?eventId=${eventId}&public=true`
+        );
+        if (!response.ok) {
+          throw new Error("Failed to fetch projects");
+        }
+        const data = await response.json();
+        setProjects(data.projects || []);
+      } catch (error) {
+        console.error("Error fetching projects:", error);
+        setProjects([]);
+      }
+      setIsLoading(false);
+    };
+
+    fetchProjects();
+  }, [eventId]);
+
+  const filteredProjects = projects.filter(
+    (project) =>
+      project.project_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      project.project_description
+        ?.toLowerCase()
+        .includes(searchQuery.toLowerCase())
+  );
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center mb-8">
+        <h2 className="text-3xl sm:text-4xl font-bold">Project Gallery</h2>
+        {isRegistered && userRole === EventRole.Participant && (
+          <Link href={`/events/${slug}/submit`}>
+            <Button className="button-gradient text-white font-semibold rounded-full shadow-lg hover:shadow-xl transition-all duration-300 flex items-center gap-2">
+              <Plus className="h-5 w-5" />
+              Create Project
+            </Button>
+          </Link>
+        )}
+      </div>
+
+      <div className="mb-8">
+        <Input
+          placeholder="Search projects..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full p-3 border rounded-md"
+        />
+      </div>
+
+      <ProjectBoard
+        isLoading={isLoading}
+        projectList={filteredProjects}
+        projectBoardContext={ProjectBoardContext.EventGallery}
+      />
+    </div>
+  );
+}
