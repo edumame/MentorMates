@@ -24,12 +24,9 @@ import {
 } from "@/components/ui/popover";
 import {
   Users,
-  MessageSquare,
   Calendar,
-  ArrowLeft,
   QrCode,
   Copy,
-  Tag,
   ExternalLink,
   Trash2,
   Plus,
@@ -37,8 +34,14 @@ import {
   UserPlus,
   Check,
   ChevronsUpDown,
-  Eye,
-  EyeOff,
+  Edit,
+  Heart,
+  Loader,
+  MapPin,
+  ArrowUpRight,
+  Link as LinkIcon,
+  Video,
+  Share2,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -74,6 +77,17 @@ interface EventParticipant {
   email: string;
 }
 
+interface EventDetails {
+  event_id: string;
+  event_name: string;
+  slug: string;
+  start_date: string;
+  end_date: string;
+  location?: string;
+  event_type?: string;
+  cover_image_url?: string;
+}
+
 export default function ProjectPage() {
   const params = useParams();
   const router = useRouter();
@@ -99,8 +113,7 @@ export default function ProjectPage() {
   const [searchValue, setSearchValue] = useState("");
 
   // Event details state
-  const [eventName, setEventName] = useState<string>("");
-  const [eventSlug, setEventSlug] = useState<string>("");
+  const [eventDetails, setEventDetails] = useState<EventDetails | null>(null);
 
   // Contextus ID state
   const [showContextusId, setShowContextusId] = useState(false);
@@ -128,7 +141,6 @@ export default function ProjectPage() {
     if (session?.user?.email) {
       fetchProject();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session, projectId]);
 
   // Fetch event details when project is loaded
@@ -139,18 +151,28 @@ export default function ProjectPage() {
       try {
         const { data: eventData, error } = await supabase
           .from("events")
-          .select("event_name, slug")
+          .select("event_id, event_name, slug, event_date, location, cover_image_url")
           .eq("event_id", project.event_id)
           .single();
 
         if (error) {
-          console.error("Error fetching event details:", error);
-        } else {
-          setEventName(eventData?.event_name || "");
-          setEventSlug(eventData?.slug || project.event_id);
+          return;
+        }
+
+        if (eventData) {
+          setEventDetails({
+            event_id: eventData.event_id,
+            event_name: eventData.event_name,
+            slug: eventData.slug || "",
+            start_date: eventData.event_date,
+            end_date: eventData.event_date,
+            location: eventData.location || undefined,
+            event_type: undefined,
+            cover_image_url: eventData.cover_image_url || undefined,
+          });
         }
       } catch (error) {
-        console.error("Error fetching event details:", error);
+        // Silently fail if event details cannot be fetched
       }
     };
 
@@ -170,7 +192,6 @@ export default function ProjectPage() {
       .single();
 
     if (error) {
-      console.error("Error fetching project:", error);
       return;
     }
 
@@ -186,7 +207,6 @@ export default function ProjectPage() {
     }
   };
 
-  // Option 1: Direct Supabase client (current approach)
   const handleUpdateTitle = async (newTitle: string): Promise<boolean> => {
     setIsUpdating(true);
     try {
@@ -195,7 +215,6 @@ export default function ProjectPage() {
       });
 
       if (error) {
-        console.error("Error updating title:", error);
         toast({
           title: "Error",
           description: "Failed to update project title",
@@ -204,7 +223,6 @@ export default function ProjectPage() {
         return false;
       }
 
-      // Update local state
       setProject(data);
       toast({
         title: "Success",
@@ -212,7 +230,6 @@ export default function ProjectPage() {
       });
       return true;
     } catch (error) {
-      console.error("Error updating title:", error);
       toast({
         title: "Error",
         description: "Failed to update project title",
@@ -234,7 +251,6 @@ export default function ProjectPage() {
       });
 
       if (error) {
-        console.error("Error updating description:", error);
         toast({
           title: "Error",
           description: "Failed to update project description",
@@ -243,7 +259,6 @@ export default function ProjectPage() {
         return false;
       }
 
-      // Update local state
       setProject(data);
       toast({
         title: "Success",
@@ -251,7 +266,6 @@ export default function ProjectPage() {
       });
       return true;
     } catch (error) {
-      console.error("Error updating description:", error);
       toast({
         title: "Error",
         description: "Failed to update project description",
@@ -266,13 +280,10 @@ export default function ProjectPage() {
   const handleUpdateProjectUrl = async (newUrl: string): Promise<boolean> => {
     setIsUpdating(true);
     try {
-      // Basic URL validation
       if (newUrl.trim() !== "") {
         try {
-          // This will throw if the URL is invalid
           new URL(newUrl);
 
-          // Check if URL starts with http:// or https://
           if (!newUrl.startsWith("http://") && !newUrl.startsWith("https://")) {
             toast({
               title: "Invalid URL",
@@ -296,7 +307,6 @@ export default function ProjectPage() {
       });
 
       if (error) {
-        console.error("Error updating project URL:", error);
         toast({
           title: "Error",
           description: "Failed to update project URL",
@@ -305,7 +315,6 @@ export default function ProjectPage() {
         return false;
       }
 
-      // Update local state
       setProject(data);
       toast({
         title: "Success",
@@ -315,7 +324,6 @@ export default function ProjectPage() {
       });
       return true;
     } catch (error) {
-      console.error("Error updating project URL:", error);
       toast({
         title: "Error",
         description: "Failed to update project URL",
@@ -330,13 +338,10 @@ export default function ProjectPage() {
   const handleUpdateCoverImage = async (newUrl: string): Promise<boolean> => {
     setIsUpdating(true);
     try {
-      // Basic URL validation
       if (newUrl.trim() !== "") {
         try {
-          // This will throw if the URL is invalid
           new URL(newUrl);
 
-          // Check if URL starts with http:// or https://
           if (!newUrl.startsWith("http://") && !newUrl.startsWith("https://")) {
             toast({
               title: "Invalid URL",
@@ -361,7 +366,6 @@ export default function ProjectPage() {
       });
 
       if (error) {
-        console.error("Error updating cover image:", error);
         toast({
           title: "Error",
           description: "Failed to update cover image",
@@ -370,7 +374,6 @@ export default function ProjectPage() {
         return false;
       }
 
-      // Update local state
       setProject(data);
       toast({
         title: "Success",
@@ -380,7 +383,6 @@ export default function ProjectPage() {
       });
       return true;
     } catch (error) {
-      console.error("Error updating cover image:", error);
       toast({
         title: "Error",
         description: "Failed to update cover image",
@@ -395,18 +397,15 @@ export default function ProjectPage() {
   const handleCoverImageFileUpload = async (file: File): Promise<boolean> => {
     setIsUpdating(true);
     try {
-      // Generate unique filename
       const fileExt = file.name.split(".").pop();
       const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
       const filePath = `project-covers/${fileName}`;
 
-      // Upload to Supabase storage
       const { error: uploadError } = await supabase.storage
         .from("project-materials")
         .upload(filePath, file);
 
       if (uploadError) {
-        console.error("Error uploading cover image:", uploadError);
         toast({
           title: "Upload Error",
           description: "Failed to upload image file",
@@ -415,18 +414,15 @@ export default function ProjectPage() {
         return false;
       }
 
-      // Get public URL
       const {
         data: { publicUrl },
       } = supabase.storage.from("project-materials").getPublicUrl(filePath);
 
-      // Update project with new URL
       const { data, error } = await updateProjectClient(projectId, {
         cover_image_url: publicUrl,
       });
 
       if (error) {
-        console.error("Error updating cover image:", error);
         toast({
           title: "Error",
           description: "Failed to update cover image",
@@ -435,7 +431,6 @@ export default function ProjectPage() {
         return false;
       }
 
-      // Update local state
       setProject(data);
       toast({
         title: "Success",
@@ -443,7 +438,6 @@ export default function ProjectPage() {
       });
       return true;
     } catch (error) {
-      console.error("Error uploading cover image:", error);
       toast({
         title: "Error",
         description: "Failed to upload cover image",
@@ -460,13 +454,10 @@ export default function ProjectPage() {
   ): Promise<boolean> => {
     setIsUpdating(true);
     try {
-      // Basic URL validation
       if (newUrl.trim() !== "") {
         try {
-          // This will throw if the URL is invalid
           new URL(newUrl);
 
-          // Check if URL starts with http:// or https://
           if (!newUrl.startsWith("http://") && !newUrl.startsWith("https://")) {
             toast({
               title: "Invalid URL",
@@ -490,7 +481,6 @@ export default function ProjectPage() {
       });
 
       if (error) {
-        console.error("Error updating additional materials URL:", error);
         toast({
           title: "Error",
           description: "Failed to update additional materials URL",
@@ -499,7 +489,6 @@ export default function ProjectPage() {
         return false;
       }
 
-      // Update local state
       setProject(data);
       toast({
         title: "Success",
@@ -509,7 +498,6 @@ export default function ProjectPage() {
       });
       return true;
     } catch (error) {
-      console.error("Error updating additional materials URL:", error);
       toast({
         title: "Error",
         description: "Failed to update additional materials URL",
@@ -524,13 +512,10 @@ export default function ProjectPage() {
   const handleUpdateVideoUrl = async (newUrl: string): Promise<boolean> => {
     setIsUpdating(true);
     try {
-      // Basic URL validation
       if (newUrl.trim() !== "") {
         try {
-          // This will throw if the URL is invalid
           new URL(newUrl);
 
-          // Check if URL starts with http:// or https://
           if (!newUrl.startsWith("http://") && !newUrl.startsWith("https://")) {
             toast({
               title: "Invalid URL",
@@ -555,7 +540,6 @@ export default function ProjectPage() {
       });
 
       if (error) {
-        console.error("Error updating video URL:", error);
         toast({
           title: "Error",
           description: "Failed to update video URL",
@@ -564,7 +548,6 @@ export default function ProjectPage() {
         return false;
       }
 
-      // Update local state
       setProject(data);
       toast({
         title: "Success",
@@ -574,7 +557,6 @@ export default function ProjectPage() {
       });
       return true;
     } catch (error) {
-      console.error("Error updating video URL:", error);
       toast({
         title: "Error",
         description: "Failed to update video URL",
@@ -591,18 +573,15 @@ export default function ProjectPage() {
   ): Promise<boolean> => {
     setIsUpdating(true);
     try {
-      // Generate unique filename
       const fileExt = file.name.split(".").pop();
       const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
       const filePath = `project-materials/${fileName}`;
 
-      // Upload to Supabase storage
       const { error: uploadError } = await supabase.storage
         .from("project-materials")
         .upload(filePath, file);
 
       if (uploadError) {
-        console.error("Error uploading additional materials:", uploadError);
         toast({
           title: "Upload Error",
           description: "Failed to upload file",
@@ -611,18 +590,15 @@ export default function ProjectPage() {
         return false;
       }
 
-      // Get public URL
       const {
         data: { publicUrl },
       } = supabase.storage.from("project-materials").getPublicUrl(filePath);
 
-      // Update project with new URL
       const { data, error } = await updateProjectClient(projectId, {
         additional_materials_url: publicUrl,
       });
 
       if (error) {
-        console.error("Error updating additional materials URL:", error);
         toast({
           title: "Error",
           description: "Failed to update additional materials URL",
@@ -631,7 +607,6 @@ export default function ProjectPage() {
         return false;
       }
 
-      // Update local state
       setProject(data);
       toast({
         title: "Success",
@@ -639,7 +614,6 @@ export default function ProjectPage() {
       });
       return true;
     } catch (error) {
-      console.error("Error uploading additional materials:", error);
       toast({
         title: "Error",
         description: "Failed to upload additional materials",
@@ -657,7 +631,6 @@ export default function ProjectPage() {
       const { success, error } = await deleteProjectClient(projectId);
 
       if (!success || error) {
-        console.error("Error deleting project:", error);
         toast({
           title: "Error",
           description: "Failed to delete project",
@@ -671,10 +644,8 @@ export default function ProjectPage() {
         description: "Your project has been successfully deleted",
       });
 
-      // Redirect to projects list
       router.push("/projects");
     } catch (error) {
-      console.error("Error deleting project:", error);
       toast({
         title: "Error",
         description: "Failed to delete project",
@@ -714,12 +685,11 @@ export default function ProjectPage() {
         >();
 
       if (error) {
-        console.error("Error fetching participants:", error);
         return;
       }
 
       const participantList: EventParticipant[] = (data || [])
-        .filter((role) => role.profiles?.email) // Filter out entries without email
+        .filter((role) => role.profiles?.email)
         .map((role) => ({
           user_id: role.user_id,
           display_name:
@@ -729,7 +699,7 @@ export default function ProjectPage() {
 
       setParticipants(participantList);
     } catch (error) {
-      console.error("Error fetching participants:", error);
+      // Silently fail if participants cannot be fetched
     } finally {
       setIsLoadingParticipants(false);
     }
@@ -753,7 +723,6 @@ export default function ProjectPage() {
       return;
     }
 
-    // Basic email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(emailToAdd)) {
       toast({
@@ -766,7 +735,6 @@ export default function ProjectPage() {
 
     const normalizedEmail = emailToAdd.toLowerCase();
 
-    // Check if email is already the project lead
     if (normalizedEmail === project?.lead_email?.toLowerCase()) {
       toast({
         title: "Cannot add lead",
@@ -776,7 +744,6 @@ export default function ProjectPage() {
       return;
     }
 
-    // Check if email is already a teammate
     const currentTeammates = project?.teammates || [];
     if (
       currentTeammates.some(
@@ -800,7 +767,6 @@ export default function ProjectPage() {
       );
 
       if (error) {
-        console.error("Error adding teammate:", error);
         toast({
           title: "Error",
           description: "Failed to add team member",
@@ -809,7 +775,6 @@ export default function ProjectPage() {
         return;
       }
 
-      // Update local state
       setProject(data);
       setNewTeammateEmail("");
       setSearchValue("");
@@ -819,7 +784,6 @@ export default function ProjectPage() {
         description: `${normalizedEmail} has been successfully added to the team`,
       });
     } catch (error) {
-      console.error("Error adding teammate:", error);
       toast({
         title: "Error",
         description: "Failed to add team member",
@@ -843,7 +807,6 @@ export default function ProjectPage() {
       );
 
       if (error) {
-        console.error("Error removing teammate:", error);
         toast({
           title: "Error",
           description: "Failed to remove team member",
@@ -852,14 +815,12 @@ export default function ProjectPage() {
         return;
       }
 
-      // Update local state
       setProject(data);
       toast({
         title: "Team member removed",
         description: `${teammateEmail} has been removed from the team`,
       });
     } catch (error) {
-      console.error("Error removing teammate:", error);
       toast({
         title: "Error",
         description: "Failed to remove team member",
@@ -875,11 +836,10 @@ export default function ProjectPage() {
 
     setIsUpdating(true);
     try {
-      // Create the Contextus project
       const contextusPayload = {
         label: project.project_name,
         metadata: {
-          event: eventName || "Unknown Event",
+          event: eventDetails?.event_name || "Unknown Event",
           lead: project.lead_name,
           team_size: String((project.teammates?.length || 0) + 1),
         },
@@ -903,13 +863,11 @@ export default function ProjectPage() {
         return;
       }
 
-      // Update the project with the Contextus ID
       const { data, error } = await updateProjectClient(projectId, {
         contextus_project_id: contextusId,
       });
 
       if (error) {
-        console.error("Error updating project with Contextus ID:", error);
         toast({
           title: "Error",
           description: "Failed to save Contextus project ID",
@@ -918,14 +876,12 @@ export default function ProjectPage() {
         return;
       }
 
-      // Update local state
       setProject(data);
       toast({
         title: "Success",
         description: "Project linked to Contextus successfully",
       });
     } catch (error) {
-      console.error("Error creating Contextus link:", error);
       toast({
         title: "Error",
         description: "Failed to create Contextus link",
@@ -964,796 +920,939 @@ export default function ProjectPage() {
   }/projects/public/${project.id}`;
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="bg-white min-h-screen">
       <Toaster />
-      {/* Header */}
-      <div className="flex items-center gap-4 mb-6">
-        <Link href="/projects">
-          <Button variant="ghost" size="sm">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Projects
-          </Button>
-        </Link>
 
-        {/* Delete Button - Only show for project lead */}
-        {isLead && (
-          <div className="ml-auto">
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => setShowDeleteDialog(true)}
-              disabled={isUpdating}
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Delete Project
-            </Button>
-          </div>
-        )}
-      </div>
-
-      {/* Project Info */}
-      <div className="mb-8">
-        <div className="flex justify-between items-start mb-4">
-          <div className="flex-1">
-            {/* Editable Title with Event Badge */}
-            <div className="flex items-center gap-3 mb-2">
-              <EditableField
-                value={project.project_name}
-                onSave={handleUpdateTitle}
-                canEdit={canEdit}
-                isLoading={isUpdating}
-                displayClassName="text-3xl font-bold text-gray-900"
-                inputClassName="text-3xl font-bold text-gray-900"
-                renderDisplay={(value) => (
-                  <h1 className="text-3xl font-bold text-gray-900 hover:text-blue-600">
-                    {value}
-                  </h1>
-                )}
-              />
-              {/* Event Badge */}
-              {eventName && project?.event_id && (
-                <Link href={`/events/${eventSlug}/overview`}>
-                  <Badge
-                    variant="secondary"
-                    className="bg-green-100 text-green-800 hover:bg-green-200 px-4 py-2 text-sm font-medium cursor-pointer transition-colors"
-                  >
-                    {eventName}
-                  </Badge>
-                </Link>
-              )}
-              {project.submitted ? (
-                <Badge
-                  variant="secondary"
-                  className="bg-blue-100 text-blue-800 hover:bg-blue-200 px-4 py-2 text-sm font-medium cursor-pointer transition-colors"
-                >
-                  Submitted
-                </Badge>
-              ) : (
-                <Badge
-                  variant="secondary"
-                  className="bg-gray-100 text-gray-800 hover:bg-gray-200 px-4 py-2 text-sm font-medium cursor-pointer transition-colors"
-                >
-                  Draft
-                </Badge>
-              )}
-            </div>
-
-            <div className="flex items-center gap-4 text-sm text-gray-600">
-              <div className="flex items-center gap-1">
-                <Users className="h-4 w-4" />
-                <span>{totalMembers} members</span>
-              </div>
-              <div className="flex items-center gap-1">
+      {/* Header Section */}
+      <div className="bg-gradient-to-b from-blue-50/45 to-white border-b border-gray-200">
+        <div className="container mx-auto px-8 pt-8 pb-0">
+          {/* Top Actions Bar */}
+          <div className="flex items-center justify-between mb-6">
+            {/* Metadata Badges */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <Badge
+                variant="secondary"
+                className="bg-white border border-black/15 text-black px-3 py-1.5 rounded-full flex items-center gap-1"
+              >
+                <Loader className="h-4 w-4" />
+                {project.submitted ? "Submitted" : "Draft"}
+              </Badge>
+              <Badge
+                variant="secondary"
+                className="bg-white border border-black/15 text-black px-3 py-1.5 rounded-full flex items-center gap-1"
+              >
                 <Calendar className="h-4 w-4" />
-                <span>
-                  Created {new Date(project.created_at).toLocaleDateString()}
-                </span>
-              </div>
-              <Badge variant={isLead ? "default" : "secondary"}>
-                {isLead ? "Project Lead" : "Team Member"}
+                Created: {new Date(project.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+              </Badge>
+              <Badge
+                variant="secondary"
+                className="bg-white border border-black/15 text-black px-3 py-1.5 rounded-full flex items-center gap-1"
+              >
+                <Users className="h-4 w-4" />
+                {totalMembers} members
               </Badge>
             </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center gap-3">
+              {canEdit && (
+                <Button
+                  variant="ghost"
+                  className="rounded-xl px-5 py-2"
+                  onClick={() => router.push(`/projects/${projectId}/edit`)}
+                >
+                  <Edit className="h-5 w-5 mr-1.5" />
+                  Edit
+                </Button>
+              )}
+              <Button
+                variant="secondary"
+                className="bg-black/5 hover:bg-black/10 rounded-xl px-5 py-2 shadow-sm"
+              >
+                <Heart className="h-5 w-5 mr-1.5" />
+                Like
+              </Button>
+              <Link href={`/projects/public/${project.id}`}>
+                <Button className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-5 py-2 shadow-sm">
+                  Give feedback
+                </Button>
+              </Link>
+            </div>
           </div>
-        </div>
 
-        {/* Header Image */}
-        <div className="w-full h-56 mb-6 rounded-lg overflow-hidden shadow-md">
-          <div
-            className="w-full h-full bg-cover bg-center bg-no-repeat"
-            style={{
-              backgroundImage: `url(${
-                project.cover_image_url || "/img/placeholder.png"
-              })`,
-            }}
-          ></div>
-        </div>
-
-        {/* Project Description Card */}
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle>About This Project</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <EditableField
-              value={project.project_description}
-              onSave={handleUpdateDescription}
-              canEdit={canEdit}
-              isLoading={isUpdating}
-              multiline={true}
-              displayClassName="text-gray-700"
-              renderDisplay={(value) => (
-                <p className="text-gray-700 hover:text-blue-600">{value}</p>
-              )}
-            />
-          </CardContent>
-        </Card>
-
-        {/* Project Links Card */}
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle>Project Links</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {/* Cover Image URL */}
-            <div className=" mb-6">
-              <div className="flex items-center gap-2 mb-3">
-                <ExternalLink className="h-4 w-4 text-gray-500" />
-                <label className="text-sm font-medium text-gray-700">
-                  Cover Image:
-                </label>
-              </div>
-
-              {/* URL Input */}
-              <div className="mb-4">
-                <label className="text-xs font-medium text-gray-600 mb-1 block">
-                  Image URL:
-                </label>
-                <div className="flex gap-2">
-                  <div className="flex-1">
-                    <EditableField
-                      value={project.cover_image_url || ""}
-                      onSave={handleUpdateCoverImage}
-                      canEdit={canEdit}
-                      isLoading={isUpdating}
-                      placeholder="https://example.com/image.jpg"
-                      displayClassName="text-blue-600 underline"
-                      renderDisplay={(value) =>
-                        value ? (
-                          <span className="text-blue-600 hover:text-blue-800 cursor-pointer">
-                            {value}
-                          </span>
-                        ) : (
-                          <span className="text-gray-400 italic">
-                            No cover image URL set
-                          </span>
-                        )
-                      }
-                    />
-                  </div>
-                  {project.cover_image_url && (
-                    <a
-                      href={project.cover_image_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-shrink-0"
-                    >
-                      <Button variant="outline" size="sm">
-                        <ExternalLink className="h-4 w-4 mr-1" />
-                        View
-                      </Button>
-                    </a>
-                  )}
-                </div>
-              </div>
-
-              {/* File Upload */}
-              {canEdit && (
-                <ImageUpload
-                  handleUpload={handleCoverImageFileUpload}
-                  noteText="Note: Changes to the cover image will be reflected in the header image above."
-                />
-              )}
-            </div>
-
-            {/* Additional Materials */}
-            <div className="border-t pt-4 mt-4">
-              <div className="flex items-center gap-2 mb-3">
-                <ExternalLink className="h-4 w-4 text-gray-500" />
-                <label className="text-sm font-medium text-gray-700">
-                  Additional Materials:
-                </label>
-              </div>
-
-              {/* URL Input */}
-              <div className="mb-4">
-                <label className="text-xs font-medium text-gray-600 mb-1 block">
-                  Additional Materials URL:
-                </label>
-                <div className="flex gap-2">
-                  <div className="flex-1">
-                    <EditableField
-                      value={project.additional_materials_url || ""}
-                      onSave={handleUpdateAdditionalMaterials}
-                      canEdit={canEdit}
-                      isLoading={isUpdating}
-                      placeholder="https://github.com/your-repo or https://docs.google.com/..."
-                      displayClassName="text-blue-600 underline"
-                      renderDisplay={(value) =>
-                        value ? (
-                          <span className="text-blue-600 hover:text-blue-800 cursor-pointer">
-                            {value}
-                          </span>
-                        ) : (
-                          <span className="text-gray-400 italic">
-                            No additional materials URL set
-                          </span>
-                        )
-                      }
-                    />
-                  </div>
-                  {project.additional_materials_url && (
-                    <a
-                      href={project.additional_materials_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-shrink-0"
-                    >
-                      <Button variant="outline" size="sm">
-                        <ExternalLink className="h-4 w-4 mr-1" />
-                        View
-                      </Button>
-                    </a>
-                  )}
-                </div>
-              </div>
-              {canEdit && (
-                <FileUpload
-                  handleUpload={handleAdditionalMaterialsFileUpload}
-                  noteText="Examples: GitHub repository, documentation, slides, design files, PDFs, etc."
-                />
-              )}
-            </div>
-
-            {/* Project URL */}
-            <div className="border-t pt-4 mt-4">
-              <div className="flex items-center gap-2 mb-2">
-                <ExternalLink className="h-4 w-4 text-gray-500" />
-                <label className="text-sm font-medium text-gray-700">
-                  Project URL:
-                </label>
-              </div>
-              <div className="flex gap-2">
-                <div className="flex-1">
+          {/* Project Title and Hero Section */}
+          <div className="flex gap-20 mb-12">
+            {/* Left: Title and Description */}
+            <div className="flex-1 space-y-8">
+              <div className="space-y-6">
+                {canEdit ? (
                   <EditableField
-                    value={project.project_url || ""}
-                    onSave={handleUpdateProjectUrl}
+                    value={project.project_name}
+                    onSave={handleUpdateTitle}
                     canEdit={canEdit}
                     isLoading={isUpdating}
-                    placeholder="https://your-project-url.com"
-                    displayClassName="text-blue-600 underline"
-                    renderDisplay={(value) =>
-                      value ? (
-                        <span className="text-blue-600 hover:text-blue-800 cursor-pointer">
-                          {value}
-                        </span>
-                      ) : (
-                        <span className="text-gray-400 italic">
-                          No project URL set
-                        </span>
-                      )
-                    }
+                    displayClassName="text-3xl font-semibold text-black tracking-tight leading-9"
+                    inputClassName="text-3xl font-semibold text-black tracking-tight leading-9"
+                    renderDisplay={(value) => (
+                      <h1 className="text-3xl font-semibold text-black tracking-tight leading-9 hover:text-blue-600">
+                        {value}
+                      </h1>
+                    )}
                   />
-                </div>
+                ) : (
+                  <h1 className="text-3xl font-semibold text-black tracking-tight leading-9">
+                    {project.project_name}
+                  </h1>
+                )}
+
+                {canEdit ? (
+                  <EditableField
+                    value={project.project_description}
+                    onSave={handleUpdateDescription}
+                    canEdit={canEdit}
+                    isLoading={isUpdating}
+                    multiline={true}
+                    displayClassName="text-lg text-gray-700 leading-relaxed"
+                    renderDisplay={(value) => (
+                      <p className="text-lg text-gray-700 leading-relaxed hover:text-blue-600">
+                        {value}
+                      </p>
+                    )}
+                  />
+                ) : (
+                  <p className="text-lg text-gray-700 leading-relaxed">
+                    {project.project_description}
+                  </p>
+                )}
+              </div>
+
+              {/* Action Buttons for Project */}
+              <div className="flex gap-3">
                 {project.project_url && (
                   <a
                     href={project.project_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex-shrink-0"
                   >
-                    <Button variant="outline" size="sm">
-                      <ExternalLink className="h-4 w-4 mr-1" />
-                      Visit
+                    <Button className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-6 py-2.5 shadow-sm">
+                      <ArrowUpRight className="h-5 w-5 mr-1.5" />
+                      View Live Project
                     </Button>
                   </a>
                 )}
-              </div>
-            </div>
-
-            {/* Video URL */}
-            <div className="border-t pt-4 mt-4">
-              <div className="flex items-center gap-2 mb-2">
-                <ExternalLink className="h-4 w-4 text-gray-500" />
-                <label className="text-sm font-medium text-gray-700">
-                  Video URL:
-                </label>
-              </div>
-              <div className="flex gap-2 mb-4">
-                <div className="flex-1">
-                  <EditableField
-                    value={project.video_url || ""}
-                    onSave={handleUpdateVideoUrl}
-                    canEdit={canEdit}
-                    isLoading={isUpdating}
-                    placeholder="https://youtube.com/watch?v=... or https://vimeo.com/..."
-                    displayClassName="text-blue-600 underline"
-                    renderDisplay={(value) =>
-                      value ? (
-                        <span className="text-blue-600 hover:text-blue-800 cursor-pointer">
-                          {value}
-                        </span>
-                      ) : (
-                        <span className="text-gray-400 italic">
-                          No video URL set
-                        </span>
-                      )
-                    }
-                  />
-                </div>
                 {project.video_url && (
                   <a
                     href={project.video_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex-shrink-0"
                   >
-                    <Button variant="outline" size="sm">
-                      <ExternalLink className="h-4 w-4 mr-1" />
-                      Watch
+                    <Button
+                      variant="secondary"
+                      className="bg-black/5 hover:bg-black/10 rounded-xl px-6 py-2.5 shadow-sm"
+                    >
+                      <Video className="h-5 w-5 mr-1.5" />
+                      Watch Video
                     </Button>
                   </a>
                 )}
               </div>
+            </div>
 
-              {/* Video Embed */}
-              {project.video_url && canEmbed(project.video_url) && (
-                <VideoEmbed url={project.video_url} title="Project Video" />
+            {/* Right: Cover Image */}
+            <div className="w-[520px] h-[300px] rounded-2xl overflow-hidden shadow-lg">
+              {canEdit ? (
+                <div className="relative w-full h-full group">
+                  <div
+                    className="w-full h-full bg-cover bg-center bg-no-repeat"
+                    style={{
+                      backgroundImage: `url(${
+                        project.cover_image_url || "/img/placeholder.png"
+                      })`,
+                    }}
+                  ></div>
+                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <span className="text-white text-sm">Click to edit in settings below</span>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  className="w-full h-full bg-cover bg-center bg-no-repeat"
+                  style={{
+                    backgroundImage: `url(${
+                      project.cover_image_url || "/img/placeholder.png"
+                    })`,
+                  }}
+                ></div>
               )}
             </div>
-          </CardContent>
-        </Card>
+          </div>
 
-        {/* Integrations Card */}
-        {!canEdit && isAdmin && (
-          <Card className="mb-8">
-            <CardHeader>
-              <CardTitle>Integrations</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {/* Contextus Integration */}
-                <div className="border rounded-lg p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="font-medium text-gray-900">Contextus</h3>
-                      <p className="text-sm text-gray-600 mt-1">
-                        Connect your project to Contextus for enhanced
-                        visibility
-                      </p>
-                    </div>
-                    {!project.contextus_project_id ? (
-                      <Button
-                        onClick={handleCreateContextusLink}
-                        disabled={isUpdating}
-                        className="flex items-center gap-2"
-                      >
-                        <ExternalLink className="h-4 w-4" />
-                        Link on Contextus
-                      </Button>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <Badge
-                          variant="secondary"
-                          className="bg-green-100 text-green-800"
-                        >
-                          Connected
-                        </Badge>
-                        <Button
-                          onClick={() => setShowContextusId(!showContextusId)}
-                          variant="ghost"
-                          size="sm"
-                          className="flex items-center gap-2"
-                        >
-                          {showContextusId ? (
-                            <>
-                              <EyeOff className="w-4 h-4" />
-                              Hide ID
-                            </>
-                          ) : (
-                            <>
-                              <Eye className="w-4 h-4" />
-                              Show ID
-                            </>
-                          )}
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                  {project.contextus_project_id && showContextusId && (
-                    <div className="mt-3 flex items-center gap-2">
-                      <span className="text-sm text-gray-600">Project ID:</span>
-                      <code className="bg-gray-100 px-2 py-1 rounded text-sm font-mono text-purple-700">
-                        {project.contextus_project_id}
-                      </code>
-                      <Button
-                        onClick={() => {
-                          navigator.clipboard.writeText(
-                            project.contextus_project_id!
-                          );
-                          toast({
-                            title: "Copied",
-                            description: "Contextus ID copied to clipboard",
-                          });
-                        }}
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 px-2"
-                      >
-                        <Copy className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+          {/* Tabs Navigation */}
+          <Tabs defaultValue="overview" className="w-full">
+            <TabsList className="bg-transparent border-b border-gray-200 rounded-none h-auto p-0 w-full justify-start gap-6">
+              <TabsTrigger
+                value="overview"
+                className="data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2 font-medium"
+              >
+                Overview
+              </TabsTrigger>
+              <TabsTrigger
+                value="tracks"
+                className="data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2"
+              >
+                Tracks
+              </TabsTrigger>
+              <TabsTrigger
+                value="team"
+                className="data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2 flex items-center gap-2"
+              >
+                Team
+                <Badge variant="secondary" className="bg-white border border-black/15 text-black rounded-full text-xs">
+                  {totalMembers}
+                </Badge>
+              </TabsTrigger>
+              <TabsTrigger
+                value="feedback"
+                className="data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2 flex items-center gap-2"
+              >
+                Feedback
+                <Badge variant="secondary" className="bg-white border border-black/15 text-black rounded-full text-xs">
+                  0
+                </Badge>
+              </TabsTrigger>
+            </TabsList>
 
-      {/* Tabs */}
-      <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 h-auto gap-4 w-full">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="team">
-            <Users className="h-4 w-4 mr-2" />
-            Team ({totalMembers})
-          </TabsTrigger>
-          <TabsTrigger value="tracks">
-            <Tag className="h-4 w-4 mr-2" />
-            Tracks
-          </TabsTrigger>
-          <TabsTrigger value="feedback">
-            <MessageSquare className="h-4 w-4 mr-2" />
-            Feedback
-          </TabsTrigger>
-          <TabsTrigger value="qr-code">
-            <QrCode className="h-4 w-4 mr-2" />
-            QR Code
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="overview">
-          <Card>
-            <CardHeader>
-              <CardTitle>Project Details</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div>
-                  <label className="text-sm font-medium text-gray-500">
-                    Project Lead
-                  </label>
-                  <p className="text-gray-900">
-                    {project.lead_name} ({project.lead_email})
-                  </p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-500">
-                    Team Size
-                  </label>
-                  <p className="text-gray-900">{totalMembers} members</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-500">
-                    Created
-                  </label>
-                  <p className="text-gray-900">
-                    {new Date(project.created_at).toLocaleDateString()}
-                  </p>
-                </div>
-                {/* Contextus Integration - Only show to team members */}
-                {canEdit && project.contextus_project_id && (
-                  <div className="border-t pt-3 mt-3">
-                    <div className="flex items-center justify-between">
-                      <label className="text-sm font-medium text-gray-500">
-                        Contextus Integration
-                      </label>
-                      <Button
-                        onClick={() => setShowContextusId(!showContextusId)}
-                        variant="ghost"
-                        size="sm"
-                        className="flex items-center gap-2 h-8"
-                      >
-                        {showContextusId ? (
-                          <>
-                            <EyeOff className="w-4 h-4" />
-                            Hide ID
-                          </>
+            {/* Main Content Area */}
+            <div className="py-12">
+              <div className="flex gap-10">
+                {/* Left Column: Main Content */}
+                <div className="flex-1 space-y-12">
+                  <TabsContent value="overview" className="mt-0">
+                    <div className="space-y-8">
+                      {/* About this project */}
+                      <div>
+                        <h2 className="text-3xl font-semibold text-black mb-6 tracking-tight">
+                          About this project
+                        </h2>
+                        {canEdit ? (
+                          <EditableField
+                            value={project.project_description}
+                            onSave={handleUpdateDescription}
+                            canEdit={canEdit}
+                            isLoading={isUpdating}
+                            multiline={true}
+                            displayClassName="text-base text-black leading-relaxed"
+                            renderDisplay={(value) => (
+                              <p className="text-base text-black leading-relaxed hover:text-blue-600">
+                                {value}
+                              </p>
+                            )}
+                          />
                         ) : (
-                          <>
-                            <Eye className="w-4 h-4" />
-                            Reveal ID
-                          </>
+                          <p className="text-base text-black leading-relaxed">
+                            {project.project_description}
+                          </p>
                         )}
-                      </Button>
-                    </div>
-                    {showContextusId && (
-                      <div className="mt-2 flex items-center gap-2">
-                        <code className="bg-gray-100 px-2 py-1 rounded text-sm font-mono text-purple-700">
-                          {project.contextus_project_id}
-                        </code>
-                        <Button
-                          onClick={() => {
-                            navigator.clipboard.writeText(
-                              project.contextus_project_id!
-                            );
-                            toast({
-                              title: "Copied",
-                              description: "Contextus ID copied to clipboard",
-                            });
-                          }}
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 px-2"
-                        >
-                          <Copy className="w-3 h-3" />
-                        </Button>
                       </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
 
-        <TabsContent value="team">
-          <Card>
-            <CardHeader>
-              <CardTitle>Team Members</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between p-3 border rounded">
-                  <div>
-                    <p className="font-medium">{project.lead_name}</p>
-                    <p className="text-sm text-gray-500">
-                      {project.lead_email}
-                    </p>
-                  </div>
-                  <Badge>Lead</Badge>
-                </div>
+                      {/* Cover Image Display */}
+                      {project.cover_image_url && (
+                        <div className="space-y-2">
+                          <div className="rounded-xl overflow-hidden">
+                            <img
+                              src={project.cover_image_url}
+                              alt="Project cover"
+                              className="w-full h-auto object-cover"
+                            />
+                          </div>
+                          <div className="flex gap-2 items-start">
+                            <div className="w-0.5 bg-black/15 flex-shrink-0"></div>
+                            <p className="text-sm text-black">Image caption goes here</p>
+                          </div>
+                        </div>
+                      )}
 
-                {project.teammates?.map((teammate, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between p-3 border rounded"
-                  >
-                    <div>
-                      <p className="font-medium">{teammate}</p>
-                      <p className="text-sm text-gray-500">Team Member</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="secondary">Member</Badge>
-                      {canEdit && isLead && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRemoveTeammate(teammate)}
-                          disabled={isUpdating}
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
+                      {/* Video Embed */}
+                      {project.video_url && canEmbed(project.video_url) && (
+                        <div className="space-y-4">
+                          <VideoEmbed url={project.video_url} title="Project Video" />
+                        </div>
+                      )}
+
+                      {/* Settings Section - Only for editors */}
+                      {canEdit && (
+                        <Card className="mt-12">
+                          <CardHeader>
+                            <CardTitle>Project Settings</CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-6">
+                            {/* Cover Image URL */}
+                            <div>
+                              <div className="flex items-center gap-2 mb-3">
+                                <ExternalLink className="h-4 w-4 text-gray-500" />
+                                <label className="text-sm font-medium text-gray-700">
+                                  Cover Image:
+                                </label>
+                              </div>
+
+                              <div className="mb-4">
+                                <label className="text-xs font-medium text-gray-600 mb-1 block">
+                                  Image URL:
+                                </label>
+                                <div className="flex gap-2">
+                                  <div className="flex-1">
+                                    <EditableField
+                                      value={project.cover_image_url || ""}
+                                      onSave={handleUpdateCoverImage}
+                                      canEdit={canEdit}
+                                      isLoading={isUpdating}
+                                      placeholder="https://example.com/image.jpg"
+                                      displayClassName="text-blue-600 underline"
+                                      renderDisplay={(value) =>
+                                        value ? (
+                                          <span className="text-blue-600 hover:text-blue-800 cursor-pointer">
+                                            {value}
+                                          </span>
+                                        ) : (
+                                          <span className="text-gray-400 italic">
+                                            No cover image URL set
+                                          </span>
+                                        )
+                                      }
+                                    />
+                                  </div>
+                                  {project.cover_image_url && (
+                                    <a
+                                      href={project.cover_image_url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="flex-shrink-0"
+                                    >
+                                      <Button variant="outline" size="sm">
+                                        <ExternalLink className="h-4 w-4 mr-1" />
+                                        View
+                                      </Button>
+                                    </a>
+                                  )}
+                                </div>
+                              </div>
+
+                              <ImageUpload
+                                handleUpload={handleCoverImageFileUpload}
+                                noteText="Note: Changes to the cover image will be reflected in the header image above."
+                              />
+                            </div>
+
+                            {/* Additional Materials */}
+                            <div className="border-t pt-6">
+                              <div className="flex items-center gap-2 mb-3">
+                                <ExternalLink className="h-4 w-4 text-gray-500" />
+                                <label className="text-sm font-medium text-gray-700">
+                                  Additional Materials:
+                                </label>
+                              </div>
+
+                              <div className="mb-4">
+                                <label className="text-xs font-medium text-gray-600 mb-1 block">
+                                  Additional Materials URL:
+                                </label>
+                                <div className="flex gap-2">
+                                  <div className="flex-1">
+                                    <EditableField
+                                      value={project.additional_materials_url || ""}
+                                      onSave={handleUpdateAdditionalMaterials}
+                                      canEdit={canEdit}
+                                      isLoading={isUpdating}
+                                      placeholder="https://github.com/your-repo or https://docs.google.com/..."
+                                      displayClassName="text-blue-600 underline"
+                                      renderDisplay={(value) =>
+                                        value ? (
+                                          <span className="text-blue-600 hover:text-blue-800 cursor-pointer">
+                                            {value}
+                                          </span>
+                                        ) : (
+                                          <span className="text-gray-400 italic">
+                                            No additional materials URL set
+                                          </span>
+                                        )
+                                      }
+                                    />
+                                  </div>
+                                  {project.additional_materials_url && (
+                                    <a
+                                      href={project.additional_materials_url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="flex-shrink-0"
+                                    >
+                                      <Button variant="outline" size="sm">
+                                        <ExternalLink className="h-4 w-4 mr-1" />
+                                        View
+                                      </Button>
+                                    </a>
+                                  )}
+                                </div>
+                              </div>
+                              <FileUpload
+                                handleUpload={handleAdditionalMaterialsFileUpload}
+                                noteText="Examples: GitHub repository, documentation, slides, design files, PDFs, etc."
+                              />
+                            </div>
+
+                            {/* Project URL */}
+                            <div className="border-t pt-6">
+                              <div className="flex items-center gap-2 mb-2">
+                                <ExternalLink className="h-4 w-4 text-gray-500" />
+                                <label className="text-sm font-medium text-gray-700">
+                                  Project URL:
+                                </label>
+                              </div>
+                              <div className="flex gap-2">
+                                <div className="flex-1">
+                                  <EditableField
+                                    value={project.project_url || ""}
+                                    onSave={handleUpdateProjectUrl}
+                                    canEdit={canEdit}
+                                    isLoading={isUpdating}
+                                    placeholder="https://your-project-url.com"
+                                    displayClassName="text-blue-600 underline"
+                                    renderDisplay={(value) =>
+                                      value ? (
+                                        <span className="text-blue-600 hover:text-blue-800 cursor-pointer">
+                                          {value}
+                                        </span>
+                                      ) : (
+                                        <span className="text-gray-400 italic">
+                                          No project URL set
+                                        </span>
+                                      )
+                                    }
+                                  />
+                                </div>
+                                {project.project_url && (
+                                  <a
+                                    href={project.project_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex-shrink-0"
+                                  >
+                                    <Button variant="outline" size="sm">
+                                      <ExternalLink className="h-4 w-4 mr-1" />
+                                      Visit
+                                    </Button>
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Video URL */}
+                            <div className="border-t pt-6">
+                              <div className="flex items-center gap-2 mb-2">
+                                <ExternalLink className="h-4 w-4 text-gray-500" />
+                                <label className="text-sm font-medium text-gray-700">
+                                  Video URL:
+                                </label>
+                              </div>
+                              <div className="flex gap-2">
+                                <div className="flex-1">
+                                  <EditableField
+                                    value={project.video_url || ""}
+                                    onSave={handleUpdateVideoUrl}
+                                    canEdit={canEdit}
+                                    isLoading={isUpdating}
+                                    placeholder="https://youtube.com/watch?v=... or https://vimeo.com/..."
+                                    displayClassName="text-blue-600 underline"
+                                    renderDisplay={(value) =>
+                                      value ? (
+                                        <span className="text-blue-600 hover:text-blue-800 cursor-pointer">
+                                          {value}
+                                        </span>
+                                      ) : (
+                                        <span className="text-gray-400 italic">
+                                          No video URL set
+                                        </span>
+                                      )
+                                    }
+                                  />
+                                </div>
+                                {project.video_url && (
+                                  <a
+                                    href={project.video_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex-shrink-0"
+                                  >
+                                    <Button variant="outline" size="sm">
+                                      <ExternalLink className="h-4 w-4 mr-1" />
+                                      Watch
+                                    </Button>
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Delete Project Button */}
+                            {isLead && (
+                              <div className="border-t pt-6">
+                                <Button
+                                  variant="destructive"
+                                  onClick={() => setShowDeleteDialog(true)}
+                                  disabled={isUpdating}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Delete Project
+                                </Button>
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
                       )}
                     </div>
-                  </div>
-                ))}
-              </div>
+                  </TabsContent>
 
-              {canEdit && isLead && (
-                <div className="mt-6 pt-4 border-t">
-                  <div className="flex items-center gap-2 mb-3">
-                    <UserPlus className="h-4 w-4 text-gray-500" />
-                    <h4 className="font-medium text-gray-900">
-                      Add Team Member
-                    </h4>
-                  </div>
+                  <TabsContent value="tracks" className="mt-0">
+                    <TrackSelector
+                      projectId={project.id}
+                      eventId={project.event_id}
+                      canEdit={canEdit}
+                      isLoading={isUpdating}
+                    />
+                  </TabsContent>
 
-                  <div className="space-y-3">
-                    {/* Search through event participants */}
-                    <div>
-                      <label className="text-xs font-medium text-gray-600 mb-1 block">
-                        Search Event Participants:
-                      </label>
-                      <div className="flex gap-2">
-                        <Popover open={searchOpen} onOpenChange={setSearchOpen}>
-                          <PopoverTrigger asChild>
+                  <TabsContent value="team" className="mt-0">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Team Members</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between p-3 border rounded">
+                            <div>
+                              <p className="font-medium">{project.lead_name}</p>
+                              <p className="text-sm text-gray-500">
+                                {project.lead_email}
+                              </p>
+                            </div>
+                            <Badge>Lead</Badge>
+                          </div>
+
+                          {project.teammates?.map((teammate, index) => (
+                            <div
+                              key={index}
+                              className="flex items-center justify-between p-3 border rounded"
+                            >
+                              <div>
+                                <p className="font-medium">{teammate}</p>
+                                <p className="text-sm text-gray-500">Team Member</p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Badge variant="secondary">Member</Badge>
+                                {canEdit && isLead && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleRemoveTeammate(teammate)}
+                                    disabled={isUpdating}
+                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {canEdit && isLead && (
+                          <div className="mt-6 pt-4 border-t">
+                            <div className="flex items-center gap-2 mb-3">
+                              <UserPlus className="h-4 w-4 text-gray-500" />
+                              <h4 className="font-medium text-gray-900">
+                                Add Team Member
+                              </h4>
+                            </div>
+
+                            <div className="space-y-3">
+                              <div>
+                                <label className="text-xs font-medium text-gray-600 mb-1 block">
+                                  Search Event Participants:
+                                </label>
+                                <div className="flex gap-2">
+                                  <Popover open={searchOpen} onOpenChange={setSearchOpen}>
+                                    <PopoverTrigger asChild>
+                                      <Button
+                                        variant="outline"
+                                        role="combobox"
+                                        aria-expanded={searchOpen}
+                                        className="flex-1 justify-between text-left font-normal"
+                                        disabled={isAddingTeammate}
+                                      >
+                                        {searchValue
+                                          ? participants.find(
+                                              (participant) =>
+                                                participant.email === searchValue
+                                            )?.display_name || searchValue
+                                          : "Search participants..."}
+                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                      </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="p-0" align="start">
+                                      <Command>
+                                        <CommandInput
+                                          placeholder="Search participants..."
+                                          disabled={isLoadingParticipants}
+                                        />
+                                        <CommandList>
+                                          <CommandEmpty>
+                                            {isLoadingParticipants
+                                              ? "Loading..."
+                                              : "No participants found."}
+                                          </CommandEmpty>
+                                          <CommandGroup>
+                                            {participants.map((participant) => {
+                                              const isAlreadyTeammate = [
+                                                project?.lead_email?.toLowerCase(),
+                                                ...(project?.teammates || []).map((t) =>
+                                                  t.toLowerCase()
+                                                ),
+                                              ].includes(participant.email.toLowerCase());
+
+                                              return (
+                                                <CommandItem
+                                                  key={participant.user_id}
+                                                  value={participant.email}
+                                                  onSelect={(currentValue: string) => {
+                                                    if (!isAlreadyTeammate) {
+                                                      setSearchValue(currentValue);
+                                                      setSearchOpen(false);
+                                                      handleAddTeammate(currentValue);
+                                                    }
+                                                  }}
+                                                  disabled={isAlreadyTeammate}
+                                                >
+                                                  <div className="flex flex-col flex-1">
+                                                    <span className="font-medium">
+                                                      {participant.display_name ||
+                                                        participant.email}
+                                                    </span>
+                                                    <span className="text-sm text-gray-500">
+                                                      {participant.email}
+                                                    </span>
+                                                  </div>
+                                                  {isAlreadyTeammate && (
+                                                    <Badge
+                                                      variant="secondary"
+                                                      className="ml-2"
+                                                    >
+                                                      Team Member
+                                                    </Badge>
+                                                  )}
+                                                  {searchValue === participant.email && (
+                                                    <Check className="ml-2 h-4 w-4" />
+                                                  )}
+                                                </CommandItem>
+                                              );
+                                            })}
+                                          </CommandGroup>
+                                        </CommandList>
+                                      </Command>
+                                    </PopoverContent>
+                                  </Popover>
+                                </div>
+                              </div>
+
+                              <div>
+                                <label className="text-xs font-medium text-gray-600 mb-1 block">
+                                  Or enter email manually:
+                                </label>
+                                <div className="flex gap-2">
+                                  <Input
+                                    type="email"
+                                    placeholder="Enter team member's email"
+                                    value={newTeammateEmail}
+                                    onChange={(e) => setNewTeammateEmail(e.target.value)}
+                                    disabled={isAddingTeammate}
+                                    className="flex-1"
+                                  />
+                                  <Button
+                                    onClick={() => handleAddTeammate()}
+                                    disabled={
+                                      isAddingTeammate || !newTeammateEmail.trim()
+                                    }
+                                  >
+                                    {isAddingTeammate ? (
+                                      "Adding..."
+                                    ) : (
+                                      <>
+                                        <Plus className="h-4 w-4 mr-1" />
+                                        Add
+                                      </>
+                                    )}
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+
+                            <p className="text-xs text-gray-500 mt-3">
+                              Team members will be able to edit this project and receive
+                              notifications.
+                            </p>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+
+                  <TabsContent value="feedback" className="mt-0">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Project Feedback</CardTitle>
+                        <p className="text-sm text-gray-600">
+                          View feedback received for this project. Share the public link
+                          below for others to provide feedback.
+                        </p>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="mb-6">
+                          <div className="flex items-center gap-2 mb-2">
+                            <label className="text-sm font-medium text-gray-700">
+                              Public Feedback URL:
+                            </label>
+                          </div>
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={feedbackUrl}
+                              readOnly
+                              className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-sm"
+                            />
                             <Button
                               variant="outline"
-                              role="combobox"
-                              aria-expanded={searchOpen}
-                              className="flex-1 justify-between text-left font-normal"
-                              disabled={isAddingTeammate}
+                              size="sm"
+                              onClick={() => {
+                                navigator.clipboard.writeText(feedbackUrl);
+                                toast({
+                                  title: "Copied!",
+                                  description: "Feedback URL copied to clipboard",
+                                });
+                              }}
                             >
-                              {searchValue
-                                ? participants.find(
-                                    (participant) =>
-                                      participant.email === searchValue
-                                  )?.display_name || searchValue
-                                : "Search participants..."}
-                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                              <Copy className="h-4 w-4" />
                             </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="p-0" align="start">
-                            <Command>
-                              <CommandInput
-                                placeholder="Search participants..."
-                                disabled={isLoadingParticipants}
-                              />
-                              <CommandList>
-                                <CommandEmpty>
-                                  {isLoadingParticipants
-                                    ? "Loading..."
-                                    : "No participants found."}
-                                </CommandEmpty>
-                                <CommandGroup>
-                                  {participants.map((participant) => {
-                                    const isAlreadyTeammate = [
-                                      project?.lead_email?.toLowerCase(),
-                                      ...(project?.teammates || []).map((t) =>
-                                        t.toLowerCase()
-                                      ),
-                                    ].includes(participant.email.toLowerCase());
+                          </div>
+                        </div>
 
-                                    return (
-                                      <CommandItem
-                                        key={participant.user_id}
-                                        value={participant.email}
-                                        onSelect={(currentValue: string) => {
-                                          if (!isAlreadyTeammate) {
-                                            setSearchValue(currentValue);
-                                            setSearchOpen(false);
-                                            handleAddTeammate(currentValue);
-                                          }
-                                        }}
-                                        disabled={isAlreadyTeammate}
-                                      >
-                                        <div className="flex flex-col flex-1">
-                                          <span className="font-medium">
-                                            {participant.display_name ||
-                                              participant.email}
-                                          </span>
-                                          <span className="text-sm text-gray-500">
-                                            {participant.email}
-                                          </span>
-                                        </div>
-                                        {isAlreadyTeammate && (
-                                          <Badge
-                                            variant="secondary"
-                                            className="ml-2"
-                                          >
-                                            Team Member
-                                          </Badge>
-                                        )}
-                                        {searchValue === participant.email && (
-                                          <Check className="ml-2 h-4 w-4" />
-                                        )}
-                                      </CommandItem>
-                                    );
-                                  })}
-                                </CommandGroup>
-                              </CommandList>
-                            </Command>
-                          </PopoverContent>
-                        </Popover>
-                      </div>
-                    </div>
+                        <FeedbackDisplay projectId={project.id} showTitle={false} />
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+                </div>
 
-                    {/* Manual email input as fallback */}
-                    <div>
-                      <label className="text-xs font-medium text-gray-600 mb-1 block">
-                        Or enter email manually:
-                      </label>
-                      <div className="flex gap-2">
-                        <Input
-                          type="email"
-                          placeholder="Enter team member's email"
-                          value={newTeammateEmail}
-                          onChange={(e) => setNewTeammateEmail(e.target.value)}
-                          disabled={isAddingTeammate}
-                          className="flex-1"
-                        />
-                        <Button
-                          onClick={() => handleAddTeammate()}
-                          disabled={
-                            isAddingTeammate || !newTeammateEmail.trim()
-                          }
-                        >
-                          {isAddingTeammate ? (
-                            "Adding..."
-                          ) : (
-                            <>
-                              <Plus className="h-4 w-4 mr-1" />
-                              Add
-                            </>
-                          )}
-                        </Button>
+                {/* Right Column: Sidebar */}
+                <div className="w-[420px] space-y-6">
+                  {/* Meet the team */}
+                  <div className="space-y-6">
+                    <h3 className="text-lg font-bold text-black tracking-tight">
+                      Meet the team
+                    </h3>
+                    <div className="space-y-6">
+                      {/* Project Lead */}
+                      <div className="flex gap-4 items-center">
+                        <div className="w-14 h-14 rounded-full bg-gray-300 flex-shrink-0"></div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className="font-semibold text-base text-black">
+                              {project.lead_name}
+                            </p>
+                            <Badge
+                              variant="secondary"
+                              className="bg-transparent border border-black/15 text-black rounded-full text-sm px-2.5 py-0.5"
+                            >
+                              Lead
+                            </Badge>
+                          </div>
+                          <p className="text-base text-black">
+                            {project.lead_email}
+                          </p>
+                        </div>
                       </div>
+
+                      {/* Team Members */}
+                      {project.teammates?.slice(0, 1).map((teammate, index) => (
+                        <div key={index} className="flex gap-4 items-center">
+                          <div className="w-14 h-14 rounded-full bg-gray-300 flex-shrink-0"></div>
+                          <div className="space-y-0">
+                            <p className="font-semibold text-base text-black">
+                              {teammate}
+                            </p>
+                            <p className="text-base text-black">Student, Stanford</p>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
 
-                  <p className="text-xs text-gray-500 mt-3">
-                    Team members will be able to edit this project and receive
-                    notifications.
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+                  {/* Divider */}
+                  <div className="border-t border-gray-200"></div>
 
-        <TabsContent value="tracks">
-          <TrackSelector
-            projectId={project.id}
-            eventId={project.event_id}
-            canEdit={canEdit}
-            isLoading={isUpdating}
-          />
-        </TabsContent>
+                  {/* Submitted to Event */}
+                  {eventDetails && (
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-bold text-black tracking-tight">
+                        Submitted to
+                      </h3>
+                      <Card className="border border-black/15 rounded-xl overflow-hidden">
+                        <div className="relative">
+                          {eventDetails.cover_image_url ? (
+                            <img
+                              src={eventDetails.cover_image_url}
+                              alt={eventDetails.event_name}
+                              className="w-full h-[180px] object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-[180px] bg-gradient-to-br from-orange-400 via-blue-500 to-purple-600"></div>
+                          )}
+                          {eventDetails.start_date && (
+                            <div className="absolute top-4 right-4 bg-white border border-gray-300 rounded-xl py-3 px-1 text-center w-28">
+                              <p className="text-sm text-black">
+                                {new Date(eventDetails.start_date).toLocaleDateString("en-US", { weekday: "short" })}
+                              </p>
+                              <p className="text-4xl font-semibold text-black tracking-tight leading-none">
+                                {new Date(eventDetails.start_date).getDate()}
+                              </p>
+                              <p className="text-sm text-black">
+                                {new Date(eventDetails.start_date).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                        <CardContent className="p-6 space-y-4">
+                          <div className="flex gap-1 flex-wrap">
+                            <Badge
+                              variant="secondary"
+                              className="bg-transparent border border-black/15 text-black rounded-full font-semibold"
+                            >
+                              {eventDetails.event_type || "Hackathon"}
+                            </Badge>
+                            <Badge
+                              variant="secondary"
+                              className="bg-transparent border border-black/15 text-black rounded-full font-semibold"
+                            >
+                              Paid event
+                            </Badge>
+                          </div>
+                          <div className="space-y-2">
+                            <h4 className="text-2xl font-semibold text-black tracking-tight">
+                              {eventDetails.event_name}
+                            </h4>
+                            <div className="flex items-center gap-1 text-sm">
+                              <MapPin className="h-4 w-4 text-black" />
+                              <span className="text-black text-center">
+                                {eventDetails.location || "Online"}
+                              </span>
+                            </div>
+                          </div>
+                          <p className="text-base text-black leading-relaxed">
+                            Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse varius enim in eros.
+                          </p>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  )}
 
-        <TabsContent value="feedback">
-          <Card>
-            <CardHeader>
-              <CardTitle>Project Feedback</CardTitle>
-              <p className="text-sm text-gray-600">
-                View feedback received for this project. Share the public link
-                below for others to provide feedback.
-              </p>
-            </CardHeader>
-            <CardContent>
-              <div className="mb-6">
-                <div className="flex items-center gap-2 mb-2">
-                  <label className="text-sm font-medium text-gray-700">
-                    Public Feedback URL:
-                  </label>
-                </div>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={feedbackUrl}
-                    readOnly
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-sm"
-                  />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      navigator.clipboard.writeText(feedbackUrl);
-                      toast({
-                        title: "Copied!",
-                        description: "Feedback URL copied to clipboard",
-                      });
-                    }}
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
+                  {/* Divider */}
+                  <div className="border-t border-gray-200"></div>
+
+                  {/* Additional materials */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-black tracking-tight">
+                      Additional materials
+                    </h3>
+                    {project.additional_materials_url ? (
+                      <a
+                        href={project.additional_materials_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <Button
+                          variant="secondary"
+                          className="w-full bg-black/5 hover:bg-black/10 rounded-xl py-2.5 shadow-sm justify-center"
+                        >
+                          <ArrowUpRight className="h-5 w-5 mr-1.5" />
+                          Pitch deck
+                        </Button>
+                      </a>
+                    ) : canEdit ? (
+                      <p className="text-sm text-gray-500 italic">
+                        No additional materials added yet. Add them in the settings below.
+                      </p>
+                    ) : (
+                      <p className="text-sm text-gray-500 italic">
+                        No additional materials available
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Divider */}
+                  <div className="border-t border-gray-200"></div>
+
+                  {/* Share this project */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-black tracking-tight">
+                      Share this project
+                    </h3>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="bg-white rounded-full"
+                        onClick={() => {
+                          navigator.clipboard.writeText(feedbackUrl);
+                          toast({
+                            title: "Link copied!",
+                            description: "Project link copied to clipboard",
+                          });
+                        }}
+                      >
+                        <LinkIcon className="h-5 w-5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="rounded-lg"
+                        onClick={handleCopyQR}
+                      >
+                        <QrCode className="h-5 w-5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="bg-white rounded-full"
+                      >
+                        <Share2 className="h-5 w-5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="bg-white rounded-full"
+                      >
+                        <Share2 className="h-5 w-5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="bg-white rounded-full"
+                      >
+                        <Share2 className="h-5 w-5" />
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </div>
-
-              <FeedbackDisplay projectId={project.id} showTitle={false} />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="qr-code">
-          <ProjectQRCodeSection
-            fullUrl={feedbackUrl}
-            onCopyQR={handleCopyQR}
-            onDownloadQR={handleDownloadQR}
-          />
-        </TabsContent>
-      </Tabs>
+            </div>
+          </Tabs>
+        </div>
+      </div>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
