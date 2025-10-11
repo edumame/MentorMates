@@ -69,9 +69,22 @@ export default function ProjectsPage() {
   }
 
   return (
-    <div className={`min-h-screen flex flex-col ${isAuthenticated ? 'lg:rounded-tl-2xl lg:border-t lg:border-l lg:border-[#D8D8D8] bg-white' : ''}`} style={isAuthenticated ? { background: "linear-gradient(196.644deg, rgba(219, 234, 254, 0.25) 13.188%, rgba(255, 255, 255, 0) 65.83%), linear-gradient(90deg, rgb(251, 252, 254) 0%, rgb(251, 252, 254) 100%)" } : { background: "linear-gradient(203deg, rgba(219, 234, 254, 0.25) 13.19%, rgba(255, 255, 255, 0.00) 65.83%), #FFF" }}>
+    <div
+      className={`min-h-screen flex flex-col ${isAuthenticated ? "lg:rounded-tl-2xl lg:border-t lg:border-l lg:border-[#D8D8D8] bg-white" : ""}`}
+      style={
+        isAuthenticated
+          ? {
+              background:
+                "linear-gradient(196.644deg, rgba(219, 234, 254, 0.25) 13.188%, rgba(255, 255, 255, 0) 65.83%), linear-gradient(90deg, rgb(251, 252, 254) 0%, rgb(251, 252, 254) 100%)",
+            }
+          : {
+              background:
+                "linear-gradient(203deg, rgba(219, 234, 254, 0.25) 13.19%, rgba(255, 255, 255, 0.00) 65.83%), #FFF",
+            }
+      }
+    >
       <Toaster />
-      <div className="flex-grow px-[32px] pt-[32px] pb-0">
+      <div className="flex-grow px-[32px] pt-[16px] pb-0">
         <div className="flex flex-col gap-[24px] max-w-[1064px] mx-auto">
           <div className="flex items-end justify-between">
             <div className="flex items-center gap-[8px]">
