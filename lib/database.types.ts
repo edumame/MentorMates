@@ -147,6 +147,7 @@ export type Database = {
           event_schedule: Json | null
           faq: string | null
           location: string | null
+          owner_id: string | null
           paid: boolean | null
           pricing_tiers: Json | null
           role_labels: Json | null
@@ -172,6 +173,7 @@ export type Database = {
           event_schedule?: Json | null
           faq?: string | null
           location?: string | null
+          owner_id?: string | null
           paid?: boolean | null
           pricing_tiers?: Json | null
           role_labels?: Json | null
@@ -197,6 +199,7 @@ export type Database = {
           event_schedule?: Json | null
           faq?: string | null
           location?: string | null
+          owner_id?: string | null
           paid?: boolean | null
           pricing_tiers?: Json | null
           role_labels?: Json | null
@@ -208,7 +211,15 @@ export type Database = {
           submission_time_start?: string | null
           visibility?: Database["public"]["Enums"]["event_visibility"]
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "events_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["uid"]
+          },
+        ]
       }
       feedback: {
         Row: {
