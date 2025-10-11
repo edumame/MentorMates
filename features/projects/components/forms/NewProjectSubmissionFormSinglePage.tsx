@@ -1,44 +1,39 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Form } from "@/components/ui/form";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import {
-  ArrowLeft,
   Loader2,
-  Share2,
   Sparkles,
-  Presentation,
-  Globe,
-  Eye,
+  CalendarClock,
+  ThumbsUp,
+  MessageSquarePlus,
+  MoreHorizontal,
+  MapPin,
+  Shield,
+  ImageIcon,
+  Paperclip,
+  Github,
+  Youtube,
+  ExternalLink,
   FileText,
 } from "lucide-react";
 import { toast } from "@/lib/hooks/use-toast";
-
-import {
-  FormField,
-  FormItem,
-  FormLabel,
-  FormControl,
-  FormDescription,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-
-import {
-  formSchema,
-  type ProjectSubmissionFormData,
-} from "./schema/ProjectSubmissionSchema";
-import { useProjectSubmissionData } from "./hooks/useProjectSubmissionData";
-import { TrackSelector } from "./components/TrackSelector";
-import { AvailableTools } from "./components/AvailableTools";
+import { Toaster } from "@/components/ui/toaster";
 import UserSearch from "@/components/utils/UserSearch";
 import { useAdmin } from "@/lib/hooks/use-admin";
+
+interface EventParticipant {
+  user_id: string;
+  display_name: string;
+  email: string;
+}
 
 export function NewProjectSubmissionFormSinglePage({
   userEmail,
@@ -56,12 +51,9 @@ export function NewProjectSubmissionFormSinglePage({
   contextusId?: string | null;
 }) {
   const router = useRouter();
+  const isAdmin = useAdmin();
 
-  // Data dependencies
-  const { allUsers, availableTracks, isLoading } =
-    useProjectSubmissionData(eventId);
-
-  // Local state
+  // State
   const [projectId, setProjectId] = useState<string | null>(null);
   const [contextusId, setContextusId] = useState<string | null>(
     initialContextusId ?? null
@@ -70,73 +62,131 @@ export function NewProjectSubmissionFormSinglePage({
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPrefilling, setIsPrefilling] = useState(false);
+  const [eventDetails, setEventDetails] = useState<any>(null);
+  const [participants, setParticipants] = useState<EventParticipant[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const isAdmin = useAdmin();
-
-  // Form
-  const form = useForm<ProjectSubmissionFormData>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      projectName: "",
-      leadName: leadName || "",
-      leadEmail: userEmail || "",
-      projectDescription: "",
-      teammates: [],
-      projectUrl: "",
-      videoUrl: "",
-      trackIds: [],
-    },
+  // Form state
+  const [formData, setFormData] = useState({
+    projectName: "",
+    leadName: leadName || "",
+    leadEmail: userEmail || "",
+    projectDescription: "",
+    teammates: [] as string[],
+    projectUrl: "",
+    videoUrl: "",
+    coverImageUrl: "",
+    additionalMaterialsUrl: "",
   });
 
-  // Keep props in sync and hydrate defaults from session for eventless flow
+  // Fetch event details if eventId is provided
   useEffect(() => {
-    if (leadName) form.setValue("leadName", leadName);
-    if (userEmail) form.setValue("leadEmail", userEmail);
-    if (initialContextusId) setContextusId(initialContextusId);
-  }, [leadName, userEmail, initialContextusId, form]);
+    const init = async () => {
+      // Hydrate from session if no props provided
+      if (!leadName || !userEmail) {
+        try {
+          const {
+            data: { session },
+          } = await supabase.auth.getSession();
+          const email = session?.user?.email || "";
+          const nameFromMeta =
+            (session?.user?.user_metadata?.full_name ||
+              session?.user?.user_metadata?.name) as string | undefined;
 
-  useEffect(() => {
-    const hydrateFromSession = async () => {
-      try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-        const email = session?.user?.email || "";
-        const nameFromMeta = (session?.user?.user_metadata?.full_name ||
-          session?.user?.user_metadata?.name) as string | undefined;
+          if (email && !formData.leadEmail) {
+            setFormData((prev) => ({ ...prev, leadEmail: email }));
+          }
 
-        if (email && !form.getValues("leadEmail")) {
-          form.setValue("leadEmail", email, { shouldDirty: true });
+          let displayName = nameFromMeta || "";
+          if (session?.user?.id) {
+            const { data: profile } = await supabase
+              .from("user_profiles")
+              .select("display_name")
+              .eq("uid", session.user.id)
+              .maybeSingle();
+            if (profile?.display_name) displayName = profile.display_name;
+          }
+
+          if (displayName && !formData.leadName) {
+            setFormData((prev) => ({ ...prev, leadName: displayName }));
+          }
+        } catch {
+          // Silent fail
         }
-
-        let displayName = nameFromMeta || "";
-        if (session?.user?.id) {
-          const { data: profile } = await supabase
-            .from("user_profiles")
-            .select("display_name")
-            .eq("uid", session.user.id)
-            .maybeSingle();
-          if (profile?.display_name) displayName = profile.display_name;
-        }
-
-        if (displayName && !form.getValues("leadName")) {
-          form.setValue("leadName", displayName, { shouldDirty: true });
-        }
-      } catch {
-        /* no-op */
       }
+
+      // Fetch event details
+      if (eventId) {
+        try {
+          const { data, error } = await supabase
+            .from("events")
+            .select(
+              "event_id, event_name, slug, event_date, location, cover_image_url, paid, event_description"
+            )
+            .eq("event_id", eventId)
+            .single();
+
+          if (!error && data) {
+            setEventDetails(data);
+          }
+        } catch {
+          // Silent fail
+        }
+      }
+
+      setIsLoading(false);
     };
 
-    // Only hydrate when no explicit props were provided
-    if (!leadName || !userEmail) {
-      hydrateFromSession();
+    init();
+  }, [eventId, leadName, userEmail]);
+
+  // Fetch event participants
+  const fetchEventParticipants = useCallback(async () => {
+    if (!eventId) return;
+
+    try {
+      const { data } = await supabase
+        .from("user_event_roles")
+        .select(
+          `
+          user_id,
+          profiles:user_id (
+            display_name,
+            email
+          )
+        `
+        )
+        .eq("event_id", eventId);
+
+      const participantList: EventParticipant[] = (data || [])
+        .filter((role: any) => role.profiles?.email)
+        .map((role: any) => ({
+          user_id: role.user_id,
+          display_name:
+            role.profiles?.display_name || role.profiles?.email || "",
+          email: role.profiles?.email || "",
+        }));
+
+      setParticipants(participantList);
+    } catch {
+      // Silent fail
     }
-  }, [leadName, userEmail, form]);
+  }, [eventId]);
+
+  useEffect(() => {
+    if (eventId) {
+      fetchEventParticipants();
+    }
+  }, [eventId, fetchEventParticipants]);
 
   // Create a draft as soon as user starts typing
   useEffect(() => {
-    const hasChanges = Object.keys(form.formState.dirtyFields).length > 0;
-    if (!hasChanges || projectId) return;
+    const hasContent =
+      formData.projectName.trim() ||
+      formData.projectDescription.trim() ||
+      formData.projectUrl.trim();
+
+    if (!hasContent || projectId) return;
 
     const createDraft = async () => {
       try {
@@ -145,8 +195,8 @@ export function NewProjectSubmissionFormSinglePage({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             eventId,
-            leadName: form.getValues("leadName"),
-            leadEmail: form.getValues("leadEmail"),
+            leadName: formData.leadName,
+            leadEmail: formData.leadEmail,
             contextus: isAdmin,
           }),
         });
@@ -159,49 +209,159 @@ export function NewProjectSubmissionFormSinglePage({
           }
         }
       } catch (e) {
-        console.error("Failed to create draft project", e);
+        // Silent failure
       }
     };
 
     createDraft();
-  }, [form.formState.dirtyFields, projectId, eventId, onContextusLinked, form]);
+  }, [
+    formData.projectName,
+    formData.projectDescription,
+    formData.projectUrl,
+    projectId,
+    eventId,
+    formData.leadName,
+    formData.leadEmail,
+    onContextusLinked,
+    isAdmin,
+  ]);
 
-  // Autosave core fields when draft exists
+  // Auto-save functionality with debounce
   useEffect(() => {
-    if (!projectId) return;
+    if (!projectId || isLoading) return;
 
-    const subscription = form.watch((value) => {
-      if (!value) return;
-      const handler = setTimeout(async () => {
-        setIsSaving(true);
-        try {
-          const payload: Record<string, unknown> = {
-            project_name: value.projectName,
-            project_description: value.projectDescription,
-            project_url: value.projectUrl,
-            lead_name: value.leadName,
-            lead_email: value.leadEmail,
-            teammates: value.teammates,
-          };
-          const resp = await fetch(`/api/projects/${projectId}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          });
-          if (resp.ok) setLastSaved(new Date());
-        } catch (e) {
-          console.error("Autosave failed", e);
-        } finally {
-          setIsSaving(false);
-        }
-      }, 600);
-      return () => clearTimeout(handler);
-    });
+    const timer = setTimeout(() => {
+      handleAutoSave();
+    }, 2000);
 
-    return () => subscription.unsubscribe();
-  }, [projectId, form]);
+    return () => clearTimeout(timer);
+  }, [formData, projectId, isLoading]);
 
-  // Prefill via Contextus (prefer projectId if available; else eventId+leadEmail)
+  const handleAutoSave = async () => {
+    if (!projectId || isLoading || isSaving) return;
+
+    setIsSaving(true);
+    try {
+      const payload: Record<string, unknown> = {
+        project_name: formData.projectName.trim() || undefined,
+        project_description: formData.projectDescription.trim() || undefined,
+        project_url: formData.projectUrl.trim() || undefined,
+        video_url: formData.videoUrl.trim() || null,
+        cover_image_url: formData.coverImageUrl.trim() || undefined,
+        additional_materials_url:
+          formData.additionalMaterialsUrl.trim() || undefined,
+        lead_name: formData.leadName,
+        lead_email: formData.leadEmail,
+        teammates: formData.teammates,
+      };
+
+      const resp = await fetch(`/api/projects/${projectId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (resp.ok) {
+        setLastSaved(new Date());
+      }
+    } catch (e) {
+      // Silent failure
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCoverImageUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = `project-covers/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("project-materials")
+        .upload(filePath, file);
+
+      if (uploadError) {
+        toast({
+          title: "Upload Error",
+          description: "Failed to upload image file",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("project-materials").getPublicUrl(filePath);
+
+      setFormData((prev) => ({ ...prev, coverImageUrl: publicUrl }));
+
+      toast({
+        title: "Success",
+        description: "Cover image uploaded successfully",
+      });
+    } catch {
+      toast({
+        title: "Error",
+        description: "Failed to upload cover image",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleAdditionalMaterialsUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = `project-materials/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("project-materials")
+        .upload(filePath, file);
+
+      if (uploadError) {
+        toast({
+          title: "Upload Error",
+          description: "Failed to upload file",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("project-materials").getPublicUrl(filePath);
+
+      setFormData((prev) => ({ ...prev, additionalMaterialsUrl: publicUrl }));
+
+      toast({
+        title: "Success",
+        description: "Additional materials uploaded successfully",
+      });
+    } catch {
+      toast({
+        title: "Error",
+        description: "Failed to upload additional materials",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleTeammatesChange = async (emails: string[]) => {
+    setFormData((prev) => ({ ...prev, teammates: emails }));
+  };
+
+  // Prefill via Contextus
   const handlePrefill = async () => {
     if (!isAdmin) {
       toast({
@@ -221,7 +381,7 @@ export function NewProjectSubmissionFormSinglePage({
         body: JSON.stringify(
           projectId
             ? { projectId }
-            : { eventId, leadEmail: form.getValues("leadEmail") }
+            : { eventId, leadEmail: formData.leadEmail }
         ),
       });
       if (!resp.ok) {
@@ -231,18 +391,17 @@ export function NewProjectSubmissionFormSinglePage({
       const json = await resp.json();
       const data = json?.data || {};
 
-      if (data.projectName)
-        form.setValue("projectName", data.projectName, { shouldDirty: true });
-      if (data.projectDescription)
-        form.setValue("projectDescription", data.projectDescription, {
-          shouldDirty: true,
-        });
-      if (Array.isArray(data.teammates))
-        form.setValue("teammates", data.teammates, { shouldDirty: true });
-      if (data.projectUrl)
-        form.setValue("projectUrl", data.projectUrl, { shouldDirty: true });
-      if (data.videoUrl)
-        form.setValue("videoUrl", data.videoUrl, { shouldDirty: true });
+      setFormData((prev) => ({
+        ...prev,
+        projectName: data.projectName || prev.projectName,
+        projectDescription:
+          data.projectDescription || prev.projectDescription,
+        teammates: Array.isArray(data.teammates)
+          ? data.teammates
+          : prev.teammates,
+        projectUrl: data.projectUrl || prev.projectUrl,
+        videoUrl: data.videoUrl || prev.videoUrl,
+      }));
 
       toast({
         title: "Form Prefilled",
@@ -262,21 +421,10 @@ export function NewProjectSubmissionFormSinglePage({
   };
 
   // Submit
-  const onSubmit = async (values: ProjectSubmissionFormData) => {
+  const handlePublish = async () => {
     setIsSubmitting(true);
 
-    // Only require tracks if available
-    if (availableTracks.length > 0 && values.trackIds.length === 0) {
-      toast({
-        title: "Missing Track Selection",
-        description: "Please select at least one project track before sharing.",
-        variant: "destructive",
-      });
-      setIsSubmitting(false);
-      return;
-    }
-
-    if (values.projectName.trim().length < 2) {
+    if (formData.projectName.trim().length < 2) {
       toast({
         title: "Invalid Project Name",
         description: "Project name must be at least 2 characters long.",
@@ -286,7 +434,7 @@ export function NewProjectSubmissionFormSinglePage({
       return;
     }
 
-    if (values.projectDescription.trim().length < 10) {
+    if (formData.projectDescription.trim().length < 10) {
       toast({
         title: "Insufficient Project Description",
         description:
@@ -298,57 +446,22 @@ export function NewProjectSubmissionFormSinglePage({
     }
 
     try {
-      let coverImageUrl: string | undefined;
-      let additionalMaterialsUrl: string | undefined;
-
-      // Upload cover image if provided
-      if (values.coverImage && values.coverImage.length > 0) {
-        const file = values.coverImage[0];
-        const fileExt = file.name.split(".").pop();
-        const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
-        const filePath = `project-covers/${fileName}`;
-        const { error: uploadError } = await supabase.storage
-          .from("project-materials")
-          .upload(filePath, file);
-        if (uploadError) throw uploadError;
-        const {
-          data: { publicUrl },
-        } = supabase.storage.from("project-materials").getPublicUrl(filePath);
-        coverImageUrl = publicUrl;
-      }
-
-      // Upload additional materials if provided
-      if (values.additionalMaterials && values.additionalMaterials.length > 0) {
-        const file = values.additionalMaterials[0];
-        const fileExt = file.name.split(".").pop();
-        const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
-        const filePath = `project-materials/${fileName}`;
-        const { error: uploadError } = await supabase.storage
-          .from("project-materials")
-          .upload(filePath, file);
-        if (uploadError) throw uploadError;
-        const {
-          data: { publicUrl },
-        } = supabase.storage.from("project-materials").getPublicUrl(filePath);
-        additionalMaterialsUrl = publicUrl;
-      }
-
       const response = await fetch("/api/projects/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           projectId,
-          projectName: values.projectName,
-          leadName: values.leadName,
-          leadEmail: values.leadEmail,
-          projectDescription: values.projectDescription,
-          teammates: values.teammates,
-          projectUrl: values.projectUrl,
-          coverImageUrl,
-          additionalMaterialsUrl,
+          projectName: formData.projectName,
+          leadName: formData.leadName,
+          leadEmail: formData.leadEmail,
+          projectDescription: formData.projectDescription,
+          teammates: formData.teammates,
+          projectUrl: formData.projectUrl,
+          coverImageUrl: formData.coverImageUrl,
+          additionalMaterialsUrl: formData.additionalMaterialsUrl,
           eventId,
-          trackIds: eventId ? values.trackIds : [],
-          videoUrl: values.videoUrl,
+          trackIds: [],
+          videoUrl: formData.videoUrl,
         }),
       });
 
@@ -372,7 +485,6 @@ export function NewProjectSubmissionFormSinglePage({
         description:
           "Your project is now available for others to view and provide feedback.",
       });
-      form.reset();
       onProjectSubmitted?.();
       router.push(`/projects/${data.data?.id || data.id}`);
     } catch (error) {
@@ -389,347 +501,459 @@ export function NewProjectSubmissionFormSinglePage({
     }
   };
 
-  const showTracks = useMemo(
-    () => availableTracks.length > 0,
-    [availableTracks.length]
-  );
-
   if (isLoading) {
     return (
-      <Loader2 className="animate-spin text-blue-400 h-10 w-10  mx-auto" />
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="animate-spin text-blue-400 h-10 w-10" />
+      </div>
     );
   }
 
+  const totalMembers = (formData.teammates?.length || 0) + 1;
+
   return (
-    <div className="w-full max-w-4xl mx-auto px-6 py-8 bg-white rounded-xl shadow-xl">
-      <div className="flex justify-between items-center mb-6">
-        <Button
-          variant="ghost"
-          onClick={() =>
-            router.push(eventId ? `/events/${eventId}/dashboard` : `/projects`)
-          }
-          className="flex items-center gap-2"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back
-        </Button>
-        {isAdmin && (
-          <Button
-            variant="secondary"
-            className="flex items-center gap-2"
-            onClick={handlePrefill}
-            disabled={isPrefilling}
-          >
-            {isPrefilling ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin text-blue-900" />
-                Prefilling...
-              </>
-            ) : (
-              <>
-                <Sparkles className="h-4 w-4" />
-                Fill out this form for me
-              </>
-            )}
-          </Button>
-        )}
-      </div>
+    <div className="bg-white min-h-screen">
+      <Toaster />
 
-      <div className="text-center mb-8">
-        <h2 className="text-4xl font-extrabold text-gray-900">
-          Create Your Project
-        </h2>
-        <p className="mt-3 text-lg text-gray-600">
-          Start building your project with automatic saving as you go. Share
-          when you&apos;re ready!
-        </p>
-      </div>
-
-      {contextusId && <AvailableTools contextusId={contextusId} />}
-
-      {/* Autosave Status */}
-      <div className="mb-6 p-3 bg-blue-50 rounded-lg border border-blue-200">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <svg
-              className="w-5 h-5 text-blue-600"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-            <span className="text-sm text-blue-800">
-              Your project is automatically saved as you type
-            </span>
-          </div>
-          <div className="text-sm text-gray-600">
-            {isSaving ? (
-              <span className="flex items-center">
-                <svg className="animate-spin h-4 w-4 mr-1" viewBox="0 0 24 24">
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                    fill="none"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  />
-                </svg>
-                Saving...
-              </span>
-            ) : lastSaved ? (
-              <span>Last saved {new Date(lastSaved).toLocaleTimeString()}</span>
-            ) : (
-              <span>Draft created</span>
+      {/* Wrapper with rounded corners and border */}
+      <div className="border border-[#d8d8d8] rounded-tl-[16px] overflow-hidden">
+        {/* Auto-save Banner */}
+        <div className="bg-sky-50 border-b border-[#d8d8d8]">
+          <div className="container mx-auto px-6 py-3.5 flex items-center justify-between max-w-[1280px]">
+            <div className="flex items-center gap-2">
+              <Shield className="h-6 w-6 text-[#4c4c4c]" />
+              <p className="text-[#4c4c4c] text-lg font-medium tracking-[-0.06em]">
+                Your project is automatically saved as you edit
+              </p>
+            </div>
+            {lastSaved && (
+              <div className="bg-transparent border border-[rgba(0,0,0,0.15)] rounded-full px-2.5 py-1">
+                <p className="text-[#7f7f7f] text-sm font-medium">
+                  Saved at{" "}
+                  {lastSaved.toLocaleDateString("en-US", {
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric",
+                  })}{" "}
+                  {lastSaved.toLocaleTimeString("en-US", {
+                    hour: "numeric",
+                    minute: "2-digit",
+                    hour12: true,
+                  })}
+                </p>
+              </div>
             )}
           </div>
         </div>
-      </div>
 
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          {/* Project Information */}
-          <div className="space-y-4">
-            <FormField
-              control={form.control}
-              name="projectName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-base">Project Name</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="Enter project name"
-                      {...field}
-                      className="text-base p-3"
-                    />
-                  </FormControl>
-                  <FormMessage className="text-sm" />
-                </FormItem>
-              )}
-            />
+        {/* Main Content */}
+        <div className="bg-gradient-to-br from-blue-100/45 via-transparent to-transparent">
+          <div className="container mx-auto px-8 py-6 min-h-[800px]">
+            <div className="flex gap-12 items-start justify-between">
+              {/* Left Side - Form */}
+              <div className="flex-1 max-w-[640px] space-y-6">
+                <div className="space-y-1">
+                  <h1 className="text-[28px] font-semibold text-black tracking-[-0.06em] leading-[1.4]">
+                    Create your project
+                  </h1>
+                  <p className="text-base text-black">
+                    Start building your project with automatic saving as you go.
+                    Share when you&apos;re ready!
+                  </p>
+                </div>
 
-            {showTracks && (
-              <FormField
-                control={form.control}
-                name="trackIds"
-                render={({ field }) => (
-                  <TrackSelector
-                    tracks={availableTracks}
-                    selectedTrackIds={field.value}
-                    onChange={field.onChange}
-                  />
-                )}
-              />
-            )}
+                {/* {isAdmin && (
+                  <Button
+                    variant="secondary"
+                    className="flex items-center gap-2"
+                    onClick={handlePrefill}
+                    disabled={isPrefilling}
+                  >
+                    {isPrefilling ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Prefilling...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-4 w-4" />
+                        Fill out this form for me
+                      </>
+                    )}
+                  </Button>
+                )} */}
 
-            <FormField
-              control={form.control}
-              name="projectDescription"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-base">
-                    Project Description
-                  </FormLabel>
-                  <FormControl>
+                <div className="space-y-4">
+                  {/* Project Name */}
+                  <div className="space-y-2">
+                    <label className="text-base text-black font-normal">
+                      Project name
+                    </label>
+                    <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-3 py-2 flex items-center gap-3 h-11">
+                      <FileText className="h-6 w-6 shrink-0" />
+                      <Input
+                        value={formData.projectName}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            projectName: e.target.value,
+                          }))
+                        }
+                        placeholder="Short description shown in the preview card"
+                        className="border-0 p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0 text-base"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Project Description */}
+                  <div className="space-y-2">
+                    <label className="text-base text-black font-normal">
+                      Project Description
+                    </label>
                     <Textarea
-                      placeholder="Briefly describe your project..."
-                      className="resize-none text-base p-3 min-h-[120px]"
-                      {...field}
+                      value={formData.projectDescription}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          projectDescription: e.target.value,
+                        }))
+                      }
+                      placeholder="Long description or markdown"
+                      rows={7}
+                      className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-3 py-2 text-base resize-none"
                     />
-                  </FormControl>
-                  <FormMessage className="text-sm" />
-                </FormItem>
-              )}
-            />
+                  </div>
 
-            <FormField
-              control={form.control}
-              name="projectUrl"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-base">
-                    GitHub or Live Link (Optional)
-                  </FormLabel>
-                  <FormControl>
-                    <Input
-                      type="url"
-                      placeholder="https://github.com/username/repository"
-                      {...field}
-                      className="text-base p-3"
-                    />
-                  </FormControl>
-                  <FormMessage className="text-sm" />
-                </FormItem>
-              )}
-            />
+                  {/* Divider */}
+                  <div className="border-t border-gray-200" />
 
-            <FormField
-              control={form.control}
-              name="videoUrl"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-base">Video (Optional)</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="url"
-                      placeholder="https://youtube.com/watch?v=..."
-                      {...field}
-                      className="text-base p-3"
-                    />
-                  </FormControl>
-                  <FormMessage className="text-sm" />
-                </FormItem>
-              )}
-            />
-          </div>
+                  {/* Cover Image */}
+                  <div className="space-y-2">
+                    <label className="text-base text-black font-normal">
+                      Cover image url
+                    </label>
+                    <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-3 py-2 flex items-center gap-3 h-11">
+                      <ImageIcon className="h-6 w-6 shrink-0" />
+                      <Input
+                        value={formData.coverImageUrl}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            coverImageUrl: e.target.value,
+                          }))
+                        }
+                        placeholder="https://..."
+                        className="border-0 p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0 text-base truncate"
+                      />
+                      <label className="bg-[rgba(0,0,0,0.05)] shadow-sm rounded-xl px-3 py-1 cursor-pointer shrink-0">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleCoverImageUpload}
+                          className="hidden"
+                        />
+                        <span className="text-xs text-black font-normal">
+                          Upload
+                        </span>
+                      </label>
+                    </div>
+                    <p className="text-base text-[#7f7f7f]">
+                      *Upload an image to showcase your project (Max 10MB).
+                    </p>
+                  </div>
 
-          {/* Documentation */}
-          <div className="space-y-4 border-t pt-6">
-            <FormField
-              control={form.control}
-              name="coverImage"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-base">Cover Image</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => field.onChange(e.target.files)}
-                      className="text-base p-3"
-                    />
-                  </FormControl>
-                  <FormDescription className="text-sm">
-                    Upload an image to showcase your project (Max 10MB).
-                  </FormDescription>
-                  <FormMessage className="text-sm" />
-                </FormItem>
-              )}
-            />
+                  {/* Additional Materials */}
+                  <div className="space-y-2">
+                    <label className="text-base text-black font-normal">
+                      Additional materials
+                    </label>
+                    <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-3 py-2 flex items-center gap-3 h-11">
+                      <Paperclip className="h-6 w-6 shrink-0" />
+                      <Input
+                        value={formData.additionalMaterialsUrl}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            additionalMaterialsUrl: e.target.value,
+                          }))
+                        }
+                        placeholder="https://..."
+                        className="border-0 p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0 text-base truncate"
+                      />
+                      <label className="bg-[rgba(0,0,0,0.05)] shadow-sm rounded-xl px-3 py-1 cursor-pointer shrink-0">
+                        <input
+                          type="file"
+                          onChange={handleAdditionalMaterialsUpload}
+                          className="hidden"
+                        />
+                        <span className="text-xs text-black font-normal">
+                          Upload
+                        </span>
+                      </label>
+                    </div>
+                    <p className="text-base text-[#7f7f7f]">
+                      *Upload any additional documentation (Max 10MB).
+                    </p>
+                  </div>
 
-            <FormField
-              control={form.control}
-              name="additionalMaterials"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-base">
-                    Additional Materials
-                  </FormLabel>
-                  <FormControl>
-                    <Input
-                      type="file"
-                      accept=".pdf,.doc,.docx,.txt,.zip"
-                      onChange={(e) => field.onChange(e.target.files)}
-                      className="text-base p-3"
-                    />
-                  </FormControl>
-                  <FormDescription className="text-sm">
-                    Upload any additional documentation (Max 10MB).
-                  </FormDescription>
-                  <FormMessage className="text-sm" />
-                </FormItem>
-              )}
-            />
-          </div>
+                  {/* GitHub or Live Link */}
+                  <div className="space-y-2">
+                    <label className="text-base text-black font-normal">
+                      GitHub or live link (Optional)
+                    </label>
+                    <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-3 py-2 flex items-center gap-3 h-11">
+                      <Github className="h-6 w-6 shrink-0" />
+                      <Input
+                        value={formData.projectUrl}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            projectUrl: e.target.value,
+                          }))
+                        }
+                        placeholder="https://..."
+                        className="border-0 p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0 text-base text-[rgba(0,0,0,0.6)]"
+                      />
+                    </div>
+                  </div>
 
-          {/* Team & Contact */}
-          <div className="space-y-4 border-t pt-6">
-            <FormField
-              control={form.control}
-              name="leadName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-base">Your Name</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="Enter your name"
-                      {...field}
-                      className="text-base p-3"
-                    />
-                  </FormControl>
-                  <FormMessage className="text-sm" />
-                </FormItem>
-              )}
-            />
+                  {/* Video Link */}
+                  <div className="space-y-2">
+                    <label className="text-base text-black font-normal">
+                      Video link (Optional)
+                    </label>
+                    <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-3 py-2 flex items-center gap-3 h-11">
+                      <Youtube className="h-6 w-6 shrink-0" />
+                      <Input
+                        value={formData.videoUrl}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            videoUrl: e.target.value,
+                          }))
+                        }
+                        placeholder="https://..."
+                        className="border-0 p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0 text-base text-[rgba(0,0,0,0.6)]"
+                      />
+                    </div>
+                  </div>
 
-            <FormField
-              control={form.control}
-              name="leadEmail"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-base">Your Email</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="email"
-                      placeholder="Enter your email"
-                      {...field}
-                      className="text-base p-3"
-                    />
-                  </FormControl>
-                  <FormMessage className="text-sm" />
-                </FormItem>
-              )}
-            />
+                  {/* Divider */}
+                  <div className="border-t border-gray-200" />
 
-            <FormField
-              control={form.control}
-              name="teammates"
-              render={() => (
-                <FormItem>
-                  <FormLabel className="text-base">
-                    Teammates (Optional)
-                  </FormLabel>
-                  <FormControl>
+                  {/* Add Teammates */}
+                  <div className="space-y-2">
+                    <label className="text-base text-black font-normal">
+                      Add teammates (Optional)
+                    </label>
                     <UserSearch
-                      allTags={allUsers}
-                      onTagsChange={(tags) => form.setValue("teammates", tags)}
+                      allTags={participants.map((p) => p.email)}
+                      onTagsChange={handleTeammatesChange}
+                      initialTags={formData.teammates}
                     />
-                  </FormControl>
-                  <FormDescription className="text-sm">
-                    Enter your teammates&apos; emails. Press Enter or comma to
-                    add each.
-                  </FormDescription>
-                  <FormMessage className="text-sm" />
-                </FormItem>
-              )}
-            />
-          </div>
+                  </div>
+                </div>
+              </div>
 
-          {/* Submit */}
-          <div className="pt-6 border-t">
-            <Button
-              type="submit"
-              disabled={isSubmitting}
-              size="lg"
-              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-3 text-lg"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin text-blue-900" />
-                  Sharing...
-                </>
-              ) : (
-                <>
-                  <Share2 className="mr-2 h-5 w-5" />
-                  Share with Others
-                </>
-              )}
-            </Button>
+              {/* Right Side - Preview & Actions */}
+              <div className="space-y-6">
+                {/* Action Buttons */}
+                <div className="flex items-center gap-1 justify-end">
+                  <Button
+                    variant="secondary"
+                    onClick={() =>
+                      router.push(
+                        eventId ? `/events/${eventId}/dashboard` : `/projects`
+                      )
+                    }
+                    className="bg-[#f2f2f2] hover:bg-[#e8e8e8] text-black rounded-xl px-6 py-2.5 shadow-sm font-medium"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handlePublish}
+                    disabled={isSubmitting}
+                    className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-6 py-2.5 shadow-sm font-medium"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Publishing...
+                      </>
+                    ) : (
+                      "Publish project"
+                    )}
+                  </Button>
+                </div>
+
+                {/* Preview Card */}
+                <div className="space-y-3">
+                  <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl overflow-hidden w-[339px]">
+                    {/* Cover Image */}
+                    <div className="aspect-[339/220] relative">
+                      {formData.coverImageUrl ? (
+                        <img
+                          src={formData.coverImageUrl}
+                          alt="Cover"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-gray-200 to-gray-300" />
+                      )}
+                    </div>
+
+                    {/* Content */}
+                    <div className="p-6 space-y-3">
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-[22px] font-semibold text-black tracking-[-0.06em] leading-[1.4]">
+                              {formData.projectName || "Relief Map"}
+                            </h3>
+                            <Badge
+                              variant="secondary"
+                              className="bg-white border border-[rgba(0,0,0,0.15)] text-black rounded-full text-sm"
+                            >
+                              Draft
+                            </Badge>
+                            <Badge
+                              variant="secondary"
+                              className="bg-white border border-[rgba(0,0,0,0.15)] text-black rounded-full text-sm"
+                            >
+                              Owner
+                            </Badge>
+                          </div>
+                          <p className="text-base text-black line-clamp-2">
+                            {formData.projectDescription ||
+                              "Join the community and enter weekly raffles for free conference tickets and VIP upgrades, plus free credits for top AI and SaaS tools."}
+                          </p>
+                        </div>
+
+                        {/* Metadata */}
+                        <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-1">
+                            <CalendarClock className="h-5 w-5 text-[#575d65]" />
+                            <span className="text-sm text-[#575d65]">
+                              11 Jan 2025
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <ThumbsUp className="h-5 w-5 text-[#575d65]" />
+                            <span className="text-sm text-[#575d65]">36</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <MessageSquarePlus className="h-5 w-5 text-[#575d65]" />
+                            <span className="text-sm text-[#575d65]">2</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Team & Menu */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center -space-x-2">
+                          {[...Array(Math.min(totalMembers, 4))].map((_, i) => (
+                            <div
+                              key={i}
+                              className="w-10 h-10 rounded-full bg-gray-300 border-2 border-white"
+                            />
+                          ))}
+                        </div>
+                        <MoreHorizontal className="h-6 w-6 text-[#7f7f7f]" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <button className="flex items-center gap-1 justify-center text-[#7f7f7f] hover:text-black transition-colors w-full">
+                    <span className="text-base">Preview project page</span>
+                    <ExternalLink className="h-4.5 w-4.5" />
+                  </button>
+                </div>
+
+                {/* Submitted to - Only show if event exists */}
+                {eventDetails && (
+                  <>
+                    <div className="border-t border-gray-200" />
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-bold text-black tracking-tight">
+                        Submitted to
+                      </h3>
+                      <Card className="border border-black/15 rounded-xl overflow-hidden w-[339px]">
+                        <div className="relative">
+                          {eventDetails.cover_image_url ? (
+                            <img
+                              src={eventDetails.cover_image_url}
+                              alt={eventDetails.event_name}
+                              className="w-full h-[180px] object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-[180px] bg-gradient-to-br from-orange-400 via-blue-500 to-purple-600" />
+                          )}
+                          {eventDetails.event_date && (
+                            <div className="absolute top-4 right-4 bg-white border border-gray-300 rounded-xl py-3 px-1 text-center w-28">
+                              <p className="text-sm text-black">
+                                {new Date(
+                                  eventDetails.event_date
+                                ).toLocaleDateString("en-US", {
+                                  weekday: "short",
+                                })}
+                              </p>
+                              <p className="text-4xl font-semibold text-black tracking-tight leading-none">
+                                {new Date(eventDetails.event_date).getDate()}
+                              </p>
+                              <p className="text-sm text-black">
+                                {new Date(
+                                  eventDetails.event_date
+                                ).toLocaleDateString("en-US", {
+                                  month: "short",
+                                  year: "numeric",
+                                })}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                        <CardContent className="p-6 space-y-4">
+                          <div className="flex gap-1 flex-wrap">
+                            <Badge
+                              variant="secondary"
+                              className="bg-transparent border border-black/15 text-black rounded-full font-semibold"
+                            >
+                              Hackathon
+                            </Badge>
+                            {eventDetails.paid && (
+                              <Badge
+                                variant="secondary"
+                                className="bg-transparent border border-black/15 text-black rounded-full font-semibold"
+                              >
+                                Paid event
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="space-y-2">
+                            <h4 className="text-2xl font-semibold text-black tracking-tight">
+                              {eventDetails.event_name}
+                            </h4>
+                            <div className="flex items-center gap-1 text-sm">
+                              <MapPin className="h-4 w-4 text-black" />
+                              <span className="text-black text-center">
+                                {eventDetails.location || "Online"}
+                              </span>
+                            </div>
+                          </div>
+                          {eventDetails.event_description && (
+                            <p className="text-base text-black leading-relaxed">
+                              {eventDetails.event_description}
+                            </p>
+                          )}
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
-        </form>
-      </Form>
+        </div>
+      </div>
     </div>
   );
 }
