@@ -82,7 +82,7 @@ export function InviteOrganizersTab({ eventId, isArchived }: InviteOrganizersTab
       } else {
         toast({ 
           title: "Organizer Invited Successfully", 
-          description: `${trimmedEmail} has been granted organizer access. They can now access the organizer dashboard.`
+          description: `${trimmedEmail} has been granted organizer access and will receive an email notification with instructions to access the organizer dashboard.`
         });
         setEmail("");
       }
@@ -116,7 +116,7 @@ export function InviteOrganizersTab({ eventId, isArchived }: InviteOrganizersTab
         </Button>
       </div>
       <p className="text-sm text-muted-foreground">
-        Enter the email of an existing user to grant organizer access.
+        Enter the email of an existing user to grant organizer access. They will receive an email notification with access instructions.
       </p>
     </div>
   );
