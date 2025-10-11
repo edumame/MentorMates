@@ -148,6 +148,7 @@ export async function GET(
       }));
 
     // Fetch events where user has roles
+    // Events where the user has a role OR is the creator
     const { data: events, error: eventsError } = await supabase
       .from("events")
       .select(
@@ -161,12 +162,14 @@ export async function GET(
         cover_image_url,
         scoring_config,
         role_labels,
-        user_event_roles!inner (
-          role
+        created_by_user_id,
+        user_event_roles!left (
+          role,
+          user_id
         )
       `
       )
-      .eq("user_event_roles.user_id", userId)
+      .or(`user_event_roles.user_id.eq.${userId},created_by_user_id.eq.${userId}`)
       .in("visibility", ["public", "private"]);
 
     if (eventsError) {

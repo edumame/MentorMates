@@ -20,6 +20,7 @@ interface Event {
   event_blurb?: string;
   paid?: boolean;
   stripe_price_id?: string;
+  created_by_user_id?: string;
 }
 
 interface UserEventRole {
@@ -91,6 +92,7 @@ export function EventsList({ events }: EventsListProps) {
     <div className="flex flex-col sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:auto-rows-fr">
       {events.map((event) => {
         const userRole = getUserRoleForEvent(event.event_id);
+        const isCreator = session?.user?.id && event.created_by_user_id === session.user.id;
 
         return (
           <div key={event.event_id} className="relative">
@@ -103,6 +105,14 @@ export function EventsList({ events }: EventsListProps) {
                   className="capitalize text-xs shadow-md"
                 >
                   {getRoleLabel(userRole, event.role_labels)}
+                </Badge>
+              </div>
+            )}
+            {/* Creator Badge */}
+            {isCreator && (
+              <div className="absolute top-3 right-3 z-10">
+                <Badge variant="default" className="text-xs shadow-md">
+                  Creator
                 </Badge>
               </div>
             )}

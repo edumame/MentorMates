@@ -41,7 +41,12 @@ export default async function EventsPage() {
         .map((role) => role.event_id);
 
       // Build query for events based on visibility and user role
-      let query = supabase.from("events").select("*");
+  // Include created_by_user_id for display/filters where needed
+  let query = supabase
+    .from("events")
+    .select(
+      `event_id, event_name, slug, event_blurb, cover_image_url, event_date, visibility, location, paid, stripe_price_id, participant_capacity, created_by_user_id`
+    );
 
       if (isAdmin) {
         // Admins can see all events (public, private, draft, demo, test)

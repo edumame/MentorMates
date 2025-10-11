@@ -111,6 +111,7 @@ export type EventItem = {
   paid?: boolean;
   stripe_price_id?: string; // Stripe price ID for paid events
   participant_capacity?: number | null; // Max participants; null = unlimited
+  created_by_user_id?: string; // UID of the user who created the event
 };
 
 // Event Overview Types

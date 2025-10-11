@@ -14,7 +14,8 @@ type APIEvent = {
     cover_image_url?: string | null;
     slug?: string | null;
     role_labels?: Record<string, string> | null;
-    user_event_roles?: { role: number }[];
+    created_by_user_id?: string | null;
+    user_event_roles?: { role: number; user_id?: string }[];
 };
 
 type UIEvent = {
@@ -72,7 +73,7 @@ export function MyEvents() {
             const id = String(e.event_id ?? e.id ?? "");
             const dateISO = e.event_date ?? null;
             const roleLabel = e.user_event_roles?.[0]?.role
-                ? getRoleLabel(String(e.user_event_roles[0].role), e.role_labels)
+                ? getRoleLabel(String(e.user_event_roles[0].role), e.role_labels || undefined)
                 : undefined;
             return {
                 id,
