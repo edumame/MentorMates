@@ -42,6 +42,8 @@ import {
   Link as LinkIcon,
   Video,
   Share2,
+  Lightbulb,
+  Download,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -1120,6 +1122,12 @@ export default function ProjectPage() {
                   0
                 </Badge>
               </TabsTrigger>
+              <TabsTrigger
+                value="sharing"
+                className="data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2"
+              >
+                Sharing
+              </TabsTrigger>
             </TabsList>
 
             {/* Main Content Area */}
@@ -1645,6 +1653,133 @@ export default function ProjectPage() {
                         <FeedbackDisplay projectId={project.id} showTitle={false} />
                       </CardContent>
                     </Card>
+                  </TabsContent>
+
+                  {/* Sharing Tab */}
+                  <TabsContent value="sharing" className="mt-0">
+                    <div className="grid grid-cols-1 lg:grid-cols-[1fr,500px] gap-6">
+                      {/* Left Column: Share Card */}
+                      <Card className="border border-zinc-200">
+                        <CardHeader>
+                          <CardTitle className="text-[22px] font-semibold tracking-[-0.06em]">
+                            Share & Get Feedback
+                          </CardTitle>
+                          <p className="text-sm text-zinc-500">
+                            Share this project with others using the QR code or direct link.
+                          </p>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                          {/* Copy Link Section */}
+                          <div className="space-y-2">
+                            <div className="flex gap-2">
+                              <Input
+                                value={feedbackUrl}
+                                readOnly
+                                className="flex-1 bg-white"
+                              />
+                              <Button
+                                variant="secondary"
+                                className="bg-zinc-100 hover:bg-zinc-200"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(feedbackUrl);
+                                  toast({
+                                    title: "Copied!",
+                                    description: "Link copied to clipboard",
+                                  });
+                                }}
+                              >
+                                Copy Link
+                              </Button>
+                            </div>
+                          </div>
+
+                          {/* Divider */}
+                          <div className="border-t border-zinc-200" />
+
+                          {/* QR Code Section */}
+                          <div className="space-y-4">
+                            <div ref={qrCodeRef} className="w-[206px] h-[201px] bg-white">
+                              <QRCodeSVG
+                                value={feedbackUrl}
+                                size={200}
+                                level="H"
+                                includeMargin={false}
+                              />
+                            </div>
+
+                            <p className="text-sm text-black">
+                              Scan this QR code to share and provide feedback
+                            </p>
+
+                            <div className="flex gap-3">
+                              <Button
+                                variant="outline"
+                                className="border-[1.5px] border-[rgba(0,0,0,0.05)]"
+                                onClick={copyQRCode}
+                              >
+                                <Copy className="h-5 w-5 mr-2" />
+                                Copy
+                              </Button>
+                              <Button
+                                variant="outline"
+                                className="border-[1.5px] border-[rgba(0,0,0,0.05)]"
+                                onClick={downloadQRCode}
+                              >
+                                <Download className="h-5 w-5 mr-2" />
+                                Download
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      {/* Right Column: Sharing Tips */}
+                      <div className="bg-gradient-to-b from-blue-100/45 to-blue-50/30 rounded-lg p-6 space-y-6">
+                        <div className="bg-white rounded-[13px] p-1.5 w-fit">
+                          <Lightbulb className="h-6 w-6" />
+                        </div>
+
+                        <div className="text-center">
+                          <p className="font-medium text-base text-black">Sharing Tips</p>
+                        </div>
+
+                        <div className="space-y-3">
+                          <div className="py-3 space-y-1">
+                            <p className="text-[24px] font-['Poly'] text-zinc-900">01</p>
+                            <p className="text-sm text-zinc-500 leading-[22px]">
+                              Save the QR code image to share digitally
+                            </p>
+                          </div>
+
+                          <div className="border-t border-gray-200" />
+
+                          <div className="py-3 space-y-1">
+                            <p className="text-[24px] font-['Poly'] text-zinc-900">02</p>
+                            <p className="text-sm text-zinc-500 leading-[22px]">
+                              Print it on business cards or project handouts
+                            </p>
+                          </div>
+
+                          <div className="border-t border-gray-200" />
+
+                          <div className="py-3 space-y-1">
+                            <p className="text-[24px] font-['Poly'] text-zinc-900">03</p>
+                            <p className="text-sm text-zinc-500 leading-[22px]">
+                              Display it at your project booth or presentation
+                            </p>
+                          </div>
+
+                          <div className="border-t border-gray-200" />
+
+                          <div className="py-3 space-y-1">
+                            <p className="text-[24px] font-['Poly'] text-zinc-900">04</p>
+                            <p className="text-sm text-zinc-500 leading-[22px]">
+                              Add it to your LinkedIn or GitHub profile
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </TabsContent>
                 </div>
 

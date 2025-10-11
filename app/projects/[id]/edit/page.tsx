@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,6 @@ import {
   Paperclip,
   Github,
   Youtube,
-  Mail,
   Trash2,
   Shield,
   ExternalLink,
@@ -29,6 +28,7 @@ import { Project } from "@/lib/types";
 import { updateProjectClient } from "@/features/projects/client-actions/client-update";
 import { updateProjectTeamClient } from "@/features/projects/client-actions/client-update";
 import { deleteProjectClient } from "@/features/projects/client-actions/client-delete";
+import UserSearch from "@/components/utils/UserSearch";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -71,8 +71,7 @@ export default function ProjectEditPage() {
   });
 
   // Team management
-  const [newTeammateEmail, setNewTeammateEmail] = useState("");
-  const [isAddingTeammate, setIsAddingTeammate] = useState(false);
+  const [participants, setParticipants] = useState<EventParticipant[]>([]);
 
   useEffect(() => {
     const getSession = async () => {
@@ -90,6 +89,12 @@ export default function ProjectEditPage() {
       fetchProject();
     }
   }, [session, projectId]);
+
+  useEffect(() => {
+    if (project?.event_id) {
+      fetchEventParticipants();
+    }
+  }, [project?.event_id]);
 
   const fetchProject = async () => {
     setIsLoading(true);
@@ -152,6 +157,47 @@ export default function ProjectEditPage() {
       setIsLoading(false);
     }
   };
+
+  const fetchEventParticipants = useCallback(async () => {
+    if (!project?.event_id) return;
+
+    try {
+      const { data } = await supabase
+        .from("user_event_roles")
+        .select(
+          `
+          user_id,
+          profiles:user_id (
+            display_name,
+            email
+          )
+        `
+        )
+        .eq("event_id", project.event_id)
+        .overrideTypes<
+          Array<{
+            user_id: string;
+            profiles: {
+              display_name: string | null;
+              email: string | null;
+            };
+          }>
+        >();
+
+      const participantList: EventParticipant[] = (data || [])
+        .filter((role) => role.profiles?.email)
+        .map((role) => ({
+          user_id: role.user_id,
+          display_name:
+            role.profiles?.display_name || role.profiles?.email || "",
+          email: role.profiles?.email || "",
+        }));
+
+      setParticipants(participantList);
+    } catch {
+      // Silently fail if participants cannot be fetched
+    }
+  }, [project?.event_id]);
 
   // Auto-save functionality with debounce
   useEffect(() => {
@@ -280,52 +326,26 @@ export default function ProjectEditPage() {
     }
   };
 
-  const handleAddTeammate = async () => {
-    const emailToAdd = newTeammateEmail.trim().toLowerCase();
+  const handleTeammatesChange = async (emails: string[]) => {
+    if (!project) return;
 
-    if (!emailToAdd) {
-      toast({
-        title: "Invalid email",
-        description: "Please enter a valid email address",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (emailToAdd === project?.lead_email?.toLowerCase()) {
-      toast({
-        title: "Cannot add lead",
-        description: "The project lead is already part of the team",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const currentTeammates = project?.teammates || [];
-    if (currentTeammates.some((teammate) => teammate.toLowerCase() === emailToAdd)) {
-      toast({
-        title: "Already a teammate",
-        description: "This person is already a member of the team",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsAddingTeammate(true);
     try {
-      const updatedTeammates = [...currentTeammates, emailToAdd];
-      const { data } = await updateProjectTeamClient(projectId, updatedTeammates);
+      // Filter out the lead email
+      const validEmails = emails.filter(
+        (email) => email.toLowerCase() !== project.lead_email?.toLowerCase()
+      );
+
+      const { data } = await updateProjectTeamClient(projectId, validEmails);
 
       if (data) {
         setProject(data);
-        setNewTeammateEmail("");
-        toast({
-          title: "Team member added",
-          description: `${emailToAdd} has been successfully added to the team`,
-        });
       }
-    } finally {
-      setIsAddingTeammate(false);
+    } catch {
+      toast({
+        title: "Error",
+        description: "Failed to update team members",
+        variant: "destructive",
+      });
     }
   };
 
@@ -565,25 +585,14 @@ export default function ProjectEditPage() {
                 {/* Add Teammates */}
                 <div className="space-y-2">
                   <label className="text-base text-black font-normal">Add teammates (Optional)</label>
-                  <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-tl-xl rounded-tr-xl px-3 py-2 flex items-center gap-3 h-11">
-                    <Mail className="h-6 w-6 shrink-0" />
-                    <Input
-                      value={newTeammateEmail}
-                      onChange={(e) => setNewTeammateEmail(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          handleAddTeammate();
-                        }
-                      }}
-                      placeholder="Enter your teammates' emails. Press Enter or comma to add each."
-                      className="border-0 p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0 text-base text-[rgba(0,0,0,0.6)]"
-                      disabled={isAddingTeammate}
-                    />
-                  </div>
+                  <UserSearch
+                    allTags={participants.map((p) => p.email)}
+                    onTagsChange={handleTeammatesChange}
+                    initialTags={project.teammates || []}
+                  />
 
                   {/* Team Members List */}
-                  <div className="border-x border-b border-gray-200 rounded-bl-xl rounded-br-xl p-3 space-y-4">
+                  <div className="border border-gray-200 rounded-xl p-3 space-y-4 mt-4">
                     {/* Lead */}
                     <div className="flex items-center gap-4">
                       <div className="w-14 h-14 rounded-full bg-gray-300 shrink-0" />
