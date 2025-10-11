@@ -141,6 +141,7 @@ export type Database = {
           event_description: string | null
           event_id: string
           event_name: string
+          created_by_user_id: string | null
           participant_capacity: number | null
           event_prizes: Json | null
           event_resources: Json | null
@@ -166,6 +167,7 @@ export type Database = {
           event_description?: string | null
           event_id?: string
           event_name: string
+          created_by_user_id?: string | null
           participant_capacity?: number | null
           event_prizes?: Json | null
           event_resources?: Json | null
@@ -191,6 +193,7 @@ export type Database = {
           event_description?: string | null
           event_id?: string
           event_name?: string
+          created_by_user_id?: string | null
           participant_capacity?: number | null
           event_prizes?: Json | null
           event_resources?: Json | null
@@ -208,7 +211,15 @@ export type Database = {
           submission_time_start?: string | null
           visibility?: Database["public"]["Enums"]["event_visibility"]
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "events_created_by_user_id_fkey"
+            columns: ["created_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["uid"]
+          },
+        ]
       }
       feedback: {
         Row: {

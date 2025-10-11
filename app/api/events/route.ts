@@ -157,7 +157,7 @@ export async function POST(req: Request) {
 
     const { event, organizerEmails = [] } = parsed.data;
 
-    // Build insert payload, providing sane defaults
+    // Build insert payload, providing sane defaults. Also record created_by_user_id.
     const insertPayload: Database["public"]["Tables"]["events"]["Insert"] = {
       event_name: event.event_name,
       event_date: event.event_date,
@@ -173,6 +173,7 @@ export async function POST(req: Request) {
       submission_time_cutoff: event.submission_time_cutoff ?? null,
       paid: event.paid ?? null,
       stripe_price_id: event.stripe_price_id ?? null,
+      created_by_user_id: user.id,
     };
 
     const { data: createdEvent, error: insertError } = await supabase
