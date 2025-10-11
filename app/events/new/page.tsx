@@ -7,8 +7,9 @@ import { EventVisibility } from "@/lib/types";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/lib/hooks/use-toast";
+import { DatePicker } from "@/components/ui/date-picker";
+import { MapPin, Image, Type, Mail, Globe } from "lucide-react";
 
 export default function NewEventPage() {
   const router = useRouter();
@@ -16,12 +17,14 @@ export default function NewEventPage() {
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [ticketType, setTicketType] = useState<"free" | "paid">("free");
+  const [visibility, setVisibility] = useState<EventVisibility>(EventVisibility.Public);
+  const [showVisibilityDropdown, setShowVisibilityDropdown] = useState(false);
 
   const [form, setForm] = useState({
     event_name: "",
     event_date: "",
     location: "",
-    visibility: EventVisibility.Draft,
     slug: "",
     event_description: "",
     event_blurb: "",
@@ -66,11 +69,12 @@ export default function NewEventPage() {
             event_name: form.event_name,
             event_date: form.event_date,
             location: form.location,
-            visibility: form.visibility,
+            visibility: visibility,
             slug: form.slug || undefined,
             event_description: form.event_description || undefined,
             event_blurb: form.event_blurb || undefined,
             cover_image_url: form.cover_image_url || undefined,
+            paid: ticketType === "paid",
           },
           organizerEmails,
         }),
@@ -91,70 +95,277 @@ export default function NewEventPage() {
 
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold">Loading...</h1>
+      <div className="flex items-center justify-center min-h-screen">
+        <p className="text-lg">Loading...</p>
       </div>
     );
   }
 
   if (!isAdmin) return null;
 
+  const formatDateForPreview = (dateStr: string) => {
+    if (!dateStr) return { day: "09", month: "Feb", year: "2024", weekday: "Fri" };
+    const date = new Date(dateStr);
+    return {
+      day: date.getDate().toString().padStart(2, "0"),
+      month: date.toLocaleDateString("en-US", { month: "short" }),
+      year: date.getFullYear().toString(),
+      weekday: date.toLocaleDateString("en-US", { weekday: "short" }),
+    };
+  };
+
+  const previewDate = formatDateForPreview(form.event_date);
+
   return (
-    <div className="container mx-auto px-4 py-8 max-w-3xl">
-      <h1 className="text-3xl font-bold mb-6">Create Event</h1>
-      <div className="grid gap-4">
-        <div className="space-y-1">
-          <label className="text-sm font-medium">Event Name</label>
-          <Input value={form.event_name} onChange={(e) => onChange("event_name", e.target.value)} placeholder="My Hackathon" />
-        </div>
-        <div className="space-y-1">
-          <label className="text-sm font-medium">Event Date</label>
-          <Input type="datetime-local" value={form.event_date} onChange={(e) => onChange("event_date", e.target.value)} />
-        </div>
-        <div className="space-y-1">
-          <label className="text-sm font-medium">Location</label>
-          <Input value={form.location} onChange={(e) => onChange("location", e.target.value)} placeholder="City, Venue or Remote" />
-        </div>
-        <div className="space-y-1">
-          <label className="text-sm font-medium">Visibility</label>
-          <Select value={form.visibility} onValueChange={(v) => onChange("visibility", v)}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select visibility" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={EventVisibility.Draft}>Draft</SelectItem>
-              <SelectItem value={EventVisibility.Private}>Private</SelectItem>
-              <SelectItem value={EventVisibility.Public}>Public</SelectItem>
-              <SelectItem value={EventVisibility.Demo}>Demo</SelectItem>
-              <SelectItem value={EventVisibility.Test}>Test</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-1">
-          <label className="text-sm font-medium">Slug (optional)</label>
-          <Input value={form.slug} onChange={(e) => onChange("slug", e.target.value)} placeholder="my-hackathon-2025" />
-        </div>
-        <div className="space-y-1">
-          <label className="text-sm font-medium">Blurb (optional)</label>
-          <Input value={form.event_blurb} onChange={(e) => onChange("event_blurb", e.target.value)} placeholder="Short description shown in cards" />
-        </div>
-        <div className="space-y-1">
-          <label className="text-sm font-medium">Description (optional)</label>
-          <Textarea rows={5} value={form.event_description} onChange={(e) => onChange("event_description", e.target.value)} placeholder="Long description or markdown" />
-        </div>
-        <div className="space-y-1">
-          <label className="text-sm font-medium">Cover Image URL (optional)</label>
-          <Input value={form.cover_image_url} onChange={(e) => onChange("cover_image_url", e.target.value)} placeholder="https://..." />
-        </div>
-        <div className="space-y-1">
-          <label className="text-sm font-medium">Organizer Emails (comma separated)</label>
-          <Input value={form.organizer_emails} onChange={(e) => onChange("organizer_emails", e.target.value)} placeholder="alice@example.com, bob@example.com" />
-        </div>
-        <div className="pt-2">
-          <Button onClick={handleCreate} disabled={creating}>{creating ? "Creating..." : "Create Event"}</Button>
+    <div className="flex flex-col h-screen bg-white">
+      {/* Main Content */}
+      <div className="flex-1 overflow-auto">
+        <div
+          className="min-h-full rounded-tl-[16px] border-l border-t border-[#d8d8d8]"
+          style={{
+            background: "linear-gradient(199.653deg, rgb(219, 234, 254) 13.188%, rgba(255, 255, 255, 0) 65.83%), linear-gradient(90deg, rgb(255, 255, 255) 0%, rgb(255, 255, 255) 100%)"
+          }}
+        >
+          <div className="px-8 py-6 max-w-[1128px] mx-auto">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-6">
+              <div className="relative">
+                <button
+                  onClick={() => setShowVisibilityDropdown(!showVisibilityDropdown)}
+                  className="flex items-center gap-2 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] px-3 py-2 h-[44px] w-[142px] hover:bg-gray-50 transition-colors"
+                >
+                  <Globe className="w-6 h-6" />
+                  <span className="text-[16px] font-normal">{visibility}</span>
+                  <svg className="w-6 h-6 ml-auto" viewBox="0 0 24 24" fill="none">
+                    <path d="M7 10l5 5 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+
+                {showVisibilityDropdown && (
+                  <div className="absolute top-full mt-2 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] shadow-lg z-10 w-[142px] overflow-hidden">
+                    {[EventVisibility.Public, EventVisibility.Private, EventVisibility.Draft].map((vis) => (
+                      <button
+                        key={vis}
+                        onClick={() => {
+                          setVisibility(vis);
+                          setShowVisibilityDropdown(false);
+                        }}
+                        className="w-full text-left px-3 py-2 hover:bg-gray-50 text-[16px] font-normal"
+                      >
+                        {vis}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-1">
+                <Button
+                  variant="defaultGray"
+                  onClick={() => router.back()}
+                  className="text-[16px] font-medium"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleCreate}
+                  disabled={creating}
+                  className="text-[16px] font-medium"
+                >
+                  {creating ? "Creating..." : "Create event"}
+                </Button>
+              </div>
+            </div>
+
+            {/* Content Area */}
+            <div className="flex gap-6 items-start">
+              {/* Form Section */}
+              <div className="flex-1 max-w-[640px]">
+                <input
+                  type="text"
+                  value={form.event_name}
+                  onChange={(e) => onChange("event_name", e.target.value)}
+                  placeholder="Event Title"
+                  className="font-semibold text-[36px] leading-[1.3] tracking-[-2.16px] mb-6 w-full bg-transparent border-none outline-none focus:ring-0 p-0"
+                  style={{
+                    color: form.event_name ? "#000000" : "#d8d8d8",
+                    fontFamily: "Geist, sans-serif"
+                  }}
+                />
+
+                <div className="space-y-4">
+                  {/* Date */}
+                  <div className="space-y-2">
+                    <label className="text-[16px] font-normal text-black">Date</label>
+                    <DatePicker
+                      value={form.event_date}
+                      onChange={(value) => onChange("event_date", value)}
+                      placeholder="mm/dd/yyyy"
+                    />
+                  </div>
+
+                  {/* Location */}
+                  <div className="space-y-2">
+                    <label className="text-[16px] font-normal text-black">Location</label>
+                    <div className="relative">
+                      <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                      <Input
+                        value={form.location}
+                        onChange={(e) => onChange("location", e.target.value)}
+                        placeholder="Add offline location or virtual link"
+                        className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)]"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Cover Image URL */}
+                  <div className="space-y-2">
+                    <label className="text-[16px] font-normal text-black">Cover image url</label>
+                    <div className="relative">
+                      <Image className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                      <Input
+                        value={form.cover_image_url}
+                        onChange={(e) => onChange("cover_image_url", e.target.value)}
+                        placeholder="https://..."
+                        className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)]"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Blurb */}
+                  <div className="space-y-2">
+                    <label className="text-[16px] font-normal text-black">Blurb</label>
+                    <div className="relative">
+                      <Type className="absolute left-3 top-3 w-6 h-6 text-gray-600" />
+                      <Input
+                        value={form.event_blurb}
+                        onChange={(e) => onChange("event_blurb", e.target.value)}
+                        placeholder="Short description shown in the preview card"
+                        className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)]"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Description */}
+                  <div className="space-y-2">
+                    <label className="text-[16px] font-normal text-black">Description</label>
+                    <Textarea
+                      value={form.event_description}
+                      onChange={(e) => onChange("event_description", e.target.value)}
+                      placeholder="Long description or markdown"
+                      className="min-h-[179px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] p-3"
+                    />
+                  </div>
+
+                  {/* Tickets */}
+                  <div className="space-y-2">
+                    <label className="text-[16px] font-normal text-black">Tickets</label>
+                    <div className="flex gap-4">
+                      <button
+                        onClick={() => setTicketType("free")}
+                        className={`px-4 py-2 rounded-[12px] text-[16px] font-normal transition-colors ${
+                          ticketType === "free"
+                            ? "bg-[#4b89ef] text-white"
+                            : "bg-transparent border border-[rgba(0,0,0,0.15)] text-black"
+                        }`}
+                      >
+                        Free
+                      </button>
+                      <button
+                        onClick={() => setTicketType("paid")}
+                        className={`px-4 py-2 rounded-[12px] text-[16px] font-normal transition-colors ${
+                          ticketType === "paid"
+                            ? "bg-[#4b89ef] text-white"
+                            : "bg-transparent border border-[rgba(0,0,0,0.15)] text-black"
+                        }`}
+                      >
+                        Paid
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Add Organizer */}
+                  <div className="space-y-2">
+                    <label className="text-[16px] font-normal text-black">Add organizer</label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                      <Input
+                        value={form.organizer_emails}
+                        onChange={(e) => onChange("organizer_emails", e.target.value)}
+                        placeholder="Separate emails with ,"
+                        className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)]"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Preview Card */}
+              <div className="flex-shrink-0">
+                <div className="w-[335px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] overflow-hidden">
+                  {/* Image */}
+                  <div className="relative w-full aspect-[335/223]">
+                    {form.cover_image_url ? (
+                      <img
+                        src={form.cover_image_url}
+                        alt="Event cover"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-orange-400 via-red-500 to-purple-600" />
+                    )}
+
+                    {/* Date Badge */}
+                    <div className="absolute top-4 right-4 bg-white border border-[#aaaaaa] rounded-[6px] w-[112px] py-3 px-1 text-center">
+                      <p className="text-[14px] font-normal text-black">{previewDate.weekday}</p>
+                      <p className="text-[36px] font-semibold leading-[1.3] tracking-[-2.16px] text-black" style={{ fontFamily: "Geist, sans-serif" }}>
+                        {previewDate.day}
+                      </p>
+                      <p className="text-[14px] font-normal text-black">
+                        {previewDate.month} {previewDate.year}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Content */}
+                  <div className="p-6">
+                    <div className="flex flex-wrap gap-1 mb-3">
+                      <span className="px-[10px] py-1 border border-[rgba(0,0,0,0.15)] rounded-full text-[14px] font-semibold text-black">
+                        Hackathon
+                      </span>
+                      <span className="px-[10px] py-1 border border-[rgba(0,0,0,0.15)] rounded-full text-[14px] font-semibold text-black">
+                        {ticketType === "free" ? "Free" : "Paid"}
+                      </span>
+                    </div>
+
+                    <h2
+                      className="text-[28px] font-semibold leading-[1.4] tracking-[-1.68px] text-black mb-1"
+                      style={{ fontFamily: "Geist, sans-serif" }}
+                    >
+                      {form.event_name || "Innovate Together"}
+                    </h2>
+
+                    <div className="flex items-center gap-1 mb-2">
+                      <MapPin className="w-6 h-6" />
+                      <span className="text-[14px] font-normal text-black">
+                        {form.location || "Online"}
+                      </span>
+                    </div>
+
+                    <p className="text-[16px] font-normal text-black leading-[1.5]">
+                      {form.event_blurb || "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse varius enim in eros."}
+                    </p>
+                  </div>
+                </div>
+
+                <p className="text-[16px] text-[#7f7f7f] text-center mt-3">
+                  This is a preview of the event.
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   );
 }
-
