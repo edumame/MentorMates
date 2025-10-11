@@ -11,7 +11,7 @@ interface RouteBasedLayoutConfigProps {
 export function RouteBasedLayoutConfig({ children }: RouteBasedLayoutConfigProps) {
   const pathname = usePathname();
   const isAcceptPage = pathname?.includes('/accept');
-  const isOverviewPage = pathname?.includes('/overview');
+  const isRedesignedPage = pathname?.includes('/overview') || pathname?.includes('/gallery') || pathname?.includes('/feed');
 
   let layoutConfig;
 
@@ -23,8 +23,8 @@ export function RouteBasedLayoutConfig({ children }: RouteBasedLayoutConfigProps
       showEventWrapper: false,
       showFooter: false,
     };
-  } else if (isOverviewPage) {
-    // Hide the old EventHeader for overview page since we have the new EventPageHeader
+  } else if (isRedesignedPage) {
+    // Hide the old EventHeader for redesigned pages since they have the new EventPageLayout
     layoutConfig = {
       showNavbar: true,
       showPadding: false,
