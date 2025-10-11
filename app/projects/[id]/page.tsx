@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { QRCodeSVG } from "qrcode.react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
@@ -119,6 +120,9 @@ export default function ProjectPage() {
 
   // Contextus ID state
   const [showContextusId, setShowContextusId] = useState(false);
+
+  // Active tab state
+  const [activeTab, setActiveTab] = useState("overview");
 
   // QR Code functionality
   const { handleCopyQR, handleDownloadQR } = useQRCodeActions(
@@ -1090,7 +1094,7 @@ export default function ProjectPage() {
           </div>
 
           {/* Tabs Navigation */}
-          <Tabs defaultValue="overview" className="w-full">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="bg-transparent border-b border-gray-200 rounded-none h-auto p-0 w-full justify-start gap-6">
               <TabsTrigger
                 value="overview"
@@ -1698,8 +1702,9 @@ export default function ProjectPage() {
 
                           {/* QR Code Section */}
                           <div className="space-y-4">
-                            <div ref={qrCodeRef} className="w-[206px] h-[201px] bg-white">
+                            <div className="w-[206px] h-[201px] bg-white">
                               <QRCodeSVG
+                                id="project-qr-code"
                                 value={feedbackUrl}
                                 size={200}
                                 level="H"
@@ -1715,7 +1720,7 @@ export default function ProjectPage() {
                               <Button
                                 variant="outline"
                                 className="border-[1.5px] border-[rgba(0,0,0,0.05)]"
-                                onClick={copyQRCode}
+                                onClick={handleCopyQR}
                               >
                                 <Copy className="h-5 w-5 mr-2" />
                                 Copy
@@ -1723,7 +1728,7 @@ export default function ProjectPage() {
                               <Button
                                 variant="outline"
                                 className="border-[1.5px] border-[rgba(0,0,0,0.05)]"
-                                onClick={downloadQRCode}
+                                onClick={handleDownloadQR}
                               >
                                 <Download className="h-5 w-5 mr-2" />
                                 Download
@@ -1784,8 +1789,10 @@ export default function ProjectPage() {
                 </div>
 
                 {/* Right Column: Sidebar */}
+                {activeTab !== "sharing" && (
                 <div className="w-[420px] space-y-6">
                   {/* Meet the team */}
+                  {activeTab === "overview" && (
                   <div className="space-y-6">
                     <h3 className="text-lg font-bold text-black tracking-tight">
                       Meet the team
@@ -1826,12 +1833,15 @@ export default function ProjectPage() {
                       ))}
                     </div>
                   </div>
+                  )}
 
                   {/* Divider */}
+                  {activeTab === "overview" && (
                   <div className="border-t border-gray-200"></div>
+                  )}
 
                   {/* Submitted to Event */}
-                  {eventDetails && (
+                  {activeTab === "overview" && eventDetails && (
                     <div className="space-y-4">
                       <h3 className="text-lg font-bold text-black tracking-tight">
                         Submitted to
@@ -1896,9 +1906,12 @@ export default function ProjectPage() {
                   )}
 
                   {/* Divider */}
+                  {activeTab === "overview" && (
                   <div className="border-t border-gray-200"></div>
+                  )}
 
                   {/* Additional materials */}
+                  {activeTab === "overview" && (
                   <div className="space-y-4">
                     <h3 className="text-lg font-semibold text-black tracking-tight">
                       Additional materials
@@ -1927,11 +1940,15 @@ export default function ProjectPage() {
                       </p>
                     )}
                   </div>
+                  )}
 
                   {/* Divider */}
+                  {activeTab === "overview" && (
                   <div className="border-t border-gray-200"></div>
+                  )}
 
                   {/* Share this project */}
+                  {activeTab === "overview" && (
                   <div className="space-y-4">
                     <h3 className="text-lg font-semibold text-black tracking-tight">
                       Share this project
@@ -1982,7 +1999,9 @@ export default function ProjectPage() {
                       </Button>
                     </div>
                   </div>
+                  )}
                 </div>
+                )}
               </div>
             </div>
           </Tabs>
