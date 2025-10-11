@@ -86,7 +86,7 @@ export async function FeedContent({
     );
 
     return (
-      <div className="space-y-6">
+      <div className="flex flex-col flex-1 space-y-6">
         <h2 className="text-2xl font-bold">Activity Feed</h2>
         {paginatedItems.map((item) => (
           <Card key={item.id}>

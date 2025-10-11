@@ -6,8 +6,7 @@ import {
 } from "@/lib/types";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { isValidUUID } from "@/app/utils/supabase/queries";
-import { EventPageHeader } from "@/components/events/event-page-header";
-import { EventPageTabs } from "@/components/events/event-page-tabs";
+import { EventPageLayout } from "@/components/events/event-page-layout";
 import { EventPageContent } from "@/components/events/event-page-content";
 import { EventPageSidebar } from "@/components/events/event-page-sidebar";
 
@@ -85,41 +84,28 @@ export default async function EventOverviewPage({ params }: PageProps) {
   }
 
   return (
-    <div className="bg-white border-l border-[#d8d8d8] flex flex-col min-h-screen w-full">
-      <div className="flex flex-col w-full">
-        {/* Page Header with Cover Image */}
-        <EventPageHeader
-          eventName={typedEvent.event_name}
-          eventBlurb={typedEvent.event_blurb || ""}
-          eventDate={typedEvent.event_date}
-          location={typedEvent.location}
-          coverImageUrl={typedEvent.cover_image_url}
-          eventId={eventData.event_id}
-          hasJoined={hasJoined}
-        />
+    <EventPageLayout
+      eventName={typedEvent.event_name}
+      eventBlurb={typedEvent.event_blurb || ""}
+      eventDate={typedEvent.event_date}
+      location={typedEvent.location}
+      coverImageUrl={typedEvent.cover_image_url}
+      eventId={id}
+      hasJoined={hasJoined}
+    >
+      {/* Main Content */}
+      <EventPageContent
+        event={typedEvent}
+        tracks={tracks}
+        hasJoined={hasJoined}
+      />
 
-        {/* Tabs Navigation */}
-        <EventPageTabs eventId={id} />
-
-        {/* Main Content Area with Sidebar */}
-        <div className="w-full px-6 py-12 flex justify-center">
-          <div className="flex gap-6 max-w-[1280px] w-full">
-            {/* Main Content */}
-            <EventPageContent
-              event={typedEvent}
-              tracks={tracks}
-              hasJoined={hasJoined}
-            />
-
-            {/* Sidebar */}
-            <EventPageSidebar
-              eventResources={typedEvent.event_resources}
-              eventId={eventData.event_id}
-              eventSlug={typedEvent.slug}
-            />
-          </div>
-        </div>
-      </div>
-    </div>
+      {/* Sidebar */}
+      <EventPageSidebar
+        eventResources={typedEvent.event_resources}
+        eventId={eventData.event_id}
+        eventSlug={typedEvent.slug}
+      />
+    </EventPageLayout>
   );
 }

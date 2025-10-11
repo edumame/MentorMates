@@ -41,8 +41,8 @@ export function EventPageLayout({
         <EventPageTabs eventId={eventId} />
 
         {/* Main Content */}
-        <div className="w-full px-6 py-12 flex justify-center">
-          <div className="max-w-[1280px] w-full">
+        <div className="w-full">
+          <div className="flex gap-6 w-full px-6 py-12">
             {children}
           </div>
         </div>

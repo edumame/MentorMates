@@ -31,7 +31,7 @@ export function ConditionalEventLayout({
 }: ConditionalEventLayoutProps) {
   const { showEventHeader, showEventWrapper, showFooter } = useLayoutConfig();
   const pathname = usePathname();
-  const isRedesignedPage = pathname?.includes('/overview') || pathname?.includes('/gallery') || pathname?.includes('/feed');
+  const isRedesignedPage = pathname?.includes('/overview') || pathname?.includes('/gallery') || pathname?.includes('/feed') || pathname?.includes('/schedule') || pathname?.includes('/participants') || pathname?.includes('/faqs');
 
   if (!showEventHeader && !showEventWrapper && !showFooter) {
     // Clean layout - no event components (redesigned pages handle their own layout)
