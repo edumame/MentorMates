@@ -11,6 +11,8 @@ interface EventPageLayoutProps {
   coverImageUrl?: string;
   eventId: string;
   hasJoined: boolean;
+  participantCount?: number;
+  projectCount?: number;
 }
 
 export function EventPageLayout({
@@ -22,6 +24,8 @@ export function EventPageLayout({
   coverImageUrl,
   eventId,
   hasJoined,
+  participantCount,
+  projectCount,
 }: EventPageLayoutProps) {
   return (
     <div className="bg-white border-l border-[#d8d8d8] flex flex-col min-h-screen w-full">
@@ -38,7 +42,7 @@ export function EventPageLayout({
         />
 
         {/* Tabs Navigation */}
-        <EventPageTabs eventId={eventId} />
+        <EventPageTabs eventId={eventId} participantCount={participantCount} projectCount={projectCount} />
 
         {/* Main Content */}
         <div className="w-full">

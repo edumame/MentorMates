@@ -86,6 +86,12 @@ export default async function PublicParticipantsPage({ params }: PageProps) {
       }))
     : [];
 
+  // Fetch project count
+  const { count: projectCount } = await supabase
+    .from("projects")
+    .select("*", { count: "exact", head: true })
+    .eq("event_id", eventData.event_id);
+
   return (
     <EventPageLayout
       eventName={eventData.event_name}
@@ -95,6 +101,8 @@ export default async function PublicParticipantsPage({ params }: PageProps) {
       coverImageUrl={eventData.cover_image_url}
       eventId={id}
       hasJoined={hasJoined}
+      participantCount={participantsList.length}
+      projectCount={projectCount || 0}
     >
       <ParticipantsContent participants={participantsList} />
     </EventPageLayout>

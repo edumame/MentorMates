@@ -5,16 +5,18 @@ import { usePathname } from "next/navigation";
 
 interface EventPageTabsProps {
   eventId: string;
+  participantCount?: number;
+  projectCount?: number;
 }
 
-export function EventPageTabs({ eventId }: EventPageTabsProps) {
+export function EventPageTabs({ eventId, participantCount, projectCount }: EventPageTabsProps) {
   const pathname = usePathname();
 
   const tabs = [
     { name: "Overview", path: `/events/${eventId}/overview` },
     { name: "Schedule", path: `/events/${eventId}/schedule`, badge: null },
-    { name: "Participants", path: `/events/${eventId}/participants`, badge: 3 },
-    { name: "Projects", path: `/events/${eventId}/gallery`, badge: 3 },
+    { name: "Participants", path: `/events/${eventId}/participants`, badge: participantCount },
+    { name: "Projects", path: `/events/${eventId}/gallery`, badge: projectCount },
     { name: "FAQs", path: `/events/${eventId}/faqs` },
     // { name: "Gallery", path: `/events/${eventId}/gallery` }, // TODO: Add back when image upload functionality is ready
   ];

@@ -54,6 +54,19 @@ export default async function FAQPage({ params }: PageProps) {
     hasJoined = !!userEventRole;
   }
 
+  // Fetch participant count
+  const { count: participantCount } = await supabase
+    .from("user_event_roles")
+    .select("*", { count: "exact", head: true })
+    .eq("event_id", eventData.event_id)
+    .eq("role", "participant");
+
+  // Fetch project count
+  const { count: projectCount } = await supabase
+    .from("projects")
+    .select("*", { count: "exact", head: true })
+    .eq("event_id", eventData.event_id);
+
   return (
     <EventPageLayout
       eventName={eventData.event_name}
@@ -63,6 +76,8 @@ export default async function FAQPage({ params }: PageProps) {
       coverImageUrl={eventData.cover_image_url}
       eventId={id}
       hasJoined={hasJoined}
+      participantCount={participantCount || 0}
+      projectCount={projectCount || 0}
     >
       <FAQContent />
     </EventPageLayout>
