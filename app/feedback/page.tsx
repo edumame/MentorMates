@@ -324,7 +324,7 @@ export default function FeedbackPage() {
                 <div className="flex flex-col gap-[12px] items-start shrink-0 w-full">
                   <div className="flex flex-col gap-[4px] items-start px-0 py-[12px] shrink-0 w-full">
                     <p className="leading-[normal] not-italic shrink-0 text-[24px] text-zinc-900 w-full" style={{ fontFamily: 'Poly, serif' }}>
-                      "{selectedFeedback?.message}"
+                      &ldquo;{selectedFeedback?.message}&rdquo;
                     </p>
                   </div>
                   <div className="flex gap-[4px] items-center shrink-0">
