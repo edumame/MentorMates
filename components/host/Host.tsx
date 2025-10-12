@@ -35,9 +35,9 @@ export function Host() {
                 Schedule a Demo for Your Team
               </Link>
             </Button>
-            <Button variant="defaultGray" asChild>
+            {/* <Button variant="defaultGray" asChild>
               <Link href="/projects">Explore the Project Marketplace</Link>
-            </Button>
+            </Button> */}
           </div>
         </div>
       </div>
@@ -51,20 +51,10 @@ export function Host() {
 
           {/* Social Proof / Case Studies */}
           <div className="space-y-10">
-            <div className="text-center">
-              <h2 className="text-2xl sm:text-3xl md:text-4xl font-semibold text-gray-900">
-                Social Proof / Case Studies
-              </h2>
-              <p className="mt-3 text-gray-700">
-                Feature logos of companies you’ve piloted with and quotes from leaders and participants.
-              </p>
-            </div>
             {/* Logos */}
             <div className="bg-white">
-              <div className="border border-gray-200 rounded-xl">
-                <div>
-                  <LogoCarousel />
-                </div>
+              <div>
+                <LogoCarousel />
               </div>
             </div>
 
@@ -136,18 +126,22 @@ function ServiceRow({ data }: { data: ServiceSectionData }) {
 
         {/* Bullets (optional) */}
         {data.bullets && data.bullets.length > 0 && (
-          <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-6">
+          <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-8">
             {data.bullets.map((b, i) => (
               <div key={i} className="flex flex-col items-start gap-3">
-                <MaterialIcon
-                  name={b.icon?.name ?? ""}
-                  className="text-[6rem] sm:text-[8rem] md:text-[10rem] lg:text-[12rem] leading-none shrink-0 text-gray-900"
-                  title={b.title}
-                />
-                <h3 className="text-lg sm:text-xl font-semibold text-gray-900">
-                  {b.title}
-                </h3>
-                <p className="text-sm sm:text-base text-gray-600">{b.body}</p>
+                <div className="w-16 h-16 sm:w-18 sm:h-18 flex items-center justify-center rounded-xl bg-blue-50">
+                  <MaterialIcon
+                    name={b.icon?.name ?? ""}
+                    className="text-[2rem] sm:text-[2.5rem] text-blue-600"
+                    title={b.title}
+                  />
+                </div>
+                <div>
+                  <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">
+                    {b.title}
+                  </h3>
+                  <p className="text-sm sm:text-base text-gray-600">{b.body}</p>
+                </div>
               </div>
             ))}
           </div>
