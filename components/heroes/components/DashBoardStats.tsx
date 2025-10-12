@@ -165,7 +165,7 @@ export function DashBoardStats() {
                   className="h-auto w-full justify-start px-0"
                 >
                   <Link
-                    href="/projects/new"
+                    href="/projects/submit"
                     className="flex items-center gap-3"
                   >
                     <span className="inline-grid h-9 w-9 place-items-center rounded-md bg-blue-50 ring-1 ring-blue-100">
