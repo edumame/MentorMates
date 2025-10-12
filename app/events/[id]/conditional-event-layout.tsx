@@ -38,7 +38,7 @@ export function ConditionalEventLayout({
   // Standard event layout with configurable components
   const content = (
     <main className="flex-1 overflow-auto">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6 w-full">
+      <div className="max-w-5xl px-4 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6 w-full">
         {showEventHeader && (
           <EventHeader
             eventName={event.event_name}

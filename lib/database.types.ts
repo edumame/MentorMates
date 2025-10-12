@@ -147,6 +147,7 @@ export type Database = {
           event_schedule: Json | null
           faq: string | null
           location: string | null
+          owner_id: string | null
           paid: boolean | null
           pricing_tiers: Json | null
           role_labels: Json | null
@@ -172,6 +173,7 @@ export type Database = {
           event_schedule?: Json | null
           faq?: string | null
           location?: string | null
+          owner_id?: string | null
           paid?: boolean | null
           pricing_tiers?: Json | null
           role_labels?: Json | null
@@ -197,6 +199,7 @@ export type Database = {
           event_schedule?: Json | null
           faq?: string | null
           location?: string | null
+          owner_id?: string | null
           paid?: boolean | null
           pricing_tiers?: Json | null
           role_labels?: Json | null
@@ -208,7 +211,15 @@ export type Database = {
           submission_time_start?: string | null
           visibility?: Database["public"]["Enums"]["event_visibility"]
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "events_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["uid"]
+          },
+        ]
       }
       feedback: {
         Row: {
@@ -263,6 +274,45 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "events"
             referencedColumns: ["event_id"]
+          },
+        ]
+      }
+      feedback_read_status: {
+        Row: {
+          id: string
+          feedback_id: string
+          user_id: string
+          read_at: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          feedback_id: string
+          user_id: string
+          read_at?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          feedback_id?: string
+          user_id?: string
+          read_at?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feedback_read_status_feedback_id_fkey"
+            columns: ["feedback_id"]
+            isOneToOne: false
+            referencedRelation: "feedback"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feedback_read_status_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
           },
         ]
       }

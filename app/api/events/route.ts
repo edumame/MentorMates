@@ -173,6 +173,7 @@ export async function POST(req: Request) {
       submission_time_cutoff: event.submission_time_cutoff ?? null,
       paid: event.paid ?? null,
       stripe_price_id: event.stripe_price_id ?? null,
+      owner_id: user.id, // Set the creator as the owner
     };
 
     const { data: createdEvent, error: insertError } = await supabase
