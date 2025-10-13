@@ -1,7 +1,5 @@
 "use client";
 
-"use client";
-
 import Image from "next/image";
 import Link from "next/link";
 import { SERVICES_SECTIONS, type ServiceSectionData } from "./content";

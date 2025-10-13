@@ -27,9 +27,14 @@ export async function POST(
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  // Allow anonymous feedback submission, but attach user info if available
+  if (user) {
+    body.mentor_id = user.id;
+    body.mentor_name = user.user_metadata?.full_name || null;
+    body.mentor_email = user.email || null;
   }
+
   const { error: projectError } = await supabase
     .from("projects")
     .select("id")
@@ -44,23 +49,32 @@ export async function POST(
     );
   }
 
-  if (!process.env.OPENAI_API_KEY) {
-    return NextResponse.json({ error: "Moderation service not configured" }, { status: 500 });
+  // Try moderation if OpenAI is configured, but don't fail if it's not
+  if (process.env.OPENAI_API_KEY && openai) {
+    try {
+      const moderation = await openai.moderations.create({
+        model: "omni-moderation-latest",
+        input: body.feedback_text,
+      });
+
+      if (moderation.results[0].flagged) {
+        return NextResponse.json(
+          {
+            error:
+              "Feedback contains inappropriate content. Do not submit feedback that contains harassment, violence, or sexual content.",
+          },
+          { status: 400 }
+        );
+      }
+    } catch (moderationError) {
+      // Log the error but continue with submission
+      console.warn("Moderation check failed, continuing without it:", moderationError);
+    }
   }
 
-  const moderation = await openai.moderations.create({
-    model: "omni-moderation-latest",
-    input: body.feedback_text,
-  });
-
-  if (moderation.results[0].flagged) {
-    return NextResponse.json(
-      {
-        error:
-          "Feedback contains inappropriate content. Do not submit feedback that contains harassment, violence, or sexual content. ",
-      },
-      { status: 400 }
-    );
+  // Ensure event_id is null if empty string (not all projects are tied to events)
+  if (body.event_id === "" || body.event_id === undefined) {
+    body.event_id = null;
   }
 
   const { error } = await supabase.from("feedback").insert([body]);

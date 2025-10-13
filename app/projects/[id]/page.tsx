@@ -58,6 +58,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Session } from "@supabase/supabase-js";
 import FeedbackDisplay from "@/features/projects/components/feedback/FeedbackDisplay";
+import { GiveFeedbackDialog } from "@/features/projects/components/feedback/GiveFeedbackDialog";
 import { useQRCodeActions } from "@/features/projects/components/management/project-dashboard/hooks/useQRCodeActions";
 import { toast } from "@/lib/hooks/use-toast";
 import { Toaster } from "@/components/ui/toaster";
@@ -123,6 +124,9 @@ export default function ProjectPage() {
 
   // Active tab state
   const [activeTab, setActiveTab] = useState("overview");
+
+  // Give Feedback Dialog state
+  const [showFeedbackDialog, setShowFeedbackDialog] = useState(false);
 
   // QR Code functionality
   const { handleCopyQR, handleDownloadQR } = useQRCodeActions(
@@ -978,11 +982,12 @@ export default function ProjectPage() {
                 <Heart className="h-5 w-5 mr-1.5" />
                 Like
               </Button>
-              <Link href={`/projects/public/${project.id}`}>
-                <Button className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-5 py-2 shadow-sm">
-                  Give feedback
-                </Button>
-              </Link>
+              <Button
+                onClick={() => setShowFeedbackDialog(true)}
+                className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-5 py-2 shadow-sm"
+              >
+                Give feedback
+              </Button>
             </div>
           </div>
 
@@ -2042,6 +2047,18 @@ export default function ProjectPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Give Feedback Dialog */}
+      {project && (
+        <GiveFeedbackDialog
+          open={showFeedbackDialog}
+          onOpenChange={setShowFeedbackDialog}
+          projectName={project.project_name}
+          projectId={project.id}
+          projectDescription={project.project_description || ""}
+          eventId={project.event_id || ""}
+        />
+      )}
     </div>
   );
 }
