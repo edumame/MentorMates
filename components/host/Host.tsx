@@ -31,7 +31,7 @@ export function Host() {
           </p>
           <div className="mt-6 sm:mt-8 flex items-center justify-center gap-3 sm:gap-4 flex-wrap">
             <Button variant="default" asChild>
-              <Link href="https://calendly.com/edumameofficial/30min">
+              <Link href="https://calendly.com/edumameofficial/30min" target="_blank" rel="noopener noreferrer">
                 Schedule a Demo for Your Team
               </Link>
             </Button>
@@ -92,7 +92,7 @@ export function Host() {
             </p>
             <div className="mt-6">
               <Button asChild>
-                <Link href="https://calendly.com/edumameofficial/30min">Schedule a Demo</Link>
+                <Link href="https://calendly.com/edumameofficial/30min" target="_blank" rel="noopener noreferrer">Schedule a Demo</Link>
               </Button>
             </div>
           </div>
