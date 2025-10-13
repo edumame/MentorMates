@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Sparkles, Lightbulb, X } from "lucide-react";
+import { Sparkles, Lightbulb } from "lucide-react";
 import { useToast } from "@/lib/hooks/use-toast";
 
 interface AISuggestions {
@@ -138,10 +138,10 @@ export function GiveFeedbackDialog({
   if (isSubmitted) {
     return (
       <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="max-w-[890px] p-0 gap-0 overflow-hidden">
-          <div className="flex min-h-[533px]">
+        <DialogContent className="max-w-[888px] p-0 gap-0 overflow-hidden border border-zinc-200">
+          <div className="flex h-[533px]">
             {/* Left side - Success message */}
-            <div className="flex-1 flex flex-col items-center justify-center min-w-0 p-6">
+            <div className="basis-0 grow flex flex-col items-center justify-center min-w-0 p-6">
               <div className="flex flex-col items-center gap-1.5 text-center max-w-md">
                 <div className="w-16 h-16 mb-2">
                   <span className="text-6xl">🥰</span>
@@ -158,7 +158,7 @@ export function GiveFeedbackDialog({
             </div>
 
             {/* Right side - CTA */}
-            <div className="w-[450px] bg-gradient-to-b from-[#dbeafe] to-[#f9f9ff] p-6 flex flex-col items-center justify-center shrink-0 rounded-br-md rounded-tr-md">
+            <div className="w-[450px] bg-gradient-to-b from-[#dbeafe] to-[#f9f9ff] p-6 flex flex-col items-center justify-center shrink-0 rounded-br-[6px] rounded-tr-[6px]">
               <div className="flex flex-col items-center gap-3 text-center w-full">
                 <div className="flex flex-col gap-3 py-3">
                   <p className="text-[24px] leading-5 text-zinc-900 font-['Poly']">
@@ -184,10 +184,10 @@ export function GiveFeedbackDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-[890px] p-0 gap-0 overflow-hidden">
-        <div className="flex min-h-[533px]">
+      <DialogContent className="max-w-[888px] p-0 gap-0 overflow-hidden border border-zinc-200">
+        <div className="flex h-[533px]">
           {/* Left side - Main content */}
-          <div className="flex-1 flex flex-col min-w-0">
+          <div className="basis-0 grow flex flex-col min-w-0">
             {/* Header */}
             <div className="flex flex-col gap-1.5 p-6">
               <h2 className="text-[22px] font-semibold leading-[1.4] tracking-[-1.32px] text-zinc-900">
@@ -248,7 +248,7 @@ export function GiveFeedbackDialog({
           </div>
 
           {/* Right side - Tips/Suggestions */}
-          <div className="w-[450px] bg-gradient-to-b from-[#dbeafe] to-[#f9f9ff] p-6 flex flex-col shrink-0 rounded-br-md rounded-tr-md">
+          <div className="w-[450px] bg-gradient-to-b from-[#dbeafe] to-[#f9f9ff] p-6 flex flex-col shrink-0 rounded-br-[6px] rounded-tr-[6px]">
             <div className="bg-white rounded-[13px] p-1.5 w-fit">
               <Lightbulb className="w-6 h-6" />
             </div>
