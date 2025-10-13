@@ -21,7 +21,7 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
           </aside>
 
           {/* Main content with left margin to account for fixed sidebar */}
-          <main className="flex-1 overflow-y-auto lg:ml-[var(--sidebar-width,280px)] pt-5">
+          <main className="flex-1 lg:ml-[var(--sidebar-width,280px)] pt-5 overflow-y-auto overscroll-y-contain">
             {children}
           </main>
         </div>
