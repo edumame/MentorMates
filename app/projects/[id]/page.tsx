@@ -2055,6 +2055,8 @@ export default function ProjectPage() {
           onOpenChange={setShowFeedbackDialog}
           projectName={project.project_name}
           projectId={project.id}
+          projectDescription={project.project_description || ""}
+          eventId={project.event_id || ""}
         />
       )}
     </div>
