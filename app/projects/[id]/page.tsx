@@ -74,6 +74,7 @@ import { ImageUpload } from "@/components/db/imageUpload";
 import { VideoEmbed, canEmbed } from "@/components/utils";
 import { createContextusProject } from "@/lib/integrations/contextus";
 import { useAdmin } from "@/lib/hooks/use-admin";
+import { useProjectLike } from "@/features/projects/hooks/use-project-like";
 
 interface EventParticipant {
   user_id: string;
@@ -134,6 +135,25 @@ export default function ProjectPage() {
     projectId,
     project?.project_name
   );
+
+  // Likes state
+  const {
+    liked,
+    count: likesCount,
+    isLoading: likeIsLoading,
+    error: likeError,
+    toggleLike,
+  } = useProjectLike(projectId);
+
+  useEffect(() => {
+    if (likeError === "unauthorized") {
+      toast({
+        title: "Sign in required",
+        description: "Please log in to like projects.",
+      });
+      router.push(`/login?returnUrl=/projects/${projectId}`);
+    }
+  }, [likeError, router, projectId]);
 
   useEffect(() => {
     const getSession = async () => {
@@ -977,10 +997,35 @@ export default function ProjectPage() {
               )}
               <Button
                 variant="secondary"
-                className="bg-black/5 hover:bg-black/10 rounded-xl px-5 py-2 shadow-sm"
+                aria-pressed={liked}
+                disabled={likeIsLoading}
+                onClick={() => {
+                  if (!session) {
+                    toast({
+                      title: "Sign in required",
+                      description: "Please log in to like projects.",
+                    });
+                    router.push(`/login?returnUrl=/projects/${projectId}`);
+                    return;
+                  }
+                  void toggleLike();
+                }}
+                className={`rounded-xl px-5 py-2 shadow-sm ${
+                  liked
+                    ? "bg-red-100 text-red-700 hover:bg-red-200"
+                    : "bg-black/5 hover:bg-black/10"
+                }`}
               >
-                <Heart className="h-5 w-5 mr-1.5" />
-                Like
+                {likeIsLoading ? (
+                  <Loader className="h-5 w-5 mr-1.5" />
+                ) : (
+                  <Heart
+                    className="h-5 w-5 mr-1.5"
+                    fill={liked ? "currentColor" : "none"}
+                  />
+                )}
+                {liked ? "Liked" : "Like"}
+                <span className="ml-2 text-sm">{likesCount}</span>
               </Button>
               <Button
                 onClick={() => setShowFeedbackDialog(true)}
