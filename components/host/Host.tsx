@@ -3,10 +3,24 @@
 import Image from "next/image";
 import Link from "next/link";
 import { SERVICES_SECTIONS, type ServiceSectionData } from "./content";
-import { MaterialIcon } from "@/components/MaterialIcon";
 import { Button } from "@/components/ui/button";
 import { LogoCarousel } from "@/components/heroes/components/LogoCarousel";
 import { Customer } from "@/components/heroes/components/Customer";
+import * as LucideIcons from "lucide-react";
+
+// Helper function to render Lucide icons
+function renderLucideIcon(
+  iconName: string,
+  className?: string,
+  title?: string
+) {
+  const IconComponent = (LucideIcons as any)[iconName];
+  if (!IconComponent) {
+    console.warn(`Icon "${iconName}" not found in Lucide React`);
+    return null;
+  }
+  return <IconComponent className={className} title={title} />;
+}
 
 export function Host() {
   const sections = SERVICES_SECTIONS.map((s, i) => ({
@@ -143,11 +157,11 @@ function ServiceRow({ data }: { data: ServiceSectionData }) {
             {data.bullets.map((b, i) => (
               <div key={i} className="flex flex-col items-start gap-3">
                 <div className="flex items-center justify-center">
-                  <MaterialIcon
-                    name={b.icon?.name ?? ""}
-                    className="text-[96px] sm:text-[112px] md:text-[128px] leading-none text-black"
-                    title={b.title}
-                  />
+                  {renderLucideIcon(
+                    b.icon?.name ?? "",
+                    "w-6 h-6 text-black",
+                    b.title
+                  )}
                 </div>
                 <div>
                   <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">
