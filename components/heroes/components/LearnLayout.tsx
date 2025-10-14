@@ -84,7 +84,7 @@ export function LearnLayout() {
             rel="noopener noreferrer"
             className="bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col hover:shadow-md hover:border-gray-300 transition-all duration-200 group"
           >
-            <div className="relative w-full aspect-video bg-black rounded-t-xl overflow-hidden flex items-center justify-center group-hover:scale-[1.02] transition-transform duration-200">
+            <div className="relative w-full aspect-video bg-black rounded-t-xl overflow-hidden flex items-center justify-center transition-transform duration-200">
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                 <Image
                   src={item.thumbnail}
