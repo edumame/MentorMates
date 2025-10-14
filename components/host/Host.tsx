@@ -17,19 +17,22 @@ export function Host() {
   return (
     <section className="bg-white">
       {/* Hero */}
-      <div
-        className="px-4 sm:px-6 py-16 sm:py-20 md:py-24 min-h-[400px]"
-      >
+      <div className="px-4 sm:px-6 py-16 sm:py-20 md:py-24 min-h-[400px]">
         <div className="max-w-7xl mx-auto text-center">
           <h1 className="mx-auto max-w-4xl text-3xl sm:text-5xl md:text-6xl font-semibold tracking-tight text-gray-900">
             Build a Culture of Creative Innovation Across Your Teams
           </h1>
           <p className="mt-4 sm:mt-6 text-gray-700 text-base sm:text-lg max-w-4xl mx-auto">
-            Run internal vibathons, host a lifetime of maker projects, and amplify team creativity — all on one platform.
+            Run internal vibathons, host a lifetime of maker projects, and
+            amplify team creativity — all on one platform.
           </p>
           <div className="mt-6 sm:mt-8 flex items-center justify-center gap-3 sm:gap-4 flex-wrap">
             <Button variant="default" asChild>
-              <Link href="https://calendly.com/edumameofficial/30min" target="_blank" rel="noopener noreferrer">
+              <Link
+                href="https://calendly.com/edumameofficial/30min"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
                 Schedule a Demo for Your Team
               </Link>
             </Button>
@@ -68,8 +71,13 @@ export function Host() {
                 { stat: "3", desc: "cross-team hires sparked" },
                 { stat: "+7%", desc: "retention lift reported" },
               ].map((m) => (
-                <div key={m.desc} className="text-center border border-gray-200 rounded-xl p-6">
-                  <div className="text-4xl font-bold text-gray-900">{m.stat}</div>
+                <div
+                  key={m.desc}
+                  className="text-center border border-gray-200 rounded-xl p-6"
+                >
+                  <div className="text-4xl font-bold text-gray-900">
+                    {m.stat}
+                  </div>
                   <div className="mt-2 text-gray-700">{m.desc}</div>
                 </div>
               ))}
@@ -86,11 +94,18 @@ export function Host() {
               Ready to build your first vibathon?
             </h2>
             <p className="mt-3 text-gray-700 max-w-3xl mx-auto">
-              Let’s run a pilot together. Enjoy concierge support and co-design for your first cycle.
+              Let’s run a pilot together. Enjoy concierge support and co-design
+              for your first cycle.
             </p>
             <div className="mt-6">
               <Button asChild>
-                <Link href="https://calendly.com/edumameofficial/30min" target="_blank" rel="noopener noreferrer">Schedule a Demo</Link>
+                <Link
+                  href="https://calendly.com/edumameofficial/30min"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Schedule a Demo
+                </Link>
               </Button>
             </div>
           </div>
@@ -127,10 +142,10 @@ function ServiceRow({ data }: { data: ServiceSectionData }) {
           <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-8">
             {data.bullets.map((b, i) => (
               <div key={i} className="flex flex-col items-start gap-3">
-                <div className="w-16 h-16 sm:w-18 sm:h-18 flex items-center justify-center rounded-xl bg-blue-50">
+                <div className="flex items-center justify-center">
                   <MaterialIcon
                     name={b.icon?.name ?? ""}
-                    className="text-[2rem] sm:text-[2.5rem] text-blue-600"
+                    className="text-[64px] text-black"
                     title={b.title}
                   />
                 </div>
