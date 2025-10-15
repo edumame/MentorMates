@@ -1,18 +1,18 @@
 export type Bullet = {
-    icon?: { name: string };
-    title: string;
-    body: string;
+  icon?: { name: string };
+  title: string;
+  body: string;
 };
 
 export type ServiceSectionData = {
-    id: string;
-    eyebrow?: string;
-    title: string;
-    body: string;
-    bullets?: Bullet[];
-    cta?: { label: string; href: string };
-    image: { src: string; alt: string };
-    imageSide?: "left" | "right";
+  id: string;
+  eyebrow?: string;
+  title: string;
+  body: string;
+  bullets?: Bullet[];
+  cta?: { label: string; href: string };
+  image: { src: string; alt: string };
+  imageSide?: "left" | "right";
 };
 
 export const SERVICES_SECTIONS: ServiceSectionData[] = [

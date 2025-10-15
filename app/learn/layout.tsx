@@ -8,7 +8,7 @@ export default function LearnLayout({
     children: React.ReactNode;
     }) {
     return (
-        <div className="min-h-screen">
+        <div >
         <AuthNavbar />
         <SidebarLayout>{children}</SidebarLayout>
         </div>
