@@ -168,8 +168,9 @@ export function BasicInfoTab({
 
     try {
       setArchiving(true);
-      const action = event.visibility === EventVisibility.Archived ? "unarchive" : "archive";
-      
+      const action =
+        event.visibility === EventVisibility.Archived ? "unarchive" : "archive";
+
       const res = await fetch(`/api/events/${event.event_id}`, {
         method: "PATCH",
         headers: {
@@ -184,10 +185,10 @@ export function BasicInfoTab({
       }
 
       const result = await res.json();
-      
+
       // Update local state
       setEvent({ ...event, visibility: result.newVisibility });
-      
+
       toast({
         title: "Success",
         description: `Event ${action}d successfully`,
@@ -196,7 +197,10 @@ export function BasicInfoTab({
       // Refresh the page to update any cached data
       router.refresh();
     } catch (error) {
-      console.error(`Error ${event.visibility === EventVisibility.Archived ? "unarchiving" : "archiving"} event:`, error);
+      console.error(
+        `Error ${event.visibility === EventVisibility.Archived ? "unarchiving" : "archiving"} event:`,
+        error
+      );
       toast({
         title: "Error",
         description: (error as Error).message,
@@ -214,9 +218,12 @@ export function BasicInfoTab({
       {/* Archived Event Warning */}
       {isArchived && (
         <Alert className="border-orange-200 bg-orange-50">
-          <AlertTitle className="text-orange-900">⚠️ Event is Archived</AlertTitle>
+          <AlertTitle className="text-orange-900">
+            ⚠️ Event is Archived
+          </AlertTitle>
           <AlertDescription>
-            This event is archived and cannot be edited. To make changes, you must first unarchive the event using the controls below.
+            This event is archived and cannot be edited. To make changes, you
+            must first unarchive the event using the controls below.
           </AlertDescription>
         </Alert>
       )}
@@ -229,38 +236,36 @@ export function BasicInfoTab({
             id="event_name"
             value={event.event_name || ""}
             disabled={isArchived}
-            onChange={(e) =>
-              setEvent({ ...event, event_name: e.target.value })
-            }
+            onChange={(e) => setEvent({ ...event, event_name: e.target.value })}
           />
         </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="participant_capacity">Participant Seat Cap</Label>
-        <Input
-          id="participant_capacity"
-          type="number"
-          min={0}
-          placeholder="Unlimited"
-          disabled={isArchived}
-          value={
-            typeof event.participant_capacity === "number"
-              ? String(event.participant_capacity)
-              : ""
-          }
-          onChange={(e) => {
-            const value = e.target.value;
-            setEvent({
-              ...event,
-              participant_capacity:
-                value === "" ? null : Math.max(0, parseInt(value, 10) || 0),
-            });
-          }}
-        />
-        <p className="text-xs text-gray-500">
-          Leave blank for unlimited participants.
-        </p>
-      </div>
+        <div className="space-y-2">
+          <Label htmlFor="participant_capacity">Participant Seat Cap</Label>
+          <Input
+            id="participant_capacity"
+            type="number"
+            min={0}
+            placeholder="Unlimited"
+            disabled={isArchived}
+            value={
+              typeof event.participant_capacity === "number"
+                ? String(event.participant_capacity)
+                : ""
+            }
+            onChange={(e) => {
+              const value = e.target.value;
+              setEvent({
+                ...event,
+                participant_capacity:
+                  value === "" ? null : Math.max(0, parseInt(value, 10) || 0),
+              });
+            }}
+          />
+          <p className="text-xs text-gray-500">
+            Leave blank for unlimited participants.
+          </p>
+        </div>
         <div className="space-y-2">
           <Label htmlFor="slug">URL Slug</Label>
           <Input
@@ -302,11 +307,16 @@ export function BasicInfoTab({
                 const res = await fetch("/api/devpost/import", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ eventId: event.event_id, url: devpostUrl }),
+                  body: JSON.stringify({
+                    eventId: event.event_id,
+                    devpostUrl: devpostUrl,
+                  }),
                 });
                 if (!res.ok) {
                   const body = await res.json().catch(() => ({}));
-                  throw new Error(body?.error || "Failed to import Devpost data");
+                  throw new Error(
+                    body?.error || "Failed to import Devpost data"
+                  );
                 }
                 const data = await res.json();
                 const imported = data?.import || {};
@@ -317,20 +327,30 @@ export function BasicInfoTab({
                   event_date: imported.event_date ?? event.event_date,
                   location: imported.location ?? event.location,
                   event_blurb: imported.event_blurb ?? event.event_blurb,
-                  event_description: imported.event_description ?? event.event_description,
-                  submission_time_start: imported.submission_time_start ?? event.submission_time_start,
-                  submission_time_cutoff: imported.submission_time_cutoff ?? event.submission_time_cutoff,
-                  event_schedule: imported.event_schedule ?? event.event_schedule,
+                  event_description:
+                    imported.event_description ?? event.event_description,
+                  submission_time_start:
+                    imported.submission_time_start ??
+                    event.submission_time_start,
+                  submission_time_cutoff:
+                    imported.submission_time_cutoff ??
+                    event.submission_time_cutoff,
+                  event_schedule:
+                    imported.event_schedule ?? event.event_schedule,
                   rules: imported.rules ?? event.rules,
-                  event_resources: imported.event_resources ?? event.event_resources,
+                  event_resources:
+                    imported.event_resources ?? event.event_resources,
                   faq: imported.faq ?? event.faq,
                 } as typeof event;
                 // If tracks are provided, prefill into event.event_tracks with minimal structure
-                if (Array.isArray(imported.tracks) && imported.tracks.length > 0) {
-                  const newTracks = imported.tracks.map((t: any) => {
+                if (
+                  Array.isArray(imported.tracks) &&
+                  imported.tracks.length > 0
+                ) {
+                  const newTracks = imported.tracks.map((t: ImportedTrack) => {
                     const trackId = crypto.randomUUID();
                     const prizes = Array.isArray(t?.prizes)
-                      ? t.prizes.map((p: any) => ({
+                      ? t.prizes.map((p: ImportedPrize) => ({
                           id: `local-${crypto.randomUUID()}`,
                           track_id: trackId,
                           prize_amount: String(p?.prize_amount || ""),
@@ -354,12 +374,13 @@ export function BasicInfoTab({
                       updated_at: new Date().toISOString(),
                     };
                   });
-                  (merged as any).event_tracks = newTracks;
+                  (merged as EventDetails).event_tracks = newTracks;
                 }
                 setEvent(merged);
                 toast({
                   title: "Imported",
-                  description: "Devpost details imported. Review and save your changes.",
+                  description:
+                    "Devpost details imported. Review and save your changes.",
                 });
               } catch (err) {
                 console.error(err);
@@ -377,7 +398,8 @@ export function BasicInfoTab({
           </Button>
         </div>
         <p className="text-xs text-gray-500">
-          Paste your Devpost event page URL. We'll fetch details and prefill this form using AI.
+          Paste your Devpost event page URL. We&apos;ll fetch details and
+          prefill this form using AI.
         </p>
       </div>
 
@@ -389,9 +411,7 @@ export function BasicInfoTab({
             type="date"
             value={event.event_date || ""}
             disabled={isArchived}
-            onChange={(e) =>
-              setEvent({ ...event, event_date: e.target.value })
-            }
+            onChange={(e) => setEvent({ ...event, event_date: e.target.value })}
           />
         </div>
         <div className="space-y-2">
@@ -400,9 +420,7 @@ export function BasicInfoTab({
             id="location"
             value={event.location || ""}
             disabled={isArchived}
-            onChange={(e) =>
-              setEvent({ ...event, location: e.target.value })
-            }
+            onChange={(e) => setEvent({ ...event, location: e.target.value })}
           />
         </div>
       </div>
@@ -450,9 +468,7 @@ export function BasicInfoTab({
           id="event_blurb"
           value={event.event_blurb || ""}
           disabled={isArchived}
-          onChange={(e) =>
-            setEvent({ ...event, event_blurb: e.target.value })
-          }
+          onChange={(e) => setEvent({ ...event, event_blurb: e.target.value })}
           rows={2}
           placeholder="A short, catchy description of your event"
         />
@@ -467,7 +483,9 @@ export function BasicInfoTab({
             confirm formatting and content before saving.
           </AlertDescription>
           <div className="mt-3 space-y-2">
-            <Label htmlFor="event_description">Description (Markdown Supported)</Label>
+            <Label htmlFor="event_description">
+              Description (Markdown Supported)
+            </Label>
             <Tabs defaultValue="edit" className="w-full">
               <TabsList>
                 <TabsTrigger value="edit">Edit</TabsTrigger>
@@ -499,45 +517,54 @@ export function BasicInfoTab({
 
       {/* Paywall Content - Only show for participants (below description) */}
 
-        <div className="space-y-2">
-          <Alert className="border-yellow-200 bg-yellow-50">
-            <AlertTitle className="text-yellow-800">🔒 Exclusive Content for Participants</AlertTitle>
-            <AlertDescription>
-              This content is visible only to participants who have joined/paid for the event.
-            </AlertDescription>
-            <div className="mt-3 space-y-2">
-              <Label htmlFor="paywall_content">Content (Markdown Supported)</Label>
-              <Tabs defaultValue="edit" className="w-full">
-                <TabsList>
-                  <TabsTrigger value="edit">Edit</TabsTrigger>
-                  <TabsTrigger value="preview">Preview</TabsTrigger>
-                </TabsList>
-                <TabsContent value="edit" className="mt-0">
-                  <Textarea
-                    id="paywall_content"
-                    value={event.paywall_content || ""}
-                    disabled={isArchived}
-                    onChange={(e) =>
-                      setEvent({ ...event, paywall_content: e.target.value })
-                    }
-                    rows={4}
-                    placeholder="Content that will only be visible to users who have joined/paid for the event"
-                  />
-                </TabsContent>
-                <TabsContent value="preview" className="mt-0">
-                  <div className="prose prose-sm dark:prose-invert max-w-none rounded-md border bg-white p-3">
-                    <ReactMarkdown rehypePlugins={markdownRehypePlugins} components={customMarkdownComponents}>
-                      {event.paywall_content || ""}
-                    </ReactMarkdown>
-                  </div>
-                </TabsContent>
-              </Tabs>
-              <p className="text-xs text-gray-500">
-                This content will only be shown to users who have joined the event. You can use Markdown formatting.
-              </p>
-            </div>
-          </Alert>
-        </div>
+      <div className="space-y-2">
+        <Alert className="border-yellow-200 bg-yellow-50">
+          <AlertTitle className="text-yellow-800">
+            🔒 Exclusive Content for Participants
+          </AlertTitle>
+          <AlertDescription>
+            This content is visible only to participants who have joined/paid
+            for the event.
+          </AlertDescription>
+          <div className="mt-3 space-y-2">
+            <Label htmlFor="paywall_content">
+              Content (Markdown Supported)
+            </Label>
+            <Tabs defaultValue="edit" className="w-full">
+              <TabsList>
+                <TabsTrigger value="edit">Edit</TabsTrigger>
+                <TabsTrigger value="preview">Preview</TabsTrigger>
+              </TabsList>
+              <TabsContent value="edit" className="mt-0">
+                <Textarea
+                  id="paywall_content"
+                  value={event.paywall_content || ""}
+                  disabled={isArchived}
+                  onChange={(e) =>
+                    setEvent({ ...event, paywall_content: e.target.value })
+                  }
+                  rows={4}
+                  placeholder="Content that will only be visible to users who have joined/paid for the event"
+                />
+              </TabsContent>
+              <TabsContent value="preview" className="mt-0">
+                <div className="prose prose-sm dark:prose-invert max-w-none rounded-md border bg-white p-3">
+                  <ReactMarkdown
+                    rehypePlugins={markdownRehypePlugins}
+                    components={customMarkdownComponents}
+                  >
+                    {event.paywall_content || ""}
+                  </ReactMarkdown>
+                </div>
+              </TabsContent>
+            </Tabs>
+            <p className="text-xs text-gray-500">
+              This content will only be shown to users who have joined the
+              event. You can use Markdown formatting.
+            </p>
+          </div>
+        </Alert>
+      </div>
 
       <div className="space-y-2">
         <Label htmlFor="cover_image">Cover Image</Label>
@@ -604,7 +631,7 @@ export function BasicInfoTab({
             )}
           </div>
         ) : (
-            <Input
+          <Input
             type="url"
             value={event.cover_image_url || ""}
             disabled={isArchived}
@@ -645,10 +672,12 @@ export function BasicInfoTab({
         <div className="flex items-center justify-between">
           <div>
             <p className="font-semibold text-orange-600">
-              {event.visibility === EventVisibility.Archived ? "Unarchive Event" : "Archive Event"}
+              {event.visibility === EventVisibility.Archived
+                ? "Unarchive Event"
+                : "Archive Event"}
             </p>
             <p className="text-sm text-muted-foreground">
-              {event.visibility === EventVisibility.Archived 
+              {event.visibility === EventVisibility.Archived
                 ? "Make this event editable again and restore it to private visibility."
                 : "Archive this event to prevent further editing while keeping it visible."}
             </p>
@@ -656,26 +685,34 @@ export function BasicInfoTab({
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button variant="destructive" disabled={archiving || isArchived}>
-                {archiving 
-                  ? (event.visibility === EventVisibility.Archived ? "Unarchiving..." : "Archiving...") 
-                  : (event.visibility === EventVisibility.Archived ? "Unarchive" : "Archive")}
+                {archiving
+                  ? event.visibility === EventVisibility.Archived
+                    ? "Unarchiving..."
+                    : "Archiving..."
+                  : event.visibility === EventVisibility.Archived
+                    ? "Unarchive"
+                    : "Archive"}
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>
-                  {event.visibility === EventVisibility.Archived ? "Unarchive this event?" : "Archive this event?"}
+                  {event.visibility === EventVisibility.Archived
+                    ? "Unarchive this event?"
+                    : "Archive this event?"}
                 </AlertDialogTitle>
                 <AlertDialogDescription>
-                  {event.visibility === EventVisibility.Archived 
+                  {event.visibility === EventVisibility.Archived
                     ? "This will make the event editable again and change its visibility to private. You can change the visibility afterwards if needed."
-                : "Archived events are hidden from non-organizers and the public, and cannot be edited by organizers. You can unarchive it later if needed."}
+                    : "Archived events are hidden from non-organizers and the public, and cannot be edited by organizers. You can unarchive it later if needed."}
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                 <AlertDialogAction onClick={handleArchiveToggle}>
-                  {event.visibility === EventVisibility.Archived ? "Confirm Unarchive" : "Confirm Archive"}
+                  {event.visibility === EventVisibility.Archived
+                    ? "Confirm Unarchive"
+                    : "Confirm Archive"}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
@@ -688,7 +725,9 @@ export function BasicInfoTab({
         <div className="flex items-center justify-between">
           <div>
             <p className="font-semibold text-red-600">Delete Event</p>
-            <p className="text-sm text-muted-foreground">This action cannot be undone.</p>
+            <p className="text-sm text-muted-foreground">
+              This action cannot be undone.
+            </p>
           </div>
           <AlertDialog>
             <AlertDialogTrigger asChild>
@@ -700,7 +739,8 @@ export function BasicInfoTab({
               <AlertDialogHeader>
                 <AlertDialogTitle>Delete this event?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  This will permanently remove the event and related data (tickets, payments, tracks, feedback). This cannot be undone.
+                  This will permanently remove the event and related data
+                  (tickets, payments, tracks, feedback). This cannot be undone.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -714,7 +754,9 @@ export function BasicInfoTab({
                       });
                       if (!res.ok) {
                         const body = await res.json().catch(() => ({}));
-                        throw new Error(body?.error || "Failed to delete event");
+                        throw new Error(
+                          body?.error || "Failed to delete event"
+                        );
                       }
                       toast({ title: "Event deleted" });
                       // Navigate back to events list
@@ -740,4 +782,4 @@ export function BasicInfoTab({
       </div>
     </div>
   );
-} 
+}
