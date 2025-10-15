@@ -14,7 +14,7 @@ function renderLucideIcon(
   className?: string,
   title?: string
 ) {
-  const IconComponent = (LucideIcons as unknown as Record<string, React.ComponentType<{ className?: string; title?: string }>>)[iconName];
+  const IconComponent = (LucideIcons as any)[iconName];
   if (!IconComponent) {
     console.warn(`Icon "${iconName}" not found in Lucide React`);
     return null;
