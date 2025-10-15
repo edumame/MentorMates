@@ -18,6 +18,7 @@ import {
 import FeedbackDisplay from "@/features/projects/components/feedback/FeedbackDisplay";
 import FeedbackForm from "@/features/projects/components/feedback/FeedbackForm";
 import { useQRCodeActions } from "@/features/projects/components/management/project-dashboard/hooks/useQRCodeActions";
+import { useProjectLike } from "@/features/projects/hooks/use-project-like";
 import { toast } from "@/lib/hooks/use-toast";
 import { Toaster } from "@/components/ui/toaster";
 import { ProjectScoringForm } from "@/components/project-scoring/project-scoring-form";
@@ -62,6 +63,8 @@ export default function PublicProjectPage() {
     projectId,
     project?.project_name
   );
+
+  const { liked, count: likesCount, isLoading: likeIsLoading, toggleLike } = useProjectLike(projectId);
 
   useEffect(() => {
     const fetchProject = async () => {
@@ -309,6 +312,20 @@ export default function PublicProjectPage() {
 
             {/* Action Buttons */}
             <div className="flex flex-wrap items-center justify-center gap-4">
+              <Button
+                variant="secondary"
+                aria-pressed={liked}
+                disabled={likeIsLoading}
+                onClick={() => void toggleLike()}
+                className={`rounded-xl px-5 py-2 shadow-sm ${
+                  liked
+                    ? "bg-red-100 text-red-700 hover:bg-red-200"
+                    : "bg-black/5 hover:bg-black/10"
+                }`}
+              >
+                {liked ? "Liked" : "Like"}
+                <span className="ml-2 text-sm">{likesCount}</span>
+              </Button>
               {project.project_url && (
                 <a
                   href={project.project_url}

@@ -40,7 +40,7 @@ export function Host() {
             Run internal vibathons, host a lifetime of maker projects, and
             amplify team creativity — all on one platform.
           </p>
-          <div className="mt-6 sm:mt-8 flex items-center justify-center gap-3 sm:gap-4 flex-wrap">
+          <div className="mt-6 sm:mt-8 flex items-center justify-center gap-3 sm:gap-4 flex-wrap flex items-center justify-center gap-3 sm:gap-4 flex-wrap">
             <Button variant="default" asChild>
               <Link
                 href="https://calendly.com/edumameofficial/30min"
