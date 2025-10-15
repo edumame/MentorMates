@@ -321,9 +321,16 @@ import { createSupabaseClient } from "@/app/utils/supabase/server";
 // }
 
 function aggregateTracksAndPrizes(
-  event_prizes: { prize: string; track: string; description: string }[]
+  event_prizes:
+    | { prize: string; track: string; description: string }[]
+    | { prize: string; track: string; description: string }
 ) {
-  const tracks = event_prizes.map((prize) => ({
+  // Normalize to array if single object
+  const prizesArray = Array.isArray(event_prizes)
+    ? event_prizes
+    : [event_prizes];
+
+  const tracks = prizesArray.map((prize) => ({
     name: prize.track,
     description: prize.description,
     prize: [
@@ -352,6 +359,9 @@ export async function POST(req: Request) {
 
   const eventSchema = {
     event_name: {
+      type: "string",
+    },
+    title: {
       type: "string",
     },
     event_description: {
@@ -418,13 +428,20 @@ export async function POST(req: Request) {
     event_description: z.string(),
     event_date: z.string(),
     location: z.string(),
-    event_prizes: z.array(
+    event_prizes: z.union([
+      z.array(
+        z.object({
+          prize: z.string(),
+          track: z.string(),
+          description: z.string(),
+        })
+      ),
       z.object({
         prize: z.string(),
         track: z.string(),
         description: z.string(),
-      })
-    ),
+      }),
+    ]),
     tracks: z.optional(
       z.array(
         z.object({
@@ -439,18 +456,30 @@ export async function POST(req: Request) {
         })
       )
     ),
-    rules: z.array(
+    rules: z.union([
+      z.array(
+        z.object({
+          items: z.string(),
+          title: z.string(),
+        })
+      ),
       z.object({
         items: z.string(),
         title: z.string(),
-      })
-    ),
-    requirements: z.array(
+      }),
+    ]),
+    requirements: z.union([
+      z.array(
+        z.object({
+          items: z.string(),
+          title: z.string(),
+        })
+      ),
       z.object({
         items: z.string(),
         title: z.string(),
-      })
-    ),
+      }),
+    ]),
   });
 
   const options = {
@@ -485,15 +514,25 @@ export async function POST(req: Request) {
 
     const parsed = zodEventSchema.safeParse(jsonData);
     if (!parsed.success) {
+      console.error("Zod parsing error:", parsed.error);
       return NextResponse.json(
         {
           error: "Failed to parse Devpost data",
-          details: parsed.error.flatten(),
+          zodError: parsed.error.format(),
+          flattenedErrors: parsed.error.flatten(),
+          issues: parsed.error.issues,
+          receivedData: jsonData,
         },
         { status: 500 }
       );
     }
     const normalized = parsed.data;
+    if (!Array.isArray(normalized.rules)) {
+      normalized.rules = [normalized.rules];
+    }
+    if (!Array.isArray(normalized.requirements)) {
+      normalized.requirements = [normalized.requirements];
+    }
     normalized.rules = [...normalized.rules, ...normalized.requirements];
     normalized.tracks = aggregateTracksAndPrizes(normalized.event_prizes);
 
