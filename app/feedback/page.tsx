@@ -10,6 +10,7 @@ import {
   DialogClose,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 
 interface FeedbackItem {
   id: string;
@@ -100,15 +101,17 @@ export default function FeedbackPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
-      </div>
+      <PageContainer>
+        <div className="flex items-center justify-center flex-grow">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+        </div>
+      </PageContainer>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col lg:rounded-tl-2xl lg:border-t lg:border-l lg:border-[#D8D8D8] bg-white" style={{ background: "linear-gradient(196.644deg, rgba(219, 234, 254, 0.25) 13.188%, rgba(255, 255, 255, 0) 65.83%), linear-gradient(90deg, rgb(251, 252, 254) 0%, rgb(251, 252, 254) 100%)" }}>
-      <div className="flex-grow px-[32px] pt-[24px] pb-0">
+    <PageContainer>
+      <PageContent className="px-[32px] pt-[24px] pb-0">
         <div className="flex flex-col gap-[48px] max-w-[1064px] mx-auto">
           {/* Header */}
           <div className="flex items-end justify-between">
@@ -134,13 +137,32 @@ export default function FeedbackPage() {
 
           {/* Table */}
           <div className="flex flex-col gap-[24px]">
-            <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[16px] overflow-hidden">
+            {/* Border wrapper */}
+            <div className="border border-[rgba(0,0,0,0.15)] rounded-[16px]">
+              {/* Header Row */}
               <div className="flex">
+                <div className="w-[264px] border-b border-[rgba(0,0,0,0.15)] px-[24px] py-[16px]">
+                  <p className="text-[16px] font-medium text-black tracking-[-0.04em]">Send from</p>
+                </div>
+                <div className="w-[196px] border-b border-[rgba(0,0,0,0.15)] px-[24px] py-[16px]">
+                  <p className="text-[16px] font-medium text-black tracking-[-0.04em]">Project Name</p>
+                </div>
+                <div className="w-[215px] border-b border-[rgba(0,0,0,0.15)] px-[24px] py-[16px]">
+                  <p className="text-[16px] font-medium text-black tracking-[-0.04em]">Message</p>
+                </div>
+                <div className="w-[182px] border-b border-[rgba(0,0,0,0.15)] px-[24px] py-[16px] flex items-center">
+                  <p className="text-[16px] font-medium text-black tracking-[-0.04em]">Date</p>
+                  <ArrowDownUp className="h-[24px] w-[24px] ml-1" />
+                </div>
+                <div className="w-[208px] border-b border-[rgba(0,0,0,0.15)] px-[24px] py-[16px]">
+                  <p className="text-[16px] font-medium text-black tracking-[-0.04em]">Action</p>
+                </div>
+              </div>
+
+              {/* Table Body */}
+              <div className="flex bg-white overflow-x-auto">
                 {/* Send from Column */}
                 <div className="flex flex-col w-[264px]">
-                  <div className="border-b border-[rgba(0,0,0,0.15)] px-[24px] py-[16px]">
-                    <p className="text-[16px] font-medium text-black tracking-[-0.04em]">Send from</p>
-                  </div>
                   {feedbackList.map((item, index) => (
                     <div
                       key={item.id}
@@ -164,9 +186,6 @@ export default function FeedbackPage() {
 
                 {/* Project Name Column */}
                 <div className="flex flex-col w-[196px]">
-                  <div className="border-b border-[rgba(0,0,0,0.15)] px-[24px] py-[16px]">
-                    <p className="text-[16px] font-medium text-black tracking-[-0.04em]">Project Name</p>
-                  </div>
                   {feedbackList.map((item, index) => (
                     <div
                       key={item.id}
@@ -181,9 +200,6 @@ export default function FeedbackPage() {
 
                 {/* Message Column */}
                 <div className="flex flex-col w-[215px]">
-                  <div className="border-b border-[rgba(0,0,0,0.15)] px-[24px] py-[16px]">
-                    <p className="text-[16px] font-medium text-black tracking-[-0.04em]">Message</p>
-                  </div>
                   {feedbackList.map((item, index) => (
                     <div
                       key={item.id}
@@ -198,10 +214,6 @@ export default function FeedbackPage() {
 
                 {/* Date Column */}
                 <div className="flex flex-col w-[182px]">
-                  <div className="border-b border-[rgba(0,0,0,0.15)] px-[24px] py-[16px] flex items-center">
-                    <p className="text-[16px] font-medium text-black tracking-[-0.04em]">Date</p>
-                    <ArrowDownUp className="h-[24px] w-[24px] ml-1" />
-                  </div>
                   {feedbackList.map((item, index) => (
                     <div
                       key={item.id}
@@ -216,9 +228,6 @@ export default function FeedbackPage() {
 
                 {/* Action Column */}
                 <div className="flex flex-col w-[208px]">
-                  <div className="border-b border-[rgba(0,0,0,0.15)] px-[24px] py-[16px]">
-                    <p className="text-[16px] font-medium text-black tracking-[-0.04em]">Action</p>
-                  </div>
                   {feedbackList.map((item, index) => (
                     <div
                       key={item.id}
@@ -285,10 +294,9 @@ export default function FeedbackPage() {
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Feedback Modal */}
-      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        {/* Feedback Modal */}
+        <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="max-w-none w-auto h-auto p-0 gap-0 bg-white border border-solid border-zinc-200 rounded-[12px] [&>button]:hidden overflow-clip flex items-center">
           <DialogTitle className="sr-only">
             View feedback for {selectedFeedback?.projectName}
@@ -353,7 +361,8 @@ export default function FeedbackPage() {
             </div>
           </div>
         </DialogContent>
-      </Dialog>
-    </div>
+        </Dialog>
+      </PageContent>
+    </PageContainer>
   );
 }

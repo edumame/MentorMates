@@ -4,6 +4,7 @@ import { data } from "@/lib/LearnData";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 
 export function LearnLayout() {
   const [bookmarkedIds, setBookmarkedIds] = useState<Set<number>>(new Set());
@@ -41,38 +42,36 @@ export function LearnLayout() {
     });
   };
   return (
-    <div
-      className="rounded-tl-2xl border-t border-l border-[#D8D8D8] bg-white [background:linear-gradient(203deg,rgba(219,234,254,0.25)_13.19%,rgba(255,255,255,0.00)_65.83%),#FFF] px-8 py-6"
-      style={{ minHeight: "100vh" }}
-    >
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-xl font-semibold">Learn</h1>
-        <div className="flex gap-2">
-          <button
-            className={`px-3 py-1 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              activeTab === "all"
-                ? "bg-gray-100 text-gray-900"
-                : "bg-transparent text-gray-500 hover:bg-gray-100"
-            }`}
-            aria-pressed={activeTab === "all"}
-            onClick={() => setActiveTab("all")}
-          >
-            All
-          </button>
-          <button
-            className={`px-3 py-1 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              activeTab === "bookmark"
-                ? "bg-gray-100 text-gray-900"
-                : "bg-transparent text-gray-500 hover:bg-gray-100"
-            }`}
-            aria-pressed={activeTab === "bookmark"}
-            onClick={() => setActiveTab("bookmark")}
-          >
-            Bookmark
-          </button>
+    <PageContainer>
+      <PageContent className="px-8 py-6">
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-xl font-semibold">Learn</h1>
+          <div className="flex gap-2">
+            <button
+              className={`px-3 py-1 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                activeTab === "all"
+                  ? "bg-gray-100 text-gray-900"
+                  : "bg-transparent text-gray-500 hover:bg-gray-100"
+              }`}
+              aria-pressed={activeTab === "all"}
+              onClick={() => setActiveTab("all")}
+            >
+              All
+            </button>
+            <button
+              className={`px-3 py-1 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                activeTab === "bookmark"
+                  ? "bg-gray-100 text-gray-900"
+                  : "bg-transparent text-gray-500 hover:bg-gray-100"
+              }`}
+              aria-pressed={activeTab === "bookmark"}
+              onClick={() => setActiveTab("bookmark")}
+            >
+              Bookmark
+            </button>
+          </div>
         </div>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {(activeTab === "bookmark"
           ? data.filter((d) => bookmarkedIds.has(d.id))
           : data
@@ -179,11 +178,12 @@ export function LearnLayout() {
             </div>
           </Link>
         ))}
-      </div>
-      {activeTab === "bookmark" &&
-        data.every((d) => !bookmarkedIds.has(d.id)) && (
-          <div className="text-sm text-gray-500 mt-6">No bookmarks yet.</div>
-        )}
-    </div>
+        </div>
+        {activeTab === "bookmark" &&
+          data.every((d) => !bookmarkedIds.has(d.id)) && (
+            <div className="text-sm text-gray-500 mt-6">No bookmarks yet.</div>
+          )}
+      </PageContent>
+    </PageContainer>
   );
 }
