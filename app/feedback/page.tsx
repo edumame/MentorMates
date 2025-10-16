@@ -134,8 +134,8 @@ export default function FeedbackPage() {
 
           {/* Table */}
           <div className="flex flex-col gap-[24px]">
-            <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[16px] overflow-x-auto">
-              {/* Sticky Header Row */}
+            <div className="border border-[rgba(0,0,0,0.15)] rounded-[16px] relative">
+              {/* Sticky Header Row - positioned outside to avoid overflow issues */}
               <div className="flex sticky top-0 z-10 bg-white rounded-t-[16px] border-t border-x border-[rgba(0,0,0,0.15)]">
                 <div className="w-[264px] border-b border-[rgba(0,0,0,0.15)] px-[24px] py-[16px]">
                   <p className="text-[16px] font-medium text-black tracking-[-0.04em]">Send from</p>
@@ -156,7 +156,7 @@ export default function FeedbackPage() {
               </div>
 
               {/* Table Body */}
-              <div className="flex">
+              <div className="flex bg-white overflow-x-auto">
                 {/* Send from Column */}
                 <div className="flex flex-col w-[264px]">
                   {feedbackList.map((item, index) => (
