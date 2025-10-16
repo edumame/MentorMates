@@ -73,7 +73,7 @@ export function EventPageSidebar({
       )}
 
       {/* Divider */}
-      <div className="h-px bg-black w-full" />
+      <div className="h-px bg-gray-200 w-full" />
 
       {/* Share Section */}
       <div className="flex flex-col gap-4 items-center w-full">
