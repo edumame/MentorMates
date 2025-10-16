@@ -29,17 +29,17 @@ export function ContentTab({ event, setEvent, isArchived = false }: ContentTabPr
                 </p>
 
                 {/* Edit/Preview Toggle using Shadcn Tabs */}
-                <TabsList className="bg-white border border-[rgba(0,0,0,0.15)] border-solid rounded-[12px] p-[4px] h-auto shrink-0">
+                <TabsList className="bg-white border border-[rgba(0,0,0,0.15)] border-solid rounded-[12px] p-[4px] h-auto gap-0 shrink-0">
                   <TabsTrigger
                     value="edit"
-                    className="px-[24px] py-[6px] rounded-[8px] text-[12px] leading-[1.5] data-[state=active]:bg-[#fbfcfe] data-[state=active]:border data-[state=active]:border-[rgba(0,0,0,0.15)] data-[state=active]:border-solid data-[state=active]:font-medium data-[state=inactive]:bg-[rgba(255,255,255,0)] data-[state=inactive]:border data-[state=inactive]:border-[rgba(255,255,255,0)] data-[state=inactive]:font-normal data-[state=active]:shadow-none"
+                    className="min-w-[80px] px-[24px] py-[6px] h-auto rounded-[8px] text-[12px] font-medium leading-[1.5] text-black data-[state=active]:bg-[#fbfcfe] data-[state=active]:border data-[state=active]:border-[rgba(0,0,0,0.15)] data-[state=active]:border-solid data-[state=active]:shadow-none data-[state=inactive]:bg-transparent data-[state=inactive]:border-transparent data-[state=inactive]:font-normal"
                     style={{ fontFamily: 'Inter, sans-serif' }}
                   >
                     Edit
                   </TabsTrigger>
                   <TabsTrigger
                     value="preview"
-                    className="px-[16px] py-[6px] rounded-[100px] text-[12px] leading-[1.5] data-[state=active]:bg-[#fbfcfe] data-[state=active]:border data-[state=active]:border-[rgba(0,0,0,0.15)] data-[state=active]:border-solid data-[state=active]:font-medium data-[state=inactive]:bg-[rgba(255,255,255,0)] data-[state=inactive]:border data-[state=inactive]:border-[rgba(255,255,255,0)] data-[state=inactive]:font-normal data-[state=active]:shadow-none"
+                    className="min-w-[80px] px-[24px] py-[6px] h-auto rounded-[8px] text-[12px] font-medium leading-[1.5] text-black data-[state=active]:bg-[#fbfcfe] data-[state=active]:border data-[state=active]:border-[rgba(0,0,0,0.15)] data-[state=active]:border-solid data-[state=active]:shadow-none data-[state=inactive]:bg-transparent data-[state=inactive]:border-transparent data-[state=inactive]:font-normal"
                     style={{ fontFamily: 'Inter, sans-serif' }}
                   >
                     Preview
@@ -83,7 +83,7 @@ export function ContentTab({ event, setEvent, isArchived = false }: ContentTabPr
 
         {/* Helper Text */}
         <p className="font-normal text-[16px] leading-[1.5] text-[#7f7f7f] w-full">
-          *This content is visible only to participants who have joined/paid for the event.
+          *This content is visible only to participants who have joined the event.
         </p>
       </div>
     </div>
