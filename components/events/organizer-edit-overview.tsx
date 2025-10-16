@@ -248,16 +248,23 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
   const renderPreviewCard = () => {
     if (!event) return null;
 
+    const previewUrl = `/events/${event.slug || event.event_id}/overview?view=participant`;
+
     return (
       <div className="flex-shrink-0 space-y-3">
         <div className="w-[335px]">
           <EventCard event={event} />
         </div>
 
-        <div className="flex items-center justify-center gap-1 text-[#7f7f7f]">
+        <a
+          href={previewUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-center gap-1 text-[#7f7f7f] hover:text-[#4b89ef] transition-colors cursor-pointer"
+        >
           <span className="text-[16px]">Preview event page</span>
           <ArrowUpRight className="w-[18px] h-[18px]" />
-        </div>
+        </a>
       </div>
     );
   };
