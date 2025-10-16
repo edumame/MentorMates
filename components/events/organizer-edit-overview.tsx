@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/lib/hooks/use-toast";
-import { Archive, Trash2, MapPin, ArrowUpRight } from "lucide-react";
+import { Archive, Trash2, ArrowUpRight } from "lucide-react";
 import { EventDetails, EventScoringConfig, EventTrack, ScoringCriterion } from "@/lib/types";
 
 // Import existing tab components
@@ -25,6 +25,7 @@ import { RulesTab } from "@/features/user/dashboards/dashboard/organizer/details
 import { FAQTab } from "@/features/user/dashboards/dashboard/organizer/details/FAQTab";
 
 import { Button } from "@/components/ui/button";
+import { EventCard } from "@/components/events/event-card";
 
 interface OrganizerEditOverviewProps {
   eventId: string;
@@ -244,79 +245,13 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
     }
   };
 
-  const formatDateForPreview = (dateStr: string) => {
-    if (!dateStr) return { day: "09", month: "Feb", year: "2024", weekday: "Fri" };
-    const date = new Date(dateStr);
-    return {
-      day: date.getDate().toString().padStart(2, "0"),
-      month: date.toLocaleDateString("en-US", { month: "short" }),
-      year: date.getFullYear().toString(),
-      weekday: date.toLocaleDateString("en-US", { weekday: "short" }),
-    };
-  };
-
   const renderPreviewCard = () => {
     if (!event) return null;
 
-    const previewDate = formatDateForPreview(event.event_date);
-    const isPaidEvent = event.paid || false;
-
     return (
       <div className="flex-shrink-0 space-y-3">
-        <div className="w-[335px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] overflow-hidden">
-          {/* Image */}
-          <div className="relative w-full aspect-[335/223]">
-            {event.cover_image_url ? (
-              <img
-                src={event.cover_image_url}
-                alt="Event cover"
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full bg-gradient-to-br from-orange-400 via-red-500 to-purple-600" />
-            )}
-
-            {/* Date Badge */}
-            <div className="absolute top-4 right-4 bg-white border border-[#aaaaaa] rounded-[6px] w-[112px] py-3 px-1 text-center">
-              <p className="text-[14px] font-normal text-black">{previewDate.weekday}</p>
-              <p className="text-[36px] font-semibold leading-[1.3] tracking-[-2.16px] text-black" style={{ fontFamily: "Geist, sans-serif" }}>
-                {previewDate.day}
-              </p>
-              <p className="text-[14px] font-normal text-black">
-                {previewDate.month} {previewDate.year}
-              </p>
-            </div>
-          </div>
-
-          {/* Content */}
-          <div className="p-6">
-            <div className="flex flex-wrap gap-1 mb-3">
-              <span className="px-[10px] py-1 border border-[rgba(0,0,0,0.15)] rounded-full text-[14px] font-semibold text-black">
-                Hackathon
-              </span>
-              <span className="px-[10px] py-1 border border-[rgba(0,0,0,0.15)] rounded-full text-[14px] font-semibold text-black">
-                {isPaidEvent ? "Paid" : "Free"}
-              </span>
-            </div>
-
-            <h2
-              className="text-[22px] font-semibold leading-[1.4] tracking-[-1.32px] text-black mb-1"
-              style={{ fontFamily: "Geist, sans-serif" }}
-            >
-              {event.event_name}
-            </h2>
-
-            <div className="flex items-center gap-1 mb-2">
-              <MapPin className="w-6 h-6" />
-              <span className="text-[14px] font-normal text-black">
-                {event.location || "Online"}
-              </span>
-            </div>
-
-            <p className="text-[16px] font-normal text-black leading-[1.5]">
-              {event.event_blurb || "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse varius enim in eros."}
-            </p>
-          </div>
+        <div className="w-[335px]">
+          <EventCard event={event} />
         </div>
 
         <div className="flex items-center justify-center gap-1 text-[#7f7f7f]">
