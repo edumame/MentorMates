@@ -1148,19 +1148,19 @@ export default function ProjectPage() {
             <TabsList className="bg-transparent border-b border-gray-200 rounded-none h-auto p-0 w-full justify-start gap-6">
               <TabsTrigger
                 value="overview"
-                className="data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2 font-medium"
+                className="shadow-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2 font-medium"
               >
                 Overview
               </TabsTrigger>
               <TabsTrigger
                 value="tracks"
-                className="data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2"
+                className="shadow-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2"
               >
                 Tracks
               </TabsTrigger>
               <TabsTrigger
                 value="team"
-                className="data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2 flex items-center gap-2"
+                className="shadow-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2 flex items-center gap-2"
               >
                 Team
                 <Badge variant="secondary" className="bg-white border border-black/15 text-black rounded-full text-xs">
@@ -1169,7 +1169,7 @@ export default function ProjectPage() {
               </TabsTrigger>
               <TabsTrigger
                 value="feedback"
-                className="data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2 flex items-center gap-2"
+                className="shadow-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2 flex items-center gap-2"
               >
                 Feedback
                 <Badge variant="secondary" className="bg-white border border-black/15 text-black rounded-full text-xs">
@@ -1178,7 +1178,7 @@ export default function ProjectPage() {
               </TabsTrigger>
               <TabsTrigger
                 value="sharing"
-                className="data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2"
+                className="shadow-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2"
               >
                 Sharing
               </TabsTrigger>
