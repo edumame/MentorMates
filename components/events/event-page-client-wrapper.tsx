@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, ReactNode } from "react";
+import { useState, ReactNode, useEffect } from "react";
 import { EventRole } from "@/lib/types";
 import { RoleBanner } from "./role-banner";
 import { EventPageHeader } from "./event-page-header";
@@ -8,6 +8,7 @@ import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/lib/hooks/use-toast";
 import { OrganizerEditOverview } from "./organizer-edit-overview";
+import { useActiveRole } from "./ActiveRoleContext";
 
 interface EventPageClientWrapperProps {
   userRole: EventRole;
@@ -36,10 +37,17 @@ export function EventPageClientWrapper({
   hasJoined,
   tabsAndContent,
 }: EventPageClientWrapperProps) {
-  const [activeRole, setActiveRole] = useState<EventRole>(userRole);
+  const { activeRole, setActiveRole } = useActiveRole();
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
+
+  // Initialize activeRole with userRole
+  useEffect(() => {
+    if (!activeRole) {
+      setActiveRole(userRole);
+    }
+  }, [userRole, activeRole, setActiveRole]);
 
   const handleRoleChange = (role: EventRole) => {
     setActiveRole(role);
@@ -107,12 +115,13 @@ export function EventPageClientWrapper({
   };
 
   // Show organizer dashboard when viewing as organizer/admin
-  if (activeRole === EventRole.Organizer || activeRole === EventRole.Admin) {
+  const currentRole = activeRole || userRole;
+  if (currentRole === EventRole.Organizer || currentRole === EventRole.Admin) {
     return (
       <>
         <RoleBanner
           actualRole={userRole}
-          activeRole={activeRole}
+          activeRole={currentRole}
           onRoleChange={handleRoleChange}
           eventType="event"
           onCancelRegistration={handleCancelRegistration}
@@ -128,7 +137,7 @@ export function EventPageClientWrapper({
     <>
       <RoleBanner
         actualRole={userRole}
-        activeRole={activeRole}
+        activeRole={currentRole}
         onRoleChange={handleRoleChange}
         eventType="event"
         onCancelRegistration={handleCancelRegistration}

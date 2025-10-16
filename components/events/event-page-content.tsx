@@ -13,6 +13,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MentorDashboard } from "@/features/user/dashboards/dashboard/mentor-dashboard";
 import { JudgeDashboard } from "@/features/user/dashboards/dashboard/judge-dashboard";
+import { useActiveRole } from "./ActiveRoleContext";
 
 interface EventPageContentProps {
   event: EventDetails;
@@ -27,12 +28,16 @@ export function EventPageContent({
   hasJoined,
   userRole,
 }: EventPageContentProps) {
+  // Get active role from context, fallback to userRole
+  const { activeRole } = useActiveRole();
+  const displayRole = activeRole || userRole;
+
   // Show role-specific dashboards for mentors and judges
-  if (userRole === "mentor") {
+  if (displayRole === "mentor") {
     return <MentorDashboard eventId={event.event_id} />;
   }
 
-  if (userRole === "judge") {
+  if (displayRole === "judge") {
     return <JudgeDashboard eventId={event.event_id} />;
   }
 

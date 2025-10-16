@@ -262,7 +262,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
 
   return (
     <div
-      className="border-[#d8d8d8] border-l border-t rounded-tl-[16px] w-full min-h-screen"
+      className="w-full min-h-screen"
       style={{
         background: "linear-gradient(209.28deg, rgba(219, 234, 254, 0.25) 13.188%, rgba(255, 255, 255, 0) 65.83%), linear-gradient(90deg, rgb(255, 255, 255) 0%, rgb(255, 255, 255) 100%)"
       }}

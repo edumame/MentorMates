@@ -5,6 +5,7 @@ import { EventPageClientWrapper } from "./event-page-client-wrapper";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { EventRole } from "@/lib/types";
+import { ActiveRoleProvider } from "./ActiveRoleContext";
 
 interface EventPageLayoutProps {
   children: ReactNode;
@@ -74,9 +75,10 @@ export async function EventPageLayout({
   return (
     <PageContainer>
       <PageContent className="px-0">
-        <div className="flex flex-col w-full">
-          {userRole ? (
-            <EventPageClientWrapper
+        <ActiveRoleProvider initialRole={userRole}>
+          <div className="flex flex-col w-full">
+            {userRole ? (
+              <EventPageClientWrapper
               userRole={userRole}
               eventId={dbEventId}
               eventRoleLabels={eventRoleLabels}
@@ -126,7 +128,8 @@ export async function EventPageLayout({
               </div>
             </>
           )}
-        </div>
+          </div>
+        </ActiveRoleProvider>
       </PageContent>
     </PageContainer>
   );
