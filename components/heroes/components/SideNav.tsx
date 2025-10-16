@@ -175,14 +175,10 @@ export function SideNav() {
               w-full p-2
               rounded-md
               transition
-              relative
               ${isActive(item.href) ? "bg-blue-100/50" : ""}
               hover:bg-blue-100/50
             `}
           >
-            {isActive(item.href) && (
-              <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500 rounded-r" />
-            )}
             {item.icon}
             {item.name}
           </Link>
@@ -203,14 +199,10 @@ export function SideNav() {
                 w-full p-2
                 rounded-md
                 transition
-                relative
                 ${active ? "bg-blue-100/50" : ""}
                 hover:bg-blue-100/50
               `}
             >
-              {active && (
-                <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500 rounded-r" />
-              )}
               {item.icon}
               {item.name}
             </Link>
