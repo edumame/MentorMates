@@ -12,6 +12,7 @@ import { Project, ProjectBoardContext } from "@/lib/types";
 import { DiscordCTA } from "@/components/ui/discord-cta";
 import { Footer } from "@/components/layout/Footer";
 import { useAuth } from "@/features/user/authentication/auth/AuthContext";
+import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 
 export default function ProjectsPage() {
   const { session, isAuthenticated } = useAuth();
@@ -45,35 +46,37 @@ export default function ProjectsPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
-      </div>
+      <PageContainer showBorder={isAuthenticated}>
+        <div className="flex items-center justify-center flex-grow">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
+        </div>
+      </PageContainer>
     );
   }
 
   if (!session) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">
-            Please log in to view your projects
-          </h1>
-          <Link href="/login">
-            <Button className="bg-blue-900 text-white hover:bg-blue-800">
-              Login
-            </Button>
-          </Link>
+      <PageContainer showBorder={isAuthenticated}>
+        <div className="flex items-center justify-center flex-grow">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold mb-4">
+              Please log in to view your projects
+            </h1>
+            <Link href="/login">
+              <Button className="bg-blue-900 text-white hover:bg-blue-800">
+                Login
+              </Button>
+            </Link>
+          </div>
         </div>
-      </div>
+      </PageContainer>
     );
   }
 
   return (
-    <div
-      className={`h-svh overflow-hidden flex flex-col ${isAuthenticated ? "lg:rounded-tl-2xl lg:border-t lg:border-l lg:border-[#D8D8D8] bg-white" : "bg-white"}`}
-    >
+    <PageContainer showBorder={isAuthenticated}>
       <Toaster />
-      <div className="flex-grow overflow-auto px-[32px] pt-[32px] pb-0">
+      <PageContent className="px-[32px] pt-[32px] pb-0">
         <div className="flex flex-col gap-[24px] max-w-[1064px]">
           <div className="flex items-end justify-between">
             <div className="flex items-center gap-[8px]">
@@ -108,8 +111,8 @@ export default function ProjectsPage() {
             </div>
           )}
         </div>
-      </div>
+      </PageContent>
       {!isAuthenticated && <Footer />}
-    </div>
+    </PageContainer>
   );
 }

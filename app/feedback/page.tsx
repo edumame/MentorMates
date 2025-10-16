@@ -10,6 +10,7 @@ import {
   DialogClose,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 
 interface FeedbackItem {
   id: string;
@@ -100,15 +101,17 @@ export default function FeedbackPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
-      </div>
+      <PageContainer>
+        <div className="flex items-center justify-center flex-grow">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+        </div>
+      </PageContainer>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col lg:rounded-tl-2xl lg:border-t lg:border-l lg:border-[#D8D8D8] bg-white">
-      <div className="flex-grow px-[32px] pt-[24px] pb-0">
+    <PageContainer>
+      <PageContent className="px-[32px] pt-[24px] pb-0">
         <div className="flex flex-col gap-[48px] max-w-[1064px] mx-auto">
           {/* Header */}
           <div className="flex items-end justify-between">
@@ -134,10 +137,10 @@ export default function FeedbackPage() {
 
           {/* Table */}
           <div className="flex flex-col gap-[24px]">
-            {/* Border wrapper - stays in place */}
+            {/* Border wrapper */}
             <div className="border border-[rgba(0,0,0,0.15)] rounded-[16px]">
-              {/* Sticky Header Row with border */}
-              <div className="flex sticky top-[88px] z-10 bg-white rounded-t-[16px] border-t border-x border-[rgba(0,0,0,0.15)]">
+              {/* Header Row */}
+              <div className="flex">
                 <div className="w-[264px] border-b border-[rgba(0,0,0,0.15)] px-[24px] py-[16px]">
                   <p className="text-[16px] font-medium text-black tracking-[-0.04em]">Send from</p>
                 </div>
@@ -291,10 +294,9 @@ export default function FeedbackPage() {
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Feedback Modal */}
-      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        {/* Feedback Modal */}
+        <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="max-w-none w-auto h-auto p-0 gap-0 bg-white border border-solid border-zinc-200 rounded-[12px] [&>button]:hidden overflow-clip flex items-center">
           <DialogTitle className="sr-only">
             View feedback for {selectedFeedback?.projectName}
@@ -359,7 +361,8 @@ export default function FeedbackPage() {
             </div>
           </div>
         </DialogContent>
-      </Dialog>
-    </div>
+        </Dialog>
+      </PageContent>
+    </PageContainer>
   );
 }

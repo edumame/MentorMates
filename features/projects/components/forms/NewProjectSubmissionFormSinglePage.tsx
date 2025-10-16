@@ -512,40 +512,40 @@ export function NewProjectSubmissionFormSinglePage({
   const totalMembers = (formData.teammates?.length || 0) + 1;
 
   return (
-    <div className="bg-white min-h-screen">
+    <div className="bg-white">
       <Toaster />
 
-      {/* Wrapper with rounded corners and border */}
-      <div className="border border-[#d8d8d8] rounded-tl-[16px] overflow-hidden">
-        {/* Auto-save Banner */}
-        <div className="bg-sky-50 border-b border-[#d8d8d8]">
-          <div className="container mx-auto px-6 py-3.5 flex items-center justify-between max-w-[1280px]">
-            <div className="flex items-center gap-2">
-              <Shield className="h-6 w-6 text-[#4c4c4c]" />
-              <p className="text-[#4c4c4c] text-lg font-medium tracking-[-0.06em]">
-                Your project is automatically saved as you edit
+      {/* Sticky Auto-save Banner */}
+      <div className="sticky top-0 z-20 bg-sky-50 border-b border-[#d8d8d8]">
+        <div className="container mx-auto px-6 py-3.5 flex items-center justify-between max-w-[1280px]">
+          <div className="flex items-center gap-2">
+            <Shield className="h-6 w-6 text-[#4c4c4c]" />
+            <p className="text-[#4c4c4c] text-lg font-medium tracking-[-0.06em]">
+              Your project is automatically saved as you edit
+            </p>
+          </div>
+          {lastSaved && (
+            <div className="bg-transparent border border-[rgba(0,0,0,0.15)] rounded-full px-2.5 py-1">
+              <p className="text-[#7f7f7f] text-sm font-medium">
+                Saved at{" "}
+                {lastSaved.toLocaleDateString("en-US", {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                })}{" "}
+                {lastSaved.toLocaleTimeString("en-US", {
+                  hour: "numeric",
+                  minute: "2-digit",
+                  hour12: true,
+                })}
               </p>
             </div>
-            {lastSaved && (
-              <div className="bg-transparent border border-[rgba(0,0,0,0.15)] rounded-full px-2.5 py-1">
-                <p className="text-[#7f7f7f] text-sm font-medium">
-                  Saved at{" "}
-                  {lastSaved.toLocaleDateString("en-US", {
-                    day: "numeric",
-                    month: "short",
-                    year: "numeric",
-                  })}{" "}
-                  {lastSaved.toLocaleTimeString("en-US", {
-                    hour: "numeric",
-                    minute: "2-digit",
-                    hour12: true,
-                  })}
-                </p>
-              </div>
-            )}
-          </div>
+          )}
         </div>
+      </div>
 
+      {/* Wrapper without top border */}
+      <div className="border-b border-l border-r border-[#d8d8d8] overflow-hidden">
         {/* Main Content */}
         <div className="bg-gradient-to-br from-blue-100/45 via-transparent to-transparent">
           <div className="container mx-auto px-8 py-6 min-h-[800px]">

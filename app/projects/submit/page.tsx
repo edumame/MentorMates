@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { isValidUUID } from "@/app/utils/supabase/queries";
 import { Button } from "@/components/ui/button";
+import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 
 export default function SubmitProjectPage() {
   const searchParams = useSearchParams();
@@ -92,34 +93,38 @@ export default function SubmitProjectPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p>Loading...</p>
-      </div>
+      <PageContainer>
+        <div className="flex items-center justify-center flex-grow">
+          <p>Loading...</p>
+        </div>
+      </PageContainer>
     );
   }
 
   return (
-    <div>
-      {contextusId && (
-        <div className="mb-4 rounded-md border p-3 bg-blue-50 text-blue-800 flex items-center justify-between max-w-[1280px] mx-auto">
-          <div>
-            <span className="font-semibold">Contextus ID:</span> {contextusId}
+    <PageContainer>
+      <PageContent className="px-0 flex flex-col">
+        {contextusId && (
+          <div className="sticky top-0 z-10 mb-4 rounded-md border p-3 bg-blue-50 text-blue-800 flex items-center justify-between mx-auto shrink-0">
+            <div>
+              <span className="font-semibold">Contextus ID:</span> {contextusId}
+            </div>
+            <Button
+              variant="secondary"
+              onClick={() => navigator.clipboard.writeText(contextusId)}
+            >
+              Copy
+            </Button>
           </div>
-          <Button
-            variant="secondary"
-            onClick={() => navigator.clipboard.writeText(contextusId)}
-          >
-            Copy
-          </Button>
-        </div>
-      )}
-      <NewProjectSubmissionFormSinglePage
-        userEmail={userEmail || ""}
-        leadName={userName || ""}
-        eventId={eventId || undefined}
-        onContextusLinked={(ctxId) => setContextusId(ctxId)}
-        contextusId={contextusId}
-      />
-    </div>
+        )}
+        <NewProjectSubmissionFormSinglePage
+          userEmail={userEmail || ""}
+          leadName={userName || ""}
+          eventId={eventId || undefined}
+          onContextusLinked={(ctxId) => setContextusId(ctxId)}
+          contextusId={contextusId}
+        />
+      </PageContent>
+    </PageContainer>
   );
 }

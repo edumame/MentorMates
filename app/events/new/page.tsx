@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/lib/hooks/use-toast";
 import { DatePicker } from "@/components/ui/date-picker";
 import { MapPin, Image, Type, Mail, Globe } from "lucide-react";
+import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 
 export default function NewEventPage() {
   const router = useRouter();
@@ -106,9 +107,11 @@ export default function NewEventPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p className="text-lg">Loading...</p>
-      </div>
+      <PageContainer>
+        <div className="flex items-center justify-center flex-grow">
+          <p className="text-lg">Loading...</p>
+        </div>
+      </PageContainer>
     );
   }
 
@@ -128,11 +131,10 @@ export default function NewEventPage() {
   const previewDate = formatDateForPreview(form.event_date);
 
   return (
-    <div className="flex flex-col h-screen bg-white">
-      {/* Main Content */}
-      <div className="flex-1 overflow-auto">
+    <PageContainer>
+      <PageContent className="px-0">
         <div
-          className="min-h-full rounded-tl-[16px] border-l border-t border-[#d8d8d8]"
+          className="min-h-full"
           style={{
             background: "linear-gradient(199.653deg, rgb(219, 234, 254) 13.188%, rgba(255, 255, 255, 0) 65.83%), linear-gradient(90deg, rgb(255, 255, 255) 0%, rgb(255, 255, 255) 100%)"
           }}
@@ -376,7 +378,7 @@ export default function NewEventPage() {
             </div>
           </div>
         </div>
-      </div>
-    </div>
+      </PageContent>
+    </PageContainer>
   );
 }
