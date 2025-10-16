@@ -278,7 +278,7 @@ export function Navbar() {
 
         {/* Mobile Menu (<lg only) */}
         <div
-          className={`${isOpen ? "block" : "hidden"} bg-white border-t border-gray-100 lg:hidden min-h-screen`}
+          className={`${isOpen ? "block" : "hidden"} bg-white lg:hidden min-h-screen`}
         >
           <div className="px-6 py-6 space-y-1">
             <Link
