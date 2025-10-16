@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/lib/hooks/use-toast";
 import { Archive, Trash2, ArrowUpRight } from "lucide-react";
@@ -34,14 +34,21 @@ interface OrganizerEditOverviewProps {
 
 export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [updating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [event, setEvent] = useState<EventDetails | null>(null);
   const [scoringConfig, setScoringConfig] = useState<EventScoringConfig | null>(null);
-  const [activeTab, setActiveTab] = useState<string>("overview");
-  const [activeSubTab, setActiveSubTab] = useState<string>("basics");
+
+  // Get tab state from URL or use defaults
+  const tabFromUrl = searchParams.get("tab") || "overview";
+  const subTabFromUrl = searchParams.get("subtab") || "basics";
+  const [activeTab, setActiveTabState] = useState<string>(tabFromUrl);
+  const [activeSubTab, setActiveSubTabState] = useState<string>(subTabFromUrl);
+
   const [participantCount, setParticipantCount] = useState<number>(0);
   const [isAdmin, setIsAdmin] = useState(false);
 
@@ -68,6 +75,41 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
     { value: "faqs", label: "FAQs" },
     { value: "gallery", label: "Gallery" },
   ];
+
+  // Update URL when tabs change
+  const setActiveTab = (tab: string) => {
+    setActiveTabState(tab);
+    const params = new URLSearchParams(searchParams);
+    params.set("tab", tab);
+    // Reset subtab to basics when changing main tabs
+    if (tab === "overview") {
+      params.set("subtab", "basics");
+      setActiveSubTabState("basics");
+    } else {
+      params.delete("subtab");
+    }
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
+
+  const setActiveSubTab = (subtab: string) => {
+    setActiveSubTabState(subtab);
+    const params = new URLSearchParams(searchParams);
+    params.set("subtab", subtab);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
+
+  // Sync state with URL changes
+  useEffect(() => {
+    const tabParam = searchParams.get("tab");
+    const subtabParam = searchParams.get("subtab");
+
+    if (tabParam && tabParam !== activeTab) {
+      setActiveTabState(tabParam);
+    }
+    if (subtabParam && subtabParam !== activeSubTab) {
+      setActiveSubTabState(subtabParam);
+    }
+  }, [searchParams, activeTab, activeSubTab]);
 
   useEffect(() => {
     fetchEvent();
