@@ -76,30 +76,31 @@ export async function EventPageLayout({
       <PageContent className="px-0">
         <div className="flex flex-col w-full">
           {userRole ? (
-            <>
-              <EventPageClientWrapper
-                userRole={userRole}
-                eventId={dbEventId}
-                eventRoleLabels={eventRoleLabels}
-                eventName={eventName}
-                eventBlurb={eventBlurb}
-                eventDate={eventDate}
-                location={location}
-                coverImageUrl={coverImageUrl}
-                displayEventId={eventId}
-                hasJoined={hasJoined}
-              />
+            <EventPageClientWrapper
+              userRole={userRole}
+              eventId={dbEventId}
+              eventRoleLabels={eventRoleLabels}
+              eventName={eventName}
+              eventBlurb={eventBlurb}
+              eventDate={eventDate}
+              location={location}
+              coverImageUrl={coverImageUrl}
+              displayEventId={eventId}
+              hasJoined={hasJoined}
+              tabsAndContent={
+                <>
+                  {/* Tabs Navigation */}
+                  <EventPageTabs eventId={eventId} participantCount={participantCount || 0} projectCount={projectCount || 0} />
 
-              {/* Tabs Navigation */}
-              <EventPageTabs eventId={eventId} participantCount={participantCount || 0} projectCount={projectCount || 0} />
-
-              {/* Main Content */}
-              <div className="w-full">
-                <div className="flex gap-6 w-full px-6 py-[24px]">
-                  {children}
-                </div>
-              </div>
-            </>
+                  {/* Main Content */}
+                  <div className="w-full">
+                    <div className="flex gap-6 w-full px-6 py-[24px]">
+                      {children}
+                    </div>
+                  </div>
+                </>
+              }
+            />
           ) : (
             <>
               {/* Page Header with Cover Image - No role */}

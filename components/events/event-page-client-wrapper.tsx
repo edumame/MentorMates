@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, ReactNode } from "react";
 import { EventRole } from "@/lib/types";
 import { RoleBanner } from "./role-banner";
 import { EventPageHeader } from "./event-page-header";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/lib/hooks/use-toast";
+import { OrganizerDashboard } from "@/features/user/dashboards/dashboard/organizer";
 
 interface EventPageClientWrapperProps {
   userRole: EventRole;
@@ -19,6 +20,7 @@ interface EventPageClientWrapperProps {
   coverImageUrl?: string;
   displayEventId: string;
   hasJoined: boolean;
+  tabsAndContent: ReactNode; // The tabs and main content to show for non-organizer roles
 }
 
 export function EventPageClientWrapper({
@@ -32,6 +34,7 @@ export function EventPageClientWrapper({
   coverImageUrl,
   displayEventId,
   hasJoined,
+  tabsAndContent,
 }: EventPageClientWrapperProps) {
   const [activeRole, setActiveRole] = useState<EventRole>(userRole);
   const [isLoading, setIsLoading] = useState(false);
@@ -103,6 +106,26 @@ export function EventPageClientWrapper({
     }
   };
 
+  // Show organizer dashboard when viewing as organizer/admin
+  if (activeRole === EventRole.Organizer || activeRole === EventRole.Admin) {
+    return (
+      <>
+        <RoleBanner
+          actualRole={userRole}
+          activeRole={activeRole}
+          onRoleChange={handleRoleChange}
+          eventType="event"
+          onCancelRegistration={handleCancelRegistration}
+          eventRoleLabels={eventRoleLabels}
+        />
+        <div className="w-full px-6 py-6">
+          <OrganizerDashboard eventId={eventId} />
+        </div>
+      </>
+    );
+  }
+
+  // Show regular event page for other roles
   return (
     <>
       <RoleBanner
@@ -122,8 +145,9 @@ export function EventPageClientWrapper({
         eventId={displayEventId}
         hasJoined={hasJoined}
         userRole={userRole}
-        onManageEventClick={() => handleRoleChange("organizer")}
+        onManageEventClick={() => handleRoleChange(EventRole.Organizer)}
       />
+      {tabsAndContent}
     </>
   );
 }
