@@ -1,6 +1,7 @@
 "use client";
 
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { EventRole } from "@/lib/types";
 
 interface ActiveRoleContextType {
@@ -19,7 +20,32 @@ export function ActiveRoleProvider({
   children: ReactNode;
   initialRole: EventRole | null;
 }) {
-  const [activeRole, setActiveRole] = useState<EventRole | null>(initialRole);
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  // Get role from query param or use initial role
+  const roleFromQuery = searchParams.get("view") as EventRole | null;
+  const [activeRole, setActiveRoleState] = useState<EventRole | null>(
+    roleFromQuery || initialRole
+  );
+
+  // Update URL when active role changes
+  const setActiveRole = (role: EventRole) => {
+    setActiveRoleState(role);
+
+    // Update URL query param
+    const params = new URLSearchParams(searchParams);
+    params.set("view", role);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
+
+  // Sync state with query param changes
+  useEffect(() => {
+    if (roleFromQuery && roleFromQuery !== activeRole) {
+      setActiveRoleState(roleFromQuery);
+    }
+  }, [roleFromQuery, activeRole]);
 
   return (
     <ActiveRoleContext.Provider value={{ activeRole, setActiveRole }}>
