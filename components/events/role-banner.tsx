@@ -110,7 +110,7 @@ export function RoleBanner({
           )}
         </div>
 
-        {onCancelRegistration && actualRole === "participant" && (
+        {onCancelRegistration && (
           <button
             onClick={onCancelRegistration}
             className="text-[#d92d20] text-base font-medium leading-[1.5] underline hover:no-underline whitespace-nowrap"
