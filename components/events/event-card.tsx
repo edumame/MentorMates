@@ -9,12 +9,22 @@ interface EventCardProps {
 }
 
 export function EventCard({ event }: EventCardProps) {
-  // Parse date for display
-  const eventDate = new Date(event.event_date);
-  const dayOfWeek = eventDate.toLocaleDateString("en-US", { weekday: "short" });
-  const day = eventDate.toLocaleDateString("en-US", { day: "2-digit" });
-  const month = eventDate.toLocaleDateString("en-US", { month: "short" });
-  const year = eventDate.toLocaleDateString("en-US", { year: "numeric" });
+  // Parse date for display with safe fallbacks
+  const { dayOfWeek, day, monthYear } = (() => {
+    try {
+      const parsed = new Date(event.event_date);
+      if (Number.isNaN(parsed.getTime())) {
+        return { dayOfWeek: "TBD", day: "--", monthYear: "" };
+      }
+      return {
+        dayOfWeek: parsed.toLocaleDateString("en-US", { weekday: "short" }),
+        day: parsed.toLocaleDateString("en-US", { day: "2-digit" }),
+        monthYear: parsed.toLocaleDateString("en-US", { month: "short", year: "numeric" }),
+      };
+    } catch {
+      return { dayOfWeek: "TBD", day: "--", monthYear: "" };
+    }
+  })();
 
   // Determine if event is paid or free
   const isPaid = event.paid || event.stripe_price_id;
@@ -25,7 +35,8 @@ export function EventCard({ event }: EventCardProps) {
   return (
     <Link
       href={`/events/${event.slug || event.event_id}/overview`}
-      className="block h-full max-h-[520px]"
+      className="block h-full"
+      prefetch={false}
     >
       <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] overflow-hidden hover:shadow-lg transition-shadow duration-200 flex flex-col h-full">
         {/* Image Section */}
@@ -47,7 +58,7 @@ export function EventCard({ event }: EventCardProps) {
               {day}
             </p>
             <p className="text-[14px] font-normal text-black">
-              {month} {year}
+              {monthYear}
             </p>
           </div>
         </div>
