@@ -93,6 +93,7 @@ export async function EventPageLayout({
             coverImageUrl={coverImageUrl}
             eventId={eventId}
             hasJoined={hasJoined}
+            userRole={userRole}
           />
 
           {/* Tabs Navigation */}

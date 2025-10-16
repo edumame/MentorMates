@@ -1,6 +1,8 @@
 "use client";
 
-import { CalendarDays, MapPin, Ticket, ChevronRight } from "lucide-react";
+import { CalendarDays, MapPin, Ticket, ChevronRight, ArrowUpRight } from "lucide-react";
+import { EventRole } from "@/lib/types";
+import Link from "next/link";
 
 interface EventPageHeaderProps {
   eventName: string;
@@ -10,6 +12,7 @@ interface EventPageHeaderProps {
   coverImageUrl?: string;
   eventId: string;
   hasJoined: boolean;
+  userRole?: EventRole | null;
 }
 
 export function EventPageHeader({
@@ -18,7 +21,9 @@ export function EventPageHeader({
   eventDate,
   location,
   coverImageUrl,
+  eventId,
   hasJoined,
+  userRole,
 }: EventPageHeaderProps) {
   // Format date
   const formattedDate = new Date(eventDate).toLocaleDateString("en-US", {
@@ -114,6 +119,19 @@ export function EventPageHeader({
                 </div>
               )}
                 </div>
+
+                {/* Manage Event Button - shown for organizers/admins */}
+                {(userRole === "organizer" || userRole === "admin") && (
+                  <Link
+                    href={`/events/${eventId}/dashboard`}
+                    className="bg-[#f2f2f2] flex gap-1.5 items-center justify-center px-5 py-2 rounded-xl shadow-sm w-[341px]"
+                  >
+                    <ArrowUpRight className="w-6 h-6 text-black" />
+                    <span className="font-medium text-base text-black">
+                      Manage event
+                    </span>
+                  </Link>
+                )}
               </div>
 
               {/* Date and Location */}
