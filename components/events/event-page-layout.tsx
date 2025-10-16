@@ -1,9 +1,10 @@
 import { ReactNode } from "react";
 import { EventPageHeader } from "./event-page-header";
 import { EventPageTabs } from "./event-page-tabs";
-import { RoleBanner } from "./role-banner";
+import { RoleBannerWrapper } from "./role-banner-wrapper";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
+import { EventRole } from "@/lib/types";
 
 interface EventPageLayoutProps {
   children: ReactNode;
@@ -35,7 +36,7 @@ export async function EventPageLayout({
     data: { user },
   } = await supabase.auth.getUser();
 
-  let userRole: string | null = null;
+  let userRole: EventRole | null = null;
 
   if (user) {
     const { data: userEventRole } = await supabase
@@ -45,8 +46,17 @@ export async function EventPageLayout({
       .eq("event_id", dbEventId)
       .maybeSingle();
 
-    userRole = userEventRole?.role || null;
+    userRole = (userEventRole?.role as EventRole) || null;
   }
+
+  // Fetch event role labels if available
+  const { data: eventData } = await supabase
+    .from("events")
+    .select("event_role_labels")
+    .eq("event_id", dbEventId)
+    .maybeSingle();
+
+  const eventRoleLabels = eventData?.event_role_labels || null;
 
   // Fetch participant count
   const { count: participantCount } = await supabase
@@ -67,7 +77,10 @@ export async function EventPageLayout({
         <div className="flex flex-col w-full">
           {/* Role Banner - Sticky */}
           {userRole && (
-            <RoleBanner role={userRole} eventType="event" />
+            <RoleBannerWrapper
+              userRole={userRole}
+              eventRoleLabels={eventRoleLabels}
+            />
           )}
 
           {/* Page Header with Cover Image */}
