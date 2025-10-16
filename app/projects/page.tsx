@@ -70,18 +70,7 @@ export default function ProjectsPage() {
 
   return (
     <div
-      className={`h-svh overflow-hidden flex flex-col ${isAuthenticated ? "lg:rounded-tl-2xl lg:border-t lg:border-l lg:border-[#D8D8D8] bg-white" : ""}`}
-      style={
-        isAuthenticated
-          ? {
-              background:
-                "linear-gradient(196.644deg, rgba(219, 234, 254, 0.25) 13.188%, rgba(255, 255, 255, 0) 65.83%), linear-gradient(90deg, rgb(251, 252, 254) 0%, rgb(251, 252, 254) 100%)",
-            }
-          : {
-              background:
-                "linear-gradient(203deg, rgba(219, 234, 254, 0.25) 13.19%, rgba(255, 255, 255, 0.00) 65.83%), #FFF",
-            }
-      }
+      className={`h-svh overflow-hidden flex flex-col ${isAuthenticated ? "lg:rounded-tl-2xl lg:border-t lg:border-l lg:border-[#D8D8D8] bg-white" : "bg-white"}`}
     >
       <Toaster />
       <div className="flex-grow overflow-auto px-[32px] pt-[32px] pb-0">

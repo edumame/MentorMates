@@ -86,7 +86,7 @@ export function AuthNavbar() {
 
   return (
     <>
-      <nav className="fixed top-0 inset-x-0 z-50 bg-white top-[var(--banner-h,0px)]">
+      <nav className="fixed top-0 inset-x-0 z-50 bg-[#fbfcfe] top-[var(--banner-h,0px)]">
         <div className="flex items-center justify-between p-4">
           <Link href="/" className="flex items-center gap-2">
             <Image

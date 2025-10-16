@@ -42,7 +42,7 @@ export function LearnLayout() {
   };
   return (
     <div
-      className="rounded-tl-2xl border-t border-l border-[#D8D8D8] bg-white [background:linear-gradient(203deg,rgba(219,234,254,0.25)_13.19%,rgba(255,255,255,0.00)_65.83%),#FFF] px-8 py-6"
+      className="rounded-tl-2xl border-t border-l border-[#D8D8D8] bg-white px-8 py-6"
       style={{ minHeight: "100vh" }}
     >
       <div className="flex items-center justify-between mb-4">

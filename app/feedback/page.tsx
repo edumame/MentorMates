@@ -107,7 +107,7 @@ export default function FeedbackPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col lg:rounded-tl-2xl lg:border-t lg:border-l lg:border-[#D8D8D8] bg-white" style={{ background: "linear-gradient(196.644deg, rgba(219, 234, 254, 0.25) 13.188%, rgba(255, 255, 255, 0) 65.83%), linear-gradient(90deg, rgb(251, 252, 254) 0%, rgb(251, 252, 254) 100%)" }}>
+    <div className="min-h-screen flex flex-col lg:rounded-tl-2xl lg:border-t lg:border-l lg:border-[#D8D8D8] bg-white">
       <div className="flex-grow px-[32px] pt-[24px] pb-0">
         <div className="flex flex-col gap-[48px] max-w-[1064px] mx-auto">
           {/* Header */}
