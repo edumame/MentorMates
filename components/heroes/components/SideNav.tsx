@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import React, { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { createClient } from "@/app/utils/supabase/client";
 
 const HomeIcon = (
@@ -142,6 +143,7 @@ const bottomLinksBase = [
 
 export function SideNav() {
   const [userId, setUserId] = useState<string | null>(null);
+  const pathname = usePathname();
 
   useEffect(() => {
     const supabase = createClient();
@@ -152,28 +154,54 @@ export function SideNav() {
 
   const profileHref = userId ? `/profile/${userId}` : "/profile";
 
+  // Helper to determine if path is active
+  const isActive = (href: string) => {
+    if (href === "/") {
+      return pathname === "/";
+    }
+    // For routes like /profile/123, we check if pathname startswith
+    return pathname?.startsWith(href);
+  };
+
   return (
-    <div className="p-4 w-[240px] h-full flex flex-col justify-between">
-      <div className="flex flex-col gap-2">
+    <div className="w-[270px] h-full flex flex-col justify-between">
+      <div className="flex flex-col gap-2 p-4">
         {data.map((item) => (
           <Link
             href={item.href}
             key={item.name}
-            className="flex items-center gap-2 hover:bg-blue-100/50 hover:rounded-md w-full p-2"
+            className={`
+              flex items-center gap-2
+              w-full p-2
+              rounded-md
+              transition
+              ${isActive(item.href) ? "bg-blue-100/50" : ""}
+              hover:bg-blue-100/50
+            `}
           >
             {item.icon}
             {item.name}
           </Link>
         ))}
       </div>
-      <div className="flex flex-col gap-2 mt-8">
+      <div className="flex flex-col gap-2 mt-8 p-4">
         {[...bottomLinksBase].map((item) => {
           const href = item.name === "Profile" ? profileHref : item.href;
+          const active = isActive(
+            item.name === "Profile" ? "/profile" : item.href
+          );
           return (
             <Link
               href={href}
               key={item.name}
-              className="flex items-center gap-2 hover:bg-blue-100/50 hover:rounded-md w-full p-2"
+              className={`
+                flex items-center gap-2
+                w-full p-2
+                rounded-md
+                transition
+                ${active ? "bg-blue-100/50" : ""}
+                hover:bg-blue-100/50
+              `}
             >
               {item.icon}
               {item.name}
