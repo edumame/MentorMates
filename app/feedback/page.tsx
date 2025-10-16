@@ -134,7 +134,7 @@ export default function FeedbackPage() {
 
           {/* Table */}
           <div className="flex flex-col gap-[24px]">
-            <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[16px] overflow-hidden">
+            <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[16px] overflow-x-auto">
               {/* Sticky Header Row */}
               <div className="flex sticky top-0 z-10 bg-white rounded-t-[16px] border-t border-x border-[rgba(0,0,0,0.15)]">
                 <div className="w-[264px] border-b border-[rgba(0,0,0,0.15)] px-[24px] py-[16px]">
