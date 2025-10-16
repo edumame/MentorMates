@@ -44,7 +44,7 @@ export function EventPageSidebar({
   };
 
   return (
-    <div className="flex flex-col gap-6 flex-1 min-w-0">
+    <div className="flex flex-col gap-6 w-[341px]">
       {/* Important Links */}
       {eventResources && eventResources.length > 0 && (
         <div className="flex flex-col gap-4 w-full">
