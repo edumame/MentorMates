@@ -14,67 +14,63 @@ interface ContentTabProps {
 
 export function ContentTab({ event, setEvent, isArchived = false }: ContentTabProps) {
   return (
-    <div className="w-[681px] inline-flex flex-col justify-start items-start gap-6">
-      <div className="self-stretch flex flex-col justify-start items-start gap-4">
-        <div className="self-stretch inline-flex justify-start items-start gap-6">
-          <div className="flex-1 inline-flex flex-col justify-start items-start gap-2">
-            <Tabs defaultValue="edit" className="w-full">
-              <div className="self-stretch inline-flex justify-between items-center">
-                <div className="justify-start text-black text-base font-normal font-['Inter'] leading-normal">
-                  Exclusive Content for Participants
-                </div>
+    <div className="content-stretch flex flex-col gap-[16px] items-start w-full">
+      <div className="content-stretch flex gap-[24px] items-start relative shrink-0 w-full">
+        <div className="basis-0 content-stretch flex flex-col gap-[8px] grow items-start min-h-px min-w-px relative shrink-0">
+          <Tabs defaultValue="edit" className="w-full">
+            <div className="content-stretch flex items-center justify-between relative shrink-0 w-full">
+              <p className="font-['Inter'] font-normal leading-[1.5] not-italic relative shrink-0 text-[16px] text-black text-nowrap whitespace-pre">
+                Exclusive Content for Participants
+              </p>
+              <TabsList className="bg-white border border-[rgba(0,0,0,0.15)] border-solid box-border content-stretch flex items-start p-[4px] relative rounded-[12px] shrink-0 h-auto gap-0">
+                <TabsTrigger
+                  value="edit"
+                  className="px-[24px] py-[6px] rounded-[8px] gap-[8px] text-[12px] leading-[1.5] h-auto font-['Inter'] text-black data-[state=active]:bg-[#fbfcfe] data-[state=active]:border data-[state=active]:border-[rgba(0,0,0,0.15)] data-[state=active]:border-solid data-[state=active]:font-medium data-[state=active]:shadow-none data-[state=inactive]:bg-[rgba(255,255,255,0)] data-[state=inactive]:border data-[state=inactive]:border-[rgba(255,255,255,0)] data-[state=inactive]:border-solid data-[state=inactive]:font-normal"
+                >
+                  Edit
+                </TabsTrigger>
+                <TabsTrigger
+                  value="preview"
+                  className="px-[16px] py-[6px] rounded-[100px] gap-[8px] text-[12px] leading-[1.5] h-auto font-['Inter'] text-black data-[state=active]:bg-[#fbfcfe] data-[state=active]:border data-[state=active]:border-[rgba(0,0,0,0.15)] data-[state=active]:border-solid data-[state=active]:font-medium data-[state=active]:shadow-none data-[state=inactive]:bg-[rgba(255,255,255,0)] data-[state=inactive]:border data-[state=inactive]:border-[rgba(255,255,255,0)] data-[state=inactive]:border-solid data-[state=inactive]:font-normal"
+                >
+                  Preview
+                </TabsTrigger>
+              </TabsList>
+            </div>
 
-                <TabsList className="p-1 bg-white rounded-xl outline outline-1 outline-offset-[-1px] outline-[rgba(0,0,0,0.15)] flex justify-start items-start h-auto gap-0">
-                  <TabsTrigger
-                    value="edit"
-                    className="px-6 py-1.5 rounded-lg flex justify-center items-center gap-2 text-xs font-medium font-['Inter'] leading-none text-black h-auto data-[state=active]:bg-[#fbfcfe] data-[state=active]:outline data-[state=active]:outline-1 data-[state=active]:outline-offset-[-1px] data-[state=active]:outline-[rgba(0,0,0,0.15)] data-[state=active]:shadow-none data-[state=inactive]:bg-transparent data-[state=inactive]:outline-transparent data-[state=inactive]:font-normal"
-                  >
-                    Edit
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="preview"
-                    className="px-4 py-1.5 rounded-[100px] flex justify-center items-center gap-2 text-xs font-medium font-['Inter'] leading-none text-black h-auto data-[state=active]:bg-[#fbfcfe] data-[state=active]:outline data-[state=active]:outline-1 data-[state=active]:outline-offset-[-1px] data-[state=active]:outline-[rgba(0,0,0,0.15)] data-[state=active]:shadow-none data-[state=inactive]:bg-transparent data-[state=inactive]:outline-transparent data-[state=inactive]:font-normal"
-                  >
-                    Preview
-                  </TabsTrigger>
-                </TabsList>
+            <TabsContent value="edit" className="mt-0">
+              <div className="bg-white border border-[rgba(0,0,0,0.15)] border-solid box-border content-stretch flex gap-[12px] h-[299px] items-start px-[12px] py-[8px] relative rounded-[12px] shrink-0 w-full">
+                <textarea
+                  id="paywall_content"
+                  value={event.paywall_content || ""}
+                  disabled={isArchived}
+                  onChange={(e) =>
+                    setEvent({ ...event, paywall_content: e.target.value })
+                  }
+                  placeholder="Add content (markdown supported)"
+                  className="basis-0 font-['Inter'] font-normal grow leading-[1.5] min-h-px min-w-px not-italic relative shrink-0 text-[16px] text-[rgba(0,0,0,0.6)] bg-transparent border-none outline-none focus:outline-none resize-none"
+                />
               </div>
+            </TabsContent>
 
-              <TabsContent value="edit" className="mt-2">
-                <div className="self-stretch h-72 px-3 py-2 bg-white rounded-xl outline outline-1 outline-[rgba(0,0,0,0.15)] inline-flex justify-start items-start gap-3">
-                  <textarea
-                    id="paywall_content"
-                    value={event.paywall_content || ""}
-                    disabled={isArchived}
-                    onChange={(e) =>
-                      setEvent({ ...event, paywall_content: e.target.value })
-                    }
-                    placeholder="Add content (markdown supported)"
-                    className="flex-1 resize-none justify-start text-[rgba(0,0,0,0.6)] text-base font-normal font-['Inter'] leading-normal bg-transparent border-none outline-none focus:outline-none"
-                  />
+            <TabsContent value="preview" className="mt-0">
+              <div className="bg-white border border-[rgba(0,0,0,0.15)] border-solid box-border content-stretch flex gap-[12px] min-h-[299px] items-start px-[12px] py-[8px] relative rounded-[12px] shrink-0 w-full">
+                <div className="prose prose-sm dark:prose-invert max-w-none basis-0 font-['Inter'] font-normal grow leading-[1.5] min-h-px min-w-px not-italic relative shrink-0 text-[16px] text-black">
+                  <ReactMarkdown
+                    rehypePlugins={markdownRehypePlugins}
+                    components={customMarkdownComponents}
+                  >
+                    {event.paywall_content || ""}
+                  </ReactMarkdown>
                 </div>
-              </TabsContent>
-
-              <TabsContent value="preview" className="mt-2">
-                <div className="self-stretch min-h-72 px-3 py-2 bg-white rounded-xl outline outline-1 outline-[rgba(0,0,0,0.15)] inline-flex justify-start items-start gap-3">
-                  <div className="prose prose-sm dark:prose-invert max-w-none flex-1 text-base font-normal font-['Inter'] leading-normal text-black">
-                    <ReactMarkdown
-                      rehypePlugins={markdownRehypePlugins}
-                      components={customMarkdownComponents}
-                    >
-                      {event.paywall_content || ""}
-                    </ReactMarkdown>
-                  </div>
-                </div>
-              </TabsContent>
-            </Tabs>
-          </div>
-        </div>
-
-        <div className="self-stretch justify-start text-[#7f7f7f] text-base font-normal font-['Inter'] leading-normal">
-          *This content is visible only to participants who have joined the event.
+              </div>
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
+      <p className="font-['Inter'] font-normal leading-[1.5] not-italic relative shrink-0 text-[#7f7f7f] text-[16px] w-full">
+        *This content is visible only to participants who have joined/paid for the event.
+      </p>
     </div>
   );
 }
