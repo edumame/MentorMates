@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 
 interface EventPageTabsProps {
   eventId: string;
@@ -11,6 +11,7 @@ interface EventPageTabsProps {
 
 export function EventPageTabs({ eventId, participantCount, projectCount }: EventPageTabsProps) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   const tabs = [
     { name: "Overview", path: `/events/${eventId}/overview` },
@@ -21,6 +22,13 @@ export function EventPageTabs({ eventId, participantCount, projectCount }: Event
     // { name: "Gallery", path: `/events/${eventId}/gallery` }, // TODO: Add back when image upload functionality is ready
   ];
 
+  // Helper function to preserve query params
+  const getHrefWithParams = (path: string) => {
+    const params = new URLSearchParams(searchParams);
+    const queryString = params.toString();
+    return queryString ? `${path}?${queryString}` : path;
+  };
+
   return (
     <div className="border-b border-[#f2f2f2] w-full">
       <div className="flex gap-6 items-start px-6 w-full">
@@ -30,7 +38,7 @@ export function EventPageTabs({ eventId, participantCount, projectCount }: Event
           return (
             <Link
               key={tab.name}
-              href={tab.path}
+              href={getHrefWithParams(tab.path)}
               className={`flex gap-2 items-center px-0 py-2 ${
                 isActive ? "border-b-2 border-[#4b89ef]" : ""
               }`}
