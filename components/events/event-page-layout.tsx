@@ -1,6 +1,8 @@
 import { ReactNode } from "react";
 import { EventPageHeader } from "./event-page-header";
 import { EventPageTabs } from "./event-page-tabs";
+import { RoleBanner } from "./role-banner";
+import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 
 interface EventPageLayoutProps {
@@ -28,6 +30,24 @@ export async function EventPageLayout({
 }: EventPageLayoutProps) {
   const supabase = await createSupabaseClient();
 
+  // Get user's role for the event
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  let userRole: string | null = null;
+
+  if (user) {
+    const { data: userEventRole } = await supabase
+      .from("user_event_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("event_id", dbEventId)
+      .maybeSingle();
+
+    userRole = userEventRole?.role || null;
+  }
+
   // Fetch participant count
   const { count: participantCount } = await supabase
     .from("user_event_roles")
@@ -40,30 +60,38 @@ export async function EventPageLayout({
     .from("projects")
     .select("*", { count: "exact", head: true })
     .eq("event_id", dbEventId);
+
   return (
-    <div className="bg-white border-l border-[#d8d8d8] flex flex-col min-h-screen w-full">
-      <div className="flex flex-col w-full">
-        {/* Page Header with Cover Image */}
-        <EventPageHeader
-          eventName={eventName}
-          eventBlurb={eventBlurb}
-          eventDate={eventDate}
-          location={location}
-          coverImageUrl={coverImageUrl}
-          eventId={eventId}
-          hasJoined={hasJoined}
-        />
+    <PageContainer>
+      <PageContent className="px-0">
+        <div className="flex flex-col w-full">
+          {/* Role Banner - Sticky */}
+          {userRole && (
+            <RoleBanner role={userRole} eventType="event" />
+          )}
 
-        {/* Tabs Navigation */}
-        <EventPageTabs eventId={eventId} participantCount={participantCount || 0} projectCount={projectCount || 0} />
+          {/* Page Header with Cover Image */}
+          <EventPageHeader
+            eventName={eventName}
+            eventBlurb={eventBlurb}
+            eventDate={eventDate}
+            location={location}
+            coverImageUrl={coverImageUrl}
+            eventId={eventId}
+            hasJoined={hasJoined}
+          />
 
-        {/* Main Content */}
-        <div className="w-full">
-          <div className="flex gap-6 w-full px-6 py-12">
-            {children}
+          {/* Tabs Navigation */}
+          <EventPageTabs eventId={eventId} participantCount={participantCount || 0} projectCount={projectCount || 0} />
+
+          {/* Main Content */}
+          <div className="w-full">
+            <div className="flex gap-6 w-full px-6 py-12">
+              {children}
+            </div>
           </div>
         </div>
-      </div>
-    </div>
+      </PageContent>
+    </PageContainer>
   );
 }
