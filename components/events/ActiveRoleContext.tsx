@@ -34,10 +34,22 @@ export function ActiveRoleProvider({
   const setActiveRole = (role: EventRole) => {
     setActiveRoleState(role);
 
-    // Update URL query param
-    const params = new URLSearchParams(searchParams);
-    params.set("view", role);
-    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    // Extract event ID/slug from pathname (e.g., /events/[slug]/[tab])
+    const pathParts = pathname.split('/');
+    const eventIndex = pathParts.indexOf('events');
+
+    if (eventIndex !== -1 && pathParts[eventIndex + 1]) {
+      // Navigate to overview page with view query param
+      const eventSlug = pathParts[eventIndex + 1];
+      const params = new URLSearchParams();
+      params.set("view", role);
+      router.replace(`/events/${eventSlug}/overview?${params.toString()}`, { scroll: false });
+    } else {
+      // Fallback: just update query param if path structure is unexpected
+      const params = new URLSearchParams(searchParams);
+      params.set("view", role);
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    }
   };
 
   // Sync state with query param changes
