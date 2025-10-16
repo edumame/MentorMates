@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
 import { EventDetails } from "@/lib/types";
 import ReactMarkdown from "react-markdown";
 import { customMarkdownComponents } from "@/components/markdown/custom-components";
 import { markdownRehypePlugins } from "@/components/markdown/plugins";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 interface ContentTabProps {
   event: EventDetails;
@@ -13,8 +13,6 @@ interface ContentTabProps {
 }
 
 export function ContentTab({ event, setEvent, isArchived = false }: ContentTabProps) {
-  const [activeMode, setActiveMode] = useState<"edit" | "preview">("edit");
-
   return (
     <div className="flex flex-col gap-[24px] items-start w-full">
       {/* Input Container */}
@@ -23,68 +21,63 @@ export function ContentTab({ event, setEvent, isArchived = false }: ContentTabPr
         <div className="flex gap-[24px] items-start w-full">
           {/* Input Field */}
           <div className="flex-1 flex flex-col gap-[8px] min-w-0">
-            {/* Header with Toggle */}
-            <div className="flex items-center justify-between w-full">
-              <p className="font-normal text-[16px] leading-[1.5] text-black whitespace-pre">
-                Exclusive Content for Participants
-              </p>
+            <Tabs defaultValue="edit" className="w-full">
+              {/* Header with Toggle */}
+              <div className="flex items-center justify-between w-full">
+                <p className="font-normal text-[16px] leading-[1.5] text-black whitespace-pre">
+                  Exclusive Content for Participants
+                </p>
 
-              {/* Edit/Preview Toggle */}
-              <div className="bg-white border border-[rgba(0,0,0,0.15)] border-solid rounded-[12px] p-[4px] flex items-start shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setActiveMode("edit")}
-                  className={`flex gap-[8px] items-center justify-center px-[24px] py-[6px] rounded-[8px] text-[12px] leading-[1.5] whitespace-pre transition-all ${
-                    activeMode === "edit"
-                      ? "bg-[#fbfcfe] border border-[rgba(0,0,0,0.15)] border-solid font-medium text-black"
-                      : "bg-[rgba(255,255,255,0)] border border-[rgba(255,255,255,0)] border-solid font-normal text-black"
-                  }`}
-                  style={{ fontFamily: 'Inter, sans-serif' }}
-                >
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveMode("preview")}
-                  className={`flex gap-[8px] items-center justify-center px-[16px] py-[6px] rounded-[100px] text-[12px] leading-[1.5] whitespace-pre transition-all ${
-                    activeMode === "preview"
-                      ? "bg-[#fbfcfe] border border-[rgba(0,0,0,0.15)] border-solid font-medium text-black"
-                      : "bg-[rgba(255,255,255,0)] border border-[rgba(255,255,255,0)] border-solid font-normal text-black"
-                  }`}
-                  style={{ fontFamily: 'Inter, sans-serif' }}
-                >
-                  Preview
-                </button>
-              </div>
-            </div>
-
-            {/* Text Input / Preview Area */}
-            {activeMode === "edit" ? (
-              <div className="bg-white border border-[rgba(0,0,0,0.15)] border-solid rounded-[12px] h-[299px] px-[12px] py-[8px] w-full">
-                <textarea
-                  id="paywall_content"
-                  value={event.paywall_content || ""}
-                  disabled={isArchived}
-                  onChange={(e) =>
-                    setEvent({ ...event, paywall_content: e.target.value })
-                  }
-                  placeholder="Add content (markdown supported)"
-                  className="w-full h-full resize-none font-normal text-[16px] leading-[1.5] text-black placeholder:text-[rgba(0,0,0,0.6)] bg-transparent border-none outline-none focus:outline-none"
-                  style={{ fontFamily: 'Inter, sans-serif' }}
-                />
-              </div>
-            ) : (
-              <div className="bg-white border border-[rgba(0,0,0,0.15)] border-solid rounded-[12px] min-h-[299px] px-[12px] py-[8px] w-full">
-                <div className="prose prose-sm dark:prose-invert max-w-none text-[16px] leading-[1.5] text-black" style={{ fontFamily: 'Inter, sans-serif' }}>
-                  <ReactMarkdown
-                    rehypePlugins={markdownRehypePlugins}
-                    components={customMarkdownComponents}
+                {/* Edit/Preview Toggle using Shadcn Tabs */}
+                <TabsList className="bg-white border border-[rgba(0,0,0,0.15)] border-solid rounded-[12px] p-[4px] h-auto shrink-0">
+                  <TabsTrigger
+                    value="edit"
+                    className="px-[24px] py-[6px] rounded-[8px] text-[12px] leading-[1.5] data-[state=active]:bg-[#fbfcfe] data-[state=active]:border data-[state=active]:border-[rgba(0,0,0,0.15)] data-[state=active]:border-solid data-[state=active]:font-medium data-[state=inactive]:bg-[rgba(255,255,255,0)] data-[state=inactive]:border data-[state=inactive]:border-[rgba(255,255,255,0)] data-[state=inactive]:font-normal data-[state=active]:shadow-none"
+                    style={{ fontFamily: 'Inter, sans-serif' }}
                   >
-                    {event.paywall_content || ""}
-                  </ReactMarkdown>
-                </div>
+                    Edit
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="preview"
+                    className="px-[16px] py-[6px] rounded-[100px] text-[12px] leading-[1.5] data-[state=active]:bg-[#fbfcfe] data-[state=active]:border data-[state=active]:border-[rgba(0,0,0,0.15)] data-[state=active]:border-solid data-[state=active]:font-medium data-[state=inactive]:bg-[rgba(255,255,255,0)] data-[state=inactive]:border data-[state=inactive]:border-[rgba(255,255,255,0)] data-[state=inactive]:font-normal data-[state=active]:shadow-none"
+                    style={{ fontFamily: 'Inter, sans-serif' }}
+                  >
+                    Preview
+                  </TabsTrigger>
+                </TabsList>
               </div>
-            )}
+
+              {/* Text Input Area */}
+              <TabsContent value="edit" className="mt-[8px]">
+                <div className="bg-white border border-[rgba(0,0,0,0.15)] border-solid rounded-[12px] h-[299px] px-[12px] py-[8px] w-full">
+                  <textarea
+                    id="paywall_content"
+                    value={event.paywall_content || ""}
+                    disabled={isArchived}
+                    onChange={(e) =>
+                      setEvent({ ...event, paywall_content: e.target.value })
+                    }
+                    placeholder="Add content (markdown supported)"
+                    className="w-full h-full resize-none font-normal text-[16px] leading-[1.5] text-black placeholder:text-[rgba(0,0,0,0.6)] bg-transparent border-none outline-none focus:outline-none"
+                    style={{ fontFamily: 'Inter, sans-serif' }}
+                  />
+                </div>
+              </TabsContent>
+
+              {/* Preview Area */}
+              <TabsContent value="preview" className="mt-[8px]">
+                <div className="bg-white border border-[rgba(0,0,0,0.15)] border-solid rounded-[12px] min-h-[299px] px-[12px] py-[8px] w-full">
+                  <div className="prose prose-sm dark:prose-invert max-w-none text-[16px] leading-[1.5] text-black" style={{ fontFamily: 'Inter, sans-serif' }}>
+                    <ReactMarkdown
+                      rehypePlugins={markdownRehypePlugins}
+                      components={customMarkdownComponents}
+                    >
+                      {event.paywall_content || ""}
+                    </ReactMarkdown>
+                  </div>
+                </div>
+              </TabsContent>
+            </Tabs>
           </div>
         </div>
 
