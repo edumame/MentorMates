@@ -4,23 +4,27 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/lib/hooks/use-toast";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { Archive, Trash2 } from "lucide-react";
+import { EventDetails, EventScoringConfig, EventTrack, ScoringCriterion } from "@/lib/types";
+
+// Import existing tab components
+import { ParticipantsTab } from "@/features/user/dashboards/dashboard/organizer/participants";
+import { AccessTab } from "@/features/user/dashboards/dashboard/organizer/access";
+import { EventTracksContainer } from "@/features/user/dashboards/dashboard/organizer/tracks";
+import { AssignTab } from "@/features/user/dashboards/dashboard/organizer/assign";
+import { SubmissionsTab } from "@/features/user/dashboards/dashboard/organizer/submissions";
+import { ScoresTab } from "@/features/user/dashboards/dashboard/organizer/scores";
+import { PricingTab } from "@/features/user/dashboards/dashboard/organizer/pricing/PricingTab";
+import EmailDashboard from "@/features/user/dashboards/dashboard/organizer/notifications/EmailDashboard";
+
+// Import sub-tab components for Overview
+import { BasicInfoTab } from "@/features/user/dashboards/dashboard/organizer/details/BasicInfoTab";
+import { ScheduleTab } from "@/features/user/dashboards/dashboard/organizer/details/ScheduleTab";
+import { ResourcesTab } from "@/features/user/dashboards/dashboard/organizer/details/ResourcesTab";
+import { RulesTab } from "@/features/user/dashboards/dashboard/organizer/details/RulesTab";
+import { FAQTab } from "@/features/user/dashboards/dashboard/organizer/details/FAQTab";
+
 import { Button } from "@/components/ui/button";
-import { DatePicker } from "@/components/ui/date-picker";
-import {
-  MapPin,
-  Image as ImageIcon,
-  Type,
-  Mail,
-  Globe,
-  Calendar,
-  Users,
-  Archive,
-  Trash2,
-  Video
-} from "lucide-react";
-import { EventDetails } from "@/lib/types";
 
 interface OrganizerEditOverviewProps {
   eventId: string;
@@ -30,35 +34,142 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
   const router = useRouter();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
-  const [updating, setUpdating] = useState(false);
+  const [updating] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [event, setEvent] = useState<EventDetails | null>(null);
-  const [activeSubTab, setActiveSubTab] = useState<string>("Basics");
-  const [locationType, setLocationType] = useState<"in-person" | "virtual">("in-person");
-  const [isPaidEvent, setIsPaidEvent] = useState(false);
-  const [showVisibilityDropdown, setShowVisibilityDropdown] = useState(false);
-  const [visibility, setVisibility] = useState<"Public" | "Private">("Public");
-  const [editMode, setEditMode] = useState<"Edit" | "Preview">("Edit");
+  const [scoringConfig, setScoringConfig] = useState<EventScoringConfig | null>(null);
+  const [activeTab, setActiveTab] = useState<string>("overview");
+  const [activeSubTab, setActiveSubTab] = useState<string>("basics");
+  const [participantCount, setParticipantCount] = useState<number>(0);
+  const [isAdmin, setIsAdmin] = useState(false);
 
-  const subTabs = ["Basics", "Content", "Schedule", "Resources", "Rules", "FAQs", "Gallery"];
+  // Main tabs matching Figma design
+  const mainTabs = [
+    { value: "overview", label: "Overview" },
+    { value: "participants", label: "Participants", badge: participantCount },
+    { value: "access", label: "Access" },
+    { value: "tracks", label: "Tracks" },
+    { value: "assign", label: "Assign" },
+    { value: "project-submission", label: "Project Submission" },
+    { value: "live-scores", label: "Live Scores" },
+    { value: "ticketing", label: "Ticketing" },
+    { value: "notify", label: "Notify" },
+  ];
+
+  // Sub-tabs under Overview matching Figma design
+  const overviewSubTabs = [
+    { value: "basics", label: "Basics" },
+    { value: "content", label: "Content" },
+    { value: "schedule", label: "Schedule" },
+    { value: "resources", label: "Resources" },
+    { value: "rules", label: "Rules" },
+    { value: "faqs", label: "FAQs" },
+    { value: "gallery", label: "Gallery" },
+  ];
 
   useEffect(() => {
     fetchEvent();
+    fetchParticipantCount();
+    checkAdminStatus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventId]);
+
+  const checkAdminStatus = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const { data: adminData } = await supabase.rpc("is_admin_user", {
+        user_id: session.user.id,
+      });
+      setIsAdmin(adminData || false);
+    } catch (error) {
+      console.error("Error checking admin status:", error);
+    }
+  };
+
+  const fetchParticipantCount = async () => {
+    try {
+      const { count } = await supabase
+        .from("user_event_roles")
+        .select("*", { count: "exact", head: true })
+        .eq("event_id", eventId)
+        .eq("role", "participant");
+
+      setParticipantCount(count || 0);
+    } catch (error) {
+      console.error("Error fetching participant count:", error);
+    }
+  };
 
   const fetchEvent = async () => {
     try {
       const { data, error } = await supabase
         .from("events")
-        .select("*")
+        .select(`
+          *,
+          event_tracks (
+            track_id,
+            name,
+            description,
+            label,
+            scoring_criteria,
+            prizes (
+              id,
+              prize_amount,
+              prize_description
+            )
+          )
+        `)
         .eq("event_id", eventId)
         .single();
 
       if (error) throw error;
 
       setEvent(data as EventDetails);
-      setLocationType(data.location?.toLowerCase().includes("virtual") ? "virtual" : "in-person");
-      setIsPaidEvent(data.paid || false);
-      setVisibility(data.visibility === "public" ? "Public" : "Private");
+
+      // Map event tracks to scoring_config structure
+      if (data && data.event_tracks) {
+        const tracksConfig: Record<
+          string,
+          {
+            name: string;
+            criteria: Array<{
+              id: string;
+              name: string;
+              description: string;
+              weight: number;
+              min: number;
+              max: number;
+            }>;
+          }
+        > = {};
+        data.event_tracks.forEach((track: EventTrack) => {
+          if (track.track_id && track.scoring_criteria) {
+            tracksConfig[track.track_id] = {
+              name: track.name,
+              criteria: track.scoring_criteria.criteria.map((criterion: ScoringCriterion) => ({
+                id: criterion.id,
+                name: criterion.name,
+                description: criterion.description,
+                weight: criterion.weight || 1,
+                min: criterion.min || 1,
+                max: criterion.max || 10,
+                type: criterion.type || "numeric",
+                options: criterion.options || [],
+              })),
+            };
+          }
+        });
+
+        const scoreConfig = {
+          tracks: tracksConfig,
+          defaultMin: 1,
+          defaultMax: 10,
+          defaultWeight: 1,
+        };
+        setScoringConfig(scoreConfig);
+      }
     } catch (error) {
       console.error("Error fetching event:", error);
       toast({
@@ -72,43 +183,11 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
   };
 
   const handleUpdate = async () => {
-    if (!event) return;
-
-    setUpdating(true);
-    try {
-      const { error } = await supabase
-        .from("events")
-        .update({
-          event_name: event.event_name,
-          event_date: event.event_date,
-          location: event.location,
-          event_blurb: event.event_blurb,
-          event_description: event.event_description,
-          cover_image_url: event.cover_image_url,
-          participant_capacity: event.participant_capacity,
-          visibility: visibility.toLowerCase(),
-          paid: isPaidEvent,
-        })
-        .eq("event_id", eventId);
-
-      if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: "Event updated successfully",
-      });
-
-      router.refresh();
-    } catch (error) {
-      console.error("Error updating event:", error);
-      toast({
-        title: "Error",
-        description: "Failed to update event",
-        variant: "destructive",
-      });
-    } finally {
-      setUpdating(false);
-    }
+    toast({
+      title: "Success",
+      description: "Event updated successfully",
+    });
+    router.refresh();
   };
 
   const handleArchive = async () => {
@@ -165,17 +244,6 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
     }
   };
 
-  const formatDateForPreview = (dateStr: string) => {
-    if (!dateStr) return { day: "09", month: "Feb", year: "2024", weekday: "Fri" };
-    const date = new Date(dateStr);
-    return {
-      day: date.getDate().toString().padStart(2, "0"),
-      month: date.toLocaleDateString("en-US", { month: "short" }),
-      year: date.getFullYear().toString(),
-      weekday: date.toLocaleDateString("en-US", { weekday: "short" }),
-    };
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -192,18 +260,16 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
     );
   }
 
-  const previewDate = formatDateForPreview(event.event_date);
-
   return (
     <div
-      className="border-[#d8d8d8] border-l border-t rounded-tl-[16px] w-full"
+      className="border-[#d8d8d8] border-l border-t rounded-tl-[16px] w-full min-h-screen"
       style={{
         background: "linear-gradient(209.28deg, rgba(219, 234, 254, 0.25) 13.188%, rgba(255, 255, 255, 0) 65.83%), linear-gradient(90deg, rgb(255, 255, 255) 0%, rgb(255, 255, 255) 100%)"
       }}
     >
-      <div className="px-8 py-6">
+      <div className="px-8 py-6 space-y-6">
         {/* Header with title and action buttons */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between">
           <h1 className="font-semibold text-[28px] leading-[1.4] tracking-[-1.68px] text-black" style={{ fontFamily: "Geist, sans-serif" }}>
             Manage Event
           </h1>
@@ -235,328 +301,189 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
           </div>
         </div>
 
-        {/* Sub-tabs for Overview section */}
-        <div className="flex gap-6 items-center border-b border-[#d2d7e7] mb-6">
-          {subTabs.map((tab) => (
+        {/* Main tabs */}
+        <div className="flex gap-6 items-center border-b border-[#d2d7e7]">
+          {mainTabs.map((tab) => (
             <button
-              key={tab}
-              onClick={() => setActiveSubTab(tab)}
-              className={`px-4 py-2 text-[16px] font-${activeSubTab === tab ? "medium" : "normal"} ${
-                activeSubTab === tab
-                  ? "border-b-2 border-[#4b89ef] text-black"
-                  : "text-black"
+              key={tab.value}
+              onClick={() => setActiveTab(tab.value)}
+              className={`flex items-center gap-2 px-0 py-2 text-[16px] ${
+                activeTab === tab.value
+                  ? "font-medium border-b-2 border-[#4b89ef] text-black"
+                  : "font-normal text-black"
               }`}
             >
-              {tab}
+              {tab.label}
+              {tab.badge !== undefined && tab.badge > 0 && (
+                <span className="bg-white border border-[rgba(0,0,0,0.15)] px-2 py-0 rounded-full text-[14px] font-normal">
+                  {tab.badge}
+                </span>
+              )}
             </button>
           ))}
         </div>
 
-        {/* Content Area - Only show Basics for now */}
-        {activeSubTab === "Basics" && (
-          <div className="flex gap-12 items-start">
-            {/* Form Section */}
-            <div className="flex-1 max-w-[682px] space-y-6">
-              {/* Visibility Dropdown */}
-              <div className="relative w-[142px]">
-                <button
-                  onClick={() => setShowVisibilityDropdown(!showVisibilityDropdown)}
-                  className="flex items-center gap-2 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] px-3 py-2 h-[44px] w-full hover:bg-gray-50 transition-colors"
-                >
-                  <Globe className="w-6 h-6" />
-                  <span className="text-[16px] font-normal flex-1">{visibility}</span>
-                  <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none">
-                    <path d="M7 10l5 5 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </button>
-
-                {showVisibilityDropdown && (
-                  <div className="absolute top-full mt-2 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] shadow-lg z-10 w-full overflow-hidden">
-                    {["Public", "Private"].map((vis) => (
-                      <button
-                        key={vis}
-                        onClick={() => {
-                          setVisibility(vis as "Public" | "Private");
-                          setShowVisibilityDropdown(false);
-                        }}
-                        className="w-full text-left px-3 py-2 hover:bg-gray-50 text-[16px] font-normal"
-                      >
-                        {vis}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Event Title */}
-              <input
-                type="text"
-                value={event.event_name}
-                onChange={(e) => setEvent({ ...event, event_name: e.target.value })}
-                className="font-semibold text-[36px] leading-[1.3] tracking-[-2.16px] w-full bg-transparent border-none outline-none focus:ring-0 p-0 text-black"
-                style={{ fontFamily: "Geist, sans-serif" }}
-              />
-
-              {/* Date */}
-              <div className="space-y-2">
-                <label className="text-[16px] font-normal text-black">Date</label>
-                <DatePicker
-                  value={event.event_date}
-                  onChange={(value) => setEvent({ ...event, event_date: value })}
-                  placeholder="mm/dd/yyyy"
-                />
-              </div>
-
-              {/* Project submission window */}
-              <div className="space-y-2">
-                <label className="text-[16px] font-normal text-black">Project submission window (UTC)</label>
-                <div className="flex gap-2 items-center">
-                  <div className="flex-1">
-                    <div className="relative">
-                      <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
-                      <Input
-                        type="datetime-local"
-                        placeholder="mm/dd/yyyy"
-                        className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)]"
-                      />
-                    </div>
-                  </div>
-                  <span className="text-[16px] text-[#7f7f7f]">to</span>
-                  <div className="flex-1">
-                    <div className="relative">
-                      <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
-                      <Input
-                        type="datetime-local"
-                        placeholder="mm/dd/yyyy"
-                        className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)]"
-                      />
-                    </div>
-                  </div>
-                </div>
-                <p className="text-[16px] text-[#7f7f7f]">
-                  Sat May 03 2025 16:00:00 GMT+0800 (China Standard Time)
-                </p>
-              </div>
-
-              {/* Seat cap */}
-              <div className="space-y-2">
-                <label className="text-[16px] font-normal text-black">Seat cap</label>
-                <div className="relative">
-                  <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
-                  <Input
-                    type="number"
-                    value={event.participant_capacity || ""}
-                    onChange={(e) => setEvent({ ...event, participant_capacity: e.target.value ? parseInt(e.target.value) : null })}
-                    placeholder="Leave blank for unlimited participants."
-                    className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)]"
-                  />
-                </div>
-              </div>
-
-              {/* Location */}
-              <div className="space-y-2">
-                <label className="text-[16px] font-normal text-black">Location</label>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setLocationType("in-person")}
-                    className={`flex-1 flex items-center justify-center gap-3 h-[43px] px-3 py-2 rounded-[12px] border border-[rgba(0,0,0,0.15)] transition-colors ${
-                      locationType === "in-person"
-                        ? "border-[rgba(0,0,0,0.15)]"
-                        : "bg-white"
-                    }`}
-                  >
-                    <MapPin className="w-6 h-6" />
-                    <span className="text-[16px] text-[rgba(0,0,0,0.6)]">In-person</span>
-                  </button>
-                  <button
-                    onClick={() => setLocationType("virtual")}
-                    className={`flex-1 flex items-center justify-center gap-3 h-[43px] px-3 py-2 rounded-[12px] border border-[rgba(0,0,0,0.15)] transition-colors ${
-                      locationType === "virtual"
-                        ? "border-[rgba(0,0,0,0.15)]"
-                        : "bg-white"
-                    }`}
-                  >
-                    <Video className="w-6 h-6" />
-                    <span className="text-[16px] text-[rgba(0,0,0,0.6)]">Virtual event</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Cover Image URL */}
-              <div className="space-y-2">
-                <label className="text-[16px] font-normal text-black">Cover image url</label>
-                <div className="relative">
-                  <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
-                  <Input
-                    value={event.cover_image_url || ""}
-                    onChange={(e) => setEvent({ ...event, cover_image_url: e.target.value })}
-                    placeholder="https://..."
-                    className="h-[44px] pl-11 pr-24 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)]"
-                  />
-                  <button className="absolute right-3 top-1/2 -translate-y-1/2 bg-[rgba(0,0,0,0.05)] px-3 py-1 rounded-[12px] text-[12px] text-black border border-[rgba(0,0,0,0.05)]">
-                    Upload
-                  </button>
-                </div>
-                <p className="text-[16px] text-[#7f7f7f]">*Upload an image to showcase your project (Max 10MB).</p>
-              </div>
-
-              {/* Blurb */}
-              <div className="space-y-2">
-                <label className="text-[16px] font-normal text-black">Blurb</label>
-                <div className="relative">
-                  <Type className="absolute left-3 top-3 w-6 h-6 text-gray-600" />
-                  <Input
-                    value={event.event_blurb || ""}
-                    onChange={(e) => setEvent({ ...event, event_blurb: e.target.value })}
-                    placeholder="Short description shown in the preview card"
-                    className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)]"
-                  />
-                </div>
-              </div>
-
-              {/* Description */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="text-[16px] font-normal text-black">Description</label>
-                  <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-1 flex">
-                    <button
-                      onClick={() => setEditMode("Edit")}
-                      className={`px-6 py-[6px] rounded-[8px] text-[12px] font-${editMode === "Edit" ? "medium" : "normal"} transition-colors ${
-                        editMode === "Edit"
-                          ? "bg-[#fbfcfe] border border-[rgba(0,0,0,0.15)] text-black"
-                          : "text-black"
-                      }`}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => setEditMode("Preview")}
-                      className={`px-4 py-[6px] rounded-[100px] text-[12px] font-${editMode === "Preview" ? "medium" : "normal"} transition-colors ${
-                        editMode === "Preview"
-                          ? "bg-[#fbfcfe] border border-[rgba(0,0,0,0.15)] text-black"
-                          : "text-black"
-                      }`}
-                    >
-                      Preview
-                    </button>
-                  </div>
-                </div>
-                <Textarea
-                  value={event.event_description || ""}
-                  onChange={(e) => setEvent({ ...event, event_description: e.target.value })}
-                  placeholder="Add long description (markdown supported)"
-                  className="min-h-[179px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] p-3"
-                />
-              </div>
-
-              {/* Paid Event Toggle */}
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-[16px] font-normal text-black">This is a paid event</span>
-                  <button
-                    onClick={() => setIsPaidEvent(!isPaidEvent)}
-                    className={`w-[40px] h-[24px] rounded-full p-1 transition-colors flex ${
-                      isPaidEvent ? "bg-[#4b89ef] justify-end" : "bg-gray-300 justify-start"
-                    }`}
-                  >
-                    <div className="w-[16px] h-[16px] bg-white rounded-full" />
-                  </button>
-                </div>
-                <p className="text-[16px] text-[#7f7f7f]">
-                  *Toggle this on to set up pricing tiers for your event. Participants will need to pay to join.
-                </p>
-              </div>
-
-              {/* Add Organizer */}
-              <div className="space-y-2">
-                <label className="text-[16px] font-normal text-black">Add organizer</label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
-                  <Input
-                    placeholder="Separate emails with ,"
-                    className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)]"
-                  />
-                </div>
-                <p className="text-[16px] text-[#7f7f7f]">
-                  *Invitee will receive an email notification with access instructions.
-                </p>
-              </div>
-            </div>
-
-            {/* Preview Card Section */}
-            <div className="flex-shrink-0 space-y-3">
-              <div className="w-[335px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] overflow-hidden">
-                {/* Image */}
-                <div className="relative w-full aspect-[335/223]">
-                  {event.cover_image_url ? (
-                    <img
-                      src={event.cover_image_url}
-                      alt="Event cover"
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-orange-400 via-red-500 to-purple-600" />
-                  )}
-
-                  {/* Date Badge */}
-                  <div className="absolute top-4 right-4 bg-white border border-[#aaaaaa] rounded-[6px] w-[112px] py-3 px-1 text-center">
-                    <p className="text-[14px] font-normal text-black">{previewDate.weekday}</p>
-                    <p className="text-[36px] font-semibold leading-[1.3] tracking-[-2.16px] text-black" style={{ fontFamily: "Geist, sans-serif" }}>
-                      {previewDate.day}
-                    </p>
-                    <p className="text-[14px] font-normal text-black">
-                      {previewDate.month} {previewDate.year}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Content */}
-                <div className="p-6">
-                  <div className="flex flex-wrap gap-1 mb-3">
-                    <span className="px-[10px] py-1 border border-[rgba(0,0,0,0.15)] rounded-full text-[14px] font-semibold text-black">
-                      Hackathon
-                    </span>
-                    <span className="px-[10px] py-1 border border-[rgba(0,0,0,0.15)] rounded-full text-[14px] font-semibold text-black">
-                      {isPaidEvent ? "Paid" : "Free"}
-                    </span>
-                  </div>
-
-                  <h2
-                    className="text-[22px] font-semibold leading-[1.4] tracking-[-1.32px] text-black mb-1"
-                    style={{ fontFamily: "Geist, sans-serif" }}
-                  >
-                    {event.event_name}
-                  </h2>
-
-                  <div className="flex items-center gap-1 mb-2">
-                    <MapPin className="w-6 h-6" />
-                    <span className="text-[14px] font-normal text-black">
-                      {locationType === "virtual" ? "Online" : event.location || "Online"}
-                    </span>
-                  </div>
-
-                  <p className="text-[16px] font-normal text-black leading-[1.5]">
-                    {event.event_blurb || "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse varius enim in eros."}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-center gap-1 text-[#7f7f7f]">
-                <span className="text-[16px]">Preview event page</span>
-                <svg className="w-[18px] h-[18px]" viewBox="0 0 18 18" fill="none">
-                  <path d="M4 14L14 4M14 4H6M14 4V12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </div>
-            </div>
+        {/* Sub-tabs for Overview */}
+        {activeTab === "overview" && (
+          <div className="flex gap-0 items-center">
+            {overviewSubTabs.map((subTab) => (
+              <button
+                key={subTab.value}
+                onClick={() => setActiveSubTab(subTab.value)}
+                className={`px-4 py-2 rounded-full text-[16px] ${
+                  activeSubTab === subTab.value
+                    ? "font-medium bg-white border border-[rgba(0,0,0,0.15)] text-black"
+                    : "font-normal text-black"
+                }`}
+              >
+                {subTab.label}
+              </button>
+            ))}
           </div>
         )}
 
-        {/* Placeholder for other tabs */}
-        {activeSubTab !== "Basics" && (
-          <div className="flex items-center justify-center py-12">
-            <p className="text-lg text-gray-500">{activeSubTab} content coming soon</p>
-          </div>
-        )}
+        {/* Content Area */}
+        <div className="w-full">
+          {/* Overview Tab Content */}
+          {activeTab === "overview" && (
+            <>
+              {activeSubTab === "basics" && event && (
+                <BasicInfoTab
+                  event={event}
+                  setEvent={setEvent}
+                  saving={saving}
+                  setSaving={setSaving}
+                  toast={toast}
+                  router={router}
+                />
+              )}
+              {activeSubTab === "content" && (
+                <div className="text-center py-12">
+                  <p className="text-lg text-gray-500">Content section coming soon</p>
+                </div>
+              )}
+              {activeSubTab === "schedule" && event && (
+                <ScheduleTab
+                  event={event}
+                  setEvent={setEvent}
+                  saving={saving}
+                  setSaving={setSaving}
+                  toast={toast}
+                />
+              )}
+              {activeSubTab === "resources" && event && (
+                <ResourcesTab
+                  event={event}
+                  setEvent={setEvent}
+                  saving={saving}
+                  setSaving={setSaving}
+                  toast={toast}
+                />
+              )}
+              {activeSubTab === "rules" && event && (
+                <RulesTab
+                  event={event}
+                  setEvent={setEvent}
+                  saving={saving}
+                  setSaving={setSaving}
+                  toast={toast}
+                />
+              )}
+              {activeSubTab === "faqs" && event && (
+                <FAQTab
+                  event={event}
+                  setEvent={setEvent}
+                  saving={saving}
+                  setSaving={setSaving}
+                  toast={toast}
+                />
+              )}
+              {activeSubTab === "gallery" && (
+                <div className="text-center py-12">
+                  <p className="text-lg text-gray-500">Gallery section coming soon</p>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Participants Tab */}
+          {activeTab === "participants" && (
+            <ParticipantsTab eventId={eventId} />
+          )}
+
+          {/* Access Tab */}
+          {activeTab === "access" && event && (
+            <AccessTab
+              eventId={eventId}
+              event={event}
+              setEvent={setEvent}
+              saving={saving}
+              setSaving={setSaving}
+            />
+          )}
+
+          {/* Tracks Tab */}
+          {activeTab === "tracks" && event && (
+            <EventTracksContainer
+              eventId={eventId}
+              event={event}
+              setEvent={setEvent}
+              scoringConfig={scoringConfig}
+              setScoringConfig={setScoringConfig}
+              saving={saving}
+              setSaving={setSaving}
+              toast={toast}
+            />
+          )}
+
+          {/* Assign Tab */}
+          {activeTab === "assign" && (
+            <AssignTab eventId={eventId} />
+          )}
+
+          {/* Project Submission Tab */}
+          {activeTab === "project-submission" && (
+            <SubmissionsTab eventId={eventId} />
+          )}
+
+          {/* Live Scores Tab */}
+          {activeTab === "live-scores" && (
+            <ScoresTab
+              eventId={eventId}
+              scoringConfig={
+                scoringConfig || {
+                  tracks: {},
+                  defaultMin: 1,
+                  defaultMax: 10,
+                  defaultWeight: 1,
+                }
+              }
+            />
+          )}
+
+          {/* Ticketing Tab */}
+          {activeTab === "ticketing" && (
+            <>
+              {isAdmin ? (
+                <PricingTab
+                  event={event!}
+                  setEvent={setEvent}
+                  saving={saving}
+                  setSaving={setSaving}
+                />
+              ) : (
+                <div className="text-center py-12">
+                  <p className="text-lg text-gray-500">Only admins can access ticketing settings</p>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Notify Tab */}
+          {activeTab === "notify" && event && (
+            <EmailDashboard eventId={eventId} eventName={event.event_name} />
+          )}
+        </div>
       </div>
     </div>
   );

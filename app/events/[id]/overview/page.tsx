@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import {
   EventDetails,
   EventTrack,
+  EventRole,
 } from "@/lib/types";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { isValidUUID } from "@/app/utils/supabase/queries";
@@ -71,6 +72,7 @@ export default async function EventOverviewPage({ params }: PageProps) {
   } = await supabase.auth.getUser();
 
   let hasJoined = false;
+  let userRole: EventRole | null = null;
 
   if (user) {
     const { data: userEventRole } = await supabase
@@ -81,6 +83,7 @@ export default async function EventOverviewPage({ params }: PageProps) {
       .maybeSingle();
 
     hasJoined = !!userEventRole;
+    userRole = (userEventRole?.role as EventRole) || null;
   }
 
   return (
@@ -99,6 +102,7 @@ export default async function EventOverviewPage({ params }: PageProps) {
         event={typedEvent}
         tracks={tracks}
         hasJoined={hasJoined}
+        userRole={userRole}
       />
 
       {/* Sidebar */}

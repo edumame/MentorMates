@@ -1,3 +1,5 @@
+"use client";
+
 import ReactMarkdown from "react-markdown";
 import { customMarkdownComponents } from "@/components/markdown/custom-components";
 import { markdownRehypePlugins } from "@/components/markdown/plugins";
@@ -6,20 +8,35 @@ import {
   ScheduleDay,
   ScheduleEvent,
   EventTrack,
+  EventRole,
 } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { MentorDashboard } from "@/features/user/dashboards/dashboard/mentor-dashboard";
+import { JudgeDashboard } from "@/features/user/dashboards/dashboard/judge-dashboard";
 
 interface EventPageContentProps {
   event: EventDetails;
   tracks: EventTrack[];
   hasJoined: boolean;
+  userRole?: EventRole | null;
 }
 
 export function EventPageContent({
   event,
   tracks,
   hasJoined,
+  userRole,
 }: EventPageContentProps) {
+  // Show role-specific dashboards for mentors and judges
+  if (userRole === "mentor") {
+    return <MentorDashboard eventId={event.event_id} />;
+  }
+
+  if (userRole === "judge") {
+    return <JudgeDashboard eventId={event.event_id} />;
+  }
+
+  // Show default event overview for participants, organizers, and non-authenticated users
   return (
     <div className="flex flex-col flex-1">
       {/* Introduction */}
