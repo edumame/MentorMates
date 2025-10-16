@@ -29,17 +29,17 @@ export function ContentTab({ event, setEvent, isArchived = false }: ContentTabPr
                 </p>
 
                 {/* Edit/Preview Toggle using Shadcn Tabs */}
-                <TabsList className="bg-white border border-[rgba(0,0,0,0.15)] border-solid rounded-[12px] p-[4px] h-auto gap-0 shrink-0">
+                <TabsList className="bg-white rounded-xl p-1 h-auto gap-0 shrink-0 border border-[rgba(0,0,0,0.15)]">
                   <TabsTrigger
                     value="edit"
-                    className="px-[24px] py-[6px] h-auto rounded-[8px] text-[12px] leading-[18px] text-black data-[state=active]:bg-[#fbfcfe] data-[state=active]:border data-[state=active]:border-[rgba(0,0,0,0.15)] data-[state=active]:border-solid data-[state=active]:font-medium data-[state=active]:shadow-none data-[state=inactive]:bg-transparent data-[state=inactive]:border-transparent data-[state=inactive]:font-normal"
+                    className="px-6 py-1.5 h-auto rounded-lg text-xs leading-none text-black data-[state=active]:bg-[#fbfcfe] data-[state=active]:outline data-[state=active]:outline-1 data-[state=active]:outline-offset-[-1px] data-[state=active]:outline-[rgba(0,0,0,0.15)] data-[state=active]:font-medium data-[state=active]:shadow-none data-[state=inactive]:bg-transparent data-[state=inactive]:outline-transparent data-[state=inactive]:font-normal"
                     style={{ fontFamily: 'Inter, sans-serif' }}
                   >
                     Edit
                   </TabsTrigger>
                   <TabsTrigger
                     value="preview"
-                    className="px-[16px] py-[6px] h-auto rounded-[100px] text-[12px] leading-[18px] text-black data-[state=active]:bg-[#fbfcfe] data-[state=active]:border data-[state=active]:border-[rgba(0,0,0,0.15)] data-[state=active]:border-solid data-[state=active]:font-medium data-[state=active]:shadow-none data-[state=inactive]:bg-transparent data-[state=inactive]:border-transparent data-[state=inactive]:font-normal"
+                    className="px-4 py-1.5 h-auto rounded-[100px] text-xs leading-none text-black data-[state=active]:bg-[#fbfcfe] data-[state=active]:outline data-[state=active]:outline-1 data-[state=active]:outline-offset-[-1px] data-[state=active]:outline-[rgba(0,0,0,0.15)] data-[state=active]:font-medium data-[state=active]:shadow-none data-[state=inactive]:bg-transparent data-[state=inactive]:outline-transparent data-[state=inactive]:font-normal"
                     style={{ fontFamily: 'Inter, sans-serif' }}
                   >
                     Preview
