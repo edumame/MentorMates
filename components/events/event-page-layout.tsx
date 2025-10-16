@@ -79,6 +79,7 @@ export async function EventPageLayout({
           {userRole && (
             <RoleBannerWrapper
               userRole={userRole}
+              eventId={dbEventId}
               eventRoleLabels={eventRoleLabels}
             />
           )}
