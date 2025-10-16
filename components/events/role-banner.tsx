@@ -48,7 +48,7 @@ export function RoleBanner({
       case "judge":
         return `You are participating in this ${eventType} as a ${roleLabel.toLowerCase()}`;
       case "organizer":
-        return `You are organizing this ${eventType}`;
+        return `You are viewing this ${eventType} as ${roleLabel.toLowerCase()}`;
       case "admin":
         return `You are viewing this ${eventType} as an ${roleLabel.toLowerCase()}`;
       default:
