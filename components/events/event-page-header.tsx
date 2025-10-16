@@ -48,6 +48,20 @@ export function EventPageHeader({
         ) : (
           <div className="w-full h-full bg-gradient-to-r from-[#1e3a8a] to-[#3c73bd]" />
         )}
+
+        {/* Event Tags - Positioned on cover image */}
+        <div className="absolute left-6 bottom-6 flex flex-wrap gap-1 z-10">
+          <div className="bg-white border border-[rgba(0,0,0,0.15)] px-2.5 py-1 rounded-full">
+            <p className="font-semibold text-sm leading-[1.5] text-black whitespace-nowrap">
+              Hackathon
+            </p>
+          </div>
+          <div className="bg-white border border-[rgba(0,0,0,0.15)] px-2.5 py-1 rounded-full">
+            <p className="font-semibold text-sm leading-[1.5] text-black whitespace-nowrap">
+              Free
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Content */}
