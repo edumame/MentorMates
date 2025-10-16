@@ -270,7 +270,7 @@ export function GiveFeedbackDialog({
                       What should they do next to improve the project?
                     </p>
                   </div>
-                  <div className="h-px bg-[#d8d8d8]" />
+                  <div className="h-px bg-gray-200" />
                   <div className="flex flex-col gap-1 py-3">
                     <p className="text-[24px] leading-5 text-zinc-900 font-['Poly']">
                       02
@@ -279,7 +279,7 @@ export function GiveFeedbackDialog({
                       What could be better or work differently?
                     </p>
                   </div>
-                  <div className="h-px bg-[#d8d8d8]" />
+                  <div className="h-px bg-gray-200" />
                   <div className="flex flex-col gap-1 py-3">
                     <p className="text-[24px] leading-5 text-zinc-900 font-['Poly']">
                       03
@@ -314,7 +314,7 @@ export function GiveFeedbackDialog({
                       </button>
                     </div>
                   </div>
-                  <div className="h-px bg-[#d8d8d8]" />
+                  <div className="h-px bg-gray-200" />
                   <div className="flex flex-col gap-2 py-3">
                     <p className="text-[24px] leading-5 text-zinc-900 font-['Poly']">
                       More actionable
@@ -337,7 +337,7 @@ export function GiveFeedbackDialog({
                       </button>
                     </div>
                   </div>
-                  <div className="h-px bg-[#d8d8d8]" />
+                  <div className="h-px bg-gray-200" />
                   <div className="flex flex-col gap-2 py-3">
                     <p className="text-[24px] leading-5 text-zinc-900 font-['Poly']">
                       More positive
