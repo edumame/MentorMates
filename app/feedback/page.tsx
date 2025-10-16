@@ -137,7 +137,7 @@ export default function FeedbackPage() {
             {/* Border wrapper - stays in place */}
             <div className="border border-[rgba(0,0,0,0.15)] rounded-[16px]">
               {/* Sticky Header Row with border */}
-              <div className="flex sticky top-0 z-10 bg-white rounded-t-[16px] border-t border-x border-[rgba(0,0,0,0.15)]">
+              <div className="flex sticky top-[88px] z-10 bg-white rounded-t-[16px] border-t border-x border-[rgba(0,0,0,0.15)]">
                 <div className="w-[264px] border-b border-[rgba(0,0,0,0.15)] px-[24px] py-[16px]">
                   <p className="text-[16px] font-medium text-black tracking-[-0.04em]">Send from</p>
                 </div>
