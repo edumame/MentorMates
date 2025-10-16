@@ -79,6 +79,44 @@ export function NewProjectSubmissionFormSinglePage({
     additionalMaterialsUrl: "",
   });
 
+  // Infer a university from a .edu email domain (best-effort)
+  const inferUniversityFromEmail = (email?: string | null): string | null => {
+    if (!email) return null;
+    const atIndex = email.indexOf("@");
+    if (atIndex === -1) return null;
+    const domain = email.slice(atIndex + 1).toLowerCase();
+    if (!domain.endsWith(".edu")) return null;
+
+    const withoutTld = domain.replace(/\.edu$/, "");
+    const parts = withoutTld.split(".").filter(Boolean);
+    const core = parts[parts.length - 1] || "";
+    const known: Record<string, string> = {
+      mit: "Massachusetts Institute of Technology",
+      stanford: "Stanford University",
+      harvard: "Harvard University",
+      yale: "Yale University",
+      princeton: "Princeton University",
+      columbia: "Columbia University",
+      cornell: "Cornell University",
+      ucla: "UCLA",
+      berkeley: "UC Berkeley",
+      cmu: "Carnegie Mellon University",
+      duke: "Duke University",
+      uchicago: "University of Chicago",
+      northwestern: "Northwestern University",
+      uw: "University of Washington",
+    };
+    if (core in known) return known[core];
+    if (!core) return null;
+    const title = core.charAt(0).toUpperCase() + core.slice(1);
+    return `${title} University`;
+  };
+
+  const computedUniversity = useMemo(
+    () => inferUniversityFromEmail(formData.leadEmail),
+    [formData.leadEmail]
+  );
+
   // Fetch event details if eventId is provided
   useEffect(() => {
     const init = async () => {
@@ -737,6 +775,26 @@ export function NewProjectSubmissionFormSinglePage({
                       />
                     </div>
                   </div>
+
+                  {/* University (auto-detected) */}
+                  {computedUniversity && (
+                    <div className="space-y-2">
+                      <label className="text-base text-black font-normal">
+                        University
+                      </label>
+                      <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-3 py-2 flex items-center gap-3 h-11">
+                        <Input
+                          value={computedUniversity}
+                          disabled
+                          readOnly
+                          className="border-0 p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0 text-base text-[rgba(0,0,0,0.8)] bg-gray-50"
+                        />
+                      </div>
+                      <p className="text-xs text-[#7f7f7f]">
+                        Auto-detected from your email domain
+                      </p>
+                    </div>
+                  )}
 
                   {/* Divider */}
                   <div className="border-t border-gray-200" />

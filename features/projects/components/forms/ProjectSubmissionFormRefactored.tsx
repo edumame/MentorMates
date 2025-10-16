@@ -62,6 +62,44 @@ export function ProjectSubmissionFormComponent({
     },
   });
 
+  // Infer a university from a .edu email domain (best-effort)
+  const inferUniversityFromEmail = (email?: string | null): string | null => {
+    if (!email) return null;
+    const atIndex = email.indexOf("@");
+    if (atIndex === -1) return null;
+    const domain = email.slice(atIndex + 1).toLowerCase();
+    if (!domain.endsWith(".edu")) return null;
+
+    const withoutTld = domain.replace(/\.edu$/, "");
+    const parts = withoutTld.split(".").filter(Boolean);
+    const core = parts[parts.length - 1] || "";
+    const known: Record<string, string> = {
+      mit: "Massachusetts Institute of Technology",
+      stanford: "Stanford University",
+      harvard: "Harvard University",
+      yale: "Yale University",
+      princeton: "Princeton University",
+      columbia: "Columbia University",
+      cornell: "Cornell University",
+      ucla: "UCLA",
+      berkeley: "UC Berkeley",
+      cmu: "Carnegie Mellon University",
+      duke: "Duke University",
+      uchicago: "University of Chicago",
+      northwestern: "Northwestern University",
+      uw: "University of Washington",
+    };
+    if (core in known) return known[core];
+    if (!core) return null;
+    const title = core.charAt(0).toUpperCase() + core.slice(1);
+    return `${title} University`;
+  };
+
+  const computedUniversity = useMemo(
+    () => inferUniversityFromEmail(form.watch("leadEmail")),
+    [form, form.watch("leadEmail")]
+  );
+
   const { validateStep, getStepValidationMessages } = useStepValidation(form, availableTracks.length);
 
   // Watch form fields that affect validation to trigger re-renders
@@ -395,6 +433,24 @@ export function ProjectSubmissionFormComponent({
               userEmail={userEmail}
               onTeammatesChange={handleTeammatesChange}
             />
+          )}
+
+          {/* University (auto-detected) - read-only display under team/contact step */}
+          {currentStep === 3 && computedUniversity && (
+            <div className="mt-2">
+              <div className="text-sm text-gray-600 mb-1">University</div>
+              <div className="flex">
+                <input
+                  value={computedUniversity}
+                  disabled
+                  readOnly
+                  className="w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm"
+                />
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                Auto-detected from your email domain
+              </div>
+            </div>
           )}
 
           <StepNavigation
