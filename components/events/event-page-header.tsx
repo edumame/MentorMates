@@ -30,7 +30,7 @@ export function EventPageHeader({
   return (
     <div className="bg-white border-b border-[#f2f2f2] flex flex-col w-full">
       {/* Cover Image */}
-      <div className="h-[240px] w-full rounded-tl-[16px] relative overflow-hidden">
+      <div className="h-[240px] w-full relative overflow-hidden">
         {coverImageUrl ? (
           <>
             <img
