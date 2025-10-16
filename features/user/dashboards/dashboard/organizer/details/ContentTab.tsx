@@ -14,42 +14,34 @@ interface ContentTabProps {
 
 export function ContentTab({ event, setEvent, isArchived = false }: ContentTabProps) {
   return (
-    <div className="flex flex-col gap-[24px] items-start w-full">
-      {/* Input Container */}
-      <div className="flex flex-col gap-[16px] items-start w-full">
-        {/* Input Wrapper */}
-        <div className="flex gap-[24px] items-start w-full">
-          {/* Input Field */}
-          <div className="flex-1 flex flex-col gap-[8px] min-w-0">
+    <div className="w-[681px] inline-flex flex-col justify-start items-start gap-6">
+      <div className="self-stretch flex flex-col justify-start items-start gap-4">
+        <div className="self-stretch inline-flex justify-start items-start gap-6">
+          <div className="flex-1 inline-flex flex-col justify-start items-start gap-2">
             <Tabs defaultValue="edit" className="w-full">
-              {/* Header with Toggle */}
-              <div className="flex items-center justify-between w-full">
-                <p className="font-normal text-[16px] leading-[1.5] text-black whitespace-pre">
+              <div className="self-stretch inline-flex justify-between items-center">
+                <div className="justify-start text-black text-base font-normal font-['Inter'] leading-normal">
                   Exclusive Content for Participants
-                </p>
+                </div>
 
-                {/* Edit/Preview Toggle using Shadcn Tabs */}
-                <TabsList className="bg-white rounded-xl p-1 h-auto gap-0 shrink-0 border border-[rgba(0,0,0,0.15)]">
+                <TabsList className="p-1 bg-white rounded-xl outline outline-1 outline-offset-[-1px] outline-[rgba(0,0,0,0.15)] flex justify-start items-start h-auto gap-0">
                   <TabsTrigger
                     value="edit"
-                    className="px-6 py-1.5 h-auto rounded-lg text-xs leading-none text-black data-[state=active]:bg-[#fbfcfe] data-[state=active]:outline data-[state=active]:outline-1 data-[state=active]:outline-offset-[-1px] data-[state=active]:outline-[rgba(0,0,0,0.15)] data-[state=active]:font-medium data-[state=active]:shadow-none data-[state=inactive]:bg-transparent data-[state=inactive]:outline-transparent data-[state=inactive]:font-normal"
-                    style={{ fontFamily: 'Inter, sans-serif' }}
+                    className="px-6 py-1.5 rounded-lg flex justify-center items-center gap-2 text-xs font-medium font-['Inter'] leading-none text-black h-auto data-[state=active]:bg-[#fbfcfe] data-[state=active]:outline data-[state=active]:outline-1 data-[state=active]:outline-offset-[-1px] data-[state=active]:outline-[rgba(0,0,0,0.15)] data-[state=active]:shadow-none data-[state=inactive]:bg-transparent data-[state=inactive]:outline-transparent data-[state=inactive]:font-normal"
                   >
                     Edit
                   </TabsTrigger>
                   <TabsTrigger
                     value="preview"
-                    className="px-4 py-1.5 h-auto rounded-[100px] text-xs leading-none text-black data-[state=active]:bg-[#fbfcfe] data-[state=active]:outline data-[state=active]:outline-1 data-[state=active]:outline-offset-[-1px] data-[state=active]:outline-[rgba(0,0,0,0.15)] data-[state=active]:font-medium data-[state=active]:shadow-none data-[state=inactive]:bg-transparent data-[state=inactive]:outline-transparent data-[state=inactive]:font-normal"
-                    style={{ fontFamily: 'Inter, sans-serif' }}
+                    className="px-4 py-1.5 rounded-[100px] flex justify-center items-center gap-2 text-xs font-medium font-['Inter'] leading-none text-black h-auto data-[state=active]:bg-[#fbfcfe] data-[state=active]:outline data-[state=active]:outline-1 data-[state=active]:outline-offset-[-1px] data-[state=active]:outline-[rgba(0,0,0,0.15)] data-[state=active]:shadow-none data-[state=inactive]:bg-transparent data-[state=inactive]:outline-transparent data-[state=inactive]:font-normal"
                   >
                     Preview
                   </TabsTrigger>
                 </TabsList>
               </div>
 
-              {/* Text Input Area */}
-              <TabsContent value="edit" className="mt-[8px]">
-                <div className="bg-white border border-[rgba(0,0,0,0.15)] border-solid rounded-[12px] h-[299px] px-[12px] py-[8px] w-full">
+              <TabsContent value="edit" className="mt-2">
+                <div className="self-stretch h-72 px-3 py-2 bg-white rounded-xl outline outline-1 outline-[rgba(0,0,0,0.15)] inline-flex justify-start items-start gap-3">
                   <textarea
                     id="paywall_content"
                     value={event.paywall_content || ""}
@@ -58,16 +50,14 @@ export function ContentTab({ event, setEvent, isArchived = false }: ContentTabPr
                       setEvent({ ...event, paywall_content: e.target.value })
                     }
                     placeholder="Add content (markdown supported)"
-                    className="w-full h-full resize-none font-normal text-[16px] leading-[1.5] text-black placeholder:text-[rgba(0,0,0,0.6)] bg-transparent border-none outline-none focus:outline-none"
-                    style={{ fontFamily: 'Inter, sans-serif' }}
+                    className="flex-1 resize-none justify-start text-[rgba(0,0,0,0.6)] text-base font-normal font-['Inter'] leading-normal bg-transparent border-none outline-none focus:outline-none"
                   />
                 </div>
               </TabsContent>
 
-              {/* Preview Area */}
-              <TabsContent value="preview" className="mt-[8px]">
-                <div className="bg-white border border-[rgba(0,0,0,0.15)] border-solid rounded-[12px] min-h-[299px] px-[12px] py-[8px] w-full">
-                  <div className="prose prose-sm dark:prose-invert max-w-none text-[16px] leading-[1.5] text-black" style={{ fontFamily: 'Inter, sans-serif' }}>
+              <TabsContent value="preview" className="mt-2">
+                <div className="self-stretch min-h-72 px-3 py-2 bg-white rounded-xl outline outline-1 outline-[rgba(0,0,0,0.15)] inline-flex justify-start items-start gap-3">
+                  <div className="prose prose-sm dark:prose-invert max-w-none flex-1 text-base font-normal font-['Inter'] leading-normal text-black">
                     <ReactMarkdown
                       rehypePlugins={markdownRehypePlugins}
                       components={customMarkdownComponents}
@@ -81,10 +71,9 @@ export function ContentTab({ event, setEvent, isArchived = false }: ContentTabPr
           </div>
         </div>
 
-        {/* Helper Text */}
-        <p className="font-normal text-[16px] leading-[1.5] text-[#7f7f7f] w-full">
+        <div className="self-stretch justify-start text-[#7f7f7f] text-base font-normal font-['Inter'] leading-normal">
           *This content is visible only to participants who have joined the event.
-        </p>
+        </div>
       </div>
     </div>
   );
