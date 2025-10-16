@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { createClient } from "@/app/utils/supabase/client";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { getRoleLabel } from "@/features/user/roles/roles";
+import { EventCard } from "@/components/events/event-card";
+import type { EventItem } from "@/lib/types";
 
 type APIEvent = {
     event_id?: string | number;
@@ -18,25 +18,27 @@ type APIEvent = {
 };
 
 type UIEvent = {
-    id: string;
-    title: string;
-    dateISO: string | null;
-    location: string;
-    image: string;
-    href: string;
-    roleLabel?: string;
+  id: string;
+  title: string;
+  dateISO: string | null;
+  location: string;
+  image: string;
+  href: string;
+  slug?: string;
+  roleLabel?: string;
 };
 
-const getDateParts = (iso?: string | null) => {
-    if (!iso) return { dow: "", day: "", monYear: "" };
-    const d = new Date(iso);
-    if (isNaN(d.getTime())) return { dow: "", day: "", monYear: "" };
-    const dow = new Intl.DateTimeFormat("en-US", { weekday: "short" }).format(d);
-    const day = new Intl.DateTimeFormat("en-US", { day: "2-digit" }).format(d);
-    const mon = new Intl.DateTimeFormat("en-US", { month: "short" }).format(d);
-    const year = new Intl.DateTimeFormat("en-US", { year: "numeric" }).format(d);
-    return { dow, day, monYear: `${mon} ${year}` };
-};
+function toEventItem(event: UIEvent): EventItem {
+  return {
+    event_id: event.id,
+    // Prefer linking by id; slug is optional and can be omitted
+    event_name: event.title,
+    event_date: event.dateISO ?? "",
+    location: event.location,
+    cover_image_url: event.image,
+    slug: event.slug,
+  };
+}
 
 export function MyEvents() {
     const [events, setEvents] = useState<UIEvent[]>([]);
@@ -81,6 +83,7 @@ export function MyEvents() {
                 location: e.location ?? "Online",
                 image: e.cover_image_url ?? "/img/placeholder.png",
                 href: e.slug ? `/events/${e.slug}` : `/events/${id}`,
+                slug: e.slug ?? undefined,
                 roleLabel,
             };
             });
@@ -110,64 +113,21 @@ export function MyEvents() {
             </div>
         ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {events.map((e) => (
-                <Link key={e.id} href={e.href} className="group block">
-                <Card className="overflow-hidden rounded-2xl bg-white border-0 shadow-sm ring-1 ring-black/5 transition-all duration-300 group-hover:shadow-lg group-hover:-translate-y-0.5">
-                    <div className="relative">
-                    <img
-                        src={e.image}
-                        alt={e.title}
-                        width={1200}
-                        height={630}
-                        className="h-48 w-full object-cover"
-                        onError={(ev) => {
-                        const target = ev.currentTarget as HTMLImageElement;
-                        if (target.src !== "/img/placeholder.png")
-                            target.src = "/img/placeholder.png";
-                        }}
-                        loading="lazy"
-                        decoding="async"
-                        referrerPolicy="no-referrer"
-                    />
-                    {(() => {
-                        const { dow, day, monYear } = getDateParts(
-                        e.dateISO ?? undefined
-                        );
-                        return (
-                        <div className="absolute right-4 top-4 rounded-2xl bg-white text-gray-900 shadow-md px-3 py-2 grid place-items-center leading-tight">
-                            <div className="text-xs font-medium">
-                            {dow || "TBD"}
-                            </div>
-                            <div className="text-2xl font-bold -my-1">
-                            {day || "--"}
-                            </div>
-                            <div className="text-[11px]">{monYear || ""}</div>
-                        </div>
-                        );
-                    })()}
+              {events.map((e) => (
+                <div key={e.id} className="relative">
+                  <EventCard event={toEventItem(e)} />
+                  {e.roleLabel && (
+                    <div className="absolute top-3 left-3 z-10">
+                      <Badge
+                        variant="secondary"
+                        className="rounded-full bg-gray-100 text-gray-700"
+                      >
+                        {e.roleLabel}
+                      </Badge>
                     </div>
-
-                    <CardHeader className="pb-0 pt-4">
-                    <div className="flex items-center justify-between">
-                        <h3 className="text-base md:text-lg font-semibold tracking-tight text-gray-900">
-                        {e.title}
-                        </h3>
-                        {e.roleLabel && (
-                        <Badge
-                            variant="secondary"
-                            className="rounded-full bg-gray-100 text-gray-700"
-                        >
-                            {e.roleLabel}
-                        </Badge>
-                        )}
-                    </div>
-                    </CardHeader>
-                    <CardContent className="pt-2 pb-5">
-                    <div className="text-sm text-gray-500">{e.location}</div>
-                    </CardContent>
-                </Card>
-                </Link>
-            ))}
+                  )}
+                </div>
+              ))}
             </div>
         )}
         </section>
