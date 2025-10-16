@@ -1,7 +1,7 @@
 import { ReactNode } from "react";
 import { EventPageHeader } from "./event-page-header";
 import { EventPageTabs } from "./event-page-tabs";
-import { RoleBannerWrapper } from "./role-banner-wrapper";
+import { EventPageClientWrapper } from "./event-page-client-wrapper";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { EventRole } from "@/lib/types";
@@ -75,36 +75,56 @@ export async function EventPageLayout({
     <PageContainer>
       <PageContent className="px-0">
         <div className="flex flex-col w-full">
-          {/* Role Banner - Sticky */}
-          {userRole && (
-            <RoleBannerWrapper
-              userRole={userRole}
-              eventId={dbEventId}
-              eventRoleLabels={eventRoleLabels}
-            />
+          {userRole ? (
+            <>
+              <EventPageClientWrapper
+                userRole={userRole}
+                eventId={dbEventId}
+                eventRoleLabels={eventRoleLabels}
+                eventName={eventName}
+                eventBlurb={eventBlurb}
+                eventDate={eventDate}
+                location={location}
+                coverImageUrl={coverImageUrl}
+                displayEventId={eventId}
+                hasJoined={hasJoined}
+              />
+
+              {/* Tabs Navigation */}
+              <EventPageTabs eventId={eventId} participantCount={participantCount || 0} projectCount={projectCount || 0} />
+
+              {/* Main Content */}
+              <div className="w-full">
+                <div className="flex gap-6 w-full px-6 py-12">
+                  {children}
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Page Header with Cover Image - No role */}
+              <EventPageHeader
+                eventName={eventName}
+                eventBlurb={eventBlurb}
+                eventDate={eventDate}
+                location={location}
+                coverImageUrl={coverImageUrl}
+                eventId={eventId}
+                hasJoined={hasJoined}
+                userRole={null}
+              />
+
+              {/* Tabs Navigation */}
+              <EventPageTabs eventId={eventId} participantCount={participantCount || 0} projectCount={projectCount || 0} />
+
+              {/* Main Content */}
+              <div className="w-full">
+                <div className="flex gap-6 w-full px-6 py-12">
+                  {children}
+                </div>
+              </div>
+            </>
           )}
-
-          {/* Page Header with Cover Image */}
-          <EventPageHeader
-            eventName={eventName}
-            eventBlurb={eventBlurb}
-            eventDate={eventDate}
-            location={location}
-            coverImageUrl={coverImageUrl}
-            eventId={eventId}
-            hasJoined={hasJoined}
-            userRole={userRole}
-          />
-
-          {/* Tabs Navigation */}
-          <EventPageTabs eventId={eventId} participantCount={participantCount || 0} projectCount={projectCount || 0} />
-
-          {/* Main Content */}
-          <div className="w-full">
-            <div className="flex gap-6 w-full px-6 py-12">
-              {children}
-            </div>
-          </div>
         </div>
       </PageContent>
     </PageContainer>
