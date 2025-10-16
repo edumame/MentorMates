@@ -28,7 +28,11 @@ export function EventPageHeader({
   });
 
   return (
-    <div className="bg-white border-b border-[#f2f2f2] flex flex-col w-full">
+    <div className="bg-white border-b border-[#f2f2f2] flex flex-col w-full"
+      style={{
+        background: "linear-gradient(196.644deg, rgba(219, 234, 254, 0.25) 13.188%, rgba(255, 255, 255, 0) 65.83%), linear-gradient(90deg, rgb(251, 252, 254) 0%, rgb(251, 252, 254) 100%)"
+      }}
+    >
       {/* Cover Image */}
       <div className="h-[240px] w-full relative overflow-hidden">
         {coverImageUrl ? (
@@ -64,35 +68,37 @@ export function EventPageHeader({
         </div>
       </div>
 
-      {/* Content */}
-      <div className="w-full px-6 pt-6 pb-0">
-        <div className="flex items-start justify-between w-full gap-6">
-          {/* Left: Event Info */}
-          <div className="flex flex-col gap-2 max-w-[617px]">
-            <div className="flex flex-col gap-2">
-              <h1 className="font-semibold text-[28px] leading-[1.4] tracking-[-0.06em] text-black">
-                {eventName}
-              </h1>
-              <p className="font-normal text-base leading-[1.5] text-black line-clamp-3">
-                {eventBlurb}
-              </p>
-            </div>
-
-            {/* Organization Badge - TODO: Add event creator/organization display in the future */}
-            {/* <div className="flex gap-1 items-center">
-              <div className="flex gap-1 items-center">
-                <div className="w-7 h-7 rounded-full bg-gray-300" />
-                <p className="font-normal text-sm text-[#191919]">
-                  HerWorkspace
+      {/* Content Container with proper spacing */}
+      <div className="flex flex-col gap-[24px] pt-[24px] pb-0 w-full">
+        <div className="flex flex-col gap-[24px] px-6 w-full">
+          <div className="flex items-start justify-between w-full">
+            {/* Left: Event Info */}
+            <div className="flex flex-col gap-2 max-w-[617px] w-[617px]">
+              <div className="flex flex-col gap-0">
+                <h1 className="font-semibold text-[28px] leading-[1.4] tracking-[-1.68px] text-black">
+                  {eventName}
+                </h1>
+                <p className="font-normal text-base leading-[1.5] text-black line-clamp-3">
+                  {eventBlurb}
                 </p>
               </div>
-              <ChevronRight className="w-6 h-6 text-black" />
-            </div> */}
-          </div>
 
-          {/* Right: Join Button and Meta */}
-          <div className="flex flex-col gap-3 items-end justify-center w-[411px]">
-            <div className="flex gap-4 items-center justify-center">
+              {/* Organization Badge - TODO: Add event creator/organization display in the future */}
+              {/* <div className="flex gap-1 items-center">
+                <div className="flex gap-1 items-center">
+                  <div className="w-7 h-7 rounded-full bg-gray-300" />
+                  <p className="font-normal text-sm text-[#191919]">
+                    HerWorkspace
+                  </p>
+                </div>
+                <ChevronRight className="w-6 h-6 text-black" />
+              </div> */}
+            </div>
+
+            {/* Right: Join Button and Meta */}
+            <div className="flex flex-col gap-[12px] items-end justify-center w-[411px]">
+              <div className="flex flex-col gap-[16px] items-center justify-center w-full">
+                <div className="flex gap-[16px] items-start w-full">
               {!hasJoined ? (
                 <div className="bg-[#4b89ef] flex gap-1.5 items-center justify-center px-5 py-2 rounded-xl shadow-sm w-[341px]">
                   <Ticket className="w-6 h-6 text-white" />
@@ -107,12 +113,13 @@ export function EventPageHeader({
                   </span>
                 </div>
               )}
-            </div>
+                </div>
+              </div>
 
-            {/* Date and Location */}
-            <div className="flex flex-col gap-1.5 w-full">
-              <div className="flex flex-col gap-2 items-end">
-                <div className="flex gap-2 items-center">
+              {/* Date and Location */}
+              <div className="flex flex-col gap-[6px] w-full">
+                <div className="flex flex-col gap-2 items-end w-full">
+                  <div className="flex gap-2 items-center">
                   <div className="flex gap-2 items-center">
                     <CalendarDays className="w-6 h-6 text-black" />
                     <p className="font-normal text-sm text-black">
@@ -124,6 +131,7 @@ export function EventPageHeader({
                     <p className="font-normal text-sm text-black">
                       {location}
                     </p>
+                    </div>
                   </div>
                 </div>
               </div>
