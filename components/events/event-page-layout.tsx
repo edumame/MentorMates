@@ -95,7 +95,7 @@ export async function EventPageLayout({
 
               {/* Main Content */}
               <div className="w-full">
-                <div className="flex gap-6 w-full px-6 py-12">
+                <div className="flex gap-6 w-full px-6 py-[24px]">
                   {children}
                 </div>
               </div>
@@ -119,7 +119,7 @@ export async function EventPageLayout({
 
               {/* Main Content */}
               <div className="w-full">
-                <div className="flex gap-6 w-full px-6 py-12">
+                <div className="flex gap-6 w-full px-6 py-[24px]">
                   {children}
                 </div>
               </div>

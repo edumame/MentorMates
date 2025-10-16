@@ -72,7 +72,7 @@ export function EventPageHeader({
 
       {/* Content Section - matches Figma exactly */}
       <div
-        className="box-border flex flex-col gap-[24px] items-start max-w-[1280px] pb-0 pt-[24px] px-0 w-full"
+        className="box-border flex flex-col gap-[24px] items-start max-w-[1280px] pb-[24px] pt-[24px] px-0 w-full"
         style={{
           background: "linear-gradient(196.644deg, rgba(219, 234, 254, 0.25) 13.188%, rgba(255, 255, 255, 0) 65.83%), linear-gradient(90deg, rgb(251, 252, 254) 0%, rgb(251, 252, 254) 100%)"
         }}
