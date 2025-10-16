@@ -19,6 +19,7 @@ import EmailDashboard from "@/features/user/dashboards/dashboard/organizer/notif
 
 // Import sub-tab components for Overview
 import { BasicInfoTab } from "@/features/user/dashboards/dashboard/organizer/details/BasicInfoTab";
+import { ContentTab } from "@/features/user/dashboards/dashboard/organizer/details/ContentTab";
 import { ScheduleTab } from "@/features/user/dashboards/dashboard/organizer/details/ScheduleTab";
 import { ResourcesTab } from "@/features/user/dashboards/dashboard/organizer/details/ResourcesTab";
 import { RulesTab } from "@/features/user/dashboards/dashboard/organizer/details/RulesTab";
@@ -384,10 +385,12 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                     router={router}
                   />
                 )}
-                {activeSubTab === "content" && (
-                  <div className="text-center py-12">
-                    <p className="text-lg text-gray-500">Content section coming soon</p>
-                  </div>
+                {activeSubTab === "content" && event && (
+                  <ContentTab
+                    event={event}
+                    setEvent={setEvent}
+                    isArchived={event.visibility === "archived"}
+                  />
                 )}
                 {activeSubTab === "schedule" && event && (
                   <ScheduleTab

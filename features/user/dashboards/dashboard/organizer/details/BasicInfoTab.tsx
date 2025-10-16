@@ -497,48 +497,6 @@ export function BasicInfoTab({
         </Alert>
       </div>
 
-      {/* Paywall Content - Only show for participants (below description) */}
-
-        <div className="space-y-2">
-          <Alert className="border-yellow-200 bg-yellow-50">
-            <AlertTitle className="text-yellow-800">🔒 Exclusive Content for Participants</AlertTitle>
-            <AlertDescription>
-              This content is visible only to participants who have joined/paid for the event.
-            </AlertDescription>
-            <div className="mt-3 space-y-2">
-              <Label htmlFor="paywall_content">Content (Markdown Supported)</Label>
-              <Tabs defaultValue="edit" className="w-full">
-                <TabsList>
-                  <TabsTrigger value="edit">Edit</TabsTrigger>
-                  <TabsTrigger value="preview">Preview</TabsTrigger>
-                </TabsList>
-                <TabsContent value="edit" className="mt-0">
-                  <Textarea
-                    id="paywall_content"
-                    value={event.paywall_content || ""}
-                    disabled={isArchived}
-                    onChange={(e) =>
-                      setEvent({ ...event, paywall_content: e.target.value })
-                    }
-                    rows={4}
-                    placeholder="Content that will only be visible to users who have joined/paid for the event"
-                  />
-                </TabsContent>
-                <TabsContent value="preview" className="mt-0">
-                  <div className="prose prose-sm dark:prose-invert max-w-none rounded-md border bg-white p-3">
-                    <ReactMarkdown rehypePlugins={markdownRehypePlugins} components={customMarkdownComponents}>
-                      {event.paywall_content || ""}
-                    </ReactMarkdown>
-                  </div>
-                </TabsContent>
-              </Tabs>
-              <p className="text-xs text-gray-500">
-                This content will only be shown to users who have joined the event. You can use Markdown formatting.
-              </p>
-            </div>
-          </Alert>
-        </div>
-
       <div className="space-y-2">
         <Label htmlFor="cover_image">Cover Image</Label>
         <div className="flex items-center gap-2 mb-2">
