@@ -21,7 +21,11 @@ export function PageContainer({
 }: PageContainerProps) {
   return (
     <div
-      className={`h-[calc(100vh-88px)] overflow-hidden flex flex-col ${
+      className={`${
+        showBorder
+          ? "h-[calc(100vh-88px)] overflow-hidden"
+          : "min-h-[calc(100vh-64px)]"
+      } flex flex-col ${
         showBorder ? "lg:rounded-tl-2xl lg:border-t lg:border-l lg:border-[#D8D8D8]" : ""
       } bg-white ${className}`}
     >
