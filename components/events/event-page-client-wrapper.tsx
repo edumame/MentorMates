@@ -7,7 +7,7 @@ import { EventPageHeader } from "./event-page-header";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/lib/hooks/use-toast";
-import { OrganizerDashboard } from "@/features/user/dashboards/dashboard/organizer";
+import { OrganizerEditOverview } from "./organizer-edit-overview";
 
 interface EventPageClientWrapperProps {
   userRole: EventRole;
@@ -118,9 +118,7 @@ export function EventPageClientWrapper({
           onCancelRegistration={handleCancelRegistration}
           eventRoleLabels={eventRoleLabels}
         />
-        <div className="w-full px-6 py-6">
-          <OrganizerDashboard eventId={eventId} />
-        </div>
+        <OrganizerEditOverview eventId={eventId} />
       </>
     );
   }
