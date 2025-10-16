@@ -393,16 +393,17 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
 
         {/* Sub-tabs for Overview */}
         {activeTab === "overview" && (
-          <div className="flex gap-0 items-center">
+          <div className="inline-flex justify-start items-center">
             {overviewSubTabs.map((subTab) => (
               <button
                 key={subTab.value}
                 onClick={() => setActiveSubTab(subTab.value)}
-                className={`px-4 py-2 rounded-full text-[16px] ${
+                className={`px-4 py-2.5 rounded-[100px] text-base leading-normal ${
                   activeSubTab === subTab.value
-                    ? "font-medium bg-white border border-[rgba(0,0,0,0.15)] text-black"
+                    ? "font-medium bg-white outline outline-1 outline-offset-[-1px] outline-[rgba(0,0,0,0.15)] text-black"
                     : "font-normal text-black"
                 }`}
+                style={{ fontFamily: 'Inter, sans-serif' }}
               >
                 {subTab.label}
               </button>
