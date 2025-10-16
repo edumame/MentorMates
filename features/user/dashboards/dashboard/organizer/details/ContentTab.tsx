@@ -34,22 +34,24 @@ export function ContentTab({ event, setEvent, isArchived = false }: ContentTabPr
                 <button
                   type="button"
                   onClick={() => setActiveMode("edit")}
-                  className={`flex gap-[8px] items-center justify-center px-[24px] py-[6px] rounded-[8px] text-[12px] leading-[1.5] whitespace-pre transition-colors ${
+                  className={`flex gap-[8px] items-center justify-center px-[24px] py-[6px] rounded-[8px] text-[12px] leading-[1.5] whitespace-pre transition-all ${
                     activeMode === "edit"
                       ? "bg-[#fbfcfe] border border-[rgba(0,0,0,0.15)] border-solid font-medium text-black"
-                      : "bg-transparent border border-transparent font-normal text-black"
+                      : "bg-[rgba(255,255,255,0)] border border-[rgba(255,255,255,0)] border-solid font-normal text-black"
                   }`}
+                  style={{ fontFamily: 'Inter, sans-serif' }}
                 >
                   Edit
                 </button>
                 <button
                   type="button"
                   onClick={() => setActiveMode("preview")}
-                  className={`flex gap-[8px] items-center justify-center px-[16px] py-[6px] rounded-[100px] text-[12px] leading-[1.5] whitespace-pre transition-colors ${
+                  className={`flex gap-[8px] items-center justify-center px-[16px] py-[6px] rounded-[100px] text-[12px] leading-[1.5] whitespace-pre transition-all ${
                     activeMode === "preview"
                       ? "bg-[#fbfcfe] border border-[rgba(0,0,0,0.15)] border-solid font-medium text-black"
-                      : "bg-transparent border border-transparent font-normal text-black"
+                      : "bg-[rgba(255,255,255,0)] border border-[rgba(255,255,255,0)] border-solid font-normal text-black"
                   }`}
+                  style={{ fontFamily: 'Inter, sans-serif' }}
                 >
                   Preview
                 </button>
