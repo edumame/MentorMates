@@ -1153,10 +1153,11 @@ export default function ProjectPage() {
             {canEdit && (
               <Button
                 variant="ghost"
-                className="rounded-xl px-3 py-2 text-base"
+                className="rounded-xl px-5 py-2 text-base"
                 onClick={() => router.push(`/projects/${projectId}/edit`)}
               >
-                <Edit className="h-6 w-6" />
+                <Edit className="h-6 w-6 mr-1.5" />
+                Edit
               </Button>
             )}
             <Button
