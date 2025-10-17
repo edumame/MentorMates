@@ -960,9 +960,9 @@ export default function ProjectPage() {
       <PageContent>
         {/* Header Section */}
         <div className="bg-gradient-to-b from-blue-50/45 to-white border-b border-gray-200">
-          <div className="container mx-auto px-8 pt-8 pb-0">
+          <div className="container mx-auto px-5 sm:px-8 pt-6 sm:pt-8 pb-0">
           {/* Top Actions Bar */}
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 sm:mb-6 gap-3 sm:gap-0">
             {/* Metadata Badges */}
             <div className="flex items-center gap-2 flex-wrap">
               <Badge
@@ -989,7 +989,7 @@ export default function ProjectPage() {
             </div>
 
             {/* Action Buttons */}
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
               {canEdit && (
                 <Button
                   variant="ghost"
@@ -1042,9 +1042,9 @@ export default function ProjectPage() {
           </div>
 
           {/* Project Title and Hero Section */}
-          <div className="flex gap-20 mb-12">
+          <div className="flex flex-col lg:flex-row gap-6 lg:gap-20 mb-6 sm:mb-12">
             {/* Left: Title and Description */}
-            <div className="flex-1 space-y-8">
+            <div className="flex-1 space-y-4 sm:space-y-8 order-1">
               <div className="space-y-6">
                 {canEdit ? (
                   <EditableField
@@ -1052,16 +1052,16 @@ export default function ProjectPage() {
                     onSave={handleUpdateTitle}
                     canEdit={canEdit}
                     isLoading={isUpdating}
-                    displayClassName="text-3xl font-semibold text-black tracking-tight leading-9"
-                    inputClassName="text-3xl font-semibold text-black tracking-tight leading-9"
+                    displayClassName="text-2xl sm:text-3xl font-semibold text-black tracking-tight leading-8 sm:leading-9"
+                    inputClassName="text-2xl sm:text-3xl font-semibold text-black tracking-tight leading-8 sm:leading-9"
                     renderDisplay={(value) => (
-                      <h1 className="text-3xl font-semibold text-black tracking-tight leading-9 hover:text-blue-600">
+                      <h1 className="text-2xl sm:text-3xl font-semibold text-black tracking-tight leading-8 sm:leading-9 hover:text-blue-600">
                         {value}
                       </h1>
                     )}
                   />
                 ) : (
-                  <h1 className="text-3xl font-semibold text-black tracking-tight leading-9">
+                  <h1 className="text-2xl sm:text-3xl font-semibold text-black tracking-tight leading-8 sm:leading-9">
                     {project.project_name}
                   </h1>
                 )}
@@ -1120,7 +1120,7 @@ export default function ProjectPage() {
             </div>
 
             {/* Right: Cover Image */}
-            <div className="w-[520px] h-[300px] rounded-2xl overflow-hidden shadow-lg">
+            <div className="w-full lg:w-[520px] h-[200px] sm:h-[250px] lg:h-[300px] rounded-2xl overflow-hidden shadow-lg order-2">
               {canEdit ? (
                 <div className="relative w-full h-full group">
                   <div
@@ -1150,7 +1150,7 @@ export default function ProjectPage() {
 
           {/* Tabs Navigation */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="bg-transparent border-b border-gray-200 rounded-none h-auto p-0 w-full justify-start gap-6">
+            <TabsList className="bg-transparent border-b border-gray-200 rounded-none h-auto p-0 w-full justify-start gap-3 sm:gap-6 overflow-x-auto scrollbar-hide flex-nowrap">
               <TabsTrigger
                 value="overview"
                 className="shadow-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2 font-medium"
@@ -1190,8 +1190,8 @@ export default function ProjectPage() {
             </TabsList>
 
             {/* Main Content Area */}
-            <div className="py-12">
-              <div className="flex gap-10">
+            <div className="py-6 sm:py-12">
+              <div className="flex flex-col lg:flex-row gap-6 sm:gap-10">
                 {/* Left Column: Main Content */}
                 <div className="flex-1 space-y-12">
                   <TabsContent value="overview" className="mt-0">
@@ -1845,7 +1845,7 @@ export default function ProjectPage() {
 
                 {/* Right Column: Sidebar */}
                 {activeTab !== "sharing" && (
-                <div className="w-[420px] space-y-6">
+                <div className="w-full lg:w-[420px] space-y-6">
                   {/* Meet the team */}
                   {activeTab === "overview" && (
                   <div className="space-y-6">
