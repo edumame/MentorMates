@@ -33,12 +33,21 @@ export function EventPageContent({
   const displayRole = activeRole || userRole;
 
   // Show role-specific dashboards for mentors and judges
+  // These components manage their own layout and don't need the wrapper
   if (displayRole === "mentor") {
-    return <MentorDashboard eventId={event.event_id} />;
+    return (
+      <div className="flex flex-col flex-1 w-full">
+        <MentorDashboard eventId={event.event_id} />
+      </div>
+    );
   }
 
   if (displayRole === "judge") {
-    return <JudgeDashboard eventId={event.event_id} />;
+    return (
+      <div className="flex flex-col flex-1 w-full">
+        <JudgeDashboard eventId={event.event_id} />
+      </div>
+    );
   }
 
   // Show default event overview for participants, organizers, and non-authenticated users

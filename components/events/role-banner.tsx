@@ -57,7 +57,7 @@ export function RoleBanner({
   };
 
   return (
-    <div className="sticky top-0 z-20 bg-sky-50 border-b border-[rgba(0,0,0,0.15)]">
+    <div className="sticky top-0 z-50 bg-sky-50 border-b border-[rgba(0,0,0,0.15)]">
       <div className="max-w-[1280px] mx-auto px-6 py-3.5 flex items-center justify-between">
         <div className="flex items-center gap-2 flex-1">
           <Headphones className="h-6 w-6 text-[#4c4c4c]" />

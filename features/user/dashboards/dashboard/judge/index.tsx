@@ -247,7 +247,7 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
   }
 
   return (
-    <div className="flex gap-6 relative max-h-screen">
+    <div className="flex gap-6 relative max-h-screen w-full">
       <div className="w-[300px]">
         <div className="sticky top-4">
           <JudgeChecklist eventId={eventId} />

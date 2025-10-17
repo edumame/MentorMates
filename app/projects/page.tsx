@@ -73,12 +73,12 @@ export default function ProjectsPage() {
   return (
     <PageContainer showBorder={isAuthenticated}>
       <Toaster />
-      <PageContent className="px-[32px] pt-[32px] pb-0">
+      <PageContent className="px-[32px] pt-[32px] pb-8">
         <div className="flex flex-col gap-[24px] max-w-[1064px]">
           <div className="flex items-end justify-between">
             <div className="flex items-center gap-[8px]">
               <h1 className="text-[20px] sm:text-[28px] font-semibold leading-[1.4] tracking-[-0.06em] text-black">
-                Project
+                Projects
               </h1>
               {projects.length > 0 && (
                 <div className="bg-white border border-[rgba(0,0,0,0.15)] px-[8px] py-0 rounded-[50px] flex items-center">

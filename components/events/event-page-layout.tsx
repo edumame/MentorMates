@@ -73,8 +73,7 @@ export async function EventPageLayout({
     .eq("event_id", dbEventId);
 
   return (
-    <PageContainer>
-      <PageContent className="px-0">
+    
         <ActiveRoleProvider initialRole={userRole}>
           <div className="flex flex-col w-full">
             {userRole ? (
@@ -130,7 +129,5 @@ export async function EventPageLayout({
           )}
           </div>
         </ActiveRoleProvider>
-      </PageContent>
-    </PageContainer>
   );
 }

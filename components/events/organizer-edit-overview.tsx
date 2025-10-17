@@ -5,7 +5,13 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/lib/hooks/use-toast";
 import { Archive, Trash2, ArrowUpRight } from "lucide-react";
-import { EventDetails, EventScoringConfig, EventTrack, ScoringCriterion } from "@/lib/types";
+import {
+  EventDetails,
+  EventScoringConfig,
+  EventTrack,
+  EventVisibility,
+  ScoringCriterion,
+} from "@/lib/types";
 
 // Import existing tab components
 import { ParticipantsTab } from "@/features/user/dashboards/dashboard/organizer/participants";
@@ -16,6 +22,8 @@ import { SubmissionsTab } from "@/features/user/dashboards/dashboard/organizer/s
 import { ScoresTab } from "@/features/user/dashboards/dashboard/organizer/scores";
 import { PricingTab } from "@/features/user/dashboards/dashboard/organizer/pricing/PricingTab";
 import EmailDashboard from "@/features/user/dashboards/dashboard/organizer/notifications/EmailDashboard";
+import { EmailTab } from "@/features/user/dashboards/dashboard/organizer/email";
+import { ProjectImport } from "@/features/user/dashboards/dashboard/organizer/import/ProjectImportButton";
 
 // Import sub-tab components for Overview
 import { BasicInfoTab } from "@/features/user/dashboards/dashboard/organizer/details/BasicInfoTab";
@@ -27,6 +35,17 @@ import { FAQTab } from "@/features/user/dashboards/dashboard/organizer/details/F
 
 import { Button } from "@/components/ui/button";
 import { EventCard } from "@/components/events/event-card";
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog";
 
 interface OrganizerEditOverviewProps {
   eventId: string;
@@ -38,11 +57,13 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
   const searchParams = useSearchParams();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
-  const [updating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [event, setEvent] = useState<EventDetails | null>(null);
-  const [scoringConfig, setScoringConfig] = useState<EventScoringConfig | null>(null);
-
+  const [scoringConfig, setScoringConfig] = useState<EventScoringConfig | null>(
+    null
+  );
+  const [deleting, setDeleting] = useState(false);
+  const [archiving, setArchiving] = useState(false);
   // Get tab state from URL or use defaults
   const tabFromUrl = searchParams.get("tab") || "overview";
   const subTabFromUrl = searchParams.get("subtab") || "basics";
@@ -120,7 +141,9 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
 
   const checkAdminStatus = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       if (!session) return;
 
       const { data: adminData } = await supabase.rpc("is_admin_user", {
@@ -150,7 +173,8 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
     try {
       const { data, error } = await supabase
         .from("events")
-        .select(`
+        .select(
+          `
           *,
           event_tracks (
             track_id,
@@ -164,7 +188,8 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
               prize_description
             )
           )
-        `)
+        `
+        )
         .eq("event_id", eventId)
         .single();
 
@@ -192,16 +217,18 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
           if (track.track_id && track.scoring_criteria) {
             tracksConfig[track.track_id] = {
               name: track.name,
-              criteria: track.scoring_criteria.criteria.map((criterion: ScoringCriterion) => ({
-                id: criterion.id,
-                name: criterion.name,
-                description: criterion.description,
-                weight: criterion.weight || 1,
-                min: criterion.min || 1,
-                max: criterion.max || 10,
-                type: criterion.type || "numeric",
-                options: criterion.options || [],
-              })),
+              criteria: track.scoring_criteria.criteria.map(
+                (criterion: ScoringCriterion) => ({
+                  id: criterion.id,
+                  name: criterion.name,
+                  description: criterion.description,
+                  weight: criterion.weight || 1,
+                  min: criterion.min || 1,
+                  max: criterion.max || 10,
+                  type: criterion.type || "numeric",
+                  options: criterion.options || [],
+                })
+              ),
             };
           }
         });
@@ -223,68 +250,6 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
       });
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleUpdate = async () => {
-    toast({
-      title: "Success",
-      description: "Event updated successfully",
-    });
-    router.refresh();
-  };
-
-  const handleArchive = async () => {
-    if (!confirm("Are you sure you want to archive this event?")) return;
-
-    try {
-      const { error } = await supabase
-        .from("events")
-        .update({ visibility: "archived" })
-        .eq("event_id", eventId);
-
-      if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: "Event archived successfully",
-      });
-
-      router.push("/events");
-    } catch (error) {
-      console.error("Error archiving event:", error);
-      toast({
-        title: "Error",
-        description: "Failed to archive event",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!confirm("Are you sure you want to delete this event? This action cannot be undone.")) return;
-
-    try {
-      const { error } = await supabase
-        .from("events")
-        .delete()
-        .eq("event_id", eventId);
-
-      if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: "Event deleted successfully",
-      });
-
-      router.push("/events");
-    } catch (error) {
-      console.error("Error deleting event:", error);
-      toast({
-        title: "Error",
-        description: "Failed to delete event",
-        variant: "destructive",
-      });
     }
   };
 
@@ -312,6 +277,80 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
     );
   };
 
+  const handleDelete = async () => {
+    if (!event) return;
+    try {
+      setDeleting(true);
+      const res = await fetch(`/api/events/${event.event_id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.error || "Failed to delete event");
+      }
+      toast({ title: "Event deleted" });
+      // Navigate back to events list
+      router.push("/events");
+    } catch (err) {
+      console.error(err);
+      toast({
+        title: "Error",
+        description: (err as Error).message,
+        variant: "destructive",
+      });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleArchiveToggle = async () => {
+    if (!event) return;
+
+    try {
+      setArchiving(true);
+      const action =
+        event.visibility === EventVisibility.Archived ? "unarchive" : "archive";
+
+      const res = await fetch(`/api/events/${event.event_id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ action }),
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.error || `Failed to ${action} event`);
+      }
+
+      const result = await res.json();
+
+      // Update local state
+      setEvent({ ...event, visibility: result.newVisibility });
+
+      toast({
+        title: "Success",
+        description: `Event ${action}d successfully`,
+      });
+
+      // Refresh the page to update any cached data
+      router.refresh();
+    } catch (error) {
+      console.error(
+        `Error ${event.visibility === EventVisibility.Archived ? "unarchiving" : "archiving"} event:`,
+        error
+      );
+      toast({
+        title: "Error",
+        description: (error as Error).message,
+        variant: "destructive",
+      });
+    } finally {
+      setArchiving(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -332,40 +371,88 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
     <div
       className="w-full min-h-screen"
       style={{
-        background: "linear-gradient(209.28deg, rgba(219, 234, 254, 0.25) 13.188%, rgba(255, 255, 255, 0) 65.83%), linear-gradient(90deg, rgb(255, 255, 255) 0%, rgb(255, 255, 255) 100%)"
+        background:
+          "linear-gradient(209.28deg, rgba(219, 234, 254, 0.25) 13.188%, rgba(255, 255, 255, 0) 65.83%), linear-gradient(90deg, rgb(255, 255, 255) 0%, rgb(255, 255, 255) 100%)",
       }}
     >
       <div className="px-8 py-6 space-y-6">
         {/* Header with title and action buttons */}
         <div className="flex items-center justify-between">
-          <h1 className="font-semibold text-[28px] leading-[1.4] tracking-[-1.68px] text-black" style={{ fontFamily: "Geist, sans-serif" }}>
+          <h1
+            className="font-semibold text-[28px] leading-[1.4] tracking-[-1.68px] text-black"
+            style={{ fontFamily: "Geist, sans-serif" }}
+          >
             Manage Event
           </h1>
 
           <div className="flex gap-1">
-            <Button
-              variant="defaultGray"
-              onClick={handleArchive}
-              className="gap-[6px] px-6 py-[10px] text-[16px] font-medium"
-            >
-              <Archive className="w-6 h-6" />
-              Archive
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDelete}
-              className="gap-[6px] px-6 py-[10px] text-[16px] font-medium bg-red-600 hover:bg-red-700"
-            >
-              <Trash2 className="w-6 h-6" />
-              Delete
-            </Button>
-            <Button
-              onClick={handleUpdate}
-              disabled={updating}
-              className="gap-2 px-6 py-[10px] text-[16px] font-medium bg-[#4b89ef] hover:bg-[#3b79df]"
-            >
-              {updating ? "Updating..." : "Update Event"}
-            </Button>
+            {/* Archive Event Dialog */}
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="defaultGray"
+                  className="gap-[6px] px-6 py-[10px] text-[16px] font-medium"
+                  disabled={
+                    archiving || event.visibility === EventVisibility.Archived
+                  }
+                >
+                  <Archive className="w-6 h-6" />
+                  {archiving ? "Archiving..." : "Archive"}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>
+                    {event.visibility === EventVisibility.Archived
+                      ? "Unarchive this event?"
+                      : "Archive this event?"}
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {event.visibility === EventVisibility.Archived
+                      ? "This will make the event editable again and change its visibility to private. You can change the visibility afterwards if needed."
+                      : "Archived events are hidden from non-organizers and the public, and cannot be edited by organizers. You can unarchive it later if needed."}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleArchiveToggle}>
+                    {event.visibility === EventVisibility.Archived
+                      ? "Confirm Unarchive"
+                      : "Confirm Archive"}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Delete Event Dialog */}
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="destructive"
+                  disabled={deleting}
+                  className="gap-[6px] px-6 py-[10px] text-[16px] font-medium"
+                >
+                  <Trash2 className="w-6 h-6" />
+                  Delete
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete this event?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently remove the event and related data
+                    (tickets, payments, tracks, feedback). This cannot be
+                    undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction className="bg-red-600 hover:bg-red-700 text-white"onClick={handleDelete}>
+                    Confirm Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </div>
 
@@ -403,7 +490,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                     ? "font-medium bg-white outline outline-1 outline-offset-[-1px] outline-[rgba(0,0,0,0.15)] text-black"
                     : "font-normal text-black"
                 }`}
-                style={{ fontFamily: 'Inter, sans-serif' }}
+                style={{ fontFamily: "Inter, sans-serif" }}
               >
                 {subTab.label}
               </button>
@@ -473,7 +560,9 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                 )}
                 {activeSubTab === "gallery" && (
                   <div className="text-center py-12">
-                    <p className="text-lg text-gray-500">Gallery section coming soon</p>
+                    <p className="text-lg text-gray-500">
+                      Gallery section coming soon
+                    </p>
                   </div>
                 )}
               </div>
@@ -514,13 +603,19 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
           )}
 
           {/* Assign Tab */}
-          {activeTab === "assign" && (
-            <AssignTab eventId={eventId} />
-          )}
+          {activeTab === "assign" && <AssignTab eventId={eventId} />}
 
           {/* Project Submission Tab */}
           {activeTab === "project-submission" && (
-            <SubmissionsTab eventId={eventId} />
+            <div className="space-y-6">
+              <SubmissionsTab eventId={eventId} />
+
+              {/* Project Import Section */}
+              <div className="border-t pt-6">
+                <h2 className="text-xl font-semibold mb-4">Import Projects</h2>
+                <ProjectImport eventId={eventId} />
+              </div>
+            </div>
           )}
 
           {/* Live Scores Tab */}
@@ -550,7 +645,9 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                 />
               ) : (
                 <div className="text-center py-12">
-                  <p className="text-lg text-gray-500">Only admins can access ticketing settings</p>
+                  <p className="text-lg text-gray-500">
+                    Only admins can access ticketing settings
+                  </p>
                 </div>
               )}
             </>
@@ -558,7 +655,17 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
 
           {/* Notify Tab */}
           {activeTab === "notify" && event && (
-            <EmailDashboard eventId={eventId} eventName={event.event_name} />
+            <div className="space-y-6">
+              <EmailDashboard eventId={eventId} eventName={event.event_name} />
+
+              {/* Email Section */}
+              <div className="border-t pt-6">
+                <h2 className="text-xl font-semibold mb-4">
+                  Email Project Participants
+                </h2>
+                <EmailTab eventId={eventId} />
+              </div>
+            </div>
           )}
         </div>
       </div>

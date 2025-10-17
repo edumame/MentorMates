@@ -30,7 +30,7 @@ import { toast } from "@/lib/hooks/use-toast";
 import { PricingTierSelector } from "./pricing-tier-selector";
 import { getCheapestPricingTier, formatPrice } from "@/lib/utils/pricing";
 import { getRoleLabel, isHigherOrEqualRole } from "@/features/user/roles/roles";
-import { ConfirmationNumber } from "@mui/icons-material";
+import { Ticket } from "lucide-react";
 
 export interface JoinEventButtonProps {
   eventId: string;
@@ -326,7 +326,7 @@ export function JoinEventButton({
           size="lg"
           className="rounded-full px-6 py-5 gap-2"
         >
-          <ConfirmationNumber className="h-5 w-5" />{" "}
+          <Ticket className="h-6 w-6" />{" "}
           {label
             ? label
             : event?.paid

@@ -327,10 +327,10 @@ export function BasicInfoTab({
                 } as typeof event;
                 // If tracks are provided, prefill into event.event_tracks with minimal structure
                 if (Array.isArray(imported.tracks) && imported.tracks.length > 0) {
-                  const newTracks = imported.tracks.map((t: any) => {
+                  const newTracks = imported.tracks.map((t: ImportedTrack) => {
                     const trackId = crypto.randomUUID();
                     const prizes = Array.isArray(t?.prizes)
-                      ? t.prizes.map((p: any) => ({
+                      ? t.prizes.map((p: ImportedPrize) => ({
                           id: `local-${crypto.randomUUID()}`,
                           track_id: trackId,
                           prize_amount: String(p?.prize_amount || ""),
@@ -354,7 +354,7 @@ export function BasicInfoTab({
                       updated_at: new Date().toISOString(),
                     };
                   });
-                  (merged as any).event_tracks = newTracks;
+                  (merged as EventDetails).event_tracks = newTracks;
                 }
                 setEvent(merged);
                 toast({
@@ -377,7 +377,7 @@ export function BasicInfoTab({
           </Button>
         </div>
         <p className="text-xs text-gray-500">
-          Paste your Devpost event page URL. We'll fetch details and prefill this form using AI.
+          Paste your Devpost event page URL. We&apos;ll fetch details and prefill this form using AI.
         </p>
       </div>
 

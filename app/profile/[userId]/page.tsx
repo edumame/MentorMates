@@ -21,6 +21,7 @@ import { useToast } from "@/lib/hooks/use-toast";
 import { Toaster } from "@/components/ui/toaster";
 import { getRoleLabel } from "@/features/user/roles/roles";
 import { Loader2 } from "lucide-react";
+import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 
 interface EventWithRole extends EventDetails {
   user_event_roles: {
@@ -214,7 +215,8 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <PageContainer showBorder={true}>
+      <PageContent>
       <Toaster />
       <div className="max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
@@ -548,6 +550,7 @@ export default function ProfilePage() {
           )}
         </div>
       </div>
-    </div>
+    </PageContent>
+    </PageContainer>
   );
 }

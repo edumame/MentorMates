@@ -6,7 +6,7 @@ import { EventHeader } from "@/components/events/event-header";
 import { Footer } from "@/components/layout/Footer";
 import { useLayoutConfig } from "@/components/layout/LayoutConfigProvider";
 import { EventVisibility } from "@/lib/types";
-import { usePathname } from "next/navigation";
+import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 
 interface ConditionalEventLayoutProps {
   children: ReactNode;
@@ -30,8 +30,6 @@ export function ConditionalEventLayout({
   event,
 }: ConditionalEventLayoutProps) {
   const { showEventHeader, showEventWrapper, showFooter } = useLayoutConfig();
-  const pathname = usePathname();
-  const isRedesignedPage = pathname?.includes('/overview') || pathname?.includes('/gallery') || pathname?.includes('/feed') || pathname?.includes('/schedule') || pathname?.includes('/participants') || pathname?.includes('/faqs');
 
   if (!showEventHeader && !showEventWrapper && !showFooter) {
     // Clean layout - no event components (redesigned pages handle their own layout)
@@ -40,38 +38,40 @@ export function ConditionalEventLayout({
 
   // Standard event layout with configurable components
   const content = (
-    <main className="flex-1">
-      <div className="max-w-5xl px-4 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6 w-full">
-        {showEventHeader && (
-          <EventHeader
-            eventName={event.event_name}
-            coverImageUrl={event.cover_image_url}
-            eventDate={event.event_date || undefined}
-            location={event.location || undefined}
-            description={
-              event.event_blurb || event.event_description || undefined
-            }
-            eventId={event.slug || event.event_id}
-            submissionTimeStart={event.submission_time_start || undefined}
-            submissionTimeCutoff={event.submission_time_cutoff || undefined}
-            visibility={event.visibility}
-          />
-        )}
-        {children}
-      </div>
+    <main className="f">
+      {showEventHeader && (
+        <EventHeader
+          eventName={event.event_name}
+          coverImageUrl={event.cover_image_url}
+          eventDate={event.event_date || undefined}
+          location={event.location || undefined}
+          description={
+            event.event_blurb || event.event_description || undefined
+          }
+          eventId={event.slug || event.event_id}
+          submissionTimeStart={event.submission_time_start || undefined}
+          submissionTimeCutoff={event.submission_time_cutoff || undefined}
+          visibility={event.visibility}
+        />
+      )}
+      {children}
     </main>
   );
 
   return (
-    <div className="flex flex-col bg-background">
-      {showEventWrapper ? (
-        <EventRegistrationWrapper eventId={event.event_id}>
-          {content}
-        </EventRegistrationWrapper>
-      ) : (
-        content
-      )}
-      {showFooter && <Footer />}
-    </div>
+    <PageContainer>
+      <PageContent className="px-0">
+        <div className="flex flex-col bg-background">
+          {showEventWrapper ? (
+            <EventRegistrationWrapper eventId={event.event_id}>
+              {content}
+            </EventRegistrationWrapper>
+          ) : (
+            content
+          )}
+          {showFooter && <Footer />}
+        </div>
+      </PageContent>
+    </PageContainer>
   );
 }

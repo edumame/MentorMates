@@ -28,6 +28,8 @@ import { toast } from "@/lib/hooks/use-toast";
 import { Toaster } from "@/components/ui/toaster";
 import UserSearch from "@/components/utils/UserSearch";
 import { useAdmin } from "@/lib/hooks/use-admin";
+import { EventDetails } from "@/lib/types";
+import ReactMarkdown from "react-markdown";
 
 interface EventParticipant {
   user_id: string;
@@ -62,7 +64,7 @@ export function NewProjectSubmissionFormSinglePage({
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPrefilling, setIsPrefilling] = useState(false);
-  const [eventDetails, setEventDetails] = useState<any>(null);
+  const [eventDetails, setEventDetails] = useState<EventDetails | null>(null);
   const [participants, setParticipants] = useState<EventParticipant[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -89,9 +91,8 @@ export function NewProjectSubmissionFormSinglePage({
             data: { session },
           } = await supabase.auth.getSession();
           const email = session?.user?.email || "";
-          const nameFromMeta =
-            (session?.user?.user_metadata?.full_name ||
-              session?.user?.user_metadata?.name) as string | undefined;
+          const nameFromMeta = (session?.user?.user_metadata?.full_name ||
+            session?.user?.user_metadata?.name) as string | undefined;
 
           if (email && !formData.leadEmail) {
             setFormData((prev) => ({ ...prev, leadEmail: email }));
@@ -127,7 +128,7 @@ export function NewProjectSubmissionFormSinglePage({
             .single();
 
           if (!error && data) {
-            setEventDetails(data);
+            setEventDetails(data as EventDetails);
           }
         } catch {
           // Silent fail
@@ -156,16 +157,32 @@ export function NewProjectSubmissionFormSinglePage({
           )
         `
         )
-        .eq("event_id", eventId);
+        .eq("event_id", eventId)
+        .overrideTypes<
+          {
+            user_id: string;
+            profiles: { display_name: string | null; email: string | null };
+          }[]
+        >();
 
       const participantList: EventParticipant[] = (data || [])
-        .filter((role: any) => role.profiles?.email)
-        .map((role: any) => ({
-          user_id: role.user_id,
-          display_name:
-            role.profiles?.display_name || role.profiles?.email || "",
-          email: role.profiles?.email || "",
-        }));
+        .filter(
+          (role: {
+            user_id: string;
+            profiles: { display_name: string | null; email: string | null };
+          }) => role.profiles?.email
+        )
+        .map(
+          (role: {
+            user_id: string;
+            profiles: { display_name: string | null; email: string | null };
+          }) => ({
+            user_id: role.user_id,
+            display_name:
+              role.profiles?.display_name || role.profiles?.email || "",
+            email: role.profiles?.email || "",
+          })
+        );
 
       setParticipants(participantList);
     } catch {
@@ -379,9 +396,7 @@ export function NewProjectSubmissionFormSinglePage({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(
-          projectId
-            ? { projectId }
-            : { eventId, leadEmail: formData.leadEmail }
+          projectId ? { projectId } : { eventId, leadEmail: formData.leadEmail }
         ),
       });
       if (!resp.ok) {
@@ -394,8 +409,7 @@ export function NewProjectSubmissionFormSinglePage({
       setFormData((prev) => ({
         ...prev,
         projectName: data.projectName || prev.projectName,
-        projectDescription:
-          data.projectDescription || prev.projectDescription,
+        projectDescription: data.projectDescription || prev.projectDescription,
         teammates: Array.isArray(data.teammates)
           ? data.teammates
           : prev.teammates,
@@ -763,7 +777,11 @@ export function NewProjectSubmissionFormSinglePage({
                     variant="secondary"
                     onClick={() =>
                       router.push(
-                        eventId ? `/events/${eventId}/dashboard` : `/projects`
+                        eventDetails?.slug
+                          ? `/events/${eventDetails.slug}/overview`
+                          : eventId
+                            ? `/events/${eventId}/overview`
+                            : `/projects`
                       )
                     }
                     className="bg-[#f2f2f2] hover:bg-[#e8e8e8] text-black rounded-xl px-6 py-2.5 shadow-sm font-medium"
@@ -940,9 +958,11 @@ export function NewProjectSubmissionFormSinglePage({
                             </div>
                           </div>
                           {eventDetails.event_description && (
-                            <p className="text-base text-black leading-relaxed">
-                              {eventDetails.event_description}
-                            </p>
+                            <div className="text-base text-black leading-relaxed prose">
+                              <ReactMarkdown>
+                                {eventDetails.event_description}
+                              </ReactMarkdown>
+                            </div>
                           )}
                         </CardContent>
                       </Card>
