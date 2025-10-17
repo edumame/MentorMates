@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 import { toast } from "@/lib/hooks/use-toast";
 import { Toaster } from "@/components/ui/toaster";
-import UserSearch from "@/components/utils/UserSearch";
+import UserSearchWithInvite from "@/components/utils/UserSearchWithInvite";
 import { useAdmin } from "@/lib/hooks/use-admin";
 import { EventDetails } from "@/lib/types";
 import ReactMarkdown from "react-markdown";
@@ -823,10 +823,12 @@ export function NewProjectSubmissionFormSinglePage({
                     <label className="text-base text-black font-normal">
                       Add teammates (Optional)
                     </label>
-                    <UserSearch
+                    <UserSearchWithInvite
                       allTags={participants.map((p) => p.email)}
                       onTagsChange={handleTeammatesChange}
                       initialTags={formData.teammates}
+                      projectId={projectId || undefined}
+                      enableInvite={!!projectId}
                     />
                   </div>
                 </div>

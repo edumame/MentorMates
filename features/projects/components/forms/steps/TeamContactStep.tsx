@@ -7,7 +7,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import UserSearch from "@/components/utils/UserSearch";
+import UserSearchWithInvite from "@/components/utils/UserSearchWithInvite";
 import { ProjectSubmissionFormData } from "../schema/ProjectSubmissionSchema";
 
 interface TeamContactStepProps {
@@ -16,14 +16,16 @@ interface TeamContactStepProps {
   leadName?: string;
   userEmail?: string;
   onTeammatesChange: (tags: string[]) => void;
+  projectId?: string;
 }
 
-export function TeamContactStep({ 
-  form, 
-  allUsers, 
-  leadName, 
-  userEmail, 
-  onTeammatesChange 
+export function TeamContactStep({
+  form,
+  allUsers,
+  leadName,
+  userEmail,
+  onTeammatesChange,
+  projectId
 }: TeamContactStepProps) {
   return (
     <div className="space-y-6">
@@ -91,9 +93,11 @@ export function TeamContactStep({
           <FormItem>
             <FormLabel className="text-base">Teammates</FormLabel>
             <FormControl>
-              <UserSearch
+              <UserSearchWithInvite
                 allTags={allUsers}
                 onTagsChange={onTeammatesChange}
+                projectId={projectId}
+                enableInvite={!!projectId}
               />
             </FormControl>
             <FormMessage className="text-sm" />

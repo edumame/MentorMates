@@ -394,6 +394,7 @@ export function ProjectSubmissionFormComponent({
               leadName={leadName}
               userEmail={userEmail}
               onTeammatesChange={handleTeammatesChange}
+              projectId={projectId || undefined}
             />
           )}
 
