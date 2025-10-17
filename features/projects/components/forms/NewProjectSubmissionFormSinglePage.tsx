@@ -824,7 +824,7 @@ export function NewProjectSubmissionFormSinglePage({
                   <div className="border-t border-gray-200" />
 
                   {/* Add Teammates */}
-                  <div className="space-y-2">
+                  <div className="space-y-2 pb-32">
                     <label className="text-base text-black font-normal">
                       Add teammates (Optional)
                     </label>

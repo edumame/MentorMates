@@ -90,7 +90,7 @@ export function TeamContactStep({
         control={form.control}
         name="teammates"
         render={() => (
-          <FormItem>
+          <FormItem className="pb-32">
             <FormLabel className="text-base">Teammates</FormLabel>
             <FormControl>
               <UserSearchWithInvite
