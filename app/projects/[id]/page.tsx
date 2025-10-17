@@ -987,6 +987,58 @@ export default function ProjectPage() {
                 {totalMembers} members
               </Badge>
             </div>
+
+            {/* Action Buttons - Desktop Only */}
+            <div className="hidden sm:flex items-center gap-3">
+              {canEdit && (
+                <Button
+                  variant="ghost"
+                  className="rounded-xl px-5 py-2 text-base"
+                  onClick={() => router.push(`/projects/${projectId}/edit`)}
+                >
+                  <Edit className="h-6 w-6 mr-1.5" />
+                  Edit
+                </Button>
+              )}
+              <Button
+                variant="secondary"
+                aria-pressed={liked}
+                disabled={likeIsLoading}
+                onClick={() => {
+                  if (!session) {
+                    toast({
+                      title: "Sign in required",
+                      description: "Please log in to like projects.",
+                    });
+                    router.push(`/login?returnUrl=/projects/${projectId}`);
+                    return;
+                  }
+                  void toggleLike();
+                }}
+                className={`rounded-xl px-5 py-2 shadow-sm text-base ${
+                  liked
+                    ? "bg-red-100 text-red-700 hover:bg-red-200"
+                    : "bg-black/5 hover:bg-black/10"
+                }`}
+              >
+                {likeIsLoading ? (
+                  <Loader className="h-6 w-6 mr-1.5" />
+                ) : (
+                  <Heart
+                    className="h-6 w-6 mr-1.5"
+                    fill={liked ? "currentColor" : "none"}
+                  />
+                )}
+                {liked ? "Liked" : "Like"}
+                <span className="ml-2 text-sm">{likesCount}</span>
+              </Button>
+              <Button
+                onClick={() => setShowFeedbackDialog(true)}
+                className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-5 py-2 shadow-sm text-base"
+              >
+                Give feedback
+              </Button>
+            </div>
           </div>
 
           {/* Project Title and Hero Section */}
@@ -1096,8 +1148,8 @@ export default function ProjectPage() {
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex items-center gap-2 mb-6 overflow-x-auto">
+          {/* Action Buttons - Mobile Only */}
+          <div className="flex sm:hidden items-center gap-2 mb-6 overflow-x-auto">
             {canEdit && (
               <Button
                 variant="ghost"

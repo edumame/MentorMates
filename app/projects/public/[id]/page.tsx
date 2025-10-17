@@ -298,6 +298,38 @@ export default function PublicProjectPage() {
                   </Badge>
                 )}
               </div>
+
+              {/* Action Buttons - Desktop Only */}
+              <div className="hidden sm:flex items-center gap-3">
+                <Button
+                  variant="secondary"
+                  aria-pressed={liked}
+                  disabled={likeIsLoading}
+                  onClick={() => void toggleLike()}
+                  className={`rounded-xl px-5 py-2 shadow-sm text-base ${
+                    liked
+                      ? "bg-red-100 text-red-700 hover:bg-red-200"
+                      : "bg-black/5 hover:bg-black/10"
+                  }`}
+                >
+                  {likeIsLoading ? (
+                    <Loader className="h-6 w-6 mr-1.5" />
+                  ) : (
+                    <Heart
+                      className="h-6 w-6 mr-1.5"
+                      fill={liked ? "currentColor" : "none"}
+                    />
+                  )}
+                  {liked ? "Liked" : "Like"}
+                  <span className="ml-2 text-sm">{likesCount}</span>
+                </Button>
+                <Button
+                  onClick={() => setShowFeedbackDialog(true)}
+                  className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-5 py-2 shadow-sm text-base"
+                >
+                  Give feedback
+                </Button>
+              </div>
             </div>
 
             {/* Project Title and Hero Section */}
@@ -359,8 +391,8 @@ export default function PublicProjectPage() {
               </div>
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex items-center gap-2 mb-6 overflow-x-auto">
+            {/* Action Buttons - Mobile Only */}
+            <div className="flex sm:hidden items-center gap-2 mb-6 overflow-x-auto">
               <Button
                 variant="secondary"
                 aria-pressed={liked}
