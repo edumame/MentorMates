@@ -437,7 +437,12 @@ export function NewProjectSubmissionFormSinglePage({
     }
   };
 
-  const handleTeammatesChange = async (emails: string[]) => {
+  const handleTeammatesChange = async (tags: string[]) => {
+    // Extract emails from tags that might be in "Name (email)" format
+    const emails = tags.map(tag => {
+      const emailMatch = tag.match(/\((.+?)\)$/);
+      return emailMatch ? emailMatch[1] : tag;
+    });
     setFormData((prev) => ({ ...prev, teammates: emails }));
   };
 
@@ -824,9 +829,18 @@ export function NewProjectSubmissionFormSinglePage({
                       Add teammates (Optional)
                     </label>
                     <UserSearchWithInvite
-                      allTags={participants.map((p) => p.email)}
+                      allTags={participants.map((p) =>
+                        p.display_name && p.display_name !== p.email
+                          ? `${p.display_name} (${p.email})`
+                          : p.email
+                      )}
                       onTagsChange={handleTeammatesChange}
-                      initialTags={formData.teammates}
+                      initialTags={formData.teammates.map(email => {
+                        const participant = participants.find(p => p.email === email);
+                        return participant?.display_name && participant.display_name !== email
+                          ? `${participant.display_name} (${email})`
+                          : email;
+                      })}
                       projectId={projectId || undefined}
                       enableInvite={!!projectId}
                     />

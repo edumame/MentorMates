@@ -249,6 +249,16 @@ const UserSearchWithInvite = ({
     return selectedTags.map((tag, index) => getTagMarkup(tag, index));
   };
 
+  // Extract email from formatted tag "Name (email)" or return the tag itself
+  const extractEmail = (tag: string): string => {
+    const emailMatch = tag.match(/\((.+?)\)$/);
+    return emailMatch ? emailMatch[1] : tag;
+  };
+
+  // Extract all emails from allTags for comparison
+  const allEmails = allTags.map(extractEmail);
+  const selectedEmails = selectedTags.map(extractEmail);
+
   // Check if input is a valid email but not in the list
   const showInviteOption =
     enableInvite &&
@@ -256,7 +266,8 @@ const UserSearchWithInvite = ({
     tagInput.trim() &&
     isValidEmail(tagInput.trim()) &&
     filteredTags.length === 0 &&
-    !selectedTags.includes(tagInput.trim().toLowerCase());
+    !allEmails.includes(tagInput.trim().toLowerCase()) &&
+    !selectedEmails.includes(tagInput.trim().toLowerCase());
 
   return (
     <div className="w-full space-y-2">
