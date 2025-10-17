@@ -69,7 +69,7 @@ export function ConditionalEventLayout({
           ) : (
             content
           )}
-          {showFooter && <Footer />}
+          <div className="pt-8">{showFooter && <Footer />}</div>
         </div>
       </PageContent>
     </PageContainer>
