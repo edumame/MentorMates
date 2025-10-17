@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 import {
   Loader2,
   Image as ImageIcon,
@@ -433,9 +434,11 @@ export default function ProjectEditPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-      </div>
+      <PageContainer>
+        <div className="flex items-center justify-center flex-grow">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        </div>
+      </PageContainer>
     );
   }
 
@@ -447,14 +450,12 @@ export default function ProjectEditPage() {
   const totalMembers = (project.teammates?.length || 0) + 1;
 
   return (
-    <div className="bg-white min-h-screen">
+    <PageContainer>
       <Toaster />
-
-      {/* Wrapper with rounded corners and border */}
-      <div className="border border-[#d8d8d8] rounded-tl-[16px] overflow-hidden">
-        {/* Auto-save Banner */}
-        <div className="bg-sky-50 border-b border-[#d8d8d8]">
-          <div className="container mx-auto px-6 py-3.5 flex items-center justify-between max-w-[1280px]">
+      <PageContent className="flex flex-col">
+        {/* Sticky Auto-save Banner */}
+        <div className="sticky top-0 z-40 bg-sky-50 border-b border-[#d8d8d8]">
+          <div className="max-w-[1280px] mx-auto px-6 py-3.5 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Shield className="h-6 w-6 text-[#4c4c4c]" />
               <p className="text-[#4c4c4c] text-lg font-medium tracking-[-0.06em]">
@@ -473,7 +474,7 @@ export default function ProjectEditPage() {
 
         {/* Main Content */}
         <div className="bg-gradient-to-br from-blue-100/45 via-transparent to-transparent">
-          <div className="container mx-auto px-8 py-6 min-h-[800px]">
+          <div className="max-w-[1280px] mx-auto px-8 py-6 min-h-[800px]">
           <div className="flex gap-12 items-start justify-between">
             {/* Left Side - Form */}
             <div className="flex-1 max-w-[640px] space-y-6">
@@ -636,7 +637,7 @@ export default function ProjectEditPage() {
               </div>
             </div>
 
-            {/* Right Side - Preview & Actions */}
+              {/* Right Side - Preview & Actions */}
             <div className="space-y-6">
               {/* Action Buttons */}
               <div className="flex items-center gap-1 justify-end">
@@ -731,7 +732,7 @@ export default function ProjectEditPage() {
           </div>
         </div>
         </div>
-      </div>
+      </PageContent>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
@@ -755,6 +756,6 @@ export default function ProjectEditPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </PageContainer>
   );
 }

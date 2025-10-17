@@ -1,0 +1,157 @@
+
+> mentor-mate@0.1.0 build /workspace
+> next build
+
+Attention: Next.js now collects completely anonymous telemetry regarding usage.
+This information is used to shape Next.js' roadmap and prioritize features.
+You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+https://nextjs.org/telemetry
+
+   ▲ Next.js 15.5.3
+
+   Creating an optimized production build ...
+<w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (108kiB) impacts deserialization performance (consider using Buffer instead and decode when needed)
+ ⚠ Compiled with warnings in 1663ms
+
+./node_modules/.pnpm/@supabase+realtime-js@2.15.5/node_modules/@supabase/realtime-js/dist/module/lib/websocket-factory.js
+A Node.js API is used (process.versions at line: 35) which is not supported in the Edge Runtime.
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime
+
+Import trace for requested module:
+./node_modules/.pnpm/@supabase+realtime-js@2.15.5/node_modules/@supabase/realtime-js/dist/module/lib/websocket-factory.js
+./node_modules/.pnpm/@supabase+realtime-js@2.15.5/node_modules/@supabase/realtime-js/dist/module/index.js
+./node_modules/.pnpm/@supabase+supabase-js@2.57.4/node_modules/@supabase/supabase-js/dist/module/index.js
+./node_modules/.pnpm/@supabase+ssr@0.6.1_@supabase+supabase-js@2.57.4/node_modules/@supabase/ssr/dist/module/createBrowserClient.js
+./node_modules/.pnpm/@supabase+ssr@0.6.1_@supabase+supabase-js@2.57.4/node_modules/@supabase/ssr/dist/module/index.js
+./app/utils/supabase/middleware.ts
+
+./node_modules/.pnpm/@supabase+supabase-js@2.57.4/node_modules/@supabase/supabase-js/dist/module/index.js
+A Node.js API is used (process.version at line: 24) which is not supported in the Edge Runtime.
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime
+
+Import trace for requested module:
+./node_modules/.pnpm/@supabase+supabase-js@2.57.4/node_modules/@supabase/supabase-js/dist/module/index.js
+./node_modules/.pnpm/@supabase+ssr@0.6.1_@supabase+supabase-js@2.57.4/node_modules/@supabase/ssr/dist/module/createBrowserClient.js
+./node_modules/.pnpm/@supabase+ssr@0.6.1_@supabase+supabase-js@2.57.4/node_modules/@supabase/ssr/dist/module/index.js
+./app/utils/supabase/middleware.ts
+
+ ✓ Compiled successfully in 46s
+   Linting and checking validity of types ...
+
+./app/actions/stripe.ts
+6:8  Warning: 'Stripe' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/ai-vibe-guide/return/page.tsx
+21:9  Warning: 'customerEmail' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./app/events/new/page.tsx
+238:23  Warning: Image elements must have an alt prop, either with meaningful text, or an empty string for decorative images.  jsx-a11y/alt-text
+322:23  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./app/layout.tsx
+32:9  Warning: Custom fonts not added in `pages/_document.js` will only load for a single page. This is discouraged. See: https://nextjs.org/docs/messages/no-page-custom-font  @next/next/no-page-custom-font
+
+./app/login/page.tsx
+541:5  Warning: Expected an assignment or function call and instead saw an expression.  @typescript-eslint/no-unused-expressions
+
+./app/projects/[id]/edit/page.tsx
+92:6  Warning: React Hook useEffect has a missing dependency: 'fetchProject'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+98:6  Warning: React Hook useEffect has a missing dependency: 'fetchEventParticipants'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+212:6  Warning: React Hook useEffect has missing dependencies: 'handleAutoSave', 'isLoading', and 'project'. Either include them or remove the dependency array.  react-hooks/exhaustive-deps
+667:23  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./app/projects/[id]/page.tsx
+71:10  Warning: 'ProjectQRCodeSection' is defined but never used.  @typescript-eslint/no-unused-vars
+101:9  Warning: 'isAdmin' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+125:10  Warning: 'showContextusId' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+125:27  Warning: 'setShowContextusId' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+175:6  Warning: React Hook useEffect has a missing dependency: 'fetchProject'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+205:16  Warning: 'error' is defined but never used.  @typescript-eslint/no-unused-vars
+263:14  Warning: 'error' is defined but never used.  @typescript-eslint/no-unused-vars
+299:14  Warning: 'error' is defined but never used.  @typescript-eslint/no-unused-vars
+357:14  Warning: 'error' is defined but never used.  @typescript-eslint/no-unused-vars
+416:14  Warning: 'error' is defined but never used.  @typescript-eslint/no-unused-vars
+471:14  Warning: 'error' is defined but never used.  @typescript-eslint/no-unused-vars
+531:14  Warning: 'error' is defined but never used.  @typescript-eslint/no-unused-vars
+590:14  Warning: 'error' is defined but never used.  @typescript-eslint/no-unused-vars
+647:14  Warning: 'error' is defined but never used.  @typescript-eslint/no-unused-vars
+679:14  Warning: 'error' is defined but never used.  @typescript-eslint/no-unused-vars
+732:14  Warning: 'error' is defined but never used.  @typescript-eslint/no-unused-vars
+817:14  Warning: 'error' is defined but never used.  @typescript-eslint/no-unused-vars
+854:14  Warning: 'error' is defined but never used.  @typescript-eslint/no-unused-vars
+865:9  Warning: 'handleCreateContextusLink' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+915:14  Warning: 'error' is defined but never used.  @typescript-eslint/no-unused-vars
+1280:29  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+1958:29  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./app/projects/public/[id]/page.tsx
+75:10  Warning: 'isCheckingJudgeStatus' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+136:16  Warning: 'error' is defined but never used.  @typescript-eslint/no-unused-vars
+215:20  Warning: 'tracksError' is defined but never used.  @typescript-eslint/no-unused-vars
+219:16  Warning: 'error' is defined but never used.  @typescript-eslint/no-unused-vars
+486:31  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+865:31  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./components/events/event-card.tsx
+45:13  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./components/events/event-page-header.tsx
+43:13  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./components/events/event-page-layout.tsx
+5:10  Warning: 'PageContainer' is defined but never used.  @typescript-eslint/no-unused-vars
+5:25  Warning: 'PageContent' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./components/events/gallery-content.tsx
+5:10  Warning: 'supabase' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./components/heroes/AuthHero.tsx
+8:11  Warning: 'Stats' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./components/heroes/components/Featured.tsx
+218:21  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./components/heroes/components/Impact.tsx
+57:39  Warning: The ref value 'sectionRef.current' will likely have changed by the time this effect cleanup function runs. If this ref points to a node rendered by React, copy 'sectionRef.current' to a variable inside the effect, and use that variable in the cleanup function.  react-hooks/exhaustive-deps
+
+./components/heroes/components/MyEvents.tsx
+92:18  Warning: 'err' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./components/host/content.ts
+2:3  Warning: 'RefreshCcw' is defined but never used.  @typescript-eslint/no-unused-vars
+3:3  Warning: 'Hammer' is defined but never used.  @typescript-eslint/no-unused-vars
+4:3  Warning: 'Medal' is defined but never used.  @typescript-eslint/no-unused-vars
+5:3  Warning: 'BarChart' is defined but never used.  @typescript-eslint/no-unused-vars
+6:3  Warning: 'Activity' is defined but never used.  @typescript-eslint/no-unused-vars
+7:3  Warning: 'Users' is defined but never used.  @typescript-eslint/no-unused-vars
+8:3  Warning: 'Presentation' is defined but never used.  @typescript-eslint/no-unused-vars
+9:3  Warning: 'ChartArea' is defined but never used.  @typescript-eslint/no-unused-vars
+10:3  Warning: 'School' is defined but never used.  @typescript-eslint/no-unused-vars
+11:3  Warning: 'Share' is defined but never used.  @typescript-eslint/no-unused-vars
+12:3  Warning: 'Award' is defined but never used.  @typescript-eslint/no-unused-vars
+13:3  Warning: 'Network' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./components/ui/sticky-banner.tsx
+20:16  Warning: 'setOpen' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/app/api-reference/config/eslint#disabling-rules
+   Collecting page data ...
+Error: @supabase/ssr: Your project's URL and API key are required to create a Supabase client!
+
+Check your Supabase project's API settings to find these values
+
+https://supabase.com/dashboard/project/_/settings/api
+    at <unknown> (https://supabase.com/dashboard/project/_/settings/api)
+    at bT (.next/server/chunks/9117.js:21:93731)
+    at 51240 (.next/server/app/api/email_notification/route.js:1:9773)
+    at c (.next/server/webpack-runtime.js:1:128)
+    at <unknown> (.next/server/app/api/email_notification/route.js:1:16394)
+    at c.X (.next/server/webpack-runtime.js:1:2125)
+    at <unknown> (.next/server/app/api/email_notification/route.js:1:16369)
+    at Object.<anonymous> (.next/server/app/api/email_notification/route.js:1:16426)
+
+> Build error occurred
+[Error: Failed to collect page data for /api/email_notification] {
+  type: 'Error'
+}
+ ELIFECYCLE  Command failed with exit code 1.
