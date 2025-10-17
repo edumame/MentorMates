@@ -842,7 +842,7 @@ export function NewProjectSubmissionFormSinglePage({
                           : email;
                       })}
                       projectId={projectId || undefined}
-                      enableInvite={!!projectId}
+                      enableInvite={true}
                     />
                   </div>
 

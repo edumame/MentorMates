@@ -97,7 +97,7 @@ export function TeamContactStep({
                 allTags={allUsers}
                 onTagsChange={onTeammatesChange}
                 projectId={projectId}
-                enableInvite={!!projectId}
+                enableInvite={true}
               />
             </FormControl>
             <FormMessage className="text-sm" />
