@@ -114,10 +114,19 @@ export type EventItem = {
 };
 
 // Event Overview Types
+export interface ScheduleParticipant {
+  name: string;
+  role: string; // e.g., "Guest", "Facilitator", "Moderator"
+  title: string; // e.g., "Founder & CTO, Avaamo"
+  avatar?: string;
+}
+
 export interface ScheduleEvent {
   name: string;
   time: string;
   description?: string;
+  location?: string;
+  participants?: ScheduleParticipant[];
 }
 
 export interface ScheduleDay {

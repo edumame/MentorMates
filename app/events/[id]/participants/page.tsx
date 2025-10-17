@@ -1,8 +1,9 @@
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { UUID } from "crypto";
 import { isValidUUID } from "@/app/utils/supabase/queries";
+import { notFound } from "next/navigation";
+import { EventPageLayout } from "@/components/events/event-page-layout";
+import { ParticipantsContent } from "@/components/events/participants-content";
 
 interface Participant {
   uid: string;
@@ -19,32 +20,50 @@ export default async function PublicParticipantsPage({ params }: PageProps) {
 
   const isUUID = isValidUUID(id);
 
-  let query = supabase.from("events").select("event_id");
+  let eventQuery = supabase.from("events").select(`
+    event_id,
+    event_name,
+    event_blurb,
+    event_date,
+    location,
+    cover_image_url,
+    slug
+  `);
 
   if (isUUID) {
-    // If it's a UUID, check both slug and event_id
-    query = query.or(`slug.eq.${id},event_id.eq.${id}`);
+    eventQuery = eventQuery.or(`slug.eq.${id},event_id.eq.${id}`);
   } else {
-    // If it's not a UUID, only check slug
-    query = query.eq("slug", id);
+    eventQuery = eventQuery.eq("slug", id);
   }
 
-  const { data: event } = await query.single();
+  const { data: eventData, error: eventError } = await eventQuery.single();
 
-  if (!event) {
-    return (
-      <Card>
-        <CardContent className="p-6">
-          <div className="text-red-500">Event not found</div>
-        </CardContent>
-      </Card>
-    );
+  if (eventError || !eventData) {
+    notFound();
+  }
+
+  // Check if user has joined
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  let hasJoined = false;
+
+  if (user) {
+    const { data: userEventRole } = await supabase
+      .from("user_event_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("event_id", eventData.event_id)
+      .maybeSingle();
+
+    hasJoined = !!userEventRole;
   }
 
   const { data: participants, error } = await supabase
     .from("user_event_roles")
     .select("user_id, user_profiles!user_id(uid, display_name)")
-    .eq("event_id", event.event_id)
+    .eq("event_id", eventData.event_id)
     .eq("role", "participant")
     .overrideTypes<
       Array<{
@@ -58,16 +77,8 @@ export default async function PublicParticipantsPage({ params }: PageProps) {
 
   if (error) {
     console.error("Error fetching participants:", error);
-    return (
-      <Card>
-        <CardContent className="p-6">
-          <div className="text-red-500">Failed to load participants</div>
-        </CardContent>
-      </Card>
-    );
   }
 
-  //ignore type error
   const participantsList: Participant[] = participants
     ? participants.map((participant) => ({
         uid: participant.user_profiles.uid,
@@ -76,28 +87,17 @@ export default async function PublicParticipantsPage({ params }: PageProps) {
     : [];
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Participants ({participantsList.length})</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="grid gap-4">
-          {participantsList.map((participant) => (
-            <div key={participant.uid} className="flex items-center space-x-4">
-              <Avatar>
-                <AvatarFallback>
-                  {(participant.display_name?.[0] || "?").toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-              <div>
-                <div className="font-medium">
-                  {participant.display_name || "Anonymous Participant"}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
+    <EventPageLayout
+      eventName={eventData.event_name}
+      eventBlurb={eventData.event_blurb || ""}
+      eventDate={eventData.event_date}
+      location={eventData.location}
+      coverImageUrl={eventData.cover_image_url}
+      eventId={id}
+      hasJoined={hasJoined}
+      dbEventId={eventData.event_id}
+    >
+      <ParticipantsContent participants={participantsList} />
+    </EventPageLayout>
   );
 }

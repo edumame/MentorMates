@@ -327,10 +327,10 @@ export function BasicInfoTab({
                 } as typeof event;
                 // If tracks are provided, prefill into event.event_tracks with minimal structure
                 if (Array.isArray(imported.tracks) && imported.tracks.length > 0) {
-                  const newTracks = imported.tracks.map((t: any) => {
+                  const newTracks = imported.tracks.map((t: ImportedTrack) => {
                     const trackId = crypto.randomUUID();
                     const prizes = Array.isArray(t?.prizes)
-                      ? t.prizes.map((p: any) => ({
+                      ? t.prizes.map((p: ImportedPrize) => ({
                           id: `local-${crypto.randomUUID()}`,
                           track_id: trackId,
                           prize_amount: String(p?.prize_amount || ""),
@@ -354,7 +354,7 @@ export function BasicInfoTab({
                       updated_at: new Date().toISOString(),
                     };
                   });
-                  (merged as any).event_tracks = newTracks;
+                  (merged as EventDetails).event_tracks = newTracks;
                 }
                 setEvent(merged);
                 toast({
@@ -377,7 +377,7 @@ export function BasicInfoTab({
           </Button>
         </div>
         <p className="text-xs text-gray-500">
-          Paste your Devpost event page URL. We'll fetch details and prefill this form using AI.
+          Paste your Devpost event page URL. We&apos;ll fetch details and prefill this form using AI.
         </p>
       </div>
 
@@ -496,48 +496,6 @@ export function BasicInfoTab({
           </div>
         </Alert>
       </div>
-
-      {/* Paywall Content - Only show for participants (below description) */}
-
-        <div className="space-y-2">
-          <Alert className="border-yellow-200 bg-yellow-50">
-            <AlertTitle className="text-yellow-800">🔒 Exclusive Content for Participants</AlertTitle>
-            <AlertDescription>
-              This content is visible only to participants who have joined/paid for the event.
-            </AlertDescription>
-            <div className="mt-3 space-y-2">
-              <Label htmlFor="paywall_content">Content (Markdown Supported)</Label>
-              <Tabs defaultValue="edit" className="w-full">
-                <TabsList>
-                  <TabsTrigger value="edit">Edit</TabsTrigger>
-                  <TabsTrigger value="preview">Preview</TabsTrigger>
-                </TabsList>
-                <TabsContent value="edit" className="mt-0">
-                  <Textarea
-                    id="paywall_content"
-                    value={event.paywall_content || ""}
-                    disabled={isArchived}
-                    onChange={(e) =>
-                      setEvent({ ...event, paywall_content: e.target.value })
-                    }
-                    rows={4}
-                    placeholder="Content that will only be visible to users who have joined/paid for the event"
-                  />
-                </TabsContent>
-                <TabsContent value="preview" className="mt-0">
-                  <div className="prose prose-sm dark:prose-invert max-w-none rounded-md border bg-white p-3">
-                    <ReactMarkdown rehypePlugins={markdownRehypePlugins} components={customMarkdownComponents}>
-                      {event.paywall_content || ""}
-                    </ReactMarkdown>
-                  </div>
-                </TabsContent>
-              </Tabs>
-              <p className="text-xs text-gray-500">
-                This content will only be shown to users who have joined the event. You can use Markdown formatting.
-              </p>
-            </div>
-          </Alert>
-        </div>
 
       <div className="space-y-2">
         <Label htmlFor="cover_image">Cover Image</Label>

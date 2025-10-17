@@ -1,0 +1,150 @@
+"use client";
+
+import { CalendarDays, MapPin, ArrowUpRight } from "lucide-react";
+import { EventRole } from "@/lib/types";
+import { JoinEventButton } from "./join-event-button";
+
+interface EventPageHeaderProps {
+  eventName: string;
+  eventBlurb: string;
+  eventDate: string;
+  location: string;
+  coverImageUrl?: string;
+  eventId: string;
+  hasJoined: boolean;
+  userRole?: EventRole | null;
+  onManageEventClick?: () => void;
+}
+
+export function EventPageHeader({
+  eventName,
+  eventBlurb,
+  eventDate,
+  location,
+  coverImageUrl,
+  eventId,
+  hasJoined,
+  userRole,
+  onManageEventClick,
+}: EventPageHeaderProps) {
+  // Format date
+  const formattedDate = new Date(eventDate).toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+
+  return (
+    <div className="bg-white flex flex-col items-center w-full">
+      {/* Cover Image */}
+      <div className="h-[240px] w-full relative overflow-hidden">
+        {coverImageUrl ? (
+          <>
+            <img
+              src={coverImageUrl}
+              alt={eventName}
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.style.display = "none";
+              }}
+            />
+            <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-[#1e3a8a] to-[#3c73bd] -z-10" />
+          </>
+        ) : (
+          <div className="w-full h-full bg-gradient-to-r from-[#1e3a8a] to-[#3c73bd]" />
+        )}
+
+        {/* Event Tags */}
+        <div className="absolute left-6 top-6 flex flex-wrap gap-1 z-10">
+          <div className="bg-white border border-[rgba(0,0,0,0.15)] px-2.5 py-1 rounded-full">
+            <p className="font-semibold text-sm leading-[1.5] text-black whitespace-nowrap">
+              Hackathon
+            </p>
+          </div>
+          <div className="bg-white border border-[rgba(0,0,0,0.15)] px-2.5 py-1 rounded-full">
+            <p className="font-semibold text-sm leading-[1.5] text-black whitespace-nowrap">
+              Free
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Content Section - matches Figma exactly */}
+      <div
+        className="box-border flex flex-col gap-[24px] items-start max-w-[1280px] pb-[24px] pt-[24px] px-0 w-full"
+        style={{
+          background:
+            "linear-gradient(196.644deg, rgba(219, 234, 254, 0.25) 13.188%, rgba(255, 255, 255, 0) 65.83%), linear-gradient(90deg, rgb(251, 252, 254) 0%, rgb(251, 252, 254) 100%)",
+        }}
+      >
+        <div className="box-border flex flex-col gap-[24px] items-start justify-end px-[24px] py-0 w-full">
+          <div className="flex flex-col gap-[16px] items-start w-full">
+            <div className="flex items-start justify-between w-full">
+              {/* Left: Event Info */}
+              <div className="flex flex-col gap-[8px] items-start w-[617px]">
+                <div className="flex flex-col items-start text-black w-full">
+                  <h1 className="font-semibold text-[28px] leading-[1.4] tracking-[-1.68px] text-black w-full">
+                    {eventName}
+                  </h1>
+                  <p className="font-normal text-base leading-[1.5] text-black line-clamp-3 w-full">
+                    {eventBlurb}
+                  </p>
+                </div>
+              </div>
+
+              {/* Right: Join Button and Meta */}
+              <div className="flex flex-col gap-[12px] items-end justify-center w-[411px]">
+                <div className="flex flex-col gap-[16px] items-center justify-center">
+                  <div className="flex gap-[16px] items-start w-full">
+                    {!hasJoined ? (
+                      <JoinEventButton
+                        eventId={eventId}
+                        eventName={eventName}
+                      />
+                    ) : (
+                      <div className="basis-0 bg-green-500 box-border flex gap-[6px] grow items-center justify-center min-h-px min-w-px px-[20px] py-[8px] rounded-[12px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] shrink-0">
+                        <p className="font-medium text-base leading-[1.5] text-white text-nowrap whitespace-pre">
+                          Joined
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Manage Event Button */}
+                  {(userRole === "organizer" || userRole === "admin") && (
+                    <button
+                      onClick={onManageEventClick}
+                      className="bg-[#f2f2f2] box-border flex gap-[6px] items-center justify-center px-[20px] py-[8px] rounded-[12px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] w-[341px]"
+                    >
+                      <ArrowUpRight className="w-6 h-6 text-black" />
+                      <p className="font-medium text-base leading-[1.5] text-black text-nowrap whitespace-pre">
+                        Manage event
+                      </p>
+                    </button>
+                  )}
+                </div>
+
+                {/* Date and Location */}
+                <div className="flex gap-[8px] items-center w-[341px]">
+                  <div className="flex gap-[8px] items-center flex-1">
+                    <CalendarDays className="w-6 h-6 text-black" />
+                    <p className="font-normal text-sm leading-[1.5] text-black text-nowrap">
+                      {formattedDate}
+                    </p>
+                  </div>
+                  <div className="flex gap-[8px] items-center flex-1">
+                    <MapPin className="w-6 h-6 text-black" />
+                    <p className="font-normal text-sm leading-[1.5] text-black text-nowrap">
+                      {location}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

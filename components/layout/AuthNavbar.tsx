@@ -32,11 +32,9 @@ export function AuthNavbar() {
   const [userProfile, setUserProfile] = useState<ExtendedUserProfile | null>(
     null
   );
-  const [isLoading, setIsLoading] = useState(true);
 
   // fetch & subscribe to session
   useEffect(() => {
-    setIsLoading(true);
     supabase.auth
       .getSession()
       .then(({ data: { session } }) => setSession(session));
@@ -45,21 +43,17 @@ export function AuthNavbar() {
     } = supabase.auth.onAuthStateChange((_, s) => setSession(s));
     return () => {
       subscription.unsubscribe();
-      setIsLoading(false);
     };
-
   }, []);
 
   useEffect(() => {
     const fetchUserProfile = async () => {
-      setIsLoading(true);
       const { data: userProfileData } = await supabase
         .from("user_profiles")
         .select("*")
         .eq("uid", session?.user?.id)
         .single();
       setUserProfile(userProfileData);
-      setIsLoading(false);
     };
     if (session) {
       fetchUserProfile();
@@ -86,7 +80,7 @@ export function AuthNavbar() {
 
   return (
     <>
-      <nav className="fixed top-0 inset-x-0 z-50 bg-[#fbfcfe] top-[var(--banner-h,0px)]">
+      <nav className="fixed inset-x-0 z-50 bg-[#fbfcfe] top-[var(--banner-h,0px)]">
         <div className="flex items-center justify-between p-4">
           <Link href="/" className="flex items-center gap-2">
             <Image
@@ -99,7 +93,7 @@ export function AuthNavbar() {
           </Link>
 
           {/* Desktop Right Controls: notifications + avatar */}
-          <div className="hidden md:flex items-center gap-4">
+          <div className="hidden lg:flex items-center gap-4">
             <Link
               href="/notifications"
               aria-label="Notifications"
@@ -195,7 +189,7 @@ export function AuthNavbar() {
           <button
             aria-label="Toggle menu"
             onClick={() => setIsOpen((o) => !o)}
-            className="p-2 rounded-md hover:bg-gray-200 flex md:hidden"
+            className="p-2 rounded-md hover:bg-gray-200 flex lg:hidden"
           >
             {isOpen ? (
               <Close className="h-5 w-5" />
@@ -210,7 +204,7 @@ export function AuthNavbar() {
       <div
         className={`fixed inset-0 bg-black/40 z-40 transition-opacity ${
           isOpen ? "opacity-100" : "opacity-0 pointer-events-none"
-        } md:hidden`}
+        } lg:hidden`}
         onClick={() => setIsOpen(false)}
       />
 
@@ -218,7 +212,7 @@ export function AuthNavbar() {
       <aside
         className={`fixed top-0 right-0 h-full w-3/4 max-w-xs bg-white z-50 transform transition-transform ${
           isOpen ? "translate-x-0" : "translate-x-full"
-        } flex flex-col md:hidden`}
+        } flex flex-col lg:hidden`}
       >
         <div className="flex-shrink-0 p-4 border-b">
           {session ? (

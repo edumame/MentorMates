@@ -11,6 +11,7 @@ import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 export default function SubmitProjectPage() {
   const searchParams = useSearchParams();
   const eventSlugOrId = searchParams.get("eventId");
+  const projectId = searchParams.get("projectId");
 
   const [eventId, setEventId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
@@ -123,6 +124,7 @@ export default function SubmitProjectPage() {
           eventId={eventId || undefined}
           onContextusLinked={(ctxId) => setContextusId(ctxId)}
           contextusId={contextusId}
+          existingProjectId={projectId}
         />
       </PageContent>
     </PageContainer>

@@ -55,7 +55,7 @@ export function ProjectsTab({
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Projects</h2>
-        <Link href={`/events/${eventId}/submit`}>
+        <Link href={`/projects/submit?eventId=${eventId}`}>
           <Button className="button-gradient text-white font-semibold rounded-full shadow-lg hover:shadow-xl transition-all duration-300 flex items-center gap-2">
             <Add className="h-5 w-5" />
             Create Project
