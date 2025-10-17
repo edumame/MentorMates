@@ -262,13 +262,14 @@ const UserSearchWithInvite = ({
   const selectedEmails = selectedTags.map(extractEmail);
 
   // Check if input is a valid email but not in the list
-  const showInviteOption = true;
-  // enableInvite &&
-  // tagInput.trim() &&
-  // isValidEmail(tagInput.trim()) &&
-  // filteredTags.length === 0 &&
-  // !allEmails.includes(tagInput.trim().toLowerCase()) &&
-  // !selectedEmails.includes(tagInput.trim().toLowerCase());
+  const showInviteOption =
+    // true;
+    enableInvite &&
+    tagInput.trim() &&
+    isValidEmail(tagInput.trim()) &&
+    filteredTags.length === 0 &&
+    !allEmails.includes(tagInput.trim().toLowerCase()) &&
+    !selectedEmails.includes(tagInput.trim().toLowerCase());
 
   return (
     <div className="w-full space-y-2">
