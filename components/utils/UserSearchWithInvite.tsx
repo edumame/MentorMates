@@ -68,8 +68,8 @@ const UserSearchWithInvite = ({
   const sendInvitation = async (email: string): Promise<void> => {
     if (!projectId) {
       toast({
-        title: "Error",
-        description: "Project ID is required to send invitations",
+        title: "Save Project First",
+        description: "Please add a project name and save your project before inviting teammates. Your project will auto-save once you start filling it out.",
         variant: "destructive",
       });
       return;
@@ -262,7 +262,6 @@ const UserSearchWithInvite = ({
   // Check if input is a valid email but not in the list
   const showInviteOption =
     enableInvite &&
-    projectId &&
     tagInput.trim() &&
     isValidEmail(tagInput.trim()) &&
     filteredTags.length === 0 &&
