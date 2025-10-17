@@ -1034,7 +1034,7 @@ export default function ProjectPage() {
               </Button>
               <Button
                 onClick={() => setShowFeedbackDialog(true)}
-                className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-5 py-2 shadow-sm text-base"
+                className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-5 py-2 shadow-sm text-base whitespace-nowrap"
               >
                 Give feedback
               </Button>
@@ -1194,7 +1194,7 @@ export default function ProjectPage() {
             </Button>
             <Button
               onClick={() => setShowFeedbackDialog(true)}
-              className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-5 py-2 shadow-sm text-base"
+              className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-5 py-2 shadow-sm text-base whitespace-nowrap"
             >
               Give feedback
             </Button>
