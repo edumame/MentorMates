@@ -72,8 +72,10 @@ export function EventPageSidebar({
         </div>
       )}
 
-      {/* Divider */}
-      <div className="h-px bg-gray-200 w-full" />
+      {/* Divider - only show if important links exist */}
+      {eventResources && eventResources.length > 0 && (
+        <div className="h-px bg-gray-200 w-full" />
+      )}
 
       {/* Share Section */}
       <div className="flex flex-col gap-4 items-center w-full">
