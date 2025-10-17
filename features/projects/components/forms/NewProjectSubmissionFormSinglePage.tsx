@@ -627,7 +627,7 @@ export function NewProjectSubmissionFormSinglePage({
       </div>
 
       {/* Wrapper without top border */}
-      <div className="border-b border-l border-r border-[#d8d8d8] overflow-hidden">
+      <div className="border-b border-l border-r border-[#d8d8d8] overflow-visible">
         {/* Main Content */}
         <div className="bg-gradient-to-br from-blue-100/45 via-transparent to-transparent">
           <div className="container mx-auto px-8 py-6 min-h-[1200px]">
@@ -845,6 +845,9 @@ export function NewProjectSubmissionFormSinglePage({
                       enableInvite={!!projectId}
                     />
                   </div>
+
+                  {/* Spacer to ensure dropdown visibility */}
+                  <div className="h-64" aria-hidden="true"></div>
                 </div>
               </div>
 
