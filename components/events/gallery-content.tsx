@@ -14,7 +14,12 @@ interface GalleryContentProps {
   userRole?: string | null;
 }
 
-export function GalleryContent({ eventId, slug, hasJoined, userRole }: GalleryContentProps) {
+export function GalleryContent({
+  eventId,
+  slug,
+  hasJoined,
+  userRole,
+}: GalleryContentProps) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -63,17 +68,18 @@ export function GalleryContent({ eventId, slug, hasJoined, userRole }: GalleryCo
         />
       </div>
 
-      {/* Create Project Button - Only show for participants */}
-      {hasJoined && userRole === "participant" && (
-        <div className="mb-6">
-          <Link href={`/events/${slug}/submit`}>
-            <Button className="button-gradient text-white font-semibold rounded-full shadow-lg hover:shadow-xl transition-all duration-300 flex items-center gap-2">
-              <Plus className="h-5 w-5" />
-              Create Project
-            </Button>
-          </Link>
-        </div>
-      )}
+      {/* Create Project Button - Only show for participants and organizers */}
+      {hasJoined &&
+        (userRole === "participant" || userRole === "organizer") && (
+          <div className="mb-6">
+            <Link href={`/projects/submit?eventId=${slug}`}>
+              <Button className="button-gradient text-white font-semibold rounded-full shadow-lg hover:shadow-xl transition-all duration-300 flex items-center gap-2">
+                <Plus className="h-5 w-5" />
+                Create Project
+              </Button>
+            </Link>
+          </div>
+        )}
 
       {/* Project Board */}
       <ProjectBoard

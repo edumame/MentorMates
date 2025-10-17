@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
@@ -44,6 +44,7 @@ export function NewProjectSubmissionFormSinglePage({
   onProjectSubmitted,
   onContextusLinked,
   contextusId: initialContextusId,
+  existingProjectId,
 }: {
   userEmail?: string;
   leadName?: string;
@@ -51,12 +52,18 @@ export function NewProjectSubmissionFormSinglePage({
   onProjectSubmitted?: () => void;
   onContextusLinked?: (ctxId: string) => void;
   contextusId?: string | null;
+  existingProjectId?: string | null;
 }) {
   const router = useRouter();
   const isAdmin = useAdmin();
 
+  // Ref to track if draft creation has been attempted
+  const draftCreationAttempted = useRef(false);
+
   // State
-  const [projectId, setProjectId] = useState<string | null>(null);
+  const [projectId, setProjectId] = useState<string | null>(
+    existingProjectId ?? null
+  );
   const [contextusId, setContextusId] = useState<string | null>(
     initialContextusId ?? null
   );
@@ -81,9 +88,57 @@ export function NewProjectSubmissionFormSinglePage({
     additionalMaterialsUrl: "",
   });
 
-  // Fetch event details if eventId is provided
+  // Fetch existing project data and event details
   useEffect(() => {
     const init = async () => {
+      // Load existing project if existingProjectId is provided
+      if (existingProjectId) {
+        try {
+          const { data: project, error } = await supabase
+            .from("projects")
+            .select("*")
+            .eq("id", existingProjectId)
+            .single();
+
+          if (!error && project) {
+            setFormData({
+              projectName: project.project_name || "",
+              leadName: project.lead_name || leadName || "",
+              leadEmail: project.lead_email || userEmail || "",
+              projectDescription: project.project_description || "",
+              teammates: Array.isArray(project.teammates)
+                ? project.teammates
+                : [],
+              projectUrl: project.project_url || "",
+              videoUrl: project.video_url || "",
+              coverImageUrl: project.cover_image_url || "",
+              additionalMaterialsUrl: project.additional_materials_url || "",
+            });
+
+            if (project.contextus_project_id) {
+              setContextusId(project.contextus_project_id);
+            }
+
+            // Use the event_id from the existing project if available
+            if (project.event_id && !eventId) {
+              const { data: eventData } = await supabase
+                .from("events")
+                .select(
+                  "event_id, event_name, slug, event_date, location, cover_image_url, paid, event_description"
+                )
+                .eq("event_id", project.event_id)
+                .single();
+
+              if (eventData) {
+                setEventDetails(eventData as EventDetails);
+              }
+            }
+          }
+        } catch {
+          // Silent fail
+        }
+      }
+
       // Hydrate from session if no props provided
       if (!leadName || !userEmail) {
         try {
@@ -117,7 +172,7 @@ export function NewProjectSubmissionFormSinglePage({
       }
 
       // Fetch event details
-      if (eventId) {
+      if (eventId && !eventDetails) {
         try {
           const { data, error } = await supabase
             .from("events")
@@ -139,7 +194,7 @@ export function NewProjectSubmissionFormSinglePage({
     };
 
     init();
-  }, [eventId, leadName, userEmail]);
+  }, [eventId, leadName, userEmail, existingProjectId]);
 
   // Fetch event participants
   const fetchEventParticipants = useCallback(async () => {
@@ -196,16 +251,20 @@ export function NewProjectSubmissionFormSinglePage({
     }
   }, [eventId, fetchEventParticipants]);
 
-  // Create a draft as soon as user starts typing
+  // Create a draft as soon as user starts typing (only once)
   useEffect(() => {
     const hasContent =
       formData.projectName.trim() ||
       formData.projectDescription.trim() ||
       formData.projectUrl.trim();
 
-    if (!hasContent || projectId) return;
+    // Skip if no content, already have a projectId, or already attempted to create a draft
+    if (!hasContent || projectId || draftCreationAttempted.current) return;
 
     const createDraft = async () => {
+      // Mark that we've attempted to create a draft
+      draftCreationAttempted.current = true;
+
       try {
         const resp = await fetch("/api/projects", {
           method: "POST",
@@ -224,9 +283,13 @@ export function NewProjectSubmissionFormSinglePage({
             setContextusId(json.contextus_project_id as string);
             onContextusLinked?.(json.contextus_project_id as string);
           }
+        } else {
+          // Reset the flag if the request failed so it can be retried
+          draftCreationAttempted.current = false;
         }
       } catch (e) {
-        // Silent failure
+        // Reset the flag if there was an error so it can be retried
+        draftCreationAttempted.current = false;
       }
     };
 
