@@ -630,7 +630,7 @@ export function NewProjectSubmissionFormSinglePage({
       <div className="border-b border-l border-r border-[#d8d8d8] overflow-hidden">
         {/* Main Content */}
         <div className="bg-gradient-to-br from-blue-100/45 via-transparent to-transparent">
-          <div className="container mx-auto px-8 py-6 min-h-[800px]">
+          <div className="container mx-auto px-8 py-6 min-h-[1200px]">
             <div className="flex gap-12 items-start justify-between">
               {/* Left Side - Form */}
               <div className="flex-1 max-w-[640px] space-y-6">
@@ -824,7 +824,7 @@ export function NewProjectSubmissionFormSinglePage({
                   <div className="border-t border-gray-200" />
 
                   {/* Add Teammates */}
-                  <div className="space-y-2 pb-48 mb-24">
+                  <div className="space-y-2 pb-64 mb-32">
                     <label className="text-base text-black font-normal">
                       Add teammates (Optional)
                     </label>
