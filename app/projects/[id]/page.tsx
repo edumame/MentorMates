@@ -75,6 +75,7 @@ import { VideoEmbed, canEmbed } from "@/components/utils";
 import { createContextusProject } from "@/lib/integrations/contextus";
 import { useAdmin } from "@/lib/hooks/use-admin";
 import { useProjectLike } from "@/features/projects/hooks/use-project-like";
+import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 
 interface EventParticipant {
   user_id: string;
@@ -924,22 +925,26 @@ export default function ProjectPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-lg">Loading project...</div>
-      </div>
+      <PageContainer>
+        <div className="flex items-center justify-center flex-grow">
+          <div className="text-lg">Loading project...</div>
+        </div>
+      </PageContainer>
     );
   }
 
   if (!project) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">Project not found</h1>
-          <Link href="/projects">
-            <Button>Back to Projects</Button>
-          </Link>
+      <PageContainer>
+        <div className="flex items-center justify-center flex-grow">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold mb-4">Project not found</h1>
+            <Link href="/projects">
+              <Button>Back to Projects</Button>
+            </Link>
+          </div>
         </div>
-      </div>
+      </PageContainer>
     );
   }
 
@@ -950,12 +955,12 @@ export default function ProjectPage() {
   }/projects/public/${project.id}`;
 
   return (
-    <div className="bg-white min-h-screen">
+    <PageContainer>
       <Toaster />
-
-      {/* Header Section */}
-      <div className="bg-gradient-to-b from-blue-50/45 to-white border-b border-gray-200">
-        <div className="container mx-auto px-8 pt-8 pb-0">
+      <PageContent>
+        {/* Header Section */}
+        <div className="bg-gradient-to-b from-blue-50/45 to-white border-b border-gray-200">
+          <div className="container mx-auto px-8 pt-8 pb-0">
           {/* Top Actions Bar */}
           <div className="flex items-center justify-between mb-6">
             {/* Metadata Badges */}
@@ -1148,19 +1153,19 @@ export default function ProjectPage() {
             <TabsList className="bg-transparent border-b border-gray-200 rounded-none h-auto p-0 w-full justify-start gap-6">
               <TabsTrigger
                 value="overview"
-                className="data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2 font-medium"
+                className="shadow-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2 font-medium"
               >
                 Overview
               </TabsTrigger>
               <TabsTrigger
                 value="tracks"
-                className="data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2"
+                className="shadow-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2"
               >
                 Tracks
               </TabsTrigger>
               <TabsTrigger
                 value="team"
-                className="data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2 flex items-center gap-2"
+                className="shadow-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2 flex items-center gap-2"
               >
                 Team
                 <Badge variant="secondary" className="bg-white border border-black/15 text-black rounded-full text-xs">
@@ -1169,7 +1174,7 @@ export default function ProjectPage() {
               </TabsTrigger>
               <TabsTrigger
                 value="feedback"
-                className="data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2 flex items-center gap-2"
+                className="shadow-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2 flex items-center gap-2"
               >
                 Feedback
                 <Badge variant="secondary" className="bg-white border border-black/15 text-black rounded-full text-xs">
@@ -1178,7 +1183,7 @@ export default function ProjectPage() {
               </TabsTrigger>
               <TabsTrigger
                 value="sharing"
-                className="data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2"
+                className="shadow-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2"
               >
                 Sharing
               </TabsTrigger>
@@ -2058,52 +2063,53 @@ export default function ProjectPage() {
         </div>
       </div>
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the
-              project
-              <strong> &quot;{project?.project_name}&quot;</strong> and all
-              associated data including:
-              <br />
-              <br />
-              • Project details and description
-              <br />
-              • Team member assignments
-              <br />
-              • Track selections
-              <br />
-              • All feedback received
-              <br />• Uploaded materials
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isUpdating}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteProject}
-              disabled={isUpdating}
-              className="bg-red-600 hover:bg-red-700 text-white"
-            >
-              {isUpdating ? "Deleting..." : "Delete Project"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action cannot be undone. This will permanently delete the
+                project
+                <strong> &quot;{project?.project_name}&quot;</strong> and all
+                associated data including:
+                <br />
+                <br />
+                • Project details and description
+                <br />
+                • Team member assignments
+                <br />
+                • Track selections
+                <br />
+                • All feedback received
+                <br />• Uploaded materials
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isUpdating}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteProject}
+                disabled={isUpdating}
+                className="bg-red-600 hover:bg-red-700 text-white"
+              >
+                {isUpdating ? "Deleting..." : "Delete Project"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
-      {/* Give Feedback Dialog */}
-      {project && (
-        <GiveFeedbackDialog
-          open={showFeedbackDialog}
-          onOpenChange={setShowFeedbackDialog}
-          projectName={project.project_name}
-          projectId={project.id}
-          projectDescription={project.project_description || ""}
-          eventId={project.event_id || ""}
-        />
-      )}
-    </div>
+        {/* Give Feedback Dialog */}
+        {project && (
+          <GiveFeedbackDialog
+            open={showFeedbackDialog}
+            onOpenChange={setShowFeedbackDialog}
+            projectName={project.project_name}
+            projectId={project.id}
+            projectDescription={project.project_description || ""}
+            eventId={project.event_id || ""}
+          />
+        )}
+      </PageContent>
+    </PageContainer>
   );
 }

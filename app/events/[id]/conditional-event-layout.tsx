@@ -40,53 +40,30 @@ export function ConditionalEventLayout({
 
   // Standard event layout with configurable components
   const content = (
-    <main className="flex-1 overflow-auto">
-      {isRedesignedPage ? (
-        // Redesigned pages: no wrapper, full width
-        <>
-          {showEventHeader && (
-            <EventHeader
-              eventName={event.event_name}
-              coverImageUrl={event.cover_image_url}
-              eventDate={event.event_date || undefined}
-              location={event.location || undefined}
-              description={
-                event.event_blurb || event.event_description || undefined
-              }
-              eventId={event.slug || event.event_id}
-              submissionTimeStart={event.submission_time_start || undefined}
-              submissionTimeCutoff={event.submission_time_cutoff || undefined}
-              visibility={event.visibility}
-            />
-          )}
-          {children}
-        </>
-      ) : (
-        // Old pages: constrained width
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6 w-full">
-          {showEventHeader && (
-            <EventHeader
-              eventName={event.event_name}
-              coverImageUrl={event.cover_image_url}
-              eventDate={event.event_date || undefined}
-              location={event.location || undefined}
-              description={
-                event.event_blurb || event.event_description || undefined
-              }
-              eventId={event.slug || event.event_id}
-              submissionTimeStart={event.submission_time_start || undefined}
-              submissionTimeCutoff={event.submission_time_cutoff || undefined}
-              visibility={event.visibility}
-            />
-          )}
-          {children}
-        </div>
-      )}
+    <main className="flex-1">
+      <div className="max-w-5xl px-4 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6 w-full">
+        {showEventHeader && (
+          <EventHeader
+            eventName={event.event_name}
+            coverImageUrl={event.cover_image_url}
+            eventDate={event.event_date || undefined}
+            location={event.location || undefined}
+            description={
+              event.event_blurb || event.event_description || undefined
+            }
+            eventId={event.slug || event.event_id}
+            submissionTimeStart={event.submission_time_start || undefined}
+            submissionTimeCutoff={event.submission_time_cutoff || undefined}
+            visibility={event.visibility}
+          />
+        )}
+        {children}
+      </div>
     </main>
   );
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="flex flex-col bg-background">
       {showEventWrapper ? (
         <EventRegistrationWrapper eventId={event.event_id}>
           {content}
