@@ -104,6 +104,9 @@ export function TeamContactStep({
           </FormItem>
         )}
       />
+
+      {/* Spacer to ensure dropdown visibility */}
+      <div className="h-96" aria-hidden="true"></div>
     </div>
   );
 }

@@ -847,7 +847,7 @@ export function NewProjectSubmissionFormSinglePage({
                   </div>
 
                   {/* Spacer to ensure dropdown visibility */}
-                  <div className="h-64" aria-hidden="true"></div>
+                  <div className="h-96" aria-hidden="true"></div>
                 </div>
               </div>
 
