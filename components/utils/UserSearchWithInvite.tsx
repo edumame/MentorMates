@@ -263,7 +263,6 @@ const UserSearchWithInvite = ({
 
   // Check if input is a valid email but not in the list
   const showInviteOption =
-    // true;
     enableInvite &&
     tagInput.trim() &&
     isValidEmail(tagInput.trim()) &&
