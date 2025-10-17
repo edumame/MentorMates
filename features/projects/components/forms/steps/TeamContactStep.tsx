@@ -106,7 +106,7 @@ export function TeamContactStep({
       />
 
       {/* Spacer to ensure dropdown visibility */}
-      <div className="h-96" aria-hidden="true"></div>
+      <div className="h-[500px]" aria-hidden="true"></div>
     </div>
   );
 }

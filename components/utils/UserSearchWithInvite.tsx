@@ -28,7 +28,8 @@ const UserSearchWithInvite = ({
     if (tagInput) {
       const value = tagInput.toLowerCase();
       const filtered = allTags.filter(
-        (tag) => tag.toLowerCase().includes(value) && !selectedTags.includes(tag)
+        (tag) =>
+          tag.toLowerCase().includes(value) && !selectedTags.includes(tag)
       );
       setFilteredTags(filtered.slice(0, 5));
     }
@@ -69,7 +70,8 @@ const UserSearchWithInvite = ({
     if (!projectId) {
       toast({
         title: "Save Project First",
-        description: "Please add a project name and save your project before inviting teammates. Your project will auto-save once you start filling it out.",
+        description:
+          "Please add a project name and save your project before inviting teammates. Your project will auto-save once you start filling it out.",
         variant: "destructive",
       });
       return;
@@ -260,13 +262,13 @@ const UserSearchWithInvite = ({
   const selectedEmails = selectedTags.map(extractEmail);
 
   // Check if input is a valid email but not in the list
-  const showInviteOption =
-    enableInvite &&
-    tagInput.trim() &&
-    isValidEmail(tagInput.trim()) &&
-    filteredTags.length === 0 &&
-    !allEmails.includes(tagInput.trim().toLowerCase()) &&
-    !selectedEmails.includes(tagInput.trim().toLowerCase());
+  const showInviteOption = true;
+  // enableInvite &&
+  // tagInput.trim() &&
+  // isValidEmail(tagInput.trim()) &&
+  // filteredTags.length === 0 &&
+  // !allEmails.includes(tagInput.trim().toLowerCase()) &&
+  // !selectedEmails.includes(tagInput.trim().toLowerCase());
 
   return (
     <div className="w-full space-y-2">
@@ -308,7 +310,9 @@ const UserSearchWithInvite = ({
               {isSendingInvite ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600" />
-                  <span className="text-sm text-gray-700">Sending invite...</span>
+                  <span className="text-sm text-gray-700">
+                    Sending invite...
+                  </span>
                 </>
               ) : (
                 <>
