@@ -2,7 +2,6 @@ import { ReactNode } from "react";
 import { EventPageHeader } from "./event-page-header";
 import { EventPageTabs } from "./event-page-tabs";
 import { EventPageClientWrapper } from "./event-page-client-wrapper";
-import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { EventRole } from "@/lib/types";
 import { ActiveRoleProvider } from "./ActiveRoleContext";
@@ -74,61 +73,66 @@ export async function EventPageLayout({
     .eq("submitted", true);
 
   return (
-    
-        <ActiveRoleProvider initialRole={userRole}>
-          <div className="flex flex-col w-full">
-            {userRole ? (
-              <EventPageClientWrapper
-              userRole={userRole}
-              eventId={dbEventId}
-              eventRoleLabels={eventRoleLabels}
+    <ActiveRoleProvider initialRole={userRole}>
+      <div className="flex flex-col w-full">
+        {userRole ? (
+          <EventPageClientWrapper
+            userRole={userRole}
+            eventId={dbEventId}
+            eventRoleLabels={eventRoleLabels}
+            eventName={eventName}
+            eventBlurb={eventBlurb}
+            eventDate={eventDate}
+            location={location}
+            coverImageUrl={coverImageUrl}
+            displayEventId={eventId}
+            hasJoined={hasJoined}
+            tabsAndContent={
+              <>
+                {/* Tabs Navigation */}
+                <EventPageTabs
+                  eventId={eventId}
+                  participantCount={participantCount || 0}
+                  projectCount={projectCount || 0}
+                />
+
+                {/* Main Content */}
+                <div className="w-full">
+                  <div className="flex gap-6 w-full px-6 py-[24px]">
+                    {children}
+                  </div>
+                </div>
+              </>
+            }
+          />
+        ) : (
+          <>
+            {/* Page Header with Cover Image - No role */}
+            <EventPageHeader
               eventName={eventName}
               eventBlurb={eventBlurb}
               eventDate={eventDate}
               location={location}
               coverImageUrl={coverImageUrl}
-              displayEventId={eventId}
+              eventId={dbEventId}
               hasJoined={hasJoined}
-              tabsAndContent={
-                <>
-                  {/* Tabs Navigation */}
-                  <EventPageTabs eventId={eventId} participantCount={participantCount || 0} projectCount={projectCount || 0} />
-
-                  {/* Main Content */}
-                  <div className="w-full">
-                    <div className="flex gap-6 w-full px-6 py-[24px]">
-                      {children}
-                    </div>
-                  </div>
-                </>
-              }
+              userRole={null}
             />
-          ) : (
-            <>
-              {/* Page Header with Cover Image - No role */}
-              <EventPageHeader
-                eventName={eventName}
-                eventBlurb={eventBlurb}
-                eventDate={eventDate}
-                location={location}
-                coverImageUrl={coverImageUrl}
-                eventId={eventId}
-                hasJoined={hasJoined}
-                userRole={null}
-              />
 
-              {/* Tabs Navigation */}
-              <EventPageTabs eventId={eventId} participantCount={participantCount || 0} projectCount={projectCount || 0} />
+            {/* Tabs Navigation */}
+            <EventPageTabs
+              eventId={eventId}
+              participantCount={participantCount || 0}
+              projectCount={projectCount || 0}
+            />
 
-              {/* Main Content */}
-              <div className="w-full">
-                <div className="flex gap-6 w-full px-6 py-[24px]">
-                  {children}
-                </div>
-              </div>
-            </>
-          )}
-          </div>
-        </ActiveRoleProvider>
+            {/* Main Content */}
+            <div className="w-full">
+              <div className="flex gap-6 w-full px-6 py-[24px]">{children}</div>
+            </div>
+          </>
+        )}
+      </div>
+    </ActiveRoleProvider>
   );
 }

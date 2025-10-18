@@ -9,15 +9,27 @@ interface EventPageTabsProps {
   projectCount?: number;
 }
 
-export function EventPageTabs({ eventId, participantCount, projectCount }: EventPageTabsProps) {
+export function EventPageTabs({
+  eventId,
+  participantCount,
+  projectCount,
+}: EventPageTabsProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
   const tabs = [
     { name: "Overview", path: `/events/${eventId}/overview` },
     { name: "Schedule", path: `/events/${eventId}/schedule`, badge: null },
-    { name: "Participants", path: `/events/${eventId}/participants`, badge: participantCount },
-    { name: "Projects", path: `/events/${eventId}/gallery`, badge: projectCount },
+    {
+      name: "Participants",
+      path: `/events/${eventId}/participants`,
+      badge: participantCount,
+    },
+    {
+      name: "Projects",
+      path: `/events/${eventId}/gallery`,
+      badge: projectCount,
+    },
     { name: "FAQs", path: `/events/${eventId}/faqs` },
     // { name: "Gallery", path: `/events/${eventId}/gallery` }, // TODO: Add back when image upload functionality is ready
   ];
