@@ -914,6 +914,165 @@ export type Database = {
           }
         ]
       }
+      notifications: {
+        Row: {
+          id: string
+          user_id: string
+          type: Database["public"]["Enums"]["notification_type"]
+          title: string
+          message: string
+          project_id: string | null
+          event_id: string | null
+          action_url: string | null
+          metadata: Json | null
+          is_read: boolean
+          read_at: string | null
+          created_at: string
+          expires_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          type: Database["public"]["Enums"]["notification_type"]
+          title: string
+          message: string
+          project_id?: string | null
+          event_id?: string | null
+          action_url?: string | null
+          metadata?: Json | null
+          is_read?: boolean
+          read_at?: string | null
+          created_at?: string
+          expires_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          type?: Database["public"]["Enums"]["notification_type"]
+          title?: string
+          message?: string
+          project_id?: string | null
+          event_id?: string | null
+          action_url?: string | null
+          metadata?: Json | null
+          is_read?: boolean
+          read_at?: string | null
+          created_at?: string
+          expires_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["event_id"]
+          },
+        ]
+      }
+      project_invites: {
+        Row: {
+          id: string
+          project_id: string
+          event_id: string | null
+          invitee_email: string
+          invitee_user_id: string | null
+          invited_by_user_id: string
+          invited_by_name: string | null
+          invited_by_email: string | null
+          status: Database["public"]["Enums"]["invite_status"]
+          invite_token: string
+          invite_message: string | null
+          created_at: string
+          updated_at: string
+          accepted_at: string | null
+          declined_at: string | null
+          expires_at: string | null
+          metadata: Json | null
+        }
+        Insert: {
+          id?: string
+          project_id: string
+          event_id?: string | null
+          invitee_email: string
+          invitee_user_id?: string | null
+          invited_by_user_id: string
+          invited_by_name?: string | null
+          invited_by_email?: string | null
+          status?: Database["public"]["Enums"]["invite_status"]
+          invite_token: string
+          invite_message?: string | null
+          created_at?: string
+          updated_at?: string
+          accepted_at?: string | null
+          declined_at?: string | null
+          expires_at?: string | null
+          metadata?: Json | null
+        }
+        Update: {
+          id?: string
+          project_id?: string
+          event_id?: string | null
+          invitee_email?: string
+          invitee_user_id?: string | null
+          invited_by_user_id?: string
+          invited_by_name?: string | null
+          invited_by_email?: string | null
+          status?: Database["public"]["Enums"]["invite_status"]
+          invite_token?: string
+          invite_message?: string | null
+          created_at?: string
+          updated_at?: string
+          accepted_at?: string | null
+          declined_at?: string | null
+          expires_at?: string | null
+          metadata?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_invites_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_invites_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["event_id"]
+          },
+          {
+            foreignKeyName: "project_invites_invitee_user_id_fkey"
+            columns: ["invitee_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_invites_invited_by_user_id_fkey"
+            columns: ["invited_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -951,6 +1110,15 @@ export type Database = {
         | "admin"
         | "event"
       event_visibility: "test" | "demo" | "private" | "public" | "draft" | "archived"
+      invite_status: "pending" | "accepted" | "declined" | "expired" | "revoked"
+      notification_type: 
+        | "project_invite" 
+        | "event_update" 
+        | "event_schedule_update" 
+        | "event_custom_update" 
+        | "feedback_received" 
+        | "project_submission" 
+        | "system_announcement"
       payment_status: "processing" | "paid" | "canceled" | "refunded"
       ticket_status_enum: "unassigned" | "assigned" | "used" | "transferred"
     }
