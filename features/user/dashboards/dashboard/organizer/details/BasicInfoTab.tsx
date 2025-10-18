@@ -144,7 +144,7 @@ export function BasicInfoTab({
 
       if (updateSlug) {
         setUpdateSlug(false);
-        router.push(`/events/${event.slug}/dashboard`);
+        router.push(`/events/${event.slug}/overview`);
       }
 
       toast({

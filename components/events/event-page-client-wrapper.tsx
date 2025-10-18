@@ -9,6 +9,16 @@ import { useRouter } from "next/navigation";
 import { useToast } from "@/lib/hooks/use-toast";
 import { OrganizerEditOverview } from "./organizer-edit-overview";
 import { useActiveRole } from "./ActiveRoleContext";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface EventPageClientWrapperProps {
   userRole: EventRole;
@@ -33,12 +43,12 @@ export function EventPageClientWrapper({
   eventDate,
   location,
   coverImageUrl,
-  displayEventId,
   hasJoined,
   tabsAndContent,
 }: EventPageClientWrapperProps) {
   const { activeRole, setActiveRole } = useActiveRole();
   const [isLoading, setIsLoading] = useState(false);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
 
@@ -49,18 +59,21 @@ export function EventPageClientWrapper({
     }
   }, [userRole, activeRole, setActiveRole]);
 
+  // Debug: Log when showCancelDialog changes
+  useEffect(() => {
+    console.log("showCancelDialog changed to:", showCancelDialog);
+  }, [showCancelDialog]);
+
   const handleRoleChange = (role: EventRole) => {
     setActiveRole(role);
   };
 
-  const handleCancelRegistration = async () => {
+  const handleCancelRegistration = () => {
+    setShowCancelDialog(true);
+  };
+
+  const confirmCancelRegistration = async () => {
     if (isLoading) return;
-
-    const confirmCancel = window.confirm(
-      "Are you sure you want to cancel your registration for this event? This action cannot be undone."
-    );
-
-    if (!confirmCancel) return;
 
     try {
       setIsLoading(true);
@@ -101,6 +114,7 @@ export function EventPageClientWrapper({
         description: "You have successfully cancelled your event registration.",
       });
 
+      setShowCancelDialog(false);
       router.refresh();
     } catch (error) {
       console.error("Error canceling registration:", error);
@@ -128,6 +142,27 @@ export function EventPageClientWrapper({
           eventRoleLabels={eventRoleLabels}
         />
         <OrganizerEditOverview eventId={eventId} />
+
+        <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Cancel Event Registration</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to cancel your registration for this event? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isLoading}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={confirmCancelRegistration}
+                disabled={isLoading}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {isLoading ? "Cancelling..." : "Yes, cancel registration"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </>
     );
   }
@@ -149,12 +184,33 @@ export function EventPageClientWrapper({
         eventDate={eventDate}
         location={location}
         coverImageUrl={coverImageUrl}
-        eventId={displayEventId}
+        eventId={eventId}
         hasJoined={hasJoined}
         userRole={userRole}
         onManageEventClick={() => handleRoleChange(EventRole.Organizer)}
       />
       {tabsAndContent}
+
+      <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+        <AlertDialogContent className="z-[100]">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel Event Registration</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to cancel your registration for this event? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isLoading}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmCancelRegistration}
+              disabled={isLoading}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isLoading ? "Cancelling..." : "Yes, cancel registration"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
