@@ -70,7 +70,8 @@ export async function EventPageLayout({
   const { count: projectCount } = await supabase
     .from("projects")
     .select("*", { count: "exact", head: true })
-    .eq("event_id", dbEventId);
+    .eq("event_id", dbEventId)
+    .eq("submitted", true);
 
   return (
     

@@ -102,6 +102,11 @@ const UserSearchWithInvite = ({
         description: `An invitation has been sent to ${email}. They will receive an email to join the project.`,
       });
 
+      // Add the invited email to selected tags so it shows up in the UI
+      const newSelectedTags = [...selectedTags, email.trim()];
+      setSelectedTags(newSelectedTags);
+      onTagsChange(newSelectedTags);
+
       setTagInput("");
       setFilteredTags([]);
     } catch (error) {
@@ -126,8 +131,16 @@ const UserSearchWithInvite = ({
     return colors[index % colors.length];
   };
 
+  // Check if a tag is an invited email (not in allTags list)
+  const isInvitedEmail = (tag: string): boolean => {
+    const email = extractEmail(tag);
+    const allEmails = allTags.map(extractEmail);
+    return isValidEmail(email) && !allEmails.includes(email.toLowerCase());
+  };
+
   const getTagMarkup = (tag: string, index: number): JSX.Element => {
-    const color = getTagColor(index);
+    // Use purple color for invited emails
+    const color = isInvitedEmail(tag) ? "purple" : getTagColor(index);
     switch (color) {
       case "deepskyblue":
         return (
@@ -214,6 +227,34 @@ const UserSearchWithInvite = ({
               <svg
                 viewBox="0 0 14 14"
                 className="size-3.5 stroke-blue-950/50 group-hover:stroke-blue-950/75"
+              >
+                <path d="M4 4l6 6m0-6l-6 6" />
+              </svg>
+              <span className="absolute -inset-1" />
+            </button>
+          </span>
+        );
+      case "purple":
+        return (
+          <span
+            key={`${tag}-${index}`}
+            className="inline-flex items-center gap-x-1 rounded-full bg-purple-200 px-2 py-1 text-xs font-medium text-purple-800"
+          >
+            <span className="inline-flex items-center gap-x-1">
+              {tag}
+              <span className="inline-flex items-center rounded-full bg-purple-300 px-1.5 py-0.5 text-[10px] font-semibold text-purple-900">
+                Invited
+              </span>
+            </span>
+            <button
+              type="button"
+              className="group relative -mr-1 size-3.5 rounded-sm hover:bg-purple-700/20"
+              onClick={() => removeTag(tag)}
+            >
+              <span className="sr-only">Remove</span>
+              <svg
+                viewBox="0 0 14 14"
+                className="size-3.5 stroke-purple-900/50 group-hover:stroke-purple-900/75"
               >
                 <path d="M4 4l6 6m0-6l-6 6" />
               </svg>

@@ -7,9 +7,10 @@ export function getProjectInvitationEmailTemplate(
   projectName: string,
   projectId: string,
   inviterName: string,
-  eventName?: string
+  eventName?: string,
+  hash?: string
 ): ProjectInvitationEmailTemplate {
-  const claimUrl = `${process.env.NEXT_PUBLIC_APP_URL}/join-project?project=${projectId}`;
+  const claimUrl = `${process.env.NEXT_PUBLIC_APP_URL}/join-project?project=${projectId}&hash=${hash}`;
 
   return {
     subject: `You've been invited to join "${projectName}" - MentorMates`,

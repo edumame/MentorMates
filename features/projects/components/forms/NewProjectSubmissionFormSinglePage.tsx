@@ -322,6 +322,13 @@ export function NewProjectSubmissionFormSinglePage({
 
     setIsSaving(true);
     try {
+      // Filter out invited users (those not in the participants list)
+      // Only save teammates who are actual event participants
+      const participantEmails = participants.map((p) => p.email.toLowerCase());
+      const validTeammates = formData.teammates.filter((email) =>
+        participantEmails.includes(email.toLowerCase())
+      );
+
       const payload: Record<string, unknown> = {
         project_name: formData.projectName.trim() || undefined,
         project_description: formData.projectDescription.trim() || undefined,
@@ -332,7 +339,7 @@ export function NewProjectSubmissionFormSinglePage({
           formData.additionalMaterialsUrl.trim() || undefined,
         lead_name: formData.leadName,
         lead_email: formData.leadEmail,
-        teammates: formData.teammates,
+        teammates: validTeammates,
       };
 
       const resp = await fetch(`/api/projects/${projectId}`, {
@@ -528,6 +535,13 @@ export function NewProjectSubmissionFormSinglePage({
     }
 
     try {
+      // Filter out invited users (those not in the participants list)
+      // Only submit teammates who are actual event participants
+      const participantEmails = participants.map((p) => p.email.toLowerCase());
+      const validTeammates = formData.teammates.filter((email) =>
+        participantEmails.includes(email.toLowerCase())
+      );
+
       const response = await fetch("/api/projects/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -537,7 +551,7 @@ export function NewProjectSubmissionFormSinglePage({
           leadName: formData.leadName,
           leadEmail: formData.leadEmail,
           projectDescription: formData.projectDescription,
-          teammates: formData.teammates,
+          teammates: validTeammates,
           projectUrl: formData.projectUrl,
           coverImageUrl: formData.coverImageUrl,
           additionalMaterialsUrl: formData.additionalMaterialsUrl,
@@ -594,7 +608,7 @@ export function NewProjectSubmissionFormSinglePage({
   const totalMembers = (formData.teammates?.length || 0) + 1;
 
   return (
-    <div className="bg-white">
+    <div className="bg-white mb-8">
       <Toaster />
 
       {/* Sticky Auto-save Banner */}

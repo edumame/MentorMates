@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Users, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 import { User } from "@supabase/supabase-js";
+import { validateEmailInviteHash } from "@/lib/utils/invite-links";
 
 interface ProjectInfo {
   id: string;
@@ -27,6 +28,7 @@ export default function JoinProjectPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const projectId = searchParams.get("project");
+  const hash = searchParams.get("hash");
 
   const [project, setProject] = useState<ProjectInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -49,6 +51,12 @@ export default function JoinProjectPage() {
   useEffect(() => {
     if (!projectId) {
       setError("No project ID provided");
+      setLoading(false);
+      return;
+    }
+
+    if (!hash) {
+      setError("Invalid invitation link. Please use the link from your invitation email.");
       setLoading(false);
       return;
     }
@@ -128,6 +136,12 @@ export default function JoinProjectPage() {
       }
 
       const userEmail = userProfile.email.toLowerCase();
+      
+      // Verify the hash matches the user's email
+      if (hash && !validateEmailInviteHash(projectId!, userEmail, hash)) {
+        setError("This invitation link was sent to a different email address. Please sign in with the invited email or contact the project lead.");
+        return;
+      }
 
       // Check if user is already the project lead
       if (project.lead_email === userEmail) {
