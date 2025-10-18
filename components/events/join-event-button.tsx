@@ -90,7 +90,6 @@ export function JoinEventButton({
           .maybeSingle();
 
         if (eventError) {
-          console.error("Error fetching event:", eventError);
           throw eventError;
         }
 

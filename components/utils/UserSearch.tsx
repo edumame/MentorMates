@@ -3,7 +3,6 @@
 import { useState, ChangeEvent, useEffect } from 'react';
 
 const UserSearch = ({ allTags, onTagsChange, initialTags = [] }: { allTags: string[]; onTagsChange: (tags: string[]) => void; initialTags?: string[] }) => {
-  console.log('UserSearch rendered with:', { allTags, initialTags });
   const [tagInput, setTagInput] = useState<string>('');
   const [selectedTags, setSelectedTags] = useState<string[]>(initialTags);
   const [filteredTags, setFilteredTags] = useState<string[]>([]);

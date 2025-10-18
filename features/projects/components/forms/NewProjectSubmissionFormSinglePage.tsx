@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 import { toast } from "@/lib/hooks/use-toast";
 import { Toaster } from "@/components/ui/toaster";
-import UserSearch from "@/components/utils/UserSearch";
+import UserSearchWithInvite from "@/components/utils/UserSearchWithInvite";
 import { useAdmin } from "@/lib/hooks/use-admin";
 import { EventDetails } from "@/lib/types";
 import ReactMarkdown from "react-markdown";
@@ -322,6 +322,13 @@ export function NewProjectSubmissionFormSinglePage({
 
     setIsSaving(true);
     try {
+      // Filter out invited users (those not in the participants list)
+      // Only save teammates who are actual event participants
+      const participantEmails = participants.map((p) => p.email.toLowerCase());
+      const validTeammates = formData.teammates.filter((email) =>
+        participantEmails.includes(email.toLowerCase())
+      );
+
       const payload: Record<string, unknown> = {
         project_name: formData.projectName.trim() || undefined,
         project_description: formData.projectDescription.trim() || undefined,
@@ -332,7 +339,7 @@ export function NewProjectSubmissionFormSinglePage({
           formData.additionalMaterialsUrl.trim() || undefined,
         lead_name: formData.leadName,
         lead_email: formData.leadEmail,
-        teammates: formData.teammates,
+        teammates: validTeammates,
       };
 
       const resp = await fetch(`/api/projects/${projectId}`, {
@@ -437,7 +444,12 @@ export function NewProjectSubmissionFormSinglePage({
     }
   };
 
-  const handleTeammatesChange = async (emails: string[]) => {
+  const handleTeammatesChange = async (tags: string[]) => {
+    // Extract emails from tags that might be in "Name (email)" format
+    const emails = tags.map(tag => {
+      const emailMatch = tag.match(/\((.+?)\)$/);
+      return emailMatch ? emailMatch[1] : tag;
+    });
     setFormData((prev) => ({ ...prev, teammates: emails }));
   };
 
@@ -523,6 +535,13 @@ export function NewProjectSubmissionFormSinglePage({
     }
 
     try {
+      // Filter out invited users (those not in the participants list)
+      // Only submit teammates who are actual event participants
+      const participantEmails = participants.map((p) => p.email.toLowerCase());
+      const validTeammates = formData.teammates.filter((email) =>
+        participantEmails.includes(email.toLowerCase())
+      );
+
       const response = await fetch("/api/projects/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -532,7 +551,7 @@ export function NewProjectSubmissionFormSinglePage({
           leadName: formData.leadName,
           leadEmail: formData.leadEmail,
           projectDescription: formData.projectDescription,
-          teammates: formData.teammates,
+          teammates: validTeammates,
           projectUrl: formData.projectUrl,
           coverImageUrl: formData.coverImageUrl,
           additionalMaterialsUrl: formData.additionalMaterialsUrl,
@@ -589,7 +608,7 @@ export function NewProjectSubmissionFormSinglePage({
   const totalMembers = (formData.teammates?.length || 0) + 1;
 
   return (
-    <div className="bg-white">
+    <div className="bg-white mb-8">
       <Toaster />
 
       {/* Sticky Auto-save Banner */}
@@ -622,10 +641,10 @@ export function NewProjectSubmissionFormSinglePage({
       </div>
 
       {/* Wrapper without top border */}
-      <div className="border-b border-l border-r border-[#d8d8d8] overflow-hidden">
+      <div className="overflow-visible">
         {/* Main Content */}
         <div className="bg-gradient-to-br from-blue-100/45 via-transparent to-transparent">
-          <div className="container mx-auto px-8 py-6 min-h-[800px]">
+          <div className="container mx-auto px-8 py-6 min-h-[1200px]">
             <div className="flex gap-12 items-start justify-between">
               {/* Left Side - Form */}
               <div className="flex-1 max-w-[640px] space-y-6">
@@ -819,16 +838,30 @@ export function NewProjectSubmissionFormSinglePage({
                   <div className="border-t border-gray-200" />
 
                   {/* Add Teammates */}
-                  <div className="space-y-2">
+                  <div className="space-y-2 pb-64 mb-32">
                     <label className="text-base text-black font-normal">
                       Add teammates (Optional)
                     </label>
-                    <UserSearch
-                      allTags={participants.map((p) => p.email)}
+                    <UserSearchWithInvite
+                      allTags={participants.map((p) =>
+                        p.display_name && p.display_name !== p.email
+                          ? `${p.display_name} (${p.email})`
+                          : p.email
+                      )}
                       onTagsChange={handleTeammatesChange}
-                      initialTags={formData.teammates}
+                      initialTags={formData.teammates.map(email => {
+                        const participant = participants.find(p => p.email === email);
+                        return participant?.display_name && participant.display_name !== email
+                          ? `${participant.display_name} (${email})`
+                          : email;
+                      })}
+                      projectId={projectId || undefined}
+                      enableInvite={true}
                     />
                   </div>
+
+                  {/* Spacer to ensure dropdown visibility */}
+                  <div className="h-[1000px]" aria-hidden="true"></div>
                 </div>
               </div>
 
