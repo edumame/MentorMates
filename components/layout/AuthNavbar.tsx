@@ -9,7 +9,11 @@ import { supabase } from "@/lib/supabase";
 import type { Session } from "@supabase/supabase-js";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Menu, Close, NotificationsNone } from "@mui/icons-material";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -104,41 +108,35 @@ export function AuthNavbar() {
                   <NotificationsNone className="h-6 w-6" />
                 </button>
               </PopoverTrigger>
-              <PopoverContent align="end" className="w-[420px] p-0">
+              <PopoverContent
+                align="end"
+                className="w-[420px] p-0 bg-white border border-[rgba(0,0,0,0.15)] rounded-xl"
+              >
+                {/* Header with Title and Badge */}
                 <div className="p-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-2xl font-bold">Notification</h3>
-                    {/* Placeholder count; wire up when backend exists */}
-                    {/* <span className="text-sm rounded-full bg-gray-100 px-2 py-0.5">3</span> */}
-                  </div>
-                </div>
-                <div className="border-t">
-                  <div className="p-4">
-                    <div className="flex items-center gap-4 rounded-2xl bg-blue-50 p-4">
-                      <div className="h-12 w-12 flex items-center justify-center rounded-full bg-blue-100 text-blue-600">
-                        {/* Calendar-like icon using SVG to avoid extra deps */}
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          viewBox="0 0 24 24"
-                          fill="currentColor"
-                          className="h-6 w-6"
-                        >
-                          <path d="M7 2a1 1 0 0 1 1 1v1h8V3a1 1 0 1 1 2 0v1h.5A2.5 2.5 0 0 1 21 6.5V19a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6.5A2.5 2.5 0 0 1 5.5 4H6V3a1 1 0 1 1 2 0v1Zm12 8H5v9a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-9ZM5 9h14V6.5a.5.5 0 0 0-.5-.5H18v1a1 1 0 1 1-2 0V6H8v1a1 1 0 1 1-2 0V6H5.5a.5.5 0 0 0-.5.5V9Z" />
-                        </svg>
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-lg font-medium text-gray-900">
-                          You have 1 upcoming event
-                        </p>
-                        <p className="text-gray-500">3 hours ago</p>
-                      </div>
+                  <div className="flex items-center gap-1">
+                    <h3 className="text-[20px] font-semibold leading-7 tracking-[-0.5px] text-black">
+                      Notification
+                    </h3>
+                    <div className="border border-[rgba(0,0,0,0.15)] border-solid rounded-[50px] px-2 py-0">
+                      <p className="text-[14px] font-normal leading-[1.5] text-black">
+                        0
+                      </p>
                     </div>
                   </div>
                 </div>
-                <div className="border-t">
-                  <button className="w-full py-4 text-center text-lg hover:bg-gray-50">
-                    Mark all as read
-                  </button>
+
+                {/* Empty State - No Notifications */}
+                <div className="px-4 pb-4">
+                  <div className="flex flex-col items-center justify-center py-8 text-center">
+                    <NotificationsNone className="h-12 w-12 text-gray-300 mb-3" />
+                    <p className="text-[16px] font-medium text-zinc-900 mb-1">
+                      No notifications
+                    </p>
+                    <p className="text-[14px] text-zinc-500">
+                      You&apos;re all caught up!
+                    </p>
+                  </div>
                 </div>
               </PopoverContent>
             </Popover>
