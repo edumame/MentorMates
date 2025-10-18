@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/toaster";
@@ -14,24 +14,76 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Delete } from "@mui/icons-material";
 import { toast } from "@/lib/hooks/use-toast";
 import { useRouter } from "next/navigation";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useSearchParams } from "next/navigation";
 
 export default function ProjectsPage() {
   const { session, isAuthenticated } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [pendingInvites, setPendingInvites] = useState<any[]>([]);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const hasInviteNotifications = useMemo(
+    () => notifications.some((n) => n.type === "project_invite" && n.status === "unread"),
+    [notifications]
+  );
 
   useEffect(() => {
     const getSession = async () => {
       if (session?.user?.email) {
-        await fetchProjects();
+        await Promise.all([fetchProjects(), fetchInvites(), fetchNotifications()]);
       }
       setIsLoading(false);
     };
 
     getSession();
   }, [session]);
+
+  // Preserve invite context for post-login redirect
+  useEffect(() => {
+    if (!session) {
+      const projectId = searchParams.get("inviteProject");
+      const hash = searchParams.get("hash");
+      if (projectId && hash) {
+        try {
+          localStorage.setItem(
+            "returnUrl",
+            window.location.pathname + window.location.search
+          );
+        } catch {
+          // ignore
+        }
+      }
+    }
+  }, [session, searchParams]);
+
+  // Handle redirect from email invite preserving project context
+  useEffect(() => {
+    const projectId = searchParams.get("inviteProject");
+    const hash = searchParams.get("hash");
+    if (projectId && hash && session?.user) {
+      // Auto-accept via API, which will also join event if needed, then redirect
+      (async () => {
+        try {
+          const res = await fetch("/api/projects/invitations/accept", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ projectId, hash }),
+          });
+          const data = await res.json();
+          if (res.ok) {
+            router.replace(data.redirectUrl || `/projects/${projectId}`);
+          }
+        } catch {
+          // ignore
+        }
+      })();
+    }
+  }, [searchParams, session]);
 
   const fetchProjects = async () => {
     try {
@@ -44,6 +96,28 @@ export default function ProjectsPage() {
     } catch (error) {
       console.error("Error fetching projects:", error);
       setProjects([]);
+    }
+  };
+
+  const fetchInvites = async () => {
+    try {
+      const res = await fetch("/api/projects/invitations");
+      if (!res.ok) return;
+      const data = await res.json();
+      setPendingInvites(data.invites || []);
+    } catch (e) {
+      console.error("Error fetching invites", e);
+    }
+  };
+
+  const fetchNotifications = async () => {
+    try {
+      const res = await fetch("/api/notifications");
+      if (!res.ok) return;
+      const data = await res.json();
+      setNotifications(data.notifications || []);
+    } catch (e) {
+      console.error("Error fetching notifications", e);
     }
   };
 
@@ -88,6 +162,45 @@ export default function ProjectsPage() {
         description: "This project is not associated with an event.",
         variant: "destructive",
       });
+    }
+  };
+
+  const handleAcceptInvite = async (invite: any) => {
+    try {
+      const res = await fetch("/api/projects/invitations/accept", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ invitationId: invite.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to accept invite");
+      // Refresh lists
+      await Promise.all([fetchProjects(), fetchInvites(), fetchNotifications()]);
+      router.push(data.redirectUrl || `/projects/${invite.project_id}`);
+    } catch (e: any) {
+      toast({ title: "Failed to accept", description: e.message, variant: "destructive" });
+    }
+  };
+
+  const handleDismissInvite = async (invite: any) => {
+    try {
+      const ids = notifications
+        .filter(
+          (n) =>
+            n.type === "project_invite" &&
+            n.status === "unread" &&
+            (n.data?.projectId === invite.project_id || n.data?.project_id === invite.project_id)
+        )
+        .map((n) => n.id);
+      if (ids.length === 0) return;
+      await fetch("/api/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+      });
+      await fetchNotifications();
+    } catch (e) {
+      console.error("Failed to dismiss notification", e);
     }
   };
 
@@ -148,45 +261,101 @@ export default function ProjectsPage() {
             )}
           </div>
 
-          {/* Draft Projects Section */}
-          {isAuthenticated && draftProjects.length > 0 && (
+          {/* Draft Projects + Pending Invites Section */}
+          {isAuthenticated && (draftProjects.length > 0 || pendingInvites.length > 0) && (
             <Card>
               <CardHeader>
                 <CardTitle>Draft Projects</CardTitle>
               </CardHeader>
-              <CardContent className="overflow-y-auto max-h-[300px]">
-                {isLoading ? (
-                  <p>Loading...</p>
-                ) : (
-                  <ul className="space-y-4">
-                    {draftProjects.map((project) => (
-                      <li key={project.id} className="border-b pb-2">
-                        <div className="flex justify-between items-start gap-4">
-                          <button
-                            onClick={() => handleDraftClick(project)}
-                            className="hover:text-blue-500 flex-grow text-left"
-                          >
-                            <h3 className="font-semibold">
-                              {project.project_name || "Untitled Project"}
-                            </h3>
-                            <p className="text-sm text-gray-600">
-                              {project.project_description || "No description"}
-                            </p>
-                          </button>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            className="shrink-0"
-                            onClick={() => handleDeleteProject(project.id)}
-                            disabled={isDeleting === project.id}
-                          >
-                            <Delete className="h-4 w-4" />
-                            <span className="sr-only">Delete project</span>
-                          </Button>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
+              <CardContent className="space-y-6">
+                {/* Notifications banner for invites */}
+                {hasInviteNotifications && (
+                  <Alert>
+                    <AlertDescription>
+                      You were invited to a project at an event.
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {/* Pending Invited Projects */}
+                {pendingInvites.length > 0 && (
+                  <div className="space-y-3">
+                    <h3 className="font-semibold text-sm text-gray-700">Invited Projects</h3>
+                    <ul className="space-y-3">
+                      {pendingInvites.map((invite) => (
+                        <li key={invite.id} className="border rounded p-3">
+                          <div className="flex items-start justify-between gap-4">
+                            <button
+                              onClick={() => router.push(`/projects/${invite.project_id}`)}
+                              className="text-left flex-grow hover:text-blue-600"
+                            >
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-medium">
+                                  {invite.projects?.project_name || "Untitled Project"}
+                                </h4>
+                                <Badge variant="secondary">Pending invite</Badge>
+                              </div>
+                              {invite.projects?.project_description && (
+                                <p className="text-sm text-gray-600 line-clamp-2">
+                                  {invite.projects.project_description}
+                                </p>
+                              )}
+                            </button>
+                            <div className="flex items-center gap-2">
+                              <Button size="sm" onClick={() => handleAcceptInvite(invite)}>
+                                Accept & open
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => router.push(`/projects/${invite.project_id}`)}
+                              >
+                                Open
+                              </Button>
+                              <Button variant="ghost" size="sm" onClick={() => handleDismissInvite(invite)}>
+                                Dismiss
+                              </Button>
+                            </div>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* User Draft Projects */}
+                {draftProjects.length > 0 && (
+                  <div>
+                    <ul className="space-y-4">
+                      {draftProjects.map((project) => (
+                        <li key={project.id} className="border-b pb-2">
+                          <div className="flex justify-between items-start gap-4">
+                            <button
+                              onClick={() => handleDraftClick(project)}
+                              className="hover:text-blue-500 flex-grow text-left"
+                            >
+                              <h3 className="font-semibold">
+                                {project.project_name || "Untitled Project"}
+                              </h3>
+                              <p className="text-sm text-gray-600">
+                                {project.project_description || "No description"}
+                              </p>
+                            </button>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              className="shrink-0"
+                              onClick={() => handleDeleteProject(project.id)}
+                              disabled={isDeleting === project.id}
+                            >
+                              <Delete className="h-4 w-4" />
+                              <span className="sr-only">Delete project</span>
+                            </Button>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 )}
               </CardContent>
             </Card>

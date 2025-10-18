@@ -783,6 +783,127 @@ export type Database = {
           }
         ]
       }
+      project_invitations: {
+        Row: {
+          id: string
+          project_id: string
+          event_id: string | null
+          inviter_user_id: string
+          invited_email: string
+          invited_user_id: string | null
+          hash: string
+          message: string | null
+          status: Database["public"]["Enums"]["invitation_status_enum"]
+          created_at: string | null
+          accepted_at: string | null
+          declined_at: string | null
+          expires_at: string | null
+        }
+        Insert: {
+          id?: string
+          project_id: string
+          event_id?: string | null
+          inviter_user_id: string
+          invited_email: string
+          invited_user_id?: string | null
+          hash: string
+          message?: string | null
+          status?: Database["public"]["Enums"]["invitation_status_enum"]
+          created_at?: string | null
+          accepted_at?: string | null
+          declined_at?: string | null
+          expires_at?: string | null
+        }
+        Update: {
+          id?: string
+          project_id?: string
+          event_id?: string | null
+          inviter_user_id?: string
+          invited_email?: string
+          invited_user_id?: string | null
+          hash?: string
+          message?: string | null
+          status?: Database["public"]["Enums"]["invitation_status_enum"]
+          created_at?: string | null
+          accepted_at?: string | null
+          declined_at?: string | null
+          expires_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_invitations_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_invitations_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["event_id"]
+          },
+          {
+            foreignKeyName: "project_invitations_inviter_user_id_fkey"
+            columns: ["inviter_user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["uid"]
+          },
+          {
+            foreignKeyName: "project_invitations_invited_user_id_fkey"
+            columns: ["invited_user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["uid"]
+          }
+        ]
+      }
+      notifications: {
+        Row: {
+          id: string
+          user_id: string
+          type: Database["public"]["Enums"]["notification_type_enum"]
+          title: string
+          body: string | null
+          data: Json | null
+          status: Database["public"]["Enums"]["notification_status_enum"]
+          created_at: string | null
+          read_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          type: Database["public"]["Enums"]["notification_type_enum"]
+          title: string
+          body?: string | null
+          data?: Json | null
+          status?: Database["public"]["Enums"]["notification_status_enum"]
+          created_at?: string | null
+          read_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          type?: Database["public"]["Enums"]["notification_type_enum"]
+          title?: string
+          body?: string | null
+          data?: Json | null
+          status?: Database["public"]["Enums"]["notification_status_enum"]
+          created_at?: string | null
+          read_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["uid"]
+          }
+        ]
+      }
       user_event_payments: {
         Row: {
           id: string
@@ -952,6 +1073,9 @@ export type Database = {
         | "event"
       event_visibility: "test" | "demo" | "private" | "public" | "draft" | "archived"
       payment_status: "processing" | "paid" | "canceled" | "refunded"
+      invitation_status_enum: "pending" | "accepted" | "declined" | "canceled" | "expired"
+      notification_type_enum: "project_invite" | "event_update" | "custom" | "project_feedback" | "project_award"
+      notification_status_enum: "unread" | "read"
       ticket_status_enum: "unassigned" | "assigned" | "used" | "transferred"
     }
     CompositeTypes: {
@@ -1079,6 +1203,15 @@ export const Constants = {
       event_visibility: ["test", "demo", "private", "public", "draft"],
       payment_status: ["processing", "paid", "canceled"],
       ticket_status_enum: ["unassigned", "assigned", "used", "transferred"],
+      invitation_status_enum: ["pending", "accepted", "declined", "canceled", "expired"],
+      notification_type_enum: [
+        "project_invite",
+        "event_update",
+        "custom",
+        "project_feedback",
+        "project_award"
+      ],
+      notification_status_enum: ["unread", "read"],
     },
   },
 } as const

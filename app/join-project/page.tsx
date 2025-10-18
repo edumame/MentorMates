@@ -155,45 +155,21 @@ export default function JoinProjectPage() {
         return;
       }
 
-      // If project is part of an event, ensure user is registered for the event
-      if (project.event_id) {
-        const { data: userRole } = await supabase
-          .from("user_event_roles")
-          .select("role")
-          .eq("user_id", user.id)
-          .eq("event_id", project.event_id)
-          .maybeSingle();
-
-        if (!userRole) {
-          setError(
-            "You must be registered for the event to join this project. Please register for the event first."
-          );
-          return;
-        }
+      // Call unified accept endpoint to handle event join + teammate add
+      const resp = await fetch("/api/projects/invitations/accept", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId: projectId, hash }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) {
+        setError(data.error || "Failed to join project");
+        return;
       }
-
-      // Add user to teammates array
-      const currentTeammates = project.teammates || [];
-      const updatedTeammates = [...currentTeammates, userEmail];
-
-      const { error: updateError } = await supabase
-        .from("projects")
-        .update({
-          teammates: updatedTeammates,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", projectId);
-
-      if (updateError) {
-        throw updateError;
-      }
-
       setSuccess(true);
-
-      // Redirect to project page after a short delay
       setTimeout(() => {
-        router.push(`/projects/${projectId}`);
-      }, 2000);
+        router.push(data.redirectUrl || `/projects/${projectId}`);
+      }, 1200);
     } catch {
       setError("Failed to join project. Please try again.");
     } finally {

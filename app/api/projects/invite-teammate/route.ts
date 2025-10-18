@@ -90,7 +90,58 @@ export async function POST(request: Request) {
   }
 
   // Generate secure hash based on the invitee's email
-  const hash = generateEmailInviteHash(project.id, email.trim().toLowerCase());
+  const normalizedEmail = email.trim().toLowerCase();
+  const hash = generateEmailInviteHash(project.id, normalizedEmail);
+
+  // Create or update a project invitation row (idempotent on pending invites)
+  // Try to resolve invited_user_id by email if exists
+  let invitedUserId: string | null = null;
+  const { data: existingProfile } = await supabase
+    .from('user_profiles')
+    .select('uid, email')
+    .eq('email', normalizedEmail)
+    .maybeSingle();
+  if (existingProfile?.uid) {
+    invitedUserId = existingProfile.uid;
+  }
+
+  // Upsert pending invitation (unique on project_id + invited_email when pending)
+  const { error: inviteError } = await supabase
+    .from('project_invitations')
+    .upsert(
+      {
+        project_id: project.id,
+        event_id: project.event_id || null,
+        inviter_user_id: auth.user.id,
+        invited_email: normalizedEmail,
+        invited_user_id: invitedUserId,
+        hash,
+        status: 'pending',
+        expires_at: null,
+      },
+      { onConflict: 'project_id,hash' }
+    );
+
+  if (inviteError) {
+    return NextResponse.json({ error: 'Failed to create invitation' }, { status: 500 });
+  }
+
+  // Insert an in-app notification for existing user
+  if (invitedUserId) {
+    await supabase.from('notifications').insert({
+      user_id: invitedUserId,
+      type: 'project_invite',
+      title: `You were invited to ${project.project_name}`,
+      body: eventName ? `at ${eventName}` : null,
+      data: {
+        projectId: project.id,
+        eventId: project.event_id,
+        hash,
+        inviterName,
+      },
+      status: 'unread',
+    });
+  }
 
   // Send invitation email
   try {
@@ -104,7 +155,7 @@ export async function POST(request: Request) {
 
     const { error: emailError } = await resend.emails.send({
       from: NOTIFICATIONS_EMAIL_FROM,
-      to: email.trim(),
+      to: normalizedEmail,
       subject: emailTemplate.subject,
       html: emailTemplate.html,
     });
