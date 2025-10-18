@@ -10,6 +10,11 @@ import type { Session } from "@supabase/supabase-js";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Menu, Close, NotificationsNone } from "@mui/icons-material";
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -92,15 +97,49 @@ export function AuthNavbar() {
             />
           </Link>
 
-          {/* Desktop Right Controls: notifications + avatar */}
+          {/* Desktop Right Controls: notifications (popover) + avatar */}
           <div className="hidden lg:flex items-center gap-4">
-            <Link
-              href="/notifications"
-              aria-label="Notifications"
-              className="p-2 rounded-full hover:bg-gray-100 text-gray-800"
-            >
-              <NotificationsNone className="h-6 w-6" />
-            </Link>
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  aria-label="Notifications"
+                  className="p-2 rounded-full hover:bg-gray-100 text-gray-800"
+                >
+                  <NotificationsNone className="h-6 w-6" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent
+                align="end"
+                className="w-[420px] p-0 bg-white border border-[rgba(0,0,0,0.15)] rounded-xl"
+              >
+                {/* Header with Title and Badge */}
+                <div className="p-4">
+                  <div className="flex items-center gap-1">
+                    <h3 className="text-[20px] font-semibold leading-7 tracking-[-0.5px] text-black">
+                      Notification
+                    </h3>
+                    <div className="border border-[rgba(0,0,0,0.15)] border-solid rounded-[50px] px-2 py-0">
+                      <p className="text-[14px] font-normal leading-[1.5] text-black">
+                        0
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Empty State - No Notifications */}
+                <div className="px-4 pb-4">
+                  <div className="flex flex-col items-center justify-center py-8 text-center">
+                    <NotificationsNone className="h-12 w-12 text-gray-300 mb-3" />
+                    <p className="text-[16px] font-medium text-zinc-900 mb-1">
+                      No notifications
+                    </p>
+                    <p className="text-[14px] text-zinc-500">
+                      You&apos;re all caught up!
+                    </p>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
 
             {session ? (
               <DropdownMenu>
