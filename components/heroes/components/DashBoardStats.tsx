@@ -212,7 +212,7 @@ export function DashBoardStats() {
                   <span className="h-6 w-6 items-center justify-center">
                     {stat.icon}
                   </span>
-                  <span className="text-md">{stat.label}</span>
+                  <span className="text-md whitespace-nowrap">{stat.label}</span>
                 </div>
                 <div className="mt-2 text-3xl font-semibold tracking-tight text-gray-900">
                   {loading ? (
