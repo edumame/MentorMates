@@ -86,6 +86,7 @@ export function NewProjectSubmissionFormSinglePage({
 
   useEffect(() => {
     const init = async () => {
+
       // Hydrate from session if no props provided
       if (!leadName || !userEmail) {
         try {
