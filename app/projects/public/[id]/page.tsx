@@ -764,7 +764,7 @@ export default function PublicProjectPage() {
 
                           <div className="space-y-3">
                             <div className="py-3 space-y-1">
-                              <p className="text-[24px] font-['Poly'] text-zinc-900">01</p>
+                              <p className="text-[24px] font-sans text-zinc-900">01</p>
                               <p className="text-sm text-zinc-500 leading-[22px]">
                                 Save the QR code image to share digitally
                               </p>
@@ -773,7 +773,7 @@ export default function PublicProjectPage() {
                             <div className="border-t border-gray-200" />
 
                             <div className="py-3 space-y-1">
-                              <p className="text-[24px] font-['Poly'] text-zinc-900">02</p>
+                              <p className="text-[24px] font-sans text-zinc-900">02</p>
                               <p className="text-sm text-zinc-500 leading-[22px]">
                                 Print it on business cards or project handouts
                               </p>
@@ -782,7 +782,7 @@ export default function PublicProjectPage() {
                             <div className="border-t border-gray-200" />
 
                             <div className="py-3 space-y-1">
-                              <p className="text-[24px] font-['Poly'] text-zinc-900">03</p>
+                              <p className="text-[24px] font-sans text-zinc-900">03</p>
                               <p className="text-sm text-zinc-500 leading-[22px]">
                                 Display it at your project booth or presentation
                               </p>
@@ -791,7 +791,7 @@ export default function PublicProjectPage() {
                             <div className="border-t border-gray-200" />
 
                             <div className="py-3 space-y-1">
-                              <p className="text-[24px] font-['Poly'] text-zinc-900">04</p>
+                              <p className="text-[24px] font-sans text-zinc-900">04</p>
                               <p className="text-sm text-zinc-500 leading-[22px]">
                                 Add it to your LinkedIn or GitHub profile
                               </p>

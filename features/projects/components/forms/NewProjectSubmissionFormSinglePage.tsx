@@ -44,7 +44,6 @@ export function NewProjectSubmissionFormSinglePage({
   onProjectSubmitted,
   onContextusLinked,
   contextusId: initialContextusId,
-  existingProjectId,
 }: {
   userEmail?: string;
   leadName?: string;
@@ -52,7 +51,6 @@ export function NewProjectSubmissionFormSinglePage({
   onProjectSubmitted?: () => void;
   onContextusLinked?: (ctxId: string) => void;
   contextusId?: string | null;
-  existingProjectId?: string | null;
 }) {
   const router = useRouter();
   const isAdmin = useAdmin();
@@ -61,9 +59,7 @@ export function NewProjectSubmissionFormSinglePage({
   const draftCreationAttempted = useRef(false);
 
   // State
-  const [projectId, setProjectId] = useState<string | null>(
-    existingProjectId ?? null
-  );
+  const [projectId, setProjectId] = useState<string | null>(null);
   const [contextusId, setContextusId] = useState<string | null>(
     initialContextusId ?? null
   );
@@ -88,56 +84,8 @@ export function NewProjectSubmissionFormSinglePage({
     additionalMaterialsUrl: "",
   });
 
-  // Fetch existing project data and event details
   useEffect(() => {
     const init = async () => {
-      // Load existing project if existingProjectId is provided
-      if (existingProjectId) {
-        try {
-          const { data: project, error } = await supabase
-            .from("projects")
-            .select("*")
-            .eq("id", existingProjectId)
-            .single();
-
-          if (!error && project) {
-            setFormData({
-              projectName: project.project_name || "",
-              leadName: project.lead_name || leadName || "",
-              leadEmail: project.lead_email || userEmail || "",
-              projectDescription: project.project_description || "",
-              teammates: Array.isArray(project.teammates)
-                ? project.teammates
-                : [],
-              projectUrl: project.project_url || "",
-              videoUrl: project.video_url || "",
-              coverImageUrl: project.cover_image_url || "",
-              additionalMaterialsUrl: project.additional_materials_url || "",
-            });
-
-            if (project.contextus_project_id) {
-              setContextusId(project.contextus_project_id);
-            }
-
-            // Use the event_id from the existing project if available
-            if (project.event_id && !eventId) {
-              const { data: eventData } = await supabase
-                .from("events")
-                .select(
-                  "event_id, event_name, slug, event_date, location, cover_image_url, paid, event_description"
-                )
-                .eq("event_id", project.event_id)
-                .single();
-
-              if (eventData) {
-                setEventDetails(eventData as EventDetails);
-              }
-            }
-          }
-        } catch {
-          // Silent fail
-        }
-      }
 
       // Hydrate from session if no props provided
       if (!leadName || !userEmail) {
@@ -194,7 +142,7 @@ export function NewProjectSubmissionFormSinglePage({
     };
 
     init();
-  }, [eventId, leadName, userEmail, existingProjectId]);
+  }, [eventId, leadName, userEmail]);
 
   // Fetch event participants
   const fetchEventParticipants = useCallback(async () => {

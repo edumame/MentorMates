@@ -3,7 +3,6 @@ import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
 import { NOTIFICATIONS_EMAIL_FROM } from '@/lib/email_templates/constants';
 import { getProjectInvitationEmailTemplate } from '@/lib/email_templates/project-invitation';
-import { generateEmailInviteHash } from '@/lib/utils/invite-links';
 
 const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
@@ -89,9 +88,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Email service not configured' }, { status: 500 });
   }
 
-  // Generate secure hash based on the invitee's email
-  const hash = generateEmailInviteHash(project.id, email.trim().toLowerCase());
-
   // Send invitation email
   try {
     const emailTemplate = getProjectInvitationEmailTemplate(
@@ -99,7 +95,6 @@ export async function POST(request: Request) {
       project.id,
       inviterName,
       eventName,
-      hash
     );
 
     const { error: emailError } = await resend.emails.send({
