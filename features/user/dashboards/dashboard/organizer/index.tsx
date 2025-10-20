@@ -41,6 +41,7 @@ import { EmailTab } from "./email";
 import { PricingTab } from "./pricing/PricingTab";
 import EmailDashboard from "./notifications/EmailDashboard";
 import { useEventArchiveStatus } from "@/lib/hooks/use-event-archive-status";
+import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 
 export function OrganizerDashboard({ eventId }: { eventId: string }) {
   const [event, setEvent] = useState<EventDetails | null>(null);
@@ -207,21 +208,36 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
 
   if (loading) {
     return (
+      <PageContainer>
+        <PageContent className="px-[32px] pt-[24px]">
+          <div className="flex flex-col gap-[48px] max-w-[1064px] mx-auto">
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
       </div>
+          </div>
+        </PageContent>
+      </PageContainer>
     );
   }
 
   if (!event) {
     return (
+      <PageContainer>
+        <PageContent className="px-[32px] pt-[24px]">
+          <div className="flex flex-col gap-[48px] max-w-[1064px] mx-auto">
       <div className="text-center py-8">
         <p className="text-gray-600">Event not found</p>
       </div>
+          </div>
+        </PageContent>
+      </PageContainer>
     );
   }
 
   return (
+    <PageContainer>
+      <PageContent className="px-[32px] pt-[24px]">
+        <div className="flex flex-col gap-[48px] max-w-[1064px] mx-auto">
     <div className="space-y-6">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="mb-8 w-full h-auto flex flex-wrap gap-2 grid lg:grid-cols-3 md:grid-cols-2 grid-cols-2">
@@ -322,5 +338,8 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
         </TabsContent>
       </Tabs>
     </div>
+        </div>
+      </PageContent>
+    </PageContainer>
   );
 }

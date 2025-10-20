@@ -43,9 +43,10 @@ export function LearnLayout() {
   };
   return (
     <PageContainer>
-      <PageContent className="px-8 py-6">
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-xl font-semibold">Learn</h1>
+      <PageContent className="pt-[24px] pb-8">
+        <div className="flex flex-col gap-[24px] px-[32px]">
+        <div className="flex items-center justify-between">
+          <h1 className="text-[20px] sm:text-[28px] font-semibold leading-[1.4] tracking-[-0.06em] text-black">Learn</h1>
           <div className="flex gap-2">
             <button
               className={`px-3 py-1 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 ${
@@ -183,6 +184,7 @@ export function LearnLayout() {
           data.every((d) => !bookmarkedIds.has(d.id)) && (
             <div className="text-sm text-gray-500 mt-6">No bookmarks yet.</div>
           )}
+        </div>
       </PageContent>
     </PageContainer>
   );

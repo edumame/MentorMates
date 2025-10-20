@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { Project } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
+import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 
 interface MentorDashboardProps {
   eventId: string;
@@ -34,8 +35,10 @@ export function MentorDashboard({ eventId }: MentorDashboardProps) {
   }, [eventId]);
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-bold">Mentor Dashboard</h2>
+    <PageContainer>
+      <PageContent className="px-[32px] pt-[24px]">
+        <div className="flex flex-col gap-[48px] max-w-[1064px] mx-auto">
+      <h2 className="text-[28px] font-semibold leading-[1.4] tracking-[-0.06em] text-black">Mentor Dashboard</h2>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>
@@ -82,6 +85,8 @@ export function MentorDashboard({ eventId }: MentorDashboardProps) {
           </CardContent>
         </Card>
       </div>
-    </div>
+        </div>
+      </PageContent>
+    </PageContainer>
   );
 }
