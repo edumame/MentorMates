@@ -188,3 +188,18 @@ export function isHigherOrEqualRole(role1: EventRole , role2: EventRole): boolea
 export function getMinimumRole(requiredRole: EventRole): EventRole {
   return requiredRole;
 }
+
+/**
+ * Determines the correct article ("a" or "an") for a word
+ * 
+ * @param word The word to check
+ * @returns "a" or "an" based on the first letter
+ */
+export function getArticle(word: string): string {
+  if (!word || word.length === 0) return "a";
+  
+  const firstLetter = word.charAt(0).toLowerCase();
+  const vowels = ['a', 'e', 'i', 'o', 'u'];
+  
+  return vowels.includes(firstLetter) ? "an" : "a";
+}

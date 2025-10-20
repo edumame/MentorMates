@@ -2,7 +2,7 @@
 
 import { Headphones } from "lucide-react";
 import { EventRole } from "@/lib/types";
-import { getAccessibleRoles, getRoleLabel } from "@/features/user/roles/roles";
+import { getAccessibleRoles, getRoleLabel, getArticle } from "@/features/user/roles/roles";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,23 +34,24 @@ export function RoleBanner({
 
   const getRoleText = () => {
     const roleLabel = getRoleLabel(activeRole, eventRoleLabels);
+    const article = getArticle(roleLabel);
     const isViewingAsOtherRole = activeRole !== actualRole;
 
     if (isViewingAsOtherRole) {
-      return `You are viewing this ${eventType} as ${roleLabel.toLowerCase()}`;
+      return `You are viewing this ${eventType} as ${article} ${roleLabel.toLowerCase()}`;
     }
 
     switch (activeRole) {
       case "participant":
-        return `You are participating in this ${eventType} as a ${roleLabel.toLowerCase()}`;
+        return `You are participating in this ${eventType} as ${article} ${roleLabel.toLowerCase()}`;
       case "mentor":
-        return `You are participating in this ${eventType} as a ${roleLabel.toLowerCase()}`;
+        return `You are participating in this ${eventType} as ${article} ${roleLabel.toLowerCase()}`;
       case "judge":
-        return `You are participating in this ${eventType} as a ${roleLabel.toLowerCase()}`;
+        return `You are participating in this ${eventType} as ${article} ${roleLabel.toLowerCase()}`;
       case "organizer":
-        return `You are viewing this ${eventType} as ${roleLabel.toLowerCase()}`;
+        return `You are viewing this ${eventType} as ${article} ${roleLabel.toLowerCase()}`;
       case "admin":
-        return `You are viewing this ${eventType} as an ${roleLabel.toLowerCase()}`;
+        return `You are viewing this ${eventType} as ${article} ${roleLabel.toLowerCase()}`;
       default:
         return `You are viewing this ${eventType}`;
     }
