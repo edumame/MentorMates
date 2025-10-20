@@ -11,30 +11,14 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
   Users,
   Calendar,
   QrCode,
   Copy,
   ExternalLink,
   Trash2,
-  Plus,
   X,
   UserPlus,
-  Check,
-  ChevronsUpDown,
   Edit,
   Heart,
   Loader,
@@ -76,6 +60,7 @@ import { createContextusProject } from "@/lib/integrations/contextus";
 import { useAdmin } from "@/lib/hooks/use-admin";
 import { useProjectLike } from "@/features/projects/hooks/use-project-like";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
+import UserSearchWithInvite from "@/components/utils/UserSearchWithInvite";
 
 interface EventParticipant {
   user_id: string;
@@ -108,15 +93,9 @@ export default function ProjectPage() {
   // Loading state for updates
   const [isUpdating, setIsUpdating] = useState(false);
 
-  // Team management state
-  const [newTeammateEmail, setNewTeammateEmail] = useState("");
-  const [isAddingTeammate, setIsAddingTeammate] = useState(false);
-
   // Participant search state
   const [participants, setParticipants] = useState<EventParticipant[]>([]);
   const [isLoadingParticipants, setIsLoadingParticipants] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [searchValue, setSearchValue] = useState("");
 
   // Event details state
   const [eventDetails, setEventDetails] = useState<EventDetails | null>(null);
@@ -742,8 +721,8 @@ export default function ProjectPage() {
     }
   }, [project?.event_id, fetchEventParticipants]);
 
-  const handleAddTeammate = async (email?: string) => {
-    const emailToAdd = email || newTeammateEmail.trim();
+  const handleAddTeammate = async (email: string) => {
+    const emailToAdd = email.trim();
 
     if (!emailToAdd) {
       toast({
@@ -789,7 +768,6 @@ export default function ProjectPage() {
       return;
     }
 
-    setIsAddingTeammate(true);
     try {
       const updatedTeammates = [...currentTeammates, normalizedEmail];
       const { data, error } = await updateProjectTeamClient(
@@ -807,9 +785,6 @@ export default function ProjectPage() {
       }
 
       setProject(data);
-      setNewTeammateEmail("");
-      setSearchValue("");
-      setSearchOpen(false);
       toast({
         title: "Team member added",
         description: `${normalizedEmail} has been successfully added to the team`,
@@ -820,8 +795,6 @@ export default function ProjectPage() {
         description: "Failed to add team member",
         variant: "destructive",
       });
-    } finally {
-      setIsAddingTeammate(false);
     }
   };
 
@@ -1590,130 +1563,60 @@ export default function ProjectPage() {
                               </h4>
                             </div>
 
-                            <div className="space-y-3">
-                              <div>
-                                <label className="text-xs font-medium text-gray-600 mb-1 block">
-                                  Search Event Participants:
-                                </label>
-                                <div className="flex gap-2">
-                                  <Popover open={searchOpen} onOpenChange={setSearchOpen}>
-                                    <PopoverTrigger asChild>
-                                      <Button
-                                        variant="outline"
-                                        role="combobox"
-                                        aria-expanded={searchOpen}
-                                        className="flex-1 justify-between text-left font-normal"
-                                        disabled={isAddingTeammate}
-                                      >
-                                        {searchValue
-                                          ? participants.find(
-                                              (participant) =>
-                                                participant.email === searchValue
-                                            )?.display_name || searchValue
-                                          : "Search participants..."}
-                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                      </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="p-0" align="start">
-                                      <Command>
-                                        <CommandInput
-                                          placeholder="Search participants..."
-                                          disabled={isLoadingParticipants}
-                                        />
-                                        <CommandList>
-                                          <CommandEmpty>
-                                            {isLoadingParticipants
-                                              ? "Loading..."
-                                              : "No participants found."}
-                                          </CommandEmpty>
-                                          <CommandGroup>
-                                            {participants.map((participant) => {
-                                              const isAlreadyTeammate = [
-                                                project?.lead_email?.toLowerCase(),
-                                                ...(project?.teammates || []).map((t) =>
-                                                  t.toLowerCase()
-                                                ),
-                                              ].includes(participant.email.toLowerCase());
+                            <UserSearchWithInvite
+                              allTags={participants.map(
+                                (p) => `${p.display_name || p.email} (${p.email})`
+                              )}
+                              onTagsChange={(tags) => {
+                                // Extract emails from tags
+                                const emails = tags.map((tag) => {
+                                  const emailMatch = tag.match(/\((.+?)\)$/);
+                                  return emailMatch ? emailMatch[1] : tag;
+                                });
+                                
+                                // Get list of participant emails for validation
+                                const participantEmails = participants.map(p => p.email.toLowerCase());
+                                
+                                // Only process emails that are actual event participants
+                                const validEmails = emails.filter(email => 
+                                  participantEmails.includes(email.toLowerCase())
+                                );
+                                
+                                // Find newly added emails (only from valid participants)
+                                const currentTeammates = project?.teammates || [];
+                                const newEmails = validEmails.filter(
+                                  (email) => !currentTeammates.some(t => t.toLowerCase() === email.toLowerCase())
+                                );
+                                
+                                // Find removed emails
+                                const removedEmails = currentTeammates.filter(
+                                  (email) => !validEmails.some(e => e.toLowerCase() === email.toLowerCase())
+                                );
 
-                                              return (
-                                                <CommandItem
-                                                  key={participant.user_id}
-                                                  value={participant.email}
-                                                  onSelect={(currentValue: string) => {
-                                                    if (!isAlreadyTeammate) {
-                                                      setSearchValue(currentValue);
-                                                      setSearchOpen(false);
-                                                      handleAddTeammate(currentValue);
-                                                    }
-                                                  }}
-                                                  disabled={isAlreadyTeammate}
-                                                >
-                                                  <div className="flex flex-col flex-1">
-                                                    <span className="font-medium">
-                                                      {participant.display_name ||
-                                                        participant.email}
-                                                    </span>
-                                                    <span className="text-sm text-gray-500">
-                                                      {participant.email}
-                                                    </span>
-                                                  </div>
-                                                  {isAlreadyTeammate && (
-                                                    <Badge
-                                                      variant="secondary"
-                                                      className="ml-2"
-                                                    >
-                                                      Team Member
-                                                    </Badge>
-                                                  )}
-                                                  {searchValue === participant.email && (
-                                                    <Check className="ml-2 h-4 w-4" />
-                                                  )}
-                                                </CommandItem>
-                                              );
-                                            })}
-                                          </CommandGroup>
-                                        </CommandList>
-                                      </Command>
-                                    </PopoverContent>
-                                  </Popover>
-                                </div>
-                              </div>
+                                // Handle additions (only for event participants)
+                                if (newEmails.length > 0) {
+                                  newEmails.forEach((email) => handleAddTeammate(email));
+                                }
 
-                              <div>
-                                <label className="text-xs font-medium text-gray-600 mb-1 block">
-                                  Or enter email manually:
-                                </label>
-                                <div className="flex gap-2">
-                                  <Input
-                                    type="email"
-                                    placeholder="Enter team member's email"
-                                    value={newTeammateEmail}
-                                    onChange={(e) => setNewTeammateEmail(e.target.value)}
-                                    disabled={isAddingTeammate}
-                                    className="flex-1"
-                                  />
-                                  <Button
-                                    onClick={() => handleAddTeammate()}
-                                    disabled={
-                                      isAddingTeammate || !newTeammateEmail.trim()
-                                    }
-                                  >
-                                    {isAddingTeammate ? (
-                                      "Adding..."
-                                    ) : (
-                                      <>
-                                        <Plus className="h-4 w-4 mr-1" />
-                                        Add
-                                      </>
-                                    )}
-                                  </Button>
-                                </div>
-                              </div>
-                            </div>
+                                // Handle removals
+                                if (removedEmails.length > 0) {
+                                  removedEmails.forEach((email) => handleRemoveTeammate(email));
+                                }
+                              }}
+                              initialTags={(project?.teammates || []).map((email) => {
+                                const participant = participants.find(
+                                  (p) => p.email.toLowerCase() === email.toLowerCase()
+                                );
+                                return participant
+                                  ? `${participant.display_name || participant.email} (${participant.email})`
+                                  : email;
+                              })}
+                              projectId={projectId}
+                              enableInvite={true}
+                            />
 
                             <p className="text-xs text-gray-500 mt-3">
-                              Team members will be able to edit this project and receive
-                              notifications.
+                              Search for event participants to add them immediately, or send an invitation to users not yet registered. Invited users will be added to the team once they accept the invitation.
                             </p>
                           </div>
                         )}
@@ -1856,7 +1759,7 @@ export default function ProjectPage() {
 
                         <div className="space-y-3">
                           <div className="py-3 space-y-1">
-                            <p className="text-[24px] font-['Poly'] text-zinc-900">01</p>
+                            <p className="text-[24px] font-sans text-zinc-900">01</p>
                             <p className="text-sm text-zinc-500 leading-[22px]">
                               Save the QR code image to share digitally
                             </p>
@@ -1865,7 +1768,7 @@ export default function ProjectPage() {
                           <div className="border-t border-gray-200" />
 
                           <div className="py-3 space-y-1">
-                            <p className="text-[24px] font-['Poly'] text-zinc-900">02</p>
+                            <p className="text-[24px] font-sans text-zinc-900">02</p>
                             <p className="text-sm text-zinc-500 leading-[22px]">
                               Print it on business cards or project handouts
                             </p>
@@ -1874,7 +1777,7 @@ export default function ProjectPage() {
                           <div className="border-t border-gray-200" />
 
                           <div className="py-3 space-y-1">
-                            <p className="text-[24px] font-['Poly'] text-zinc-900">03</p>
+                            <p className="text-[24px] font-sans text-zinc-900">03</p>
                             <p className="text-sm text-zinc-500 leading-[22px]">
                               Display it at your project booth or presentation
                             </p>
@@ -1883,7 +1786,7 @@ export default function ProjectPage() {
                           <div className="border-t border-gray-200" />
 
                           <div className="py-3 space-y-1">
-                            <p className="text-[24px] font-['Poly'] text-zinc-900">04</p>
+                            <p className="text-[24px] font-sans text-zinc-900">04</p>
                             <p className="text-sm text-zinc-500 leading-[22px]">
                               Add it to your LinkedIn or GitHub profile
                             </p>

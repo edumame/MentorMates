@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, ChangeEvent, useEffect } from "react";
-import { Mail, UserPlus } from "lucide-react";
+import { Mail, UserPlus, Link2 } from "lucide-react";
 import { toast } from "@/lib/hooks/use-toast";
 
 interface UserSearchWithInviteProps {
@@ -311,66 +311,107 @@ const UserSearchWithInvite = ({
     !allEmails.includes(tagInput.trim().toLowerCase()) &&
     !selectedEmails.includes(tagInput.trim().toLowerCase());
 
+  const handleCopyInviteLink = async () => {
+    if (!projectId) {
+      toast({
+        title: "Save Project First",
+        description:
+          "Please add a project name and save your project before copying the invite link.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const claimUrl = `${process.env.NEXT_PUBLIC_APP_URL}/join-project?project=${projectId}`;
+    
+    try {
+      await navigator.clipboard.writeText(claimUrl);
+      toast({
+        title: "Link Copied!",
+        description: "Project invite link has been copied to your clipboard.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to copy link to clipboard",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="w-full space-y-2">
-      <div className="relative w-full">
-        <input
-          type="text"
-          value={tagInput}
-          onChange={handleInputChange}
-          placeholder="Type to search teammates or enter email..."
-          className="w-full rounded-md border-0 py-1.5 px-2.5 text-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-teal-600"
-        />
-        {filteredTags.length > 0 && (
-          <ul
-            id="dropdown"
-            className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm"
-          >
-            {filteredTags.map((tag, index) => (
-              <li
-                key={index}
-                onClick={() => addTag(tag)}
-                className="relative cursor-pointer select-none py-2 pl-3 pr-9 text-gray-900 hover:bg-teal-600 hover:text-white"
-              >
-                {tag}
-              </li>
-            ))}
-          </ul>
-        )}
-        {showInviteOption && (
-          <div className="absolute z-10 mt-1 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
-            <div className="px-3 py-2 text-xs text-gray-500 border-b border-gray-100">
-              User not found in event
-            </div>
-            <button
-              type="button"
-              onClick={() => sendInvitation(tagInput.trim())}
-              disabled={isSendingInvite}
-              className="w-full flex items-center space-x-2 px-3 py-3 text-left hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1">
+          <input
+            type="text"
+            value={tagInput}
+            onChange={handleInputChange}
+            placeholder="Type to search teammates or enter email..."
+            className="w-full rounded-md border-0 py-1.5 px-2.5 text-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-teal-600"
+          />
+          {filteredTags.length > 0 && (
+            <ul
+              id="dropdown"
+              className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm"
             >
-              {isSendingInvite ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600" />
-                  <span className="text-sm text-gray-700">
-                    Sending invite...
-                  </span>
-                </>
-              ) : (
-                <>
-                  <Mail className="h-4 w-4 text-blue-600" />
-                  <div className="flex-1">
-                    <div className="text-sm font-medium text-gray-900">
-                      Send project invitation
+              {filteredTags.map((tag, index) => (
+                <li
+                  key={index}
+                  onClick={() => addTag(tag)}
+                  className="relative cursor-pointer select-none py-2 pl-3 pr-9 text-gray-900 hover:bg-teal-600 hover:text-white"
+                >
+                  {tag}
+                </li>
+              ))}
+            </ul>
+          )}
+          {showInviteOption && (
+            <div className="absolute z-10 mt-1 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
+              <div className="px-3 py-2 text-xs text-gray-500 border-b border-gray-100">
+                User not found in event
+              </div>
+              <button
+                type="button"
+                onClick={() => sendInvitation(tagInput.trim())}
+                disabled={isSendingInvite}
+                className="w-full flex items-center space-x-2 px-3 py-3 text-left hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSendingInvite ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600" />
+                    <span className="text-sm text-gray-700">
+                      Sending invite...
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <Mail className="h-4 w-4 text-blue-600" />
+                    <div className="flex-1">
+                      <div className="text-sm font-medium text-gray-900">
+                        Send project invitation
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        to {tagInput.trim()}
+                      </div>
                     </div>
-                    <div className="text-xs text-gray-500">
-                      to {tagInput.trim()}
-                    </div>
-                  </div>
-                  <UserPlus className="h-4 w-4 text-blue-600" />
-                </>
-              )}
-            </button>
-          </div>
+                    <UserPlus className="h-4 w-4 text-blue-600" />
+                  </>
+                )}
+              </button>
+            </div>
+          )}
+        </div>
+        {enableInvite && (
+          <button
+            type="button"
+            onClick={handleCopyInviteLink}
+            className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-md border border-blue-200 transition-colors whitespace-nowrap"
+            title="Copy invite link"
+          >
+            <Link2 className="h-4 w-4" />
+            Copy Link
+          </button>
         )}
       </div>
       <div id="tagList" className="flex flex-wrap gap-2">

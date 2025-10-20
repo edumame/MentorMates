@@ -7,11 +7,12 @@ import { useSearchParams } from "next/navigation";
 import { isValidUUID } from "@/app/utils/supabase/queries";
 import { Button } from "@/components/ui/button";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
+import { Toaster } from "@/components/ui/toaster";
+import { Loader2 } from "lucide-react";
 
 export default function SubmitProjectPage() {
   const searchParams = useSearchParams();
   const eventSlugOrId = searchParams.get("eventId");
-  const projectId = searchParams.get("projectId");
 
   const [eventId, setEventId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
@@ -96,7 +97,7 @@ export default function SubmitProjectPage() {
     return (
       <PageContainer>
         <div className="flex items-center justify-center flex-grow">
-          <p>Loading...</p>
+          <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
         </div>
       </PageContainer>
     );
@@ -104,7 +105,8 @@ export default function SubmitProjectPage() {
 
   return (
     <PageContainer>
-      <PageContent className="px-0 flex flex-col">
+      <Toaster />
+      <PageContent className="flex flex-col">
         {contextusId && (
           <div className="sticky top-0 z-10 mb-4 rounded-md border p-3 bg-blue-50 text-blue-800 flex items-center justify-between mx-auto shrink-0">
             <div>
@@ -124,7 +126,6 @@ export default function SubmitProjectPage() {
           eventId={eventId || undefined}
           onContextusLinked={(ctxId) => setContextusId(ctxId)}
           contextusId={contextusId}
-          existingProjectId={projectId}
         />
       </PageContent>
     </PageContainer>

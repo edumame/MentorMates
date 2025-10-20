@@ -78,17 +78,9 @@ export default function ProjectsPage() {
   };
 
   const handleDraftClick = (project: Project) => {
-    if (project.event_id) {
-      router.push(
-        `/projects/submit?eventId=${project.event_id}?projectId=${project.id}`
-      );
-    } else {
-      toast({
-        title: "Cannot edit project",
-        description: "This project is not associated with an event.",
-        variant: "destructive",
-      });
-    }
+    router.push(
+      `/projects/${project.id}/edit`
+    );
   };
 
   if (isLoading) {
