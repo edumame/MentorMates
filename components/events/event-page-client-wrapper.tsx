@@ -187,6 +187,7 @@ export function EventPageClientWrapper({
         eventId={eventId}
         hasJoined={hasJoined}
         userRole={userRole}
+        activeRole={currentRole}
         onManageEventClick={() => handleRoleChange(EventRole.Organizer)}
       />
       {tabsAndContent}
