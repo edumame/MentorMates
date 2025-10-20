@@ -15,6 +15,7 @@ interface EventPageClientWrapperProps {
   eventId: string;
   eventRoleLabels?: Record<string, string> | null;
   eventName: string;
+  eventType?: string;
   eventBlurb: string;
   eventDate: string;
   location: string;
@@ -29,6 +30,7 @@ export function EventPageClientWrapper({
   eventId,
   eventRoleLabels,
   eventName,
+  eventType,
   eventBlurb,
   eventDate,
   location,
@@ -123,7 +125,7 @@ export function EventPageClientWrapper({
           actualRole={userRole}
           activeRole={currentRole}
           onRoleChange={handleRoleChange}
-          eventType="event"
+          eventType={eventType || "event"}
           onCancelRegistration={handleCancelRegistration}
           eventRoleLabels={eventRoleLabels}
         />
@@ -139,12 +141,13 @@ export function EventPageClientWrapper({
         actualRole={userRole}
         activeRole={currentRole}
         onRoleChange={handleRoleChange}
-        eventType="event"
+        eventType={eventType || "event"}
         onCancelRegistration={handleCancelRegistration}
         eventRoleLabels={eventRoleLabels}
       />
       <EventPageHeader
         eventName={eventName}
+        eventType={eventType}
         eventBlurb={eventBlurb}
         eventDate={eventDate}
         location={location}

@@ -22,6 +22,7 @@ export default async function FeedPage({ params, searchParams }: PageProps) {
   let query = supabase.from("events").select(`
     event_id,
     event_name,
+    event_type,
     event_blurb,
     event_date,
     location,
@@ -66,6 +67,7 @@ export default async function FeedPage({ params, searchParams }: PageProps) {
       eventDate={eventData.event_date}
       location={eventData.location}
       coverImageUrl={eventData.cover_image_url}
+      eventType={(eventData as any).event_type}
       eventId={id}
       hasJoined={hasJoined}
       dbEventId={eventData.event_id}

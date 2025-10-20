@@ -24,6 +24,7 @@ export default function NewEventPage() {
 
   const [form, setForm] = useState({
     event_name: "",
+    event_type: "hackathon",
     event_date: "",
     location: "",
     slug: "",
@@ -79,6 +80,7 @@ export default function NewEventPage() {
         body: JSON.stringify({
           event: {
             event_name: form.event_name,
+            event_type: form.event_type,
             event_date: form.event_date,
             location: form.location,
             visibility: visibility,
@@ -209,6 +211,18 @@ export default function NewEventPage() {
                 <div className="space-y-4">
                   {/* Date */}
                   <div className="space-y-2">
+                  <label className="text-[16px] font-normal text-black">Type</label>
+                  <div className="relative">
+                    <Input
+                      value={form.event_type}
+                      onChange={(e) => onChange("event_type", e.target.value)}
+                      placeholder="hackathon | workshop | conference"
+                      className="h-[44px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)]"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
                     <label className="text-[16px] font-normal text-black">Date</label>
                     <DatePicker
                       value={form.event_date}

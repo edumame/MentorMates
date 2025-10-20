@@ -68,7 +68,7 @@ export function EventCard({ event }: EventCardProps) {
           {/* Event Details Tags */}
           <div className="flex flex-wrap gap-1 mb-3">
             <span className="px-[10px] py-1 border border-[rgba(0,0,0,0.15)] rounded-full text-[14px] font-semibold text-black">
-              Hackathon
+              {event.event_type || "Hackathon"}
             </span>
             <span className="px-[10px] py-1 border border-[rgba(0,0,0,0.15)] rounded-full text-[14px] font-semibold text-black">
               {isPaid ? "Paid" : "Free"}

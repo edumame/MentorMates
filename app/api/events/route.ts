@@ -21,6 +21,7 @@ export async function GET() {
         .select(
           `event_id, 
           event_name, 
+          event_type,
           slug, 
           event_blurb, 
           cover_image_url,
@@ -102,6 +103,7 @@ export async function GET() {
 
 const eventSchema = z.object({
   event_name: z.string().min(3, "Event name must be at least 3 characters"),
+  event_type: z.string().min(1).optional(),
   event_date: z.string().refine((v) => !Number.isNaN(Date.parse(v)), {
     message: "Invalid event_date - expected ISO date string",
   }),
@@ -160,6 +162,7 @@ export async function POST(req: Request) {
     // Build insert payload, providing sane defaults
     const insertPayload: Database["public"]["Tables"]["events"]["Insert"] = {
       event_name: event.event_name,
+      event_type: (event.event_type ?? "hackathon") as unknown as string,
       event_date: event.event_date,
       location: event.location,
       rules: defaultRules as unknown as Json,

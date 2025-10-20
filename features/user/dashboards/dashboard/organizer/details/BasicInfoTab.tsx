@@ -129,6 +129,7 @@ export function BasicInfoTab({
           submission_time_start: event.submission_time_start,
           submission_time_cutoff: event.submission_time_cutoff,
           participant_capacity: event.participant_capacity ?? null,
+          event_type: (event as any).event_type || 'hackathon',
         })
         .eq("event_id", event.event_id);
 
@@ -233,6 +234,22 @@ export function BasicInfoTab({
               setEvent({ ...event, event_name: e.target.value })
             }
           />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="event_type">Event Type</Label>
+          <Input
+            id="event_type"
+            value={(event as any).event_type || "hackathon"}
+            disabled={isArchived}
+            onChange={(e) =>
+              setEvent({ ...event, event_type: e.target.value } as any)
+            }
+            placeholder="hackathon | workshop | conference"
+          />
+          <p className="text-xs text-gray-500">
+            Set a descriptive type. You can add new types later.
+          </p>
         </div>
 
       <div className="space-y-2">

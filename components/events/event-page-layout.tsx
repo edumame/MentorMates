@@ -14,6 +14,7 @@ interface EventPageLayoutProps {
   eventDate: string;
   location: string;
   coverImageUrl?: string;
+  eventType?: string;
   eventId: string;
   hasJoined: boolean;
   dbEventId: string; // The actual database UUID for the event
@@ -26,6 +27,7 @@ export async function EventPageLayout({
   eventDate,
   location,
   coverImageUrl,
+  eventType,
   eventId,
   hasJoined,
   dbEventId,
@@ -111,6 +113,7 @@ export async function EventPageLayout({
                 eventDate={eventDate}
                 location={location}
                 coverImageUrl={coverImageUrl}
+                eventType={eventType}
                 eventId={eventId}
                 hasJoined={hasJoined}
                 userRole={null}
