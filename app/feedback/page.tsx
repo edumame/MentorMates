@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, ArrowDownUp, X, MessageSquare } from "lucide-react";
@@ -125,18 +126,53 @@ export default function FeedbackPage() {
                 </div>
               )}
             </div>
-            <Button
-              onClick={handleMarkAllAsRead}
-              variant="outline"
-              className="h-[44px] px-[16px] py-[10px] rounded-[12px] border border-[rgba(0,0,0,0.15)]"
-              disabled={unreadCount === 0}
-            >
-              Mark all {unreadCount} as read
-            </Button>
+            {feedbackList.length > 0 && (
+              <Button
+                onClick={handleMarkAllAsRead}
+                variant="outline"
+                className="h-[44px] px-[16px] py-[10px] rounded-[12px] border border-[rgba(0,0,0,0.15)]"
+                disabled={unreadCount === 0}
+              >
+                Mark all {unreadCount} as read
+              </Button>
+            )}
           </div>
 
+          {/* Empty State */}
+          {feedbackList.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-16 px-4">
+              <div className="max-w-md text-center">
+                {/* Icon */}
+                <div className="mx-auto w-24 h-24 bg-gradient-to-br from-blue-50 to-blue-100 rounded-full flex items-center justify-center mb-6">
+                  <MessageSquare className="h-12 w-12 text-blue-600" />
+                </div>
+                
+                {/* Heading */}
+                <h2 className="text-2xl font-semibold text-gray-900 mb-3">
+                  No feedback received yet
+                </h2>
+                
+                {/* Description */}
+                <p className="text-gray-600 mb-6 leading-relaxed">
+                  Go join an event, submit a project and collect feedback from mentors and peers to improve your work!
+                </p>
+                
+                {/* CTA Button */}
+                <Button 
+                  asChild
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 h-auto"
+                >
+                  <Link href="/events">
+                    Explore Events
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          )}
+
           {/* Table */}
-          <div className="flex flex-col gap-[24px]">
+          {feedbackList.length > 0 && (
+            <div className="flex flex-col gap-[24px]">
             {/* Border wrapper */}
             <div className="border border-[rgba(0,0,0,0.15)] rounded-[16px]">
               {/* Header Row */}
@@ -293,6 +329,7 @@ export default function FeedbackPage() {
               </Button>
             </div>
           </div>
+          )}
         </div>
 
         {/* Feedback Modal */}
