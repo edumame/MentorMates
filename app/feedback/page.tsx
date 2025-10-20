@@ -112,24 +112,14 @@ export default function FeedbackPage() {
     setIsModalOpen(true);
   };
 
-  if (isLoading) {
-    return (
-      <PageContainer>
-        <div className="flex flex-grow items-center justify-center">
-          <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-gray-900" />
-        </div>
-      </PageContainer>
-    );
-  }
-
   return (
     <PageContainer>
-      <PageContent className="px-[32px] pt-[24px] pb-0">
-        <div className="flex flex-col gap-[48px]mx-auto">
+      <PageContent className="pt-[24px] pb-8">
+        <div className="flex flex-col gap-[24px] px-[32px]">
           {/* Header */}
           <div className="flex items-end justify-between">
             <div className="flex items-center gap-[8px]">
-              <h1 className="text-[28px] font-semibold leading-[1.4] tracking-[-0.06em] text-black">
+              <h1 className="text-[20px] sm:text-[28px] font-semibold leading-[1.4] tracking-[-0.06em] text-black">
                 Feedback
               </h1>
               {unreadCount > 0 && (
@@ -138,182 +128,181 @@ export default function FeedbackPage() {
                 </div>
               )}
             </div>
-            <div className="flex gap-3">
-              <Button
-                onClick={handleGiveFeedback}
-                className="flex items-center gap-2 rounded-lg bg-blue-500 px-6 py-2 text-white hover:bg-blue-600"
-              >
-                <MessageSquare className="h-4 w-4" />
-                Give Feedback
-              </Button>
-              <Button
-                onClick={handleMarkAllAsRead}
-                variant="outline"
-                className="h-[44px] rounded-[12px] border border-[rgba(0,0,0,0.15)] px-[16px] py-[10px]"
-                disabled={unreadCount === 0}
-              >
-                Mark all {unreadCount} as read
-              </Button>
-            </div>
+            <Button
+              onClick={handleMarkAllAsRead}
+              variant="outline"
+              className="h-[44px] px-[16px] py-[10px] rounded-[12px] border border-[rgba(0,0,0,0.15)]"
+              disabled={unreadCount === 0}
+            >
+              Mark all {unreadCount} as read
+            </Button>
           </div>
+
+          {isLoading && (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+            </div>
+          )}
 
           {/* Table */}
-          <div className="flex flex-col gap-[24px]">
-            <div className="rounded-[16px] border border-[rgba(0,0,0,0.15)]">
-              {/* Header Row */}
-              <div className="flex">
-                <div className="w-[264px] border-b border-[rgba(0,0,0,0.15)] px-[24px] py-[16px]">
-                  <p className="text-[16px] font-medium tracking-[-0.04em] text-black">Send from</p>
+          {!isLoading && (
+            <div className="flex flex-col gap-[24px]">
+              <div className="rounded-[16px] border border-[rgba(0,0,0,0.15)]">
+                {/* Header Row */}
+                <div className="flex">
+                  <div className="w-[264px] border-b border-[rgba(0,0,0,0.15)] px-[24px] py-[16px]">
+                    <p className="text-[16px] font-medium tracking-[-0.04em] text-black">Send from</p>
+                  </div>
+                  <div className="w-[196px] border-b border-[rgba(0,0,0,0.15)] px-[24px] py-[16px]">
+                    <p className="text-[16px] font-medium tracking-[-0.04em] text-black">Project Name</p>
+                  </div>
+                  <div className="w-[215px] border-b border-[rgba(0,0,0,0.15)] px-[24px] py-[16px]">
+                    <p className="text-[16px] font-medium tracking-[-0.04em] text-black">Message</p>
+                  </div>
+                  <div className="flex w-[182px] items-center border-b border-[rgba(0,0,0,0.15)] px-[24px] py-[16px]">
+                    <p className="text-[16px] font-medium tracking-[-0.04em] text-black">Date</p>
+                    <ArrowDownUp className="ml-1 h-[24px] w-[24px]" />
+                  </div>
+                  <div className="w-[208px] border-b border-[rgba(0,0,0,0.15)] px-[24px] py-[16px]">
+                    <p className="text-[16px] font-medium tracking-[-0.04em] text-black">Action</p>
+                  </div>
                 </div>
-                <div className="w-[196px] border-b border-[rgba(0,0,0,0.15)] px-[24px] py-[16px]">
-                  <p className="text-[16px] font-medium tracking-[-0.04em] text-black">Project Name</p>
-                </div>
-                <div className="w-[215px] border-b border-[rgba(0,0,0,0.15)] px-[24px] py-[16px]">
-                  <p className="text-[16px] font-medium tracking-[-0.04em] text-black">Message</p>
-                </div>
-                <div className="flex w-[182px] items-center border-b border-[rgba(0,0,0,0.15)] px-[24px] py-[16px]">
-                  <p className="text-[16px] font-medium tracking-[-0.04em] text-black">Date</p>
-                  <ArrowDownUp className="ml-1 h-[24px] w-[24px]" />
-                </div>
-                <div className="w-[208px] border-b border-[rgba(0,0,0,0.15)] px-[24px] py-[16px]">
-                  <p className="text-[16px] font-medium tracking-[-0.04em] text-black">Action</p>
+
+                {/* Body */}
+                <div className="flex overflow-x-auto bg-white">
+                  {/* From */}
+                  <div className="flex w-[264px] flex-col">
+                    {feedbackList.map((item, index) => (
+                      <div
+                        key={item.id}
+                        className={`flex items-center gap-[4px] px-[24px] py-[28px] ${
+                          index !== feedbackList.length - 1 ? "border-b border-[rgba(0,0,0,0.15)]" : ""
+                        } ${item.sender.role ? "min-h-[108px]" : "h-[80px]"}`}
+                      >
+                        <Avatar className="h-[40px] w-[40px]">
+                          <AvatarImage src={item.sender.avatar} alt={item.sender.name} />
+                          <AvatarFallback>{item.sender.name.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <p className="truncate text-[16px] text-black">{item.sender.name}</p>
+                        {item.sender.role && (
+                          <div className="rounded-full border border-[rgba(0,0,0,0.15)] px-[8px] py-[4px]">
+                            <p className="text-sm font-medium text-black">{item.sender.role}</p>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Project */}
+                  <div className="flex w-[196px] flex-col">
+                    {feedbackList.map((item, index) => (
+                      <div
+                        key={item.id}
+                        className={`flex items-center px-[24px] py-[28px] ${
+                          index !== feedbackList.length - 1 ? "border-b border-[rgba(0,0,0,0.15)]" : ""
+                        } ${item.sender.role ? "min-h-[108px]" : "h-[80px]"}`}
+                      >
+                        <p className="truncate text-[16px] tracking-[-0.04em] text-black">{item.projectName}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Message */}
+                  <div className="flex w-[215px] flex-col">
+                    {feedbackList.map((item, index) => (
+                      <div
+                        key={item.id}
+                        className={`flex items-center px-[24px] py-[28px] ${
+                          index !== feedbackList.length - 1 ? "border-b border-[rgba(0,0,0,0.15)]" : ""
+                        } ${item.sender.role ? "min-h-[108px]" : "h-[80px]"}`}
+                      >
+                        <p className="line-clamp-2 text-[16px] tracking-[-0.04em] text-black">{item.message}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Date */}
+                  <div className="flex w-[182px] flex-col">
+                    {feedbackList.map((item, index) => (
+                      <div
+                        key={item.id}
+                        className={`flex items-center px-[24px] py-[28px] ${
+                          index !== feedbackList.length - 1 ? "border-b border-[rgba(0,0,0,0.15)]" : ""
+                        } ${item.sender.role ? "min-h-[108px]" : "h-[80px]"}`}
+                      >
+                        <p className="text-[16px] text-black">{item.date}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex w-[208px] flex-col">
+                    {feedbackList.map((item, index) => (
+                      <div
+                        key={item.id}
+                        className={`flex items-center gap-[12px] px-[24px] py-[28px] ${
+                          index !== feedbackList.length - 1 ? "border-b border-[rgba(0,0,0,0.15)]" : ""
+                        } ${item.sender.role ? "min-h-[108px]" : "h-[80px]"}`}
+                      >
+                        <button
+                          onClick={() => handleViewFeedback(item)}
+                          className="text-[16px] font-medium tracking-[-0.04em] text-[#4B89EF]"
+                        >
+                          View
+                        </button>
+                        <button
+                          onClick={() => handleMarkAsRead(item.id)}
+                          className="text-[16px] font-medium tracking-[-0.04em] text-[#4B89EF]"
+                          disabled={item.isRead}
+                        >
+                          Mark as read
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
 
-              {/* Body */}
-              <div className="flex overflow-x-auto bg-white">
-                {/* From */}
-                <div className="flex w-[264px] flex-col">
-                  {feedbackList.map((item, index) => (
-                    <div
-                      key={item.id}
-                      className={`flex items-center gap-[4px] px-[24px] py-[28px] ${
-                        index !== feedbackList.length - 1 ? "border-b border-[rgba(0,0,0,0.15)]" : ""
-                      } ${item.sender.role ? "min-h-[108px]" : "h-[80px]"}`}
-                    >
-                      <Avatar className="h-[40px] w-[40px]">
-                        <AvatarImage src={item.sender.avatar} alt={item.sender.name} />
-                        <AvatarFallback>{item.sender.name.charAt(0)}</AvatarFallback>
-                      </Avatar>
-                      <p className="truncate text-[16px] text-black">{item.sender.name}</p>
-                      {item.sender.role && (
-                        <div className="rounded-full border border-[rgba(0,0,0,0.15)] px-[8px] py-[4px]">
-                          <p className="text-sm font-medium text-black">{item.sender.role}</p>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
+              {/* Pagination */}
+              <div className="bg-white pt-[24px]">
+                <div className="flex items-center justify-between">
+                  <Button
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    variant="outline"
+                    className="flex items-center gap-[6px] rounded-[12px] bg-[rgba(0,0,0,0.05)] px-[24px] py-[10px]"
+                  >
+                    <ChevronLeft className="h-[24px] w-[24px]" />
+                    Prev
+                  </Button>
 
-                {/* Project */}
-                <div className="flex w-[196px] flex-col">
-                  {feedbackList.map((item, index) => (
-                    <div
-                      key={item.id}
-                      className={`flex items-center px-[24px] py-[28px] ${
-                        index !== feedbackList.length - 1 ? "border-b border-[rgba(0,0,0,0.15)]" : ""
-                      } ${item.sender.role ? "min-h-[108px]" : "h-[80px]"}`}
-                    >
-                      <p className="truncate text-[16px] tracking-[-0.04em] text-black">{item.projectName}</p>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Message */}
-                <div className="flex w-[215px] flex-col">
-                  {feedbackList.map((item, index) => (
-                    <div
-                      key={item.id}
-                      className={`flex items-center px-[24px] py-[28px] ${
-                        index !== feedbackList.length - 1 ? "border-b border-[rgba(0,0,0,0.15)]" : ""
-                      } ${item.sender.role ? "min-h-[108px]" : "h-[80px]"}`}
-                    >
-                      <p className="line-clamp-2 text-[16px] tracking-[-0.04em] text-black">{item.message}</p>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Date */}
-                <div className="flex w-[182px] flex-col">
-                  {feedbackList.map((item, index) => (
-                    <div
-                      key={item.id}
-                      className={`flex items-center px-[24px] py-[28px] ${
-                        index !== feedbackList.length - 1 ? "border-b border-[rgba(0,0,0,0.15)]" : ""
-                      } ${item.sender.role ? "min-h-[108px]" : "h-[80px]"}`}
-                    >
-                      <p className="text-[16px] text-black">{item.date}</p>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Actions */}
-                <div className="flex w-[208px] flex-col">
-                  {feedbackList.map((item, index) => (
-                    <div
-                      key={item.id}
-                      className={`flex items-center gap-[12px] px-[24px] py-[28px] ${
-                        index !== feedbackList.length - 1 ? "border-b border-[rgba(0,0,0,0.15)]" : ""
-                      } ${item.sender.role ? "min-h-[108px]" : "h-[80px]"}`}
-                    >
+                  <div className="flex gap-[2px]">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                       <button
-                        onClick={() => handleViewFeedback(item)}
-                        className="text-[16px] font-medium tracking-[-0.04em] text-[#4B89EF]"
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        className={`flex h-[40px] w-[40px] items-center justify-center rounded-[6px] text-[16px] ${
+                          currentPage === page ? "border border-[rgba(0,0,0,0.15)]" : ""
+                        }`}
                       >
-                        View
+                        {page}
                       </button>
-                      <button
-                        onClick={() => handleMarkAsRead(item.id)}
-                        className="text-[16px] font-medium tracking-[-0.04em] text-[#4B89EF]"
-                        disabled={item.isRead}
-                      >
-                        Mark as read
-                      </button>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+
+                  <Button
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    variant="outline"
+                    className="flex items-center gap-[6px] rounded-[12px] bg-[rgba(0,0,0,0.05)] px-[24px] py-[10px]"
+                  >
+                    Next
+                    <ChevronRight className="h-[24px] w-[24px]" />
+                  </Button>
                 </div>
               </div>
             </div>
-
-            {/* Pagination */}
-            <div className="bg-white pt-[24px]">
-              <div className="flex items-center justify-between">
-                <Button
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  variant="outline"
-                  className="flex items-center gap-[6px] rounded-[12px] bg-[rgba(0,0,0,0.05)] px-[24px] py-[10px]"
-                >
-                  <ChevronLeft className="h-[24px] w-[24px]" />
-                  Prev
-                </Button>
-
-                <div className="flex gap-[2px]">
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                    <button
-                      key={page}
-                      onClick={() => setCurrentPage(page)}
-                      className={`flex h-[40px] w-[40px] items-center justify-center rounded-[6px] text-[16px] ${
-                        currentPage === page ? "border border-[rgba(0,0,0,0.15)]" : ""
-                      }`}
-                    >
-                      {page}
-                    </button>
-                  ))}
-                </div>
-
-                <Button
-                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
-                  variant="outline"
-                  className="flex items-center gap-[6px] rounded-[12px] bg-[rgba(0,0,0,0.05)] px-[24px] py-[10px]"
-                >
-                  Next
-                  <ChevronRight className="h-[24px] w-[24px]" />
-                </Button>
-              </div>
-            </div>
-          </div>
+          )}
         </div>
 
         {/* Feedback Modal */}
