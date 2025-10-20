@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
 import {
   Loader2,
   Sparkles,
@@ -15,7 +14,6 @@ import {
   ThumbsUp,
   MessageSquarePlus,
   MoreHorizontal,
-  MapPin,
   Shield,
   ImageIcon,
   Paperclip,
@@ -29,8 +27,8 @@ import { Toaster } from "@/components/ui/toaster";
 import UserSearchWithInvite from "@/components/utils/UserSearchWithInvite";
 import { useAdmin } from "@/lib/hooks/use-admin";
 import { EventDetails } from "@/lib/types";
-import ReactMarkdown from "react-markdown";
 import { useProjectSubmissionData } from "@/features/projects/components/forms/hooks/useProjectSubmissionData";
+import { EventCard } from "@/components/events/event-card";
 
 interface EventParticipant {
   user_id: string;
@@ -978,77 +976,20 @@ export function NewProjectSubmissionFormSinglePage({
                       <h3 className="text-lg font-bold text-black tracking-tight">
                         Submitted to
                       </h3>
-                      <Card className="border border-black/15 rounded-xl overflow-hidden w-[339px]">
-                        <div className="relative">
-                          {eventDetails.cover_image_url ? (
-                            <img
-                              src={eventDetails.cover_image_url}
-                              alt={eventDetails.event_name}
-                              className="w-full h-[180px] object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-[180px] bg-gradient-to-br from-orange-400 via-blue-500 to-purple-600" />
-                          )}
-                          {eventDetails.event_date && (
-                            <div className="absolute top-4 right-4 bg-white border border-gray-300 rounded-xl py-3 px-1 text-center w-28">
-                              <p className="text-sm text-black">
-                                {new Date(
-                                  eventDetails.event_date
-                                ).toLocaleDateString("en-US", {
-                                  weekday: "short",
-                                })}
-                              </p>
-                              <p className="text-4xl font-semibold text-black tracking-tight leading-none">
-                                {new Date(eventDetails.event_date).getDate()}
-                              </p>
-                              <p className="text-sm text-black">
-                                {new Date(
-                                  eventDetails.event_date
-                                ).toLocaleDateString("en-US", {
-                                  month: "short",
-                                  year: "numeric",
-                                })}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                        <CardContent className="p-6 space-y-4">
-                          <div className="flex gap-1 flex-wrap">
-                            <Badge
-                              variant="secondary"
-                              className="bg-transparent border border-black/15 text-black rounded-full font-semibold"
-                            >
-                              Hackathon
-                            </Badge>
-                            {eventDetails.paid && (
-                              <Badge
-                                variant="secondary"
-                                className="bg-transparent border border-black/15 text-black rounded-full font-semibold"
-                              >
-                                Paid event
-                              </Badge>
-                            )}
-                          </div>
-                          <div className="space-y-2">
-                            <h4 className="text-2xl font-semibold text-black tracking-tight">
-                              {eventDetails.event_name}
-                            </h4>
-                            <div className="flex items-center gap-1 text-sm">
-                              <MapPin className="h-4 w-4 text-black" />
-                              <span className="text-black text-center">
-                                {eventDetails.location || "Online"}
-                              </span>
-                            </div>
-                          </div>
-                          {eventDetails.event_description && (
-                            <div className="text-base text-black leading-relaxed prose">
-                              <ReactMarkdown>
-                                {eventDetails.event_description}
-                              </ReactMarkdown>
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
+                      <div className="w-[339px]">
+                        <EventCard
+                          event={{
+                            event_id: eventDetails.event_id,
+                            slug: eventDetails.slug,
+                            event_name: eventDetails.event_name,
+                            event_date: eventDetails.event_date,
+                            location: eventDetails.location || "Online",
+                            cover_image_url: eventDetails.cover_image_url,
+                            paid: eventDetails.paid,
+                            event_blurb: eventDetails.event_description,
+                          }}
+                        />
+                      </div>
                     </div>
                   </>
                 )}
