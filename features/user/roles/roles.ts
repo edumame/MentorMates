@@ -17,12 +17,17 @@ export const eventRoleEnumMapping: Record<EventRoleEnum, EventRole> = {
 };
 
 export const roleBadgeVariants = {
-  [EventRole.Participant]: "border-transparent bg-blue-400 text-white hover:bg-blue-500",
-  [EventRole.Mentor]: "border-transparent bg-green-500 text-white hover:bg-green-600",
-  [EventRole.Judge]: "border-transparent bg-purple-500 text-white hover:bg-purple-600",
-  [EventRole.Organizer]: "border-transparent bg-amber-500 text-white hover:bg-amber-600",
-  [EventRole.Admin]: "border-transparent bg-red-500 text-white hover:bg-red-600",
-}
+  [EventRole.Participant]:
+    "border-transparent bg-blue-400 text-white hover:bg-blue-500",
+  [EventRole.Mentor]:
+    "border-transparent bg-green-500 text-white hover:bg-green-600",
+  [EventRole.Judge]:
+    "border-transparent bg-purple-500 text-white hover:bg-purple-600",
+  [EventRole.Organizer]:
+    "border-transparent bg-amber-500 text-white hover:bg-amber-600",
+  [EventRole.Admin]:
+    "border-transparent bg-red-500 text-white hover:bg-red-600",
+};
 
 /**
  * Default role labels used when custom labels are not defined
@@ -47,7 +52,7 @@ export function getRoleLabel(
   eventRoleLabels?: Record<string, string> | null
 ): string {
   const roleKey = role.toString();
-  
+
   // If we have custom labels for this event and this role has a custom label
   if (eventRoleLabels && eventRoleLabels[roleKey]) {
     return eventRoleLabels[roleKey];
@@ -102,8 +107,8 @@ export function toEventRole(role: EventRole | string): EventRoleEnum {
     judge: EventRoleEnum.Judge,
     organizer: EventRoleEnum.Organizer,
     admin: EventRoleEnum.Admin,
-    "1": EventRoleEnum.Participant,
-    "2": EventRoleEnum.Mentor,
+    "1": EventRoleEnum.Mentor,
+    "2": EventRoleEnum.Participant,
     "3": EventRoleEnum.Judge,
     "4": EventRoleEnum.Organizer,
     "5": EventRoleEnum.Admin,
@@ -163,7 +168,7 @@ export function getAllRoles(): EventRole[] {
  * @param role2 Second role to compare
  * @returns True if role1 is higher than role2
  */
-export function isHigherRole(role1: EventRole , role2: EventRole): boolean {
+export function isHigherRole(role1: EventRole, role2: EventRole): boolean {
   return eventRoleMapping[role1] > eventRoleMapping[role2];
 }
 
@@ -174,7 +179,10 @@ export function isHigherRole(role1: EventRole , role2: EventRole): boolean {
  * @param role2 Second role to compare
  * @returns True if role1 is higher than role2
  */
-export function isHigherOrEqualRole(role1: EventRole , role2: EventRole): boolean {
+export function isHigherOrEqualRole(
+  role1: EventRole,
+  role2: EventRole
+): boolean {
   return eventRoleMapping[role1] >= eventRoleMapping[role2];
 }
 
