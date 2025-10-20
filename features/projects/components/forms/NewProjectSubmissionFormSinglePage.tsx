@@ -30,6 +30,7 @@ import UserSearchWithInvite from "@/components/utils/UserSearchWithInvite";
 import { useAdmin } from "@/lib/hooks/use-admin";
 import { EventDetails } from "@/lib/types";
 import ReactMarkdown from "react-markdown";
+import { useProjectSubmissionData } from "@/features/projects/components/forms/hooks/useProjectSubmissionData";
 
 interface EventParticipant {
   user_id: string;
@@ -70,6 +71,10 @@ export function NewProjectSubmissionFormSinglePage({
   const [eventDetails, setEventDetails] = useState<EventDetails | null>(null);
   const [participants, setParticipants] = useState<EventParticipant[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedTrackIds, setSelectedTrackIds] = useState<string[]>([]);
+
+  // Load available tracks for the event (if any)
+  const { availableTracks } = useProjectSubmissionData(eventId);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -391,6 +396,12 @@ export function NewProjectSubmissionFormSinglePage({
     }
   };
 
+  const handleTrackToggle = (trackId: string, checked: boolean) => {
+    setSelectedTrackIds((prev) =>
+      checked ? [...prev, trackId] : prev.filter((id) => id !== trackId)
+    );
+  };
+
   const handleTeammatesChange = async (tags: string[]) => {
     // Extract emails from tags that might be in "Name (email)" format
     const emails = tags.map((tag) => {
@@ -503,7 +514,7 @@ export function NewProjectSubmissionFormSinglePage({
           coverImageUrl: formData.coverImageUrl,
           additionalMaterialsUrl: formData.additionalMaterialsUrl,
           eventId,
-          trackIds: [],
+          trackIds: selectedTrackIds,
           videoUrl: formData.videoUrl,
         }),
       });
@@ -669,6 +680,33 @@ export function NewProjectSubmissionFormSinglePage({
 
                   {/* Divider */}
                   <div className="border-t border-gray-200" />
+
+              {/* Tracks Selection (if event has tracks) */}
+              {eventId && availableTracks && availableTracks.length > 0 && (
+                <div className="space-y-2">
+                  <label className="text-base text-black font-normal">
+                    Select tracks
+                  </label>
+                  <div className="space-y-2">
+                    {availableTracks.map((track) => (
+                      <label key={track.id} className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={selectedTrackIds.includes(track.id)}
+                          onChange={(e) =>
+                            handleTrackToggle(track.id, e.target.checked)
+                          }
+                          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className="text-sm text-black">{track.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <p className="text-sm text-[#7f7f7f]">
+                    Choose the tracks your project should compete in.
+                  </p>
+                </div>
+              )}
 
                   {/* Cover Image */}
                   <div className="space-y-2">
