@@ -1,10 +1,15 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogClose,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Sparkles, Lightbulb } from "lucide-react";
+import { Sparkles, Lightbulb, Loader2, X } from "lucide-react";
 import { useToast } from "@/lib/hooks/use-toast";
 import Link from "next/link";
 
@@ -41,35 +46,36 @@ export function GiveFeedbackDialog({
   const { toast } = useToast();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Auto-grow textarea
+  // Auto-grow textarea (caps at 300px)
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
       const newHeight = Math.min(textareaRef.current.scrollHeight, 300);
-      textareaRef.current.style.height = newHeight + "px";
+      textareaRef.current.style.height = `${newHeight}px`;
     }
   }, [feedback]);
 
   const handleEnhanceWithAI = async () => {
-    setIsGeneratingAI(true);
-
-    // Save original feedback to localStorage before AI enhancement
-    localStorage.setItem(`originalFeedback_${projectId}`, feedback);
-
     try {
-      const url =
-        "https://magicloops.dev/api/loop/b59e7eb1-4d27-4fa7-8411-543646f3ee2f/run";
-      const response = await fetch(url, {
-        method: "POST",
-        body: JSON.stringify({
-          feedback: feedback,
-          "project description": projectDescription,
-        }),
-      });
-      const responseJson = await response.json();
-      setAiSuggestions(responseJson);
-    } catch (error) {
-      console.error("Error generating AI suggestions:", error);
+      setIsGeneratingAI(true);
+      localStorage.setItem(`originalFeedback_${projectId}`, feedback);
+
+      const res = await fetch(
+        "https://magicloops.dev/api/loop/b59e7eb1-4d27-4fa7-8411-543646f3ee2f/run",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            feedback,
+            "project description": projectDescription,
+          }),
+        }
+      );
+      const json = await res.json();
+      setAiSuggestions(json);
+      // If you want to auto-insert a suggestion, you could:
+      // setFeedback(json?.["more actionable"] || feedback);
+    } catch (e) {
+      console.error(e);
       toast({
         title: "Error",
         description: "Failed to generate AI suggestions. Please try again.",
@@ -81,12 +87,13 @@ export function GiveFeedbackDialog({
   };
 
   const handleSubmit = async () => {
-    setIsSubmitting(true);
     try {
+      setIsSubmitting(true);
+
       const originalFeedback =
         localStorage.getItem(`originalFeedback_${projectId}`) || feedback;
 
-      const feedbackBody = {
+      const payload = {
         project_id: projectId,
         mentor_id: null,
         mentor_name: null,
@@ -97,33 +104,25 @@ export function GiveFeedbackDialog({
         specific_ai_suggestion: aiSuggestions?.["more specific"] || "",
         positive_ai_suggestion: aiSuggestions?.["more positive"] || "",
         actionable_ai_suggestion: aiSuggestions?.["more actionable"] || "",
-        event_id: eventId,
+        event_id: eventId || "",
       };
 
-      const response = await fetch(`/api/feedback/submit/${projectId}`, {
+      const res = await fetch(`/api/feedback/submit/${projectId}`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(feedbackBody),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Failed to submit feedback");
 
-      const data = await response.json();
-
-      if (response.ok) {
-        setIsSubmitted(true);
-        localStorage.removeItem(`originalFeedback_${projectId}`);
-      } else {
-        throw new Error(data.error || "Failed to submit feedback");
-      }
-    } catch (error) {
-      console.error("Error submitting feedback:", error);
+      setIsSubmitted(true);
+      localStorage.removeItem(`originalFeedback_${projectId}`);
+    } catch (e) {
+      console.error(e);
       toast({
         title: "Error",
         description:
-          error instanceof Error
-            ? error.message
-            : "Failed to submit feedback. Please try again.",
+          e instanceof Error ? e.message : "Failed to submit feedback.",
         variant: "destructive",
       });
     } finally {
@@ -131,34 +130,36 @@ export function GiveFeedbackDialog({
     }
   };
 
-  const handleReplaceSuggestion = (suggestion: string) => {
-    setFeedback(suggestion);
-  };
-
-  const handleAddBelowSuggestion = (suggestion: string) => {
-    setFeedback(feedback + "\n\n" + suggestion);
-  };
-
   const handleClose = () => {
     onOpenChange(false);
-    // Reset state after animation completes
+    // reset after close animation
     setTimeout(() => {
       setFeedback("");
       setAiSuggestions(null);
       setIsSubmitted(false);
-    }, 300);
+      setIsGeneratingAI(false);
+      setIsSubmitting(false);
+    }, 220);
   };
 
-  // Success state
+  /* ---------------- Success State (unchanged behavior) ---------------- */
   if (isSubmitted) {
     return (
       <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="w-full sm:w-[95vw] !max-w-[888px] md:w-[888px] p-0 gap-0 border border-zinc-200 max-h-[100dvh] md:max-h-none h-auto md:h-[533px] overflow-hidden rounded-none sm:rounded-lg">
-          <div className="flex flex-col md:flex-row h-full w-full overflow-y-auto md:overflow-hidden">
-            {/* Left side - Success message */}
-            <div className="flex flex-col items-center justify-center min-w-0 w-full px-4 py-6 md:p-6 md:basis-0 md:grow md:pr-4 border-b md:border-b-0 border-zinc-200">
-              <div className="flex flex-col items-center gap-1.5 text-center max-w-md">
-                <div className="w-16 h-16 mb-2">
+        <DialogContent
+          className="p-0 border border-zinc-200 !max-w-none rounded-none sm:rounded-lg"
+          style={{
+            display: "flex",
+            width: 888,
+            alignItems: "flex-start",
+            maxWidth: "calc(100vw - 2rem)",
+            overflow: "hidden",
+          }}
+        >
+          <div className="flex h-full w-full flex-col overflow-y-auto md:flex-row md:overflow-hidden flex-1">
+            <div className="flex min-w-0 grow basis-0 flex-col items-center justify-center border-b border-zinc-200 px-4 py-6 md:border-b-0 md:p-6 md:pr-4">
+              <div className="flex max-w-md flex-col items-center gap-1.5 text-center">
+                <div className="mb-2 h-16 w-16">
                   <span className="text-6xl">🥰</span>
                 </div>
                 <DialogTitle className="text-[22px] font-semibold leading-[1.4] tracking-[-1.32px] text-zinc-900">
@@ -172,11 +173,19 @@ export function GiveFeedbackDialog({
               </div>
             </div>
 
-            {/* Right side - CTA */}
-            <div className="w-full md:w-[450px] bg-gradient-to-b from-[#dbeafe] to-[#f9f9ff] px-4 py-6 md:p-6 md:pl-4 flex flex-col items-center justify-center md:shrink-0 rounded-b-[6px] md:rounded-b-none md:rounded-br-[6px] md:rounded-tr-[6px]">
-              <div className="flex flex-col items-center gap-3 text-center w-full">
+            <div
+              className="w-full shrink-0 md:w-[450px] md:rounded-b-none md:rounded-br-[6px] md:rounded-tr-[6px] px-4 py-6 md:p-6 md:pl-4"
+              style={{
+                borderTopRightRadius: "var(--radius-rounded-md, 6px)",
+                borderBottomRightRadius: "var(--radius-rounded-md, 6px)",
+                borderTopLeftRadius: 0,
+                borderBottomLeftRadius: 0,
+                background: "linear-gradient(180deg, #DBEAFE 0%, #F9F9FF 100%)",
+              }}
+            >
+              <div className="flex w-full flex-col items-center gap-3 text-center">
                 <div className="flex flex-col gap-3 py-3">
-                  <p className="text-[24px] leading-5 text-zinc-900 font-['Poly']">
+                  <p className="font-['Poly'] text-[24px] leading-5 text-zinc-900">
                     Interested in Similar Projects?
                   </p>
                   <p className="text-sm leading-[22px] text-zinc-500">
@@ -186,7 +195,7 @@ export function GiveFeedbackDialog({
                 </div>
                 <Button
                   asChild
-                  className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-6 py-2.5 text-sm font-medium h-10 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]"
+                  className="h-10 rounded-xl bg-[#4b89ef] px-6 py-2.5 text-sm font-medium text-white shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] hover:bg-[#3d75d9]"
                 >
                   <Link href="/events">Explore events</Link>
                 </Button>
@@ -198,217 +207,154 @@ export function GiveFeedbackDialog({
     );
   }
 
+  /* ---------------- Main Dialog (matches screenshot) ---------------- */
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="w-full sm:w-[95vw] !max-w-[888px] md:w-[888px] p-0 gap-0 border border-zinc-200 max-h-[100dvh] md:max-h-none h-auto md:h-[533px] overflow-hidden rounded-none sm:rounded-lg">
-        <div className="flex flex-col md:flex-row h-full w-full overflow-y-auto md:overflow-hidden">
-          {/* Left side - Main content */}
-          <div className="flex flex-col min-w-0 w-full md:basis-0 md:grow md:pr-4">
-            {/* Header */}
-            <div className="flex flex-col gap-1.5 px-4 py-4 md:p-6 md:pr-0 border-b md:border-b-0 border-zinc-200">
-              <DialogTitle className="text-[18px] md:text-[22px] font-semibold leading-[1.4] tracking-[-1.32px] text-zinc-900">
-                Share feedback for{" "}
-                <span className="text-[#4b89ef]">{projectName}</span>
-              </DialogTitle>
-              <p className="text-sm leading-[1.5] text-zinc-500">
-                Help this project improve by sharing your thoughts, suggestions,
-                and ideas.
-              </p>
-            </div>
+      <DialogContent
+        className="p-0 border border-zinc-200 bg-white shadow-xl !max-w-none rounded-none sm:rounded-lg"
+        style={{
+          display: "flex",
+          width: 888,
+          alignItems: "flex-start",
+          maxWidth: "calc(100vw - 2rem)",
+          overflow: "hidden",
+        }}
+      >
+        {/* Close in top-right (on the right pane visually) */}
+        <DialogClose className="absolute right-4 top-4 z-10 inline-flex h-8 w-8 items-center justify-center rounded-md text-zinc-500 hover:bg-zinc-100">
+          <X className="h-4 w-4" />
+          <span className="sr-only">Close</span>
+        </DialogClose>
 
-            {/* Content */}
-            <div className="flex flex-col px-4 py-4 md:px-6 md:pr-0 md:pb-6 flex-1">
-              <div className="flex flex-col gap-4">
-                {!aiSuggestions && (
-                  <div className="flex gap-1 items-center">
-                    <Sparkles className="w-6 h-6 text-purple-600" />
-                    <span
-                      className="text-[16px] leading-[1.5] bg-clip-text text-transparent font-normal"
-                      style={{
-                        backgroundImage:
-                          "linear-gradient(90deg, rgb(165, 20, 250) 0%, rgb(73, 200, 242) 100%)",
-                        WebkitTextFillColor: "transparent",
-                      }}
-                    >
-                      Enhance with AI
-                    </span>
-                  </div>
+        <div className="flex min-h-[600px] flex-col flex-1 lg:flex-row">
+          {/* LEFT: Input panel */}
+          <div className="flex-1 bg-white px-6 py-6 lg:px-8 lg:py-8">
+            <div className="flex h-full flex-col">
+              {/* Title + helper */}
+              <div className="mb-3">
+                <DialogTitle className="text-[18px] font-semibold leading-[1.35] text-zinc-900">
+                  Share feedback for{" "}
+                  <button
+                    type="button"
+                    className="align-baseline text-[#4B89EF] hover:underline"
+                  >
+                    {projectName}
+                  </button>
+                </DialogTitle>
+                <p className="mt-1 max-w-[440px] text-[12px] leading-[1.5] text-zinc-600">
+                  Help this project improve by sharing your thoughts,
+                  suggestions, and ideas.
+                </p>
+              </div>
+
+              {/* subtle hairline divider (seen in mock) */}
+              <div className="mb-3 h-px w-full bg-zinc-200" />
+
+              {/* Enhance with AI (purple link) */}
+              <button
+                onClick={handleEnhanceWithAI}
+                disabled={isGeneratingAI || !feedback.trim()}
+                className="mb-3 inline-flex items-center gap-2 text-[14px] font-medium text-[#6E56CF] hover:opacity-90 disabled:opacity-40"
+              >
+                {isGeneratingAI ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4" />
                 )}
+                {isGeneratingAI ? "Enhancing with AI..." : "Enhance with AI"}
+              </button>
+
+              {/* Textarea */}
+              <div className="mb-6 flex-1">
                 <Textarea
                   ref={textareaRef}
-                  placeholder="Long description or markdown"
                   value={feedback}
                   onChange={(e) => setFeedback(e.target.value)}
-                  className={`resize-none border-[rgba(0,0,0,0.15)] rounded-xl px-3 py-2 text-[16px] overflow-y-auto ${!aiSuggestions ? "min-h-[164px] max-h-[300px]" : "min-h-[179px] max-h-[300px]"}`}
-                  rows={1}
+                  placeholder="Long description or markdown"
+                  className="min-h-[220px] w-full resize-none rounded-[10px] border border-[rgba(0,0,0,0.12)] p-4 text-[14px] leading-[1.5] text-zinc-900 placeholder:text-zinc-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#4B89EF]/60"
                 />
               </div>
 
-              {/* Spacer to push button to bottom */}
-              <div className="flex-1 min-h-[16px]" />
-
-              {!aiSuggestions ? (
-                <Button
-                  onClick={handleEnhanceWithAI}
-                  disabled={!feedback.trim() || isGeneratingAI}
-                  className="w-full bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-6 py-2.5 text-[16px] font-medium h-auto shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]"
-                >
-                  <Sparkles className="w-6 h-6 mr-1.5" />
-                  {isGeneratingAI
-                    ? "Generating..."
-                    : "Improve feedback with AI"}
-                </Button>
-              ) : (
+              {/* Primary CTA (full width like screenshot) */}
+              <div className="mt-auto">
                 <Button
                   onClick={handleSubmit}
-                  disabled={isSubmitting || !feedback.trim()}
-                  className="w-full bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-6 py-2.5 text-[16px] font-medium h-auto shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]"
+                  disabled={!feedback.trim() || isSubmitting}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-[10px] bg-[#4B89EF] px-4 py-2 text-[14px] font-medium text-white hover:bg-[#3F77D3] disabled:opacity-50"
                 >
-                  {isSubmitting ? "Submitting..." : "Submit feedback"}
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Submitting...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-4 w-4" />
+                      Improve feedback with AI
+                    </>
+                  )}
                 </Button>
-              )}
+              </div>
             </div>
           </div>
 
-          {/* Right side - Tips/Suggestions */}
-          <div className="w-full md:w-[450px] bg-gradient-to-b from-[#dbeafe] to-[#f9f9ff] px-4 py-4 md:p-6 md:pl-4 flex flex-col md:shrink-0 rounded-b-[6px] md:rounded-b-none md:rounded-br-[6px] md:rounded-tr-[6px]">
-            <div className="bg-white rounded-[13px] p-1.5 w-fit">
-              <Lightbulb className="w-6 h-6" />
-            </div>
+          {/* RIGHT: Tips panel */}
+          <div
+            className="flex-1 border-l border-[rgba(0,0,0,0.10)] px-6 py-6 lg:px-8 lg:py-8"
+            style={{
+              borderTopRightRadius: "var(--radius-rounded-md, 6px)",
+              borderBottomRightRadius: "var(--radius-rounded-md, 6px)",
+              borderTopLeftRadius: 0,
+              borderBottomLeftRadius: 0,
+              background: "linear-gradient(180deg, #DBEAFE 0%, #F9F9FF 100%)",
+            }}
+          >
+            <div className="flex h-full flex-col">
+              {/* Lightbulb + Heading */}
+              <div className="mb-5 flex items-center gap-3">
+                <div className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/70 ring-1 ring-[rgba(0,0,0,0.1)]">
+                  <Lightbulb className="h-4 w-4 text-[#7C8DB5]" />
+                </div>
+                <h3 className="text-[16px] font-semibold leading-[1.4] text-zinc-900">
+                  Writing Tips
+                </h3>
+              </div>
 
-            <div className="flex items-center justify-center pb-2 pt-4">
-              <p className="text-[16px] font-medium leading-[1.5] text-black">
-                {!aiSuggestions ? "Writing Tips" : "AI Suggestions"}
-              </p>
-            </div>
+              {/* Tips list (01/02/03 + dividers) */}
+              <div className="space-y-6">
+                {/* 01 */}
+                <div>
+                  <p className="text-[18px] font-medium tracking-tight text-zinc-900">
+                    01
+                  </p>
+                  <p className="mt-1 max-w-[440px] text-[13px] leading-[1.55] text-zinc-600">
+                    What should they do next to improve the project?
+                  </p>
+                  <div className="mt-4 h-px w-full bg-[rgba(0,0,0,0.08)]" />
+                </div>
 
-            <div className="flex flex-col gap-3">
-              {!aiSuggestions ? (
-                <>
-                  <div className="flex flex-col gap-1 py-3">
-                    <p className="text-[24px] leading-5 text-zinc-900 font-['Poly']">
-                      01
-                    </p>
-                    <p className="text-sm leading-[22px] text-zinc-500">
-                      What should they do next to improve the project?
-                    </p>
-                  </div>
-                  <div className="h-px bg-gray-200" />
-                  <div className="flex flex-col gap-1 py-3">
-                    <p className="text-[24px] leading-5 text-zinc-900 font-['Poly']">
-                      02
-                    </p>
-                    <p className="text-sm leading-[22px] text-zinc-500">
-                      What could be better or work differently?
-                    </p>
-                  </div>
-                  <div className="h-px bg-gray-200" />
-                  <div className="flex flex-col gap-1 py-3">
-                    <p className="text-[24px] leading-5 text-zinc-900 font-['Poly']">
-                      03
-                    </p>
-                    <p className="text-sm leading-[22px] text-zinc-500">
-                      What works well, and are there similar projects to learn
-                      from?
-                    </p>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="flex flex-col gap-2 py-3">
-                    <p className="text-[24px] leading-5 text-zinc-900 font-['Poly']">
-                      More specific
-                    </p>
-                    <p className="text-sm leading-[22px] text-zinc-500">
-                      {aiSuggestions["more specific"]}
-                    </p>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() =>
-                          handleReplaceSuggestion(
-                            aiSuggestions["more specific"]
-                          )
-                        }
-                        className="text-[#4b89ef] text-[16px] font-medium underline decoration-solid tracking-[-0.64px]"
-                      >
-                        Replace
-                      </button>
-                      <button
-                        onClick={() =>
-                          handleAddBelowSuggestion(
-                            aiSuggestions["more specific"]
-                          )
-                        }
-                        className="text-[#4b89ef] text-[16px] font-medium underline decoration-solid tracking-[-0.64px]"
-                      >
-                        Add below
-                      </button>
-                    </div>
-                  </div>
-                  <div className="h-px bg-gray-200" />
-                  <div className="flex flex-col gap-2 py-3">
-                    <p className="text-[24px] leading-5 text-zinc-900 font-['Poly']">
-                      More actionable
-                    </p>
-                    <p className="text-sm leading-[22px] text-zinc-500">
-                      {aiSuggestions["more actionable"]}
-                    </p>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() =>
-                          handleReplaceSuggestion(
-                            aiSuggestions["more actionable"]
-                          )
-                        }
-                        className="text-[#4b89ef] text-[16px] font-medium underline decoration-solid tracking-[-0.64px]"
-                      >
-                        Replace
-                      </button>
-                      <button
-                        onClick={() =>
-                          handleAddBelowSuggestion(
-                            aiSuggestions["more actionable"]
-                          )
-                        }
-                        className="text-[#4b89ef] text-[16px] font-medium underline decoration-solid tracking-[-0.64px]"
-                      >
-                        Add below
-                      </button>
-                    </div>
-                  </div>
-                  <div className="h-px bg-gray-200" />
-                  <div className="flex flex-col gap-2 py-3">
-                    <p className="text-[24px] leading-5 text-zinc-900 font-['Poly']">
-                      More positive
-                    </p>
-                    <p className="text-sm leading-[22px] text-zinc-500">
-                      {aiSuggestions["more positive"]}
-                    </p>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() =>
-                          handleReplaceSuggestion(
-                            aiSuggestions["more positive"]
-                          )
-                        }
-                        className="text-[#4b89ef] text-[16px] font-medium underline decoration-solid tracking-[-0.64px]"
-                      >
-                        Replace
-                      </button>
-                      <button
-                        onClick={() =>
-                          handleAddBelowSuggestion(
-                            aiSuggestions["more positive"]
-                          )
-                        }
-                        className="text-[#4b89ef] text-[16px] font-medium underline decoration-solid tracking-[-0.64px]"
-                      >
-                        Add below
-                      </button>
-                    </div>
-                  </div>
-                </>
-              )}
+                {/* 02 */}
+                <div>
+                  <p className="text-[18px] font-medium tracking-tight text-zinc-900">
+                    02
+                  </p>
+                  <p className="mt-1 max-w-[440px] text-[13px] leading-[1.55] text-zinc-600">
+                    What could be better or work differently?
+                  </p>
+                  <div className="mt-4 h-px w-full bg-[rgba(0,0,0,0.08)]" />
+                </div>
+
+                {/* 03 */}
+                <div>
+                  <p className="text-[18px] font-medium tracking-tight text-zinc-900">
+                    03
+                  </p>
+                  <p className="mt-1 max-w-[440px] text-[13px] leading-[1.55] text-zinc-600">
+                    What works well, and are there similar projects to learn
+                    from?
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
