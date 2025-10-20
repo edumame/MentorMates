@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, ArrowDownUp, X, MessageSquare } from "lucide-react";
@@ -105,6 +106,44 @@ export default function FeedbackPage() {
         <div className="flex items-center justify-center flex-grow">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
         </div>
+      </PageContainer>
+    );
+  }
+
+  if (!isLoading && feedbackList.length === 0) {
+    return (
+      <PageContainer>
+        <PageContent className="px-[32px] pt-[24px] pb-0">
+          <div className="flex flex-col gap-[48px] max-w-[1064px] mx-auto">
+            {/* Header */}
+            <div className="flex items-end justify-between">
+              <div className="flex items-center gap-[8px]">
+                <h1 className="text-[28px] font-semibold leading-[1.4] tracking-[-0.06em] text-black">
+                  Feedback
+                </h1>
+              </div>
+            </div>
+
+            {/* Empty State */}
+            <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[16px] p-10 text-center">
+              <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                <MessageSquare className="h-8 w-8 text-gray-400" />
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                No feedback received yet
+              </h3>
+              <p className="text-gray-600 mb-6">
+                Join an event, submit a project, and collect feedback. Once you receive
+                feedback on your projects, it will appear here.
+              </p>
+              <Link href="/events">
+                <Button className="button-gradient text-white font-semibold py-2 px-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-300">
+                  Browse Events
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </PageContent>
       </PageContainer>
     );
   }
