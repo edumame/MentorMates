@@ -141,7 +141,7 @@ export function GiveFeedbackDialog({
     "p-0 shadow-xl !max-w-[calc(100vw-2rem)] w-[calc(100vw-2rem)] " +
     "lg:!max-w-[70vw] lg:w-[888px] " +
     "overflow-hidden rounded-[12px] border border-zinc-200 bg-white " +
-    "max-h-[85vh]"; // keep things on screen on short mobiles
+    "max-h-[85vh]";
 
   if (isSubmitted) {
     return (
