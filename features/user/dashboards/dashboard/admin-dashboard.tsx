@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Project, EventItem, FeedbackItem } from "@/lib/types";
+import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 
 interface AdminDashboardProps {
   event?: EventItem;
@@ -108,6 +109,9 @@ export function AdminDashboard({ event }: AdminDashboardProps) {
   }, [fetchProjects, fetchMentors, fetchFeedbackWithProjects]);
 
   return (
+    <PageContainer>
+      <PageContent className="px-[32px] pt-[24px]">
+        <div className="flex flex-col gap-[48px] max-w-[1064px] mx-auto">
     <Tabs defaultValue="projects" className="space-y-4">
       <TabsList>
         <TabsTrigger value="projects">Projects</TabsTrigger>
@@ -116,7 +120,7 @@ export function AdminDashboard({ event }: AdminDashboardProps) {
       </TabsList>
 
       <TabsContent value="projects">
-        <h2 className="text-2xl font-bold mb-4">
+        <h2 className="text-[28px] font-semibold leading-[1.4] tracking-[-0.06em] text-black mb-4">
           {event ? `Projects for ${event.event_name}` : "All Projects"}
         </h2>
         <Table>
@@ -149,7 +153,7 @@ export function AdminDashboard({ event }: AdminDashboardProps) {
       </TabsContent>
 
       <TabsContent value="mentors">
-        <h2 className="text-2xl font-bold mb-4">All Mentors</h2>
+        <h2 className="text-[28px] font-semibold leading-[1.4] tracking-[-0.06em] text-black mb-4">All Mentors</h2>
         <Table>
           <TableCaption>A list of all registered mentors.</TableCaption>
           <TableHeader>
@@ -174,7 +178,7 @@ export function AdminDashboard({ event }: AdminDashboardProps) {
       </TabsContent>
 
       <TabsContent value="feedback">
-        <h2 className="text-2xl font-bold mb-4">
+        <h2 className="text-[28px] font-semibold leading-[1.4] tracking-[-0.06em] text-black mb-4">
           {event ? `Feedback for ${event.event_name}` : "All Feedback"}
         </h2>
         <Table>
@@ -208,5 +212,8 @@ export function AdminDashboard({ event }: AdminDashboardProps) {
         </Table>
       </TabsContent>
     </Tabs>
+        </div>
+      </PageContent>
+    </PageContainer>
   );
 }
