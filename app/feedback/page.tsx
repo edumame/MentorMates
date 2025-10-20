@@ -104,14 +104,6 @@ export default function FeedbackPage() {
     if (!item.isRead) handleMarkAsRead(item.id);
   };
 
-  const handleGiveFeedback = () => {
-    setSelectedProject({ id: "dummy-project-2", name: "Relief Map" }); // demo project label to match screenshot
-    setIsGivingFeedback(true);
-    setSelectedFeedback(null);
-    setFeedbackText("");
-    setIsModalOpen(true);
-  };
-
   return (
     <PageContainer>
       <PageContent className="pt-[24px] pb-8">
@@ -128,14 +120,16 @@ export default function FeedbackPage() {
                 </div>
               )}
             </div>
-            <Button
-              onClick={handleMarkAllAsRead}
-              variant="outline"
-              className="h-[44px] px-[16px] py-[10px] rounded-[12px] border border-[rgba(0,0,0,0.15)]"
-              disabled={unreadCount === 0}
-            >
-              Mark all {unreadCount} as read
-            </Button>
+            {feedbackList.length > 0 && (
+              <Button
+                onClick={handleMarkAllAsRead}
+                variant="outline"
+                className="h-[44px] px-[16px] py-[10px] rounded-[12px] border border-[rgba(0,0,0,0.15)]"
+                disabled={unreadCount === 0}
+              >
+                Mark all {unreadCount} as read
+              </Button>
+            )}
           </div>
 
           {isLoading && (
@@ -144,164 +138,197 @@ export default function FeedbackPage() {
             </div>
           )}
 
-          {/* Table */}
-          {!isLoading && (
-            <div className="flex flex-col gap-[24px]">
-              <div className="rounded-[16px] border border-[rgba(0,0,0,0.15)]">
-                {/* Header Row */}
-                <div className="flex">
-                  <div className="w-[264px] border-b border-[rgba(0,0,0,0.15)] px-[24px] py-[16px]">
-                    <p className="text-[16px] font-medium tracking-[-0.04em] text-black">Send from</p>
-                  </div>
-                  <div className="w-[196px] border-b border-[rgba(0,0,0,0.15)] px-[24px] py-[16px]">
-                    <p className="text-[16px] font-medium tracking-[-0.04em] text-black">Project Name</p>
-                  </div>
-                  <div className="w-[215px] border-b border-[rgba(0,0,0,0.15)] px-[24px] py-[16px]">
-                    <p className="text-[16px] font-medium tracking-[-0.04em] text-black">Message</p>
-                  </div>
-                  <div className="flex w-[182px] items-center border-b border-[rgba(0,0,0,0.15)] px-[24px] py-[16px]">
-                    <p className="text-[16px] font-medium tracking-[-0.04em] text-black">Date</p>
-                    <ArrowDownUp className="ml-1 h-[24px] w-[24px]" />
-                  </div>
-                  <div className="w-[208px] border-b border-[rgba(0,0,0,0.15)] px-[24px] py-[16px]">
-                    <p className="text-[16px] font-medium tracking-[-0.04em] text-black">Action</p>
-                  </div>
+          {/* Empty State */}
+          {!isLoading && feedbackList.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-16 px-4">
+              <div className="max-w-md text-center">
+                {/* Icon */}
+                <div className="mx-auto w-24 h-24 bg-gradient-to-br from-blue-50 to-blue-100 rounded-full flex items-center justify-center mb-6">
+                  <MessageSquare className="h-12 w-12 text-blue-600" />
                 </div>
 
-                {/* Body */}
-                <div className="flex overflow-x-auto bg-white">
-                  {/* From */}
-                  <div className="flex w-[264px] flex-col">
-                    {feedbackList.map((item, index) => (
-                      <div
-                        key={item.id}
-                        className={`flex items-center gap-[4px] px-[24px] py-[28px] ${
-                          index !== feedbackList.length - 1 ? "border-b border-[rgba(0,0,0,0.15)]" : ""
-                        } ${item.sender.role ? "min-h-[108px]" : "h-[80px]"}`}
-                      >
-                        <Avatar className="h-[40px] w-[40px]">
-                          <AvatarImage src={item.sender.avatar} alt={item.sender.name} />
-                          <AvatarFallback>{item.sender.name.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <p className="truncate text-[16px] text-black">{item.sender.name}</p>
-                        {item.sender.role && (
-                          <div className="rounded-full border border-[rgba(0,0,0,0.15)] px-[8px] py-[4px]">
-                            <p className="text-sm font-medium text-black">{item.sender.role}</p>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
+                {/* Heading */}
+                <h2 className="text-2xl font-semibold text-gray-900 mb-3">
+                  No feedback received yet
+                </h2>
 
-                  {/* Project */}
-                  <div className="flex w-[196px] flex-col">
-                    {feedbackList.map((item, index) => (
-                      <div
-                        key={item.id}
-                        className={`flex items-center px-[24px] py-[28px] ${
-                          index !== feedbackList.length - 1 ? "border-b border-[rgba(0,0,0,0.15)]" : ""
-                        } ${item.sender.role ? "min-h-[108px]" : "h-[80px]"}`}
-                      >
-                        <p className="truncate text-[16px] tracking-[-0.04em] text-black">{item.projectName}</p>
-                      </div>
-                    ))}
-                  </div>
+                {/* Description */}
+                <p className="text-gray-600 mb-6 leading-relaxed">
+                  Go join an event, submit a project and collect feedback from mentors and peers to improve your work!
+                </p>
 
-                  {/* Message */}
-                  <div className="flex w-[215px] flex-col">
-                    {feedbackList.map((item, index) => (
-                      <div
-                        key={item.id}
-                        className={`flex items-center px-[24px] py-[28px] ${
-                          index !== feedbackList.length - 1 ? "border-b border-[rgba(0,0,0,0.15)]" : ""
-                        } ${item.sender.role ? "min-h-[108px]" : "h-[80px]"}`}
-                      >
-                        <p className="line-clamp-2 text-[16px] tracking-[-0.04em] text-black">{item.message}</p>
-                      </div>
-                    ))}
-                  </div>
+                {/* CTA Button */}
+                <Button
+                  asChild
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 h-auto"
+                >
+                  <Link href="/events">
+                    Explore Events
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          )}
 
-                  {/* Date */}
-                  <div className="flex w-[182px] flex-col">
-                    {feedbackList.map((item, index) => (
-                      <div
-                        key={item.id}
-                        className={`flex items-center px-[24px] py-[28px] ${
-                          index !== feedbackList.length - 1 ? "border-b border-[rgba(0,0,0,0.15)]" : ""
-                        } ${item.sender.role ? "min-h-[108px]" : "h-[80px]"}`}
-                      >
-                        <p className="text-[16px] text-black">{item.date}</p>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex w-[208px] flex-col">
-                    {feedbackList.map((item, index) => (
-                      <div
-                        key={item.id}
-                        className={`flex items-center gap-[12px] px-[24px] py-[28px] ${
-                          index !== feedbackList.length - 1 ? "border-b border-[rgba(0,0,0,0.15)]" : ""
-                        } ${item.sender.role ? "min-h-[108px]" : "h-[80px]"}`}
-                      >
-                        <button
-                          onClick={() => handleViewFeedback(item)}
-                          className="text-[16px] font-medium tracking-[-0.04em] text-[#4B89EF]"
-                        >
-                          View
-                        </button>
-                        <button
-                          onClick={() => handleMarkAsRead(item.id)}
-                          className="text-[16px] font-medium tracking-[-0.04em] text-[#4B89EF]"
-                          disabled={item.isRead}
-                        >
-                          Mark as read
-                        </button>
-                      </div>
-                    ))}
-                  </div>
+          {/* Table */}
+          {!isLoading && feedbackList.length > 0 && (
+            <div className="flex flex-col gap-[24px]">
+            {/* Border wrapper */}
+            <div className="border border-[rgba(0,0,0,0.15)] rounded-[16px] bg-white overflow-hidden">
+              {/* Header Row */}
+              <div className="flex w-full">
+                <div className="w-[264px] border-b border-[rgba(0,0,0,0.15)] px-[24px] py-[16px]">
+                  <p className="text-[16px] font-medium text-black tracking-[-0.04em]">Send from</p>
+                </div>
+                <div className="w-[196px] border-b border-[rgba(0,0,0,0.15)] px-[24px] py-[16px]">
+                  <p className="text-[16px] font-medium text-black tracking-[-0.04em]">Project Name</p>
+                </div>
+                <div className="min-w-[215px] flex-1 border-b border-[rgba(0,0,0,0.15)] px-[24px] py-[16px]">
+                  <p className="text-[16px] font-medium text-black tracking-[-0.04em]">Message</p>
+                </div>
+                <div className="w-[182px] border-b border-[rgba(0,0,0,0.15)] px-[24px] py-[16px] flex items-center">
+                  <p className="text-[16px] font-medium text-black tracking-[-0.04em]">Date</p>
+                  <ArrowDownUp className="h-[24px] w-[24px] ml-1" />
+                </div>
+                <div className="w-[208px] border-b border-[rgba(0,0,0,0.15)] px-[24px] py-[16px]">
+                  <p className="text-[16px] font-medium text-black tracking-[-0.04em]">Action</p>
                 </div>
               </div>
 
-              {/* Pagination */}
-              <div className="bg-white pt-[24px]">
-                <div className="flex items-center justify-between">
-                  <Button
-                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
-                    variant="outline"
-                    className="flex items-center gap-[6px] rounded-[12px] bg-[rgba(0,0,0,0.05)] px-[24px] py-[10px]"
-                  >
-                    <ChevronLeft className="h-[24px] w-[24px]" />
-                    Prev
-                  </Button>
+              {/* Table Body */}
+              <div className="flex overflow-x-auto w-full">
+                {/* Send from Column */}
+                <div className="flex flex-col w-[264px]">
+                  {feedbackList.map((item, index) => (
+                    <div
+                      key={item.id}
+                      className={`flex items-center gap-[4px] px-[24px] py-[28px] ${
+                        index !== feedbackList.length - 1 ? 'border-b border-[rgba(0,0,0,0.15)]' : ''
+                      } ${item.sender.role ? 'min-h-[108px]' : 'h-[80px]'}`}
+                    >
+                      <Avatar className="h-[40px] w-[40px]">
+                        <AvatarImage src={item.sender.avatar} alt={item.sender.name} />
+                        <AvatarFallback>{item.sender.name.charAt(0)}</AvatarFallback>
+                      </Avatar>
+                      <p className="text-[16px] text-black truncate">{item.sender.name}</p>
+                      {item.sender.role && (
+                        <div className="border border-[rgba(0,0,0,0.15)] px-[8px] py-[4px] rounded-full">
+                          <p className="text-sm font-medium text-black">{item.sender.role}</p>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
 
-                  <div className="flex gap-[2px]">
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                {/* Project Name Column */}
+                <div className="flex flex-col w-[196px]">
+                  {feedbackList.map((item, index) => (
+                    <div
+                      key={item.id}
+                      className={`flex items-center px-[24px] py-[28px] ${
+                        index !== feedbackList.length - 1 ? 'border-b border-[rgba(0,0,0,0.15)]' : ''
+                      } ${item.sender.role ? 'min-h-[108px]' : 'h-[80px]'}`}
+                    >
+                      <p className="text-[16px] text-black tracking-[-0.04em] truncate">{item.projectName}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Message Column */}
+                <div className="flex flex-col min-w-[215px] flex-1">
+                  {feedbackList.map((item, index) => (
+                    <div
+                      key={item.id}
+                      className={`flex items-center px-[24px] py-[28px] ${
+                        index !== feedbackList.length - 1 ? 'border-b border-[rgba(0,0,0,0.15)]' : ''
+                      } ${item.sender.role ? 'min-h-[108px]' : 'h-[80px]'}`}
+                    >
+                      <p className="text-[16px] text-black tracking-[-0.04em] line-clamp-2">{item.message}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Date Column */}
+                <div className="flex flex-col w-[182px]">
+                  {feedbackList.map((item, index) => (
+                    <div
+                      key={item.id}
+                      className={`flex items-center px-[24px] py-[28px] ${
+                        index !== feedbackList.length - 1 ? 'border-b border-[rgba(0,0,0,0.15)]' : ''
+                      } ${item.sender.role ? 'min-h-[108px]' : 'h-[80px]'}`}
+                    >
+                      <p className="text-[16px] text-black">{item.date}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Action Column */}
+                <div className="flex flex-col w-[208px]">
+                  {feedbackList.map((item, index) => (
+                    <div
+                      key={item.id}
+                      className={`flex items-center gap-[12px] px-[24px] py-[28px] ${
+                        index !== feedbackList.length - 1 ? 'border-b border-[rgba(0,0,0,0.15)]' : ''
+                      } ${item.sender.role ? 'min-h-[108px]' : 'h-[80px]'}`}
+                    >
                       <button
-                        key={page}
-                        onClick={() => setCurrentPage(page)}
-                        className={`flex h-[40px] w-[40px] items-center justify-center rounded-[6px] text-[16px] ${
-                          currentPage === page ? "border border-[rgba(0,0,0,0.15)]" : ""
-                        }`}
+                        onClick={() => handleViewFeedback(item)}
+                        className="text-[16px] font-medium text-[#4B89EF] tracking-[-0.04em]"
                       >
-                        {page}
+                        View
                       </button>
-                    ))}
-                  </div>
-
-                  <Button
-                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                    disabled={currentPage === totalPages}
-                    variant="outline"
-                    className="flex items-center gap-[6px] rounded-[12px] bg-[rgba(0,0,0,0.05)] px-[24px] py-[10px]"
-                  >
-                    Next
-                    <ChevronRight className="h-[24px] w-[24px]" />
-                  </Button>
+                      <button
+                        onClick={() => handleMarkAsRead(item.id)}
+                        className="text-[16px] font-medium text-[#4B89EF] tracking-[-0.04em]"
+                        disabled={item.isRead}
+                      >
+                        Mark as read
+                      </button>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
+
+            {/* Pagination */}
+            <div className="bg-white flex items-center justify-between pt-[24px]">
+              <Button
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                variant="outline"
+                className="flex items-center gap-[6px] px-[24px] py-[10px] rounded-[12px] bg-[rgba(0,0,0,0.05)]"
+              >
+                <ChevronLeft className="h-[24px] w-[24px]" />
+                Prev
+              </Button>
+
+              <div className="flex gap-[2px]">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className={`w-[40px] h-[40px] flex items-center justify-center rounded-[6px] text-[16px] ${
+                      currentPage === page
+                        ? 'border border-[rgba(0,0,0,0.15)]'
+                        : ''
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ))}
+              </div>
+
+              <Button
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+                variant="outline"
+                className="flex items-center gap-[6px] px-[24px] py-[10px] rounded-[12px] bg-[rgba(0,0,0,0.05)]"
+              >
+                Next
+                <ChevronRight className="h-[24px] w-[24px]" />
+              </Button>
+            </div>
+          </div>
           )}
         </div>
 
