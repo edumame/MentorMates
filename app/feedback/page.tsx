@@ -99,24 +99,14 @@ export default function FeedbackPage() {
     }
   };
 
-  if (isLoading) {
-    return (
-      <PageContainer>
-        <div className="flex items-center justify-center flex-grow">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
-        </div>
-      </PageContainer>
-    );
-  }
-
   return (
     <PageContainer>
-      <PageContent className="px-[32px] pt-[24px] pb-0">
-        <div className="flex flex-col gap-[48px] max-w-[1064px] mx-auto">
+      <PageContent className="pt-[24px] pb-8">
+        <div className="flex flex-col gap-[24px] px-[32px]">
           {/* Header */}
           <div className="flex items-end justify-between">
             <div className="flex items-center gap-[8px]">
-              <h1 className="text-[28px] font-semibold leading-[1.4] tracking-[-0.06em] text-black">
+              <h1 className="text-[20px] sm:text-[28px] font-semibold leading-[1.4] tracking-[-0.06em] text-black">
                 Feedback
               </h1>
               {unreadCount > 0 && (
@@ -135,7 +125,14 @@ export default function FeedbackPage() {
             </Button>
           </div>
 
+          {isLoading && (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+            </div>
+          )}
+
           {/* Table */}
+          {!isLoading && (
           <div className="flex flex-col gap-[24px]">
             {/* Border wrapper */}
             <div className="border border-[rgba(0,0,0,0.15)] rounded-[16px]">
@@ -293,6 +290,7 @@ export default function FeedbackPage() {
               </Button>
             </div>
           </div>
+          )}
         </div>
 
         {/* Feedback Modal */}

@@ -83,43 +83,14 @@ export default function ProjectsPage() {
     );
   };
 
-  if (isLoading) {
-    return (
-      <PageContainer showBorder={isAuthenticated}>
-        <div className="flex items-center justify-center flex-grow">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
-        </div>
-      </PageContainer>
-    );
-  }
-
-  if (!session) {
-    return (
-      <PageContainer showBorder={isAuthenticated}>
-        <div className="flex items-center justify-center flex-grow">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold mb-4">
-              Please log in to view your projects
-            </h1>
-            <Link href="/login">
-              <Button className="bg-blue-900 text-white hover:bg-blue-800">
-                Login
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </PageContainer>
-    );
-  }
-
   const submittedProjects = projects.filter((p) => p.submitted);
   const draftProjects = projects.filter((p) => !p.submitted);
 
   return (
     <PageContainer showBorder={isAuthenticated}>
       <Toaster />
-      <PageContent className="px-[32px] pt-[32px] pb-8">
-        <div className="flex flex-col gap-[24px] max-w-[1064px]">
+      <PageContent className="pt-[24px] pb-8">
+        <div className="flex flex-col gap-[24px] px-[32px]">
           <div className="flex items-end justify-between">
             <div className="flex items-center gap-[8px]">
               <h1 className="text-[20px] sm:text-[28px] font-semibold leading-[1.4] tracking-[-0.06em] text-black">
@@ -139,6 +110,30 @@ export default function ProjectsPage() {
               </Button>
             )}
           </div>
+
+          {isLoading && (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
+            </div>
+          )}
+
+          {!session && !isLoading && (
+            <div className="flex items-center justify-center py-12">
+              <div className="text-center">
+                <h2 className="text-2xl font-bold mb-4">
+                  Please log in to view your projects
+                </h2>
+                <Link href="/login">
+                  <Button className="bg-blue-900 text-white hover:bg-blue-800">
+                    Login
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          )}
+
+          {session && !isLoading && (
+            <>
 
           {/* Draft Projects Section */}
           {isAuthenticated && draftProjects.length > 0 && (
@@ -190,7 +185,7 @@ export default function ProjectsPage() {
               Submitted Projects
             </h2>
             <ProjectBoard
-              isLoading={isLoading}
+              isLoading={false}
               projectList={submittedProjects}
               session={session}
               projectBoardContext={ProjectBoardContext.MyProjects}
@@ -202,6 +197,8 @@ export default function ProjectsPage() {
             <div className="mt-12">
               <DiscordCTA variant="default" />
             </div>
+          )}
+            </>
           )}
         </div>
       </PageContent>
