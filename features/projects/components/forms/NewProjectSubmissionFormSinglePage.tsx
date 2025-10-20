@@ -553,6 +553,22 @@ export function NewProjectSubmissionFormSinglePage({
     }
   };
 
+  const handlePreviewClick = useCallback(() => {
+    // If no project has been created/saved yet, do not navigate
+    if (!projectId) {
+      toast({
+        title: "Preview unavailable",
+        description:
+          "Start filling out the form to create a draft. The preview will be available once a draft is created.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Open the project preview in a new tab
+    window.open(`/projects/${projectId}`, "_blank", "noopener,noreferrer");
+  }, [projectId]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -962,7 +978,16 @@ export function NewProjectSubmissionFormSinglePage({
                     </div>
                   </div>
 
-                  <button className="flex items-center gap-1 justify-center text-[#7f7f7f] hover:text-black transition-colors w-full">
+                  <button
+                    onClick={handlePreviewClick}
+                    disabled={!projectId}
+                    title={
+                      projectId
+                        ? "Open project preview in a new tab"
+                        : "Preview available after draft is created"
+                    }
+                    className="flex items-center gap-1 justify-center text-[#7f7f7f] hover:text-black transition-colors w-full disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
                     <span className="text-base">Preview project page</span>
                     <ExternalLink className="h-4.5 w-4.5" />
                   </button>
