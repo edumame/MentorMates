@@ -20,7 +20,6 @@ export default function ProjectsPage() {
   const router = useRouter();
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
   useEffect(() => {
     const getSession = async () => {
@@ -47,41 +46,7 @@ export default function ProjectsPage() {
     }
   };
 
-  const handleDeleteProject = async (projectId: string) => {
-    try {
-      setIsDeleting(projectId);
-      const response = await fetch(`/api/projects/${projectId}`, {
-        method: "DELETE",
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to delete project");
-      }
-
-      setProjects((prev) => prev.filter((p) => p.id !== projectId));
-      toast({
-        title: "Project deleted successfully",
-        description: "The project has been deleted.",
-      });
-    } catch (error) {
-      console.error("Error deleting project:", error);
-      toast({
-        title: "Failed to delete project",
-        description: "Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsDeleting(null);
-    }
-  };
-
-  const handleDraftClick = (project: Project) => {
-    router.push(
-      `/projects/${project.id}/edit`
-    );
-  };
+  // All deletion and QR actions are handled inside the ProjectBoard component menu.
 
   if (isLoading) {
     return (
@@ -112,9 +77,6 @@ export default function ProjectsPage() {
     );
   }
 
-  const submittedProjects = projects.filter((p) => p.submitted);
-  const draftProjects = projects.filter((p) => !p.submitted);
-
   return (
     <PageContainer showBorder={isAuthenticated}>
       <Toaster />
@@ -140,62 +102,13 @@ export default function ProjectsPage() {
             )}
           </div>
 
-          {/* Draft Projects Section */}
-          {isAuthenticated && draftProjects.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Draft Projects</CardTitle>
-              </CardHeader>
-              <CardContent className="overflow-y-auto max-h-[300px]">
-                {isLoading ? (
-                  <p>Loading...</p>
-                ) : (
-                  <ul className="space-y-4">
-                    {draftProjects.map((project) => (
-                      <li key={project.id} className="border-b pb-2">
-                        <div className="flex justify-between items-start gap-4">
-                          <button
-                            onClick={() => handleDraftClick(project)}
-                            className="hover:text-blue-500 flex-grow text-left"
-                          >
-                            <h3 className="font-semibold">
-                              {project.project_name || "Untitled Project"}
-                            </h3>
-                            <p className="text-sm text-gray-600">
-                              {project.project_description || "No description"}
-                            </p>
-                          </button>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            className="shrink-0"
-                            onClick={() => handleDeleteProject(project.id)}
-                            disabled={isDeleting === project.id}
-                          >
-                            <Delete className="h-4 w-4" />
-                            <span className="sr-only">Delete project</span>
-                          </Button>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Submitted Projects Section */}
-          <div className="space-y-4">
-            <h2 className="text-[20px] font-semibold leading-[1.4] tracking-[-0.06em] text-black">
-              Submitted Projects
-            </h2>
-            <ProjectBoard
-              isLoading={isLoading}
-              projectList={submittedProjects}
-              session={session}
-              projectBoardContext={ProjectBoardContext.MyProjects}
-            />
-          </div>
+          {/* Unified Projects List */}
+          <ProjectBoard
+            isLoading={isLoading}
+            projectList={projects}
+            session={session}
+            projectBoardContext={ProjectBoardContext.MyProjects}
+          />
 
           {/* Discord CTA on projects page (only for unauthenticated users) */}
           {!isAuthenticated && (

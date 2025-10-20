@@ -130,7 +130,7 @@ const ProjectBoard = ({
                           <div className="flex items-center gap-1 flex-shrink-0">
                             <div className="bg-transparent border border-gray-300 text-gray-700 px-2 py-1 text-xs font-medium rounded-full flex items-center gap-1 whitespace-nowrap">
                               <Sparkles className="w-3 h-3" />
-                              {project.submitted ? "Public" : "Draft"}
+                              {project.submitted ? "Submitted" : "Draft"}
                             </div>
                             {isOwner && (
                               <div className="bg-transparent border border-gray-300 text-gray-700 px-2 py-1 text-xs font-medium rounded-full flex items-center gap-1 whitespace-nowrap">
