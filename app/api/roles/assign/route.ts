@@ -60,6 +60,11 @@ export async function POST(req: Request) {
     .eq("event_id", eventId)
     .eq("role", role);
 
+  
+  // need a different algorithm for if the number of judges per project = number of judges
+
+  // to ensure judges don't get assigned to the same project more than once, need to group them 
+  
   if (roleToAssignError) {
     return NextResponse.json(
       { error: "Error fetching roles to assign" },
@@ -74,33 +79,23 @@ export async function POST(req: Request) {
     );
   }
 
-  const repeatedProjects = projectIds.flatMap((project) =>
-    Array(rolesPerProject).fill(project)
-  );
-  const shuffledProjects = shuffle(repeatedProjects);
+  // Shuffle to avoid bias
+  const shuffledProjects = shuffle(projectIds);
+  const userIdsToAssign = shuffle(roleToAssign.map((r) => r.user_id));
 
-  const roleToProject: { [key: string]: string[] } = {};
+  // Assign groups of size rolesPerProject to each project using wrap-around (modulo)
+  for (let pIndex = 0; pIndex < shuffledProjects.length; pIndex++) {
+    const projectId = shuffledProjects[pIndex];
 
-  // Initialize arrays for each user
-  roleToAssign.forEach((role) => {
-    roleToProject[role.user_id] = [];
-  });
+    for (let k = 0; k < rolesPerProject; k++) {
+      const userIndex = (pIndex * rolesPerProject + k) % userIdsToAssign.length;
+      const userId = userIdsToAssign[userIndex];
 
-  let roleIndex = 0;
-  for (const project of shuffledProjects) {
-    roleIndex = roleIndex % roleToAssign.length;
-    roleToProject[roleToAssign[roleIndex].user_id].push(project);
-    roleIndex++;
-  }
-
-  //kind of inefficient tbh
-  for (const [roleId, projectIds] of Object.entries(roleToProject)) {
-    for (const projectId of projectIds) {
       await supabase
         .from("project_assignments")
         .upsert({
           project_id: projectId,
-          user_id: roleId,
+          user_id: userId,
           role: role,
           event_id: eventId,
         });
