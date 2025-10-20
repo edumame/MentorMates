@@ -37,9 +37,7 @@ export function GiveFeedbackDialog({
   eventId = "",
 }: GiveFeedbackDialogProps) {
   const [feedback, setFeedback] = useState("");
-  const [aiSuggestions, setAiSuggestions] = useState<AISuggestions | null>(
-    null
-  );
+  const [aiSuggestions, setAiSuggestions] = useState<AISuggestions | null>(null);
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -72,8 +70,6 @@ export function GiveFeedbackDialog({
       );
       const json = await res.json();
       setAiSuggestions(json);
-      // If you want to auto-insert a suggestion, you could:
-      // setFeedback(json?.["more actionable"] || feedback);
     } catch (e) {
       console.error(e);
       toast({
@@ -147,13 +143,16 @@ export function GiveFeedbackDialog({
     return (
       <Dialog open={open} onOpenChange={handleClose}>
         <DialogContent
-          className="p-0 border border-zinc-200 !max-w-none rounded-none sm:rounded-lg"
+          className="p-0"
           style={{
             display: "flex",
             width: 888,
             alignItems: "flex-start",
             maxWidth: "calc(100vw - 2rem)",
             overflow: "hidden",
+            borderRadius: "var(--radius-rounded-xl, 12px)",
+            border: "1px solid var(--border-border-input, #E4E4E7)",
+            background: "var(--background-bg-background, #FFF)",
           }}
         >
           <div className="flex h-full w-full flex-col overflow-y-auto md:flex-row md:overflow-hidden flex-1">
@@ -211,22 +210,20 @@ export function GiveFeedbackDialog({
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent
-        className="p-0 border border-zinc-200 bg-white shadow-xl !max-w-none rounded-none sm:rounded-lg"
+        className="p-0 shadow-xl !max-w-none"
         style={{
           display: "flex",
           width: 888,
           alignItems: "flex-start",
           maxWidth: "calc(100vw - 2rem)",
           overflow: "hidden",
+          borderRadius: "var(--radius-rounded-xl, 12px)",
+          border: "1px solid var(--border-border-input, #E4E4E7)",
+          background: "var(--background-bg-background, #FFF)",
         }}
       >
-        {/* Close in top-right (on the right pane visually) */}
-        <DialogClose className="absolute right-4 top-4 z-10 inline-flex h-8 w-8 items-center justify-center rounded-md text-zinc-500 hover:bg-zinc-100">
-          <X className="h-4 w-4" />
-          <span className="sr-only">Close</span>
-        </DialogClose>
 
-        <div className="flex min-h-[600px] flex-col flex-1 lg:flex-row">
+        <div className="flex h-full flex-col flex-1 lg:flex-row">
           {/* LEFT: Input panel */}
           <div className="flex-1 bg-white px-6 py-6 lg:px-8 lg:py-8">
             <div className="flex h-full flex-col">
