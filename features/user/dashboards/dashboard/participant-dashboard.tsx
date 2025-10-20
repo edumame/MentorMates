@@ -198,7 +198,6 @@ export function ParticipantDashboard({ eventId }: ParticipantDashboardProps) {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold">Participant Dashboard</h2>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList

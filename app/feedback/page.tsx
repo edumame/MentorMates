@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 interface FeedbackItem {
   id: string;
@@ -111,29 +112,28 @@ export default function FeedbackPage() {
 
   return (
     <PageContainer>
-      <PageContent className="px-[32px] pt-[24px] pb-0">
-        <div className="flex flex-col gap-[48px] max-w-[1064px] mx-auto">
-          {/* Header */}
-          <div className="flex items-end justify-between">
-            <div className="flex items-center gap-[8px]">
-              <h1 className="text-[28px] font-semibold leading-[1.4] tracking-[-0.06em] text-black">
-                Feedback
-              </h1>
-              {unreadCount > 0 && (
+      <PageContent className="px-8 pt-6 pb-0">
+        <div className="flex flex-col gap-12 max-w-[1064px] mx-auto">
+          <PageHeader
+            title="Feedback"
+            titleAside={
+              unreadCount > 0 ? (
                 <div className="bg-white border border-[rgba(0,0,0,0.15)] px-[8px] py-0 rounded-[50px] flex items-center">
                   <span className="text-sm text-black leading-[1.5]">{unreadCount}</span>
                 </div>
-              )}
-            </div>
-            <Button
-              onClick={handleMarkAllAsRead}
-              variant="outline"
-              className="h-[44px] px-[16px] py-[10px] rounded-[12px] border border-[rgba(0,0,0,0.15)]"
-              disabled={unreadCount === 0}
-            >
-              Mark all {unreadCount} as read
-            </Button>
-          </div>
+              ) : undefined
+            }
+            actions={
+              <Button
+                onClick={handleMarkAllAsRead}
+                variant="outline"
+                className="h-[44px] px-[16px] py-[10px] rounded-[12px] border border-[rgba(0,0,0,0.15)]"
+                disabled={unreadCount === 0}
+              >
+                Mark all {unreadCount} as read
+              </Button>
+            }
+          />
 
           {/* Table */}
           <div className="flex flex-col gap-[24px]">

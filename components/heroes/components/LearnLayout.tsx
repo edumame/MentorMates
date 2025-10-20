@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 export function LearnLayout() {
   const [bookmarkedIds, setBookmarkedIds] = useState<Set<number>>(new Set());
@@ -43,34 +44,36 @@ export function LearnLayout() {
   };
   return (
     <PageContainer>
-      <PageContent className="px-8 py-6">
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-xl font-semibold">Learn</h1>
-          <div className="flex gap-2">
-            <button
-              className={`px-3 py-1 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                activeTab === "all"
-                  ? "bg-gray-100 text-gray-900"
-                  : "bg-transparent text-gray-500 hover:bg-gray-100"
-              }`}
-              aria-pressed={activeTab === "all"}
-              onClick={() => setActiveTab("all")}
-            >
-              All
-            </button>
-            <button
-              className={`px-3 py-1 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                activeTab === "bookmark"
-                  ? "bg-gray-100 text-gray-900"
-                  : "bg-transparent text-gray-500 hover:bg-gray-100"
-              }`}
-              aria-pressed={activeTab === "bookmark"}
-              onClick={() => setActiveTab("bookmark")}
-            >
-              Bookmark
-            </button>
-          </div>
-        </div>
+      <PageContent className="px-8 pt-6 pb-6">
+        <PageHeader
+          title="Learn"
+          actions={
+            <div className="flex gap-2">
+              <button
+                className={`px-3 py-1 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  activeTab === "all"
+                    ? "bg-gray-100 text-gray-900"
+                    : "bg-transparent text-gray-500 hover:bg-gray-100"
+                }`}
+                aria-pressed={activeTab === "all"}
+                onClick={() => setActiveTab("all")}
+              >
+                All
+              </button>
+              <button
+                className={`px-3 py-1 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  activeTab === "bookmark"
+                    ? "bg-gray-100 text-gray-900"
+                    : "bg-transparent text-gray-500 hover:bg-gray-100"
+                }`}
+                aria-pressed={activeTab === "bookmark"}
+                onClick={() => setActiveTab("bookmark")}
+              >
+                Bookmark
+              </button>
+            </div>
+          }
+        />
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {(activeTab === "bookmark"
           ? data.filter((d) => bookmarkedIds.has(d.id))

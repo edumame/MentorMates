@@ -11,6 +11,8 @@ import { OrganizerDashboard } from "@/features/user/dashboards/dashboard/organiz
 import { useState, useEffect } from "react";
 import { isValidUUID } from "@/app/utils/supabase/queries";
 import { RoleSwitcher } from "@/components/role-switcher";
+import { PageContainer, PageContent } from "@/components/layout/PageContainer";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 export default function DashboardPage() {
   const params = useParams();
@@ -50,7 +52,15 @@ export default function DashboardPage() {
   }, []);
 
   if (!eventId) {
-    return <div>Loading...</div>;
+    return (
+      <PageContainer>
+        <PageContent className="px-8 pt-6 pb-6">
+          <div className="text-center py-8">
+            <h2 className="text-2xl font-bold">Loading...</h2>
+          </div>
+        </PageContent>
+      </PageContainer>
+    );
   }
 
   const renderDashboard = () => {
@@ -79,28 +89,32 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="space-y-8">
-      {loading ? (
-        <div className="text-center py-8">
-          <h2 className="text-2xl font-bold">Loading...</h2>
-        </div>
-      ) : (
-        <>
-          {/* Show role switcher for users who can access multiple roles */}
-          {userRole && activeRole && (
-            <div className="flex justify-end">
-              <RoleSwitcher
-                actualRole={userRole}
-                activeRole={activeRole}
-                onRoleChange={switchRole}
-                eventRoleLabels={roleLabels}
-                className="mb-4"
-              />
-            </div>
-          )}
-          {renderDashboard()}
-        </>
-      )}
-    </div>
+    <PageContainer>
+      <PageContent className="px-8 pt-6 pb-6">
+        {loading ? (
+          <div className="text-center py-8">
+            <h2 className="text-2xl font-bold">Loading...</h2>
+          </div>
+        ) : (
+          <>
+            <PageHeader
+              title="Dashboard"
+              actions={
+                userRole && activeRole ? (
+                  <RoleSwitcher
+                    actualRole={userRole}
+                    activeRole={activeRole}
+                    onRoleChange={switchRole}
+                    eventRoleLabels={roleLabels}
+                  />
+                ) : undefined
+              }
+              className="mb-6"
+            />
+            {renderDashboard()}
+          </>
+        )}
+      </PageContent>
+    </PageContainer>
   );
 }
