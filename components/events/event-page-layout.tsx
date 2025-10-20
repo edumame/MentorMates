@@ -52,11 +52,11 @@ export async function EventPageLayout({
   // Fetch event role labels if available
   const { data: eventData } = await supabase
     .from("events")
-    .select("event_role_labels")
+    .select("role_labels")
     .eq("event_id", dbEventId)
     .maybeSingle();
 
-  const eventRoleLabels = eventData?.event_role_labels || null;
+  const eventRoleLabels = (eventData?.role_labels as Record<string, string> | null) || null;
 
   // Fetch participant count
   const { count: participantCount } = await supabase
