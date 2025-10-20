@@ -5,11 +5,10 @@ import {
   Dialog,
   DialogContent,
   DialogTitle,
-  DialogClose,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Sparkles, Lightbulb, Loader2, X } from "lucide-react";
+import { Sparkles, Lightbulb, Loader2 } from "lucide-react";
 import { useToast } from "@/lib/hooks/use-toast";
 import Link from "next/link";
 
@@ -138,24 +137,17 @@ export function GiveFeedbackDialog({
     }, 220);
   };
 
-  /* ---------------- Success State (unchanged behavior) ---------------- */
+  const contentBaseClasses =
+    "p-0 shadow-xl !max-w-[calc(100vw-2rem)] w-[calc(100vw-2rem)] " +
+    "lg:!max-w-[70vw] lg:w-[888px] " +
+    "overflow-hidden rounded-[12px] border border-zinc-200 bg-white " +
+    "max-h-[85vh]"; // keep things on screen on short mobiles
+
   if (isSubmitted) {
     return (
       <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent
-          className="p-0"
-          style={{
-            display: "flex",
-            width: 888,
-            alignItems: "flex-start",
-            maxWidth: "calc(100vw - 2rem)",
-            overflow: "hidden",
-            borderRadius: "var(--radius-rounded-xl, 12px)",
-            border: "1px solid var(--border-border-input, #E4E4E7)",
-            background: "var(--background-bg-background, #FFF)",
-          }}
-        >
-          <div className="flex h-full w-full flex-col overflow-y-auto md:flex-row md:overflow-hidden flex-1">
+        <DialogContent className={contentBaseClasses}>
+          <div className="give-feedback-dialog-content flex h-full w-full flex-col overflow-y-auto md:flex-row md:overflow-hidden">
             <div className="flex min-w-0 grow basis-0 flex-col items-center justify-center border-b border-zinc-200 px-4 py-6 md:border-b-0 md:p-6 md:pr-4">
               <div className="flex max-w-md flex-col items-center gap-1.5 text-center">
                 <div className="mb-2 h-16 w-16">
@@ -166,19 +158,17 @@ export function GiveFeedbackDialog({
                 </DialogTitle>
                 <p className="text-sm leading-[1.5] text-zinc-500">
                   Thank you for giving feedback to{" "}
-                  <span className="text-[#4b89ef]">{projectName}</span>!
-                  They&apos;ll find it helpful to improve their work.
+                  <span className="text-[#4b89ef]">{projectName}</span>! They&apos;ll
+                  find it helpful to improve their work.
                 </p>
               </div>
             </div>
 
             <div
-              className="w-full shrink-0 md:w-[450px] md:rounded-b-none md:rounded-br-[6px] md:rounded-tr-[6px] px-4 py-6 md:p-6 md:pl-4"
+              className="w-full shrink-0 md:w-[450px] px-4 py-6 md:p-6 md:pl-4"
               style={{
-                borderTopRightRadius: "var(--radius-rounded-md, 6px)",
-                borderBottomRightRadius: "var(--radius-rounded-md, 6px)",
-                borderTopLeftRadius: 0,
-                borderBottomLeftRadius: 0,
+                borderTopRightRadius: "6px",
+                borderBottomRightRadius: "6px",
                 background: "linear-gradient(180deg, #DBEAFE 0%, #F9F9FF 100%)",
               }}
             >
@@ -188,8 +178,7 @@ export function GiveFeedbackDialog({
                     Interested in Similar Projects?
                   </p>
                   <p className="text-sm leading-[22px] text-zinc-500">
-                    Join our community to discover more innovative projects and
-                    connect with creators.
+                    Join our community to discover more innovative projects and connect with creators.
                   </p>
                 </div>
                 <Button
@@ -206,48 +195,27 @@ export function GiveFeedbackDialog({
     );
   }
 
-  /* ---------------- Main Dialog (matches screenshot) ---------------- */
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent
-        className="p-0 shadow-xl !max-w-none"
-        style={{
-          display: "flex",
-          width: 888,
-          alignItems: "flex-start",
-          maxWidth: "calc(100vw - 2rem)",
-          overflow: "hidden",
-          borderRadius: "var(--radius-rounded-xl, 12px)",
-          border: "1px solid var(--border-border-input, #E4E4E7)",
-          background: "var(--background-bg-background, #FFF)",
-        }}
-      >
-
-        <div className="flex h-full flex-col flex-1 lg:flex-row">
+      <DialogContent className={contentBaseClasses}>
+        <div className="give-feedback-dialog-content flex h-full flex-col lg:flex-row">
           {/* LEFT: Input panel */}
-          <div className="flex-1 bg-white px-6 py-6 lg:px-8 lg:py-8">
+          <div className="flex-1 bg-white px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
             <div className="flex h-full flex-col">
-              {/* Title + helper */}
               <div className="mb-3">
                 <DialogTitle className="text-[18px] font-semibold leading-[1.35] text-zinc-900">
                   Share feedback for{" "}
-                  <button
-                    type="button"
-                    className="align-baseline text-[#4B89EF] hover:underline"
-                  >
+                  <button type="button" className="align-baseline text-[#4B89EF] hover:underline">
                     {projectName}
                   </button>
                 </DialogTitle>
                 <p className="mt-1 max-w-[440px] text-[12px] leading-[1.5] text-zinc-600">
-                  Help this project improve by sharing your thoughts,
-                  suggestions, and ideas.
+                  Help this project improve by sharing your thoughts, suggestions, and ideas.
                 </p>
               </div>
 
-              {/* subtle hairline divider (seen in mock) */}
               <div className="mb-3 h-px w-full bg-zinc-200" />
 
-              {/* Enhance with AI (purple link) */}
               <button
                 onClick={handleEnhanceWithAI}
                 disabled={isGeneratingAI || !feedback.trim()}
@@ -261,7 +229,6 @@ export function GiveFeedbackDialog({
                 {isGeneratingAI ? "Enhancing with AI..." : "Enhance with AI"}
               </button>
 
-              {/* Textarea */}
               <div className="mb-6 flex-1">
                 <Textarea
                   ref={textareaRef}
@@ -272,7 +239,6 @@ export function GiveFeedbackDialog({
                 />
               </div>
 
-              {/* Primary CTA (full width like screenshot) */}
               <div className="mt-auto">
                 <Button
                   onClick={handleSubmit}
@@ -297,17 +263,14 @@ export function GiveFeedbackDialog({
 
           {/* RIGHT: Tips panel */}
           <div
-            className="flex-1 border-l border-[rgba(0,0,0,0.10)] px-6 py-6 lg:px-8 lg:py-8"
+            className="flex-1 border-t border-[rgba(0,0,0,0.10)] px-4 py-5 sm:px-6 sm:py-6 lg:border-t-0 lg:border-l lg:px-8 lg:py-8"
             style={{
-              borderTopRightRadius: "var(--radius-rounded-md, 6px)",
-              borderBottomRightRadius: "var(--radius-rounded-md, 6px)",
-              borderTopLeftRadius: 0,
-              borderBottomLeftRadius: 0,
+              borderTopRightRadius: "6px",
+              borderBottomRightRadius: "6px",
               background: "linear-gradient(180deg, #DBEAFE 0%, #F9F9FF 100%)",
             }}
           >
             <div className="flex h-full flex-col">
-              {/* Lightbulb + Heading */}
               <div className="mb-5 flex items-center gap-3">
                 <div className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/70 ring-1 ring-[rgba(0,0,0,0.1)]">
                   <Lightbulb className="h-4 w-4 text-[#7C8DB5]" />
@@ -317,38 +280,27 @@ export function GiveFeedbackDialog({
                 </h3>
               </div>
 
-              {/* Tips list (01/02/03 + dividers) */}
               <div className="space-y-6">
-                {/* 01 */}
                 <div>
-                  <p className="text-[18px] font-medium tracking-tight text-zinc-900">
-                    01
-                  </p>
+                  <p className="text-[18px] font-medium tracking-tight text-zinc-900">01</p>
                   <p className="mt-1 max-w-[440px] text-[13px] leading-[1.55] text-zinc-600">
                     What should they do next to improve the project?
                   </p>
                   <div className="mt-4 h-px w-full bg-[rgba(0,0,0,0.08)]" />
                 </div>
 
-                {/* 02 */}
                 <div>
-                  <p className="text-[18px] font-medium tracking-tight text-zinc-900">
-                    02
-                  </p>
+                  <p className="text-[18px] font-medium tracking-tight text-zinc-900">02</p>
                   <p className="mt-1 max-w-[440px] text-[13px] leading-[1.55] text-zinc-600">
                     What could be better or work differently?
                   </p>
                   <div className="mt-4 h-px w-full bg-[rgba(0,0,0,0.08)]" />
                 </div>
 
-                {/* 03 */}
                 <div>
-                  <p className="text-[18px] font-medium tracking-tight text-zinc-900">
-                    03
-                  </p>
+                  <p className="text-[18px] font-medium tracking-tight text-zinc-900">03</p>
                   <p className="mt-1 max-w-[440px] text-[13px] leading-[1.55] text-zinc-600">
-                    What works well, and are there similar projects to learn
-                    from?
+                    What works well, and are there similar projects to learn from?
                   </p>
                 </div>
               </div>
