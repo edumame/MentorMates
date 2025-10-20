@@ -170,7 +170,7 @@ export default function FeedbackPage() {
           {!isLoading && feedbackList.length > 0 && (
             <div className="flex flex-col gap-[24px]">
             {/* Border wrapper */}
-            <div className="border border-[rgba(0,0,0,0.15)] rounded-[16px]">
+            <div className="border border-[rgba(0,0,0,0.15)] rounded-[16px] bg-white overflow-hidden">
               {/* Header Row */}
               <div className="flex">
                 <div className="w-[264px] border-b border-[rgba(0,0,0,0.15)] px-[24px] py-[16px]">
@@ -192,7 +192,7 @@ export default function FeedbackPage() {
               </div>
 
               {/* Table Body */}
-              <div className="flex bg-white overflow-x-auto">
+              <div className="flex overflow-x-auto">
                 {/* Send from Column */}
                 <div className="flex flex-col w-[264px]">
                   {feedbackList.map((item, index) => (
