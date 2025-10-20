@@ -100,24 +100,14 @@ export default function FeedbackPage() {
     }
   };
 
-  if (isLoading) {
-    return (
-      <PageContainer>
-        <div className="flex items-center justify-center flex-grow">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
-        </div>
-      </PageContainer>
-    );
-  }
-
   return (
     <PageContainer>
-      <PageContent className="px-[32px] pt-[24px] pb-0">
-        <div className="flex flex-col gap-[48px] max-w-[1064px] mx-auto">
+      <PageContent className="pt-[24px] pb-8">
+        <div className="flex flex-col gap-[24px] px-[32px]">
           {/* Header */}
           <div className="flex items-end justify-between">
             <div className="flex items-center gap-[8px]">
-              <h1 className="text-[28px] font-semibold leading-[1.4] tracking-[-0.06em] text-black">
+              <h1 className="text-[20px] sm:text-[28px] font-semibold leading-[1.4] tracking-[-0.06em] text-black">
                 Feedback
               </h1>
               {unreadCount > 0 && (
@@ -138,27 +128,33 @@ export default function FeedbackPage() {
             )}
           </div>
 
+          {isLoading && (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+            </div>
+          )}
+
           {/* Empty State */}
-          {feedbackList.length === 0 && (
+          {!isLoading && feedbackList.length === 0 && (
             <div className="flex flex-col items-center justify-center py-16 px-4">
               <div className="max-w-md text-center">
                 {/* Icon */}
                 <div className="mx-auto w-24 h-24 bg-gradient-to-br from-blue-50 to-blue-100 rounded-full flex items-center justify-center mb-6">
                   <MessageSquare className="h-12 w-12 text-blue-600" />
                 </div>
-                
+
                 {/* Heading */}
                 <h2 className="text-2xl font-semibold text-gray-900 mb-3">
                   No feedback received yet
                 </h2>
-                
+
                 {/* Description */}
                 <p className="text-gray-600 mb-6 leading-relaxed">
                   Go join an event, submit a project and collect feedback from mentors and peers to improve your work!
                 </p>
-                
+
                 {/* CTA Button */}
-                <Button 
+                <Button
                   asChild
                   className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 h-auto"
                 >
@@ -171,7 +167,7 @@ export default function FeedbackPage() {
           )}
 
           {/* Table */}
-          {feedbackList.length > 0 && (
+          {!isLoading && feedbackList.length > 0 && (
             <div className="flex flex-col gap-[24px]">
             {/* Border wrapper */}
             <div className="border border-[rgba(0,0,0,0.15)] rounded-[16px]">

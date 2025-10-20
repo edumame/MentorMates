@@ -10,6 +10,7 @@ import { customMarkdownComponents } from "@/components/markdown/custom-component
 import { markdownRehypePlugins } from "@/components/markdown/plugins";
 import { useHasJoinedEvent } from "@/lib/hooks/use-has-joined-event";
 import { Loader2 } from "lucide-react";
+import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 
 const ProjectsTab = dynamic(
   () =>
@@ -197,8 +198,10 @@ export function ParticipantDashboard({ eventId }: ParticipantDashboardProps) {
   }, [eventId]);
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-bold">Participant Dashboard</h2>
+    <PageContainer>
+      <PageContent className="px-[32px] pt-[24px]">
+        <div className="flex flex-col gap-[48px] max-w-[1064px] mx-auto">
+      <h2 className="text-[28px] font-semibold leading-[1.4] tracking-[-0.06em] text-black">Participant Dashboard</h2>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList
@@ -315,6 +318,8 @@ export function ParticipantDashboard({ eventId }: ParticipantDashboardProps) {
           </TabsContent>
         )}
       </Tabs>
-    </div>
+        </div>
+      </PageContent>
+    </PageContainer>
   );
 }
