@@ -69,9 +69,14 @@ const ProjectBoard = ({
           {projectList.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[24px]">
               {projectList.map((project) => {
+                // For draft projects in MyProjects, link to edit page
+                // For submitted projects in MyProjects, link to detail page
+                // For EventGallery, always link to public page
                 const projectUrl =
                   projectBoardContext === ProjectBoardContext.MyProjects
-                    ? `/projects/${project.id}`
+                    ? project.submitted
+                      ? `/projects/${project.id}`
+                      : `/projects/${project.id}/edit`
                     : `/projects/public/${project.id}`;
 
                 const isOwner = project.lead_email === session?.user?.email;
