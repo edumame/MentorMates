@@ -50,10 +50,10 @@ export function AuthHero() {
 
   return (
     <PageContainer className="rounded-tl-2xl sm:rounded-tl-2xl rounded-none sm:border-t sm:border-l">
-      <PageContent className="px-8 py-6">
-        <div className="flex flex-col items-start gap-12">
+      <PageContent className="px-[32px] pt-[24px]">
+        <div className="flex flex-col items-start gap-[48px] max-w-[1064px] mx-auto">
           <div className="flex flex-col items-start gap-4">
-            <h1 className="text-2xl font-semibold">Welcome, {userName}!</h1>
+            <h1 className="text-[28px] font-semibold leading-[1.4] tracking-[-0.06em] text-black">Welcome, {userName}!</h1>
           </div>
 
           <DashBoardStats />

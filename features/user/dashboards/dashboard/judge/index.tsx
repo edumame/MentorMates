@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { DefaultScoring } from "@/components/project-scoring/default-scoring";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { JudgeChecklist } from "./checklist";
+import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 
 interface JudgeDashboardProps {
   eventId: string;
@@ -242,12 +243,21 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
 
   if (projects.length === 0) {
     return (
-      <h2 className="text-2xl text-muted-foreground text-center">No projects assigned to you.</h2>
+      <PageContainer>
+        <PageContent className="px-[32px] pt-[24px]">
+          <div className="flex flex-col gap-[48px] max-w-[1064px] mx-auto">
+      <h2 className="text-[28px] font-semibold leading-[1.4] tracking-[-0.06em] text-black text-center">No projects assigned to you.</h2>
+          </div>
+        </PageContent>
+      </PageContainer>
     );
   }
 
   return (
-    <div className="flex gap-6 relative max-h-screen w-full">
+    <PageContainer>
+      <PageContent className="px-[32px] pt-[24px]">
+        <div className="flex flex-col gap-[48px] max-w-[1064px] mx-auto">
+    <div className="flex gap-6 relative w-full">
       <div className="w-[300px]">
         <div className="sticky top-4">
           <JudgeChecklist eventId={eventId} />
@@ -347,5 +357,8 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
         </Card>
       </div>
     </div>
+        </div>
+      </PageContent>
+    </PageContainer>
   );
 }
