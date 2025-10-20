@@ -44,7 +44,6 @@ export function NewProjectSubmissionFormSinglePage({
   onProjectSubmitted,
   onContextusLinked,
   contextusId: initialContextusId,
-  existingProjectId,
 }: {
   userEmail?: string;
   leadName?: string;
@@ -52,7 +51,6 @@ export function NewProjectSubmissionFormSinglePage({
   onProjectSubmitted?: () => void;
   onContextusLinked?: (ctxId: string) => void;
   contextusId?: string | null;
-  existingProjectId?: string | null;
 }) {
   const router = useRouter();
   const isAdmin = useAdmin();
@@ -61,9 +59,7 @@ export function NewProjectSubmissionFormSinglePage({
   const draftCreationAttempted = useRef(false);
 
   // State
-  const [projectId, setProjectId] = useState<string | null>(
-    existingProjectId ?? null
-  );
+  const [projectId, setProjectId] = useState<string | null>(null);
   const [contextusId, setContextusId] = useState<string | null>(
     initialContextusId ?? null
   );
@@ -88,57 +84,8 @@ export function NewProjectSubmissionFormSinglePage({
     additionalMaterialsUrl: "",
   });
 
-  // Fetch existing project data and event details
   useEffect(() => {
     const init = async () => {
-      // Load existing project if existingProjectId is provided
-      if (existingProjectId) {
-        try {
-          const { data: project, error } = await supabase
-            .from("projects")
-            .select("*")
-            .eq("id", existingProjectId)
-            .single();
-
-          if (!error && project) {
-            setFormData({
-              projectName: project.project_name || "",
-              leadName: project.lead_name || leadName || "",
-              leadEmail: project.lead_email || userEmail || "",
-              projectDescription: project.project_description || "",
-              teammates: Array.isArray(project.teammates)
-                ? project.teammates
-                : [],
-              projectUrl: project.project_url || "",
-              videoUrl: project.video_url || "",
-              coverImageUrl: project.cover_image_url || "",
-              additionalMaterialsUrl: project.additional_materials_url || "",
-            });
-
-            if (project.contextus_project_id) {
-              setContextusId(project.contextus_project_id);
-            }
-
-            // Use the event_id from the existing project if available
-            if (project.event_id && !eventId) {
-              const { data: eventData } = await supabase
-                .from("events")
-                .select(
-                  "event_id, event_name, slug, event_date, location, cover_image_url, paid, event_description"
-                )
-                .eq("event_id", project.event_id)
-                .single();
-
-              if (eventData) {
-                setEventDetails(eventData as EventDetails);
-              }
-            }
-          }
-        } catch {
-          // Silent fail
-        }
-      }
-
       // Hydrate from session if no props provided
       if (!leadName || !userEmail) {
         try {
@@ -194,7 +141,7 @@ export function NewProjectSubmissionFormSinglePage({
     };
 
     init();
-  }, [eventId, leadName, userEmail, existingProjectId]);
+  }, [eventId, leadName, userEmail]);
 
   // Fetch event participants
   const fetchEventParticipants = useCallback(async () => {
@@ -446,7 +393,7 @@ export function NewProjectSubmissionFormSinglePage({
 
   const handleTeammatesChange = async (tags: string[]) => {
     // Extract emails from tags that might be in "Name (email)" format
-    const emails = tags.map(tag => {
+    const emails = tags.map((tag) => {
       const emailMatch = tag.match(/\((.+?)\)$/);
       return emailMatch ? emailMatch[1] : tag;
     });
@@ -644,7 +591,7 @@ export function NewProjectSubmissionFormSinglePage({
       <div className="overflow-visible">
         {/* Main Content */}
         <div className="bg-gradient-to-br from-blue-100/45 via-transparent to-transparent">
-          <div className="container mx-auto px-8 py-6 min-h-[1200px]">
+          <div className="container mx-auto px-8 py-6 min-h-[800px]">
             <div className="flex gap-12 items-start justify-between">
               {/* Left Side - Form */}
               <div className="flex-1 max-w-[640px] space-y-6">
@@ -838,7 +785,7 @@ export function NewProjectSubmissionFormSinglePage({
                   <div className="border-t border-gray-200" />
 
                   {/* Add Teammates */}
-                  <div className="space-y-2 pb-64 mb-32">
+                  <div className="space-y-2">
                     <label className="text-base text-black font-normal">
                       Add teammates (Optional)
                     </label>
@@ -849,9 +796,12 @@ export function NewProjectSubmissionFormSinglePage({
                           : p.email
                       )}
                       onTagsChange={handleTeammatesChange}
-                      initialTags={formData.teammates.map(email => {
-                        const participant = participants.find(p => p.email === email);
-                        return participant?.display_name && participant.display_name !== email
+                      initialTags={formData.teammates.map((email) => {
+                        const participant = participants.find(
+                          (p) => p.email === email
+                        );
+                        return participant?.display_name &&
+                          participant.display_name !== email
                           ? `${participant.display_name} (${email})`
                           : email;
                       })}
@@ -861,12 +811,11 @@ export function NewProjectSubmissionFormSinglePage({
                   </div>
 
                   {/* Spacer to ensure dropdown visibility */}
-                  <div className="h-[1000px]" aria-hidden="true"></div>
                 </div>
               </div>
 
               {/* Right Side - Preview & Actions */}
-              <div className="space-y-6">
+              <div className="space-y-3">
                 {/* Action Buttons */}
                 <div className="flex items-center gap-1 justify-end">
                   <Button
