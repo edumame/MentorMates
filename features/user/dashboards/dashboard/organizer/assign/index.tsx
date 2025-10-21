@@ -96,7 +96,7 @@ export function AssignTab({ eventId }: AssignTabProps) {
   };
 
   const fetchProjects = async () => {
-    const response = await fetch(`/api/projects?eventId=${eventId}`);
+    const response = await fetch(`/api/projects?eventId=${eventId}&submitted=true`);
     if (!response.ok) throw new Error("Failed to fetch projects");
     const data = await response.json();
     setProjects(data.projects || []);
@@ -419,7 +419,7 @@ export function AssignTab({ eventId }: AssignTabProps) {
         </div>
         {/* Assignment Table */}
         <div className="space-y-4">
-          <h3 className="font-semibold">Current Assignments</h3>
+          <h3 className="font-semibold">Current Assignments for Submitted Projects</h3>
 
           {projects.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
@@ -461,7 +461,7 @@ export function AssignTab({ eventId }: AssignTabProps) {
                               className="flex items-center gap-2"
                             >
                               <Badge variant="outline">
-                                {assignment.user.email}
+                                {assignment.user.display_name}
                               </Badge>
                               <Button
                                 size="sm"

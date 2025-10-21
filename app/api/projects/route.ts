@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
     const eventId = searchParams.get("eventId");
     const projectId = searchParams.get("projectId");
     const isPublic = searchParams.get("public") === "true";
+    const submitted = searchParams.get("submitted") === "true";
 
     // For public gallery view, no authentication required
     if (isPublic && eventId) {
@@ -307,7 +308,7 @@ export async function GET(request: NextRequest) {
       }
 
       // Organizer view - fetch all projects with track relationships
-      const { data: projectsData, error } = await supabase
+      const query = supabase
         .from("projects")
         .select(
           `
@@ -318,6 +319,12 @@ export async function GET(request: NextRequest) {
           `
         )
         .eq("event_id", eventId);
+
+      if (submitted) {
+        query.eq("submitted", true);
+      }
+
+      const { data: projectsData, error } = await query;
 
       if (error) {
         console.error("Error fetching projects:", error);
