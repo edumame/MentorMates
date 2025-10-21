@@ -11,7 +11,6 @@ import {
   EventRole,
 } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MentorDashboard } from "@/features/user/dashboards/dashboard/mentor-dashboard";
 import { ParticipantDashboard } from "@/features/user/dashboards/dashboard/participant-dashboard";
 import { JudgeDashboard } from "@/features/user/dashboards/dashboard/judge-dashboard";
 import { useActiveRole } from "./ActiveRoleContext";
