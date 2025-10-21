@@ -23,6 +23,7 @@ export default async function PublicParticipantsPage({ params }: PageProps) {
   let eventQuery = supabase.from("events").select(`
     event_id,
     event_name,
+    event_type,
     event_blurb,
     event_date,
     location,

@@ -103,6 +103,7 @@ export type EventItem = {
   event_id: string;
   slug?: string;
   event_name: string;
+  event_type?: string; // e.g., "hackathon", "workshop", "conference"
   event_date: string;
   location: string;
   visibility?: EventVisibility;

@@ -10,6 +10,7 @@ interface EventPageHeaderProps {
   eventDate: string;
   location: string;
   coverImageUrl?: string;
+  eventType?: string;
   eventId: string;
   hasJoined: boolean;
   userRole?: EventRole | null;
@@ -22,6 +23,7 @@ export function EventPageHeader({
   eventDate,
   location,
   coverImageUrl,
+  eventType,
   eventId,
   hasJoined,
   userRole,
@@ -59,7 +61,7 @@ export function EventPageHeader({
         <div className="absolute left-6 top-6 flex flex-wrap gap-1 z-10">
           <div className="bg-white border border-[rgba(0,0,0,0.15)] px-2.5 py-1 rounded-full">
             <p className="font-semibold text-sm leading-[1.5] text-black whitespace-nowrap">
-              Hackathon
+              {eventType || "Hackathon"}
             </p>
           </div>
           <div className="bg-white border border-[rgba(0,0,0,0.15)] px-2.5 py-1 rounded-full">

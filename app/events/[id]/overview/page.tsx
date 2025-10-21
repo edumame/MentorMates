@@ -24,6 +24,7 @@ export default async function EventOverviewPage({ params }: PageProps) {
   let query = supabase.from("events").select(`
     event_id,
     event_name,
+    event_type,
     event_description,
     event_blurb,
     event_date,

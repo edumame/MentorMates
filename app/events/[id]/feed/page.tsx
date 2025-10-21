@@ -22,6 +22,7 @@ export default async function FeedPage({ params, searchParams }: PageProps) {
   let query = supabase.from("events").select(`
     event_id,
     event_name,
+    event_type,
     event_blurb,
     event_date,
     location,
