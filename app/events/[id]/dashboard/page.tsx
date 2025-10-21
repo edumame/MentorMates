@@ -57,11 +57,13 @@ export default function DashboardPage() {
     // Use activeRole for dashboard rendering to support role switching
     switch (activeRole) {
       case EventRole.Participant:
-        return <ParticipantDashboard eventId={eventId} />;
+        return <ParticipantDashboard eventId={eventId} canCreateProjects />;
       case EventRole.Judge:
         return <JudgeDashboard eventId={eventId} />;
       case EventRole.Mentor:
-        return <MentorDashboard eventId={eventId} />;
+        return (
+          <ParticipantDashboard eventId={eventId} canCreateProjects={false} />
+        );
       case EventRole.Admin:
       case EventRole.Organizer:
         return <OrganizerDashboard eventId={eventId} />;

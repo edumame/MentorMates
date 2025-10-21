@@ -12,6 +12,7 @@ import {
 } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MentorDashboard } from "@/features/user/dashboards/dashboard/mentor-dashboard";
+import { ParticipantDashboard } from "@/features/user/dashboards/dashboard/participant-dashboard";
 import { JudgeDashboard } from "@/features/user/dashboards/dashboard/judge-dashboard";
 import { useActiveRole } from "./ActiveRoleContext";
 
@@ -32,12 +33,11 @@ export function EventPageContent({
   const { activeRole } = useActiveRole();
   const displayRole = activeRole || userRole;
 
-  // Show role-specific dashboards for mentors and judges
-  // These components manage their own layout and don't need the wrapper
+  // Show participant-style dashboard for mentors (no project creation)
   if (displayRole === "mentor") {
     return (
       <div className="flex flex-col flex-1 w-full">
-        <MentorDashboard eventId={event.event_id} />
+        <ParticipantDashboard eventId={event.event_id} canCreateProjects={false} />
       </div>
     );
   }
