@@ -234,8 +234,8 @@ export function SubmissionsTab({ eventId }: SubmissionsTabProps) {
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-medium">Project Submissions</h3>
             <div className="flex gap-2">
-              <Button onClick={exportSubmissions}>Export Submissions</Button>
-              <Button onClick={exportFeedback} variant="outline">
+              <Button disabled={loading} onClick={exportSubmissions}>Export Submissions</Button>
+              <Button disabled={loading} onClick={exportFeedback} variant="outline">
                 Export Feedback
               </Button>
             </div>
