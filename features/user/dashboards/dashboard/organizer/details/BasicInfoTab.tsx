@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { EventDetails, EventVisibility } from "@/lib/types";
 import { useRouter } from "next/navigation";
 import { toast as ToastType } from "@/lib/hooks/use-toast";
@@ -129,6 +130,7 @@ export function BasicInfoTab({
           submission_time_start: event.submission_time_start,
           submission_time_cutoff: event.submission_time_cutoff,
           participant_capacity: event.participant_capacity ?? null,
+          finalist_recommendation_enabled: event.finalist_recommendation_enabled ?? false,
         })
         .eq("event_id", event.event_id);
 
@@ -277,6 +279,24 @@ export function BasicInfoTab({
           <p className="text-xs text-gray-500">
             URL-friendly identifier for your event (lowercase, hyphens only)
           </p>
+        </div>
+
+        {/* Finalist Recommendation Toggle */}
+        <div className="space-y-2">
+          <Label htmlFor="finalist_recommendation_enabled">Enable finalist recommendation</Label>
+          <div className="flex items-center gap-3">
+            <Switch
+              id="finalist_recommendation_enabled"
+              checked={!!event.finalist_recommendation_enabled}
+              disabled={isArchived}
+              onCheckedChange={(checked) =>
+                setEvent({ ...event, finalist_recommendation_enabled: checked })
+              }
+            />
+            <span className="text-sm text-muted-foreground">
+              Judges can mark projects as recommended for finals
+            </span>
+          </div>
         </div>
       </div>
 

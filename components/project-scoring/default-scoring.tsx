@@ -7,6 +7,7 @@ import { ScoringCriterion, Project } from "@/lib/types";
 import { QuestionFactory } from "./question-types/question-factory";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Form, FormField, FormItem, FormLabel } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 
@@ -15,11 +16,13 @@ interface DefaultScoringProps {
   eventId: string;
   judgeId: string;
   trackId: string;
+  finalistFeatureEnabled?: boolean;
 }
 
 interface FormValues {
   scores: Record<string, number | string>;
   comments: string;
+  finalist_recommendation?: boolean;
 }
 
 export function DefaultScoring({
@@ -27,6 +30,7 @@ export function DefaultScoring({
   eventId,
   judgeId,
   trackId,
+  finalistFeatureEnabled = false,
 }: DefaultScoringProps) {
   const [loading, setLoading] = useState(true);
   const [project, setProject] = useState<Project | null>(null);
@@ -38,6 +42,7 @@ export function DefaultScoring({
     defaultValues: {
       scores: {},
       comments: "",
+      finalist_recommendation: false,
     },
   });
 
@@ -82,7 +87,7 @@ export function DefaultScoring({
         // Check if this project has already been scored by this judge
         const { data: existingScore, error: scoreError } = await supabase
           .from("project_scores")
-          .select("scores, comments")
+          .select("scores, comments, finalist_recommendation")
           .eq("project_id", projectId)
           .eq("track_id", trackId)
           .eq("judge_id", judgeId)
@@ -93,6 +98,7 @@ export function DefaultScoring({
           form.reset({
             scores: existingScore.scores,
             comments: existingScore.comments || "",
+            finalist_recommendation: !!existingScore.finalist_recommendation,
           });
         }
       } catch (error) {
@@ -115,7 +121,6 @@ export function DefaultScoring({
     setSubmitting(true);
 
     try {
-      console.log(values);
       // Check if a score already exists
       const { data: existingScore, error: checkError } = await supabase
         .from("project_scores")
@@ -136,6 +141,7 @@ export function DefaultScoring({
           .update({
             scores: values.scores,
             comments: values.comments,
+            finalist_recommendation: !!values.finalist_recommendation,
             updated_at: new Date().toISOString(),
           })
           .eq("id", existingScore.id);
@@ -152,6 +158,7 @@ export function DefaultScoring({
             event_id: eventId,
             scores: values.scores,
             comments: values.comments,
+            finalist_recommendation: !!values.finalist_recommendation,
           });
 
         if (insertError) throw insertError;
@@ -234,6 +241,21 @@ export function DefaultScoring({
               className="min-h-32"
             />
           </FormItem>
+
+          {finalistFeatureEnabled && (
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="finalist_recommendation"
+                checked={!!form.watch("finalist_recommendation")}
+                onCheckedChange={(checked) =>
+                  form.setValue("finalist_recommendation", Boolean(checked))
+                }
+              />
+              <label htmlFor="finalist_recommendation" className="text-sm">
+                Recommend as Finalist
+              </label>
+            </div>
+          )}
 
           <Button type="submit" disabled={submitting}>
             {submitting ? "Submitting..." : "Submit Evaluation"}
