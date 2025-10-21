@@ -105,6 +105,9 @@ export async function POST(req: Request) {
   const shuffledProjects = shuffle(projectIds);
   const userIdsToAssign = shuffle(roleToAssign.map((r) => r.user_id));
 
+  console.log("userIdsToAssign", userIdsToAssign);
+  console.log("shuffledProjects", shuffledProjects);
+
   // Assign groups of size rolesPerProject to each project using wrap-around (modulo)
   for (let pIndex = 0; pIndex < shuffledProjects.length; pIndex++) {
     const projectId = shuffledProjects[pIndex];
@@ -112,6 +115,8 @@ export async function POST(req: Request) {
     for (let k = 0; k < rolesPerProject; k++) {
       const userIndex = (pIndex * rolesPerProject + k) % userIdsToAssign.length;
       const userId = userIdsToAssign[userIndex];
+
+      console.log("userId", userId);
 
       await supabase.from("project_assignments").upsert(
         {

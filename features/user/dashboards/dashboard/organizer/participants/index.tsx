@@ -81,7 +81,7 @@ export function ParticipantsTab({ eventId }: ParticipantsTabProps) {
         ).map((role) => ({
           user_id: role.user_id,
           role: role.role as EventRole,
-          display_name: role.profiles?.display_name || role.user_id,
+          display_name: role.profiles?.display_name || role.profiles?.email?.split("@")[0] || "Unknown User",
           email: role.profiles?.email || "",
         }));
 

@@ -127,7 +127,7 @@ export function AssignTab({ eventId }: AssignTabProps) {
         : ur.user_profiles;
       return {
         user_id: ur.user_id,
-        display_name: profile?.display_name || ur.user_id,
+        display_name: profile?.display_name || profile?.email?.split("@")[0] || "Unknown User",
         email: profile?.email || "",
         role: ur.role as EventRole,
       };
@@ -191,7 +191,7 @@ export function AssignTab({ eventId }: AssignTabProps) {
         },
         user: {
           user_id: a.user_id,
-          display_name: profile?.display_name || a.user_id,
+          display_name: profile?.display_name || profile?.email?.split("@")[0] || "Unknown User",
           email: profile?.email || "",
           role: a.role as EventRole,
         },
@@ -461,7 +461,7 @@ export function AssignTab({ eventId }: AssignTabProps) {
                               className="flex items-center gap-2"
                             >
                               <Badge variant="outline">
-                                {assignment.user.display_name}
+                                {assignment.user.email}
                               </Badge>
                               <Button
                                 size="sm"
@@ -572,7 +572,7 @@ function ManualAssignSelect({
         <SelectContent>
           {availableToAssign.map((user) => (
             <SelectItem key={user.user_id} value={user.user_id}>
-              {user.display_name}
+              {user.email}
             </SelectItem>
           ))}
         </SelectContent>
