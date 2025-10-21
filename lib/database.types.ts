@@ -153,6 +153,7 @@ export type Database = {
           role_labels: Json | null
           rules: Json
           scoring_config: Json | null
+          finalist_recommendation_enabled: boolean | null
           slug: string | null
           stripe_price_id: string | null
           submission_time_cutoff: string | null
@@ -179,6 +180,7 @@ export type Database = {
           role_labels?: Json | null
           rules: Json
           scoring_config?: Json | null
+          finalist_recommendation_enabled?: boolean | null
           slug?: string | null
           stripe_price_id?: string | null
           submission_time_cutoff?: string | null
@@ -205,6 +207,7 @@ export type Database = {
           role_labels?: Json | null
           rules?: Json
           scoring_config?: Json | null
+          finalist_recommendation_enabled?: boolean | null
           slug?: string | null
           stripe_price_id?: string | null
           submission_time_cutoff?: string | null
@@ -487,6 +490,7 @@ export type Database = {
           scores: Json
           track_id: string | null
           updated_at: string | null
+          finalist_recommendation: boolean | null
         }
         Insert: {
           comments?: string | null
@@ -498,6 +502,7 @@ export type Database = {
           scores: Json
           track_id?: string | null
           updated_at?: string | null
+          finalist_recommendation?: boolean | null
         }
         Update: {
           comments?: string | null
@@ -509,6 +514,7 @@ export type Database = {
           scores?: Json
           track_id?: string | null
           updated_at?: string | null
+          finalist_recommendation?: boolean | null
         }
         Relationships: [
           {
