@@ -6,7 +6,6 @@ import { useEventRegistration } from "@/components/event-registration-provider";
 import { EventRole } from "@/lib/types";
 import { ParticipantDashboard } from "@/features/user/dashboards/dashboard/participant-dashboard";
 import { JudgeDashboard } from "@/features/user/dashboards/dashboard/judge-dashboard";
-import { MentorDashboard } from "@/features/user/dashboards/dashboard/mentor-dashboard";
 import { OrganizerDashboard } from "@/features/user/dashboards/dashboard/organizer";
 import { useState, useEffect } from "react";
 import { isValidUUID } from "@/app/utils/supabase/queries";
@@ -57,11 +56,13 @@ export default function DashboardPage() {
     // Use activeRole for dashboard rendering to support role switching
     switch (activeRole) {
       case EventRole.Participant:
-        return <ParticipantDashboard eventId={eventId} />;
+        return <ParticipantDashboard eventId={eventId} canCreateProjects />;
       case EventRole.Judge:
         return <JudgeDashboard eventId={eventId} />;
       case EventRole.Mentor:
-        return <MentorDashboard eventId={eventId} />;
+        return (
+          <ParticipantDashboard eventId={eventId} canCreateProjects={false} />
+        );
       case EventRole.Admin:
       case EventRole.Organizer:
         return <OrganizerDashboard eventId={eventId} />;

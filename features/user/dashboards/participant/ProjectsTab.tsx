@@ -11,6 +11,7 @@ interface ProjectsTabProps {
   myProjects: Project[];
   setMyProjects: React.Dispatch<React.SetStateAction<Project[]>>;
   isLoading: boolean;
+  canCreateProjects?: boolean;
 }
 
 export function ProjectsTab({
@@ -18,6 +19,7 @@ export function ProjectsTab({
   myProjects,
   setMyProjects,
   isLoading,
+  canCreateProjects = true,
 }: ProjectsTabProps) {
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
@@ -55,12 +57,14 @@ export function ProjectsTab({
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Projects</h2>
-        <Link href={`/projects/submit?eventId=${eventId}`}>
-          <Button className="button-gradient text-white font-semibold rounded-full shadow-lg hover:shadow-xl transition-all duration-300 flex items-center gap-2">
-            <Add className="h-5 w-5" />
-            Create Project
-          </Button>
-        </Link>
+        {canCreateProjects && (
+          <Link href={`/projects/submit?eventId=${eventId}`}>
+            <Button className="button-gradient text-white font-semibold rounded-full shadow-lg hover:shadow-xl transition-all duration-300 flex items-center gap-2">
+              <Add className="h-5 w-5" />
+              Create Project
+            </Button>
+          </Link>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
