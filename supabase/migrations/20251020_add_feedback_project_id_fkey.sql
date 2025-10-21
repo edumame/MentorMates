@@ -6,13 +6,9 @@ BEGIN;
 -- Check for orphaned feedback records before deletion
 -- This will display feedback that references non-existent projects
 DO $$
-DECLARE
-    orphaned_count INTEGER;
-BEGIN
-    SELECT COUNT(*) INTO orphaned_count
-    FROM "public"."feedback"
-    WHERE "project_id" IS NOT NULL 
-      AND "project_id" NOT IN (SELECT "id" FROM "public"."projects");
+SELECT * FROM "public"."feedback"
+WHERE "project_id" IS NOT NULL 
+  AND "project_id" NOT IN (SELECT "id" FROM "public"."projects");
 END $$;
 
 -- Clean up any orphaned feedback by deleting records
