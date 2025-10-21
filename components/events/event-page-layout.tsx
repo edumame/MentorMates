@@ -117,6 +117,7 @@ export async function EventPageLayout({
               eventId={dbEventId}
               hasJoined={hasJoined}
               userRole={null}
+            activeRole={null}
             />
 
             {/* Tabs Navigation */}

@@ -1,8 +1,10 @@
 "use client";
 
-import { CalendarDays, MapPin, ArrowUpRight } from "lucide-react";
+import { CalendarDays, MapPin, ArrowUpRight, Plus } from "lucide-react";
 import { EventRole } from "@/lib/types";
 import { JoinEventButton } from "./join-event-button";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
 interface EventPageHeaderProps {
   eventName: string;
@@ -13,6 +15,12 @@ interface EventPageHeaderProps {
   eventId: string;
   hasJoined: boolean;
   userRole?: EventRole | null;
+  /**
+   * The role currently being viewed (from RoleSwitcher). If provided, this
+   * determines the CTA shown (e.g., presenters see "Create Project").
+   * Falls back to userRole when not provided.
+   */
+  activeRole?: EventRole | null;
   onManageEventClick?: () => void;
 }
 
@@ -25,6 +33,7 @@ export function EventPageHeader({
   eventId,
   hasJoined,
   userRole,
+  activeRole,
   onManageEventClick,
 }: EventPageHeaderProps) {
   // Format date
@@ -97,18 +106,34 @@ export function EventPageHeader({
               <div className="flex flex-col gap-[12px] items-end justify-center w-[411px]">
                 <div className="flex flex-col gap-[16px] items-center justify-center">
                   <div className="flex gap-[16px] items-start w-full">
-                    {!hasJoined ? (
-                      <JoinEventButton
-                        eventId={eventId}
-                        eventName={eventName}
-                      />
-                    ) : (
-                      <div className="basis-0 bg-green-500 box-border flex gap-[6px] grow items-center justify-center min-h-px min-w-px px-[20px] py-[8px] rounded-[12px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] shrink-0">
-                        <p className="font-medium text-base leading-[1.5] text-white text-nowrap whitespace-pre">
-                          Joined
-                        </p>
-                      </div>
-                    )}
+                    {(() => {
+                      const roleForView = activeRole ?? userRole ?? null;
+                      const isPresenterView = roleForView === EventRole.Participant;
+
+                      if (isPresenterView) {
+                        return (
+                          <Button asChild variant="default" size="lg" className="rounded-full px-6 py-5 gap-2">
+                            <Link href={`/projects/submit?eventId=${eventId}`}>
+                              <Plus className="h-6 w-6" /> Create Project
+                            </Link>
+                          </Button>
+                        );
+                      }
+
+                      if (!hasJoined) {
+                        return (
+                          <JoinEventButton eventId={eventId} eventName={eventName} />
+                        );
+                      }
+
+                      return (
+                        <div className="basis-0 bg-green-500 box-border flex gap-[6px] grow items-center justify-center min-h-px min-w-px px-[20px] py-[8px] rounded-[12px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] shrink-0">
+                          <p className="font-medium text-base leading-[1.5] text-white text-nowrap whitespace-pre">
+                            Joined
+                          </p>
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   {/* Manage Event Button */}
