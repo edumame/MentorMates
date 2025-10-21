@@ -34,8 +34,8 @@ export function EventPageContentWrapper({
         userRole={displayRole}
       />
 
-      {/* Sidebar - only show for non-mentor/judge roles */}
-      {displayRole !== "mentor" && displayRole !== "judge" && (
+      {/* Sidebar - only hide for judges; mentors see participant view */}
+      {displayRole !== "judge" && (
         <EventPageSidebar
           eventResources={event.event_resources}
           eventId={event.event_id}

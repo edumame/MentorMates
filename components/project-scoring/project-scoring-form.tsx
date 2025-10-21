@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { ScoreFormData, ScoringCriterion } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
@@ -16,6 +17,7 @@ interface ProjectScoringFormProps {
   onScoreSubmitted: () => void;
   defaultMin?: number;
   defaultMax?: number;
+  finalistFeatureEnabled?: boolean;
 }
 
 interface ProjectData {
@@ -32,6 +34,7 @@ export function ProjectScoringForm({
   onScoreSubmitted,
   defaultMin = 1,
   defaultMax = 10,
+  finalistFeatureEnabled = false,
 }: ProjectScoringFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -47,6 +50,7 @@ export function ProjectScoringForm({
     return {
       scores: initialScores,
       comments: "",
+      finalist_recommendation: false,
     };
   });
 
@@ -82,7 +86,7 @@ export function ProjectScoringForm({
 
         const { data: scoreData, error: scoreError } = await supabase
           .from("project_scores")
-          .select("scores, comments")
+          .select("scores, comments, finalist_recommendation")
           .eq("project_id", projectId)
           .eq("track_id", trackId)
           .eq("judge_id", session.user.id)
@@ -105,6 +109,7 @@ export function ProjectScoringForm({
           setFormData({
             scores: scoreData.scores,
             comments: scoreData.comments || "",
+            finalist_recommendation: !!scoreData.finalist_recommendation,
           });
         }
       } catch (error) {
@@ -181,6 +186,7 @@ export function ProjectScoringForm({
           event_id: projectData.projects.event_id,
           scores: formData.scores,
           comments: formData.comments,
+          finalist_recommendation: !!formData.finalist_recommendation,
           updated_at: new Date(),
         },
         {
@@ -263,6 +269,24 @@ export function ProjectScoringForm({
           }}
         />
       </div>
+
+      {finalistFeatureEnabled && (
+        <div className="flex items-center gap-2 px-2">
+          <Checkbox
+            id="finalist_recommendation"
+            checked={!!formData.finalist_recommendation}
+            onCheckedChange={(checked) =>
+              setFormData((prev) => ({
+                ...prev,
+                finalist_recommendation: Boolean(checked),
+              }))
+            }
+          />
+          <label htmlFor="finalist_recommendation" className="text-sm">
+            Recommend as Finalist
+          </label>
+        </div>
+      )}
 
       <Button type="submit" disabled={isSubmitting || !trackId}>
         {isSubmitting ? "Submitting..." : "Submit Score"}

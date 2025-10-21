@@ -111,6 +111,7 @@ export type EventItem = {
   paid?: boolean;
   stripe_price_id?: string; // Stripe price ID for paid events
   participant_capacity?: number | null; // Max participants; null = unlimited
+  finalist_recommendation_enabled?: boolean | null;
 };
 
 // Event Overview Types
@@ -264,6 +265,7 @@ export interface ProjectScore {
   event_id: string;
   scores: Record<string, number | string>;
   comments?: string;
+  finalist_recommendation?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -271,6 +273,7 @@ export interface ProjectScore {
 export interface ScoreFormData {
   scores: Record<string, number | string>;
   comments?: string;
+  finalist_recommendation?: boolean;
 }
 
 // Add new type for project-track relationship

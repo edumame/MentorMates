@@ -45,13 +45,14 @@ const ViewTicketsTab = dynamic(
 
 interface ParticipantDashboardProps {
   eventId: string;
+  canCreateProjects?: boolean;
 }
 
 interface EventInfo {
   paid: boolean | null;
 }
 
-export function ParticipantDashboard({ eventId }: ParticipantDashboardProps) {
+export function ParticipantDashboard({ eventId, canCreateProjects = true }: ParticipantDashboardProps) {
   const [myProjects, setMyProjects] = useState<Project[]>([]);
   const [eventInfo, setEventInfo] = useState<EventInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -232,6 +233,7 @@ export function ParticipantDashboard({ eventId }: ParticipantDashboardProps) {
               myProjects={myProjects}
               setMyProjects={setMyProjects}
               isLoading={isLoading}
+              canCreateProjects={canCreateProjects}
             />
           </Suspense>
         </TabsContent>

@@ -753,7 +753,9 @@ export default function DraftProjectSubmissionFormSinglePage({
                 </div>
 
                 <button
-                  onClick={() => router.push(`/projects/${projectId}`)}
+                  onClick={() =>
+                    window.open(`/projects/${projectId}`, "_blank", "noopener,noreferrer")
+                  }
                   className="flex items-center gap-1 justify-center text-[#7f7f7f] hover:text-black transition-colors"
                 >
                   <span className="text-base">Preview project page</span>

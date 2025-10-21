@@ -27,6 +27,7 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
     Map<string, boolean>
   >(new Map());
   const [searchQuery, setSearchQuery] = useState("");
+  const [finalistFeatureEnabled, setFinalistFeatureEnabled] = useState(false);
 
   const filteredProjects = useMemo(
     () =>
@@ -66,7 +67,7 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
 
         setJudgeId(session.user.id);
 
-        // Fetch event tracks
+        // Fetch event tracks and event settings
         const { data: trackData, error: trackError } = await supabase
           .from("event_tracks")
           .select(
@@ -87,6 +88,13 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
           );
         }
         setEventTracks(trackData || []);
+
+        const { data: eventSettings } = await supabase
+          .from("events")
+          .select("finalist_recommendation_enabled")
+          .eq("event_id", eventId)
+          .maybeSingle();
+        setFinalistFeatureEnabled(!!eventSettings?.finalist_recommendation_enabled);
 
         //Fetch projects assigned to the judge
         const { data: assignedProjects, error: assignedProjectsError } =
@@ -233,6 +241,7 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
         eventId={eventId}
         judgeId={judgeId}
         trackId={trackId}
+        finalistFeatureEnabled={finalistFeatureEnabled}
       />
     );
   };

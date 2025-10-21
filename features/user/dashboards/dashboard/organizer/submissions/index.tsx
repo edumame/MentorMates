@@ -35,6 +35,11 @@ interface ProjectData {
       name: string;
     };
   }[];
+  feedback: {
+    feedback_text: string;
+    mentor_name: string;
+    mentor_email: string;
+  }[];
 }
 
 interface SubmissionsTabProps {
@@ -46,20 +51,7 @@ export function SubmissionsTab({ eventId }: SubmissionsTabProps) {
   const [loading, setLoading] = useState(true);
 
   const exportSubmissions = async () => {
-    const { data } = await supabase
-      .from("projects")
-      .select(
-        `
-        project_name,
-        lead_name,
-        lead_email,
-        project_description,
-        project_url,
-        teammates,
-        submitted
-      `
-      )
-      .eq("event_id", eventId);
+    const data = projects;
 
     if (data) {
       const csv = Papa.unparse(
@@ -70,7 +62,13 @@ export function SubmissionsTab({ eventId }: SubmissionsTabProps) {
           Description: project.project_description,
           "Project URL": project.project_url,
           "Team Members": project.teammates.join(", "),
-          Submitted: project.submitted,
+          "Tracks":
+            project.project_tracks
+              ?.map((pt) => pt.event_tracks?.name)
+              .filter(Boolean)
+              .join(", ") || "No tracks",
+          "Submitted": project.submitted,
+          "Created At": project.created_at,
         }))
       );
 
@@ -81,6 +79,43 @@ export function SubmissionsTab({ eventId }: SubmissionsTabProps) {
       a.download = `submissions-${eventId}.csv`;
       a.click();
     }
+  };
+
+  const exportFeedback = async () => {
+    // Create a flattened array where each feedback gets its own row
+    const feedbackRows = projects.flatMap((project) => {
+      // If no feedback, do not include the project in the export
+      if (!project.feedback || project.feedback.length === 0) {
+        return [];
+      }
+
+      // Create a row for each feedback item
+      return project.feedback.map((fb) => ({
+        "Project Name": project.project_name,
+        "Project ID": project.id,
+        "Lead Name": project.lead_name,
+        "Lead Email": project.lead_email,
+        "Project URL": project.project_url,
+        "Team Members": project.teammates?.join(", ") || "",
+        Tracks:
+          project.project_tracks
+            ?.map((t) => t.event_tracks?.name)
+            .filter(Boolean)
+            .join(", ") || "",
+        "Feedback Text": fb.feedback_text,
+        "Mentor Name": fb.mentor_name,
+        "Mentor Email": fb.mentor_email,
+      }));
+    });
+
+    const csv = Papa.unparse(feedbackRows);
+
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `feedback-${eventId}.csv`;
+    a.click();
   };
 
   useEffect(() => {
@@ -104,6 +139,11 @@ export function SubmissionsTab({ eventId }: SubmissionsTabProps) {
                 track_id,
                 name
               )
+            ),
+            feedback (
+              feedback_text,
+              mentor_name,
+              mentor_email
             )
           `
           )
@@ -156,6 +196,11 @@ export function SubmissionsTab({ eventId }: SubmissionsTabProps) {
                     track_id,
                     name
                   )
+                ),
+                feedback (
+                  feedback_text,
+                  mentor_name,
+                  mentor_email
                 )
               `
               )
@@ -188,7 +233,12 @@ export function SubmissionsTab({ eventId }: SubmissionsTabProps) {
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-medium">Project Submissions</h3>
-            <Button onClick={exportSubmissions}>Export Submissions</Button>
+            <div className="flex gap-2">
+              <Button disabled={loading} onClick={exportSubmissions}>Export Submissions</Button>
+              <Button disabled={loading} onClick={exportFeedback} variant="outline">
+                Export Feedback
+              </Button>
+            </div>
           </div>
 
           {loading ? (
@@ -202,6 +252,7 @@ export function SubmissionsTab({ eventId }: SubmissionsTabProps) {
                   <TableHead>Team Size</TableHead>
                   <TableHead>Tracks</TableHead>
                   <TableHead>Submitted</TableHead>
+                  <TableHead>Created At</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>

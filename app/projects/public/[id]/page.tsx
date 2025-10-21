@@ -76,6 +76,7 @@ export default function PublicProjectPage() {
   const [projectTracks, setProjectTracks] = useState<EventTrack[]>([]);
   const [selectedTrackId, setSelectedTrackId] = useState<string>("");
   const [eventDetails, setEventDetails] = useState<EventDetails | null>(null);
+  const [finalistFeatureEnabled, setFinalistFeatureEnabled] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState("overview");
   const [showFeedbackDialog, setShowFeedbackDialog] = useState(false);
 
@@ -116,7 +117,7 @@ export default function PublicProjectPage() {
       try {
         const { data: eventData, error } = await supabase
           .from("events")
-          .select("event_id, event_name, slug, event_date, location, cover_image_url")
+          .select("event_id, event_name, slug, event_date, location, cover_image_url, finalist_recommendation_enabled")
           .eq("event_id", project.event_id)
           .single();
 
@@ -132,6 +133,7 @@ export default function PublicProjectPage() {
             location: eventData.location || undefined,
             cover_image_url: eventData.cover_image_url || undefined,
           });
+          setFinalistFeatureEnabled(!!eventData.finalist_recommendation_enabled);
         }
       } catch (error) {
         // Error handled
@@ -655,6 +657,7 @@ export default function PublicProjectPage() {
                                         .criteria
                                     }
                                     onScoreSubmitted={handleScoreSubmitted}
+                                    finalistFeatureEnabled={finalistFeatureEnabled}
                                   />
                                 ) : (
                                   <div className="text-center py-8">

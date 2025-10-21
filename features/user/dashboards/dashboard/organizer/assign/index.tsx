@@ -25,6 +25,17 @@ import { Trash2, Plus, Shuffle } from "lucide-react";
 import { useToast } from "@/lib/hooks/use-toast";
 import { EventRole } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog";
 
 interface Project {
   id: string;
@@ -85,7 +96,7 @@ export function AssignTab({ eventId }: AssignTabProps) {
   };
 
   const fetchProjects = async () => {
-    const response = await fetch(`/api/projects?eventId=${eventId}`);
+    const response = await fetch(`/api/projects?eventId=${eventId}&submitted=true`);
     if (!response.ok) throw new Error("Failed to fetch projects");
     const data = await response.json();
     setProjects(data.projects || []);
@@ -116,7 +127,7 @@ export function AssignTab({ eventId }: AssignTabProps) {
         : ur.user_profiles;
       return {
         user_id: ur.user_id,
-        display_name: profile?.display_name || ur.user_id,
+        display_name: profile?.display_name || profile?.email?.split("@")[0] || "Unknown User",
         email: profile?.email || "",
         role: ur.role as EventRole,
       };
@@ -180,7 +191,7 @@ export function AssignTab({ eventId }: AssignTabProps) {
         },
         user: {
           user_id: a.user_id,
-          display_name: profile?.display_name || a.user_id,
+          display_name: profile?.display_name || profile?.email?.split("@")[0] || "Unknown User",
           email: profile?.email || "",
           role: a.role as EventRole,
         },
@@ -337,14 +348,31 @@ export function AssignTab({ eventId }: AssignTabProps) {
                   }
                 />
               </div>
-              <Button
-                onClick={() => handleAutoAssign(EventRole.Judge)}
-                disabled={autoAssigning || judges.length === 0}
-                className="w-full"
-              >
-                <Shuffle className="h-4 w-4 mr-2" />
-                Auto-Assign Judges ({judges.length} available)
-              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    disabled={autoAssigning || judges.length === 0}
+                    className="w-full"
+                  >
+                    <Shuffle className="h-4 w-4 mr-2" />
+                    Auto-Assign Judges ({judges.length} available)
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Confirm judge reassignment</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will wipe all existing judge assignments for this event and reassign them.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => handleAutoAssign(EventRole.Judge)}>
+                      Confirm
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
 
             <div className="space-y-3">
@@ -361,20 +389,37 @@ export function AssignTab({ eventId }: AssignTabProps) {
                   }
                 />
               </div>
-              <Button
-                onClick={() => handleAutoAssign(EventRole.Mentor)}
-                disabled={autoAssigning || mentors.length === 0}
-                className="w-full"
-              >
-                <Shuffle className="h-4 w-4 mr-2" />
-                Auto-Assign Mentors ({mentors.length} available)
-              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    disabled={autoAssigning || mentors.length === 0}
+                    className="w-full"
+                  >
+                    <Shuffle className="h-4 w-4 mr-2" />
+                    Auto-Assign Mentors ({mentors.length} available)
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Confirm mentor reassignment</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will wipe all existing mentor assignments for this event and reassign them.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => handleAutoAssign(EventRole.Mentor)}>
+                      Confirm
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           </div>
         </div>
         {/* Assignment Table */}
         <div className="space-y-4">
-          <h3 className="font-semibold">Current Assignments</h3>
+          <h3 className="font-semibold">Current Assignments for Submitted Projects</h3>
 
           {projects.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
@@ -527,7 +572,7 @@ function ManualAssignSelect({
         <SelectContent>
           {availableToAssign.map((user) => (
             <SelectItem key={user.user_id} value={user.user_id}>
-              {user.display_name}
+              {user.email}
             </SelectItem>
           ))}
         </SelectContent>
