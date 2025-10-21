@@ -15,6 +15,9 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Download } from "@mui/icons-material";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Trash2 } from "lucide-react";
+import { useToast } from "@/lib/hooks/use-toast";
 import { useRouter } from "next/navigation";
 
 interface UserEventRoleWithProfile {
@@ -41,6 +44,7 @@ export function ParticipantsTab({ eventId }: ParticipantsTabProps) {
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const { toast } = useToast();
 
   useEffect(() => {
     async function fetchParticipants() {
@@ -166,6 +170,44 @@ export function ParticipantsTab({ eventId }: ParticipantsTabProps) {
     router.push(`/profile/${userId}`);
   };
 
+  const handleChangeRole = async (userId: string, newRole: EventRole) => {
+    try {
+      const res = await fetch(`/api/events/${eventId}/participants/${userId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role: newRole }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({} as any));
+        throw new Error((data as any).error || "Failed to update role");
+      }
+      setParticipants((prev) =>
+        prev.map((p) => (p.user_id === userId ? { ...p, role: newRole } : p))
+      );
+      toast({ title: "Role updated" });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to update role";
+      toast({ title: "Error", description: message, variant: "destructive" });
+    }
+  };
+
+  const handleRemove = async (userId: string) => {
+    try {
+      const res = await fetch(`/api/events/${eventId}/participants/${userId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({} as any));
+        throw new Error((data as any).error || "Failed to remove user");
+      }
+      setParticipants((prev) => prev.filter((p) => p.user_id !== userId));
+      toast({ title: "Removed from event" });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to remove user";
+      toast({ title: "Error", description: message, variant: "destructive" });
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -189,6 +231,7 @@ export function ParticipantsTab({ eventId }: ParticipantsTabProps) {
                     <TableHead>Name</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Role</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -209,8 +252,38 @@ export function ParticipantsTab({ eventId }: ParticipantsTabProps) {
                     >
                       <TableCell>{participant.display_name}</TableCell>
                       <TableCell>{participant.email}</TableCell>
-                      <TableCell className="capitalize">
-                        {participant.role}
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        {!participant.user_id.startsWith('project-') ? (
+                          <Select
+                            value={participant.role}
+                            onValueChange={(val) => handleChangeRole(participant.user_id, val as EventRole)}
+                          >
+                            <SelectTrigger className="w-[180px]">
+                              <SelectValue placeholder="Select role" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value={EventRole.Participant}>Participant</SelectItem>
+                              <SelectItem value={EventRole.Mentor}>Mentor</SelectItem>
+                              <SelectItem value={EventRole.Judge}>Judge</SelectItem>
+                              <SelectItem value={EventRole.Organizer}>Organizer</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <span className="capitalize">{participant.role}</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                        {!participant.user_id.startsWith('project-') && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-600 hover:text-red-700"
+                            onClick={() => handleRemove(participant.user_id)}
+                            aria-label={`Remove ${participant.display_name}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
