@@ -6,6 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { EventDetails, EventVisibility } from "@/lib/types";
 import { useRouter } from "next/navigation";
 import { toast as ToastType } from "@/lib/hooks/use-toast";
@@ -85,6 +92,11 @@ export function BasicInfoTab({
   const [archiving, setArchiving] = useState(false);
   const [devpostUrl, setDevpostUrl] = useState("");
   const [importing, setImporting] = useState(false);
+
+  // Event type state management
+  const predefinedEventTypes = ["hackathon", "conference", "workshop"];
+  const isCustomEventType = event.event_type && !predefinedEventTypes.includes(event.event_type.toLowerCase());
+  const [showCustomEventType, setShowCustomEventType] = useState(isCustomEventType);
 
   const handleBasicInfoUpdate = async () => {
     if (!event) return;
@@ -238,17 +250,55 @@ export function BasicInfoTab({
 
         <div className="space-y-2">
           <Label htmlFor="event_type">Event Type</Label>
-          <Input
-            id="event_type"
-            value={event.event_type || "hackathon"}
-            disabled={isArchived}
-            onChange={(e) =>
-              setEvent({ ...event, event_type: e.target.value })
-            }
-            placeholder="hackathon | workshop | conference"
-          />
+          {!showCustomEventType ? (
+            <Select
+              value={event.event_type?.toLowerCase() || "hackathon"}
+              onValueChange={(value) => {
+                if (value === "other") {
+                  setShowCustomEventType(true);
+                  setEvent({ ...event, event_type: "" });
+                } else {
+                  setEvent({ ...event, event_type: value.charAt(0).toUpperCase() + value.slice(1) });
+                }
+              }}
+              disabled={isArchived}
+            >
+              <SelectTrigger id="event_type">
+                <SelectValue placeholder="Select event type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="hackathon">Hackathon</SelectItem>
+                <SelectItem value="conference">Conference</SelectItem>
+                <SelectItem value="workshop">Workshop</SelectItem>
+                <SelectItem value="other">Other (Custom)</SelectItem>
+              </SelectContent>
+            </Select>
+          ) : (
+            <div className="flex gap-2">
+              <Input
+                id="event_type_custom"
+                value={event.event_type || ""}
+                disabled={isArchived}
+                onChange={(e) =>
+                  setEvent({ ...event, event_type: e.target.value })
+                }
+                placeholder="Enter custom event type"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isArchived}
+                onClick={() => {
+                  setShowCustomEventType(false);
+                  setEvent({ ...event, event_type: "Hackathon" });
+                }}
+              >
+                Cancel
+              </Button>
+            </div>
+          )}
           <p className="text-xs text-gray-500">
-            Set a descriptive type. You can add new types later.
+            Choose from preset types or create a custom one.
           </p>
         </div>
 
