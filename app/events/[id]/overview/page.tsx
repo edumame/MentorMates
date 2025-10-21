@@ -32,6 +32,7 @@ export default async function EventOverviewPage({ params }: PageProps) {
     event_schedule,
     event_prizes,
     event_resources,
+    event_lessons,
     paywall_content,
     participant_capacity,
     cover_image_url,

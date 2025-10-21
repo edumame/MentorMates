@@ -10,6 +10,8 @@ import {
   EventTrack,
   EventRole,
 } from "@/lib/types";
+import Image from "next/image";
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ParticipantDashboard } from "@/features/user/dashboards/dashboard/participant-dashboard";
 import { JudgeDashboard } from "@/features/user/dashboards/dashboard/judge-dashboard";
@@ -79,6 +81,42 @@ export function EventPageContent({
           </h3>
           <div className="prose prose-blue max-w-none">
             <ReactMarkdown>{event.paywall_content}</ReactMarkdown>
+          </div>
+        </div>
+      )}
+
+      {/* Exclusive Lessons */}
+      {hasJoined && (event.event_lessons?.length || 0) > 0 && (
+        <div className="mb-8">
+          <h3 className="font-semibold text-[24px] leading-[32px] text-black tracking-[-0.6px] mb-4">
+            Exclusive Lessons
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {(event.event_lessons || []).map((lesson, idx) => (
+              <Link
+                key={idx}
+                href={lesson.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col hover:shadow-md hover:border-gray-300 transition-all duration-200"
+              >
+                <div className="relative w-full aspect-video bg-black rounded-t-xl overflow-hidden">
+                  {lesson.cover_image_url && (
+                    <Image
+                      src={lesson.cover_image_url}
+                      alt={lesson.title}
+                      fill
+                      className="object-cover"
+                    />
+                  )}
+                </div>
+                <div className="p-4 flex-1 flex flex-col">
+                  <h4 className="text-base font-semibold mb-1">{lesson.title}</h4>
+                  <p className="text-sm text-gray-600 mb-4 line-clamp-3">{lesson.description}</p>
+                  <div className="mt-auto text-xs text-gray-500">{lesson.duration_minutes} min</div>
+                </div>
+              </Link>
+            ))}
           </div>
         </div>
       )}

@@ -3,12 +3,24 @@
 import { data } from "@/lib/LearnData";
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
+import { supabase } from "@/lib/supabase";
+
+type LearnItemLike = {
+  id: number;
+  title: string;
+  description: string;
+  source: string;
+  readingTime: number;
+  thumbnail: string;
+  video: boolean;
+};
 
 export function LearnLayout() {
   const [bookmarkedIds, setBookmarkedIds] = useState<Set<number>>(new Set());
   const [activeTab, setActiveTab] = useState<"all" | "bookmark">("all");
+  const [exclusiveLessons, setExclusiveLessons] = useState<LearnItemLike[]>([]);
 
   useEffect(() => {
     try {
@@ -21,6 +33,73 @@ export function LearnLayout() {
       // ignore malformed data
     }
   }, []);
+
+  useEffect(() => {
+    const fetchExclusiveLessons = async () => {
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (!session) return;
+
+        // Fetch event IDs the user has any role in (joined/organizer/mentor/judge)
+        const { data: roles } = await supabase
+          .from("user_event_roles")
+          .select("event_id")
+          .eq("user_id", session.user.id);
+        const eventIds = (roles || []).map((r: { event_id: string }) => r.event_id);
+        if (eventIds.length === 0) return;
+
+        const { data: events } = await supabase
+          .from("events")
+          .select("event_id,event_lessons")
+          .in("event_id", eventIds);
+
+        const flatLessons: LearnItemLike[] = [];
+
+        const hash = (s: string) => {
+          let h = 0;
+          for (let i = 0; i < s.length; i++) {
+            h = (h << 5) - h + s.charCodeAt(i);
+            h |= 0;
+          }
+          // offset to avoid collision with built-in items
+          return 2000000000 + Math.abs(h);
+        };
+
+        (events || []).forEach((evt: { event_id: string; event_lessons?: any[] | null }) => {
+          const lessons = Array.isArray(evt.event_lessons) ? evt.event_lessons : [];
+          lessons.forEach((l) => {
+            // Defensive mapping in case of partially filled entries
+            const title = String(l?.title || "Untitled Lesson");
+            const url = String(l?.url || "#");
+            const id = hash(`${evt.event_id}|${title}|${url}`);
+            flatLessons.push({
+              id,
+              title,
+              description: String(l?.description || ""),
+              source: url,
+              readingTime: Number(l?.duration_minutes || 0) || 0,
+              thumbnail: String(l?.cover_image_url || "/img/placeholder.png"),
+              video: false,
+            });
+          });
+        });
+
+        setExclusiveLessons(flatLessons);
+      } catch (e) {
+        console.error("Failed to fetch exclusive lessons", e);
+      }
+    };
+
+    fetchExclusiveLessons();
+  }, []);
+
+  const allItems: LearnItemLike[] = useMemo(() => {
+    // Merge static learn data and exclusive lessons
+    // Cast is safe as shapes match
+    return [...(data as unknown as LearnItemLike[]), ...exclusiveLessons];
+  }, [exclusiveLessons]);
 
   const toggleBookmark = (id: number) => {
     setBookmarkedIds((prev) => {
@@ -74,8 +153,8 @@ export function LearnLayout() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {(activeTab === "bookmark"
-          ? data.filter((d) => bookmarkedIds.has(d.id))
-          : data
+          ? allItems.filter((d) => bookmarkedIds.has(d.id))
+          : allItems
         ).map((item) => (
           <Link
             key={item.id}
@@ -181,7 +260,7 @@ export function LearnLayout() {
         ))}
         </div>
         {activeTab === "bookmark" &&
-          data.every((d) => !bookmarkedIds.has(d.id)) && (
+          allItems.every((d) => !bookmarkedIds.has(d.id)) && (
             <div className="text-sm text-gray-500 mt-6">No bookmarks yet.</div>
           )}
         </div>

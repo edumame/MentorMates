@@ -153,6 +153,29 @@ export interface Resource {
   link: string;
 }
 
+export interface Lesson {
+  /**
+   * Title of the lesson, shown to users
+   */
+  title: string;
+  /**
+   * Public URL for a cover image to display on cards
+   */
+  cover_image_url: string;
+  /**
+   * Destination URL for the lesson content
+   */
+  url: string;
+  /**
+   * Short description of what this lesson covers
+   */
+  description: string;
+  /**
+   * Estimated time to complete the lesson, in minutes
+   */
+  duration_minutes: number;
+}
+
 export interface Rule {
   title: string;
   items: string[];
@@ -177,6 +200,10 @@ export interface EventDetails extends EventItem {
   event_schedule: ScheduleDay[];
   event_prizes: Prize[];
   event_resources: Resource[];
+  /**
+   * Exclusive lessons available only to users in the event
+   */
+  event_lessons?: Lesson[];
   created_at: string;
   rules: Rule[];
   event_tracks?: EventTrack[];
