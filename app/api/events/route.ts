@@ -162,7 +162,6 @@ export async function POST(req: Request) {
     // Build insert payload, providing sane defaults
     const insertPayload: Database["public"]["Tables"]["events"]["Insert"] = {
       event_name: event.event_name,
-      event_type: (event.event_type ?? "hackathon") as unknown as string,
       event_date: event.event_date,
       location: event.location,
       rules: defaultRules as unknown as Json,

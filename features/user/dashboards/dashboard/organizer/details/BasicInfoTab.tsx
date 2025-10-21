@@ -129,7 +129,7 @@ export function BasicInfoTab({
           submission_time_start: event.submission_time_start,
           submission_time_cutoff: event.submission_time_cutoff,
           participant_capacity: event.participant_capacity ?? null,
-          event_type: (event as any).event_type || 'hackathon',
+          event_type: event.event_type || 'hackathon',
         })
         .eq("event_id", event.event_id);
 
@@ -240,10 +240,10 @@ export function BasicInfoTab({
           <Label htmlFor="event_type">Event Type</Label>
           <Input
             id="event_type"
-            value={(event as any).event_type || "hackathon"}
+            value={event.event_type || "hackathon"}
             disabled={isArchived}
             onChange={(e) =>
-              setEvent({ ...event, event_type: e.target.value } as any)
+              setEvent({ ...event, event_type: e.target.value })
             }
             placeholder="hackathon | workshop | conference"
           />

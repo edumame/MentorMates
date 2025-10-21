@@ -67,7 +67,6 @@ export default async function EventSchedulePage({ params }: PageProps) {
       eventDate={typedEvent.event_date}
       location={typedEvent.location}
       coverImageUrl={typedEvent.cover_image_url}
-      eventType={(eventData as any).event_type}
       eventId={id}
       hasJoined={hasJoined}
       dbEventId={eventData.event_id}

@@ -94,7 +94,6 @@ export default async function PublicParticipantsPage({ params }: PageProps) {
       eventDate={eventData.event_date}
       location={eventData.location}
       coverImageUrl={eventData.cover_image_url}
-      eventType={(eventData as any).event_type}
       eventId={id}
       hasJoined={hasJoined}
       dbEventId={eventData.event_id}
