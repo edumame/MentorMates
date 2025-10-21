@@ -462,11 +462,11 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-medium">Live Scoring Dashboard</h3>
             <div className="flex space-x-2">
-              <Button onClick={exportRawData} variant="outline" size="sm">
+              <Button onClick={exportRawData} variant="outline" size="sm" disabled={loading}>
                 <Download className="w-4 h-4 mr-2" />
                 Export Raw Data
               </Button>
-              <Button onClick={exportScores} variant="outline" size="sm">
+              <Button onClick={exportScores} variant="outline" size="sm" disabled={loading}>
                 <Download className="w-4 h-4 mr-2" />
                 Export Tables
               </Button>
