@@ -81,31 +81,62 @@ export async function POST(request: Request) {
     .eq('email', email.trim().toLowerCase())
     .maybeSingle();
 
-  if (!user) {
-    return NextResponse.json({ error: 'User not found' }, { status: 404 });
+  // If user exists, add them directly as organizer
+  if (user) {
+    const { error } = await supabase.from('user_event_roles').upsert(
+      {
+        user_id: user.uid,
+        event_id: eventId,
+        role: EventRole.Organizer,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'user_id,event_id' },
+    );
+
+    if (error) {
+      return NextResponse.json({ error: 'Failed to invite organizer' }, { status: 500 });
+    }
+
+    // Send invitation email for existing user
+    try {
+      const emailTemplate = getOrganizerInvitationEmailTemplate(
+        eventData.event_name,
+        eventId,
+        inviterName,
+        eventData.slug,
+        false // isNewUser
+      );
+
+      const { error: emailError } = await resend.emails.send({
+        from: NOTIFICATIONS_EMAIL_FROM,
+        to: email.trim(),
+        subject: emailTemplate.subject,
+        html: emailTemplate.html,
+      });
+
+      if (emailError) {
+        console.error('Failed to send organizer invitation email:', emailError);
+        // Don't fail the entire request if email fails, but log it
+      }
+    } catch (emailError) {
+      console.error('Error sending organizer invitation email:', emailError);
+      // Don't fail the entire request if email fails
+    }
+
+    return NextResponse.json({ success: true, userExists: true });
   }
 
-  const { error } = await supabase.from('user_event_roles').upsert(
-    {
-      user_id: user.uid,
-      event_id: eventId,
-      role: EventRole.Organizer,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: 'user_id,event_id' },
-  );
-
-  if (error) {
-    return NextResponse.json({ error: 'Failed to invite organizer' }, { status: 500 });
-  }
-
-  // Send invitation email
+  // User doesn't exist - send magic link invite
   try {
+    const acceptUrl = `${process.env.NEXT_PUBLIC_APP_URL}/events/${eventData.slug || eventId}/accept-organizer?email=${encodeURIComponent(email.trim())}`;
+
     const emailTemplate = getOrganizerInvitationEmailTemplate(
       eventData.event_name,
       eventId,
       inviterName,
-      eventData.slug
+      eventData.slug,
+      true, // isNewUser
+      acceptUrl
     );
 
     const { error: emailError } = await resend.emails.send({
@@ -117,12 +148,12 @@ export async function POST(request: Request) {
 
     if (emailError) {
       console.error('Failed to send organizer invitation email:', emailError);
-      // Don't fail the entire request if email fails, but log it
+      return NextResponse.json({ error: 'Failed to send invitation email' }, { status: 500 });
     }
   } catch (emailError) {
     console.error('Error sending organizer invitation email:', emailError);
-    // Don't fail the entire request if email fails
+    return NextResponse.json({ error: 'Failed to send invitation email' }, { status: 500 });
   }
 
-  return NextResponse.json({ success: true });
+  return NextResponse.json({ success: true, userExists: false });
 }
