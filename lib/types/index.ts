@@ -1,7 +1,7 @@
 // Core Event Types
 export enum EventRoleEnum {
-  Participant = 1,
-  Mentor = 2,
+  Mentor = 1,
+  Participant = 2,
   Judge = 3,
   Organizer = 4,
   Admin = 5,
@@ -45,8 +45,8 @@ export interface PricingTier {
 }
 
 // Coupon Types
-export type CouponStatus = 'active' | 'inactive' | 'expired';
-export type CouponDuration = 'once' | 'repeating' | 'forever';
+export type CouponStatus = "active" | "inactive" | "expired";
+export type CouponDuration = "once" | "repeating" | "forever";
 
 export interface Coupon {
   id: string;
