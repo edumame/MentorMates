@@ -82,7 +82,6 @@ export function Navbar() {
       const currentPath = window.location.pathname;
       if (currentPath !== "/mentor") {
         localStorage.setItem("returnUrl", currentPath);
-        console.log("Setting returnUrl:", currentPath);
       }
     }
     router.push("/login");

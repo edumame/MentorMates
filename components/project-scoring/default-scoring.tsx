@@ -115,7 +115,6 @@ export function DefaultScoring({
     setSubmitting(true);
 
     try {
-      console.log(values);
       // Check if a score already exists
       const { data: existingScore, error: checkError } = await supabase
         .from("project_scores")

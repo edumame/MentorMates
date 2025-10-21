@@ -117,8 +117,6 @@ export default function ClaimTicketPage() {
   const claimTicket = async () => {
     if (!user || !ticket) return;
 
-    console.log("user", user);
-
     setClaiming(true);
     setError(null);
 
