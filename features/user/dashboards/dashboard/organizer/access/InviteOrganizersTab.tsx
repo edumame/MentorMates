@@ -52,7 +52,7 @@ export function InviteOrganizersTab({ eventId, isArchived }: InviteOrganizersTab
         // Handle specific error cases
         let errorMessage = "Failed to invite organizer";
         let errorTitle = "Error";
-        
+
         switch (res.status) {
           case 401:
             errorTitle = "Unauthorized";
@@ -62,10 +62,6 @@ export function InviteOrganizersTab({ eventId, isArchived }: InviteOrganizersTab
             errorTitle = "Access Denied";
             errorMessage = "You don't have permission to invite organizers for this event.";
             break;
-          case 404:
-            errorTitle = "User Not Found";
-            errorMessage = `No user found with email ${trimmedEmail}. The user must have an account first.`;
-            break;
           case 400:
             errorTitle = "Invalid Request";
             errorMessage = data.error || "Please check your input and try again.";
@@ -73,17 +69,25 @@ export function InviteOrganizersTab({ eventId, isArchived }: InviteOrganizersTab
           default:
             errorMessage = data.error || errorMessage;
         }
-        
+
         toast({
           title: errorTitle,
           description: errorMessage,
           variant: "destructive",
         });
       } else {
-        toast({ 
-          title: "Organizer Invited Successfully", 
-          description: `${trimmedEmail} has been granted organizer access and will receive an email notification with instructions to access the organizer dashboard.`
-        });
+        // Show different messages based on whether user exists
+        if (data.userExists) {
+          toast({
+            title: "Organizer Invited Successfully",
+            description: `${trimmedEmail} has been granted organizer access and will receive an email notification with instructions to access the organizer dashboard.`
+          });
+        } else {
+          toast({
+            title: "Invitation Sent",
+            description: `An invitation email has been sent to ${trimmedEmail}. They will receive a link to sign up and accept the organizer role.`
+          });
+        }
         setEmail("");
       }
     } catch (err) {
@@ -116,7 +120,7 @@ export function InviteOrganizersTab({ eventId, isArchived }: InviteOrganizersTab
         </Button>
       </div>
       <p className="text-sm text-muted-foreground">
-        Enter the email of an existing user to grant organizer access. They will receive an email notification with access instructions.
+        Enter an email address to invite someone as an organizer. If they don&apos;t have an account yet, they&apos;ll receive a magic link to sign up and accept the invitation.
       </p>
     </div>
   );
