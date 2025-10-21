@@ -60,11 +60,10 @@ export async function POST(req: Request) {
     .eq("event_id", eventId)
     .eq("role", role);
 
-  
   // need a different algorithm for if the number of judges per project = number of judges
 
-  // to ensure judges don't get assigned to the same project more than once, need to group them 
-  
+  // to ensure judges don't get assigned to the same project more than once, need to group them
+
   if (roleToAssignError) {
     return NextResponse.json(
       { error: "Error fetching roles to assign" },
@@ -79,6 +78,29 @@ export async function POST(req: Request) {
     );
   }
 
+  const { data: existingAssignments } =
+    await supabase
+      .from("project_assignments")
+      .select("id")
+      .eq("event_id", eventId)
+      .eq("role", role);
+
+  if (existingAssignments && existingAssignments.length > 0) {
+    // Remove existing assignments for this event and role prior to reshuffling if they exist
+    const { error: deleteError } = await supabase
+      .from("project_assignments")
+      .delete()
+      .eq("event_id", eventId)
+      .eq("role", role);
+
+    if (deleteError) {
+      return NextResponse.json(
+        { error: "Failed to clear previous assignments" },
+        { status: 500 }
+      );
+    }
+  }
+
   // Shuffle to avoid bias
   const shuffledProjects = shuffle(projectIds);
   const userIdsToAssign = shuffle(roleToAssign.map((r) => r.user_id));
@@ -91,14 +113,15 @@ export async function POST(req: Request) {
       const userIndex = (pIndex * rolesPerProject + k) % userIdsToAssign.length;
       const userId = userIdsToAssign[userIndex];
 
-      await supabase
-        .from("project_assignments")
-        .upsert({
+      await supabase.from("project_assignments").upsert(
+        {
           project_id: projectId,
           user_id: userId,
           role: role,
           event_id: eventId,
-        });
+        },
+        { onConflict: "event_id,project_id,user_id,role" }
+      );
     }
   }
 
