@@ -29,7 +29,7 @@ export function ParticipantsContent({ participants }: ParticipantsContentProps) 
       {participants.map((participant, index) => (
         <div
           key={participant.uid}
-          className={`flex gap-6 items-center py-4 w-full ${
+          className={`flex flex-row gap-4 md:gap-6 items-center py-4 w-full ${
             index !== participants.length - 1 ? 'border-b border-[rgba(0,0,0,0.15)]' : ''
           }`}
         >
