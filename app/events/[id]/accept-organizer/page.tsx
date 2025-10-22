@@ -1,4 +1,4 @@
-import { createSupabaseClient } from "@/app/utils/supabase/server";
+import { createClient } from "@/app/utils/supabase/client";
 import { notFound, redirect } from "next/navigation";
 import { isValidUUID } from "@/app/utils/supabase/queries";
 import { AcceptOrganizerInvite } from "./AcceptOrganizerInvite";
@@ -11,7 +11,7 @@ interface PageProps {
 export default async function AcceptOrganizerInvitePage({ params, searchParams }: PageProps) {
   const { id } = await Promise.resolve(params);
   const { email } = await Promise.resolve(searchParams);
-  const supabase = await createSupabaseClient();
+  const supabase = createClient();
 
   const isUUID = isValidUUID(id);
 
