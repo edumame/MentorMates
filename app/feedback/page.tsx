@@ -465,10 +465,7 @@ export default function FeedbackPage() {
             ) : (
               /* -------- View feedback (unchanged) -------- */
               <div className="flex flex-col">
-                <DialogClose className="absolute right-4 top-4 z-10 inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/50">
-                  <X className="h-4 w-4" />
-                  <span className="sr-only">Close</span>
-                </DialogClose>
+                
 
                 {/* Header */}
                 <div className="flex flex-col items-center px-4 pt-4 pb-3 text-center sm:px-6 sm:pt-6 sm:pb-4">
