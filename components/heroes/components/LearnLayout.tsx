@@ -1,14 +1,16 @@
 "use client";
 
-import { data } from "@/lib/LearnData";
-import Image from "next/image";
+import { data, LearnItem } from "@/lib/LearnData";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
+import { supabase } from "@/lib/supabase";
+import { Lesson } from "@/lib/types";
 
 export function LearnLayout() {
   const [bookmarkedIds, setBookmarkedIds] = useState<Set<number>>(new Set());
   const [activeTab, setActiveTab] = useState<"all" | "bookmark">("all");
+  const [exclusiveLessons, setExclusiveLessons] = useState<LearnItem[]>([]);
 
   useEffect(() => {
     try {
@@ -21,6 +23,69 @@ export function LearnLayout() {
       // ignore malformed data
     }
   }, []);
+
+  useEffect(() => {
+    const fetchExclusiveLessons = async () => {
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (!session) return;
+
+        // Fetch event IDs the user has any role in (joined/organizer/mentor/judge)
+        const { data: roles } = await supabase
+          .from("user_event_roles")
+          .select("event_id")
+          .eq("user_id", session.user.id);
+        const eventIds = (roles || []).map((r: { event_id: string }) => r.event_id);
+        if (eventIds.length === 0) return;
+
+        const { data: lessonsRows } = await supabase
+          .from("event_lessons")
+          .select("event_id,title,cover_image_url,url,description,duration_minutes")
+          .in("event_id", eventIds);
+
+        const flatLessons: LearnItem[] = [];
+
+        // Use a large offset to ensure exclusive lesson IDs don't collide with static lesson IDs
+        const EXCLUSIVE_LESSON_ID_OFFSET = 2_000_000_000;
+
+        const hash = (s: string) => {
+          let h = 0;
+          for (let i = 0; i < s.length; i++) {
+            h = (h << 5) - h + s.charCodeAt(i);
+            h |= 0;
+          }
+          return EXCLUSIVE_LESSON_ID_OFFSET + Math.abs(h);
+        };
+
+        type EventLessonRow = Lesson & { event_id: string };
+        (lessonsRows || []).forEach((row: EventLessonRow) => {
+          const id = hash(`${row.event_id}|${row.title}|${row.url}`);
+          flatLessons.push({
+            id,
+            title: row.title,
+            description: row.description,
+            source: row.url,
+            readingTime: row.duration_minutes,
+            thumbnail: row.cover_image_url,
+            video: false,
+          });
+        });
+
+        setExclusiveLessons(flatLessons);
+      } catch (e) {
+        console.error("Failed to fetch exclusive lessons", e);
+      }
+    };
+
+    fetchExclusiveLessons();
+  }, []);
+
+  const allItems: LearnItem[] = useMemo(() => {
+    // Merge static learn data and exclusive lessons
+    return [...data, ...exclusiveLessons];
+  }, [exclusiveLessons]);
 
   const toggleBookmark = (id: number) => {
     setBookmarkedIds((prev) => {
@@ -74,8 +139,8 @@ export function LearnLayout() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {(activeTab === "bookmark"
-          ? data.filter((d) => bookmarkedIds.has(d.id))
-          : data
+          ? allItems.filter((d) => bookmarkedIds.has(d.id))
+          : allItems
         ).map((item) => (
           <Link
             key={item.id}
@@ -86,11 +151,10 @@ export function LearnLayout() {
           >
             <div className="relative w-full aspect-video bg-black rounded-t-xl overflow-hidden flex items-center justify-center transition-transform duration-200">
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <Image
+                <img
                   src={item.thumbnail}
                   alt={item.title}
-                  fill
-                  className="object-cover"
+                  className="absolute inset-0 w-full h-full object-cover"
                 />
 
                 {item.video && (
@@ -181,7 +245,7 @@ export function LearnLayout() {
         ))}
         </div>
         {activeTab === "bookmark" &&
-          data.every((d) => !bookmarkedIds.has(d.id)) && (
+          allItems.every((d) => !bookmarkedIds.has(d.id)) && (
             <div className="text-sm text-gray-500 mt-6">No bookmarks yet.</div>
           )}
         </div>

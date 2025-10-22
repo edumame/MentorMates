@@ -1,10 +1,6 @@
 import React from "react";
 import { notFound } from "next/navigation";
-import {
-  EventDetails,
-  EventTrack,
-  EventRole,
-} from "@/lib/types";
+import { EventDetails, EventTrack, EventRole, Lesson } from "@/lib/types";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { isValidUUID } from "@/app/utils/supabase/queries";
 import { EventPageLayout } from "@/components/events/event-page-layout";
@@ -64,6 +60,12 @@ export default async function EventOverviewPage({ params }: PageProps) {
     .eq("event_id", eventData.event_id);
 
   const typedEvent = eventData as EventDetails & { cover_image_url?: string };
+  // Fetch lessons from new event_lessons table
+  const { data: lessonsData } = await supabase
+    .from("event_lessons")
+    .select("title,cover_image_url,url,description,duration_minutes")
+    .eq("event_id", eventData.event_id);
+  (typedEvent as EventDetails & { event_lessons?: Lesson[] }).event_lessons = (lessonsData || []) as Lesson[];
   const tracks = (tracksData || []) as EventTrack[];
 
   // Check if user has joined and get their role

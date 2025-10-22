@@ -13,6 +13,7 @@ import { ScheduleTab } from "./ScheduleTab";
 import { ResourcesTab } from "./ResourcesTab";
 import { RulesTab } from "./RulesTab";
 import { FAQTab } from "./FAQTab";
+import { ContentTab } from "./ContentTab";
 
 interface EventDetailsTabProps {
   event: EventDetails;
@@ -21,6 +22,8 @@ interface EventDetailsTabProps {
   setSaving: React.Dispatch<React.SetStateAction<boolean>>;
   router: ReturnType<typeof useRouter>;
   toast: typeof useToast;
+  refetchEvent?: () => void;
+  isArchived?: boolean;
 }
 
 export function EventDetailsTab({
@@ -30,6 +33,8 @@ export function EventDetailsTab({
   setSaving,
   router,
   toast,
+  refetchEvent,
+  isArchived = false,
 }: EventDetailsTabProps) {
   const [activeSubTab, setActiveSubTab] = useState("basic-info");
 
@@ -42,6 +47,7 @@ export function EventDetailsTab({
         <Tabs value={activeSubTab} onValueChange={setActiveSubTab}>
           <TabsList className="mb-6 w-full h-auto flex flex-wrap gap-2">
             <TabsTrigger value="basic-info" className="px-3 py-1.5">Basic Information</TabsTrigger>
+            <TabsTrigger value="content" className="px-3 py-1.5">Content</TabsTrigger>
             <TabsTrigger value="schedule" className="px-3 py-1.5">Schedule</TabsTrigger>
             <TabsTrigger value="resources" className="px-3 py-1.5">Resources</TabsTrigger>
             <TabsTrigger value="rules" className="px-3 py-1.5">Rules</TabsTrigger>
@@ -57,6 +63,16 @@ export function EventDetailsTab({
               setSaving={setSaving}
               toast={toast}
               router={router}
+            />
+          </TabsContent>
+
+          {/* Content */}
+          <TabsContent value="content">
+            <ContentTab
+              event={event}
+              setEvent={setEvent}
+              refetchEvent={refetchEvent}
+              isArchived={isArchived}
             />
           </TabsContent>
 

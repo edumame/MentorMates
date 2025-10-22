@@ -10,6 +10,7 @@ import {
   EventTrack,
   EventRole,
 } from "@/lib/types";
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ParticipantDashboard } from "@/features/user/dashboards/dashboard/participant-dashboard";
 import { JudgeDashboard } from "@/features/user/dashboards/dashboard/judge-dashboard";
@@ -75,10 +76,63 @@ export function EventPageContent({
       {hasJoined && event.paywall_content && (
         <div className="mb-8 border-2 border-yellow-200 bg-yellow-50 rounded-lg p-6">
           <h3 className="text-yellow-800 font-semibold text-xl mb-4">
-            🔒 Exclusive Content for People In the Event
+            🔒 Content for Event Participants
           </h3>
           <div className="prose prose-blue max-w-none">
             <ReactMarkdown>{event.paywall_content}</ReactMarkdown>
+          </div>
+        </div>
+      )}
+
+      {/* Lessons */}
+      {hasJoined && (event.event_lessons?.length || 0) > 0 && (
+        <div className="mb-8">
+          <h3 className="font-semibold text-[24px] leading-[32px] text-black tracking-[-0.6px] mb-4">
+            Lessons
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {(event.event_lessons || []).map((lesson, idx) => (
+              <Link
+                key={idx}
+                href={lesson.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col hover:shadow-md hover:border-gray-300 transition-all duration-200 group"
+              >
+                <div className="relative w-full aspect-video bg-black rounded-t-xl overflow-hidden">
+                  {lesson.cover_image_url && (
+                    <img
+                      src={lesson.cover_image_url}
+                      alt={lesson.title}
+                      className="absolute inset-0 w-full h-full object-cover"
+                    />
+                  )}
+                </div>
+                <div className="p-4 flex-1 flex flex-col">
+                  <h4 className="text-base font-semibold mb-1 group-hover:text-blue-600 transition-colors">{lesson.title}</h4>
+                  <p className="text-sm text-gray-600 mb-4 line-clamp-3">{lesson.description}</p>
+                  <div className="mt-auto text-xs text-gray-500 flex items-center gap-1">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      className="inline-block"
+                    >
+                      <path
+                        d="M12 8V12L14.5 13.5M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                    {lesson.duration_minutes} min
+                  </div>
+                </div>
+              </Link>
+            ))}
           </div>
         </div>
       )}
