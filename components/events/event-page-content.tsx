@@ -76,7 +76,7 @@ export function EventPageContent({
       {hasJoined && event.paywall_content && (
         <div className="mb-8 border-2 border-yellow-200 bg-yellow-50 rounded-lg p-6">
           <h3 className="text-yellow-800 font-semibold text-xl mb-4">
-            🔒 Exclusive Content for People In the Event
+            🔒 Content for Event Participants
           </h3>
           <div className="prose prose-blue max-w-none">
             <ReactMarkdown>{event.paywall_content}</ReactMarkdown>
@@ -84,11 +84,11 @@ export function EventPageContent({
         </div>
       )}
 
-      {/* Exclusive Lessons */}
+      {/* Lessons */}
       {hasJoined && (event.event_lessons?.length || 0) > 0 && (
         <div className="mb-8">
           <h3 className="font-semibold text-[24px] leading-[32px] text-black tracking-[-0.6px] mb-4">
-            Exclusive Lessons
+            Lessons
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {(event.event_lessons || []).map((lesson, idx) => (
