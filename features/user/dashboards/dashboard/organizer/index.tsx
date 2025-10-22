@@ -52,6 +52,7 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
   );
   const [activeTab, setActiveTab] = useState("details");
   const [isAdmin, setIsAdmin] = useState(false);
+  const [refetchTrigger, setRefetchTrigger] = useState(0);
   const router = useRouter();
   const { toast } = useToast();
 
@@ -142,6 +143,19 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
           .single();
 
         if (error) throw error;
+
+        // Fetch event_lessons separately
+        const { data: lessonsData, error: lessonsError } = await supabase
+          .from("event_lessons")
+          .select("title,cover_image_url,url,description,duration_minutes")
+          .eq("event_id", eventId);
+
+        if (lessonsError) {
+          console.error("Error fetching lessons:", lessonsError);
+        }
+
+        // Add lessons to event data
+        eventData.event_lessons = lessonsData || [];
         setEvent(eventData);
 
         // Map event tracks to scoring_config structure if needed
@@ -202,9 +216,14 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
     }
 
     fetchEvent();
-  }, [eventId, router, toast]);
+  }, [eventId, router, toast, refetchTrigger]);
 
   const { isArchived } = useEventArchiveStatus(event);
+
+  // Function to trigger a refetch of event data
+  const refetchEvent = () => {
+    setRefetchTrigger((prev) => prev + 1);
+  };
 
   if (loading) {
     return (
@@ -262,6 +281,8 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
             setSaving={setSaving}
             router={router}
             toast={toast}
+            refetchEvent={refetchEvent}
+            isArchived={isArchived}
           />
         </TabsContent>
 

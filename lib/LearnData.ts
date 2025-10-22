@@ -1,4 +1,4 @@
-interface LearnItem {
+export interface LearnItem {
     id: number;
     title: string;
     description: string;

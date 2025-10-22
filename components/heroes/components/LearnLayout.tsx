@@ -1,26 +1,16 @@
 "use client";
 
-import { data } from "@/lib/LearnData";
-import Image from "next/image";
+import { data, LearnItem } from "@/lib/LearnData";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 import { supabase } from "@/lib/supabase";
-
-type LearnItemLike = {
-  id: number;
-  title: string;
-  description: string;
-  source: string;
-  readingTime: number;
-  thumbnail: string;
-  video: boolean;
-};
+import { Lesson } from "@/lib/types";
 
 export function LearnLayout() {
   const [bookmarkedIds, setBookmarkedIds] = useState<Set<number>>(new Set());
   const [activeTab, setActiveTab] = useState<"all" | "bookmark">("all");
-  const [exclusiveLessons, setExclusiveLessons] = useState<LearnItemLike[]>([]);
+  const [exclusiveLessons, setExclusiveLessons] = useState<LearnItem[]>([]);
 
   useEffect(() => {
     try {
@@ -55,7 +45,10 @@ export function LearnLayout() {
           .select("event_id,title,cover_image_url,url,description,duration_minutes")
           .in("event_id", eventIds);
 
-        const flatLessons: LearnItemLike[] = [];
+        const flatLessons: LearnItem[] = [];
+
+        // Use a large offset to ensure exclusive lesson IDs don't collide with static lesson IDs
+        const EXCLUSIVE_LESSON_ID_OFFSET = 2_000_000_000;
 
         const hash = (s: string) => {
           let h = 0;
@@ -63,21 +56,19 @@ export function LearnLayout() {
             h = (h << 5) - h + s.charCodeAt(i);
             h |= 0;
           }
-          // offset to avoid collision with built-in items
-          return 2000000000 + Math.abs(h);
+          return EXCLUSIVE_LESSON_ID_OFFSET + Math.abs(h);
         };
 
-        (lessonsRows || []).forEach((row: any) => {
-          const title = String(row?.title || "Untitled Lesson");
-          const url = String(row?.url || "#");
-          const id = hash(`${row.event_id}|${title}|${url}`);
+        type EventLessonRow = Lesson & { event_id: string };
+        (lessonsRows || []).forEach((row: EventLessonRow) => {
+          const id = hash(`${row.event_id}|${row.title}|${row.url}`);
           flatLessons.push({
             id,
-            title,
-            description: String(row?.description || ""),
-            source: url,
-            readingTime: Number(row?.duration_minutes || 0) || 0,
-            thumbnail: String(row?.cover_image_url || "/img/placeholder.png"),
+            title: row.title,
+            description: row.description,
+            source: row.url,
+            readingTime: row.duration_minutes,
+            thumbnail: row.cover_image_url,
             video: false,
           });
         });
@@ -91,10 +82,9 @@ export function LearnLayout() {
     fetchExclusiveLessons();
   }, []);
 
-  const allItems: LearnItemLike[] = useMemo(() => {
+  const allItems: LearnItem[] = useMemo(() => {
     // Merge static learn data and exclusive lessons
-    // Cast is safe as shapes match
-    return [...(data as unknown as LearnItemLike[]), ...exclusiveLessons];
+    return [...data, ...exclusiveLessons];
   }, [exclusiveLessons]);
 
   const toggleBookmark = (id: number) => {
@@ -161,11 +151,10 @@ export function LearnLayout() {
           >
             <div className="relative w-full aspect-video bg-black rounded-t-xl overflow-hidden flex items-center justify-center transition-transform duration-200">
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <Image
+                <img
                   src={item.thumbnail}
                   alt={item.title}
-                  fill
-                  className="object-cover"
+                  className="absolute inset-0 w-full h-full object-cover"
                 />
 
                 {item.video && (

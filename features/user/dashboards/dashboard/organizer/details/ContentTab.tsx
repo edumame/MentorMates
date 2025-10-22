@@ -1,7 +1,7 @@
 "use client";
 
 import { EventDetails, Lesson } from "@/lib/types";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import { customMarkdownComponents } from "@/components/markdown/custom-components";
 import { markdownRehypePlugins } from "@/components/markdown/plugins";
@@ -11,19 +11,51 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/lib/supabase";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { useToast } from "@/lib/hooks/use-toast";
 
 interface ContentTabProps {
   event: EventDetails;
   setEvent: React.Dispatch<React.SetStateAction<EventDetails | null>>;
   isArchived?: boolean;
+  refetchEvent?: () => void;
 }
 
 export function ContentTab({
   event,
   setEvent,
   isArchived = false,
+  refetchEvent,
 }: ContentTabProps) {
   const [savingLessons, setSavingLessons] = useState(false);
+  const [savingContent, setSavingContent] = useState(false);
+  const [loadingLessons, setLoadingLessons] = useState(false);
+  const { toast } = useToast();
+
+  // Fetch lessons from database when component mounts
+  useEffect(() => {
+    async function fetchLessons() {
+      setLoadingLessons(true);
+      try {
+        const { data: lessonsData, error } = await supabase
+          .from("event_lessons")
+          .select("title,cover_image_url,url,description,duration_minutes")
+          .eq("event_id", event.event_id);
+
+        if (error) {
+          console.error("Error fetching lessons:", error);
+        } else {
+          // Update event with fetched lessons
+          setEvent({ ...event, event_lessons: (lessonsData || []) as Lesson[] });
+        }
+      } catch (err) {
+        console.error("Exception fetching lessons:", err);
+      } finally {
+        setLoadingLessons(false);
+      }
+    }
+
+    fetchLessons();
+  }, [event.event_id]); // Only re-fetch when event_id changes
 
   const addLesson = () => {
     const newLesson: Lesson = {
@@ -47,36 +79,100 @@ export function ContentTab({
     setEvent({ ...event, event_lessons: next });
   };
 
-  const saveLessons = async () => {
+  const saveContent = async () => {
     if (isArchived) return;
     try {
+      setSavingContent(true);
+      const { error } = await supabase
+        .from("events")
+        .update({ paywall_content: event.paywall_content })
+        .eq("event_id", event.event_id);
+
+      if (error) {
+        console.error("Error saving content:", error);
+        throw new Error(`Failed to save content: ${error.message}`);
+      }
+
+      toast({
+        title: "Success",
+        description: "Exclusive content saved successfully",
+      });
+    } catch (err) {
+      console.error("Error saving content", err);
+      toast({
+        title: "Error",
+        description: err instanceof Error ? err.message : "Failed to save content. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingContent(false);
+    }
+  };
+
+  const saveLessons = async () => {
+    if (isArchived) return;
+
+    try {
       setSavingLessons(true);
-      // Upsert by replacing all lessons for this event with current list
       const eventId = event.event_id;
+      const lessons = event.event_lessons || [];
+
+      // Validate lessons before saving
+      const invalidLessons = lessons.filter(
+        (l) => !l.title?.trim() || !l.cover_image_url?.trim() || !l.url?.trim() || !l.description?.trim() || !l.duration_minutes || l.duration_minutes < 1
+      );
+
+      if (invalidLessons.length > 0) {
+        throw new Error("All lesson fields are required. Please fill in title, cover image URL, URL, description, and duration (minimum 1 minute) for all lessons.");
+      }
+
       // Delete existing lessons for this event
       const { error: delErr } = await supabase
         .from("event_lessons")
         .delete()
         .eq("event_id", eventId);
-      if (delErr) throw delErr;
 
-      const lessons = event.event_lessons || [];
+      if (delErr) {
+        throw new Error(`Failed to delete existing lessons: ${delErr.message}`);
+      }
+
+      // Insert new lessons
       if (lessons.length > 0) {
         const payload = lessons.map((l) => ({
           event_id: eventId,
-          title: l.title,
-          cover_image_url: l.cover_image_url,
-          url: l.url,
-          description: l.description,
+          title: l.title.trim(),
+          cover_image_url: l.cover_image_url.trim(),
+          url: l.url.trim(),
+          description: l.description.trim(),
           duration_minutes: l.duration_minutes,
         }));
+
         const { error: insErr } = await supabase
           .from("event_lessons")
-          .insert(payload);
-        if (insErr) throw insErr;
+          .insert(payload)
+          .select();
+
+        if (insErr) {
+          throw new Error(`Failed to insert lessons: ${insErr.message}`);
+        }
+      }
+
+      toast({
+        title: "Success",
+        description: `${lessons.length} lesson${lessons.length !== 1 ? 's' : ''} saved successfully`,
+      });
+
+      // Refetch event data to ensure lessons persist across navigation
+      if (refetchEvent) {
+        refetchEvent();
       }
     } catch (err) {
       console.error("Error saving lessons", err);
+      toast({
+        title: "Error",
+        description: err instanceof Error ? err.message : "Failed to save lessons. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setSavingLessons(false);
     }
@@ -89,7 +185,7 @@ export function ContentTab({
           <Tabs defaultValue="edit" className="w-full">
             <div className="content-stretch flex items-center justify-between relative shrink-0 w-full">
               <p className="font-['Inter'] font-normal leading-[1.5] not-italic relative shrink-0 text-[16px] text-black text-nowrap whitespace-pre">
-                Exclusive Content for Participants
+                Content for Event Participants
               </p>
               <TabsList className="bg-white border border-[rgba(0,0,0,0.15)] border-solid flex items-start relative rounded-[12px] shrink-0 h-auto gap-0">
                 <TabsTrigger value="edit">Edit</TabsTrigger>
@@ -128,23 +224,38 @@ export function ContentTab({
           </Tabs>
         </div>
       </div>
+      <Button onClick={saveContent} disabled={isArchived || savingContent} className="w-full">
+        {savingContent ? "Saving Content..." : "Save Content"}
+      </Button>
       <p className="font-['Inter'] font-normal leading-[1.5] not-italic relative shrink-0 text-[#7f7f7f] text-[16px] w-full">
         *This content is visible only to participants who have joined/paid for
         the event.
       </p>
 
-      {/* Exclusive Lessons Editor */}
+      {/* Lessons Editor */}
       <div className="w-full mt-4 space-y-4">
-        <div className="flex items-center justify-between">
-          <p className="text-base font-medium">Exclusive Lessons</p>
-          <Button variant="outline" disabled={isArchived} onClick={addLesson}>
-            Add Lesson
-          </Button>
-        </div>
+        <Tabs defaultValue="edit" className="w-full">
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-base font-medium">
+              Lessons {loadingLessons && <span className="text-sm text-gray-500">(Loading...)</span>}
+            </p>
+            <div className="flex items-center gap-2">
+              <TabsList className="bg-white border border-[rgba(0,0,0,0.15)] border-solid flex items-start relative rounded-[12px] shrink-0 h-auto gap-0">
+                <TabsTrigger value="edit">Edit</TabsTrigger>
+                <TabsTrigger value="preview">Preview</TabsTrigger>
+              </TabsList>
+              <Button variant="outline" disabled={isArchived || loadingLessons} onClick={addLesson}>
+                Add Lesson
+              </Button>
+            </div>
+          </div>
 
-        {(event.event_lessons || []).length === 0 && (
-          <p className="text-sm text-muted-foreground">No lessons yet.</p>
-        )}
+          <TabsContent value="edit" className="mt-0">
+            {loadingLessons ? (
+              <p className="text-sm text-gray-500">Loading lessons...</p>
+            ) : (event.event_lessons || []).length === 0 ? (
+              <p className="text-sm text-muted-foreground">No lessons yet. Click "Add Lesson" to create one.</p>
+            ) : null}
 
         <div className="space-y-6">
           {(event.event_lessons || []).map((lesson, index) => (
@@ -216,6 +327,65 @@ export function ContentTab({
         <Button onClick={saveLessons} disabled={isArchived || savingLessons} className="w-full">
           {savingLessons ? "Saving Lessons..." : "Save Lessons"}
         </Button>
+          </TabsContent>
+
+          <TabsContent value="preview" className="mt-0">
+            {(event.event_lessons || []).length === 0 ? (
+              <p className="text-sm text-muted-foreground">No lessons to preview. Add lessons in the Edit tab.</p>
+            ) : (
+              <div className="space-y-6">
+                <p className="text-sm text-muted-foreground">
+                  This is how your lessons will appear to participants on the event page and Learn tab:
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {(event.event_lessons || []).map((lesson, idx) => (
+                    <div
+                      key={idx}
+                      className="bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col hover:shadow-md hover:border-gray-300 transition-all duration-200"
+                    >
+                      <div className="relative w-full aspect-video bg-black rounded-t-xl overflow-hidden">
+                        {lesson.cover_image_url ? (
+                          <img
+                            src={lesson.cover_image_url}
+                            alt={lesson.title}
+                            className="absolute inset-0 w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="absolute inset-0 flex items-center justify-center text-white text-sm">
+                            No image
+                          </div>
+                        )}
+                      </div>
+                      <div className="p-4 flex-1 flex flex-col">
+                        <h4 className="text-base font-semibold mb-1">{lesson.title || "Untitled"}</h4>
+                        <p className="text-sm text-gray-600 mb-4 line-clamp-3">{lesson.description || "No description"}</p>
+                        <div className="mt-auto text-xs text-gray-500 flex items-center gap-1">
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="16"
+                            height="16"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            className="inline-block"
+                          >
+                            <path
+                              d="M12 8V12L14.5 13.5M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z"
+                              stroke="currentColor"
+                              strokeWidth="1.5"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                          {lesson.duration_minutes} min
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
