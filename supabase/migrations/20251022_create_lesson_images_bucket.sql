@@ -24,7 +24,8 @@ WITH CHECK (
     AND role IN ('organizer', 'admin')
     -- Extract event_id from the path (format: eventId/timestamp-filename)
     -- The path is stored in 'name', split by '/' and take first part
-    AND event_id = split_part(name, '/', 1)
+    -- Cast to UUID to match event_id column type
+    AND event_id = split_part(name, '/', 1)::uuid
   )
 );
 
@@ -44,7 +45,7 @@ USING (
     SELECT 1 FROM user_event_roles
     WHERE user_id = auth.uid()
     AND role IN ('organizer', 'admin')
-    AND event_id = split_part(name, '/', 1)
+    AND event_id = split_part(name, '/', 1)::uuid
   )
 );
 
@@ -58,6 +59,6 @@ USING (
     SELECT 1 FROM user_event_roles
     WHERE user_id = auth.uid()
     AND role IN ('organizer', 'admin')
-    AND event_id = split_part(name, '/', 1)
+    AND event_id = split_part(name, '/', 1)::uuid
   )
 );
