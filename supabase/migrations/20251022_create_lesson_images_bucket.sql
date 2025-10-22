@@ -23,7 +23,8 @@ WITH CHECK (
     WHERE user_id = auth.uid()
     AND role IN ('organizer', 'admin')
     -- Extract event_id from the path (format: eventId/timestamp-filename)
-    AND event_id = split_part((storage.foldername(name))[1], '/', 1)
+    -- The path is stored in 'name', split by '/' and take first part
+    AND event_id = split_part(name, '/', 1)
   )
 );
 
@@ -43,7 +44,7 @@ USING (
     SELECT 1 FROM user_event_roles
     WHERE user_id = auth.uid()
     AND role IN ('organizer', 'admin')
-    AND event_id = split_part((storage.foldername(name))[1], '/', 1)
+    AND event_id = split_part(name, '/', 1)
   )
 );
 
@@ -57,6 +58,6 @@ USING (
     SELECT 1 FROM user_event_roles
     WHERE user_id = auth.uid()
     AND role IN ('organizer', 'admin')
-    AND event_id = split_part((storage.foldername(name))[1], '/', 1)
+    AND event_id = split_part(name, '/', 1)
   )
 );
