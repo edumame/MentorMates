@@ -29,6 +29,7 @@ export function ContentTab({
   const [savingLessons, setSavingLessons] = useState(false);
   const [savingContent, setSavingContent] = useState(false);
   const [loadingLessons, setLoadingLessons] = useState(false);
+  const [uploadingImages, setUploadingImages] = useState<Record<number, boolean>>({});
   const { toast } = useToast();
 
   // Fetch lessons from database when component mounts
@@ -77,6 +78,65 @@ export function ContentTab({
   const removeLesson = (index: number) => {
     const next = (event.event_lessons || []).filter((_, i) => i !== index);
     setEvent({ ...event, event_lessons: next });
+  };
+
+  const handleImageUpload = async (index: number, file: File) => {
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "Error",
+        description: "Please upload an image file (PNG, JPG, GIF, etc.)",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "Error",
+        description: "Image size must be less than 5MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setUploadingImages(prev => ({ ...prev, [index]: true }));
+
+      // Create form data
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('eventId', event.event_id);
+
+      // Upload to your API endpoint
+      const response = await fetch('/api/upload-lesson-image', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Upload failed');
+      }
+
+      const data = await response.json();
+
+      // Update lesson with the uploaded image URL
+      updateLesson(index, { cover_image_url: data.url });
+
+      toast({
+        title: "Success",
+        description: "Image uploaded successfully",
+      });
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      toast({
+        title: "Error",
+        description: "Failed to upload image. Please try again or use a URL instead.",
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingImages(prev => ({ ...prev, [index]: false }));
+    }
   };
 
   const saveContent = async () => {
@@ -269,13 +329,49 @@ export function ContentTab({
                 />
               </div>
               <div className="space-y-2">
-                <Label>Cover Image URL</Label>
-                <Input
-                  type="url"
-                  value={lesson.cover_image_url}
-                  disabled={isArchived}
-                  onChange={(e) => updateLesson(index, { cover_image_url: e.target.value })}
-                />
+                <Label>Cover Image</Label>
+                <div className="flex gap-2">
+                  <Input
+                    type="url"
+                    placeholder="Image URL"
+                    value={lesson.cover_image_url}
+                    disabled={isArchived || uploadingImages[index]}
+                    onChange={(e) => updateLesson(index, { cover_image_url: e.target.value })}
+                    className="flex-1"
+                  />
+                  <div className="relative">
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      disabled={isArchived || uploadingImages[index]}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          handleImageUpload(index, file);
+                        }
+                      }}
+                      className="hidden"
+                      id={`file-upload-${index}`}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={isArchived || uploadingImages[index]}
+                      onClick={() => document.getElementById(`file-upload-${index}`)?.click()}
+                    >
+                      {uploadingImages[index] ? "Uploading..." : "Upload"}
+                    </Button>
+                  </div>
+                </div>
+                {lesson.cover_image_url && (
+                  <div className="mt-2">
+                    <img
+                      src={lesson.cover_image_url}
+                      alt="Preview"
+                      className="w-32 h-20 object-cover rounded border"
+                    />
+                  </div>
+                )}
               </div>
               <div className="space-y-2">
                 <Label>Destination URL</Label>
