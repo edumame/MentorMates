@@ -3,14 +3,18 @@ import { isValidUUID } from "@/app/utils/supabase/queries";
 import { notFound } from "next/navigation";
 import { EventPageLayout } from "@/components/events/event-page-layout";
 import { GalleryContent } from "@/components/events/gallery-content";
+import { EventRole } from "@/lib/types";
 
 interface PageProps {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
-export default async function GalleryPage({ params }: PageProps) {
-  const { id } = await Promise.resolve(params);
+export default async function GalleryPage({ params, searchParams }: PageProps) {
+  const { id } = await params;
+  const resolvedSearchParams = await searchParams;
   const supabase = await createSupabaseClient();
+  const currentRole = (resolvedSearchParams.view as EventRole | null) || null;
 
   const isUUID = isValidUUID(id);
 
@@ -72,6 +76,7 @@ export default async function GalleryPage({ params }: PageProps) {
         slug={id}
         hasJoined={hasJoined}
         userRole={userRole}
+        currentRole={(currentRole || userRole || null) as EventRole | null}
       />
     </EventPageLayout>
   );

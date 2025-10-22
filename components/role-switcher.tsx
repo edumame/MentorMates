@@ -90,7 +90,7 @@ export function RoleSwitcher({
           <DropdownMenuLabel>Switch Dashboard View</DropdownMenuLabel>
           <DropdownMenuSeparator />
 
-          {accessibleRoles.map((role) => {
+          {accessibleRoles.map((role: EventRole) => {
             const isActive = role === activeRole;
             const isActualRole = role === actualRole;
 

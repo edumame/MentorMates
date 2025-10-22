@@ -6,12 +6,14 @@ import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Plus, Search } from "lucide-react";
 import ProjectBoard from "@/features/projects/components/displays/ProjectBoard/ProjectBoard";
-import { ProjectBoardContext, Project } from "@/lib/types";
+import { ProjectBoardContext, Project, EventRole } from "@/lib/types";
+
 interface GalleryContentProps {
   eventId: string;
   slug: string;
   hasJoined: boolean;
   userRole?: string | null;
+  currentRole?: EventRole | null;
 }
 
 export function GalleryContent({
@@ -19,6 +21,7 @@ export function GalleryContent({
   slug,
   hasJoined,
   userRole,
+  currentRole,
 }: GalleryContentProps) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -70,7 +73,9 @@ export function GalleryContent({
 
       {/* Create Project Button - Only show for participants and organizers */}
       {hasJoined &&
-        (userRole === "participant" || userRole === "organizer") && (
+        currentRole === EventRole.Participant &&
+        (userRole === EventRole.Organizer ||
+          userRole === EventRole.Participant) && (
           <div className="mb-6">
             <Link href={`/projects/submit?eventId=${slug}`}>
               <Button className="button-gradient text-white font-semibold rounded-full shadow-lg hover:shadow-xl transition-all duration-300 flex items-center gap-2">
