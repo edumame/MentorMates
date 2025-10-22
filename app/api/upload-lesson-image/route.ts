@@ -41,6 +41,7 @@ export async function POST(request: NextRequest) {
     // Check authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
+      console.error('Authentication error:', authError);
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -49,24 +50,49 @@ export async function POST(request: NextRequest) {
     const eventId = formData.get('eventId') as string;
 
     if (!file) {
+      console.error('No file provided in request');
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
     }
 
     if (!eventId) {
+      console.error('No event ID provided in request');
       return NextResponse.json({ error: 'No event ID provided' }, { status: 400 });
     }
 
+    console.log('Upload request:', {
+      fileName: file.name,
+      fileSize: file.size,
+      fileType: file.type,
+      eventId,
+      userId: user.id,
+    });
+
     // Check if user is organizer/admin for this event
-    const { data: roleData } = await supabase
+    const { data: roleData, error: roleError } = await supabase
       .from('user_event_roles')
       .select('role')
       .eq('user_id', user.id)
       .eq('event_id', eventId)
       .single();
 
+    if (roleError) {
+      console.error('Error checking user role:', roleError);
+    }
+
     if (!roleData || !['organizer', 'admin'].includes(roleData.role)) {
+      console.warn('User authorization failed:', {
+        userId: user.id,
+        eventId,
+        role: roleData?.role,
+      });
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
+
+    console.log('User authorized:', {
+      userId: user.id,
+      role: roleData.role,
+      eventId,
+    });
 
     // Server-side MIME type validation
     if (!ALLOWED_MIME_TYPES.includes(file.type)) {
@@ -103,6 +129,13 @@ export async function POST(request: NextRequest) {
     const fileName = `${eventId}/${timestamp}-${sanitizedFileName}`;
 
     // Upload to Supabase Storage with validated content type
+    console.log('Attempting upload to storage:', {
+      bucket: 'lesson-images',
+      fileName,
+      fileSize: buffer.length,
+      contentType: file.type,
+    });
+
     const { data, error } = await supabase.storage
       .from('lesson-images')
       .upload(fileName, buffer, {
@@ -112,14 +145,30 @@ export async function POST(request: NextRequest) {
       });
 
     if (error) {
-      console.error('Error uploading to storage:', error);
-      return NextResponse.json({ error: 'Failed to upload image' }, { status: 500 });
+      console.error('Supabase storage upload error:', {
+        error,
+        errorMessage: error.message,
+        errorDetails: JSON.stringify(error),
+        fileName,
+        bucket: 'lesson-images',
+      });
+      return NextResponse.json({
+        error: 'Failed to upload image',
+        details: error.message
+      }, { status: 500 });
     }
+
+    console.log('Upload successful:', {
+      path: data.path,
+      fileName,
+    });
 
     // Get public URL
     const { data: { publicUrl } } = supabase.storage
       .from('lesson-images')
       .getPublicUrl(data.path);
+
+    console.log('Generated public URL:', publicUrl);
 
     return NextResponse.json({ url: publicUrl }, { status: 200 });
   } catch (error) {
