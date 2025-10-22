@@ -67,7 +67,7 @@ const ProjectBoard = ({
           className="mx-auto"
         >
           {projectList.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[24px]">
+            <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 md:gap-6 lg:gap-[24px]">
               {projectList.map((project) => {
                 const projectUrl =
                   projectBoardContext === ProjectBoardContext.MyProjects
@@ -124,7 +124,7 @@ const ProjectBoard = ({
                       <div className="p-6 flex-1 flex flex-col">
                         {/* Project name + status chips */}
                         <div className="flex items-start justify-between mb-4 gap-2">
-                          <h3 className="font-bold text-black flex-1 min-w-0">
+                          <h3 className="font-bold text-black flex-1 min-w-0 truncate">
                             {project.project_name || "Project"}
                           </h3>
                           <div className="flex items-center gap-1 flex-shrink-0">
@@ -149,7 +149,7 @@ const ProjectBoard = ({
                         )}
 
                         {/* Meta row */}
-                        <div className="flex items-center gap-6 mb-4 text-sm text-gray-600">
+                        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mb-4 text-sm text-gray-600">
                           <div className="flex items-center gap-2">
                             <CalendarClock className="w-4 h-4" />
                             <span>
