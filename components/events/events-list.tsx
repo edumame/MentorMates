@@ -106,17 +106,33 @@ export function EventsList({ events }: EventsListProps) {
                 </Badge>
               </div>
             )}
-            {/* Archived Badge */}
-            {event.visibility === EventVisibility.Archived && (
-              <div className="absolute top-3 right-3 z-10">
+            {/* Visibility Badges */}
+            <div className="absolute top-3 right-3 z-10 flex gap-2">
+              {event.visibility === EventVisibility.Archived && (
                 <Badge
                   variant="secondary"
                   className="bg-orange-100 text-orange-800 text-xs shadow-md"
                 >
                   📁 Archived
                 </Badge>
-              </div>
-            )}
+              )}
+              {event.visibility === EventVisibility.Unlisted && (
+                <Badge
+                  variant="secondary"
+                  className="bg-gray-100 text-gray-800 text-xs shadow-md"
+                >
+                  🔗 Unlisted
+                </Badge>
+              )}
+              {event.visibility === EventVisibility.Private && (
+                <Badge
+                  variant="secondary"
+                  className="bg-yellow-100 text-yellow-800 text-xs shadow-md"
+                >
+                  🔒 Private
+                </Badge>
+              )}
+            </div>
           </div>
         );
       })}

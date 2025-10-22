@@ -48,29 +48,23 @@ export default async function EventsPage() {
         // Admins can see all events (public, private, draft, demo, test)
         // No additional filter needed
       } else if (organizerEventIds.length > 0) {
-        // For organizers:
-        // - Public and private events (visible to everyone)
-        // - Draft events where user is an organizer
-        // - Archived events where user is an organizer
-        // - No demo or test events
+        // Organizers:
+        // - Public events (discoverable by everyone)
+        // - Their own Private/Unlisted/Draft/Archived events
+        const idsList = organizerEventIds.join(",");
+        const organizerOnlyVis = [
+          EventVisibility.Private,
+          EventVisibility.Unlisted,
+          EventVisibility.Draft,
+          EventVisibility.Archived,
+        ].join(",");
         query = query.or(
-          `visibility.in.(${[
-            EventVisibility.Public,
-            EventVisibility.Private,
-          ].join(",")}),` +
-            `and(visibility.eq.${
-              EventVisibility.Draft
-            },event_id.in.(${organizerEventIds.join(",")})),` +
-            `and(visibility.eq.${
-              EventVisibility.Archived
-            },event_id.in.(${organizerEventIds.join(",")}))`
+          `visibility.eq.${EventVisibility.Public},` +
+            `and(event_id.in.(${idsList}),visibility.in.(${organizerOnlyVis}))`
         );
       } else {
-        // Regular users only see public and private events
-        query = query.in("visibility", [
-          EventVisibility.Public,
-          EventVisibility.Private,
-        ]);
+        // Regular users only see public events
+        query = query.eq("visibility", EventVisibility.Public);
       }
 
       const { data: events, error: eventsError } = await query;
@@ -99,11 +93,11 @@ export default async function EventsPage() {
 
   async function fetchPublicEvents() {
     try {
-      // Fetch only public and private events
+      // Fetch only public events (discoverable)
       const { data: events, error } = await supabase
         .from("events")
         .select("*")
-        .in("visibility", [EventVisibility.Public, EventVisibility.Private])
+        .eq("visibility", EventVisibility.Public)
         .order("event_date", { ascending: false });
 
       if (error) throw error;

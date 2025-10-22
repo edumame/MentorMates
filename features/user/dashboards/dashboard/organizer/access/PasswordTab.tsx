@@ -168,6 +168,7 @@ export function PasswordTab({ eventId, roleLabels, isArchived }: PasswordTabProp
               <SelectItem value={EventVisibility.Private}>
                 Private (Password Protected)
               </SelectItem>
+              <SelectItem value={EventVisibility.Unlisted}>Unlisted (Link-only)</SelectItem>
               <SelectItem value={EventVisibility.Draft}>Draft</SelectItem>
             </SelectContent>
           </Select>

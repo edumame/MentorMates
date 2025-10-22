@@ -956,7 +956,7 @@ export type Database = {
         | "organizer"
         | "admin"
         | "event"
-      event_visibility: "test" | "demo" | "private" | "public" | "draft" | "archived"
+      event_visibility: "test" | "demo" | "private" | "public" | "draft" | "archived" | "unlisted"
       payment_status: "processing" | "paid" | "canceled" | "refunded"
       ticket_status_enum: "unassigned" | "assigned" | "used" | "transferred"
     }
@@ -1082,7 +1082,7 @@ export const Constants = {
         "admin",
         "event",
       ],
-      event_visibility: ["test", "demo", "private", "public", "draft"],
+      event_visibility: ["test", "demo", "private", "public", "draft", "archived", "unlisted"],
       payment_status: ["processing", "paid", "canceled"],
       ticket_status_enum: ["unassigned", "assigned", "used", "transferred"],
     },

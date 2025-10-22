@@ -156,7 +156,7 @@ export default function NewEventPage() {
 
                 {showVisibilityDropdown && (
                   <div className="absolute top-full mt-2 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] shadow-lg z-10 w-[142px] overflow-hidden">
-                    {[EventVisibility.Public, EventVisibility.Private, EventVisibility.Draft].map((vis) => (
+                    {[EventVisibility.Public, EventVisibility.Private, EventVisibility.Unlisted, EventVisibility.Draft].map((vis) => (
                       <button
                         key={vis}
                         onClick={() => {

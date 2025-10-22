@@ -140,6 +140,22 @@ export function EventHeader({
               📁 ARCHIVED
             </Badge>
           )}
+          {visibility === EventVisibility.Unlisted && (
+            <Badge
+              variant="secondary"
+              className="bg-gray-500/20 text-gray-200 border-none text-xs sm:text-sm"
+            >
+              🔗 UNLISTED
+            </Badge>
+          )}
+          {visibility === EventVisibility.Private && (
+            <Badge
+              variant="secondary"
+              className="bg-yellow-500/20 text-yellow-200 border-none text-xs sm:text-sm"
+            >
+              🔒 PRIVATE
+            </Badge>
+          )}
         </div>
         {description && (
           <div>
