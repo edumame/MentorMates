@@ -19,7 +19,7 @@ export default function NewEventPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [creating, setCreating] = useState(false);
   const [ticketType, setTicketType] = useState<"free" | "paid">("free");
-  const [visibility, setVisibility] = useState<EventVisibility>(EventVisibility.Public);
+  const [visibility, setVisibility] = useState<EventVisibility>(EventVisibility.Draft);
   const [showVisibilityDropdown, setShowVisibilityDropdown] = useState(false);
 
   const [form, setForm] = useState({
