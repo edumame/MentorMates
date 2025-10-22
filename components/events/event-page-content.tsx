@@ -1,5 +1,6 @@
 "use client";
 
+import React, { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { customMarkdownComponents } from "@/components/markdown/custom-components";
 import { markdownRehypePlugins } from "@/components/markdown/plugins";
@@ -15,6 +16,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ParticipantDashboard } from "@/features/user/dashboards/dashboard/participant-dashboard";
 import { JudgeDashboard } from "@/features/user/dashboards/dashboard/judge-dashboard";
 import { useActiveRole } from "./ActiveRoleContext";
+import { supabase } from "@/lib/supabase";
+import type { Project } from "@/lib/types";
+import { ProjectsTab } from "@/features/user/dashboards/participant/ProjectsTab";
 
 interface EventPageContentProps {
   event: EventDetails;
@@ -32,6 +36,53 @@ export function EventPageContent({
   // Get active role from context, fallback to userRole
   const { activeRole } = useActiveRole();
   const displayRole = activeRole || userRole;
+
+  // Local state for participant's projects
+  const [myProjects, setMyProjects] = useState<Project[]>([]);
+  const [isLoadingProjects, setIsLoadingProjects] = useState(false);
+
+  useEffect(() => {
+    const fetchMyProjects = async () => {
+      if (displayRole !== "participant" || !hasJoined) return;
+      setIsLoadingProjects(true);
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        const userEmail = session?.user?.email;
+        if (!userEmail) {
+          setIsLoadingProjects(false);
+          return;
+        }
+
+        const { data: leadProjects } = await supabase
+          .from("projects")
+          .select("*")
+          .eq("event_id", event.event_id)
+          .eq("lead_email", userEmail);
+
+        const { data: teamProjects } = await supabase
+          .from("projects")
+          .select("*")
+          .eq("event_id", event.event_id)
+          .contains("teammates", [userEmail]);
+
+        const all = [...(leadProjects || []), ...(teamProjects || [])]
+          .filter((p, idx, arr) => idx === arr.findIndex((q) => q.id === p.id))
+          .sort(
+            (a, b) =>
+              new Date(b.created_at as string).getTime() -
+              new Date(a.created_at as string).getTime()
+          );
+
+        setMyProjects(all as Project[]);
+      } finally {
+        setIsLoadingProjects(false);
+      }
+    };
+
+    fetchMyProjects();
+  }, [displayRole, hasJoined, event.event_id]);
 
   // Show participant-style dashboard for mentors (no project creation)
   if (displayRole === "mentor") {
@@ -268,6 +319,28 @@ export function EventPageContent({
             </div>
           </div>
         </>
+      )}
+
+      {/* My Projects (participants only) */}
+      {hasJoined && displayRole === "participant" && (
+        <div className="mt-8">
+          <Card className="shadow-none border-none p-0">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-2xl font-semibold text-gray-800">
+                My Projects
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <ProjectsTab
+                eventId={event.event_id}
+                myProjects={myProjects}
+                setMyProjects={setMyProjects}
+                isLoading={isLoadingProjects}
+                canCreateProjects
+              />
+            </CardContent>
+          </Card>
+        </div>
       )}
     </div>
   );
