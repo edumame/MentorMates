@@ -51,11 +51,30 @@ export function ContentTab({
     if (isArchived) return;
     try {
       setSavingLessons(true);
-      const { error } = await supabase
-        .from("events")
-        .update({ event_lessons: event.event_lessons || [] })
-        .eq("event_id", event.event_id);
-      if (error) throw error;
+      // Upsert by replacing all lessons for this event with current list
+      const eventId = event.event_id;
+      // Delete existing lessons for this event
+      const { error: delErr } = await supabase
+        .from("event_lessons")
+        .delete()
+        .eq("event_id", eventId);
+      if (delErr) throw delErr;
+
+      const lessons = event.event_lessons || [];
+      if (lessons.length > 0) {
+        const payload = lessons.map((l) => ({
+          event_id: eventId,
+          title: l.title,
+          cover_image_url: l.cover_image_url,
+          url: l.url,
+          description: l.description,
+          duration_minutes: l.duration_minutes,
+        }));
+        const { error: insErr } = await supabase
+          .from("event_lessons")
+          .insert(payload);
+        if (insErr) throw insErr;
+      }
     } catch (err) {
       console.error("Error saving lessons", err);
     } finally {

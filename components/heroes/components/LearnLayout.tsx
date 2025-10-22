@@ -50,9 +50,9 @@ export function LearnLayout() {
         const eventIds = (roles || []).map((r: { event_id: string }) => r.event_id);
         if (eventIds.length === 0) return;
 
-        const { data: events } = await supabase
-          .from("events")
-          .select("event_id,event_lessons")
+        const { data: lessonsRows } = await supabase
+          .from("event_lessons")
+          .select("event_id,title,cover_image_url,url,description,duration_minutes")
           .in("event_id", eventIds);
 
         const flatLessons: LearnItemLike[] = [];
@@ -67,22 +67,18 @@ export function LearnLayout() {
           return 2000000000 + Math.abs(h);
         };
 
-        (events || []).forEach((evt: { event_id: string; event_lessons?: any[] | null }) => {
-          const lessons = Array.isArray(evt.event_lessons) ? evt.event_lessons : [];
-          lessons.forEach((l) => {
-            // Defensive mapping in case of partially filled entries
-            const title = String(l?.title || "Untitled Lesson");
-            const url = String(l?.url || "#");
-            const id = hash(`${evt.event_id}|${title}|${url}`);
-            flatLessons.push({
-              id,
-              title,
-              description: String(l?.description || ""),
-              source: url,
-              readingTime: Number(l?.duration_minutes || 0) || 0,
-              thumbnail: String(l?.cover_image_url || "/img/placeholder.png"),
-              video: false,
-            });
+        (lessonsRows || []).forEach((row: any) => {
+          const title = String(row?.title || "Untitled Lesson");
+          const url = String(row?.url || "#");
+          const id = hash(`${row.event_id}|${title}|${url}`);
+          flatLessons.push({
+            id,
+            title,
+            description: String(row?.description || ""),
+            source: url,
+            readingTime: Number(row?.duration_minutes || 0) || 0,
+            thumbnail: String(row?.cover_image_url || "/img/placeholder.png"),
+            video: false,
           });
         });
 
