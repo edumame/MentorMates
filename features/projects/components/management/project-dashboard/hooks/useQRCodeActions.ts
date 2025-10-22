@@ -1,6 +1,6 @@
 import { toast } from "@/lib/hooks/use-toast";
 
-export function useQRCodeActions(eventId: string, projectId: string, projectName?: string) {
+export function useQRCodeActions(_eventId: string, projectId: string, projectName?: string) {
   const handleCopyQR = async () => {
     try {
       const svg = document.querySelector("#project-qr-code");
@@ -28,7 +28,7 @@ export function useQRCodeActions(eventId: string, projectId: string, projectName
         };
       });
 
-      const projectUrl = `${window.location.origin}/events/${eventId}/dashboard/${projectId}`;
+      const projectUrl = `${window.location.origin}/projects/public/${projectId}`;
 
       try {
         const dataUrl = canvas.toDataURL("image/png");

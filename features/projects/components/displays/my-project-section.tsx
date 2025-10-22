@@ -99,9 +99,9 @@ export default function MyProjectSection({ eventId }: MyProjectSectionProps) {
               Project Lead: {project.lead_name}
             </p>
           </div>
-          <Link href={`/events/${eventId}/dashboard/${project.id}`}>
+          <Link href={`/projects/${project.id}`}>
             <Button className="bg-black text-white hover:bg-black/90">
-              View Dashboard
+              View Project
             </Button>
           </Link>
         </div>

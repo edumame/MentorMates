@@ -1,6 +1,6 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useEventRegistration } from "@/components/event-registration-provider";
 import { EventRole } from "@/lib/types";
@@ -18,6 +18,8 @@ export default function DashboardPage() {
   const { userRole, activeRole, switchRole, roleLabels } =
     useEventRegistration();
   const [loading, setLoading] = useState(true);
+  const [redirecting, setRedirecting] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     const resolveEventId = async () => {
@@ -48,6 +50,59 @@ export default function DashboardPage() {
     return () => clearTimeout(timer);
   }, []);
 
+  // For participants, redirect to their project details page instead of showing the dashboard
+  useEffect(() => {
+    const redirectParticipantToProject = async () => {
+      if (!eventId || activeRole !== EventRole.Participant) return;
+      setRedirecting(true);
+
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        if (!session?.user?.email) {
+          router.replace(`/events/${slug}`);
+          return;
+        }
+
+        // Fetch projects where user is lead
+        const { data: leadProjects } = await supabase
+          .from("projects")
+          .select("id, created_at")
+          .eq("event_id", eventId)
+          .eq("lead_email", session.user.email);
+
+        // Fetch projects where user is teammate
+        const { data: teamProjects } = await supabase
+          .from("projects")
+          .select("id, created_at, teammates")
+          .eq("event_id", eventId)
+          .contains("teammates", [session.user.email]);
+
+        const all = [...(leadProjects || []), ...(teamProjects || [])]
+          .filter((p, idx, arr) => idx === arr.findIndex((q) => q.id === p.id))
+          .sort(
+            (a, b) =>
+              new Date(b.created_at as string).getTime() -
+              new Date(a.created_at as string).getTime()
+          );
+
+        if (all.length > 0) {
+          router.replace(`/projects/${all[0].id}`);
+        } else {
+          // Fallback to event overview
+          router.replace(`/events/${slug}/overview`);
+        }
+      } catch (e) {
+        // On error, fallback to event overview
+        router.replace(`/events/${slug}/overview`);
+      }
+    };
+
+    redirectParticipantToProject();
+  }, [activeRole, eventId, router, slug]);
+
   if (!eventId) {
     return <div>Loading...</div>;
   }
@@ -56,7 +111,14 @@ export default function DashboardPage() {
     // Use activeRole for dashboard rendering to support role switching
     switch (activeRole) {
       case EventRole.Participant:
-        return <ParticipantDashboard eventId={eventId} canCreateProjects />;
+        // Participant dashboard is temporarily disabled; redirecting handled above
+        return (
+          <div className="text-center py-8">
+            <h2 className="text-2xl font-bold">
+              {redirecting ? "Redirecting to your project..." : "Loading..."}
+            </h2>
+          </div>
+        );
       case EventRole.Judge:
         return <JudgeDashboard eventId={eventId} />;
       case EventRole.Mentor:

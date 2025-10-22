@@ -278,7 +278,7 @@ export default function ProjectDashboardSection({
         };
       });
 
-      const projectUrl = `${window.location.origin}/events/${eventId}/dashboard/${projectId}`;
+      const projectUrl = `${window.location.origin}/projects/public/${projectId}`;
 
       try {
         const dataUrl = canvas.toDataURL("image/png");
