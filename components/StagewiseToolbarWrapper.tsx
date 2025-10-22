@@ -10,7 +10,6 @@ interface StagewiseRequest {
 const stagewiseConfig = {
   plugins: [],
   onRequest: async (request: StagewiseRequest) => {
-    console.log("Received request:", request);
     return { success: true };
   },
 };

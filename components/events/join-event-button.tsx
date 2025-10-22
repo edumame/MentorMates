@@ -123,9 +123,6 @@ export function JoinEventButton({
               .eq("event_id", eventId)
               .order("sort_order", { ascending: true });
 
-          console.log("pricingTiersData", pricingTiersData);
-          console.log("eventId", eventId);
-
           if (pricingTiersError) {
             console.error("Error fetching pricing tiers:", pricingTiersError);
           }

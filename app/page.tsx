@@ -41,8 +41,6 @@ export default function HomePage() {
 
           if (error) {
             console.error("Error syncing profile:", error);
-          } else {
-            console.log("Successfully synced profile.");
           }
 
           posthog.identify(user.id, {
