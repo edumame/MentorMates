@@ -33,15 +33,7 @@ export function EventPageContent({
   const { activeRole } = useActiveRole();
   const displayRole = activeRole || userRole;
 
-  // Show participant-style dashboard for mentors (no project creation)
-  if (displayRole === "mentor") {
-    return (
-      <div className="flex flex-col flex-1 w-full">
-        <ParticipantDashboard eventId={event.event_id} canCreateProjects={false} />
-      </div>
-    );
-  }
-
+  // Show judge-specific dashboard for judges only
   if (displayRole === "judge") {
     return (
       <div className="flex flex-col flex-1 w-full">
@@ -50,7 +42,7 @@ export function EventPageContent({
     );
   }
 
-  // Show default event overview for participants, organizers, and non-authenticated users
+  // Show default event overview for participants, mentors, organizers, and non-authenticated users
   return (
     <div className="flex flex-col flex-1">
       {/* Introduction */}
