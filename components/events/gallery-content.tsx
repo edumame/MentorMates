@@ -57,7 +57,7 @@ export function GalleryContent({
   return (
     <div className="flex flex-col flex-1 w-full">
       {/* Search Bar */}
-      <div className="bg-transparent border border-[rgba(0,0,0,0.15)] rounded-xl flex gap-3 items-center px-3 py-2 mb-6 w-[560px]">
+      <div className="bg-transparent border border-[rgba(0,0,0,0.15)] rounded-xl flex gap-3 items-center px-3 py-2 mb-6 w-full max-w-[560px]">
         <Search className="w-6 h-6 text-black shrink-0" />
         <input
           type="text"
