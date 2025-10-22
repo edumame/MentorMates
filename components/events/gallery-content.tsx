@@ -74,8 +74,8 @@ export function GalleryContent({
       {/* Create Project Button - Only show for participants and organizers */}
       {hasJoined &&
         currentRole === EventRole.Participant &&
-        (userRole === EventRole.Participant ||
-          userRole === EventRole.Organizer) && (
+        (userRole === EventRole.Organizer ||
+          userRole === EventRole.Participant) && (
           <div className="mb-6">
             <Link href={`/projects/submit?eventId=${slug}`}>
               <Button className="button-gradient text-white font-semibold rounded-full shadow-lg hover:shadow-xl transition-all duration-300 flex items-center gap-2">

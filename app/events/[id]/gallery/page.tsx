@@ -7,12 +7,14 @@ import { EventRole } from "@/lib/types";
 
 interface PageProps {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
-export default async function GalleryPage({ params }: PageProps) {
-  const { id } = await Promise.resolve(params);
+export default async function GalleryPage({ params, searchParams }: PageProps) {
+  const { id } = await params;
+  const resolvedSearchParams = await searchParams;
   const supabase = await createSupabaseClient();
-  const currentRole = new URLSearchParams().get("view");
+  const currentRole = (resolvedSearchParams.view as EventRole | null) || null;
 
   const isUUID = isValidUUID(id);
 
@@ -74,7 +76,7 @@ export default async function GalleryPage({ params }: PageProps) {
         slug={id}
         hasJoined={hasJoined}
         userRole={userRole}
-        currentRole={currentRole as EventRole | null}
+        currentRole={(currentRole || userRole || null) as EventRole | null}
       />
     </EventPageLayout>
   );
