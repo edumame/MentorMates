@@ -1,6 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseClient } from '@/app/utils/supabase/server';
 
+// Allowed image MIME types
+const ALLOWED_MIME_TYPES = [
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'image/svg+xml',
+];
+
+// File magic numbers (first bytes) for validation
+const FILE_SIGNATURES: Record<string, number[][]> = {
+  'image/jpeg': [[0xFF, 0xD8, 0xFF]],
+  'image/png': [[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]],
+  'image/gif': [[0x47, 0x49, 0x46, 0x38, 0x37, 0x61], [0x47, 0x49, 0x46, 0x38, 0x39, 0x61]], // GIF87a or GIF89a
+  'image/webp': [[0x52, 0x49, 0x46, 0x46]], // RIFF (WebP container)
+  'image/svg+xml': [[0x3C, 0x73, 0x76, 0x67], [0x3C, 0x3F, 0x78, 0x6D, 0x6C]], // <svg or <?xml
+};
+
+function validateFileSignature(buffer: Buffer, mimeType: string): boolean {
+  const signatures = FILE_SIGNATURES[mimeType];
+  if (!signatures) {
+    // For MIME types without signatures (like SVG text-based), allow if MIME matches
+    return ALLOWED_MIME_TYPES.includes(mimeType);
+  }
+
+  // Check if buffer matches any of the valid signatures for this MIME type
+  return signatures.some(signature => {
+    if (buffer.length < signature.length) return false;
+    return signature.every((byte, index) => buffer[index] === byte);
+  });
+}
+
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createSupabaseClient();
@@ -35,20 +68,45 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    // Server-side MIME type validation
+    if (!ALLOWED_MIME_TYPES.includes(file.type)) {
+      return NextResponse.json(
+        { error: `Invalid file type. Allowed types: ${ALLOWED_MIME_TYPES.join(', ')}` },
+        { status: 400 }
+      );
+    }
+
+    // File size validation (5MB max)
+    const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+    if (file.size > MAX_FILE_SIZE) {
+      return NextResponse.json(
+        { error: 'File size must be less than 5MB' },
+        { status: 400 }
+      );
+    }
+
     // Convert File to ArrayBuffer
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
+
+    // Validate file signature (magic numbers) to prevent MIME type spoofing
+    if (!validateFileSignature(buffer, file.type)) {
+      return NextResponse.json(
+        { error: 'File content does not match declared MIME type. Possible file spoofing detected.' },
+        { status: 400 }
+      );
+    }
 
     // Generate unique filename
     const timestamp = Date.now();
     const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
     const fileName = `${eventId}/${timestamp}-${sanitizedFileName}`;
 
-    // Upload to Supabase Storage
+    // Upload to Supabase Storage with validated content type
     const { data, error } = await supabase.storage
       .from('lesson-images')
       .upload(fileName, buffer, {
-        contentType: file.type,
+        contentType: file.type, // Already validated above
         cacheControl: '3600',
         upsert: false,
       });
