@@ -59,9 +59,9 @@ export function EventPageClientWrapper({
     }
   }, [userRole, activeRole, setActiveRole]);
 
-  // Debug: Log when showCancelDialog changes
+  // Track showCancelDialog changes
   useEffect(() => {
-    console.log("showCancelDialog changed to:", showCancelDialog);
+    // Dialog state tracking
   }, [showCancelDialog]);
 
   const handleRoleChange = (role: EventRole) => {

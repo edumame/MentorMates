@@ -71,16 +71,12 @@ export function ProjectImport({ eventId }: ProjectImportProps) {
 
     // Find Team Member 1's email column index by looking through the original headers array
     const team1EmailIndex = Object.keys(row.headers).findIndex((header: string) => header === "Team Member 1 Email");
-    console.log("team1EmailIndex", team1EmailIndex);
-    
+
     if (team1EmailIndex !== -1) {
       // For each additional member, their email is every 3rd column
       for (let i = 0; i < additionalMemberCount; i++) {
         const memberEmailIndex = team1EmailIndex + 3 + (i * 3); // Skip 3 columns for each member
-        console.log("memberEmailIndex", memberEmailIndex);
-        console.log("row data", row.data);
         const memberEmail = row.data[memberEmailIndex];
-        console.log("memberEmail", memberEmail);
         if (memberEmail && memberEmail.trim()) {
           teammates.push(memberEmail.trim());
         }
@@ -117,8 +113,6 @@ export function ProjectImport({ eventId }: ProjectImportProps) {
       .upsert(deduplicatedRows, {
         onConflict: "project_url,event_id,project_name",
       });
-
-    console.log(deduplicatedRows);
 
     if (projectInsertError) {
       toast({

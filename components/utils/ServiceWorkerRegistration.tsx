@@ -7,11 +7,11 @@ export function ServiceWorkerRegistration() {
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function() {
         navigator.serviceWorker.register('/sw.js').then(
-          function(registration) {
-            console.log('Service Worker registration successful with scope: ', registration.scope);
+          function() {
+            // Service Worker registered successfully
           },
-          function(err) {
-            console.log('Service Worker registration failed: ', err);
+          function() {
+            // Service Worker registration failed
           }
         );
       });

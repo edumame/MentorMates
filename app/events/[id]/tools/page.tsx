@@ -30,7 +30,6 @@ export default function ToolsPage() {
 
   const handleToolClick = (href: string) => {
     toast("Features are coming soon!")
-    console.log("Tool href:", href)
     // router.push(`./${href}`)
   }
 
