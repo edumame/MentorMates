@@ -259,13 +259,13 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
         <div className="flex flex-col gap-[48px] max-w-[1064px] mx-auto">
     <div className="space-y-6">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="mb-8 w-full h-auto flex flex-wrap gap-2 grid lg:grid-cols-3 md:grid-cols-2 grid-cols-2">
+        <TabsList className="mb-4 w-full overflow-x-auto sm:overflow-visible flex-nowrap sm:flex-wrap gap-2">
           {[...primaryTabs, ...overflowTabs].map((item) => (
             <TabsTrigger
               key={item.value}
               value={item.value}
               title={item.label}
-              className="inline-flex items-center gap-2 px-3 py-1.5"
+              className="inline-flex items-center gap-2 px-3 py-1.5 shrink-0 text-xs sm:text-sm"
             >
               <item.icon className="h-4 w-4" />
               {item.label}

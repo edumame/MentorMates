@@ -45,13 +45,13 @@ export function EventDetailsTab({
       </CardHeader>
       <CardContent>
         <Tabs value={activeSubTab} onValueChange={setActiveSubTab}>
-          <TabsList className="mb-6 w-full h-auto flex flex-wrap gap-2">
-            <TabsTrigger value="basic-info" className="px-3 py-1.5">Basic Information</TabsTrigger>
-            <TabsTrigger value="content" className="px-3 py-1.5">Content</TabsTrigger>
-            <TabsTrigger value="schedule" className="px-3 py-1.5">Schedule</TabsTrigger>
-            <TabsTrigger value="resources" className="px-3 py-1.5">Resources</TabsTrigger>
-            <TabsTrigger value="rules" className="px-3 py-1.5">Rules</TabsTrigger>
-            <TabsTrigger value="faq" className="px-3 py-1.5">FAQ</TabsTrigger>
+          <TabsList className="mb-4 w-full overflow-x-auto flex-nowrap sm:flex-wrap gap-2">
+            <TabsTrigger value="basic-info" className="px-3 py-1.5 shrink-0 text-xs sm:text-sm">Basic Information</TabsTrigger>
+            <TabsTrigger value="content" className="px-3 py-1.5 shrink-0 text-xs sm:text-sm">Content</TabsTrigger>
+            <TabsTrigger value="schedule" className="px-3 py-1.5 shrink-0 text-xs sm:text-sm">Schedule</TabsTrigger>
+            <TabsTrigger value="resources" className="px-3 py-1.5 shrink-0 text-xs sm:text-sm">Resources</TabsTrigger>
+            <TabsTrigger value="rules" className="px-3 py-1.5 shrink-0 text-xs sm:text-sm">Rules</TabsTrigger>
+            <TabsTrigger value="faq" className="px-3 py-1.5 shrink-0 text-xs sm:text-sm">FAQ</TabsTrigger>
           </TabsList>
 
           {/* Basic Information */}
