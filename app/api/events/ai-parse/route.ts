@@ -140,7 +140,7 @@ export async function POST(req: Request) {
         const iso = coerceToIsoDate(normalized.event_date);
         if (iso) normalized.event_date = iso;
       }
-      return NextResponse.json({ fields, warning: "OPENAI_API_KEY not configured. Used heuristic parsing." });
+      return NextResponse.json({ normalized, warning: "OPENAI_API_KEY not configured. Used heuristic parsing." });
     }
 
     const systemPromptFill = `You are an assistant that EXTRACTS a structured JSON for a hackathon/event from pasted text. Output STRICT JSON with only these optional fields if present:
