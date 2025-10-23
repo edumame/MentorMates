@@ -39,17 +39,24 @@ export default function FeedbackPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(4);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedFeedback, setSelectedFeedback] = useState<FeedbackItem | null>(null);
+  const [selectedFeedback, setSelectedFeedback] = useState<FeedbackItem | null>(
+    null
+  );
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [feedbackText, setFeedbackText] = useState("");
   const [isGivingFeedback, setIsGivingFeedback] = useState(false);
-  const [selectedProject, setSelectedProject] = useState<{ id: string; name: string } | null>(null);
+  const [selectedProject, setSelectedProject] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
 
   useEffect(() => {
     const fetchFeedback = async () => {
       try {
         setIsLoading(true);
-        const response = await fetch(`/api/feedback?page=${currentPage}&limit=6`);
+        const response = await fetch(
+          `/api/feedback?page=${currentPage}&limit=6`
+        );
         if (!response.ok) throw new Error("Failed to fetch feedback");
         const data = await response.json();
         setFeedbackList(data.feedback || []);
@@ -75,7 +82,9 @@ export default function FeedbackPage() {
         body: JSON.stringify({ feedbackId: id }),
       });
       if (response.ok) {
-        setFeedbackList((prev) => prev.map((it) => (it.id === id ? { ...it, isRead: true } : it)));
+        setFeedbackList((prev) =>
+          prev.map((it) => (it.id === id ? { ...it, isRead: true } : it))
+        );
       }
     } catch (error) {
       console.error("Error marking as read:", error);
@@ -116,7 +125,9 @@ export default function FeedbackPage() {
               </h1>
               {unreadCount > 0 && (
                 <div className="flex items-center rounded-[50px] border border-[rgba(0,0,0,0.15)] bg-white px-[8px] py-0">
-                  <span className="text-sm leading-[1.5] text-black">{unreadCount}</span>
+                  <span className="text-sm leading-[1.5] text-black">
+                    {unreadCount}
+                  </span>
                 </div>
               )}
             </div>
@@ -154,7 +165,8 @@ export default function FeedbackPage() {
 
                 {/* Description */}
                 <p className="text-gray-600 mb-6 leading-relaxed">
-                  Go join an event, submit a project and collect feedback from mentors and peers to improve your work!
+                  Go join an event, submit a project and collect feedback from
+                  mentors and peers to improve your work!
                 </p>
 
                 {/* CTA Button */}
@@ -162,9 +174,7 @@ export default function FeedbackPage() {
                   asChild
                   className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 h-auto"
                 >
-                  <Link href="/events">
-                    Explore Events
-                  </Link>
+                  <Link href="/events">Explore Events</Link>
                 </Button>
               </div>
             </div>
@@ -173,162 +183,160 @@ export default function FeedbackPage() {
           {/* Table */}
           {!isLoading && feedbackList.length > 0 && (
             <div className="flex flex-col gap-[24px]">
-            {/* Border wrapper */}
-            <div className="border border-[rgba(0,0,0,0.15)] rounded-[16px] bg-white overflow-hidden">
-              {/* Header Row */}
-              <div className="flex w-full">
-                <div className="w-[264px] border-b border-[rgba(0,0,0,0.15)] px-[24px] py-[16px]">
-                  <p className="text-[16px] font-medium text-black tracking-[-0.04em]">Send from</p>
-                </div>
-                <div className="w-[196px] border-b border-[rgba(0,0,0,0.15)] px-[24px] py-[16px]">
-                  <p className="text-[16px] font-medium text-black tracking-[-0.04em]">Project Name</p>
-                </div>
-                <div className="min-w-[215px] flex-1 border-b border-[rgba(0,0,0,0.15)] px-[24px] py-[16px]">
-                  <p className="text-[16px] font-medium text-black tracking-[-0.04em]">Message</p>
-                </div>
-                <div className="w-[182px] border-b border-[rgba(0,0,0,0.15)] px-[24px] py-[16px] flex items-center">
-                  <p className="text-[16px] font-medium text-black tracking-[-0.04em]">Date</p>
-                  <ArrowDownUp className="h-[24px] w-[24px] ml-1" />
-                </div>
-                <div className="w-[208px] border-b border-[rgba(0,0,0,0.15)] px-[24px] py-[16px]">
-                  <p className="text-[16px] font-medium text-black tracking-[-0.04em]">Action</p>
-                </div>
-              </div>
+              {/* Border wrapper */}
+              <div className="border border-[rgba(0,0,0,0.15)] rounded-[16px] bg-white overflow-hidden">
+                {/* Table Container with Scroll */}
+                <div className="overflow-x-auto w-full">
+                  <div className="flex flex-col min-w-fit">
+                    {/* Header Row */}
+                    <div className="flex w-full">
+                      <div className="w-[264px] flex-shrink-0 border-b border-[rgba(0,0,0,0.15)] px-[24px] py-[16px]">
+                        <p className="text-[16px] font-medium text-black tracking-[-0.04em]">
+                          Sent from
+                        </p>
+                      </div>
+                      <div className="w-[196px] flex-shrink-0 border-b border-[rgba(0,0,0,0.15)] px-[24px] py-[16px]">
+                        <p className="text-[16px] font-medium text-black tracking-[-0.04em]">
+                          Project Name
+                        </p>
+                      </div>
+                      <div className="min-w-[215px] flex-1 border-b border-[rgba(0,0,0,0.15)] px-[24px] py-[16px]">
+                        <p className="text-[16px] font-medium text-black tracking-[-0.04em]">
+                          Message
+                        </p>
+                      </div>
+                      <div className="w-[182px] flex-shrink-0 border-b border-[rgba(0,0,0,0.15)] px-[24px] py-[16px] flex items-center">
+                        <p className="text-[16px] font-medium text-black tracking-[-0.04em]">
+                          Date
+                        </p>
+                        <ArrowDownUp className="h-[24px] w-[24px] ml-1" />
+                      </div>
+                      <div className="w-[208px] flex-shrink-0 border-b border-[rgba(0,0,0,0.15)] px-[24px] py-[16px]">
+                        <p className="text-[16px] font-medium text-black tracking-[-0.04em]">
+                          Actions
+                        </p>
+                      </div>
+                    </div>
 
-              {/* Table Body */}
-              <div className="flex overflow-x-auto w-full">
-                {/* Send from Column */}
-                <div className="flex flex-col w-[264px]">
-                  {feedbackList.map((item, index) => (
-                    <div
-                      key={item.id}
-                      className={`flex items-center gap-[4px] px-[24px] py-[28px] ${
-                        index !== feedbackList.length - 1 ? 'border-b border-[rgba(0,0,0,0.15)]' : ''
-                      } ${item.sender.role ? 'min-h-[108px]' : 'h-[80px]'}`}
-                    >
-                      <Avatar className="h-[40px] w-[40px]">
-                        <AvatarImage src={item.sender.avatar} alt={item.sender.name} />
-                        <AvatarFallback>{item.sender.name.charAt(0)}</AvatarFallback>
-                      </Avatar>
-                      <p className="text-[16px] text-black truncate">{item.sender.name}</p>
-                      {item.sender.role && (
-                        <div className="border border-[rgba(0,0,0,0.15)] px-[8px] py-[4px] rounded-full">
-                          <p className="text-sm font-medium text-black">{item.sender.role}</p>
+                    {/* Table Body */}
+                    {feedbackList.map((item, index) => (
+                      <div
+                        key={item.id}
+                        className={`flex w-full ${
+                          index !== feedbackList.length - 1
+                            ? "border-b border-[rgba(0,0,0,0.15)]"
+                            : ""
+                        }`}
+                      >
+                        {/* Send from Column */}
+                        <div className="flex items-start gap-[4px] px-[24px] py-[28px] w-[264px] flex-shrink-0">
+                          <Avatar className="h-[40px] w-[40px]">
+                            <AvatarImage
+                              src={item.sender.avatar}
+                              alt={item.sender.name}
+                            />
+                            <AvatarFallback>
+                              {item.sender.name.charAt(0)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <p className="text-[16px] text-black truncate">
+                            {item.sender.name}
+                          </p>
+                          {item.sender.role && (
+                            <div className="border border-[rgba(0,0,0,0.15)] px-[8px] py-[4px] rounded-full">
+                              <p className="text-sm font-medium text-black">
+                                {item.sender.role}
+                              </p>
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
 
-                {/* Project Name Column */}
-                <div className="flex flex-col w-[196px]">
-                  {feedbackList.map((item, index) => (
-                    <div
-                      key={item.id}
-                      className={`flex items-center px-[24px] py-[28px] ${
-                        index !== feedbackList.length - 1 ? 'border-b border-[rgba(0,0,0,0.15)]' : ''
-                      } ${item.sender.role ? 'min-h-[108px]' : 'h-[80px]'}`}
-                    >
-                      <p className="text-[16px] text-black tracking-[-0.04em] truncate">{item.projectName}</p>
-                    </div>
-                  ))}
-                </div>
+                        {/* Project Name Column */}
+                        <div className="flex items-start px-[24px] py-[28px] w-[196px] flex-shrink-0">
+                          <p className="text-[16px] text-black tracking-[-0.04em] truncate">
+                            {item.projectName}
+                          </p>
+                        </div>
 
-                {/* Message Column */}
-                <div className="flex flex-col min-w-[215px] flex-1">
-                  {feedbackList.map((item, index) => (
-                    <div
-                      key={item.id}
-                      className={`flex items-center px-[24px] py-[28px] ${
-                        index !== feedbackList.length - 1 ? 'border-b border-[rgba(0,0,0,0.15)]' : ''
-                      } ${item.sender.role ? 'min-h-[108px]' : 'h-[80px]'}`}
-                    >
-                      <p className="text-[16px] text-black tracking-[-0.04em] line-clamp-2">{item.message}</p>
-                    </div>
-                  ))}
-                </div>
+                        {/* Message Column */}
+                        <div className="flex items-start px-[24px] py-[28px] min-w-[215px] flex-1">
+                          <p className="text-[16px] text-black tracking-[-0.04em] line-clamp-2">
+                            {item.message}
+                          </p>
+                        </div>
 
-                {/* Date Column */}
-                <div className="flex flex-col w-[182px]">
-                  {feedbackList.map((item, index) => (
-                    <div
-                      key={item.id}
-                      className={`flex items-center px-[24px] py-[28px] ${
-                        index !== feedbackList.length - 1 ? 'border-b border-[rgba(0,0,0,0.15)]' : ''
-                      } ${item.sender.role ? 'min-h-[108px]' : 'h-[80px]'}`}
-                    >
-                      <p className="text-[16px] text-black">{item.date}</p>
-                    </div>
-                  ))}
-                </div>
+                        {/* Date Column */}
+                        <div className="flex items-start px-[24px] py-[28px] w-[182px] flex-shrink-0">
+                          <p className="text-[16px] text-black">{item.date}</p>
+                        </div>
 
-                {/* Action Column */}
-                <div className="flex flex-col w-[208px]">
-                  {feedbackList.map((item, index) => (
-                    <div
-                      key={item.id}
-                      className={`flex items-center gap-[12px] px-[24px] py-[28px] ${
-                        index !== feedbackList.length - 1 ? 'border-b border-[rgba(0,0,0,0.15)]' : ''
-                      } ${item.sender.role ? 'min-h-[108px]' : 'h-[80px]'}`}
-                    >
-                      <button
-                        onClick={() => handleViewFeedback(item)}
-                        className="text-[16px] font-medium text-[#4B89EF] tracking-[-0.04em]"
-                      >
-                        View
-                      </button>
-                      <button
-                        onClick={() => handleMarkAsRead(item.id)}
-                        className="text-[16px] font-medium text-[#4B89EF] tracking-[-0.04em]"
-                        disabled={item.isRead}
-                      >
-                        Mark as read
-                      </button>
-                    </div>
-                  ))}
+                        {/* Action Column */}
+                        <div className="flex items-start gap-[12px] px-[24px] py-[28px] w-[208px] flex-shrink-0">
+                          <button
+                            onClick={() => handleViewFeedback(item)}
+                            className="text-[16px] font-medium text-[#4B89EF] tracking-[-0.04em]"
+                          >
+                            View
+                          </button>
+                          <button
+                            onClick={() => handleMarkAsRead(item.id)}
+                            className="text-[16px] font-medium text-[#4B89EF] tracking-[-0.04em]"
+                            disabled={item.isRead}
+                          >
+                            Mark as read
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Pagination */}
-            <div className="bg-white flex items-center justify-between pt-[24px]">
-              <Button
-                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                disabled={currentPage === 1}
-                variant="outline"
-                className="flex items-center gap-[6px] px-[24px] py-[10px] rounded-[12px] bg-[rgba(0,0,0,0.05)]"
-              >
-                <ChevronLeft className="h-[24px] w-[24px]" />
-                Prev
-              </Button>
+              {/* Pagination */}
+              <div className="bg-white flex items-center justify-between pt-[24px]">
+                <Button
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.max(1, prev - 1))
+                  }
+                  disabled={currentPage === 1}
+                  variant="outline"
+                  className="flex items-center gap-[6px] px-[24px] py-[10px] rounded-[12px] bg-[rgba(0,0,0,0.05)]"
+                >
+                  <ChevronLeft className="h-[24px] w-[24px]" />
+                  Prev
+                </Button>
 
-              <div className="flex gap-[2px]">
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                  <button
-                    key={page}
-                    onClick={() => setCurrentPage(page)}
-                    className={`w-[40px] h-[40px] flex items-center justify-center rounded-[6px] text-[16px] ${
-                      currentPage === page
-                        ? 'border border-[rgba(0,0,0,0.15)]'
-                        : ''
-                    }`}
-                  >
-                    {page}
-                  </button>
-                ))}
+                <div className="flex gap-[2px]">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                    (page) => (
+                      <button
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        className={`w-[40px] h-[40px] flex items-center justify-center rounded-[6px] text-[16px] ${
+                          currentPage === page
+                            ? "border border-[rgba(0,0,0,0.15)]"
+                            : ""
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    )
+                  )}
+                </div>
+
+                <Button
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+                  }
+                  disabled={currentPage === totalPages}
+                  variant="outline"
+                  className="flex items-center gap-[6px] px-[24px] py-[10px] rounded-[12px] bg-[rgba(0,0,0,0.05)]"
+                >
+                  Next
+                  <ChevronRight className="h-[24px] w-[24px]" />
+                </Button>
               </div>
-
-              <Button
-                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                disabled={currentPage === totalPages}
-                variant="outline"
-                className="flex items-center gap-[6px] px-[24px] py-[10px] rounded-[12px] bg-[rgba(0,0,0,0.05)]"
-              >
-                Next
-                <ChevronRight className="h-[24px] w-[24px]" />
-              </Button>
             </div>
-          </div>
           )}
         </div>
 
@@ -365,7 +373,8 @@ export default function FeedbackPage() {
                         </button>
                       </h2>
                       <p className="mt-1 text-[12px] leading-[1.45] text-muted-foreground/80">
-                        Help this project improve by sharing your thoughts, suggestions, and ideas.
+                        Help this project improve by sharing your thoughts,
+                        suggestions, and ideas.
                       </p>
                     </div>
 
@@ -414,7 +423,9 @@ export default function FeedbackPage() {
                       <div>
                         <div className="mb-1 flex items-center gap-3">
                           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#E9F0FF]">
-                            <span className="text-[12px] font-semibold text-[#4B89EF]">01</span>
+                            <span className="text-[12px] font-semibold text-[#4B89EF]">
+                              01
+                            </span>
                           </div>
                           <p className="text-[14px] font-medium text-foreground">
                             What should they do next to improve the project?
@@ -431,7 +442,9 @@ export default function FeedbackPage() {
                       <div>
                         <div className="mb-1 flex items-center gap-3">
                           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#E9F0FF]">
-                            <span className="text-[12px] font-semibold text-[#4B89EF]">02</span>
+                            <span className="text-[12px] font-semibold text-[#4B89EF]">
+                              02
+                            </span>
                           </div>
                           <p className="text-[14px] font-medium text-foreground">
                             What could be better or work differently?
@@ -448,14 +461,18 @@ export default function FeedbackPage() {
                       <div>
                         <div className="mb-1 flex items-center gap-3">
                           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#E9F0FF]">
-                            <span className="text-[12px] font-semibold text-[#4B89EF]">03</span>
+                            <span className="text-[12px] font-semibold text-[#4B89EF]">
+                              03
+                            </span>
                           </div>
                           <p className="text-[14px] font-medium text-foreground">
-                            What works well, and are there similar projects to learn from?
+                            What works well, and are there similar projects to
+                            learn from?
                           </p>
                         </div>
                         <p className="pl-11 text-[12px] leading-[1.55] text-muted-foreground">
-                          Call out strengths and link references for inspiration.
+                          Call out strengths and link references for
+                          inspiration.
                         </p>
                       </div>
                     </div>
@@ -465,8 +482,6 @@ export default function FeedbackPage() {
             ) : (
               /* -------- View feedback (unchanged) -------- */
               <div className="flex flex-col">
-                
-
                 {/* Header */}
                 <div className="flex flex-col items-center px-4 pt-4 pb-3 text-center sm:px-6 sm:pt-6 sm:pb-4">
                   <div className="mb-3 flex items-center justify-center rounded-xl bg-blue-50 p-2">
@@ -474,9 +489,13 @@ export default function FeedbackPage() {
                   </div>
                   <h2 className="mb-1 px-2 text-lg font-semibold text-gray-900 sm:text-xl">
                     View feedback for{" "}
-                    <span className="break-words text-blue-500">{selectedFeedback?.projectName}</span>
+                    <span className="break-words text-blue-500">
+                      {selectedFeedback?.projectName}
+                    </span>
                   </h2>
-                  <p className="px-2 text-xs text-gray-500 sm:text-sm">Improve your project with clear instruction</p>
+                  <p className="px-2 text-xs text-gray-500 sm:text-sm">
+                    Improve your project with clear instruction
+                  </p>
                 </div>
 
                 {/* Content */}
