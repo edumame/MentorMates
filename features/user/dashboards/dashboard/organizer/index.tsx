@@ -228,7 +228,7 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
   if (loading) {
     return (
       <PageContainer>
-        <PageContent className="px-[32px] pt-[24px]">
+        <PageContent className="px-4 sm:px-6 md:px-8 lg:px-[32px] pt-[24px]">
           <div className="flex flex-col gap-[48px] max-w-[1064px] mx-auto">
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
@@ -242,7 +242,7 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
   if (!event) {
     return (
       <PageContainer>
-        <PageContent className="px-[32px] pt-[24px]">
+        <PageContent className="px-4 sm:px-6 md:px-8 lg:px-[32px] pt-[24px]">
           <div className="flex flex-col gap-[48px] max-w-[1064px] mx-auto">
       <div className="text-center py-8">
         <p className="text-gray-600">Event not found</p>
@@ -255,20 +255,20 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
 
   return (
     <PageContainer>
-      <PageContent className="px-[32px] pt-[24px]">
-        <div className="flex flex-col gap-[48px] max-w-[1064px] mx-auto">
+      <PageContent className="px-4 sm:px-6 md:px-8 lg:px-[32px] pt-[24px]">
+        <div className="flex flex-col gap-6 sm:gap-8 md:gap-[48px] max-w-[1064px] mx-auto">
     <div className="space-y-6">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="mb-8 w-full h-auto flex flex-wrap gap-2 grid lg:grid-cols-3 md:grid-cols-2 grid-cols-2">
+        <TabsList className="mb-6 sm:mb-8 w-full h-auto grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-1.5 sm:gap-2 p-1.5">
           {[...primaryTabs, ...overflowTabs].map((item) => (
             <TabsTrigger
               key={item.value}
               value={item.value}
               title={item.label}
-              className="inline-flex items-center gap-2 px-3 py-1.5"
+              className="inline-flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-2 sm:py-2.5 text-xs sm:text-sm"
             >
-              <item.icon className="h-4 w-4" />
-              {item.label}
+              <item.icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+              <span className="hidden sm:inline truncate">{item.label}</span>
             </TabsTrigger>
           ))}
         </TabsList>
