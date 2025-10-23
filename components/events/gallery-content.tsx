@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Plus, Search } from "lucide-react";
 import ProjectBoard from "@/features/projects/components/displays/ProjectBoard/ProjectBoard";
