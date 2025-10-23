@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/lib/hooks/use-toast";
 import { DatePicker } from "@/components/ui/date-picker";
-import { MapPin, Image, Type, Mail, Globe } from "lucide-react";
+import { MapPin, Image, Type, Mail, Globe, Sparkles } from "lucide-react";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 
 export default function NewEventPage() {
@@ -21,6 +21,8 @@ export default function NewEventPage() {
   const [ticketType, setTicketType] = useState<"free" | "paid">("free");
   const [visibility, setVisibility] = useState<EventVisibility>(EventVisibility.Draft);
   const [showVisibilityDropdown, setShowVisibilityDropdown] = useState(false);
+  const [aiInput, setAiInput] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
 
   const [form, setForm] = useState({
     event_name: "",
@@ -102,6 +104,60 @@ export default function NewEventPage() {
       toast({ title: "Network error", description: "Unable to create event.", variant: "destructive" });
     } finally {
       setCreating(false);
+    }
+  };
+
+  // Call AI endpoint to parse/generate event details from pasted text or a brief
+  const handleAi = async (mode: "fill" | "generate") => {
+    if (!aiInput.trim()) return;
+    setAiLoading(true);
+    try {
+      const res = await fetch("/api/events/ai-parse", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: aiInput, mode }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast({ title: "AI fill failed", description: data?.error || "Unable to parse with AI.", variant: "destructive" });
+        return;
+      }
+
+      const fields = data?.fields || {};
+
+      // Apply returned fields into the form in a controlled way
+      setForm((prev) => ({
+        ...prev,
+        event_name: fields.event_name ?? prev.event_name,
+        event_date: fields.event_date ?? prev.event_date,
+        location: fields.location ?? prev.location,
+        slug: fields.slug ?? prev.slug,
+        event_description: fields.event_description ?? prev.event_description,
+        event_blurb: fields.event_blurb ?? prev.event_blurb,
+        cover_image_url: fields.cover_image_url ?? prev.cover_image_url,
+      }));
+
+      // Ticket type mapping
+      if (typeof fields.paid === "boolean") {
+        setTicketType(fields.paid ? "paid" : "free");
+      }
+
+      // Visibility mapping (safely map case-insensitively)
+      if (typeof fields.visibility === "string") {
+        const v = (fields.visibility as string).toLowerCase();
+        if (v === "public") setVisibility(EventVisibility.Public);
+        else if (v === "private") setVisibility(EventVisibility.Private);
+        else if (v === "draft") setVisibility(EventVisibility.Draft);
+        else if (v === "demo") setVisibility(EventVisibility.Demo);
+        else if (v === "test") setVisibility(EventVisibility.Test);
+        else if (v === "archived") setVisibility(EventVisibility.Archived);
+      }
+
+      toast({ title: "Fields updated", description: "AI filled the form from your input." });
+    } catch {
+      toast({ title: "Network error", description: "Unable to contact AI service.", variant: "destructive" });
+    } finally {
+      setAiLoading(false);
     }
   };
 
@@ -194,6 +250,28 @@ export default function NewEventPage() {
             <div className="flex gap-6 items-start">
               {/* Form Section */}
               <div className="flex-1 max-w-[640px]">
+                {/* AI Assist Panel */}
+                <div className="mb-6 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Sparkles className="w-5 h-5 text-[#4b89ef]" />
+                    <span className="text-[16px] font-semibold text-black">Generate or fill with AI</span>
+                  </div>
+                  <Textarea
+                    value={aiInput}
+                    onChange={(e) => setAiInput(e.target.value)}
+                    placeholder="Paste event details or a short brief here..."
+                    className="min-h-[120px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] p-3"
+                  />
+                  <div className="flex gap-2 mt-3">
+                    <Button onClick={() => handleAi("fill")} disabled={aiLoading || !aiInput.trim()} className="text-[16px] font-medium">
+                      {aiLoading ? "Working..." : "Fill with AI"}
+                    </Button>
+                    <Button variant="secondary" onClick={() => handleAi("generate")} disabled={aiLoading || !aiInput.trim()} className="text-[16px] font-medium">
+                      {aiLoading ? "Working..." : "Generate with AI"}
+                    </Button>
+                  </div>
+                </div>
+
                 <input
                   type="text"
                   value={form.event_name}

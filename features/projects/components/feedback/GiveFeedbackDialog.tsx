@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Sparkles, Lightbulb, Loader2 } from "lucide-react";
+import { Sparkles, Lightbulb, Loader2, ArrowRight } from "lucide-react";
 import { useToast } from "@/lib/hooks/use-toast";
 import Link from "next/link";
 
@@ -25,6 +25,41 @@ interface GiveFeedbackDialogProps {
   projectId: string;
   projectDescription?: string;
   eventId?: string;
+}
+
+interface SuggestionCardProps {
+  title: string;
+  suggestion: string;
+  onUse: () => void;
+  onAppend: () => void;
+}
+
+function SuggestionCard({ title, suggestion, onUse, onAppend }: SuggestionCardProps) {
+  return (
+    <div className="group relative rounded-lg border border-[rgba(0,0,0,0.08)] bg-white/60 p-4 transition-all hover:bg-white hover:shadow-sm">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <h4 className="text-[14px] font-semibold text-zinc-900">{title}</h4>
+        <div className="flex items-center gap-2 opacity-0 transition-all group-hover:opacity-100">
+          <button
+            onClick={onAppend}
+            className="inline-flex items-center gap-1 rounded-md border border-[#6E56CF] bg-white px-2.5 py-1.5 text-[12px] font-medium text-[#6E56CF] transition-all hover:bg-[#6E56CF]/5"
+          >
+            Add below
+          </button>
+          <button
+            onClick={onUse}
+            className="inline-flex items-center gap-1.5 rounded-md bg-[#6E56CF] px-2.5 py-1.5 text-[12px] font-medium text-white transition-all hover:bg-[#5D46B8]"
+          >
+            Use this
+            <ArrowRight className="h-3 w-3" />
+          </button>
+        </div>
+      </div>
+      <p className="text-[13px] leading-[1.55] text-zinc-600 line-clamp-4">
+        {suggestion}
+      </p>
+    </div>
+  );
 }
 
 export function GiveFeedbackDialog({
@@ -123,6 +158,25 @@ export function GiveFeedbackDialog({
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleUseSuggestion = (suggestionText: string) => {
+    setFeedback(suggestionText);
+    toast({
+      title: "Suggestion applied",
+      description: "The AI suggestion has replaced your feedback.",
+    });
+  };
+
+  const handleAppendSuggestion = (suggestionText: string) => {
+    setFeedback((prev) => {
+      const separator = prev.trim() ? "\n\n" : "";
+      return prev + separator + suggestionText;
+    });
+    toast({
+      title: "Suggestion added",
+      description: "The AI suggestion has been appended to your feedback.",
+    });
   };
 
   const handleClose = () => {
@@ -226,7 +280,7 @@ export function GiveFeedbackDialog({
                 ) : (
                   <Sparkles className="h-4 w-4" />
                 )}
-                {isGeneratingAI ? "Enhancing with AI..." : "Enhance with AI"}
+                {isGeneratingAI ? "Enhancing with AI..." : "Improve feedback with AI"}
               </button>
 
               <div className="mb-6 flex-1">
@@ -253,7 +307,7 @@ export function GiveFeedbackDialog({
                   ) : (
                     <>
                       <Sparkles className="h-4 w-4" />
-                      Improve feedback with AI
+                      Submit feedback
                     </>
                   )}
                 </Button>
@@ -261,7 +315,7 @@ export function GiveFeedbackDialog({
             </div>
           </div>
 
-          {/* RIGHT: Tips panel */}
+          {/* RIGHT: Tips panel or AI Suggestions */}
           <div
             className="flex-1 border-t border-[rgba(0,0,0,0.10)] px-4 py-5 sm:px-6 sm:py-6 lg:border-t-0 lg:border-l lg:px-8 lg:py-8"
             style={{
@@ -271,39 +325,75 @@ export function GiveFeedbackDialog({
             }}
           >
             <div className="flex h-full flex-col">
-              <div className="mb-5 flex items-center gap-3">
-                <div className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/70 ring-1 ring-[rgba(0,0,0,0.1)]">
-                  <Lightbulb className="h-4 w-4 text-[#7C8DB5]" />
-                </div>
-                <h3 className="text-[16px] font-semibold leading-[1.4] text-zinc-900">
-                  Writing Tips
-                </h3>
-              </div>
+              {aiSuggestions ? (
+                <>
+                  <div className="mb-5 flex items-center gap-3">
+                    <div className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/70 ring-1 ring-[rgba(0,0,0,0.1)]">
+                      <Sparkles className="h-4 w-4 text-[#6E56CF]" />
+                    </div>
+                    <h3 className="text-[16px] font-semibold leading-[1.4] text-zinc-900">
+                      AI Suggestions
+                    </h3>
+                  </div>
 
-              <div className="space-y-6">
-                <div>
-                  <p className="text-[18px] font-medium tracking-tight text-zinc-900">01</p>
-                  <p className="mt-1 max-w-[440px] text-[13px] leading-[1.55] text-zinc-600">
-                    What should they do next to improve the project?
-                  </p>
-                  <div className="mt-4 h-px w-full bg-[rgba(0,0,0,0.08)]" />
-                </div>
+                  <div className="space-y-4 overflow-y-auto">
+                    <SuggestionCard
+                      title="More Specific"
+                      suggestion={aiSuggestions["more specific"]}
+                      onUse={() => handleUseSuggestion(aiSuggestions["more specific"])}
+                      onAppend={() => handleAppendSuggestion(aiSuggestions["more specific"])}
+                    />
+                    <SuggestionCard
+                      title="More Actionable"
+                      suggestion={aiSuggestions["more actionable"]}
+                      onUse={() => handleUseSuggestion(aiSuggestions["more actionable"])}
+                      onAppend={() => handleAppendSuggestion(aiSuggestions["more actionable"])}
+                    />
+                    <SuggestionCard
+                      title="More Positive"
+                      suggestion={aiSuggestions["more positive"]}
+                      onUse={() => handleUseSuggestion(aiSuggestions["more positive"])}
+                      onAppend={() => handleAppendSuggestion(aiSuggestions["more positive"])}
+                    />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="mb-5 flex items-center gap-3">
+                    <div className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/70 ring-1 ring-[rgba(0,0,0,0.1)]">
+                      <Lightbulb className="h-4 w-4 text-[#7C8DB5]" />
+                    </div>
+                    <h3 className="text-[16px] font-semibold leading-[1.4] text-zinc-900">
+                      Writing Tips
+                    </h3>
+                  </div>
 
-                <div>
-                  <p className="text-[18px] font-medium tracking-tight text-zinc-900">02</p>
-                  <p className="mt-1 max-w-[440px] text-[13px] leading-[1.55] text-zinc-600">
-                    What could be better or work differently?
-                  </p>
-                  <div className="mt-4 h-px w-full bg-[rgba(0,0,0,0.08)]" />
-                </div>
+                  <div className="space-y-6">
+                    <div>
+                      <p className="text-[18px] font-medium tracking-tight text-zinc-900">01</p>
+                      <p className="mt-1 max-w-[440px] text-[13px] leading-[1.55] text-zinc-600">
+                        What should they do next to improve the project?
+                      </p>
+                      <div className="mt-4 h-px w-full bg-[rgba(0,0,0,0.08)]" />
+                    </div>
 
-                <div>
-                  <p className="text-[18px] font-medium tracking-tight text-zinc-900">03</p>
-                  <p className="mt-1 max-w-[440px] text-[13px] leading-[1.55] text-zinc-600">
-                    What works well, and are there similar projects to learn from?
-                  </p>
-                </div>
-              </div>
+                    <div>
+                      <p className="text-[18px] font-medium tracking-tight text-zinc-900">02</p>
+                      <p className="mt-1 max-w-[440px] text-[13px] leading-[1.55] text-zinc-600">
+                        What could be better or work differently?
+                      </p>
+                      <div className="mt-4 h-px w-full bg-[rgba(0,0,0,0.08)]" />
+                    </div>
+
+                    <div>
+                      <p className="text-[18px] font-medium tracking-tight text-zinc-900">03</p>
+                      <p className="mt-1 max-w-[440px] text-[13px] leading-[1.55] text-zinc-600">
+                        What works well, and are there similar projects to learn from?
+                      </p>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>

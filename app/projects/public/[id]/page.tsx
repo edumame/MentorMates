@@ -24,7 +24,6 @@ import {
   Lightbulb,
 } from "lucide-react";
 import FeedbackDisplay from "@/features/projects/components/feedback/FeedbackDisplay";
-import FeedbackForm from "@/features/projects/components/feedback/FeedbackForm";
 import { GiveFeedbackDialog } from "@/features/projects/components/feedback/GiveFeedbackDialog";
 import { useQRCodeActions } from "@/features/projects/components/management/project-dashboard/hooks/useQRCodeActions";
 import { useProjectLike } from "@/features/projects/hooks/use-project-like";
@@ -568,18 +567,13 @@ export default function PublicProjectPage() {
                             </p>
                           </CardHeader>
                           <CardContent>
-                            <FeedbackForm
-                              projectId={project.id}
-                              projectName={project.project_name}
-                              projectDescription={project.project_description}
-                              projectLeadEmail={project.lead_email}
-                              projectLeadName={project.lead_name}
-                              project_url={project.project_url}
-                              additional_materials_url={project.additional_materials_url}
-                              eventId={project.event_id}
-                              noBorder={true}
-                              showMetadata={false}
-                            />
+                            <Button
+                              onClick={() => setShowFeedbackDialog(true)}
+                              className="w-full bg-[#4B89EF] hover:bg-[#3F77D3] text-white"
+                            >
+                              <MessageSquare className="mr-2 h-4 w-4" />
+                              Give Feedback
+                            </Button>
                           </CardContent>
                         </Card>
                       </div>
