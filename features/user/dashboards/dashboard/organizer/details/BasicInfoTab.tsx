@@ -541,44 +541,77 @@ export function BasicInfoTab({
         </div>
 
         {!useImageUrl ? (
-          <div className="flex items-center gap-3">
-            <input
-              type="file"
-              id="cover_image"
-              accept="image/*"
-              disabled={isArchived}
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) {
-                  setSelectedCoverImage(file);
-                  // Create preview URL
-                  const preview = URL.createObjectURL(file);
-                  setPreviewUrl(preview);
-                }
-              }}
-              className="flex-1 text-base file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
-            />
-            {(selectedCoverImage || event.cover_image_url) && (
-              <Button
-                type="button"
-                variant="destructive"
-                size="sm"
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <input
+                type="file"
+                id="cover_image"
+                accept="image/*"
                 disabled={isArchived}
-                onClick={() => {
-                  setSelectedCoverImage(null);
-                  setPreviewUrl(null);
-                  setEvent({ ...event, cover_image_url: "" });
-                  const fileInput = document.getElementById(
-                    "cover_image"
-                  ) as HTMLInputElement;
-                  if (fileInput) {
-                    fileInput.value = "";
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    setSelectedCoverImage(file);
+                    // Create preview URL
+                    const preview = URL.createObjectURL(file);
+                    setPreviewUrl(preview);
                   }
                 }}
-                className="px-2 py-1"
-              >
-                Remove
-              </Button>
+                className="flex-1 text-base file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
+              />
+              {(selectedCoverImage || event.cover_image_url) && (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  disabled={isArchived}
+                  onClick={() => {
+                    setSelectedCoverImage(null);
+                    setPreviewUrl(null);
+                    setEvent({ ...event, cover_image_url: "" });
+                    const fileInput = document.getElementById(
+                      "cover_image"
+                    ) as HTMLInputElement;
+                    if (fileInput) {
+                      fileInput.value = "";
+                    }
+                  }}
+                  className="px-2 py-1 hidden md:block"
+                >
+                  Remove Cover Image
+                </Button>
+              )}
+            </div>
+            {(previewUrl || event.cover_image_url) && (
+              <div className="space-y-2">
+                <img
+                  src={previewUrl || event.cover_image_url || ""}
+                  alt="Cover preview"
+                  className="rounded-md object-cover w-[400px] h-[200px]"
+                />
+                {(selectedCoverImage || event.cover_image_url) && (
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    disabled={isArchived}
+                    onClick={() => {
+                      setSelectedCoverImage(null);
+                      setPreviewUrl(null);
+                      setEvent({ ...event, cover_image_url: "" });
+                      const fileInput = document.getElementById(
+                        "cover_image"
+                      ) as HTMLInputElement;
+                      if (fileInput) {
+                        fileInput.value = "";
+                      }
+                    }}
+                    className="px-2 py-1 md:hidden"
+                  >
+                    Remove Cover Image
+                  </Button>
+                )}
+              </div>
             )}
           </div>
         ) : (
@@ -595,16 +628,6 @@ export function BasicInfoTab({
             }}
             placeholder="https://example.com/image.jpg"
           />
-        )}
-
-        {(previewUrl || event.cover_image_url) && (
-          <div className="mt-2">
-            <img
-              src={previewUrl || event.cover_image_url || ""}
-              alt="Cover preview"
-              className="rounded-md object-cover w-[400px] h-[200px]"
-            />
-          </div>
         )}
       </div>
 
