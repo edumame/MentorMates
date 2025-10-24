@@ -53,10 +53,14 @@ export function EventTracksContainer({
       </CardHeader>
       <CardContent>
         <Tabs value={activeSubTab} onValueChange={setActiveSubTab}>
-          <TabsList className="grid grid-cols-2 mb-6">
-            <TabsTrigger value="tracks">Tracks & Scoring</TabsTrigger>
-            <TabsTrigger value="prizes">Prizes</TabsTrigger>
-          </TabsList>
+          <div className="relative -mx-4 px-4 md:mx-0 md:px-0">
+            <div className="overflow-x-auto">
+              <TabsList className="mb-4 min-w-max flex-nowrap gap-2">
+                <TabsTrigger className="shrink-0 text-xs sm:text-sm" value="tracks">Tracks & Scoring</TabsTrigger>
+                <TabsTrigger className="shrink-0 text-xs sm:text-sm" value="prizes">Prizes</TabsTrigger>
+              </TabsList>
+            </div>
+          </div>
 
           {/* Tracks */}
           <TabsContent value="tracks">

@@ -602,7 +602,7 @@ export function BasicInfoTab({
             <img
               src={previewUrl || event.cover_image_url || ""}
               alt="Cover preview"
-              className="rounded-md object-cover w-[400px] h-[200px]"
+              className="rounded-md object-cover w-full max-w-[400px] h-auto aspect-[2/1]"
             />
           </div>
         )}

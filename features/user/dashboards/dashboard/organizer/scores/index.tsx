@@ -510,8 +510,9 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
                           </h3>
                         </div>
                         <CardContent className="p-0">
-                          <div className="overflow-x-auto">
-                            <Table>
+                          <div className="-mx-4 md:mx-0">
+                            <div className="overflow-x-auto">
+                              <Table>
                               <TableHeader>
                                 <TableRow>
                                   <TableHead className="w-16 text-center">
@@ -617,7 +618,8 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
                                   </TableRow>
                                 ))}
                               </TableBody>
-                            </Table>
+                              </Table>
+                            </div>
                           </div>
                         </CardContent>
                       </Card>

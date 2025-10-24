@@ -255,23 +255,27 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
 
   return (
     <PageContainer>
-      <PageContent className="px-[32px] pt-[24px]">
-        <div className="flex flex-col gap-[48px] max-w-[1064px] mx-auto">
+      <PageContent className="px-4 md:px-8 lg:px-[32px] pt-4 md:pt-6 lg:pt-[24px]">
+        <div className="flex flex-col gap-6 md:gap-10 max-w-[1064px] mx-auto">
     <div className="space-y-6">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="mb-4 w-full overflow-x-auto sm:overflow-visible flex-nowrap sm:flex-wrap gap-2">
-          {[...primaryTabs, ...overflowTabs].map((item) => (
-            <TabsTrigger
-              key={item.value}
-              value={item.value}
-              title={item.label}
-              className="inline-flex items-center gap-2 px-3 py-1.5 shrink-0 text-xs sm:text-sm"
-            >
-              <item.icon className="h-4 w-4" />
-              {item.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+        <div className="relative -mx-4 px-4 md:mx-0 md:px-0">
+          <div className="overflow-x-auto">
+            <TabsList className="mb-4 min-w-max flex-nowrap sm:flex-wrap gap-2">
+              {[...primaryTabs, ...overflowTabs].map((item) => (
+                <TabsTrigger
+                  key={item.value}
+                  value={item.value}
+                  title={item.label}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 shrink-0 text-xs sm:text-sm"
+                >
+                  <item.icon className="h-4 w-4" />
+                  {item.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </div>
+        </div>
 
         <TabsContent value="details">
           <EventDetailsTab

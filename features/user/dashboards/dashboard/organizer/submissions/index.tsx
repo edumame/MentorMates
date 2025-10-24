@@ -244,7 +244,9 @@ export function SubmissionsTab({ eventId }: SubmissionsTabProps) {
           {loading ? (
             <Loader2 className="h-4 w-4 animate-spin text-blue-900" />
           ) : (
-            <Table>
+            <div className="-mx-4 md:mx-0">
+              <div className="overflow-x-auto">
+                <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Project Name</TableHead>
@@ -284,7 +286,9 @@ export function SubmissionsTab({ eventId }: SubmissionsTabProps) {
                   </TableRow>
                 ))}
               </TableBody>
-            </Table>
+                </Table>
+              </div>
+            </div>
           )}
         </div>
       </CardContent>

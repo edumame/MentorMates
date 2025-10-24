@@ -426,7 +426,9 @@ export function AssignTab({ eventId }: AssignTabProps) {
               No projects found for this event.
             </div>
           ) : (
-            <Table>
+            <div className="-mx-4 md:mx-0">
+              <div className="overflow-x-auto">
+                <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Project</TableHead>
@@ -527,7 +529,9 @@ export function AssignTab({ eventId }: AssignTabProps) {
                   );
                 })}
               </TableBody>
-            </Table>
+                </Table>
+              </div>
+            </div>
           )}
         </div>
       </CardContent>

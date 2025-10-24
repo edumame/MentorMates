@@ -54,13 +54,17 @@ export function AccessTab({
       </CardHeader>
       <CardContent className="space-y-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid-cols-3">
-            <TabsTrigger value="password">Password</TabsTrigger>
-            <TabsTrigger value="role-labels">Role Labels</TabsTrigger>
-            <TabsTrigger value="invite-organizers">
-              Invite Organizers
-            </TabsTrigger>
-          </TabsList>
+          <div className="relative -mx-4 px-4 md:mx-0 md:px-0">
+            <div className="overflow-x-auto">
+              <TabsList className="min-w-max flex-nowrap gap-2">
+                <TabsTrigger className="shrink-0 text-xs sm:text-sm" value="password">Password</TabsTrigger>
+                <TabsTrigger className="shrink-0 text-xs sm:text-sm" value="role-labels">Role Labels</TabsTrigger>
+                <TabsTrigger className="shrink-0 text-xs sm:text-sm" value="invite-organizers">
+                  Invite Organizers
+                </TabsTrigger>
+              </TabsList>
+            </div>
+          </div>
 
           <TabsContent value="password" className="mt-6">
             <PasswordTab

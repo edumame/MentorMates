@@ -225,7 +225,9 @@ export function ParticipantsTab({ eventId }: ParticipantsTabProps) {
                   Export CSV
                 </Button>
               </div>
-              <Table>
+              <div className="-mx-4 md:mx-0">
+                <div className="overflow-x-auto">
+                  <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Name</TableHead>
@@ -288,7 +290,9 @@ export function ParticipantsTab({ eventId }: ParticipantsTabProps) {
                     </TableRow>
                   ))}
                 </TableBody>
-              </Table>
+                  </Table>
+                </div>
+              </div>
             </>
           )}
         </div>
