@@ -4,6 +4,13 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/lib/hooks/use-toast";
 import { canAccessRole } from "@/features/user/roles/roles";
 import {
@@ -253,23 +260,56 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
     );
   }
 
+  const allTabs = [...primaryTabs, ...overflowTabs].filter(
+    (tab) => tab.value !== "pricing" || isAdmin
+  );
+
+  const activeTabData = allTabs.find((tab) => tab.value === activeTab);
+
   return (
     <PageContainer>
       <PageContent className="px-4 sm:px-6 md:px-8 lg:px-[32px] pt-[24px]">
         <div className="flex flex-col gap-6 sm:gap-8 md:gap-[48px] max-w-[1064px] mx-auto">
     <div className="space-y-6">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <div className="mb-6 sm:mb-8 w-full overflow-x-auto overflow-y-hidden scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
+        {/* Mobile: Dropdown Select */}
+        <div className="md:hidden mb-6">
+          <Select value={activeTab} onValueChange={setActiveTab}>
+            <SelectTrigger className="w-full h-12 text-base">
+              <SelectValue>
+                {activeTabData && (
+                  <div className="flex items-center gap-2">
+                    <activeTabData.icon className="h-4 w-4" />
+                    <span>{activeTabData.label}</span>
+                  </div>
+                )}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {allTabs.map((item) => (
+                <SelectItem key={item.value} value={item.value}>
+                  <div className="flex items-center gap-2">
+                    <item.icon className="h-4 w-4" />
+                    <span>{item.label}</span>
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Desktop: Scrollable Tabs */}
+        <div className="hidden md:block mb-6 sm:mb-8 w-full overflow-x-auto overflow-y-hidden scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
           <TabsList className="inline-flex h-auto gap-1.5 sm:gap-2 p-1.5 w-max min-w-full">
-            {[...primaryTabs, ...overflowTabs].map((item) => (
+            {allTabs.map((item) => (
               <TabsTrigger
                 key={item.value}
                 value={item.value}
                 title={item.label}
-                className="inline-flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-2 sm:py-2.5 text-xs sm:text-sm whitespace-nowrap flex-shrink-0"
+                className="inline-flex items-center justify-center gap-2 px-3 py-2.5 text-sm whitespace-nowrap flex-shrink-0"
               >
-                <item.icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
-                <span className="hidden sm:inline">{item.label}</span>
+                <item.icon className="h-4 w-4 flex-shrink-0" />
+                <span>{item.label}</span>
               </TabsTrigger>
             ))}
           </TabsList>
