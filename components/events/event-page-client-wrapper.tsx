@@ -31,6 +31,8 @@ interface EventPageClientWrapperProps {
   coverImageUrl?: string;
   displayEventId: string;
   hasJoined: boolean;
+  paid: boolean;
+  eventType: string;
   tabsAndContent: ReactNode; // The tabs and main content to show for non-organizer roles
 }
 
@@ -44,7 +46,9 @@ export function EventPageClientWrapper({
   location,
   coverImageUrl,
   hasJoined,
+  paid,
   tabsAndContent,
+  eventType,
 }: EventPageClientWrapperProps) {
   const { activeRole, setActiveRole } = useActiveRole();
   const [isLoading, setIsLoading] = useState(false);
@@ -189,6 +193,8 @@ export function EventPageClientWrapper({
         userRole={userRole}
         activeRole={currentRole}
         onManageEventClick={() => handleRoleChange(EventRole.Organizer)}
+        paid={paid}
+        eventType={eventType}
       />
       {tabsAndContent}
 

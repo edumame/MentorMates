@@ -22,6 +22,8 @@ interface EventPageHeaderProps {
    */
   activeRole?: EventRole | null;
   onManageEventClick?: () => void;
+  paid: boolean;
+  eventType: string;
 }
 
 export function EventPageHeader({
@@ -35,6 +37,8 @@ export function EventPageHeader({
   userRole,
   activeRole,
   onManageEventClick,
+  paid,
+  eventType,
 }: EventPageHeaderProps) {
   // Format date
   const formattedDate = new Date(eventDate).toLocaleDateString("en-US", {
@@ -68,13 +72,21 @@ export function EventPageHeader({
         <div className="absolute left-6 top-6 flex flex-wrap gap-1 z-10">
           <div className="bg-white border border-[rgba(0,0,0,0.15)] px-2.5 py-1 rounded-full">
             <p className="font-semibold text-sm leading-[1.5] text-black whitespace-nowrap">
-              Hackathon
+              {eventType
+                ? eventType.charAt(0).toUpperCase() + eventType.slice(1)
+                : "Hackathon"}
             </p>
           </div>
           <div className="bg-white border border-[rgba(0,0,0,0.15)] px-2.5 py-1 rounded-full">
-            <p className="font-semibold text-sm leading-[1.5] text-black whitespace-nowrap">
-              Free
-            </p>
+            {paid ? (
+              <p className="font-semibold text-sm leading-[1.5] text-black whitespace-nowrap">
+                Paid
+              </p>
+            ) : (
+              <p className="font-semibold text-sm leading-[1.5] text-black whitespace-nowrap">
+                Free
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -108,11 +120,17 @@ export function EventPageHeader({
                   <div className="flex gap-[16px] items-start w-full">
                     {(() => {
                       const roleForView = activeRole ?? userRole ?? null;
-                      const isPresenterView = roleForView === EventRole.Participant;
+                      const isPresenterView =
+                        roleForView === EventRole.Participant;
 
                       if (isPresenterView) {
                         return (
-                          <Button asChild variant="default" size="lg" className="rounded-full px-6 py-5 gap-2">
+                          <Button
+                            asChild
+                            variant="default"
+                            size="lg"
+                            className="rounded-full px-6 py-5 gap-2"
+                          >
                             <Link href={`/projects/submit?eventId=${eventId}`}>
                               <Plus className="h-6 w-6" /> Create Project
                             </Link>
@@ -122,7 +140,10 @@ export function EventPageHeader({
 
                       if (!hasJoined) {
                         return (
-                          <JoinEventButton eventId={eventId} eventName={eventName} />
+                          <JoinEventButton
+                            eventId={eventId}
+                            eventName={eventName}
+                          />
                         );
                       }
 
