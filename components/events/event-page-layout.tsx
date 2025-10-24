@@ -16,6 +16,8 @@ interface EventPageLayoutProps {
   eventId: string;
   hasJoined: boolean;
   dbEventId: string; // The actual database UUID for the event
+  paid: boolean;
+  eventType: string;
 }
 
 export async function EventPageLayout({
@@ -28,6 +30,8 @@ export async function EventPageLayout({
   eventId,
   hasJoined,
   dbEventId,
+  paid,
+  eventType,
 }: EventPageLayoutProps) {
   const supabase = await createSupabaseClient();
 
@@ -56,7 +60,8 @@ export async function EventPageLayout({
     .eq("event_id", dbEventId)
     .maybeSingle();
 
-  const eventRoleLabels = (eventData?.role_labels as Record<string, string> | null) || null;
+  const eventRoleLabels =
+    (eventData?.role_labels as Record<string, string> | null) || null;
 
   // Fetch participant count
   const { count: participantCount } = await supabase
@@ -87,6 +92,8 @@ export async function EventPageLayout({
             coverImageUrl={coverImageUrl}
             displayEventId={eventId}
             hasJoined={hasJoined}
+            paid={paid}
+            eventType={eventType}
             tabsAndContent={
               <>
                 {/* Tabs Navigation */}
@@ -117,7 +124,9 @@ export async function EventPageLayout({
               eventId={dbEventId}
               hasJoined={hasJoined}
               userRole={null}
-            activeRole={null}
+              activeRole={null}
+              paid={paid}
+              eventType={eventType}
             />
 
             {/* Tabs Navigation */}
@@ -129,7 +138,9 @@ export async function EventPageLayout({
 
             {/* Main Content */}
             <div className="w-full">
-              <div className="flex flex-col md:flex-row items-start gap-6 w-full px-4 md:px-6 py-[24px]">{children}</div>
+              <div className="flex flex-col md:flex-row items-start gap-6 w-full px-4 md:px-6 py-[24px]">
+                {children}
+              </div>
             </div>
           </>
         )}
