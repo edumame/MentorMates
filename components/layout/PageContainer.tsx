@@ -23,7 +23,7 @@ export function PageContainer({
     <div
       className={`${
         showBorder
-          ? "h-[calc(100vh-88px)] overflow-hidden"
+          ? "min-h-screen lg:h-[calc(100vh-88px)] overflow-visible lg:overflow-hidden"
           : "min-h-[calc(100vh-64px)]"
       } flex flex-col ${
         showBorder ? "lg:rounded-tl-2xl lg:border-t lg:border-l lg:border-[#D8D8D8]" : ""
