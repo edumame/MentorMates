@@ -16,8 +16,8 @@ interface EventPageLayoutProps {
   eventId: string;
   hasJoined: boolean;
   dbEventId: string; // The actual database UUID for the event
-  paid: boolean;
-  eventType: string;
+  paid?: boolean;
+  eventType?: string;
 }
 
 export async function EventPageLayout({
@@ -92,8 +92,8 @@ export async function EventPageLayout({
             coverImageUrl={coverImageUrl}
             displayEventId={eventId}
             hasJoined={hasJoined}
-            paid={paid}
-            eventType={eventType}
+            paid={paid || false}
+            eventType={eventType || "Hackathon"}
             tabsAndContent={
               <>
                 {/* Tabs Navigation */}
@@ -125,8 +125,8 @@ export async function EventPageLayout({
               hasJoined={hasJoined}
               userRole={null}
               activeRole={null}
-              paid={paid}
-              eventType={eventType}
+              paid={paid || false}
+              eventType={eventType || "Hackathon"}
             />
 
             {/* Tabs Navigation */}
