@@ -314,7 +314,7 @@ export function ContentTab({
             {loadingLessons ? (
               <p className="text-sm text-gray-500">Loading lessons...</p>
             ) : (event.event_lessons || []).length === 0 ? (
-              <p className="text-sm text-muted-foreground">No lessons yet. Click "Add Lesson" to create one.</p>
+              <p className="text-sm text-muted-foreground">No lessons yet. Click &quot;Add Lesson&quot; to create one.</p>
             ) : null}
 
         <div className="space-y-6">
