@@ -259,19 +259,21 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
         <div className="flex flex-col gap-6 sm:gap-8 md:gap-[48px] max-w-[1064px] mx-auto">
     <div className="space-y-6">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="mb-6 sm:mb-8 w-full h-auto grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-1.5 sm:gap-2 p-1.5">
-          {[...primaryTabs, ...overflowTabs].map((item) => (
-            <TabsTrigger
-              key={item.value}
-              value={item.value}
-              title={item.label}
-              className="inline-flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-2 sm:py-2.5 text-xs sm:text-sm"
-            >
-              <item.icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
-              <span className="hidden sm:inline truncate">{item.label}</span>
-            </TabsTrigger>
-          ))}
-        </TabsList>
+        <div className="mb-6 sm:mb-8 w-full overflow-x-auto overflow-y-hidden scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
+          <TabsList className="inline-flex h-auto gap-1.5 sm:gap-2 p-1.5 w-max min-w-full">
+            {[...primaryTabs, ...overflowTabs].map((item) => (
+              <TabsTrigger
+                key={item.value}
+                value={item.value}
+                title={item.label}
+                className="inline-flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-2 sm:py-2.5 text-xs sm:text-sm whitespace-nowrap flex-shrink-0"
+              >
+                <item.icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+                <span className="hidden sm:inline">{item.label}</span>
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </div>
 
         <TabsContent value="details">
           <EventDetailsTab
