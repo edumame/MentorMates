@@ -26,6 +26,7 @@ import {
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { customMarkdownComponents } from "@/components/markdown/custom-components";
 import { markdownRehypePlugins } from "@/components/markdown/plugins";
+import { Sparkles } from "lucide-react";
 
 interface BasicInfoTabProps {
   event: EventDetails;
@@ -86,6 +87,9 @@ export function BasicInfoTab({
   const [archiving, setArchiving] = useState(false);
   const [devpostUrl, setDevpostUrl] = useState("");
   const [importing, setImporting] = useState(false);
+  const [anyEventUrl, setAnyEventUrl] = useState("");
+  const [importingFromUrl, setImportingFromUrl] = useState(false);
+  const [enhancingField, setEnhancingField] = useState<string | null>(null);
 
   const handleBasicInfoUpdate = async () => {
     if (!event) return;
@@ -211,6 +215,177 @@ export function BasicInfoTab({
 
   const isArchived = event.visibility === EventVisibility.Archived;
 
+  const handleImportFromUrl = async () => {
+    if (!event?.event_id || !anyEventUrl) return;
+    try {
+      setImportingFromUrl(true);
+      const res = await fetch("/api/events/ai-fill", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          eventId: event.event_id,
+          url: anyEventUrl,
+          mode: "import"
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.error || "Failed to import event data");
+      }
+      const data = await res.json();
+      const imported = data?.import || {};
+      const merged = {
+        ...event,
+        slug: imported.slug ?? event.slug,
+        event_name: imported.event_name ?? event.event_name,
+        event_date: imported.event_date ?? event.event_date,
+        location: imported.location ?? event.location,
+        event_blurb: imported.event_blurb ?? event.event_blurb,
+        event_description: imported.event_description ?? event.event_description,
+        submission_time_start: imported.submission_time_start ?? event.submission_time_start,
+        submission_time_cutoff: imported.submission_time_cutoff ?? event.submission_time_cutoff,
+        event_schedule: imported.event_schedule ?? event.event_schedule,
+        rules: imported.rules ?? event.rules,
+        event_resources: imported.event_resources ?? event.event_resources,
+        faq: imported.faq ?? event.faq,
+      } as typeof event;
+      if (Array.isArray(imported.tracks) && imported.tracks.length > 0) {
+        const newTracks = imported.tracks.map((t: ImportedTrack) => {
+          const trackId = crypto.randomUUID();
+          const prizes = Array.isArray(t?.prizes)
+            ? t.prizes.map((p: ImportedPrize) => ({
+                id: `local-${crypto.randomUUID()}`,
+                track_id: trackId,
+                prize_amount: String(p?.prize_amount || ""),
+                prize_description: String(p?.prize_description || ""),
+              }))
+            : [];
+          return {
+            track_id: trackId,
+            event_id: event.event_id,
+            name: String(t?.name || ""),
+            description: String(t?.description || t?.name || ""),
+            label: t?.label ? String(t.label) : undefined,
+            prizes,
+            scoring_criteria: t?.criteria
+              ? {
+                  name: String(t.name || "Track"),
+                  criteria: t.criteria,
+                }
+              : { name: String(t.name || "Track"), criteria: [] },
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
+        });
+        (merged as EventDetails).event_tracks = newTracks;
+      }
+      setEvent(merged);
+      toast({
+        title: "Imported",
+        description: "Event details imported successfully. Review and save your changes.",
+      });
+    } catch (err) {
+      toast({
+        title: "Import failed",
+        description: (err as Error).message,
+        variant: "destructive",
+      });
+    } finally {
+      setImportingFromUrl(false);
+    }
+  };
+
+  const handleEnhanceField = async (field: string) => {
+    if (!event?.event_id) return;
+    try {
+      setEnhancingField(field);
+      const res = await fetch("/api/events/ai-fill", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          eventId: event.event_id,
+          mode: "enhance",
+          context: {
+            event_name: event.event_name,
+            event_date: event.event_date,
+            location: event.location,
+            existing_description: field === "event_description"
+              ? event.event_description
+              : field === "event_blurb"
+              ? event.event_blurb
+              : "",
+            field,
+          }
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.error || "Failed to enhance content");
+      }
+      const data = await res.json();
+      if (field === "event_description") {
+        setEvent({ ...event, event_description: data.content });
+      } else if (field === "event_blurb") {
+        setEvent({ ...event, event_blurb: data.content });
+      }
+      toast({
+        title: "Enhanced",
+        description: "Content enhanced with AI. Review and save your changes.",
+      });
+    } catch (err) {
+      toast({
+        title: "Enhancement failed",
+        description: (err as Error).message,
+        variant: "destructive",
+      });
+    } finally {
+      setEnhancingField(null);
+    }
+  };
+
+  const handleGenerateField = async (field: string) => {
+    if (!event?.event_id) return;
+    try {
+      setEnhancingField(field);
+      const res = await fetch("/api/events/ai-fill", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          eventId: event.event_id,
+          mode: "generate",
+          context: {
+            event_name: event.event_name,
+            event_date: event.event_date,
+            location: event.location,
+            field,
+          }
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.error || "Failed to generate content");
+      }
+      const data = await res.json();
+      if (field === "event_description") {
+        setEvent({ ...event, event_description: data.content });
+      } else if (field === "event_blurb") {
+        setEvent({ ...event, event_blurb: data.content });
+      }
+      toast({
+        title: "Generated",
+        description: "Content generated with AI. Review and save your changes.",
+      });
+    } catch (err) {
+      toast({
+        title: "Generation failed",
+        description: (err as Error).message,
+        variant: "destructive",
+      });
+    } finally {
+      setEnhancingField(null);
+    }
+  };
+
   return (
     <div className="flex space-y-4 w-full flex-col">
       {/* Archived Event Warning */}
@@ -300,24 +475,68 @@ export function BasicInfoTab({
         </div>
       </div>
 
-      {/* Import from Devpost */}
-      <div className="space-y-2">
-        <Label htmlFor="devpost_url">Import from Devpost</Label>
-        <div className="flex flex-col sm:flex-row gap-2">
-          <Input
-            id="devpost_url"
-            type="url"
-            placeholder="https://<event>.devpost.com/"
-            value={devpostUrl}
-            disabled={isArchived || importing}
-            onChange={(e) => setDevpostUrl(e.target.value)}
-            className="flex-1 min-w-0"
-          />
-          <Button
-            type="button"
-            disabled={isArchived || importing || !devpostUrl}
-            className="shrink-0 whitespace-nowrap"
-            onClick={async () => {
+      {/* AI Import Section */}
+      <div className="space-y-4 border rounded-lg p-4 bg-gradient-to-r from-purple-50 to-blue-50">
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-5 w-5 text-purple-600" />
+          <h3 className="font-semibold text-purple-900">AI-Powered Import</h3>
+        </div>
+
+        {/* Import from Any URL */}
+        <div className="space-y-2">
+          <Label htmlFor="any_event_url">Import from Any Event URL</Label>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Input
+              id="any_event_url"
+              type="url"
+              placeholder="https://your-event-page.com"
+              value={anyEventUrl}
+              disabled={isArchived || importingFromUrl}
+              onChange={(e) => setAnyEventUrl(e.target.value)}
+              className="flex-1 min-w-0"
+            />
+            <Button
+              type="button"
+              disabled={isArchived || importingFromUrl || !anyEventUrl}
+              className="shrink-0 whitespace-nowrap"
+              onClick={handleImportFromUrl}
+            >
+              {importingFromUrl ? (
+                <>
+                  <Sparkles className="mr-2 h-4 w-4 animate-spin" />
+                  Importing...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  Import with AI
+                </>
+              )}
+            </Button>
+          </div>
+          <p className="text-xs text-gray-600">
+            Paste any hackathon event page URL. AI will extract and prefill event details automatically.
+          </p>
+        </div>
+
+        {/* Import from Devpost */}
+        <div className="space-y-2">
+          <Label htmlFor="devpost_url">Import from Devpost</Label>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Input
+              id="devpost_url"
+              type="url"
+              placeholder="https://<event>.devpost.com/"
+              value={devpostUrl}
+              disabled={isArchived || importing}
+              onChange={(e) => setDevpostUrl(e.target.value)}
+              className="flex-1 min-w-0"
+            />
+            <Button
+              type="button"
+              disabled={isArchived || importing || !devpostUrl}
+              className="shrink-0 whitespace-nowrap"
+              onClick={async () => {
               if (!event?.event_id) return;
               try {
                 setImporting(true);
@@ -398,9 +617,10 @@ export function BasicInfoTab({
             {importing ? "Importing..." : "Import"}
           </Button>
         </div>
-        <p className="text-xs text-gray-500">
-          Paste your Devpost event page URL. We&apos;ll fetch details and prefill this form using AI.
+        <p className="text-xs text-gray-600">
+          Optimized for Devpost. Uses enhanced scraping for better results.
         </p>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -471,7 +691,51 @@ export function BasicInfoTab({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="event_blurb">Event Blurb</Label>
+        <div className="flex items-center justify-between">
+          <Label htmlFor="event_blurb">Event Blurb</Label>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={isArchived || enhancingField === "event_blurb" || !event.event_blurb}
+              onClick={() => handleEnhanceField("event_blurb")}
+              className="text-xs"
+            >
+              {enhancingField === "event_blurb" ? (
+                <>
+                  <Sparkles className="mr-1 h-3 w-3 animate-spin" />
+                  Enhancing...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="mr-1 h-3 w-3" />
+                  Enhance
+                </>
+              )}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={isArchived || enhancingField === "event_blurb"}
+              onClick={() => handleGenerateField("event_blurb")}
+              className="text-xs"
+            >
+              {enhancingField === "event_blurb" ? (
+                <>
+                  <Sparkles className="mr-1 h-3 w-3 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="mr-1 h-3 w-3" />
+                  Generate
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
         <Textarea
           id="event_blurb"
           value={event.event_blurb || ""}
@@ -494,7 +758,51 @@ export function BasicInfoTab({
             confirm formatting and content before saving.
           </AlertDescription>
           <div className="mt-3 space-y-2">
-            <Label htmlFor="event_description">Description (Markdown Supported)</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="event_description">Description (Markdown Supported)</Label>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={isArchived || enhancingField === "event_description" || !event.event_description}
+                  onClick={() => handleEnhanceField("event_description")}
+                  className="text-xs"
+                >
+                  {enhancingField === "event_description" ? (
+                    <>
+                      <Sparkles className="mr-1 h-3 w-3 animate-spin" />
+                      Enhancing...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="mr-1 h-3 w-3" />
+                      Enhance
+                    </>
+                  )}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={isArchived || enhancingField === "event_description"}
+                  onClick={() => handleGenerateField("event_description")}
+                  className="text-xs"
+                >
+                  {enhancingField === "event_description" ? (
+                    <>
+                      <Sparkles className="mr-1 h-3 w-3 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="mr-1 h-3 w-3" />
+                      Generate
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
             <Tabs defaultValue="edit" className="w-full">
               <TabsList>
                 <TabsTrigger value="edit">Edit</TabsTrigger>
