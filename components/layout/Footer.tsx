@@ -6,10 +6,12 @@ import InstagramIcon from "@mui/icons-material/Instagram";
 import XIcon from "@mui/icons-material/X";
 import LinkedInIcon from "@mui/icons-material/LinkedIn";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/features/user/authentication/auth/AuthContext";
 
 const SUBSTACK_BASE = "https://mentormates.substack.com/";
 
 export function Footer() {
+    const { isAuthenticated, isLoading } = useAuth();
     const [firstUrl, setFirstUrl] = useState("");
     const [firstReferrer, setFirstReferrer] = useState("");
 
@@ -17,6 +19,11 @@ export function Footer() {
         setFirstUrl(window.location.href);
         setFirstReferrer(document.referrer || "");
     }, []);
+
+    // Hide footer when authenticated or while loading to avoid a flash
+    if (isLoading || isAuthenticated) {
+        return null;
+    }
 
     return (
         <footer className="w-full bg-white">
