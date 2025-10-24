@@ -212,7 +212,7 @@ export function BasicInfoTab({
   const isArchived = event.visibility === EventVisibility.Archived;
 
   return (
-    <div className="flex space-y-4 w-full flex-col gap-4">
+    <div className="flex space-y-4 w-full flex-col">
       {/* Archived Event Warning */}
       {isArchived && (
         <Alert className="border-orange-200 bg-orange-50">
