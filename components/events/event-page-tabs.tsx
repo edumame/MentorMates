@@ -43,7 +43,7 @@ export function EventPageTabs({
 
   return (
     <div className="border-b border-[#f2f2f2] w-full">
-      <div className="flex gap-4 md:gap-6 items-start px-4 md:px-6 w-full overflow-x-auto no-scrollbar whitespace-nowrap">
+      <div className="mx-auto max-w-[1100px] flex gap-4 md:gap-6 items-start px-4 md:px-6 w-full overflow-x-auto no-scrollbar whitespace-nowrap">
         {tabs.map((tab) => {
           const isActive = pathname === tab.path;
 
