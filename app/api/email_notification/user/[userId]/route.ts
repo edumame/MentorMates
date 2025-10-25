@@ -2,8 +2,11 @@ import { NextResponse, NextRequest } from "next/server";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import {
   getCheckinQRCodeEmail,
+  getEventScheduleUpdateNotificationEmail,
+  getEventUpdateNotificationEmail,
 } from "@/lib/email_templates/event-notifications";
 import { EMAIL_TYPES, NOTIFICATIONS_EMAIL_FROM } from "@/lib/email_templates/constants";
+import type { EventDetails } from "@/lib/types";
 import { Resend } from "resend";
 
 const resend = process.env.RESEND_API_KEY
@@ -60,7 +63,7 @@ export async function POST(
     );
   }
 
-  const emailToSend = await getUserEmail(userId, eventId, eventName, emailType);
+  const emailToSend = await getUserEmail({ userId, eventId, emailType, eventName, supabase });
 
   if (!process.env.RESEND_API_KEY) {
     return NextResponse.json({ error: "Email service not configured" }, { status: 500 });
@@ -80,16 +83,51 @@ export async function POST(
   return NextResponse.json({ message: "Email sent successfully", data: data }, { status: 200 });
 }
 
-const getUserEmail = async (
-    userId: string,
-    eventId: string,
-    eventName: string,
-    emailType: EMAIL_TYPES
-  ) => {
-    switch (emailType) {
-      case EMAIL_TYPES.CHECKIN_QR_CODE:
-        return await getCheckinQRCodeEmail(eventName, userId, eventId);
-      default:
-        return await getCheckinQRCodeEmail(eventName, userId, eventId);
+const getUserEmail = async ({
+  userId,
+  eventId,
+  emailType,
+  eventName,
+  supabase,
+}: {
+  userId: string;
+  eventId: string;
+  emailType: EMAIL_TYPES;
+  eventName?: string;
+  supabase: Awaited<ReturnType<typeof createSupabaseClient>>;
+}) => {
+  // For templates that need event details, fetch them
+  let eventData: EventDetails | null = null;
+  if (emailType !== EMAIL_TYPES.CHECKIN_QR_CODE) {
+    const { data, error } = await supabase
+      .from("events")
+      .select("*")
+      .eq("event_id", eventId)
+      .single();
+    if (!error && data) {
+      eventData = data as EventDetails;
     }
-  };
+  }
+
+  const resolvedEventName = eventName || eventData?.event_name || "Event";
+
+  switch (emailType) {
+    case EMAIL_TYPES.CHECKIN_QR_CODE:
+      return await getCheckinQRCodeEmail(resolvedEventName, userId, eventId);
+    case EMAIL_TYPES.EVENT_UPDATE:
+      return getEventUpdateNotificationEmail(
+        resolvedEventName,
+        eventId,
+        (eventData as EventDetails) || ({} as EventDetails)
+      );
+    case EMAIL_TYPES.EVENT_SCHEDULE_UPDATE:
+      return getEventScheduleUpdateNotificationEmail(
+        resolvedEventName,
+        eventId,
+        (eventData as EventDetails) || ({} as EventDetails)
+      );
+    default:
+      // Fallback to a simple check-in email if unknown type
+      return await getCheckinQRCodeEmail(resolvedEventName, userId, eventId);
+  }
+};
