@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { MapPin } from "lucide-react";
 import { EventItem } from "@/lib/types";
+import { parseEventDateLocal } from "@/lib/utils/date";
 
 interface EventCardProps {
   event: EventItem;
@@ -11,22 +12,16 @@ interface EventCardProps {
 export function EventCard({ event }: EventCardProps) {
   // Parse date for display with safe fallbacks
   const { dayOfWeek, day, monthYear } = (() => {
-    try {
-      const parsed = new Date(event.event_date);
-      if (Number.isNaN(parsed.getTime())) {
-        return { dayOfWeek: "TBD", day: "--", monthYear: "" };
-      }
-      return {
-        dayOfWeek: parsed.toLocaleDateString("en-US", { weekday: "short" }),
-        day: parsed.toLocaleDateString("en-US", { day: "2-digit" }),
-        monthYear: parsed.toLocaleDateString("en-US", {
-          month: "short",
-          year: "numeric",
-        }),
-      };
-    } catch {
-      return { dayOfWeek: "TBD", day: "--", monthYear: "" };
-    }
+    const parsed = parseEventDateLocal(event.event_date);
+    if (!parsed) return { dayOfWeek: "TBD", day: "--", monthYear: "" };
+    return {
+      dayOfWeek: parsed.toLocaleDateString("en-US", { weekday: "short" }),
+      day: parsed.toLocaleDateString("en-US", { day: "2-digit" }),
+      monthYear: parsed.toLocaleDateString("en-US", {
+        month: "short",
+        year: "numeric",
+      }),
+    };
   })();
 
   // Determine if event is paid or free
