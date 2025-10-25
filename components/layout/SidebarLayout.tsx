@@ -26,7 +26,7 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
           </main>
         </div>
       ) : (
-        <div className="min-h-screen w-full">{children}</div>
+        <div className="h-full w-full overflow-auto">{children}</div>
       )}
     </>
   );

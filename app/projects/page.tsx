@@ -175,7 +175,7 @@ export default function ProjectsPage() {
           )}
         </div>
       </PageContent>
-      {!isAuthenticated && <Footer />}
+      <Footer />
     </PageContainer>
   );
 }

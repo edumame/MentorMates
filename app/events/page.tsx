@@ -140,7 +140,7 @@ export default async function EventsPage() {
           </div>
         </div>
       </PageContent>
-      {!isAuthenticated && <Footer />}
+      <Footer />
     </PageContainer>
   );
 }
