@@ -126,11 +126,11 @@ export default async function EventsPage() {
   return (
     <PageContainer showBorder={isAuthenticated}>
       <PageContent className="pt-[24px] pb-8">
-        <div className="flex flex-col gap-[24px] px-[32px]">
+        <div className="flex flex-col gap-[24px]">
           <h1 className="text-[20px] sm:text-[28px] font-semibold leading-[1.4] tracking-[-0.06em] text-black">
             Events
           </h1>
-          <div className="flex flex-col gap-[24px]">
+          <div className="flex flex-col gap-[24px] max-w-7xl mx-auto">
             <EventsPageClient eventsList={eventsList} />
 
             {/* Discord CTA on events page */}
