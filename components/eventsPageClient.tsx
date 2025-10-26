@@ -61,9 +61,9 @@ export function EventsPageClient({ eventsList }: { eventsList: EventItem[] }) {
   }, [showSortMenu]);
 
   const sortOptions: { value: SortOption; label: string }[] = [
-    { value: "date", label: "By Date" },
-    { value: "name", label: "By Name" },
-    { value: "type", label: "By Type" },
+    { value: "date", label: "By event date" },
+    { value: "name", label: "By alphabetical" },
+    { value: "type", label: "By date created" },
   ];
 
   const currentSortLabel = sortOptions.find((opt) => opt.value === sortBy)?.label || "Sort by";
@@ -71,70 +71,72 @@ export function EventsPageClient({ eventsList }: { eventsList: EventItem[] }) {
   return (
     <div className="w-full">
       {/* Search and Filter Section */}
-      <div className="flex flex-col mb-5 gap-4">
-        <div className="flex items-end justify-between gap-4">
-          {/* Search Input */}
-          <div className="relative flex-1">
-            <div className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-[rgba(0,0,0,0.6)]">
-              <Search className="w-full h-full" strokeWidth={2} />
+      <div className="flex items-center justify-between mb-6 flex-wrap">
+        <span className="inline-block w-[10%] text-[20px] sm:text-[28px] font-semibold leading-[1.4] tracking-[-0.06em] text-black mb-4 sm:mb-0">Events</span>
+        <div className="flex flex-grow flex-col gap-4">
+          <div className="flex items-end justify-between gap-4">
+            {/* Search Input */}
+            <div className="relative flex-1">
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-[rgba(0,0,0,0.6)]">
+                <Search className="w-full h-full" strokeWidth={2} />
+              </div>
+              <input
+                type="text"
+                placeholder="Search by event or host title"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full h-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-12 py-2 text-xs sm:text-base font-normal text-black placeholder:text-[rgba(0,0,0,0.6)] focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
             </div>
-            <input
-              type="text"
-              placeholder="Search"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full h-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-12 py-2 text-xs sm:text-base font-normal text-black placeholder:text-[rgba(0,0,0,0.6)] focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
 
-          <div className="flex items-center gap-4">
-            {/* Sort By Dropdown */}
-            <div className="relative">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowSortMenu(!showSortMenu);
-                }}
-                className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-3 py-2 flex items-center gap-2 w-[107px] sm:min-w-[160px] hover:bg-gray-50 transition-colors justify-between h-10"
-              >
-                <span className="text-xs sm:text-base font-normal text-black truncate">{currentSortLabel}</span>
-                <ChevronDown className="w-6 h-6 text-black flex-shrink-0" strokeWidth={2} />
-              </button>
-              {showSortMenu && (
-                <div className="absolute right-0 mt-2 w-full sm:w-48 bg-white border border-[rgba(0,0,0,0.15)] rounded-xl shadow-lg z-10">
-                  {sortOptions.map((option) => (
-                    <button
-                      key={option.value}
-                      onClick={() => {
-                        setSortBy(option.value);
-                        setShowSortMenu(false);
-                      }}
-                      className={`w-full text-left px-4 py-2 hover:bg-gray-50 transition-colors first:rounded-t-xl last:rounded-b-xl ${
-                        sortBy === option.value ? "bg-blue-50 font-semibold" : ""
-                      }`}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
+            <div className="flex items-center gap-4">
+              {/* Sort By Dropdown */}
+              <div className="relative">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowSortMenu(!showSortMenu);
+                  }}
+                  className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-3 py-2 flex items-center gap-2 w-[150px] sm:min-w-[180px] hover:bg-gray-50 transition-colors justify-between h-10"
+                >
+                  <span className="text-xs sm:text-base font-normal text-black truncate">{currentSortLabel}</span>
+                  <ChevronDown className="w-6 h-6 text-black flex-shrink-0" strokeWidth={2} />
+                </button>
+                {showSortMenu && (
+                  <div className="absolute right-0 mt-2 w-44 sm:w-48 bg-white border border-[rgba(0,0,0,0.15)] rounded-xl shadow-lg z-10 py-1.5 px-1">
+                    {sortOptions.map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() => {
+                          setSortBy(option.value);
+                          setShowSortMenu(false);
+                        }}
+                        className={`w-full text-left mb-1 px-4 py-2 hover:bg-[#F2F2F2] transition-colors rounded-xl ${sortBy === option.value ? "!bg-blue-50" : ""
+                          }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Create Event Button - Desktop only */}
+              {isAuthenticated && (
+                <Button asChild className="h-10 hidden sm:inline-flex">
+                  <Link href="/events/new">Create an event</Link>
+                </Button>
               )}
             </div>
-
-            {/* Create Event Button - Desktop only */}
-            {isAuthenticated && (
-              <Button asChild className="h-10 hidden sm:inline-flex">
-                <Link href="/events/new">Create an event</Link>
-              </Button>
-            )}
           </div>
-        </div>
 
-        {/* Create Event Button - Mobile only */}
-        {isAuthenticated && (
-          <Button asChild className="h-10 sm:hidden w-full">
-            <Link href="/events/new">Create an event</Link>
-          </Button>
-        )}
+          {/* Create Event Button - Mobile only */}
+          {/* {isAuthenticated && (
+            <Button asChild className="h-10 sm:hidden w-full">
+              <Link href="/events/new">Create an event</Link>
+            </Button>
+          )} */}
+        </div>
       </div>
 
       {/* Events List */}

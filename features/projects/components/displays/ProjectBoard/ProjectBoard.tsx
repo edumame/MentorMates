@@ -67,7 +67,7 @@ const ProjectBoard = ({
           className="mx-auto"
         >
           {projectList.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 md:gap-6 lg:gap-[24px]">
+            <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {projectList.map((project) => {
                 const projectUrl =
                   projectBoardContext === ProjectBoardContext.MyProjects
@@ -79,11 +79,7 @@ const ProjectBoard = ({
                 return (
                   <Link href={projectUrl} key={project.id} className="block">
                     <Card
-                      className={`bg-white rounded-xl overflow-hidden relative flex flex-col h-full hover:shadow-lg transition-shadow ${
-                        project.prizes_won && project.prizes_won.length > 0
-                          ? "ring-2 ring-yellow-400"
-                          : ""
-                      }`}
+                      className={`bg-white rounded-xl overflow-hidden relative flex flex-col h-full border border-[rgba(0,0,0,0.15)]`}
                     >
                       {/* Winner Banner */}
                       {project.prizes_won && project.prizes_won.length > 0 && (
@@ -121,10 +117,10 @@ const ProjectBoard = ({
                       </div>
 
                       {/* Lower content */}
-                      <div className="p-6 flex-1 flex flex-col">
+                      <div className="py-4 px-6 flex-1 flex flex-col">
                         {/* Project name + status chips */}
-                        <div className="flex items-start justify-between mb-4 gap-2">
-                          <h3 className="font-bold text-black flex-1 min-w-0 truncate">
+                        <div className="flex items-start justify-between mb-2 gap-2">
+                          <h3 className="font-bold text-black flex-1 min-w-0 text-[22px] leading-[1.4] tracking-[-0.06em]">
                             {project.project_name || "Project"}
                           </h3>
                           <div className="flex items-center gap-1 flex-shrink-0">
@@ -149,18 +145,18 @@ const ProjectBoard = ({
                         )}
 
                         {/* Meta row */}
-                        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mb-4 text-sm text-gray-600">
+                        <div className="flex items-center gap-6 text-sm text-gray-600">
                           <div className="flex items-center gap-2">
                             <CalendarClock className="w-4 h-4" />
                             <span>
                               {project.created_at
                                 ? new Date(
-                                    project.created_at
-                                  ).toLocaleDateString("en-GB", {
-                                    day: "2-digit",
-                                    month: "short",
-                                    year: "numeric",
-                                  })
+                                  project.created_at
+                                ).toLocaleDateString("en-GB", {
+                                  day: "2-digit",
+                                  month: "short",
+                                  year: "numeric",
+                                })
                                 : "N/A"}
                             </span>
                           </div>
@@ -175,94 +171,98 @@ const ProjectBoard = ({
                         </div>
 
                         {/* Avatars + menu */}
-                        <div className="flex items-center justify-between mt-auto">
-                          <div className="flex items-center -space-x-2">
-                            <div
-                              className="w-8 h-8 rounded-full border-2 border-white overflow-hidden bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-semibold text-xs"
-                              title={project.lead_name || "Lead"}
-                            >
-                              {project.lead_name?.charAt(0).toUpperCase() ||
-                                "L"}
-                            </div>
-                            {project.teammates &&
-                              project.teammates.slice(0, 3).map((t, i) => {
-                                const colors = [
-                                  "from-purple-400 to-purple-600",
-                                  "from-pink-400 to-pink-600",
-                                  "from-orange-400 to-orange-600",
-                                ];
-                                return (
-                                  <div
-                                    key={i}
-                                    className={`w-8 h-8 rounded-full border-2 border-white overflow-hidden bg-gradient-to-br ${colors[i % colors.length]} flex items-center justify-center text-white font-semibold text-xs`}
-                                    title={t}
-                                  >
-                                    {t.charAt(0).toUpperCase()}
-                                  </div>
-                                );
-                              })}
-                            {project.teammates &&
-                              project.teammates.length > 3 && (
-                                <div className="w-8 h-8 rounded-full border-2 border-white bg-gray-100 flex items-center justify-center text-xs text-gray-600 font-medium">
-                                  +{project.teammates.length - 3}
+                        {
+                          project.teammates && project.teammates.length > 0 && (
+                            <div className="flex items-center justify-between mt-3">
+                              <div className="flex items-center -space-x-2">
+                                <div
+                                  className="w-8 h-8 rounded-full border-2 border-white overflow-hidden bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-semibold text-xs"
+                                  title={project.lead_name || "Lead"}
+                                >
+                                  {project.lead_name?.charAt(0).toUpperCase() ||
+                                    "L"}
                                 </div>
-                              )}
-                          </div>
-
-                          {/* Three dots menu – only on My Projects */}
-                          {projectBoardContext ===
-                            ProjectBoardContext.MyProjects && (
-                            <DropdownMenu>
-                              <DropdownMenuTrigger
-                                asChild
-                                onClick={(e) => e.preventDefault()}
-                              >
-                                <button className="p-1 hover:bg-gray-100 rounded-full">
-                                  <MoreHorizontal className="w-5 h-5 text-gray-400" />
-                                </button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent
-                                align="end"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <DropdownMenuItem
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    setQrDialogOpen(project.id);
-                                  }}
-                                >
-                                  <QrCode className="h-4 w-4 mr-2" />
-                                  Show QR Code
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    window.open(
-                                      `/projects/public/${project.id}`,
-                                      "_blank"
+                                {project.teammates &&
+                                  project.teammates.slice(0, 3).map((t, i) => {
+                                    const colors = [
+                                      "from-purple-400 to-purple-600",
+                                      "from-pink-400 to-pink-600",
+                                      "from-orange-400 to-orange-600",
+                                    ];
+                                    return (
+                                      <div
+                                        key={i}
+                                        className={`w-8 h-8 rounded-full border-2 border-white overflow-hidden bg-gradient-to-br ${colors[i % colors.length]} flex items-center justify-center text-white font-semibold text-xs`}
+                                        title={t}
+                                      >
+                                        {t.charAt(0).toUpperCase()}
+                                      </div>
                                     );
-                                  }}
-                                >
-                                  <ExternalLink className="h-4 w-4 mr-2" />
-                                  Feedback Page
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  className="text-red-600 focus:text-red-600"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    setDeleteDialogOpen(project.id);
-                                  }}
-                                >
-                                  <Trash2 className="h-4 w-4 mr-2" />
-                                  Delete Project
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          )}
-                        </div>
+                                  })}
+                                {project.teammates &&
+                                  project.teammates.length > 3 && (
+                                    <div className="w-8 h-8 rounded-full border-2 border-white bg-gray-100 flex items-center justify-center text-xs text-gray-600 font-medium">
+                                      +{project.teammates.length - 3}
+                                    </div>
+                                  )}
+                              </div>
+
+                              {/* Three dots menu – only on My Projects */}
+                              {projectBoardContext ===
+                                ProjectBoardContext.MyProjects && (
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger
+                                      asChild
+                                      onClick={(e) => e.preventDefault()}
+                                    >
+                                      <button className="p-1 hover:bg-gray-100 rounded-full">
+                                        <MoreHorizontal className="w-5 h-5 text-gray-400" />
+                                      </button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent
+                                      align="end"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      <DropdownMenuItem
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          setQrDialogOpen(project.id);
+                                        }}
+                                      >
+                                        <QrCode className="h-4 w-4 mr-2" />
+                                        Show QR Code
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          window.open(
+                                            `/projects/public/${project.id}`,
+                                            "_blank"
+                                          );
+                                        }}
+                                      >
+                                        <ExternalLink className="h-4 w-4 mr-2" />
+                                        Feedback Page
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem
+                                        className="text-red-600 focus:text-red-600"
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          setDeleteDialogOpen(project.id);
+                                        }}
+                                      >
+                                        <Trash2 className="h-4 w-4 mr-2" />
+                                        Delete Project
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                )}
+                            </div>
+                          )
+                        }
                       </div>
                     </Card>
                   </Link>
@@ -316,11 +316,10 @@ const ProjectBoard = ({
               <>
                 <div className="bg-white p-4 rounded-lg border">
                   <QRCode
-                    value={`${
-                      typeof window !== "undefined"
+                    value={`${typeof window !== "undefined"
                         ? window.location.origin
                         : ""
-                    }/projects/public/${qrDialogOpen}`}
+                      }/projects/public/${qrDialogOpen}`}
                     size={200}
                   />
                 </div>

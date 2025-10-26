@@ -127,9 +127,9 @@ export default async function EventsPage() {
     <PageContainer showBorder={isAuthenticated}>
       <PageContent className="pt-[24px] pb-8">
         <div className="flex flex-col gap-[24px] px-[32px]">
-          <h1 className="text-[20px] sm:text-[28px] font-semibold leading-[1.4] tracking-[-0.06em] text-black">
+          {/* <h1 className="text-[20px] sm:text-[28px] font-semibold leading-[1.4] tracking-[-0.06em] text-black">
             Events
-          </h1>
+          </h1> */}
           <div className="flex flex-col gap-[24px]">
             <EventsPageClient eventsList={eventsList} />
 
