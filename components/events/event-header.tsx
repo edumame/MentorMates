@@ -82,7 +82,7 @@ export function EventHeader({
         style={{
           backgroundImage: coverImageUrl
             ? `url(${coverImageUrl})`
-            : "linear-gradient(to bottom right, #4F46E5, #3B82F6)",
+            : "linear-gradient(to bottom, #4F46E5, #3B82F6)",
         }}
       />
       {/* Dark Overlay */}
@@ -109,29 +109,30 @@ export function EventHeader({
               {location}
             </Badge>
           )}
-          {(submissionTimeStart || submissionTimeCutoff) && (() => {
-            const status = getSubmissionStatus();
-            const badgeClass =
-              status === "open"
-                ? "bg-green-500/20 text-green-300"
-                : status === "before"
-                ? "bg-gray-500/20 text-gray-300"
-                : "bg-red-500/20 text-red-300";
-            const label =
-              status === "open"
-                ? "OPEN FOR SUBMISSION"
-                : status === "before"
-                ? "EVENT STARTING SOON"
-                : "CLOSED FOR SUBMISSION";
-            return (
-              <Badge
-                variant="secondary"
-                className={`${badgeClass} border-none text-xs sm:text-sm`}
-              >
-                {label}
-              </Badge>
-            );
-          })()}
+          {(submissionTimeStart || submissionTimeCutoff) &&
+            (() => {
+              const status = getSubmissionStatus();
+              const badgeClass =
+                status === "open"
+                  ? "bg-green-500/20 text-green-300"
+                  : status === "before"
+                    ? "bg-gray-500/20 text-gray-300"
+                    : "bg-red-500/20 text-red-300";
+              const label =
+                status === "open"
+                  ? "OPEN FOR SUBMISSION"
+                  : status === "before"
+                    ? "EVENT STARTING SOON"
+                    : "CLOSED FOR SUBMISSION";
+              return (
+                <Badge
+                  variant="secondary"
+                  className={`${badgeClass} border-none text-xs sm:text-sm`}
+                >
+                  {label}
+                </Badge>
+              );
+            })()}
           {visibility === EventVisibility.Archived && (
             <Badge
               variant="secondary"

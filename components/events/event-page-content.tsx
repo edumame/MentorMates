@@ -44,7 +44,7 @@ export function EventPageContent({
 
   // Show default event overview for participants, mentors, organizers, and non-authenticated users
   return (
-    <div className="flex flex-col flex-1">
+    <div className="flex flex-col flex-1 px-2 md:px-4">
       {/* Introduction */}
       <div className="flex flex-col pb-4 pt-0 px-0 w-full">
         <h2 className="font-semibold text-[24px] leading-[32px] text-black tracking-[-0.6px]">
@@ -101,8 +101,12 @@ export function EventPageContent({
                   )}
                 </div>
                 <div className="p-4 flex-1 flex flex-col">
-                  <h4 className="text-base font-semibold mb-1 group-hover:text-blue-600 transition-colors">{lesson.title}</h4>
-                  <p className="text-sm text-gray-600 mb-4 line-clamp-3">{lesson.description}</p>
+                  <h4 className="text-base font-semibold mb-1 group-hover:text-blue-600 transition-colors">
+                    {lesson.title}
+                  </h4>
+                  <p className="text-sm text-gray-600 mb-4 line-clamp-3">
+                    {lesson.description}
+                  </p>
                   <div className="mt-auto text-xs text-gray-500 flex items-center gap-1">
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
