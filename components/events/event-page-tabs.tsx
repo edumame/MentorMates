@@ -43,7 +43,7 @@ export function EventPageTabs({
 
   return (
     <div className="border-b border-[#f2f2f2] w-full">
-      <div className="mx-auto max-w-[1100px] flex gap-4 md:gap-6 items-start px-4 md:px-6 w-full overflow-x-auto no-scrollbar whitespace-nowrap">
+      <div className="mx-auto flex gap-4 md:gap-6 items-start px-2 md:px-4 w-full overflow-x-auto no-scrollbar whitespace-nowrap">
         {tabs.map((tab) => {
           const isActive = pathname === tab.path;
 
@@ -64,7 +64,9 @@ export function EventPageTabs({
               </p>
               {tab.badge !== null && tab.badge !== undefined && (
                 <div className="border border-[rgba(0,0,0,0.15)] flex gap-3 items-start px-2 rounded-[50px]">
-                  <p className="font-normal text-xs md:text-sm text-black">{tab.badge}</p>
+                  <p className="font-normal text-xs md:text-sm text-black">
+                    {tab.badge}
+                  </p>
                 </div>
               )}
             </Link>
