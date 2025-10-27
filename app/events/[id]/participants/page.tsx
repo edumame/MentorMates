@@ -79,9 +79,6 @@ export default async function PublicParticipantsPage({ params }: PageProps) {
     console.error("Error fetching participants:", error);
   }
 
-  console.log("participants", participants);
-  console.log("eventData", eventData);
-
   const participantsList: Participant[] = participants
     ? participants.map((participant) => ({
         uid: participant.user_profiles.uid,

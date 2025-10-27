@@ -57,12 +57,40 @@ export function GalleryContent({
   );
 
   return (
-    <div className="flex flex-1 flex-wrap w-full gap-8">
-      {
-        Array.from({ length: 10 }).map((_, index) => (
-          <img key={index} src={`/img/event.png`} alt="Event Gallery" className="sm:h-[15rem] w-full sm:w-[15rem] rounded-xl" />
-        ))
-      }
+    <div className="flex flex-col flex-1 w-full">
+      {/* Search Bar */}
+      <div className="bg-transparent border border-[rgba(0,0,0,0.15)] rounded-xl flex gap-3 items-center px-3 py-2 mb-6 w-full max-w-[560px]">
+        <Search className="w-6 h-6 text-black shrink-0" />
+        <input
+          type="text"
+          placeholder="Search projects by name or team members"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="font-normal text-[16px] leading-[1.5] text-black placeholder:text-[rgba(0,0,0,0.6)] bg-transparent border-none outline-none flex-1"
+        />
+      </div>
+
+      {/* Create Project Button - Only show for participants and organizers */}
+      {hasJoined &&
+        currentRole === EventRole.Participant &&
+        (userRole === EventRole.Organizer ||
+          userRole === EventRole.Participant) && (
+          <div className="mb-6">
+            <Link href={`/projects/submit?eventId=${slug}`}>
+              <Button className="button-gradient text-white font-semibold rounded-full shadow-lg hover:shadow-xl transition-all duration-300 flex items-center gap-2">
+                <Plus className="h-5 w-5" />
+                Create Project
+              </Button>
+            </Link>
+          </div>
+        )}
+
+      {/* Project Board */}
+      <ProjectBoard
+        isLoading={isLoading}
+        projectList={filteredProjects}
+        projectBoardContext={ProjectBoardContext.EventGallery}
+      />
     </div>
   );
 }

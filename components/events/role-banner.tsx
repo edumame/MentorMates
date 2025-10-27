@@ -61,7 +61,7 @@ export function RoleBanner({
       <div className="max-w-[1280px] mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between gap-2 sm:gap-4">
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <Headphones className="h-5 w-5 sm:h-6 sm:w-6 text-[#4c4c4c] flex-shrink-0" />
-
+          
           {/* Desktop: Text with optional chevron dropdown */}
           <div className="hidden sm:flex items-center gap-2 flex-1 min-w-0">
             <p className="text-[#4c4c4c] text-base sm:text-lg font-medium tracking-[-0.06em] leading-[1.4]">

@@ -20,7 +20,7 @@ function ScheduleDayItem({ day, isOpen, onToggle }: ScheduleDayItemProps) {
     <div className="flex flex-col w-full">
       {/* Day Header */}
       <div
-        className="flex items-center justify-between py-4 sm:py-5 cursor-pointer"
+        className="flex items-center justify-between py-5 cursor-pointer"
         onClick={onToggle}
       >
         <h2 className="font-semibold text-[24px] leading-[1.4] text-black">
@@ -35,12 +35,12 @@ function ScheduleDayItem({ day, isOpen, onToggle }: ScheduleDayItemProps) {
 
       {/* Events */}
       {isOpen && (
-        <div className="flex flex-col w-full">
+        <div className="flex flex-col w-full gap-8">
           {day.events.map((event: ScheduleEvent, idx: number) => (
-            <div key={idx} className="flex flex-col w-full border-t border-[rgba(0,0,0,0.15)]">
+            <div key={idx} className="flex flex-col w-full">
               {/* Event Header Row */}
-              <div className="flex items-center justify-between w-full py-[1.5rem]">
-                <div className="flex items-center flex-wrap gap-3 sm:gap-6">
+              <div className="flex items-center justify-between w-full pb-6">
+                <div className="flex items-center gap-6">
                   {/* Time */}
                   <p className="font-normal text-[18px] leading-[1.5] text-black">
                     {event.time}
@@ -105,7 +105,7 @@ function ScheduleDayItem({ day, isOpen, onToggle }: ScheduleDayItemProps) {
 
               {/* Description (if no participants) */}
               {event.description && (!event.participants || event.participants.length === 0) && (
-                <div className="pb-8">
+                <div className="pb-8 border-b border-[rgba(0,0,0,0.15)]">
                   <p className="font-normal text-[14px] leading-[1.5] text-black">
                     {event.description}
                   </p>

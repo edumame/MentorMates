@@ -93,63 +93,50 @@ export function EventPageHeader({
 
       {/* Content Section - responsive container */}
       <div
-        className="box-border flex flex-col gap-[24px] items-start pb-[24px] pt-[24px] w-full"
+        className="box-border flex flex-col gap-[24px] items-start max-w-[1280px] pb-[24px] pt-[24px] px-4 md:px-0 w-full"
         style={{
           background:
-            "linear-gradient(180deg, rgba(219, 234, 254, 0.3) 0%, rgba(251, 252, 254, 0.8) 100%)",
+            "linear-gradient(196.644deg, rgba(219, 234, 254, 0.25) 13.188%, rgba(255, 255, 255, 0) 65.83%), linear-gradient(90deg, rgb(251, 252, 254) 0%, rgb(251, 252, 254) 100%)",
         }}
       >
-        <div className="mx-auto max-w-7xl w-full px-4 md:px-6">
-          <div className="box-border flex flex-col gap-[24px] items-start justify-end px-0 sm:px-[12px] py-0 w-full">
-            <div className="flex flex-col gap-[16px] items-start w-full">
-              <div className="flex flex-col md:flex-row items-start md:items-start justify-between w-full gap-6">
-                {/* Left: Event Info */}
-                <div className="flex flex-col gap-[8px] items-start w-full md:max-w-[617px]">
-                  <div className="flex flex-col items-start text-black w-full">
-                    <h1
-                      className="font-semibold text-[24px] sm:text-[28px] leading-[1.4] tracking-[-1.68px] w-full"
-                      style={{
-                        background:
-                          "linear-gradient(to bottom, #1e3a8a, #3c73bd)",
-                        WebkitBackgroundClip: "text",
-                        WebkitTextFillColor: "transparent",
-                        backgroundClip: "text",
-                        color: "transparent",
-                      }}
-                    >
-                      {eventName}
-                    </h1>
-                    <p className="font-normal text-sm sm:text-base leading-[1.6] text-black line-clamp-4 sm:line-clamp-3 w-full">
-                      {eventBlurb}
-                    </p>
-                  </div>
+        <div className="box-border flex flex-col gap-[24px] items-start justify-end px-[24px] py-0 w-full">
+          <div className="flex flex-col gap-[16px] items-start w-full">
+            <div className="flex flex-col md:flex-row items-start md:items-start justify-between w-full gap-6">
+              {/* Left: Event Info */}
+              <div className="flex flex-col gap-[8px] items-start w-full md:w-[617px]">
+                <div className="flex flex-col items-start text-black w-full">
+                  <h1 className="font-semibold text-[28px] leading-[1.4] tracking-[-1.68px] text-black w-full">
+                    {eventName}
+                  </h1>
+                  <p className="font-normal text-base leading-[1.5] text-black line-clamp-3 w-full">
+                    {eventBlurb}
+                  </p>
                 </div>
+              </div>
 
-                {/* Right: Join Button and Meta */}
-                <div className="flex flex-col gap-[12px] items-stretch md:items-end justify-center w-full md:w-[411px]">
-                  <div className="flex flex-col gap-[16px] items-stretch md:items-center justify-center">
-                    <div className="flex gap-[12px] items-start w-full">
-                      {(() => {
-                        const roleForView = activeRole ?? userRole ?? null;
-                        const isPresenterView =
-                          roleForView === EventRole.Participant;
+              {/* Right: Join Button and Meta */}
+              <div className="flex flex-col gap-[12px] items-stretch md:items-end justify-center w-full md:w-[411px]">
+                <div className="flex flex-col gap-[16px] items-stretch md:items-center justify-center">
+                  <div className="flex gap-[16px] items-start w-full">
+                    {(() => {
+                      const roleForView = activeRole ?? userRole ?? null;
+                      const isPresenterView =
+                        roleForView === EventRole.Participant;
 
-                        if (isPresenterView) {
-                          return (
-                            <Button
-                              asChild
-                              variant="default"
-                              size="default"
-                              className="rounded-full px-5 py-4 gap-2"
-                            >
-                              <Link
-                                href={`/projects/submit?eventId=${eventId}`}
-                              >
-                                <Plus className="h-6 w-6" /> Create Project
-                              </Link>
-                            </Button>
-                          );
-                        }
+                      if (isPresenterView) {
+                        return (
+                          <Button
+                            asChild
+                            variant="default"
+                            size="lg"
+                            className="rounded-full px-6 py-5 gap-2"
+                          >
+                            <Link href={`/projects/submit?eventId=${eventId}`}>
+                              <Plus className="h-6 w-6" /> Create Project
+                            </Link>
+                          </Button>
+                        );
+                      }
 
                         if (!hasJoined) {
                           return (
@@ -184,20 +171,19 @@ export function EventPageHeader({
                     )}
                   </div>
 
-                  {/* Date and Location */}
-                  <div className="flex gap-[8px] items-start md:items-end w-full md:w-[341px] flex-col md:flex-row md:justify-end">
-                    <div className="flex gap-[8px] items-center flex-1 w-full md:flex-none md:w-auto">
-                      <CalendarDays className="w-6 h-6 text-black" />
-                      <p className="font-normal text-sm leading-[1.5] text-black md:text-nowrap">
-                        {formattedDate}
-                      </p>
-                    </div>
-                    <div className="flex gap-[8px] items-center flex-1 w-full md:flex-none md:w-auto">
-                      <MapPin className="w-6 h-6 text-black" />
-                      <p className="font-normal text-sm leading-[1.5] text-black md:text-nowrap">
-                        {location}
-                      </p>
-                    </div>
+                {/* Date and Location */}
+                <div className="flex gap-[8px] items-start md:items-center w-full md:w-[341px] flex-col md:flex-row">
+                  <div className="flex gap-[8px] items-center flex-1 w-full">
+                    <CalendarDays className="w-6 h-6 text-black" />
+                    <p className="font-normal text-sm leading-[1.5] text-black md:text-nowrap">
+                      {formattedDate}
+                    </p>
+                  </div>
+                  <div className="flex gap-[8px] items-center flex-1 w-full">
+                    <MapPin className="w-6 h-6 text-black" />
+                    <p className="font-normal text-sm leading-[1.5] text-black md:text-nowrap">
+                      {location}
+                    </p>
                   </div>
                 </div>
               </div>
