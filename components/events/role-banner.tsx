@@ -58,7 +58,7 @@ export function RoleBanner({
 
   return (
     <div className="sticky top-0 z-50 bg-sky-50 border-b border-[rgba(0,0,0,0.15)]">
-      <div className="max-w-[1280px] mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between gap-2 sm:gap-4">
+      <div className="mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between gap-2 sm:gap-4">
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <Headphones className="h-5 w-5 sm:h-6 sm:w-6 text-[#4c4c4c] flex-shrink-0" />
 
@@ -70,9 +70,13 @@ export function RoleBanner({
             {canSwitchRoles && (
               <DropdownMenu>
                 <DropdownMenuTrigger className="flex items-center gap-1 text-[#4c4c4c] hover:text-black transition-colors">
+                  <span className="font-medium tracking-[-0.06em] leading-[1.4] underline text-black/[0.6]">
+                    View as {getRoleLabel(activeRole, eventRoleLabels).toLowerCase()}
+                  </span>
                   <ChevronDown className="h-5 w-5" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="min-w-[240px]">
+                  <span className="inline-block mb-2 text-sm font-medium tracking-[-0.06em] leading-[1.4] text-[#4c4c4c] pl-3 pt-1.5">Switch Dashboard View</span>
                   {accessibleRoles.map((role) => {
                     const isActive = role === activeRole;
                     const isActualRole = role === actualRole;
@@ -87,16 +91,14 @@ export function RoleBanner({
                       >
                         <div className="flex items-center justify-between w-full gap-3">
                           <div className="flex items-center gap-2">
-                            {!isActualRole && (
-                              <Eye className="h-4 w-4 text-muted-foreground" />
-                            )}
+                            <Eye className="h-4 w-4 text-muted-foreground" />
                             <span>
-                              {isActualRole ? label : `View as ${label}`}
+                              {`View as ${label.toLowerCase()}`}
                             </span>
                           </div>
 
                           {isActualRole && (
-                            <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                            <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full border border-[#7CD4FD] text-[#7CD4FD] bg-[#F0F9FF]">
                               Your Role
                             </span>
                           )}
@@ -104,9 +106,9 @@ export function RoleBanner({
                       </DropdownMenuItem>
                     );
                   })}
-                  <DropdownMenuSeparator />
-                  <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                    Switch between role views
+                  {/* <DropdownMenuSeparator /> */}
+                  <div className="px-2 py-1.5 text-xs text-[#aaa]">
+                    Switch between role views based on your permission
                   </div>
                 </DropdownMenuContent>
               </DropdownMenu>

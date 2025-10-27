@@ -127,7 +127,7 @@ export function EventPageHeader({
 
                 {/* Right: Join Button and Meta */}
                 <div className="flex flex-col gap-[12px] items-stretch md:items-end justify-center w-full md:w-[411px]">
-                  <div className="flex flex-col gap-[16px] items-stretch md:items-center justify-center">
+                  <div className="flex flex-col gap-[16px] w-full items-stretch md:items-center justify-center">
                     <div className="flex gap-[12px] items-start w-full">
                       {(() => {
                         const roleForView = activeRole ?? userRole ?? null;
@@ -140,7 +140,7 @@ export function EventPageHeader({
                               asChild
                               variant="default"
                               size="default"
-                              className="rounded-full px-5 py-4 gap-2"
+                              className="w-full rounded-full px-5 py-4 gap-2"
                             >
                               <Link
                                 href={`/projects/submit?eventId=${eventId}`}
@@ -185,14 +185,14 @@ export function EventPageHeader({
                   </div>
 
                   {/* Date and Location */}
-                  <div className="flex gap-[8px] items-start md:items-end w-full md:w-[341px] flex-col md:flex-row md:justify-end">
-                    <div className="flex gap-[8px] items-center flex-1 w-full md:flex-none md:w-auto">
+                  <div className="flex gap-[8px] items-center md:items-end w-full md:w-[341px] justify-around">
+                    <div className="flex gap-[8px] items-center sm:flex-1">
                       <CalendarDays className="w-6 h-6 text-black" />
                       <p className="font-normal text-sm leading-[1.5] text-black md:text-nowrap">
                         {formattedDate}
                       </p>
                     </div>
-                    <div className="flex gap-[8px] items-center flex-1 w-full md:flex-none md:w-auto">
+                    <div className="flex gap-[8px] items-center sm:flex-1">
                       <MapPin className="w-6 h-6 text-black" />
                       <p className="font-normal text-sm leading-[1.5] text-black md:text-nowrap">
                         {location}

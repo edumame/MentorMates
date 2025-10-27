@@ -103,7 +103,7 @@ export function EventsPageClient({ eventsList }: { eventsList: EventItem[] }) {
                   <ChevronDown className="w-6 h-6 text-black flex-shrink-0" strokeWidth={2} />
                 </button>
                 {showSortMenu && (
-                  <div className="absolute right-0 mt-2 w-44 sm:w-48 bg-white border border-[rgba(0,0,0,0.15)] rounded-xl shadow-lg z-10 py-1.5 px-1">
+                  <div className="absolute right-0 mt-2 w-44 sm:w-48 bg-white border border-[rgba(0,0,0,0.15)] rounded-xl shadow-lg z-20 py-1.5 px-1">
                     {sortOptions.map((option) => (
                       <button
                         key={option.value}

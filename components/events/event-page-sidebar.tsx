@@ -48,7 +48,7 @@ export function EventPageSidebar({
       {/* Important Links */}
       {eventResources && eventResources.length > 0 && (
         <div className="flex flex-col gap-4 w-full">
-          <h3 className="font-semibold text-[22px] leading-[1.4] text-black text-center md:text-left tracking-[-0.06em]">
+          <h3 className="font-semibold text-[22px] leading-[1.4] text-black text-center tracking-[-0.06em]">
             Important links
           </h3>
 
