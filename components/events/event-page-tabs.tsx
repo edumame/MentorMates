@@ -15,7 +15,6 @@ export function EventPageTabs({
   projectCount,
 }: EventPageTabsProps) {
   const pathname = usePathname();
-  console.log(pathname)
   const searchParams = useSearchParams();
 
   const tabs = [
@@ -28,11 +27,11 @@ export function EventPageTabs({
     },
     {
       name: "Projects",
-      path: `/events/${eventId}/projects`,
+      path: `/events/${eventId}/gallery`,
       badge: projectCount,
     },
     { name: "FAQs", path: `/events/${eventId}/faqs` },
-    { name: "Gallery", path: `/events/${eventId}/gallery` }, // TODO: Add back when image upload functionality is ready
+    // { name: "Gallery", path: `/events/${eventId}/gallery` }, // TODO: Add back when image upload functionality is ready
   ];
 
   // Helper function to preserve query params
@@ -44,7 +43,7 @@ export function EventPageTabs({
 
   return (
     <div className="border-b border-[#f2f2f2] w-full">
-      <div className="mx-auto max-w-7xl flex gap-4 md:gap-6 items-start px-4 md:px-6 w-full overflow-x-auto no-scrollbar whitespace-nowrap">
+      <div className="flex gap-4 md:gap-6 items-start px-4 md:px-6 w-full overflow-x-auto no-scrollbar whitespace-nowrap">
         {tabs.map((tab) => {
           const isActive = pathname === tab.path;
 
@@ -52,12 +51,14 @@ export function EventPageTabs({
             <Link
               key={tab.name}
               href={getHrefWithParams(tab.path)}
-              className={`flex gap-2 items-center px-0 py-2 ${isActive ? "border-b-2 border-[#4b89ef]" : ""
-                }`}
+              className={`inline-flex gap-2 items-center px-0 py-2 ${
+                isActive ? "border-b-2 border-[#4b89ef]" : ""
+              }`}
             >
               <p
-                className={`${isActive ? "font-medium" : "font-normal"
-                  } text-base text-black`}
+                className={`${
+                  isActive ? "font-medium" : "font-normal"
+                } text-sm md:text-base text-black`}
               >
                 {tab.name}
               </p>

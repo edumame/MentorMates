@@ -58,7 +58,7 @@ export default function ProjectsPage() {
       <Toaster />
       <PageContent className="pt-[24px] pb-8">
         <div className="flex flex-col gap-[24px] px-[32px]">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-end justify-between">
             <div className="flex items-center gap-[8px]">
               <h1 className="text-[20px] sm:text-[28px] font-semibold leading-[1.4] tracking-[-0.06em] text-black">
                 Projects
@@ -71,12 +71,14 @@ export default function ProjectsPage() {
                 </div>
               )}
             </div>
-            {/* Search Section - mirrors events page styling */}
-            {session && !isLoading && (
-              <div className="flex flex-col gap-4">
-                <div className="flex items-end justify-between gap-4">
-                  {/* Search Input */}
-                  {/* <div className="relative flex-1">
+          </div>
+
+          {/* Search Section - mirrors events page styling */}
+          {session && !isLoading && (
+            <div className="flex flex-col mb-5 gap-4">
+              <div className="flex items-end justify-between gap-4">
+                {/* Search Input */}
+                <div className="relative flex-1">
                   <div className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-[rgba(0,0,0,0.6)]">
                     <Search className="w-full h-full" strokeWidth={2} />
                   </div>
@@ -87,27 +89,24 @@ export default function ProjectsPage() {
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="w-full h-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-12 py-2 text-xs sm:text-base font-normal text-black placeholder:text-[rgba(0,0,0,0.6)] focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
-                </div> */}
-
-                  {/* Create Project Button - Desktop only */}
-                  {isAuthenticated && (
-                    <Button asChild className="h-10 hidden sm:inline-flex">
-                      <Link href="/projects/submit">Create a project</Link>
-                    </Button>
-                  )}
                 </div>
 
-                {/* Create Project Button - Mobile only */}
+                {/* Create Project Button - Desktop only */}
                 {isAuthenticated && (
-                  <Button asChild className="h-10 sm:hidden w-full">
+                  <Button asChild className="h-10 hidden sm:inline-flex">
                     <Link href="/projects/submit">Create a project</Link>
                   </Button>
                 )}
               </div>
-            )}
-          </div>
 
-
+              {/* Create Project Button - Mobile only */}
+              {isAuthenticated && (
+                <Button asChild className="h-10 sm:hidden w-full">
+                  <Link href="/projects/submit">Create a project</Link>
+                </Button>
+              )}
+            </div>
+          )}
 
           {isLoading && (
             <div className="flex items-center justify-center py-12">

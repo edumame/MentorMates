@@ -30,7 +30,7 @@ import { toast } from "@/lib/hooks/use-toast";
 import { PricingTierSelector } from "./pricing-tier-selector";
 import { getCheapestPricingTier, formatPrice } from "@/lib/utils/pricing";
 import { getRoleLabel, isHigherOrEqualRole } from "@/features/user/roles/roles";
-import { Ticket, User } from "lucide-react";
+import { Ticket } from "lucide-react";
 
 export interface JoinEventButtonProps {
   eventId: string;
@@ -319,7 +319,8 @@ export function JoinEventButton({
       <DialogTrigger asChild>
         <Button
           variant="default"
-          className="rounded-full gap-2 w-full"
+          size="lg"
+          className="rounded-full px-6 py-5 gap-2"
         >
           <Ticket className="h-6 w-6" />{" "}
           {label
@@ -329,18 +330,18 @@ export function JoinEventButton({
                 ? `Join ${eventName}`
                 : pricingTiers.length > 0
                   ? (() => {
-                    const cheapestTier = getCheapestPricingTier(pricingTiers);
-                    return cheapestTier
-                      ? `Join ${eventName} - From ${formatPrice(cheapestTier.price)}`
-                      : `Join ${eventName} - Multiple Tiers Available`;
-                  })()
+                      const cheapestTier = getCheapestPricingTier(pricingTiers);
+                      return cheapestTier
+                        ? `Join ${eventName} - From ${formatPrice(cheapestTier.price)}`
+                        : `Join ${eventName} - Multiple Tiers Available`;
+                    })()
                   : `Join ${eventName} - Paid Event`
               : `Join ${eventName}`}
         </Button>
       </DialogTrigger>
       <DialogContent
         aria-describedby="join-event-dialog"
-        className="max-h-[85vh] overflow-y-auto"
+        className="max-w-2xl max-h-[85vh] overflow-y-auto"
       >
         <DialogHeader>
           <DialogTitle>
@@ -367,13 +368,10 @@ export function JoinEventButton({
             </div>
           ) : (
             <div className="space-y-2">
-              {/* <label className="text-sm font-medium">Select your role:</label> */}
-              <Select onValueChange={handleRoleSelect}>
-                <SelectTrigger className="w-full flex text-left">
-                  <div className="flex items-center justify-start">
-                    <User className="h-6 w-6 mr-2" />
-                    <SelectValue placeholder="Select your role" />
-                  </div>
+              <label className="text-sm font-medium">Select your role:</label>
+              <Select value={selectedRole} onValueChange={handleRoleSelect}>
+                <SelectTrigger>
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={EventRole.Participant}>
@@ -406,14 +404,13 @@ export function JoinEventButton({
               <Button
                 onClick={handleJoinEvent}
                 disabled={
-                  isLoading ||
-                  (showPasswordInput && !password) ||
-                  (isFull && selectedRole === EventRole.Participant)
-                }
+              isLoading ||
+              (showPasswordInput && !password) ||
+              (isFull && selectedRole === EventRole.Participant)
+            }
                 variant="default"
-                className="w-full rounded-full !mt-5"
+                className="w-full rounded-full"
               >
-                <Ticket className="h-6 w-6 mr-2" />
                 {isLoading ? "Joining..." : "Confirm"}
               </Button>
             </div>
