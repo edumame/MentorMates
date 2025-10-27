@@ -56,7 +56,8 @@ export async function EventPageLayout({
     .eq("event_id", dbEventId)
     .maybeSingle();
 
-  const eventRoleLabels = (eventData?.role_labels as Record<string, string> | null) || null;
+  const eventRoleLabels =
+    (eventData?.role_labels as Record<string, string> | null) || null;
 
   // Fetch participant count
   const { count: participantCount } = await supabase
@@ -74,7 +75,10 @@ export async function EventPageLayout({
 
   return (
     <ActiveRoleProvider initialRole={userRole}>
-      <div className="flex flex-col w-full">
+      <div
+        className="flex flex-col w-full overflow-x-hidden"
+        style={{ maxWidth: "100vw" }}
+      >
         {userRole ? (
           <EventPageClientWrapper
             userRole={userRole}
@@ -98,7 +102,7 @@ export async function EventPageLayout({
 
                 {/* Main Content */}
                 <div className="w-full">
-                  <div className="flex flex-col md:flex-row items-start gap-6 w-full px-4 md:px-6 py-[24px]">
+                  <div className="flex flex-col md:flex-row items-start gap-6 w-full px-4 md:px-6 py-[24px] max-w-full min-w-0">
                     {children}
                   </div>
                 </div>
@@ -106,7 +110,7 @@ export async function EventPageLayout({
             }
           />
         ) : (
-          <>
+          <div className="w-full max-w-full overflow-x-hidden">
             {/* Page Header with Cover Image - No role */}
             <EventPageHeader
               eventName={eventName}
@@ -117,7 +121,7 @@ export async function EventPageLayout({
               eventId={dbEventId}
               hasJoined={hasJoined}
               userRole={null}
-            activeRole={null}
+              activeRole={null}
             />
 
             {/* Tabs Navigation */}
@@ -128,10 +132,12 @@ export async function EventPageLayout({
             />
 
             {/* Main Content */}
-            <div className="w-full">
-              <div className="flex flex-col md:flex-row items-start gap-6 w-full px-4 md:px-6 py-[24px]">{children}</div>
+            <div className="w-full max-w-full">
+              <div className="flex flex-col md:flex-row items-start gap-6 w-full px-4 md:px-6 py-[24px] max-w-full min-w-0">
+                {children}
+              </div>
             </div>
-          </>
+          </div>
         )}
       </div>
     </ActiveRoleProvider>

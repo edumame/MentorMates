@@ -51,7 +51,7 @@ export function EventPageTabs({
             <Link
               key={tab.name}
               href={getHrefWithParams(tab.path)}
-              className={`inline-flex gap-2 items-center px-0 py-2 ${
+              className={`inline-flex gap-2 items-center px-0 py-2 flex-shrink-0 ${
                 isActive ? "border-b-2 border-[#4b89ef]" : ""
               }`}
             >
@@ -63,8 +63,10 @@ export function EventPageTabs({
                 {tab.name}
               </p>
               {tab.badge !== null && tab.badge !== undefined && (
-                <div className="border border-[rgba(0,0,0,0.15)] flex gap-3 items-start px-2 rounded-[50px]">
-                  <p className="font-normal text-xs md:text-sm text-black">{tab.badge}</p>
+                <div className="border border-[rgba(0,0,0,0.15)] flex gap-3 items-start px-2 rounded-[50px] flex-shrink-0">
+                  <p className="font-normal text-xs md:text-sm text-black">
+                    {tab.badge}
+                  </p>
                 </div>
               )}
             </Link>
