@@ -45,7 +45,7 @@ export function EventPageHeader({
 
   return (
     <div
-      className="bg-white flex flex-col w-full overflow-x-hidden"
+      className="bg-white flex flex-col w-full"
       style={{ maxWidth: "100vw" }}
     >
       {/* Cover Image */}
@@ -87,7 +87,7 @@ export function EventPageHeader({
 
       {/* Content Section - responsive container */}
       <div
-        className="box-border flex flex-col gap-[24px] items-start w-full overflow-x-hidden bg-gradient-to-b from-blue-100/25 to-white"
+        className="box-border flex flex-col gap-[24px] items-start w-full bg-gradient-to-b from-blue-100/25 to-white"
         style={{
           background:
             "linear-gradient(180deg, rgba(219, 234, 254, 0.25) 13.188%, rgba(255, 255, 255, 0) 65.83%), linear-gradient(180deg, rgb(251, 252, 254) 0%, rgb(251, 252, 254) 100%)",

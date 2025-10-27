@@ -44,17 +44,17 @@ export function EventPageContent({
 
   // Show default event overview for participants, mentors, organizers, and non-authenticated users
   return (
-    <div className="flex flex-col flex-1 w-full min-w-0 overflow-x-hidden">
+    <div className="flex flex-col flex-1 w-full min-w-0">
       {/* Introduction */}
-      <div className="flex flex-col pb-4 pt-0 px-0 w-full min-w-0">
+      <div className="flex flex-col pb-4 pt-0 px-0 w-full min-w-0 max-w-full">
         <h2 className="font-semibold text-[24px] leading-[32px] text-black tracking-[-0.6px] break-words">
           Introduction
         </h2>
       </div>
 
       {/* Event Description */}
-      <div className="flex flex-col pb-4 pt-0 px-0 w-full min-w-0">
-        <div className="prose prose-blue max-w-none break-words">
+      <div className="flex flex-col pb-4 pt-0 px-0 w-full min-w-0 max-w-full">
+        <div className="prose prose-blue max-w-full break-words w-full">
           <ReactMarkdown
             rehypePlugins={markdownRehypePlugins}
             components={customMarkdownComponents}
@@ -70,7 +70,7 @@ export function EventPageContent({
           <h3 className="text-yellow-800 font-semibold text-xl mb-4">
             🔒 Content for Event Participants
           </h3>
-          <div className="prose prose-blue max-w-none">
+          <div className="prose prose-blue max-w-full w-full break-words">
             <ReactMarkdown>{event.paywall_content}</ReactMarkdown>
           </div>
         </div>
@@ -136,7 +136,7 @@ export function EventPageContent({
       {/* Rules */}
       {event.rules && event.rules.length > 0 && (
         <>
-          <div className="flex flex-col pb-4 pt-0 px-0 w-full min-w-0">
+          <div className="flex flex-col pb-4 pt-0 px-0 w-full min-w-0 max-w-full">
             <h2 className="font-semibold text-[24px] leading-[32px] text-black tracking-[-0.6px] break-words">
               Rules
             </h2>
@@ -145,7 +145,7 @@ export function EventPageContent({
           {event.rules.map((rule, idx) => (
             <div
               key={idx}
-              className="flex flex-col pb-4 pt-0 px-0 w-full min-w-0"
+              className="flex flex-col pb-4 pt-0 px-0 w-full min-w-0 max-w-full"
             >
               <div className="font-normal text-black">
                 <p className="font-medium text-base leading-[1.5] mb-0 break-words">
@@ -170,7 +170,7 @@ export function EventPageContent({
       {/* Schedule */}
       {event.event_schedule?.length > 0 && (
         <>
-          <div className="flex flex-col pb-4 pt-5 px-0 w-full min-w-0">
+          <div className="flex flex-col pb-4 pt-5 px-0 w-full min-w-0 max-w-full">
             <h2 className="font-semibold text-[28px] leading-[1.4] text-black tracking-[-0.06em] break-words">
               Project Presentations
             </h2>
@@ -179,7 +179,7 @@ export function EventPageContent({
           {event.event_schedule.map((day: ScheduleDay, idx) => (
             <div
               key={idx}
-              className="flex flex-col pb-4 pt-0 px-0 w-full min-w-0"
+              className="flex flex-col pb-4 pt-0 px-0 w-full min-w-0 max-w-full"
             >
               <div className="font-normal text-black">
                 <p className="font-medium text-base leading-[1.5] mb-0 break-words">
@@ -200,7 +200,7 @@ export function EventPageContent({
                         </span>
                       </div>
                       {event.description && (
-                        <div className="prose prose-sm prose-blue max-w-none text-gray-600 mt-2 break-words">
+                        <div className="prose prose-sm prose-blue max-w-full w-full text-gray-600 mt-2 break-words">
                           <ReactMarkdown
                             rehypePlugins={markdownRehypePlugins}
                             components={customMarkdownComponents}
@@ -264,13 +264,13 @@ export function EventPageContent({
       {/* FAQ */}
       {event.faq && (
         <>
-          <div className="flex flex-col pb-4 pt-5 px-0 w-full">
+          <div className="flex flex-col pb-4 pt-5 px-0 w-full max-w-full">
             <h2 className="font-semibold text-[22px] leading-[1.4] text-black tracking-[-0.06em]">
               Award Ceremony
             </h2>
           </div>
-          <div className="flex flex-col pb-4 pt-0 px-0 w-full">
-            <div className="prose prose-blue max-w-none">
+          <div className="flex flex-col pb-4 pt-0 px-0 w-full max-w-full">
+            <div className="prose prose-blue max-w-full w-full break-words">
               <ReactMarkdown
                 rehypePlugins={markdownRehypePlugins}
                 components={customMarkdownComponents}
