@@ -87,17 +87,17 @@ export function EventPageHeader({
 
       {/* Content Section - responsive container */}
       <div
-        className="box-border flex flex-col gap-[24px] items-start max-w-[1280px] pb-[24px] pt-[24px] w-full mx-auto overflow-x-hidden"
+        className="box-border flex flex-col gap-[24px] items-start w-full overflow-x-hidden bg-gradient-to-b from-blue-100/25 to-white"
         style={{
           background:
-            "linear-gradient(196.644deg, rgba(219, 234, 254, 0.25) 13.188%, rgba(255, 255, 255, 0) 65.83%), linear-gradient(90deg, rgb(251, 252, 254) 0%, rgb(251, 252, 254) 100%)",
+            "linear-gradient(180deg, rgba(219, 234, 254, 0.25) 13.188%, rgba(255, 255, 255, 0) 65.83%), linear-gradient(180deg, rgb(251, 252, 254) 0%, rgb(251, 252, 254) 100%)",
         }}
       >
-        <div className="box-border flex flex-col gap-[16px] md:gap-[24px] items-start justify-end px-4 md:px-6 py-0 w-full">
+        <div className="box-border flex flex-col gap-[16px] md:gap-[24px] items-start justify-end py-[24px] px-4 md:px-[88px] w-full max-w-8xl mx-auto">
           <div className="flex flex-col gap-[16px] items-start w-full min-w-0">
-            <div className="flex flex-col md:flex-row items-start md:items-start justify-between w-full gap-6">
+            <div className="flex flex-col lg:flex-row items-start lg:items-start justify-between w-full gap-6 lg:gap-8">
               {/* Left: Event Info */}
-              <div className="flex flex-col gap-[8px] items-start w-full md:w-[617px]">
+              <div className="flex flex-col gap-[8px] items-start w-full lg:flex-1 lg:max-w-[617px]">
                 <div className="flex flex-col items-start text-black w-full min-w-0">
                   <h1 className="font-semibold text-[22px] md:text-[28px] leading-[1.4] tracking-[-0.04em] text-black w-full">
                     {eventName}
@@ -109,8 +109,8 @@ export function EventPageHeader({
               </div>
 
               {/* Right: Join Button and Meta */}
-              <div className="flex flex-col gap-[12px] items-stretch md:items-end justify-center w-full min-w-0">
-                <div className="flex flex-col gap-[12px] md:gap-[16px] items-stretch md:items-center justify-center w-full min-w-0">
+              <div className="flex flex-col gap-[12px] items-stretch lg:items-end justify-center w-full lg:w-auto min-w-0">
+                <div className="flex flex-col gap-[12px] lg:gap-[16px] items-stretch lg:items-center justify-center w-full min-w-0">
                   <div className="flex gap-[16px] items-start w-full min-w-0">
                     {(() => {
                       const roleForView = activeRole ?? userRole ?? null;
