@@ -5,6 +5,7 @@ import { EventRole } from "@/lib/types";
 import { JoinEventButton } from "./join-event-button";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { parseEventDateLocal } from "@/lib/utils/date";
 
 interface EventPageHeaderProps {
   eventName: string;
@@ -41,12 +42,18 @@ export function EventPageHeader({
   eventType,
 }: EventPageHeaderProps) {
   // Format date
-  const formattedDate = new Date(eventDate).toLocaleDateString("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
-
+  const { dayOfWeek, day, monthYear } = (() => {
+    const parsed = parseEventDateLocal(eventDate);
+    if (!parsed) return { dayOfWeek: "TBD", day: "--", monthYear: "" };
+    return {
+      dayOfWeek: parsed.toLocaleDateString("en-US", { weekday: "short" }),
+      day: parsed.toLocaleDateString("en-US", { day: "2-digit" }),
+      monthYear: parsed.toLocaleDateString("en-US", {
+        month: "short",
+        year: "numeric",
+      }),
+    };
+  })();
   return (
     <div className="bg-white flex flex-col items-center w-full">
       {/* Cover Image */}
@@ -138,45 +145,45 @@ export function EventPageHeader({
                         );
                       }
 
-                        if (!hasJoined) {
-                          return (
-                            <JoinEventButton
-                              eventId={eventId}
-                              eventName={eventName}
-                            />
-                          );
-                        }
-
+                      if (!hasJoined) {
                         return (
-                          <div className="basis-0 bg-green-500 box-border flex gap-[6px] grow items-center justify-center min-h-px min-w-px px-[16px] py-[8px] rounded-[12px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] shrink-0">
-                            <p className="font-medium text-sm sm:text-base leading-[1.5] text-white whitespace-pre md:text-nowrap">
-                              Joined
-                            </p>
-                          </div>
+                          <JoinEventButton
+                            eventId={eventId}
+                            eventName={eventName}
+                          />
                         );
-                      })()}
-                    </div>
+                      }
 
-                    {/* Manage Event Button */}
-                    {(userRole === "organizer" || userRole === "admin") && (
-                      <button
-                        onClick={onManageEventClick}
-                        className="bg-[#f2f2f2] box-border flex gap-[6px] items-center justify-center px-[16px] py-[8px] rounded-[12px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] w-full md:w-[341px]"
-                      >
-                        <ArrowUpRight className="w-6 h-6 text-black" />
-                        <p className="font-medium text-sm sm:text-base leading-[1.5] text-black whitespace-pre md:text-nowrap">
-                          Manage event
-                        </p>
-                      </button>
-                    )}
+                      return (
+                        <div className="basis-0 bg-green-500 box-border flex gap-[6px] grow items-center justify-center min-h-px min-w-px px-[16px] py-[8px] rounded-[12px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] shrink-0">
+                          <p className="font-medium text-sm sm:text-base leading-[1.5] text-white whitespace-pre md:text-nowrap">
+                            Joined
+                          </p>
+                        </div>
+                      );
+                    })()}
                   </div>
+
+                  {/* Manage Event Button */}
+                  {(userRole === "organizer" || userRole === "admin") && (
+                    <button
+                      onClick={onManageEventClick}
+                      className="bg-[#f2f2f2] box-border flex gap-[6px] items-center justify-center px-[16px] py-[8px] rounded-[12px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] w-full md:w-[341px]"
+                    >
+                      <ArrowUpRight className="w-6 h-6 text-black" />
+                      <p className="font-medium text-sm sm:text-base leading-[1.5] text-black whitespace-pre md:text-nowrap">
+                        Manage event
+                      </p>
+                    </button>
+                  )}
+                </div>
 
                 {/* Date and Location */}
                 <div className="flex gap-[8px] items-start w-full md:w-[341px] flex-col md:flex-row">
                   <div className="flex gap-[8px] items-start flex-1 w-full">
                     <CalendarDays className="w-6 h-6 text-black flex-shrink-0" />
                     <p className="font-normal text-sm leading-[1.5] text-black">
-                      {formattedDate}
+                      {dayOfWeek}, {day} {monthYear}
                     </p>
                   </div>
                   <div className="flex gap-[8px] items-start flex-1 w-full">
