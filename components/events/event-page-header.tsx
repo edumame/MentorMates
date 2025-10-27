@@ -172,16 +172,16 @@ export function EventPageHeader({
                   </div>
 
                 {/* Date and Location */}
-                <div className="flex gap-[8px] items-start md:items-center w-full md:w-[341px] flex-col md:flex-row">
-                  <div className="flex gap-[8px] items-center flex-1 w-full">
-                    <CalendarDays className="w-6 h-6 text-black" />
-                    <p className="font-normal text-sm leading-[1.5] text-black md:text-nowrap">
+                <div className="flex gap-[8px] items-start w-full md:w-[341px] flex-col md:flex-row">
+                  <div className="flex gap-[8px] items-start flex-1 w-full">
+                    <CalendarDays className="w-6 h-6 text-black flex-shrink-0" />
+                    <p className="font-normal text-sm leading-[1.5] text-black">
                       {formattedDate}
                     </p>
                   </div>
-                  <div className="flex gap-[8px] items-center flex-1 w-full">
-                    <MapPin className="w-6 h-6 text-black" />
-                    <p className="font-normal text-sm leading-[1.5] text-black md:text-nowrap">
+                  <div className="flex gap-[8px] items-start flex-1 w-full">
+                    <MapPin className="w-6 h-6 text-black flex-shrink-0" />
+                    <p className="font-normal text-sm leading-[1.5] text-black">
                       {location}
                     </p>
                   </div>
