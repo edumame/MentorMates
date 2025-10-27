@@ -48,7 +48,7 @@ export function EventPageHeader({
   });
 
   return (
-    <div className="bg-white flex flex-col items-center w-full">
+    <div className="bg-white flex flex-col items-center w-full overflow-x-hidden">
       {/* Cover Image */}
       <div className="h-[200px] sm:h-[240px] w-full relative overflow-hidden">
         {coverImageUrl ? (
@@ -93,13 +93,13 @@ export function EventPageHeader({
 
       {/* Content Section - responsive container */}
       <div
-        className="box-border flex flex-col gap-[24px] items-start pb-[24px] pt-[24px] w-full"
+        className="box-border flex flex-col gap-[24px] items-start pb-[24px] pt-[24px] w-full overflow-x-hidden"
         style={{
           background:
             "linear-gradient(180deg, rgba(219, 234, 254, 0.3) 0%, rgba(251, 252, 254, 0.8) 100%)",
         }}
       >
-        <div className="mx-auto max-w-7xl w-full px-4 md:px-6">
+        <div className="mx-auto max-w-7xl w-full px-4 md:px-6 overflow-x-hidden">
           <div className="box-border flex flex-col gap-[24px] items-start justify-end px-0 sm:px-[12px] py-0 w-full">
             <div className="flex flex-col gap-[16px] items-start w-full">
               <div className="flex flex-col md:flex-row items-start md:items-start justify-between w-full gap-6">

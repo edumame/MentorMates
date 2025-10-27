@@ -15,7 +15,6 @@ export function EventPageTabs({
   projectCount,
 }: EventPageTabsProps) {
   const pathname = usePathname();
-  console.log(pathname)
   const searchParams = useSearchParams();
 
   const tabs = [
@@ -43,8 +42,12 @@ export function EventPageTabs({
   };
 
   return (
-    <div className="border-b border-[#f2f2f2] w-full">
-      <div className="mx-auto max-w-7xl flex gap-4 md:gap-6 items-start px-4 md:px-6 w-full overflow-x-auto no-scrollbar whitespace-nowrap">
+    <div className="border-b border-[#f2f2f2] w-full overflow-x-hidden">
+      <div className="mx-auto max-w-7xl flex gap-4 md:gap-6 items-start px-4 md:px-6 w-full overflow-x-auto whitespace-nowrap [scrollbar-width:none] [-ms-overflow-style:none]">
+        {/* Hide scrollbar visually across browsers */}
+        <style jsx>{`
+          div::-webkit-scrollbar { display: none; }
+        `}</style>
         {tabs.map((tab) => {
           const isActive = pathname === tab.path;
 
