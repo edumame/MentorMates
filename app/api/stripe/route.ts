@@ -1,6 +1,8 @@
 import { stripe } from "@/lib/stripe/stripe";
 import { NextResponse } from "next/server";
-import { createSupabaseClient } from "@/app/utils/supabase/server";
+// import { createSupabaseClient } from "@/app/utils/supabase/server";
+//need to allow stripe to access the database as a service account
+import { createSupabaseServiceClient } from "@/app/utils/supabase/server";
 import {
   STRIPE_FAILED_EVENT_TYPES,
   STRIPE_REFUNDED_EVENT_TYPES,
@@ -49,7 +51,7 @@ async function assignTicket(userEventPayment: {
   id: string;
   user_id: string;
 }) {
-  const supabase = await createSupabaseClient();
+  const supabase = await createSupabaseServiceClient();
   // Check if the user has already been assigned a ticket
 
   const { data: userAssignedTickets } = await supabase
@@ -58,7 +60,7 @@ async function assignTicket(userEventPayment: {
     .eq("event_id", userEventPayment.event_id)
     .eq("assigned_to_user_id", userEventPayment.user_id)
     .single();
-  
+
   if (userAssignedTickets) {
     return;
   }
@@ -84,11 +86,10 @@ async function assignTicket(userEventPayment: {
   } else {
     throw new Error("No tickets found");
   }
-
 }
 
 async function handleEvent(event: Stripe.Event) {
-  const supabase = await createSupabaseClient();
+  const supabase = await createSupabaseServiceClient();
   if (
     !STRIPE_SUCCESSFUL_EVENT_TYPES.includes(event.type) &&
     !STRIPE_FAILED_EVENT_TYPES.includes(event.type) &&
