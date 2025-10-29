@@ -125,6 +125,7 @@ export function BasicInfoTab({
           location: event.location,
           event_description: event.event_description,
           event_blurb: event.event_blurb,
+          event_type: event.event_type,
           paywall_content: event.paywall_content,
           cover_image_url: coverImageUrl,
           submission_time_start: event.submission_time_start,
@@ -235,6 +236,22 @@ export function BasicInfoTab({
               setEvent({ ...event, event_name: e.target.value })
             }
           />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="event_type">Event Type</Label>
+          <Input
+            id="event_type"
+            placeholder="Hackathon"
+            value={event.event_type || ""}
+            disabled={isArchived}
+            onChange={(e) =>
+              setEvent({ ...event, event_type: e.target.value })
+            }
+          />
+          <p className="text-xs text-gray-500">
+            Displayed on cards and event pages (e.g., Hackathon, Workshop).
+          </p>
         </div>
 
       <div className="space-y-2">
