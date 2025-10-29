@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -105,7 +105,7 @@ export function BasicInfoTab({
 
   // Keep local event type controls in sync if parent event changes
   // (e.g., after import or external updates)
-  React.useEffect(() => {
+  useEffect(() => {
     if (!event) return;
     if (isPresetType(event.event_type)) {
       setEventTypeSelection(event.event_type);
