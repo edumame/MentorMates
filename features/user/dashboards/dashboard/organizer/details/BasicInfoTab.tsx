@@ -86,6 +86,8 @@ export function BasicInfoTab({
   const [archiving, setArchiving] = useState(false);
   const [devpostUrl, setDevpostUrl] = useState("");
   const [importing, setImporting] = useState(false);
+  const [aiInput, setAiInput] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
 
   const handleBasicInfoUpdate = async () => {
     if (!event) return;
@@ -222,6 +224,114 @@ export function BasicInfoTab({
           </AlertDescription>
         </Alert>
       )}
+
+      {/* AI Assist for quick edits */}
+      <div className="space-y-2">
+        <Label htmlFor="ai_assist">AI Assist</Label>
+        <p className="text-xs text-gray-500">
+          Paste event details or a short brief to fill or regenerate fields with AI. Use when updating descriptions, blurbs, or basics.
+        </p>
+        <Textarea
+          id="ai_assist"
+          value={aiInput}
+          disabled={isArchived}
+          onChange={(e) => setAiInput(e.target.value)}
+          rows={4}
+          placeholder="Paste updated event details or a brief..."
+          className="resize-none overflow-auto"
+        />
+        <div className="flex flex-col sm:flex-row gap-2">
+          <Button
+            type="button"
+            disabled={isArchived || aiLoading || !aiInput.trim()}
+            onClick={async () => {
+              if (isArchived) {
+                toast({ title: "Event is archived", description: "Unarchive to make AI edits.", variant: "destructive" });
+                return;
+              }
+              try {
+                setAiLoading(true);
+                const res = await fetch("/api/events/ai-parse", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ text: aiInput, mode: "fill" as const }),
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                  throw new Error(data?.error || "AI fill failed");
+                }
+                const fields = data?.fields || {};
+                setEvent({
+                  ...event,
+                  slug: fields.slug ?? event.slug,
+                  event_name: fields.event_name ?? event.event_name,
+                  event_date: fields.event_date ?? event.event_date,
+                  location: fields.location ?? event.location,
+                  event_blurb: fields.event_blurb ?? event.event_blurb,
+                  event_description: fields.event_description ?? event.event_description,
+                  cover_image_url: fields.cover_image_url ?? event.cover_image_url,
+                  submission_time_start: fields.submission_time_start ?? event.submission_time_start,
+                  submission_time_cutoff: fields.submission_time_cutoff ?? event.submission_time_cutoff,
+                });
+                toast({ title: "Updated", description: "Fields filled from your input." });
+              } catch (err) {
+                console.error(err);
+                toast({ title: "AI error", description: (err as Error).message, variant: "destructive" });
+              } finally {
+                setAiLoading(false);
+              }
+            }}
+            className="shrink-0 whitespace-nowrap"
+          >
+            {aiLoading ? "Working..." : "Fill with AI"}
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={isArchived || aiLoading || !aiInput.trim()}
+            onClick={async () => {
+              if (isArchived) {
+                toast({ title: "Event is archived", description: "Unarchive to make AI edits.", variant: "destructive" });
+                return;
+              }
+              try {
+                setAiLoading(true);
+                const res = await fetch("/api/events/ai-parse", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ text: aiInput, mode: "generate" as const }),
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                  throw new Error(data?.error || "AI generate failed");
+                }
+                const fields = data?.fields || {};
+                setEvent({
+                  ...event,
+                  slug: fields.slug ?? event.slug,
+                  event_name: fields.event_name ?? event.event_name,
+                  event_date: fields.event_date ?? event.event_date,
+                  location: fields.location ?? event.location,
+                  event_blurb: fields.event_blurb ?? event.event_blurb,
+                  event_description: fields.event_description ?? event.event_description,
+                  cover_image_url: fields.cover_image_url ?? event.cover_image_url,
+                  submission_time_start: fields.submission_time_start ?? event.submission_time_start,
+                  submission_time_cutoff: fields.submission_time_cutoff ?? event.submission_time_cutoff,
+                });
+                toast({ title: "Generated", description: "Fields generated from your brief." });
+              } catch (err) {
+                console.error(err);
+                toast({ title: "AI error", description: (err as Error).message, variant: "destructive" });
+              } finally {
+                setAiLoading(false);
+              }
+            }}
+            className="shrink-0 whitespace-nowrap"
+          >
+            {aiLoading ? "Working..." : "Generate with AI"}
+          </Button>
+        </div>
+      </div>
 
       {/* Compact top rows */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
