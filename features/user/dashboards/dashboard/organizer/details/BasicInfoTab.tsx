@@ -1,12 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { EventDetails, EventVisibility } from "@/lib/types";
 import { useRouter } from "next/navigation";
 import { toast as ToastType } from "@/lib/hooks/use-toast";
@@ -86,6 +93,29 @@ export function BasicInfoTab({
   const [archiving, setArchiving] = useState(false);
   const [devpostUrl, setDevpostUrl] = useState("");
   const [importing, setImporting] = useState(false);
+  const PRESET_EVENT_TYPES = ["Hackathon", "Workshop", "Conference"] as const;
+  const isPresetType = (val?: string | null) =>
+    !!val && PRESET_EVENT_TYPES.includes(val as (typeof PRESET_EVENT_TYPES)[number]);
+  const [eventTypeSelection, setEventTypeSelection] = useState<string>(
+    isPresetType(event?.event_type) ? event!.event_type : "Other"
+  );
+  const [customEventType, setCustomEventType] = useState<string>(
+    isPresetType(event?.event_type) ? "" : event?.event_type || ""
+  );
+
+  // Keep local event type controls in sync if parent event changes
+  // (e.g., after import or external updates)
+  useEffect(() => {
+    if (!event) return;
+    if (isPresetType(event.event_type)) {
+      setEventTypeSelection(event.event_type);
+      setCustomEventType("");
+    } else {
+      setEventTypeSelection("Other");
+      setCustomEventType(event.event_type || "");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [event?.event_type]);
 
   const handleBasicInfoUpdate = async () => {
     if (!event) return;
@@ -125,6 +155,7 @@ export function BasicInfoTab({
           location: event.location,
           event_description: event.event_description,
           event_blurb: event.event_blurb,
+          event_type: event.event_type,
           paywall_content: event.paywall_content,
           cover_image_url: coverImageUrl,
           submission_time_start: event.submission_time_start,
@@ -235,6 +266,53 @@ export function BasicInfoTab({
               setEvent({ ...event, event_name: e.target.value })
             }
           />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="event_type">Event Type</Label>
+          <Select
+            value={eventTypeSelection}
+            onValueChange={(val) => {
+              setEventTypeSelection(val);
+              if (val === "Other") {
+                setEvent({ ...event, event_type: customEventType });
+              } else {
+                setCustomEventType("");
+                setEvent({ ...event, event_type: val });
+              }
+            }}
+            disabled={isArchived}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select type" />
+            </SelectTrigger>
+            <SelectContent>
+              {PRESET_EVENT_TYPES.map((opt) => (
+                <SelectItem key={opt} value={opt}>
+                  {opt}
+                </SelectItem>
+              ))}
+              <SelectItem value="Other">Other</SelectItem>
+            </SelectContent>
+          </Select>
+          {eventTypeSelection === "Other" && (
+            <div className="pt-2 space-y-1">
+              <Input
+                id="event_type_custom"
+                placeholder="Enter custom type (e.g., Demo Day)"
+                value={customEventType}
+                disabled={isArchived}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setCustomEventType(val);
+                  setEvent({ ...event, event_type: val });
+                }}
+              />
+              <p className="text-xs text-gray-500">
+                Use a custom label like “Demo Day” or “Pitch Night”.
+              </p>
+            </div>
+          )}
         </div>
 
       <div className="space-y-2">
