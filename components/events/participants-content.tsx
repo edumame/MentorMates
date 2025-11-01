@@ -9,9 +9,25 @@ interface Participant {
 
 interface ParticipantsContentProps {
   participants: Participant[];
+  canViewParticipants: boolean;
 }
 
-export function ParticipantsContent({ participants }: ParticipantsContentProps) {
+export function ParticipantsContent({
+  participants,
+  canViewParticipants,
+}: ParticipantsContentProps) {
+  if (!canViewParticipants) {
+    return (
+      <div className="flex flex-col flex-1">
+        <div className="flex items-center justify-center py-12">
+          <p className="font-normal text-[16px] leading-[1.5] text-gray-500">
+            Join this event to explore the participant list.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   if (participants.length === 0) {
     return (
       <div className="flex flex-col flex-1">
