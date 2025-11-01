@@ -60,31 +60,35 @@ export default async function PublicParticipantsPage({ params }: PageProps) {
     hasJoined = !!userEventRole;
   }
 
-  const { data: participants, error } = await supabase
-    .from("user_event_roles")
-    .select("user_id, user_profiles!user_id(uid, display_name)")
-    .eq("event_id", eventData.event_id)
-    .eq("role", "participant")
-    .overrideTypes<
-      Array<{
-        user_id: UUID;
-        user_profiles: {
-          uid: UUID;
-          display_name: string;
-        };
-      }>
-    >();
+  let participantsList: Participant[] = [];
 
-  if (error) {
-    console.error("Error fetching participants:", error);
+  if (hasJoined) {
+    const { data: participants, error } = await supabase
+      .from("user_event_roles")
+      .select("user_id, user_profiles!user_id(uid, display_name)")
+      .eq("event_id", eventData.event_id)
+      .eq("role", "participant")
+      .overrideTypes<
+        Array<{
+          user_id: UUID;
+          user_profiles: {
+            uid: UUID;
+            display_name: string;
+          };
+        }>
+      >();
+
+    if (error) {
+      console.error("Error fetching participants:", error);
+    }
+
+    participantsList = participants
+      ? participants.map((participant) => ({
+          uid: participant.user_profiles.uid,
+          display_name: participant.user_profiles.display_name,
+        }))
+      : [];
   }
-
-  const participantsList: Participant[] = participants
-    ? participants.map((participant) => ({
-        uid: participant.user_profiles.uid,
-        display_name: participant.user_profiles.display_name,
-      }))
-    : [];
 
   return (
     <EventPageLayout
@@ -97,7 +101,10 @@ export default async function PublicParticipantsPage({ params }: PageProps) {
       hasJoined={hasJoined}
       dbEventId={eventData.event_id}
     >
-      <ParticipantsContent participants={participantsList} />
+      <ParticipantsContent
+        participants={participantsList}
+        canViewParticipants={hasJoined}
+      />
     </EventPageLayout>
   );
 }
