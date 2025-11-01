@@ -47,12 +47,12 @@ export function EventPageSidebar({
     <div className="flex flex-col gap-6 w-full md:w-[341px] px-2 md:px-4">
       {/* Important Links */}
       {eventResources && eventResources.length > 0 && (
-        <div className="flex flex-col gap-4 w-full">
+        <div className="flex flex-col gap-4 w-full items-center">
           <h3 className="font-semibold text-[22px] leading-[1.4] text-black text-center md:text-left tracking-[-0.06em]">
             Important links
           </h3>
 
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-4 w-full">
             {eventResources.map((res, idx) => (
               <a
                 key={idx}
@@ -78,7 +78,7 @@ export function EventPageSidebar({
       )}
 
       {/* Share Section */}
-      <div className="flex flex-col gap-4 items-center md:items-start w-full">
+      <div className="flex flex-col gap-4 items-center w-full">
         <p className="font-medium text-lg text-black text-center md:text-left tracking-[-0.06em]">
           Share this event
         </p>

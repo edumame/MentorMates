@@ -142,22 +142,26 @@ export function EventPageContent({
             </h2>
           </div>
 
-          {event.rules.map((rule, idx) => (
-            <div key={idx} className="flex flex-col pb-4 pt-0 px-0 w-full">
-              <div className="font-normal text-black">
-                <p className="font-medium text-base leading-[1.5] mb-0">
-                  {rule.title}
-                </p>
-                <ul className="list-disc pl-6">
-                  {rule.items.map((item, i) => (
-                    <li key={i} className="mb-0 text-base leading-[1.5]">
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              </div>
+          <div className="flex w-full  px-4 py-5 rounded-xl border border-[rgba(0,0,0,0.15)] relative">
+            <div className="flex flex-wrap sm:flex-nowrap relative w-full">
+              {event.rules.map((rule, idx) => (
+                <div key={idx} className="flex flex-grow flex-col first:pb-8 sm:pb-0 pt-0 px-0 w-full sm:first:pr-6 sm:last:pl-6 sm:last:border-l sm:border-[rgba(0,0,0,0.15)]">
+                  <div className="font-normal text-black">
+                    <p className="font-bold tracking-[-0.06em] text-[22px] leading-[1.4] mb-2">
+                      {rule.title}
+                    </p>
+                    <ul className="list-disc pl-6">
+                      {rule.items.map((item, i) => (
+                        <li key={i} className="mb-0 text-base leading-[1.5]">
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
+          </div>
         </>
       )}
 

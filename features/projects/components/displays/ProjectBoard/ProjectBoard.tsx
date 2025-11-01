@@ -67,7 +67,7 @@ const ProjectBoard = ({
           className="mx-auto"
         >
           {projectList.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 md:gap-6 lg:gap-[24px]">
+            <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {projectList.map((project) => {
                 const projectUrl =
                   projectBoardContext === ProjectBoardContext.MyProjects
@@ -79,11 +79,10 @@ const ProjectBoard = ({
                 return (
                   <Link href={projectUrl} key={project.id} className="block">
                     <Card
-                      className={`bg-white rounded-xl overflow-hidden relative flex flex-col h-full hover:shadow-lg transition-shadow ${
-                        project.prizes_won && project.prizes_won.length > 0
-                          ? "ring-2 ring-yellow-400"
-                          : ""
-                      }`}
+                      className={`bg-white rounded-xl overflow-hidden relative flex flex-col h-full hover:shadow-lg transition-shadow ${project.prizes_won && project.prizes_won.length > 0
+                        ? "ring-2 ring-yellow-400"
+                        : ""
+                        }`}
                     >
                       {/* Winner Banner */}
                       {project.prizes_won && project.prizes_won.length > 0 && (
@@ -121,10 +120,10 @@ const ProjectBoard = ({
                       </div>
 
                       {/* Lower content */}
-                      <div className="p-6 flex-1 flex flex-col">
+                      <div className="py-4 px-6 flex-1 flex flex-col">
                         {/* Project name + status chips */}
-                        <div className="flex items-start justify-between mb-4 gap-2">
-                          <h3 className="font-bold text-black flex-1 min-w-0 truncate">
+                        <div className="flex items-start justify-between mb-2 gap-2">
+                          <h3 className="font-bold text-black flex-1 min-w-0 text-[22px] leading-[1.4] tracking-[-0.06em] truncate">
                             {project.project_name || "Project"}
                           </h3>
                           <div className="flex items-center gap-1 flex-shrink-0">
@@ -155,12 +154,12 @@ const ProjectBoard = ({
                             <span>
                               {project.created_at
                                 ? new Date(
-                                    project.created_at
-                                  ).toLocaleDateString("en-GB", {
-                                    day: "2-digit",
-                                    month: "short",
-                                    year: "numeric",
-                                  })
+                                  project.created_at
+                                ).toLocaleDateString("en-GB", {
+                                  day: "2-digit",
+                                  month: "short",
+                                  year: "numeric",
+                                })
                                 : "N/A"}
                             </span>
                           </div>
@@ -212,56 +211,56 @@ const ProjectBoard = ({
                           {/* Three dots menu – only on My Projects */}
                           {projectBoardContext ===
                             ProjectBoardContext.MyProjects && (
-                            <DropdownMenu>
-                              <DropdownMenuTrigger
-                                asChild
-                                onClick={(e) => e.preventDefault()}
-                              >
-                                <button className="p-1 hover:bg-gray-100 rounded-full">
-                                  <MoreHorizontal className="w-5 h-5 text-gray-400" />
-                                </button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent
-                                align="end"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <DropdownMenuItem
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    setQrDialogOpen(project.id);
-                                  }}
+                              <DropdownMenu>
+                                <DropdownMenuTrigger
+                                  asChild
+                                  onClick={(e) => e.preventDefault()}
                                 >
-                                  <QrCode className="h-4 w-4 mr-2" />
-                                  Show QR Code
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    window.open(
-                                      `/projects/public/${project.id}`,
-                                      "_blank"
-                                    );
-                                  }}
+                                  <button className="p-1 hover:bg-gray-100 rounded-full">
+                                    <MoreHorizontal className="w-5 h-5 text-gray-400" />
+                                  </button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent
+                                  align="end"
+                                  onClick={(e) => e.stopPropagation()}
                                 >
-                                  <ExternalLink className="h-4 w-4 mr-2" />
-                                  Feedback Page
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  className="text-red-600 focus:text-red-600"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    setDeleteDialogOpen(project.id);
-                                  }}
-                                >
-                                  <Trash2 className="h-4 w-4 mr-2" />
-                                  Delete Project
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          )}
+                                  <DropdownMenuItem
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      setQrDialogOpen(project.id);
+                                    }}
+                                  >
+                                    <QrCode className="h-4 w-4 mr-2" />
+                                    Show QR Code
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      window.open(
+                                        `/projects/public/${project.id}`,
+                                        "_blank"
+                                      );
+                                    }}
+                                  >
+                                    <ExternalLink className="h-4 w-4 mr-2" />
+                                    Feedback Page
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    className="text-red-600 focus:text-red-600"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      setDeleteDialogOpen(project.id);
+                                    }}
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Delete Project
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            )}
                         </div>
                       </div>
                     </Card>
@@ -316,11 +315,10 @@ const ProjectBoard = ({
               <>
                 <div className="bg-white p-4 rounded-lg border">
                   <QRCode
-                    value={`${
-                      typeof window !== "undefined"
-                        ? window.location.origin
-                        : ""
-                    }/projects/public/${qrDialogOpen}`}
+                    value={`${typeof window !== "undefined"
+                      ? window.location.origin
+                      : ""
+                      }/projects/public/${qrDialogOpen}`}
                     size={200}
                   />
                 </div>

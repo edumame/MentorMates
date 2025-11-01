@@ -58,7 +58,7 @@ export default function ProjectsPage() {
       <Toaster />
       <PageContent className="pt-[24px] pb-8">
         <div className="flex flex-col gap-[24px] px-[32px]">
-          <div className="flex items-end justify-between">
+          <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-[8px]">
               <h1 className="text-[20px] sm:text-[28px] font-semibold leading-[1.4] tracking-[-0.06em] text-black">
                 Projects

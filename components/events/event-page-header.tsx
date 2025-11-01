@@ -100,17 +100,17 @@ export function EventPageHeader({
 
       {/* Content Section - responsive container */}
       <div
-        className="box-border flex flex-col gap-[24px] items-start max-w-[1280px] pb-[24px] pt-[24px] px-4 md:px-0 w-full"
+        className="box-border flex flex-col gap-[24px] items-start pb-[24px] pt-[24px] px-0 w-full"
         style={{
           background:
-            "linear-gradient(196.644deg, rgba(219, 234, 254, 0.25) 13.188%, rgba(255, 255, 255, 0) 65.83%), linear-gradient(90deg, rgb(251, 252, 254) 0%, rgb(251, 252, 254) 100%)",
+            "linear-gradient(to bottom, #DBEAFE 13.19%, rgba(255, 255, 255, 0.00) 65.83%)",
         }}
       >
-        <div className="box-border flex flex-col gap-[24px] items-start justify-end px-[24px] py-0 w-full">
+        <div className="box-border flex flex-col gap-[24px] items-start justify-end px-6 py-0 w-full">
           <div className="flex flex-col gap-[16px] items-start w-full">
-            <div className="flex flex-col md:flex-row items-start md:items-start justify-between w-full gap-6">
+            <div className="flex items-start justify-between w-full flex-wrap sm:flex-nowrap">
               {/* Left: Event Info */}
-              <div className="flex flex-col gap-[8px] items-start w-full md:w-[617px]">
+              <div className="flex flex-col gap-[8px] items-start w-[617px] mb-3 sm:mb-0">
                 <div className="flex flex-col items-start text-black w-full">
                   <h1 className="font-semibold text-[28px] leading-[1.4] tracking-[-1.68px] text-black w-full">
                     {eventName}
@@ -119,11 +119,15 @@ export function EventPageHeader({
                     {eventBlurb}
                   </p>
                 </div>
+                <Link href={`/events/${eventId}/sponsorships`}>
+                  {/* <img src="{{sponsorsImageUrl}}" /> */}
+                  <span className="font-normal text-sm leading-[1.5] text-black text-nowrap whitespace-pre">Sponsors</span>
+                </Link>
               </div>
 
               {/* Right: Join Button and Meta */}
-              <div className="flex flex-col gap-[12px] items-stretch md:items-end justify-center w-full md:w-[411px]">
-                <div className="flex flex-col gap-[16px] items-stretch md:items-center justify-center">
+              <div className="flex flex-col gap-[12px] items-end justify-center w-[345px]">
+                <div className="flex flex-col gap-[16px] items-center justify-center w-full">
                   <div className="flex gap-[16px] items-start w-full">
                     {(() => {
                       const roleForView = activeRole ?? userRole ?? null;
@@ -133,10 +137,7 @@ export function EventPageHeader({
                       if (isPresenterView) {
                         return (
                           <Button
-                            asChild
-                            variant="default"
-                            size="lg"
-                            className="rounded-full px-6 py-5 gap-2"
+                            asChild variant="default" className="rounded-full gap-2 w-full"
                           >
                             <Link href={`/projects/submit?eventId=${eventId}`}>
                               <Plus className="h-6 w-6" /> Create Project
@@ -179,14 +180,14 @@ export function EventPageHeader({
                 </div>
 
                 {/* Date and Location */}
-                <div className="flex gap-[8px] items-start w-full md:w-[341px] flex-col md:flex-row">
-                  <div className="flex gap-[8px] items-start flex-1 w-full">
+                <div className="flex gap-[8px] items-center justify-around w-full">
+                  <div className="flex gap-[8px] items-center">
                     <CalendarDays className="w-6 h-6 text-black flex-shrink-0" />
                     <p className="font-normal text-sm leading-[1.5] text-black">
                       {dayOfWeek}, {day} {monthYear}
                     </p>
                   </div>
-                  <div className="flex gap-[8px] items-start flex-1 w-full">
+                  <div className="flex gap-[8px] items-center">
                     <MapPin className="w-6 h-6 text-black flex-shrink-0" />
                     <p className="font-normal text-sm leading-[1.5] text-black">
                       {location}
@@ -197,7 +198,7 @@ export function EventPageHeader({
             </div>
           </div>
         </div>
-      </div>
-    </div>
+      </div >
+    </div >
   );
 }

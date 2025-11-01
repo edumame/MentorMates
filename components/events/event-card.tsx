@@ -65,7 +65,7 @@ export function EventCard({ event }: EventCardProps) {
         </div>
 
         {/* Content Section */}
-        <div className="p-6 flex flex-col flex-1">
+        <div className="px-6 py-4 flex flex-col flex-1">
           {/* Event Details Tags */}
           <div className="flex flex-wrap gap-1 mb-3">
             <span className="px-[10px] py-1 border border-[rgba(0,0,0,0.15)] rounded-full text-[14px] font-semibold text-black">
