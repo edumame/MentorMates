@@ -1,5 +1,4 @@
 import { createSupabaseClient } from "@/app/utils/supabase/server";
-import { UUID } from "crypto";
 import { isValidUUID } from "@/app/utils/supabase/queries";
 import { notFound } from "next/navigation";
 import { EventPageLayout } from "@/components/events/event-page-layout";
@@ -42,53 +41,21 @@ export default async function PublicParticipantsPage({ params }: PageProps) {
     notFound();
   }
 
-  // Check if user has joined
+  // Ensure any existing session is cleared so this page is always served to guests.
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  let hasJoined = false;
-
   if (user) {
-    const { data: userEventRole } = await supabase
-      .from("user_event_roles")
-      .select("role")
-      .eq("user_id", user.id)
-      .eq("event_id", eventData.event_id)
-      .maybeSingle();
+    const { error: signOutError } = await supabase.auth.signOut();
 
-    hasJoined = !!userEventRole;
-  }
-
-  let participantsList: Participant[] = [];
-
-  if (hasJoined) {
-    const { data: participants, error } = await supabase
-      .from("user_event_roles")
-      .select("user_id, user_profiles!user_id(uid, display_name)")
-      .eq("event_id", eventData.event_id)
-      .eq("role", "participant")
-      .overrideTypes<
-        Array<{
-          user_id: UUID;
-          user_profiles: {
-            uid: UUID;
-            display_name: string;
-          };
-        }>
-      >();
-
-    if (error) {
-      console.error("Error fetching participants:", error);
+    if (signOutError) {
+      console.error("Error signing out user before loading participants page:", signOutError);
     }
-
-    participantsList = participants
-      ? participants.map((participant) => ({
-          uid: participant.user_profiles.uid,
-          display_name: participant.user_profiles.display_name,
-        }))
-      : [];
   }
+
+  const hasJoined = false;
+  const participantsList: Participant[] = [];
 
   return (
     <EventPageLayout
@@ -100,6 +67,7 @@ export default async function PublicParticipantsPage({ params }: PageProps) {
       eventId={id}
       hasJoined={hasJoined}
       dbEventId={eventData.event_id}
+      forceGuest
     >
       <ParticipantsContent
         participants={participantsList}

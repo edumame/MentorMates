@@ -18,6 +18,10 @@ interface EventPageLayoutProps {
   dbEventId: string; // The actual database UUID for the event
   paid?: boolean;
   eventType?: string;
+  /**
+   * Skip fetching authenticated user data and render the layout as a guest view.
+   */
+  forceGuest?: boolean;
 }
 
 export async function EventPageLayout({
@@ -32,25 +36,28 @@ export async function EventPageLayout({
   dbEventId,
   paid,
   eventType,
+  forceGuest = false,
 }: EventPageLayoutProps) {
   const supabase = await createSupabaseClient();
 
-  // Get user's role for the event
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
   let userRole: EventRole | null = null;
 
-  if (user) {
-    const { data: userEventRole } = await supabase
-      .from("user_event_roles")
-      .select("role")
-      .eq("user_id", user.id)
-      .eq("event_id", dbEventId)
-      .maybeSingle();
+  if (!forceGuest) {
+    // Get user's role for the event
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-    userRole = (userEventRole?.role as EventRole) || null;
+    if (user) {
+      const { data: userEventRole } = await supabase
+        .from("user_event_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .eq("event_id", dbEventId)
+        .maybeSingle();
+
+      userRole = (userEventRole?.role as EventRole) || null;
+    }
   }
 
   // Fetch event role labels if available
