@@ -307,11 +307,10 @@ export default function PublicProjectPage() {
                   aria-pressed={liked}
                   disabled={likeIsLoading}
                   onClick={() => void toggleLike()}
-                  className={`rounded-xl px-5 py-2 shadow-sm text-base ${
-                    liked
+                  className={`rounded-xl px-5 py-2 shadow-sm text-base ${liked
                       ? "bg-red-100 text-red-700 hover:bg-red-200"
                       : "bg-black/5 hover:bg-black/10"
-                  }`}
+                    }`}
                 >
                   {likeIsLoading ? (
                     <Loader className="h-6 w-6 mr-1.5" />
@@ -384,9 +383,8 @@ export default function PublicProjectPage() {
                 <div
                   className="w-full h-full bg-cover bg-center bg-no-repeat"
                   style={{
-                    backgroundImage: `url(${
-                      project.cover_image_url || "/img/placeholder.png"
-                    })`,
+                    backgroundImage: `url(${project.cover_image_url || "/img/placeholder.png"
+                      })`,
                   }}
                 ></div>
               </div>
@@ -399,11 +397,10 @@ export default function PublicProjectPage() {
                 aria-pressed={liked}
                 disabled={likeIsLoading}
                 onClick={() => void toggleLike()}
-                className={`rounded-xl px-3 py-2 shadow-sm text-base ${
-                  liked
+                className={`rounded-xl px-3 py-2 shadow-sm text-base ${liked
                     ? "bg-red-100 text-red-700 hover:bg-red-200"
                     : "bg-black/5 hover:bg-black/10"
-                }`}
+                  }`}
               >
                 {likeIsLoading ? (
                   <Loader className="h-6 w-6" />
@@ -673,9 +670,9 @@ export default function PublicProjectPage() {
 
                     {/* Sharing Tab */}
                     <TabsContent value="sharing" className="mt-0">
-                      <div className="grid grid-cols-1 lg:grid-cols-[1fr,500px] gap-6">
+                      <div className="grid grid-cols-1 lg:grid-cols-[1fr,500px] gap-6 border border-zinc-200">
                         {/* Left Column: Share Card */}
-                        <Card className="border border-zinc-200">
+                        <Card className="1">
                           <CardHeader>
                             <CardTitle className="text-[22px] font-semibold tracking-[-0.06em]">
                               Share & Get Feedback
@@ -801,173 +798,173 @@ export default function PublicProjectPage() {
 
                   {/* Right Column: Sidebar */}
                   {activeTab !== "sharing" && (
-                  <div className="w-full lg:w-[420px] space-y-6">
-                    {/* Meet the team */}
-                    {activeTab === "overview" && (
-                    <div className="space-y-6">
-                      <h3 className="text-lg font-bold text-black tracking-tight">
-                        Meet the team
-                      </h3>
-                      <div className="space-y-6">
-                        {/* Project Lead */}
-                        <div className="flex gap-4 items-center">
-                          <div className="w-14 h-14 rounded-full bg-gray-300 flex-shrink-0"></div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <p className="font-semibold text-base text-black">
-                                {project.lead_name}
-                              </p>
-                              <Badge
-                                variant="secondary"
-                                className="bg-transparent border border-black/15 text-black rounded-full text-sm px-2.5 py-0.5"
-                              >
-                                Lead
-                              </Badge>
+                    <div className="w-full lg:w-[420px] space-y-6">
+                      {/* Meet the team */}
+                      {activeTab === "overview" && (
+                        <div className="space-y-6">
+                          <h3 className="text-lg font-bold text-black tracking-tight">
+                            Meet the team
+                          </h3>
+                          <div className="space-y-6">
+                            {/* Project Lead */}
+                            <div className="flex gap-4 items-center">
+                              <div className="w-14 h-14 rounded-full bg-gray-300 flex-shrink-0"></div>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <p className="font-semibold text-base text-black">
+                                    {project.lead_name}
+                                  </p>
+                                  <Badge
+                                    variant="secondary"
+                                    className="bg-transparent border border-black/15 text-black rounded-full text-sm px-2.5 py-0.5"
+                                  >
+                                    Lead
+                                  </Badge>
+                                </div>
+                                <p className="text-base text-black">
+                                  {project.lead_email}
+                                </p>
+                              </div>
                             </div>
-                            <p className="text-base text-black">
-                              {project.lead_email}
-                            </p>
+
+                            {/* Team Members */}
+                            {project.teammates?.slice(0, 1).map((teammate, index) => (
+                              <div key={index} className="flex gap-4 items-center">
+                                <div className="w-14 h-14 rounded-full bg-gray-300 flex-shrink-0"></div>
+                                <div className="space-y-0">
+                                  <p className="font-semibold text-base text-black">
+                                    {teammate}
+                                  </p>
+                                </div>
+                              </div>
+                            ))}
                           </div>
                         </div>
+                      )}
 
-                        {/* Team Members */}
-                        {project.teammates?.slice(0, 1).map((teammate, index) => (
-                          <div key={index} className="flex gap-4 items-center">
-                            <div className="w-14 h-14 rounded-full bg-gray-300 flex-shrink-0"></div>
-                            <div className="space-y-0">
-                              <p className="font-semibold text-base text-black">
-                                {teammate}
-                              </p>
+                      {/* Divider */}
+                      {activeTab === "overview" && (
+                        <div className="border-t border-gray-200"></div>
+                      )}
+
+                      {/* Submitted to Event */}
+                      {activeTab === "overview" && eventDetails && (
+                        <div className="space-y-4">
+                          <h3 className="text-lg font-bold text-black tracking-tight">
+                            Submitted to
+                          </h3>
+                          <Card className="border border-black/15 rounded-xl overflow-hidden">
+                            <div className="relative">
+                              {eventDetails.cover_image_url ? (
+                                <img
+                                  src={eventDetails.cover_image_url}
+                                  alt={eventDetails.event_name}
+                                  className="w-full h-[180px] object-cover"
+                                />
+                              ) : (
+                                <div className="w-full h-[180px] bg-gradient-to-br from-orange-400 via-blue-500 to-purple-600"></div>
+                              )}
+                              {eventDetails.start_date && (
+                                <div className="absolute top-4 right-4 bg-white border border-gray-300 rounded-xl py-3 px-1 text-center w-28">
+                                  <p className="text-sm text-black">
+                                    {new Date(eventDetails.start_date).toLocaleDateString("en-US", { weekday: "short" })}
+                                  </p>
+                                  <p className="text-4xl font-semibold text-black tracking-tight leading-none">
+                                    {new Date(eventDetails.start_date).getDate()}
+                                  </p>
+                                  <p className="text-sm text-black">
+                                    {new Date(eventDetails.start_date).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
+                                  </p>
+                                </div>
+                              )}
                             </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    )}
-
-                    {/* Divider */}
-                    {activeTab === "overview" && (
-                    <div className="border-t border-gray-200"></div>
-                    )}
-
-                    {/* Submitted to Event */}
-                    {activeTab === "overview" && eventDetails && (
-                      <div className="space-y-4">
-                        <h3 className="text-lg font-bold text-black tracking-tight">
-                          Submitted to
-                        </h3>
-                        <Card className="border border-black/15 rounded-xl overflow-hidden">
-                          <div className="relative">
-                            {eventDetails.cover_image_url ? (
-                              <img
-                                src={eventDetails.cover_image_url}
-                                alt={eventDetails.event_name}
-                                className="w-full h-[180px] object-cover"
-                              />
-                            ) : (
-                              <div className="w-full h-[180px] bg-gradient-to-br from-orange-400 via-blue-500 to-purple-600"></div>
-                            )}
-                            {eventDetails.start_date && (
-                              <div className="absolute top-4 right-4 bg-white border border-gray-300 rounded-xl py-3 px-1 text-center w-28">
-                                <p className="text-sm text-black">
-                                  {new Date(eventDetails.start_date).toLocaleDateString("en-US", { weekday: "short" })}
-                                </p>
-                                <p className="text-4xl font-semibold text-black tracking-tight leading-none">
-                                  {new Date(eventDetails.start_date).getDate()}
-                                </p>
-                                <p className="text-sm text-black">
-                                  {new Date(eventDetails.start_date).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
-                                </p>
+                            <CardContent className="p-6 space-y-4">
+                              <div className="space-y-2">
+                                <h4 className="text-2xl font-semibold text-black tracking-tight">
+                                  {eventDetails.event_name}
+                                </h4>
+                                <div className="flex items-center gap-1 text-sm">
+                                  <MapPin className="h-4 w-4 text-black" />
+                                  <span className="text-black text-center">
+                                    {eventDetails.location || "Online"}
+                                  </span>
+                                </div>
                               </div>
-                            )}
+                            </CardContent>
+                          </Card>
+                        </div>
+                      )}
+
+                      {/* Divider */}
+                      {activeTab === "overview" && (
+                        <div className="border-t border-gray-200"></div>
+                      )}
+
+                      {/* Additional materials */}
+                      {activeTab === "overview" && (
+                        <div className="space-y-4">
+                          <h3 className="text-lg font-semibold text-black tracking-tight">
+                            Additional materials
+                          </h3>
+                          {project.additional_materials_url ? (
+                            <a
+                              href={project.additional_materials_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <Button
+                                variant="secondary"
+                                className="w-full bg-black/5 hover:bg-black/10 rounded-xl py-2.5 shadow-sm justify-center"
+                              >
+                                <ArrowUpRight className="h-5 w-5 mr-1.5" />
+                                View Materials
+                              </Button>
+                            </a>
+                          ) : (
+                            <p className="text-sm text-gray-500 italic">
+                              No additional materials available
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Divider */}
+                      {activeTab === "overview" && (
+                        <div className="border-t border-gray-200"></div>
+                      )}
+
+                      {/* Share this project */}
+                      {activeTab === "overview" && (
+                        <div className="space-y-4">
+                          <h3 className="text-lg font-semibold text-black tracking-tight">
+                            Share this project
+                          </h3>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="bg-white rounded-full"
+                              onClick={() => {
+                                navigator.clipboard.writeText(feedbackUrl);
+                                toast({
+                                  title: "Link copied!",
+                                  description: "Project link copied to clipboard",
+                                });
+                              }}
+                            >
+                              <LinkIcon className="h-5 w-5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="bg-white rounded-full"
+                            >
+                              <Share2 className="h-5 w-5" />
+                            </Button>
                           </div>
-                          <CardContent className="p-6 space-y-4">
-                            <div className="space-y-2">
-                              <h4 className="text-2xl font-semibold text-black tracking-tight">
-                                {eventDetails.event_name}
-                              </h4>
-                              <div className="flex items-center gap-1 text-sm">
-                                <MapPin className="h-4 w-4 text-black" />
-                                <span className="text-black text-center">
-                                  {eventDetails.location || "Online"}
-                                </span>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      </div>
-                    )}
-
-                    {/* Divider */}
-                    {activeTab === "overview" && (
-                    <div className="border-t border-gray-200"></div>
-                    )}
-
-                    {/* Additional materials */}
-                    {activeTab === "overview" && (
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-semibold text-black tracking-tight">
-                        Additional materials
-                      </h3>
-                      {project.additional_materials_url ? (
-                        <a
-                          href={project.additional_materials_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          <Button
-                            variant="secondary"
-                            className="w-full bg-black/5 hover:bg-black/10 rounded-xl py-2.5 shadow-sm justify-center"
-                          >
-                            <ArrowUpRight className="h-5 w-5 mr-1.5" />
-                            View Materials
-                          </Button>
-                        </a>
-                      ) : (
-                        <p className="text-sm text-gray-500 italic">
-                          No additional materials available
-                        </p>
+                        </div>
                       )}
                     </div>
-                    )}
-
-                    {/* Divider */}
-                    {activeTab === "overview" && (
-                    <div className="border-t border-gray-200"></div>
-                    )}
-
-                    {/* Share this project */}
-                    {activeTab === "overview" && (
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-semibold text-black tracking-tight">
-                        Share this project
-                      </h3>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="bg-white rounded-full"
-                          onClick={() => {
-                            navigator.clipboard.writeText(feedbackUrl);
-                            toast({
-                              title: "Link copied!",
-                              description: "Project link copied to clipboard",
-                            });
-                          }}
-                        >
-                          <LinkIcon className="h-5 w-5" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="bg-white rounded-full"
-                        >
-                          <Share2 className="h-5 w-5" />
-                        </Button>
-                      </div>
-                    </div>
-                    )}
-                  </div>
                   )}
                 </div>
               </div>

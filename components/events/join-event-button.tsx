@@ -30,7 +30,7 @@ import { toast } from "@/lib/hooks/use-toast";
 import { PricingTierSelector } from "./pricing-tier-selector";
 import { getCheapestPricingTier, formatPrice } from "@/lib/utils/pricing";
 import { getRoleLabel, isHigherOrEqualRole } from "@/features/user/roles/roles";
-import { Ticket, User, Lock } from "lucide-react";
+import { Ticket, Users, Lock } from "lucide-react";
 
 export interface JoinEventButtonProps {
   eventId: string;
@@ -371,7 +371,7 @@ export function JoinEventButton({
               <Select value={selectedRole} onValueChange={handleRoleSelect}>
                 <SelectTrigger className="w-full flex text-left">
                   <div className="flex items-center justify-start">
-                    <User className="h-6 w-6 mr-2" />
+                    <Users className="h-6 w-6 mr-2" />
                     <SelectValue placeholder="Select your role" />
                   </div>
                 </SelectTrigger>

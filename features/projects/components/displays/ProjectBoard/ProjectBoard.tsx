@@ -9,8 +9,6 @@ import {
   User,
   MoreHorizontal,
   MessageSquare,
-  QrCode,
-  ExternalLink,
   Trash2,
   Sparkles,
 } from "lucide-react";
@@ -19,6 +17,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -123,7 +122,7 @@ const ProjectBoard = ({
                       <div className="py-4 px-6 flex-1 flex flex-col">
                         {/* Project name + status chips */}
                         <div className="flex items-start justify-between mb-2 gap-2">
-                          <h3 className="font-bold text-black flex-1 min-w-0 text-[22px] leading-[1.4] tracking-[-0.06em] truncate">
+                          <h3 className="font-bold text-black flex-1 min-w-0 text-[1.375rem] leading-[1.4] tracking-[-0.06em] truncate">
                             {project.project_name || "Project"}
                           </h3>
                           <div className="flex items-center gap-1 flex-shrink-0">
@@ -228,25 +227,24 @@ const ProjectBoard = ({
                                     onClick={(e) => {
                                       e.preventDefault();
                                       e.stopPropagation();
-                                      setQrDialogOpen(project.id);
+                                      window.open(
+                                        projectUrl,
+                                        "_blank"
+                                      );
                                     }}
                                   >
-                                    <QrCode className="h-4 w-4 mr-2" />
-                                    Show QR Code
+                                    View details
                                   </DropdownMenuItem>
                                   <DropdownMenuItem
                                     onClick={(e) => {
                                       e.preventDefault();
                                       e.stopPropagation();
-                                      window.open(
-                                        `/projects/public/${project.id}`,
-                                        "_blank"
-                                      );
+                                      setQrDialogOpen(project.id);
                                     }}
                                   >
-                                    <ExternalLink className="h-4 w-4 mr-2" />
-                                    Feedback Page
+                                    Share
                                   </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
                                   <DropdownMenuItem
                                     className="text-red-600 focus:text-red-600"
                                     onClick={(e) => {

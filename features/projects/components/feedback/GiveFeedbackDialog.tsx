@@ -359,7 +359,7 @@ export function GiveFeedbackDialog({
                 </>
               ) : (
                 <>
-                  <div className="mb-5 flex items-center gap-3">
+                  <div className="mb-5 flex flex-col gap-3">
                     <div className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/70 ring-1 ring-[rgba(0,0,0,0.1)]">
                       <Lightbulb className="h-4 w-4 text-[#7C8DB5]" />
                     </div>
