@@ -2,7 +2,7 @@
 
 import { headers } from "next/headers";
 import { stripe } from "@/lib/stripe/stripe";
-import { createSupabaseClient } from "@/app/utils/supabase/server";
+import { createSupabaseServiceClient } from "@/app/utils/supabase/server";
 import Stripe from "stripe";
 
 interface CheckoutOptions {
@@ -14,7 +14,7 @@ interface CheckoutOptions {
 
 export async function fetchClientSecret(options?: CheckoutOptions) {
   const origin = (await headers()).get("origin");
-  const supabase = await createSupabaseClient();
+  const supabase = await createSupabaseServiceClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -151,7 +151,7 @@ export async function fetchGuideClientSecret() {
   // Best effort: attach customer email if logged in, but do not require auth
   let customerEmail: string | undefined = undefined;
   try {
-    const supabase = await createSupabaseClient();
+    const supabase = await createSupabaseServiceClient();
     const { data } = await supabase.auth.getUser();
     customerEmail = data.user?.email ?? undefined;
   } catch {
@@ -217,7 +217,7 @@ export async function fetchMasterclassClientSecret() {
   // Best effort: attach customer email if logged in, but do not require auth
   let customerEmail: string | undefined = undefined;
   try {
-    const supabase = await createSupabaseClient();
+    const supabase = await createSupabaseServiceClient();
     const { data } = await supabase.auth.getUser();
     customerEmail = data.user?.email ?? undefined;
   } catch {
