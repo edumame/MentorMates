@@ -369,11 +369,9 @@ export function JoinEventButton({
             <div className="space-y-2">
               <label className="text-sm font-medium">Select your role:</label>
               <Select value={selectedRole} onValueChange={handleRoleSelect}>
-                <SelectTrigger className="w-full flex text-left">
-                  <div className="flex items-center justify-start">
-                    <Users className="h-6 w-6 mr-2" />
-                    <SelectValue placeholder="Select your role" />
-                  </div>
+                <SelectTrigger className="relative w-full flex text-left pl-10">
+                  <Users className="h-6 w-6 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <SelectValue placeholder="Select your role" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={EventRole.Participant}>
@@ -395,7 +393,7 @@ export function JoinEventButton({
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Enter password:</label>
                   <div className="flex items-center justify-start relative">
-                    <Lock className="h-5 w-5 mr-2 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <Lock className="h-5 w-5 absolute left-3 top-1/2 -translate-y-1/2" />
                     <Input
                       type="password"
                       value={password}
