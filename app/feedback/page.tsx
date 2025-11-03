@@ -152,10 +152,10 @@ export default function FeedbackPage() {
 
           {/* Empty State */}
           {!isLoading && feedbackList.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-40 px-4 border border-dashed border-[rgba(0,0,0,0.15)] rounded-[20px]">
+            <div className="flex flex-col items-center justify-center py-20 sm:py-40 px-4 border border-dashed border-[rgba(0,0,0,0.15)] rounded-[20px]">
               <div className="max-w-md text-center">
                 {/* Icon */}
-                <div className="mx-auto bg-gradient-to-br from-blue-50 to-blue-100 rounded-full flex items-center justify-center mb-4">
+                <div className="flex items-center justify-center mb-4">
                   <svg xmlns="http://www.w3.org/2000/svg" width="48" viewBox="0 0 24 24" fill="none"><path d="M18 9H20C20.5304 9 21.0391 9.21071 21.4142 9.58579C21.7893 9.96086 22 10.4696 22 11V22L18 18H12C11.4696 18 10.9609 17.7893 10.5858 17.4142C10.2107 17.0391 10 16.5304 10 16V15M14 9C14 9.53043 13.7893 10.0391 13.4142 10.4142C13.0391 10.7893 12.5304 11 12 11H6L2 15V4C2 2.9 2.9 2 4 2H12C12.5304 2 13.0391 2.21071 13.4142 2.58579C13.7893 2.96086 14 3.46957 14 4V9Z" stroke="#09090B" strokeWidth="1.67" stroke-linecap="round" stroke-linejoin="round"></path></svg>
                 </div>
 
@@ -252,26 +252,26 @@ export default function FeedbackPage() {
                         </div>
 
                         {/* Project Name Column */}
-                        <div className="flex items-start px-[24px] py-[28px] w-[196px] flex-shrink-0">
+                        <div className="flex items-center px-[24px] py-[28px] w-[196px] flex-shrink-0">
                           <p className="text-[16px] text-black tracking-[-0.04em] truncate">
                             {item.projectName}
                           </p>
                         </div>
 
                         {/* Message Column */}
-                        <div className="flex items-start px-[24px] py-[28px] min-w-[215px] flex-1">
+                        <div className="flex items-center px-[24px] py-[28px] min-w-[215px] flex-1">
                           <p className="text-[16px] text-black tracking-[-0.04em] line-clamp-2 break-all">
                             {item.message}
                           </p>
                         </div>
 
                         {/* Date Column */}
-                        <div className="flex items-start px-[24px] py-[28px] w-[182px] flex-shrink-0">
+                        <div className="flex items-center px-[24px] py-[28px] w-[182px] flex-shrink-0">
                           <p className="text-[16px] text-black">{item.date}</p>
                         </div>
 
                         {/* Action Column */}
-                        <div className="flex items-start gap-[12px] px-[24px] py-[28px] w-[208px] flex-shrink-0">
+                        <div className="flex items-center gap-[12px] px-[24px] py-[28px] w-[208px] flex-shrink-0">
                           <button
                             onClick={() => handleViewFeedback(item)}
                             className="text-[16px] font-medium text-[#4B89EF] tracking-[-0.04em]"
