@@ -7,11 +7,11 @@ import { Button } from "@/components/ui/button";
 import {
   ChevronLeft,
   ChevronRight,
-  ArrowDownUp,
   X,
   MessageSquare,
   Lightbulb,
   Sparkles,
+  ArrowDown,
 } from "lucide-react";
 import {
   Dialog,
@@ -20,6 +20,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
+import { Forum } from "@mui/icons-material";
 
 interface FeedbackItem {
   id: string;
@@ -118,7 +119,7 @@ export default function FeedbackPage() {
       <PageContent className="pt-[24px] pb-8">
         <div className="flex flex-col gap-[24px] px-[32px]">
           {/* Header */}
-          <div className="flex items-end justify-between">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-[8px]">
               <h1 className="text-[20px] sm:text-[28px] font-semibold leading-[1.4] tracking-[-0.06em] text-black">
                 Feedback
@@ -151,20 +152,20 @@ export default function FeedbackPage() {
 
           {/* Empty State */}
           {!isLoading && feedbackList.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-16 px-4">
+            <div className="flex flex-col items-center justify-center py-40 px-4 border border-dashed border-[rgba(0,0,0,0.15)] rounded-[20px]">
               <div className="max-w-md text-center">
                 {/* Icon */}
-                <div className="mx-auto w-24 h-24 bg-gradient-to-br from-blue-50 to-blue-100 rounded-full flex items-center justify-center mb-6">
-                  <MessageSquare className="h-12 w-12 text-blue-600" />
+                <div className="mx-auto bg-gradient-to-br from-blue-50 to-blue-100 rounded-full flex items-center justify-center mb-4">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="48" viewBox="0 0 24 24" fill="none"><path d="M18 9H20C20.5304 9 21.0391 9.21071 21.4142 9.58579C21.7893 9.96086 22 10.4696 22 11V22L18 18H12C11.4696 18 10.9609 17.7893 10.5858 17.4142C10.2107 17.0391 10 16.5304 10 16V15M14 9C14 9.53043 13.7893 10.0391 13.4142 10.4142C13.0391 10.7893 12.5304 11 12 11H6L2 15V4C2 2.9 2.9 2 4 2H12C12.5304 2 13.0391 2.21071 13.4142 2.58579C13.7893 2.96086 14 3.46957 14 4V9Z" stroke="#09090B" strokeWidth="1.67" stroke-linecap="round" stroke-linejoin="round"></path></svg>
                 </div>
 
                 {/* Heading */}
-                <h2 className="text-2xl font-semibold text-gray-900 mb-3">
+                <h2 className="text-2xl font-semibold text-gray-900 mb-2">
                   No feedback received yet
                 </h2>
 
                 {/* Description */}
-                <p className="text-gray-600 mb-6 leading-relaxed">
+                <p className="text-gray-600 mb-4 leading-relaxed">
                   Go join an event, submit a project and collect feedback from
                   mentors and peers to improve your work!
                 </p>
@@ -172,9 +173,9 @@ export default function FeedbackPage() {
                 {/* CTA Button */}
                 <Button
                   asChild
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 h-auto"
+                  className="bg-blue-400 hover:bg-blue-600 text-white px-6 py-3 h-auto"
                 >
-                  <Link href="/events">Explore Events</Link>
+                  <Link href="/events">Explore event</Link>
                 </Button>
               </div>
             </div>
@@ -209,7 +210,7 @@ export default function FeedbackPage() {
                         <p className="text-[16px] font-medium text-black tracking-[-0.04em]">
                           Date
                         </p>
-                        <ArrowDownUp className="h-[24px] w-[24px] ml-1" />
+                        <ArrowDown className="h-[24px] w-[24px] ml-1" />
                       </div>
                       <div className="w-[208px] flex-shrink-0 border-b border-[rgba(0,0,0,0.15)] px-[24px] py-[16px]">
                         <p className="text-[16px] font-medium text-black tracking-[-0.04em]">
@@ -222,21 +223,20 @@ export default function FeedbackPage() {
                     {feedbackList.map((item, index) => (
                       <div
                         key={item.id}
-                        className={`flex w-full ${
-                          index !== feedbackList.length - 1
-                            ? "border-b border-[rgba(0,0,0,0.15)]"
-                            : ""
-                        }`}
+                        className={`flex w-full ${index !== feedbackList.length - 1
+                          ? "border-b border-[rgba(0,0,0,0.15)]"
+                          : ""
+                          }`}
                       >
                         {/* Send from Column */}
-                        <div className="flex items-start gap-[4px] px-[24px] py-[28px] w-[264px] flex-shrink-0">
+                        <div className="flex items-center gap-[6px] px-[24px] py-[28px] w-[264px] flex-shrink-0">
                           <Avatar className="h-[40px] w-[40px]">
                             <AvatarImage
                               src={item.sender.avatar}
                               alt={item.sender.name}
                             />
-                            <AvatarFallback>
-                              {item.sender.name.charAt(0)}
+                            <AvatarFallback className="bg-gray-200 text-black font-semibold text-base">
+                              {item.sender.name.charAt(0).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
                           <p className="text-[16px] text-black truncate">
@@ -260,7 +260,7 @@ export default function FeedbackPage() {
 
                         {/* Message Column */}
                         <div className="flex items-start px-[24px] py-[28px] min-w-[215px] flex-1">
-                          <p className="text-[16px] text-black tracking-[-0.04em] line-clamp-2">
+                          <p className="text-[16px] text-black tracking-[-0.04em] line-clamp-2 break-all">
                             {item.message}
                           </p>
                         </div>
@@ -312,11 +312,10 @@ export default function FeedbackPage() {
                       <button
                         key={page}
                         onClick={() => setCurrentPage(page)}
-                        className={`w-[40px] h-[40px] flex items-center justify-center rounded-[6px] text-[16px] ${
-                          currentPage === page
-                            ? "border border-[rgba(0,0,0,0.15)]"
-                            : ""
-                        }`}
+                        className={`w-[40px] h-[40px] flex items-center justify-center rounded-[6px] text-[16px] ${currentPage === page
+                          ? "border border-[rgba(0,0,0,0.15)]"
+                          : ""
+                          }`}
                       >
                         {page}
                       </button>
@@ -342,7 +341,7 @@ export default function FeedbackPage() {
 
         {/* Feedback Modal */}
         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-          <DialogContent className="w-[95vw] max-w-6xl p-0 sm:w-full sm:max-w-6xl mx-4 bg-white border border-gray-200 rounded-xl shadow-xl">
+          <DialogContent className="w-[95vw] max-w-6xl p-0 sm:w-full sm:max-w-6xl sm:mx-4 bg-white border border-gray-200 rounded-xl shadow-xl">
             <DialogTitle className="sr-only">
               {isGivingFeedback
                 ? `Share feedback for ${selectedProject?.name}`
@@ -481,9 +480,9 @@ export default function FeedbackPage() {
               </div>
             ) : (
               /* -------- View feedback (unchanged) -------- */
-              <div className="flex flex-col">
+              <div className="flex min-h-[32.375rem] flex-wrap">
                 {/* Header */}
-                <div className="flex flex-col items-center px-4 pt-4 pb-3 text-center sm:px-6 sm:pt-6 sm:pb-4">
+                <div className="flex flex-col justify-center items-center w-full sm:w-2/5">
                   <div className="mb-3 flex items-center justify-center rounded-xl bg-blue-50 p-2">
                     <MessageSquare className="h-5 w-5 text-blue-500 sm:h-6 sm:w-6" />
                   </div>
@@ -499,7 +498,7 @@ export default function FeedbackPage() {
                 </div>
 
                 {/* Content */}
-                <div className="px-4 pb-4 sm:px-6 sm:pb-6">
+                <div className="flex-1 px-4 pb-4 sm:px-6 sm:pb-6 flex flex-col justify-center" style={{ background: "linear-gradient(180deg, #DBEAFE 0%, #F9F9FF 100%)" }}>
                   <div className="relative rounded-lg bg-gradient-to-b from-blue-50 to-blue-25 p-4 sm:p-6">
                     <div className="mb-3 text-xs text-gray-600 sm:mb-4 sm:text-sm">
                       {selectedFeedback?.date}
