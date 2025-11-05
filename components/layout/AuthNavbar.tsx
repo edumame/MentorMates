@@ -79,6 +79,7 @@ export function AuthNavbar() {
     await supabase.auth.signOut();
     posthog.reset();
     router.push("/");
+    window.location.reload();
     setIsOpen(false);
   };
 
