@@ -11,8 +11,6 @@ interface RouteBasedLayoutConfigProps {
 export function RouteBasedLayoutConfig({ children }: RouteBasedLayoutConfigProps) {
   const pathname = usePathname();
   const isAcceptPage = pathname?.includes('/accept');
-  const isRedesignedPage = pathname?.includes('/overview') || pathname?.includes('/gallery') || pathname?.includes('/feed') || pathname?.includes('/schedule') || pathname?.includes('/participants') || pathname?.includes('/faqs');
-
   let layoutConfig;
 
   if (isAcceptPage) {
@@ -23,21 +21,13 @@ export function RouteBasedLayoutConfig({ children }: RouteBasedLayoutConfigProps
       showEventWrapper: false,
       showFooter: false,
     };
-  } else if (isRedesignedPage) {
-    // Hide the old EventHeader for redesigned pages since they have the new EventPageLayout
+  } else {
+    //all pages should use the same layout. We are no longer using the old EventHeader.
     layoutConfig = {
       showNavbar: true,
       showPadding: false,
       showEventHeader: false,
       showEventWrapper: false,
-      showFooter: true,
-    };
-  } else {
-    layoutConfig = {
-      showNavbar: true,
-      showPadding: true,
-      showEventHeader: true,
-      showEventWrapper: true,
       showFooter: true,
     };
   }

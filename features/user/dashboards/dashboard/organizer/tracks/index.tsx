@@ -52,7 +52,7 @@ export function EventTracksContainer({
         )}
       </CardHeader>
       <CardContent>
-        <Tabs value={activeSubTab} onValueChange={setActiveSubTab}>
+      <Tabs value={activeSubTab} onValueChange={setActiveSubTab}>
           <TabsList className="grid grid-cols-2 mb-6">
             <TabsTrigger value="tracks">Tracks & Scoring</TabsTrigger>
             <TabsTrigger value="prizes">Prizes</TabsTrigger>

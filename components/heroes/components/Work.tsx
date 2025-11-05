@@ -4,6 +4,7 @@ import { useRef } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 export function Work() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -174,10 +175,12 @@ export function Work() {
                     </div>
 
                     {/* IMAGE column with description */}
-                    <div className={[
-                      isLeft ? "order-2" : "order-1",
-                      "md:pl-2 md:ml-auto"
-                    ].join(" ")}>
+                    <div
+                      className={[
+                        isLeft ? "order-2" : "order-1",
+                        "md:pl-2 md:ml-auto",
+                      ].join(" ")}
+                    >
                       <p className="mb-6 text-[16px] leading-6 text-gray-600">
                         {s.description}
                       </p>
@@ -215,7 +218,9 @@ export function Work() {
           create impactful solutions.
         </p>
 
-        <Button variant="default">Get started</Button>
+        <Button variant="default">
+          <Link href="/join">Get started</Link>
+        </Button>
       </div>
     </section>
   );

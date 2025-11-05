@@ -79,7 +79,6 @@ export function AuthNavbar() {
     await supabase.auth.signOut();
     posthog.reset();
     router.push("/");
-    router.refresh();
     setIsOpen(false);
   };
 
