@@ -27,45 +27,49 @@ DROP POLICY IF EXISTS "prize_winners_select_public" ON public.prize_winners;
 DROP POLICY IF EXISTS "prize_winners_insert_organizer" ON public.prize_winners;
 DROP POLICY IF EXISTS "prize_winners_update_organizer" ON public.prize_winners;
 DROP POLICY IF EXISTS "prize_winners_delete_organizer" ON public.prize_winners;
+DROP POLICY IF EXISTS "Anyone can view all prize winners" ON public.prize_winners;
+DROP POLICY IF EXISTS "Event organizers can assign prizes to projects from their events" ON public.prize_winners;
+DROP POLICY IF EXISTS "Event organizers can update prize assignments for projects from their events" ON public.prize_winners;
+DROP POLICY IF EXISTS "Event organizers can remove prize assignments for projects from their events" ON public.prize_winners;
 
--- Policy 1: Allow everyone (including anonymous users) to view all prize winners
-CREATE POLICY "prize_winners_select_public"
+-- Policy: Allow everyone (including anonymous users) to view all prize winners
+CREATE POLICY "Anyone can view all prize winners"
 ON public.prize_winners
 FOR SELECT
 TO public
 USING (true);
 
--- Policy 2: Allow organizers to assign prizes to projects from their events
-CREATE POLICY "prize_winners_insert_organizer"
+-- Policy: Allow organizers to assign prizes to projects from their events
+CREATE POLICY "Event organizers can assign prizes to projects from their events"
 ON public.prize_winners
 FOR INSERT
 TO authenticated
 WITH CHECK (
   project_id IS NOT NULL 
-  AND public.is_project_event_organizer(project_id, auth.uid())
+  AND public.is_project_event_organizer(project_id, (SELECT auth.uid()))
 );
 
--- Policy 3: Allow organizers to update prize assignments for projects from their events
-CREATE POLICY "prize_winners_update_organizer"
+-- Policy: Allow organizers to update prize assignments for projects from their events
+CREATE POLICY "Event organizers can update prize assignments for projects from their events"
 ON public.prize_winners
 FOR UPDATE
 TO authenticated
 USING (
   project_id IS NOT NULL 
-  AND public.is_project_event_organizer(project_id, auth.uid())
+  AND public.is_project_event_organizer(project_id, (SELECT auth.uid()))
 )
 WITH CHECK (
   project_id IS NOT NULL 
-  AND public.is_project_event_organizer(project_id, auth.uid())
+  AND public.is_project_event_organizer(project_id, (SELECT auth.uid()))
 );
 
--- Policy 4: Allow organizers to delete prize assignments for projects from their events
-CREATE POLICY "prize_winners_delete_organizer"
+-- Policy: Allow organizers to delete prize assignments for projects from their events
+CREATE POLICY "Event organizers can remove prize assignments for projects from their events"
 ON public.prize_winners
 FOR DELETE
 TO authenticated
 USING (
   project_id IS NOT NULL 
-  AND public.is_project_event_organizer(project_id, auth.uid())
+  AND public.is_project_event_organizer(project_id, (SELECT auth.uid()))
 );
 

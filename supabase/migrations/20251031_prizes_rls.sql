@@ -27,45 +27,49 @@ DROP POLICY IF EXISTS "prizes_select_public" ON public.prizes;
 DROP POLICY IF EXISTS "prizes_insert_organizer" ON public.prizes;
 DROP POLICY IF EXISTS "prizes_update_organizer" ON public.prizes;
 DROP POLICY IF EXISTS "prizes_delete_organizer" ON public.prizes;
+DROP POLICY IF EXISTS "Anyone can view all prizes" ON public.prizes;
+DROP POLICY IF EXISTS "Event organizers can create prizes for their event tracks" ON public.prizes;
+DROP POLICY IF EXISTS "Event organizers can update prizes for their event tracks" ON public.prizes;
+DROP POLICY IF EXISTS "Event organizers can delete prizes for their event tracks" ON public.prizes;
 
--- Policy 1: Allow everyone (including anonymous users) to view all prizes
-CREATE POLICY "prizes_select_public"
+-- Policy: Allow everyone (including anonymous users) to view all prizes
+CREATE POLICY "Anyone can view all prizes"
 ON public.prizes
 FOR SELECT
 TO public
 USING (true);
 
--- Policy 2: Allow organizers to insert prizes for their event's tracks
-CREATE POLICY "prizes_insert_organizer"
+-- Policy: Allow organizers to insert prizes for their event's tracks
+CREATE POLICY "Event organizers can create prizes for their event tracks"
 ON public.prizes
 FOR INSERT
 TO authenticated
 WITH CHECK (
   track_id IS NOT NULL 
-  AND public.is_track_event_organizer(track_id, auth.uid())
+  AND public.is_track_event_organizer(track_id, (SELECT auth.uid()))
 );
 
--- Policy 3: Allow organizers to update prizes for their event's tracks
-CREATE POLICY "prizes_update_organizer"
+-- Policy: Allow organizers to update prizes for their event's tracks
+CREATE POLICY "Event organizers can update prizes for their event tracks"
 ON public.prizes
 FOR UPDATE
 TO authenticated
 USING (
   track_id IS NOT NULL 
-  AND public.is_track_event_organizer(track_id, auth.uid())
+  AND public.is_track_event_organizer(track_id, (SELECT auth.uid()))
 )
 WITH CHECK (
   track_id IS NOT NULL 
-  AND public.is_track_event_organizer(track_id, auth.uid())
+  AND public.is_track_event_organizer(track_id, (SELECT auth.uid()))
 );
 
--- Policy 4: Allow organizers to delete prizes for their event's tracks
-CREATE POLICY "prizes_delete_organizer"
+-- Policy: Allow organizers to delete prizes for their event's tracks
+CREATE POLICY "Event organizers can delete prizes for their event tracks"
 ON public.prizes
 FOR DELETE
 TO authenticated
 USING (
   track_id IS NOT NULL 
-  AND public.is_track_event_organizer(track_id, auth.uid())
+  AND public.is_track_event_organizer(track_id, (SELECT auth.uid()))
 );
 

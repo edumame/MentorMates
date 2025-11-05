@@ -46,21 +46,23 @@ DROP POLICY IF EXISTS "project_scores_update_own_judge" ON public.project_scores
 DROP POLICY IF EXISTS "project_scores_update_organizer" ON public.project_scores;
 DROP POLICY IF EXISTS "project_scores_delete_own_judge" ON public.project_scores;
 DROP POLICY IF EXISTS "project_scores_delete_organizer" ON public.project_scores;
+DROP POLICY IF EXISTS "Judges and organizers can view project scores for their events" ON public.project_scores;
+DROP POLICY IF EXISTS "Judges can submit scores and organizers can submit any score for their events" ON public.project_scores;
+DROP POLICY IF EXISTS "Judges can edit their own scores and organizers can edit any score for their events" ON public.project_scores;
+DROP POLICY IF EXISTS "Judges can delete their own scores and organizers can delete any score for their events" ON public.project_scores;
 
--- Policy 1: Allow judges and organizers to view all project scores for their events
-CREATE POLICY "project_scores_select_judges_organizers"
+-- Policy: Allow judges and organizers to view all project scores for their events
+CREATE POLICY "Judges and organizers can view project scores for their events"
 ON public.project_scores
 FOR SELECT
 TO authenticated
 USING (
   event_id IS NOT NULL 
-  AND public.is_event_judge_or_organizer(event_id, auth.uid())
+  AND public.is_event_judge_or_organizer(event_id, (SELECT auth.uid()))
 );
 
--- Policy 2: Allow judges and organizers to insert scores for their events
--- Judges can only insert scores with their own judge_id
--- Organizers can insert scores for any judge
-CREATE POLICY "project_scores_insert_judges_organizers"
+-- Policy: Allow judges to insert their own scores and organizers to insert any score
+CREATE POLICY "Judges can submit scores and organizers can submit any score for their events"
 ON public.project_scores
 FOR INSERT
 TO authenticated
@@ -68,61 +70,52 @@ WITH CHECK (
   event_id IS NOT NULL 
   AND (
     -- Judges can insert their own scores
-    (public.is_event_judge(event_id, auth.uid()) AND judge_id = auth.uid())
+    (public.is_event_judge(event_id, (SELECT auth.uid())) AND judge_id = (SELECT auth.uid()))
     OR
     -- Organizers can insert scores for any judge
-    public.is_event_organizer(event_id, auth.uid())
+    public.is_event_organizer(event_id, (SELECT auth.uid()))
   )
 );
 
--- Policy 3: Allow judges to update their own scores
-CREATE POLICY "project_scores_update_own_judge"
+-- Policy: Allow judges to update their own scores and organizers to update any score
+CREATE POLICY "Judges can edit their own scores and organizers can edit any score for their events"
 ON public.project_scores
 FOR UPDATE
 TO authenticated
 USING (
   event_id IS NOT NULL 
-  AND judge_id = auth.uid()
-  AND public.is_event_judge(event_id, auth.uid())
+  AND (
+    -- Judges can update their own scores
+    (judge_id = (SELECT auth.uid()) AND public.is_event_judge(event_id, (SELECT auth.uid())))
+    OR
+    -- Organizers can update any score
+    public.is_event_organizer(event_id, (SELECT auth.uid()))
+  )
 )
 WITH CHECK (
   event_id IS NOT NULL 
-  AND judge_id = auth.uid()
-  AND public.is_event_judge(event_id, auth.uid())
+  AND (
+    -- Judges can update their own scores
+    (judge_id = (SELECT auth.uid()) AND public.is_event_judge(event_id, (SELECT auth.uid())))
+    OR
+    -- Organizers can update any score
+    public.is_event_organizer(event_id, (SELECT auth.uid()))
+  )
 );
 
--- Policy 4: Allow organizers to update any score for their events
-CREATE POLICY "project_scores_update_organizer"
-ON public.project_scores
-FOR UPDATE
-TO authenticated
-USING (
-  event_id IS NOT NULL 
-  AND public.is_event_organizer(event_id, auth.uid())
-)
-WITH CHECK (
-  event_id IS NOT NULL 
-  AND public.is_event_organizer(event_id, auth.uid())
-);
-
--- Policy 5: Allow judges to delete their own scores
-CREATE POLICY "project_scores_delete_own_judge"
+-- Policy: Allow judges to delete their own scores and organizers to delete any score
+CREATE POLICY "Judges can delete their own scores and organizers can delete any score for their events"
 ON public.project_scores
 FOR DELETE
 TO authenticated
 USING (
   event_id IS NOT NULL 
-  AND judge_id = auth.uid()
-  AND public.is_event_judge(event_id, auth.uid())
-);
-
--- Policy 6: Allow organizers to delete any score for their events
-CREATE POLICY "project_scores_delete_organizer"
-ON public.project_scores
-FOR DELETE
-TO authenticated
-USING (
-  event_id IS NOT NULL 
-  AND public.is_event_organizer(event_id, auth.uid())
+  AND (
+    -- Judges can delete their own scores
+    (judge_id = (SELECT auth.uid()) AND public.is_event_judge(event_id, (SELECT auth.uid())))
+    OR
+    -- Organizers can delete any score
+    public.is_event_organizer(event_id, (SELECT auth.uid()))
+  )
 );
 

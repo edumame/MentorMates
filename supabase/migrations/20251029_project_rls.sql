@@ -83,66 +83,49 @@ DROP POLICY IF EXISTS "projects_select_private_event_participants" ON public.pro
 DROP POLICY IF EXISTS "projects_insert_authenticated" ON public.projects;
 DROP POLICY IF EXISTS "projects_update_members" ON public.projects;
 DROP POLICY IF EXISTS "projects_delete_members" ON public.projects;
+DROP POLICY IF EXISTS "anyone can view public projects or authorized users can view private projects" ON public.projects;
+DROP POLICY IF EXISTS "authenticated users can create projects for events they joined" ON public.projects;
+DROP POLICY IF EXISTS "project team members can update their own projects" ON public.projects;
+DROP POLICY IF EXISTS "project team members can delete their own projects" ON public.projects;
 
--- Policy 1: Allow anyone (authenticated or not) to view public projects
-CREATE POLICY "projects_select_public"
+-- SELECT: Anyone can view public projects, or authorized users (team members or event participants) can view private projects
+CREATE POLICY "anyone can view public projects or authorized users can view private projects"
 ON public.projects
 FOR SELECT
 USING (
-  private = false
+  private = false 
+  OR public.can_view_project(id, (SELECT auth.uid()))
 );
 
--- Policy 2: Allow authenticated users to view private projects if they are members
-CREATE POLICY "projects_select_private_members"
-ON public.projects
-FOR SELECT
-TO authenticated
-USING (
-  private = true 
-  AND public.is_project_member(id, auth.uid())
-);
-
--- Policy 3: Allow authenticated users to view private projects if they've joined the event
-CREATE POLICY "projects_select_private_event_participants"
-ON public.projects
-FOR SELECT
-TO authenticated
-USING (
-  private = true 
-  AND event_id IS NOT NULL
-  AND public.user_has_event_role(event_id, auth.uid())
-);
-
--- Policy 4: Allow authenticated users to create projects
--- They can only create projects for events they've joined or with NULL event_id
-CREATE POLICY "projects_insert_authenticated"
+-- INSERT: Authenticated users can create projects for events they have joined or standalone projects
+CREATE POLICY "authenticated users can create projects for events they joined"
 ON public.projects
 FOR INSERT
 TO authenticated
 WITH CHECK (
   event_id IS NULL 
-  OR public.user_has_event_role(event_id, auth.uid())
+  OR public.user_has_event_role(event_id, (SELECT auth.uid()))
 );
 
--- Policy 5: Allow project members (lead or teammates) to update their projects
-CREATE POLICY "projects_update_members"
+-- UPDATE: Project team members (lead or teammates) can update their own projects
+CREATE POLICY "project team members can update their own projects"
 ON public.projects
 FOR UPDATE
 TO authenticated
 USING (
-  public.is_project_member(id, auth.uid())
+  public.is_project_member(id, (SELECT auth.uid()))
 )
 WITH CHECK (
-  public.is_project_member(id, auth.uid())
+  public.is_project_member(id, (SELECT auth.uid()))
 );
 
--- Policy 6: Allow project members (lead or teammates) to delete their projects
-CREATE POLICY "projects_delete_members"
+-- DELETE: Project team members (lead or teammates) can delete their own projects
+CREATE POLICY "project team members can delete their own projects"
 ON public.projects
 FOR DELETE
 TO authenticated
 USING (
-  public.is_project_member(id, auth.uid())
+  public.is_project_member(id, (SELECT auth.uid()))
 );
 
 -- Grant necessary permissions

@@ -88,28 +88,25 @@ DROP POLICY IF EXISTS "feedback_select_private_event_participants" ON public.fee
 DROP POLICY IF EXISTS "feedback_insert_authenticated" ON public.feedback;
 DROP POLICY IF EXISTS "feedback_update_mentor" ON public.feedback;
 DROP POLICY IF EXISTS "feedback_delete_mentor" ON public.feedback;
+DROP POLICY IF EXISTS "Anyone can view feedback on public projects and event participants can view feedback on private projects" ON public.feedback;
+DROP POLICY IF EXISTS "Event participants can submit feedback for projects in their events" ON public.feedback;
+DROP POLICY IF EXISTS "Mentors can edit their own feedback" ON public.feedback;
+DROP POLICY IF EXISTS "Mentors can delete their own feedback" ON public.feedback;
 
--- Policy 1: Allow anyone (including anonymous users) to view feedback on public projects
-CREATE POLICY "feedback_select_public"
+-- Policy: Allow viewing feedback based on project privacy and event participation
+CREATE POLICY "Anyone can view feedback on public projects and event participants can view feedback on private projects"
 ON public.feedback
 FOR SELECT
 USING (
-  -- For anonymous users, only allow if feedback is for a public project
-  (auth.uid() IS NULL AND public.is_feedback_public(id))
+  -- Anonymous users can only view feedback on public projects
+  ((SELECT auth.uid()) IS NULL AND public.is_feedback_public(id))
+  OR
+  -- Authenticated users can view based on project privacy and event participation
+  ((SELECT auth.uid()) IS NOT NULL AND public.can_view_feedback(id, (SELECT auth.uid())))
 );
 
--- Policy 2: Allow authenticated users to view feedback on private projects if they've joined the event
-CREATE POLICY "feedback_select_private_event_participants"
-ON public.feedback
-FOR SELECT
-TO authenticated
-USING (
-  public.can_view_feedback(id, auth.uid())
-);
-
--- Policy 3: Allow authenticated users to insert feedback
--- They can only create feedback for projects in events they've joined
-CREATE POLICY "feedback_insert_authenticated"
+-- Policy: Allow authenticated users to insert feedback for events they've joined
+CREATE POLICY "Event participants can submit feedback for projects in their events"
 ON public.feedback
 FOR INSERT
 TO authenticated
@@ -118,27 +115,27 @@ WITH CHECK (
   event_id IS NULL 
   OR 
   -- Or if user has joined the event
-  public.user_has_event_role(event_id, auth.uid())
+  public.user_has_event_role(event_id, (SELECT auth.uid()))
 );
 
--- Policy 4: Allow mentors to update their own feedback
-CREATE POLICY "feedback_update_mentor"
+-- Policy: Allow mentors to update their own feedback
+CREATE POLICY "Mentors can edit their own feedback"
 ON public.feedback
 FOR UPDATE
 TO authenticated
 USING (
-  mentor_id = auth.uid()
+  mentor_id = (SELECT auth.uid())
 )
 WITH CHECK (
-  mentor_id = auth.uid()
+  mentor_id = (SELECT auth.uid())
 );
 
--- Policy 5: Allow mentors to delete their own feedback
-CREATE POLICY "feedback_delete_mentor"
+-- Policy: Allow mentors to delete their own feedback
+CREATE POLICY "Mentors can delete their own feedback"
 ON public.feedback
 FOR DELETE
 TO authenticated
 USING (
-  mentor_id = auth.uid()
+  mentor_id = (SELECT auth.uid())
 );
 
