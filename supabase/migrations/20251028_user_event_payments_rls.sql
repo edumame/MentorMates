@@ -10,7 +10,7 @@ ON public.user_event_payments
 FOR SELECT
 TO authenticated
 USING (
-  auth.uid() = user_id
+  (SELECT auth.uid()) = user_id
 );
 
 -- No INSERT, UPDATE, or DELETE policies are created

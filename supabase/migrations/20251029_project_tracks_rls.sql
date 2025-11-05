@@ -50,10 +50,10 @@ ON public.project_tracks
 FOR SELECT
 USING (
   -- For authenticated users, use the full can_view_project logic
-  (auth.uid() IS NOT NULL AND public.can_view_project(project_id, auth.uid()))
+  ((SELECT auth.uid()) IS NOT NULL AND public.can_view_project(project_id, (SELECT auth.uid())))
   OR
   -- For anonymous users, only allow if project is public
-  (auth.uid() IS NULL AND public.is_project_public(project_id))
+  ((SELECT auth.uid()) IS NULL AND public.is_project_public(project_id))
 );
 
 -- Policy 4: Allow authenticated users to insert tracks for projects they are members of
@@ -63,7 +63,7 @@ ON public.project_tracks
 FOR INSERT
 TO authenticated
 WITH CHECK (
-  public.is_project_member(project_id, auth.uid())
+  public.is_project_member(project_id, (SELECT auth.uid()))
 );
 
 -- Policy 5: Allow project members to update tracks for their projects
@@ -72,10 +72,10 @@ ON public.project_tracks
 FOR UPDATE
 TO authenticated
 USING (
-  public.is_project_member(project_id, auth.uid())
+  public.is_project_member(project_id, (SELECT auth.uid()))
 )
 WITH CHECK (
-  public.is_project_member(project_id, auth.uid())
+  public.is_project_member(project_id, (SELECT auth.uid()))
 );
 
 -- Policy 6: Allow project members to delete tracks from their projects
@@ -84,6 +84,6 @@ ON public.project_tracks
 FOR DELETE
 TO authenticated
 USING (
-  public.is_project_member(project_id, auth.uid())
+  public.is_project_member(project_id, (SELECT auth.uid()))
 );
 

@@ -37,130 +37,76 @@ DROP POLICY IF EXISTS "event_tracks_update_organizer" ON public.event_tracks;
 DROP POLICY IF EXISTS "event_tracks_update_admin" ON public.event_tracks;
 DROP POLICY IF EXISTS "event_tracks_delete_organizer" ON public.event_tracks;
 DROP POLICY IF EXISTS "event_tracks_delete_admin" ON public.event_tracks;
+DROP POLICY IF EXISTS "Anyone can view tracks for public and private events, participants can view tracks for draft events, and admins can view all tracks" ON public.event_tracks;
+DROP POLICY IF EXISTS "Event organizers and admins can create tracks for events" ON public.event_tracks;
+DROP POLICY IF EXISTS "Event organizers and admins can update tracks for events" ON public.event_tracks;
+DROP POLICY IF EXISTS "Event organizers and admins can delete tracks from events" ON public.event_tracks;
 
--- ============================================================================
--- SELECT POLICIES (View Event Tracks)
--- ============================================================================
-
--- Policy 1: Allow everyone (including anonymous) to view tracks for public events
-CREATE POLICY "event_tracks_select_public_events"
+-- Policy: Allow viewing event tracks based on event visibility
+CREATE POLICY "Anyone can view tracks for public and private events, participants can view tracks for draft events, and admins can view all tracks"
 ON public.event_tracks
 FOR SELECT
 USING (
+  -- Public and private events are visible to everyone
   EXISTS (
     SELECT 1 FROM public.events
     WHERE events.event_id = event_tracks.event_id
-    AND events.visibility = 'public'::event_visibility
+    AND events.visibility IN ('public'::event_visibility, 'private'::event_visibility)
   )
-);
-
--- Policy 2: Allow everyone (including anonymous) to view tracks for private events
-CREATE POLICY "event_tracks_select_private_events"
-ON public.event_tracks
-FOR SELECT
-USING (
-  EXISTS (
-    SELECT 1 FROM public.events
-    WHERE events.event_id = event_tracks.event_id
-    AND events.visibility = 'private'::event_visibility
-  )
-);
-
--- Policy 3: Allow authenticated participants to view tracks for draft events they're part of
-CREATE POLICY "event_tracks_select_participants"
-ON public.event_tracks
-FOR SELECT
-TO authenticated
-USING (
+  OR
+  -- Draft events are visible to participants and owners
   EXISTS (
     SELECT 1 FROM public.events
     WHERE events.event_id = event_tracks.event_id
     AND events.visibility = 'draft'::event_visibility
     AND (
-      public.user_has_event_role(events.event_id, auth.uid())
-      OR events.owner_id = auth.uid()
+      (SELECT auth.uid()) IS NOT NULL
+      AND (
+        public.user_has_event_role(events.event_id, (SELECT auth.uid()))
+        OR events.owner_id = (SELECT auth.uid())
+      )
     )
   )
+  OR
+  -- Admins can view all tracks
+  ((SELECT auth.uid()) IS NOT NULL AND public.is_admin_user((SELECT auth.uid())))
 );
 
--- Policy 4: Allow admin users to view all event tracks
-CREATE POLICY "event_tracks_select_admin"
-ON public.event_tracks
-FOR SELECT
-TO authenticated
-USING (
-  public.is_admin_user(auth.uid())
-);
-
--- ============================================================================
--- INSERT POLICIES (Create Event Tracks)
--- ============================================================================
-
--- Policy 5: Allow event organizers to create tracks for their events
-CREATE POLICY "event_tracks_insert_organizer"
+-- Policy: Allow event organizers and admins to create tracks
+CREATE POLICY "Event organizers and admins can create tracks for events"
 ON public.event_tracks
 FOR INSERT
 TO authenticated
 WITH CHECK (
-  public.is_event_organizer_or_owner(event_id, auth.uid())
+  public.is_event_organizer_or_owner(event_id, (SELECT auth.uid()))
+  OR
+  public.is_admin_user((SELECT auth.uid()))
 );
 
--- Policy 6: Allow admin users to create tracks for any event
-CREATE POLICY "event_tracks_insert_admin"
-ON public.event_tracks
-FOR INSERT
-TO authenticated
-WITH CHECK (
-  public.is_admin_user(auth.uid())
-);
-
--- ============================================================================
--- UPDATE POLICIES (Modify Event Tracks)
--- ============================================================================
-
--- Policy 7: Allow event organizers to update tracks for their events
-CREATE POLICY "event_tracks_update_organizer"
+-- Policy: Allow event organizers and admins to update tracks
+CREATE POLICY "Event organizers and admins can update tracks for events"
 ON public.event_tracks
 FOR UPDATE
 TO authenticated
 USING (
-  public.is_event_organizer_or_owner(event_id, auth.uid())
+  public.is_event_organizer_or_owner(event_id, (SELECT auth.uid()))
+  OR
+  public.is_admin_user((SELECT auth.uid()))
 )
 WITH CHECK (
-  public.is_event_organizer_or_owner(event_id, auth.uid())
+  public.is_event_organizer_or_owner(event_id, (SELECT auth.uid()))
+  OR
+  public.is_admin_user((SELECT auth.uid()))
 );
 
--- Policy 8: Allow admin users to update any event track
-CREATE POLICY "event_tracks_update_admin"
-ON public.event_tracks
-FOR UPDATE
-TO authenticated
-USING (
-  public.is_admin_user(auth.uid())
-)
-WITH CHECK (
-  public.is_admin_user(auth.uid())
-);
-
--- ============================================================================
--- DELETE POLICIES (Remove Event Tracks)
--- ============================================================================
-
--- Policy 9: Allow event organizers to delete tracks from their events
-CREATE POLICY "event_tracks_delete_organizer"
+-- Policy: Allow event organizers and admins to delete tracks
+CREATE POLICY "Event organizers and admins can delete tracks from events"
 ON public.event_tracks
 FOR DELETE
 TO authenticated
 USING (
-  public.is_event_organizer_or_owner(event_id, auth.uid())
-);
-
--- Policy 10: Allow admin users to delete any event track
-CREATE POLICY "event_tracks_delete_admin"
-ON public.event_tracks
-FOR DELETE
-TO authenticated
-USING (
-  public.is_admin_user(auth.uid())
+  public.is_event_organizer_or_owner(event_id, (SELECT auth.uid()))
+  OR
+  public.is_admin_user((SELECT auth.uid()))
 );
 

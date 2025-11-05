@@ -46,78 +46,53 @@ DROP POLICY IF EXISTS "user_event_roles_delete_own" ON public.user_event_roles;
 DROP POLICY IF EXISTS "user_event_roles_insert_organizer" ON public.user_event_roles;
 DROP POLICY IF EXISTS "user_event_roles_update_organizer" ON public.user_event_roles;
 DROP POLICY IF EXISTS "user_event_roles_delete_organizer" ON public.user_event_roles;
+DROP POLICY IF EXISTS "Authenticated users can view all event role assignments" ON public.user_event_roles;
+DROP POLICY IF EXISTS "Users and event organizers can assign roles to events" ON public.user_event_roles;
+DROP POLICY IF EXISTS "Users can update their own roles and organizers can update any role" ON public.user_event_roles;
+DROP POLICY IF EXISTS "Users can remove their own roles and organizers can remove any role" ON public.user_event_roles;
 
--- Policy 1: Allow all authenticated users to view all event roles
--- This allows anyone to see who is participating in events
-CREATE POLICY "user_event_roles_select_authenticated"
+-- Policy 1: SELECT - Allow all authenticated users to view event role assignments
+-- Anyone can see who is participating in events and what their roles are
+CREATE POLICY "Authenticated users can view all event role assignments"
 ON public.user_event_roles
 FOR SELECT
 TO authenticated
 USING (true);
 
--- Policy 2: Allow users to insert their own role assignments
--- Users can join events by creating their own user_event_role entries
-CREATE POLICY "user_event_roles_insert_own"
+-- Policy 2: INSERT - Allow users to assign themselves to events and organizers to assign anyone
+-- Users can join events themselves, and event organizers can add any participant
+CREATE POLICY "Users and event organizers can assign roles to events"
 ON public.user_event_roles
 FOR INSERT
 TO authenticated
 WITH CHECK (
-  user_id = auth.uid()
+  user_id = (SELECT auth.uid())
+  OR public.is_event_organizer(event_id, (SELECT auth.uid()))
 );
 
--- Policy 3: Allow users to update their own role assignments
--- Users can modify their own event participation
-CREATE POLICY "user_event_roles_update_own"
+-- Policy 3: UPDATE - Allow users to update their own role and organizers to update any role
+-- Users can modify their own event participation, and organizers can modify any participant's role
+CREATE POLICY "Users can update their own roles and organizers can update any role"
 ON public.user_event_roles
 FOR UPDATE
 TO authenticated
 USING (
-  user_id = auth.uid()
+  user_id = (SELECT auth.uid())
+  OR public.is_event_organizer(event_id, (SELECT auth.uid()))
 )
 WITH CHECK (
-  user_id = auth.uid()
+  user_id = (SELECT auth.uid())
+  OR public.is_event_organizer(event_id, (SELECT auth.uid()))
 );
 
--- Policy 4: Allow users to delete their own role assignments
--- Users can remove themselves from events
-CREATE POLICY "user_event_roles_delete_own"
+-- Policy 4: DELETE - Allow users to remove themselves and organizers to remove anyone
+-- Users can leave events, and event organizers can remove any participant
+CREATE POLICY "Users can remove their own roles and organizers can remove any role"
 ON public.user_event_roles
 FOR DELETE
 TO authenticated
 USING (
-  user_id = auth.uid()
-);
-
--- Policy 5: Allow organizers to insert any user_event_role for their events
--- Organizers can add participants to their events
-CREATE POLICY "user_event_roles_insert_organizer"
-ON public.user_event_roles
-FOR INSERT
-TO authenticated
-WITH CHECK (
-  public.is_event_organizer(event_id, auth.uid())
-);
-
--- Policy 6: Allow organizers to update any user_event_role for their events
--- Organizers can modify participant roles in their events
-CREATE POLICY "user_event_roles_update_organizer"
-ON public.user_event_roles
-FOR UPDATE
-TO authenticated
-USING (
-  public.is_event_organizer(event_id, auth.uid())
-)
-WITH CHECK (
-  public.is_event_organizer(event_id, auth.uid())
-);
-
--- Policy 7: Allow organizers to delete any user_event_role for their events
--- Organizers can remove participants from their events
-CREATE POLICY "user_event_roles_delete_organizer"
-ON public.user_event_roles
-FOR DELETE
-TO authenticated
-USING (
-  public.is_event_organizer(event_id, auth.uid())
+  user_id = (SELECT auth.uid())
+  OR public.is_event_organizer(event_id, (SELECT auth.uid()))
 );
 
