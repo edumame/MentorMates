@@ -95,7 +95,6 @@ export function Navbar() {
       setSession(null);
       localStorage.removeItem("returnUrl");
       router.push("/");
-      router.refresh();
     }
   };
 
