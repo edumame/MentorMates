@@ -101,6 +101,7 @@ export async function EventPageLayout({
                   eventId={eventId}
                   participantCount={participantCount || 0}
                   projectCount={projectCount || 0}
+                  showTicketsTab={(paid && hasJoined) || false}
                 />
 
                 {/* Main Content */}
@@ -134,6 +135,7 @@ export async function EventPageLayout({
               eventId={eventId}
               participantCount={participantCount || 0}
               projectCount={projectCount || 0}
+              showTicketsTab={(paid && hasJoined) || false}
             />
 
             {/* Main Content */}

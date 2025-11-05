@@ -27,7 +27,8 @@ export default async function PublicParticipantsPage({ params }: PageProps) {
     event_date,
     location,
     cover_image_url,
-    slug
+    slug,
+    paid
   `);
 
   if (isUUID) {
@@ -96,6 +97,7 @@ export default async function PublicParticipantsPage({ params }: PageProps) {
       eventId={id}
       hasJoined={hasJoined}
       dbEventId={eventData.event_id}
+      paid={eventData.paid}
     >
       <ParticipantsContent participants={participantsList} />
     </EventPageLayout>
