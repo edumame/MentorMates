@@ -8,7 +8,6 @@ import {
   ChevronLeft,
   ChevronRight,
   ArrowDownUp,
-  X,
   FileText,
   MessageSquare,
   Lightbulb,
@@ -17,7 +16,6 @@ import {
 import {
   Dialog,
   DialogContent,
-  DialogClose,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
@@ -340,8 +338,7 @@ export default function FeedbackPage() {
         {/* Modal */}
         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
           <DialogContent
-            style={{ width: 888, maxWidth: 888 }}
-            className="p-0 mx-4 border border-gray-200 shadow-xl rounded-[6px] [&>*]:!rounded-[0px]"
+            className="p-0 mx-4 sm:mx-auto w-[calc(100vw-2rem)] max-w-[888px] border border-gray-200 shadow-xl rounded-[6px] [&>*]:!rounded-[0px]"
           >
             <DialogTitle className="sr-only">
               {isGivingFeedback
@@ -351,15 +348,10 @@ export default function FeedbackPage() {
 
             {isGivingFeedback ? (
               // ---------- Share feedback ----------
-              <div className="relative flex flex-col lg:flex-row min-h-[540px] h-[540px] max-h-[80vh]">
-                {/* Single close button, not duplicated */}
-                <DialogClose className="absolute right-4 top-4 z-10 inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/50">
-                  <X className="h-4 w-4" />
-                  <span className="sr-only">Close</span>
-                </DialogClose>
+              <div className="relative flex flex-col lg:flex-row min-h-[400px] lg:min-h-[540px] lg:h-[540px] max-h-[85vh] overflow-y-auto lg:overflow-hidden">
 
                 {/* Left: input */}
-                <div className="flex-1 bg-white px-6 py-6 lg:px-8 lg:py-8 flex flex-col rounded-none lg:rounded-l-[6px]">
+                <div className="flex-1 bg-white px-4 py-6 sm:px-6 sm:py-6 lg:px-8 lg:py-8 flex flex-col rounded-none lg:rounded-l-[6px]">
                   <div className="flex h-full flex-col">
                     <div className="mb-4">
                       <h2 className="text-[16px] font-semibold leading-[1.4] text-muted-foreground">
@@ -404,7 +396,7 @@ export default function FeedbackPage() {
 
                 {/* Right: tips gradient */}
                 <div
-                  className="flex-1 border-t lg:border-t-0 lg:border-l border-[rgba(0,0,0,0.10)] p-6 lg:p-8 flex flex-col rounded-none lg:rounded-r-[6px]"
+                  className="flex-1 border-t lg:border-t-0 lg:border-l border-[rgba(0,0,0,0.10)] px-4 py-6 sm:p-6 lg:p-8 flex flex-col rounded-none lg:rounded-r-[6px] overflow-y-auto lg:overflow-y-visible"
                   style={{
                     background:
                       "linear-gradient(180deg, #DBEAFE 0%, #F9F9FF 100%)",
@@ -469,29 +461,24 @@ export default function FeedbackPage() {
               </div>
             ) : (
               // -------- View feedback --------
-              <div className="relative flex flex-col lg:flex-row min-h-[460px] h-[540px] max-h-[80vh] overflow-hidden rounded-[6px]">
-                {/* Single close button, not duplicated */}
-                <DialogClose className="absolute right-4 top-4 z-10 inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/50">
-                  <X className="h-4 w-4" />
-                  <span className="sr-only">Close</span>
-                </DialogClose>
+              <div className="relative flex flex-col lg:flex-row min-h-[400px] lg:min-h-[460px] lg:h-[540px] max-h-[85vh] overflow-y-auto lg:overflow-hidden rounded-[6px]">
 
                 {/* Left panel */}
-                <div className="flex w-full items-center justify-center bg-white px-6 py-8 lg:w-1/2 rounded-none lg:rounded-l-[6px]">
+                <div className="flex w-full items-center justify-center bg-white px-4 py-6 sm:px-6 sm:py-8 lg:w-1/2 lg:min-h-[540px] rounded-none lg:rounded-l-[6px]">
                   <div className="w-full max-w-xs text-center">
                     <div className="mx-auto mb-4 flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50">
                       <FileText className="h-5 w-5 text-blue-600" />
                     </div>
-                    <h2 className="text-[16px] font-semibold leading-[1.4] text-muted-foreground">
+                    <h2 className="text-[14px] sm:text-[16px] font-semibold leading-[1.4] text-muted-foreground">
                       View feedback for{" "}
                       <button
                         type="button"
-                        className="text-[#4B89EF] hover:underline"
+                        className="text-[#4B89EF] hover:underline break-words"
                       >
                         {selectedFeedback?.projectName}
                       </button>
                     </h2>
-                    <p className="mt-1 text-[12px] leading-[1.45] text-muted-foreground/80">
+                    <p className="mt-1 text-[11px] sm:text-[12px] leading-[1.45] text-muted-foreground/80">
                       Improve your project with clear instruction
                     </p>
                   </div>
@@ -499,25 +486,25 @@ export default function FeedbackPage() {
 
                 {/* Right panel — bold gradient */}
                 <div
-                  className="flex w-full lg:w-1/2 grow items-center justify-center px-6 py-10 rounded-none lg:rounded-r-[6px]"
+                  className="flex w-full lg:w-1/2 grow items-start justify-center px-4 py-6 sm:px-6 sm:py-10 lg:items-center lg:min-h-[540px] rounded-none lg:rounded-r-[6px] overflow-y-auto lg:overflow-y-visible"
                   style={{
                     background:
                       "linear-gradient(180deg, #DBEAFE 0%, #F9F9FF 100%)",
                   }}
                 >
-                  <div className="w-full max-w-2xl">
+                  <div className="w-full max-w-2xl py-4 lg:py-0">
                     <div className="mb-4 text-xs text-gray-600 sm:text-sm">
                       {selectedFeedback ? formatDisplayDate(selectedFeedback.date) : ""}
                     </div>
 
-                    <div className="mb-6 text-[18px] leading-7 text-slate-900 sm:text-[20px]">
-                      <span className="align-top text-[22px]">“</span>
+                    <div className="mb-6 text-[16px] sm:text-[18px] lg:text-[20px] leading-7 text-slate-900 break-words whitespace-pre-wrap">
+                      <span className="align-top text-[18px] sm:text-[20px] lg:text-[22px]">"</span>
                       {selectedFeedback?.message}
-                      <span className="align-top text-[22px]">”</span>
+                      <span className="align-top text-[18px] sm:text-[20px] lg:text-[22px]">"</span>
                     </div>
 
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-10 w-10">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <Avatar className="h-10 w-10 flex-shrink-0">
                         <AvatarImage
                           src={selectedFeedback?.sender.avatar}
                           alt={selectedFeedback?.sender.name}
@@ -526,12 +513,12 @@ export default function FeedbackPage() {
                           {selectedFeedback?.sender.name?.charAt(0)}
                         </AvatarFallback>
                       </Avatar>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-slate-900">
+                      <div className="flex items-center gap-2 flex-wrap min-w-0">
+                        <span className="text-sm font-medium text-slate-900 break-words">
                           {selectedFeedback?.sender.name}
                         </span>
                         {selectedFeedback?.sender.role && (
-                          <span className="rounded-full border border-gray-200 bg-white/60 px-2 py-0.5 text-xs text-gray-700">
+                          <span className="rounded-full border border-gray-200 bg-white/60 px-2 py-0.5 text-xs text-gray-700 flex-shrink-0">
                             {selectedFeedback.sender.role}
                           </span>
                         )}
