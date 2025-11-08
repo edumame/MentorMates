@@ -341,7 +341,7 @@ export default function FeedbackPage() {
         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
           <DialogContent
             style={{ width: 888, maxWidth: 888 }}
-            className="p-0 mx-4 border border-gray-200 shadow-xl rounded-[6px] [&>*]:!rounded-[0px]"
+            className="p-0 mx-4 border border-gray-200 shadow-xl rounded-[6px] [&>*]:!rounded-[0px] [&>button]:hidden"
           >
             <DialogTitle className="sr-only">
               {isGivingFeedback
@@ -352,11 +352,6 @@ export default function FeedbackPage() {
             {isGivingFeedback ? (
               // ---------- Share feedback ----------
               <div className="relative flex flex-col lg:flex-row min-h-[540px] h-[540px] max-h-[80vh]">
-                {/* Single close button, not duplicated */}
-                <DialogClose className="absolute right-4 top-4 z-10 inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/50">
-                  <X className="h-4 w-4" />
-                  <span className="sr-only">Close</span>
-                </DialogClose>
 
                 {/* Left: input */}
                 <div className="flex-1 bg-white px-6 py-6 lg:px-8 lg:py-8 flex flex-col rounded-none lg:rounded-l-[6px]">
@@ -404,12 +399,16 @@ export default function FeedbackPage() {
 
                 {/* Right: tips gradient */}
                 <div
-                  className="flex-1 border-t lg:border-t-0 lg:border-l border-[rgba(0,0,0,0.10)] p-6 lg:p-8 flex flex-col rounded-none lg:rounded-r-[6px]"
+                  className="relative flex-1 border-t lg:border-t-0 lg:border-l border-[rgba(0,0,0,0.10)] p-6 lg:p-8 flex flex-col rounded-none lg:rounded-r-[6px]"
                   style={{
                     background:
                       "linear-gradient(180deg, #DBEAFE 0%, #F9F9FF 100%)",
                   }}
                 >
+                  <DialogClose className="absolute right-4 top-4 z-10 inline-flex h-8 w-8 items-center justify-center rounded-md text-gray-600 hover:bg-gray-200/50 transition-colors">
+                    <X className="h-4 w-4" />
+                    <span className="sr-only">Close</span>
+                  </DialogClose>
                   <div className="flex h-full flex-col">
                     <div className="mb-6 flex items-center justify-between">
                       <div className="flex items-center gap-3">
@@ -470,11 +469,6 @@ export default function FeedbackPage() {
             ) : (
               // -------- View feedback --------
               <div className="relative flex flex-col lg:flex-row min-h-[460px] h-[540px] max-h-[80vh] overflow-hidden rounded-[6px]">
-                {/* Single close button, not duplicated */}
-                <DialogClose className="absolute right-4 top-4 z-10 inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/50">
-                  <X className="h-4 w-4" />
-                  <span className="sr-only">Close</span>
-                </DialogClose>
 
                 {/* Left panel */}
                 <div className="flex w-full items-center justify-center bg-white px-6 py-8 lg:w-1/2 rounded-none lg:rounded-l-[6px]">
@@ -499,12 +493,16 @@ export default function FeedbackPage() {
 
                 {/* Right panel — bold gradient */}
                 <div
-                  className="flex w-full lg:w-1/2 grow items-center justify-center px-6 py-10 rounded-none lg:rounded-r-[6px]"
+                  className="relative flex w-full lg:w-1/2 grow items-center justify-center px-6 py-10 rounded-none lg:rounded-r-[6px]"
                   style={{
                     background:
                       "linear-gradient(180deg, #DBEAFE 0%, #F9F9FF 100%)",
                   }}
                 >
+                  <DialogClose className="absolute right-4 top-4 z-10 inline-flex h-8 w-8 items-center justify-center rounded-md text-gray-600 hover:bg-gray-200/50 transition-colors">
+                    <X className="h-4 w-4" />
+                    <span className="sr-only">Close</span>
+                  </DialogClose>
                   <div className="w-full max-w-2xl">
                     <div className="mb-4 text-xs text-gray-600 sm:text-sm">
                       {selectedFeedback ? formatDisplayDate(selectedFeedback.date) : ""}
