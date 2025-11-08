@@ -139,8 +139,8 @@ export async function EventPageLayout({
             />
 
             {/* Main Content */}
-            <div className="w-full" style={{ maxWidth: "100vw" }}>
-              <div className="flex flex-col md:flex-row items-start gap-6 w-full px-4 md:px-[88px] py-[24px]">
+            <div className="w-full">
+              <div className="flex flex-col md:flex-row items-start gap-6 w-full px-4 md:px-6 py-[24px]">
                 {children}
               </div>
             </div>

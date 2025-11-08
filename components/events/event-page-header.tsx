@@ -60,10 +60,7 @@ export function EventPageHeader({
       style={{ maxWidth: "100vw" }}
     >
       {/* Cover Image */}
-      <div
-        className="h-[240px] w-full relative overflow-hidden"
-        style={{ maxWidth: "100%" }}
-      >
+      <div className="h-[200px] sm:h-[240px] w-full relative overflow-hidden">
         {coverImageUrl ? (
           <>
             <img
@@ -112,7 +109,7 @@ export function EventPageHeader({
             "linear-gradient(180deg, rgba(219, 234, 254, 0.25) 13.188%, rgba(255, 255, 255, 0) 65.83%), linear-gradient(180deg, rgb(251, 252, 254) 0%, rgb(251, 252, 254) 100%)",
         }}
       >
-        <div className="box-border flex flex-col gap-[16px] md:gap-[24px] items-start justify-end py-[24px] px-4 md:px-[88px] w-full max-w-8xl mx-auto">
+        <div className="box-border flex flex-col gap-[16px] md:gap-[24px] items-start justify-end py-[24px] px-4 w-full max-w-8xl mx-auto">
           <div className="flex flex-col gap-[16px] items-start w-full min-w-0">
             <div className="flex flex-col lg:flex-row items-start lg:items-start justify-between w-full gap-6 lg:gap-8">
               {/* Left: Event Info */}
@@ -161,8 +158,8 @@ export function EventPageHeader({
                       }
 
                       return (
-                        <div className="bg-green-500 box-border flex gap-[6px] items-center justify-center px-[16px] py-[8px] rounded-[12px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] w-full">
-                          <p className="font-medium text-sm sm:text-base leading-[1.5] text-white">
+                        <div className="basis-0 bg-green-500 box-border flex gap-[6px] grow items-center justify-center min-h-px min-w-px px-[16px] py-[8px] rounded-[12px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] shrink-0">
+                          <p className="font-medium text-sm sm:text-base leading-[1.5] text-white whitespace-pre md:text-nowrap">
                             Joined
                           </p>
                         </div>
@@ -188,13 +185,13 @@ export function EventPageHeader({
                 <div className="flex gap-[8px] items-start w-full md:w-[341px] flex-col md:flex-row">
                   <div className="flex gap-[8px] items-start flex-1 w-full">
                     <CalendarDays className="w-6 h-6 text-black flex-shrink-0" />
-                    <p className="font-normal text-sm leading-[1.5] text-black break-words">
+                    <p className="font-normal text-sm leading-[1.5] text-black">
                       {dayOfWeek}, {day} {monthYear}
                     </p>
                   </div>
-                  <div className="flex gap-[8px] items-center w-full min-w-0">
-                    <MapPin className="w-5 h-5 md:w-6 md:h-6 text-black flex-shrink-0" />
-                    <p className="font-normal text-sm leading-[1.5] text-black break-words">
+                  <div className="flex gap-[8px] items-start flex-1 w-full">
+                    <MapPin className="w-6 h-6 text-black flex-shrink-0" />
+                    <p className="font-normal text-sm leading-[1.5] text-black">
                       {location}
                     </p>
                   </div>
