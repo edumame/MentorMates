@@ -126,7 +126,7 @@ export function EventPageHeader({
               </div>
 
               {/* Right: Join Button and Meta */}
-              <div className="flex flex-col gap-[12px] items-end justify-center w-[345px]">
+              <div className="flex flex-col gap-[12px] items-end justify-center w-[411px]">
                 <div className="flex flex-col gap-[16px] items-center justify-center w-full">
                   <div className="flex gap-[16px] items-start w-full">
                     {(() => {

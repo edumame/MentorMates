@@ -9,26 +9,25 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import {
   Loader2,
-  Sparkles,
   CalendarClock,
   ThumbsUp,
   MessageSquarePlus,
   MoreHorizontal,
-  Shield,
   ImageIcon,
   Paperclip,
   Github,
   Youtube,
   ExternalLink,
-  FileText,
+
 } from "lucide-react";
 import { toast } from "@/lib/hooks/use-toast";
 import { Toaster } from "@/components/ui/toaster";
 import UserSearchWithInvite from "@/components/utils/UserSearchWithInvite";
 import { useAdmin } from "@/lib/hooks/use-admin";
-import { EventDetails } from "@/lib/types";
+import { EventDetails, EventVisibility } from "@/lib/types";
 import { useProjectSubmissionData } from "@/features/projects/components/forms/hooks/useProjectSubmissionData";
 import { EventCard } from "@/components/events/event-card";
+import { Public, TextFields } from "@mui/icons-material";
 
 interface EventParticipant {
   user_id: string;
@@ -70,6 +69,8 @@ export function NewProjectSubmissionFormSinglePage({
   const [participants, setParticipants] = useState<EventParticipant[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedTrackIds, setSelectedTrackIds] = useState<string[]>([]);
+  const [visibility, setVisibility] = useState<EventVisibility>(EventVisibility.Public);
+  const [showVisibilityDropdown, setShowVisibilityDropdown] = useState(false);
 
   // Load available tracks for the event (if any)
   const { availableTracks } = useProjectSubmissionData(eventId);
@@ -585,15 +586,15 @@ export function NewProjectSubmissionFormSinglePage({
 
       {/* Sticky Auto-save Banner */}
       <div className="sticky top-0 z-20 bg-sky-50 border-b border-[#d8d8d8]">
-        <div className="container mx-auto px-6 py-3.5 flex items-center justify-between max-w-[1280px]">
+        <div className="px-6 py-3.5 flex items-center justify-between max-w-[1280px]">
           <div className="flex items-center gap-2">
-            <Shield className="h-6 w-6 text-[#4c4c4c]" />
+            <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 0 24 24" width="24px" fill="#1f1f1f"><g><rect fill="none" height="24" width="24" /><path d="M12,3.19l7,3.11V11c0,4.52-2.98,8.69-7,9.93C7.98,19.69,5,15.52,5,11V6.3L12,3.19 M12,1L3,5v6c0,5.55,3.84,10.74,9,12 c5.16-1.26,9-6.45,9-12V5L12,1L12,1z M11,7h2v2h-2V7z M11,11h2v6h-2V11z" /></g></svg>
             <p className="text-[#4c4c4c] text-lg font-medium tracking-[-0.06em]">
               Your project is automatically saved as you edit
             </p>
           </div>
           {lastSaved && (
-            <div className="bg-transparent border border-[rgba(0,0,0,0.15)] rounded-full px-2.5 py-1">
+            <div className="bg-transparent px-2.5 py-1">
               <p className="text-[#7f7f7f] text-sm font-medium">
                 Saved at{" "}
                 {lastSaved.toLocaleDateString("en-US", {
@@ -616,8 +617,70 @@ export function NewProjectSubmissionFormSinglePage({
       <div className="overflow-visible">
         {/* Main Content */}
         <div className="bg-gradient-to-br from-blue-100/45 via-transparent to-transparent">
-          <div className="container mx-auto px-8 py-6 min-h-[800px]">
-            <div className="flex gap-12 items-start justify-between">
+          <div className="px-8 py-6 min-h-[800px]">
+            <div className="flex items-center justify-between mb-6">
+              <div className="relative">
+                <button
+                  onClick={() => setShowVisibilityDropdown(!showVisibilityDropdown)}
+                  className="flex items-center gap-2 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] px-3 py-2 h-[44px] w-[142px] hover:bg-gray-50 transition-colors"
+                >
+                  <Public className="w-6 h-6" />
+                  <span className="text-[16px] font-normal">{visibility.charAt(0).toUpperCase() + visibility.slice(1)}</span>
+                  <svg className="w-6 h-6 ml-auto" viewBox="0 0 24 24" fill="none">
+                    <path d="M7 10l5 5 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+
+                {showVisibilityDropdown && (
+                  <div className="absolute top-full py-1.5 px-1 mt-2 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] shadow-lg z-10 w-[160px] overflow-hidden">
+                    {[EventVisibility.Public, EventVisibility.Private].map((vis) => (
+                      <button
+                        key={vis}
+                        onClick={() => {
+                          setVisibility(vis);
+                          setShowVisibilityDropdown(false);
+                        }}
+                        className="w-full text-left px-3 py-2 hover:bg-[#F2F2F2] text-[16px] rounded-[8px]"
+                      >
+                        {vis.charAt(0).toUpperCase() + vis.slice(1)}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center gap-1 justify-end">
+                <Button
+                  variant="secondary"
+                  onClick={() =>
+                    router.push(
+                      eventDetails?.slug
+                        ? `/events/${eventDetails.slug}/overview`
+                        : eventId
+                          ? `/events/${eventId}/overview`
+                          : `/projects`
+                    )
+                  }
+                  className="bg-[#f2f2f2] hover:bg-[#e8e8e8] text-black rounded-xl px-6 py-2.5 shadow-sm font-medium"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handlePublish}
+                  disabled={isSubmitting}
+                  className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-6 py-2.5 shadow-sm font-medium"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Publishing...
+                    </>
+                  ) : (
+                    "Publish project"
+                  )}
+                </Button>
+              </div>
+            </div>
+            <div className="flex justify-between">
               {/* Left Side - Form */}
               <div className="flex-1 max-w-[640px] space-y-6">
                 <div className="space-y-1">
@@ -658,7 +721,7 @@ export function NewProjectSubmissionFormSinglePage({
                       Project name
                     </label>
                     <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-3 py-2 flex items-center gap-3 h-11">
-                      <FileText className="h-6 w-6 shrink-0" />
+                      <TextFields className="h-6 w-6 shrink-0" />
                       <Input
                         value={formData.projectName}
                         onChange={(e) =>
@@ -693,34 +756,34 @@ export function NewProjectSubmissionFormSinglePage({
                   </div>
 
                   {/* Divider */}
-                  <div className="border-t border-gray-200" />
+                  <div className="border-t border-dashed border-gray-200" />
 
-              {/* Tracks Selection (if event has tracks) */}
-              {eventId && availableTracks && availableTracks.length > 0 && (
-                <div className="space-y-2">
-                  <label className="text-base text-black font-normal">
-                    Select tracks
-                  </label>
-                  <div className="space-y-2">
-                    {availableTracks.map((track) => (
-                      <label key={track.id} className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={selectedTrackIds.includes(track.id)}
-                          onChange={(e) =>
-                            handleTrackToggle(track.id, e.target.checked)
-                          }
-                          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                        />
-                        <span className="text-sm text-black">{track.name}</span>
+                  {/* Tracks Selection (if event has tracks) */}
+                  {eventId && availableTracks && availableTracks.length > 0 && (
+                    <div className="space-y-2">
+                      <label className="text-base text-black font-normal">
+                        Select tracks
                       </label>
-                    ))}
-                  </div>
-                  <p className="text-sm text-[#7f7f7f]">
-                    Choose the tracks your project should compete in.
-                  </p>
-                </div>
-              )}
+                      <div className="space-y-2">
+                        {availableTracks.map((track) => (
+                          <label key={track.id} className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={selectedTrackIds.includes(track.id)}
+                              onChange={(e) =>
+                                handleTrackToggle(track.id, e.target.checked)
+                              }
+                              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            <span className="text-sm text-black">{track.name}</span>
+                          </label>
+                        ))}
+                      </div>
+                      <p className="text-sm text-[#7f7f7f]">
+                        Choose the tracks your project should compete in.
+                      </p>
+                    </div>
+                  )}
 
                   {/* Cover Image */}
                   <div className="space-y-2">
@@ -834,32 +897,39 @@ export function NewProjectSubmissionFormSinglePage({
                   </div>
 
                   {/* Divider */}
-                  <div className="border-t border-gray-200" />
+                  <div className="border-t border-dashed border-gray-200" />
 
                   {/* Add Teammates */}
                   <div className="space-y-2">
                     <label className="text-base text-black font-normal">
                       Add teammates (Optional)
                     </label>
-                    <UserSearchWithInvite
-                      allTags={participants.map((p) =>
-                        p.display_name && p.display_name !== p.email
-                          ? `${p.display_name} (${p.email})`
-                          : p.email
-                      )}
-                      onTagsChange={handleTeammatesChange}
-                      initialTags={formData.teammates.map((email) => {
-                        const participant = participants.find(
-                          (p) => p.email === email
-                        );
-                        return participant?.display_name &&
-                          participant.display_name !== email
-                          ? `${participant.display_name} (${email})`
-                          : email;
-                      })}
-                      projectId={projectId || undefined}
-                      enableInvite={true}
-                    />
+                    <div className="border border-gray-200 rounded-xl">
+                      <div className="pt-2 px-3 border-b border-gray-200">
+                        <UserSearchWithInvite
+                          allTags={participants.map((p) =>
+                            p.display_name && p.display_name !== p.email
+                              ? `${p.display_name} (${p.email})`
+                              : p.email
+                          )}
+                          onTagsChange={handleTeammatesChange}
+                          initialTags={formData.teammates.map((email) => {
+                            const participant = participants.find(
+                              (p) => p.email === email
+                            );
+                            return participant?.display_name &&
+                              participant.display_name !== email
+                              ? `${participant.display_name} (${email})`
+                              : email;
+                          })}
+                          projectId={projectId || undefined}
+                          enableInvite={true}
+                          enableMailIcon={true}
+                          inputStyle="pure"
+                          placeholder="Enter your teammates' emails. Press Enter or comma to add each."
+                        />
+                      </div>
+                    </div>
                   </div>
 
                   {/* Spacer to ensure dropdown visibility */}
@@ -868,39 +938,6 @@ export function NewProjectSubmissionFormSinglePage({
 
               {/* Right Side - Preview & Actions */}
               <div className="space-y-3">
-                {/* Action Buttons */}
-                <div className="flex items-center gap-1 justify-end">
-                  <Button
-                    variant="secondary"
-                    onClick={() =>
-                      router.push(
-                        eventDetails?.slug
-                          ? `/events/${eventDetails.slug}/overview`
-                          : eventId
-                            ? `/events/${eventId}/overview`
-                            : `/projects`
-                      )
-                    }
-                    className="bg-[#f2f2f2] hover:bg-[#e8e8e8] text-black rounded-xl px-6 py-2.5 shadow-sm font-medium"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={handlePublish}
-                    disabled={isSubmitting}
-                    className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-6 py-2.5 shadow-sm font-medium"
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Publishing...
-                      </>
-                    ) : (
-                      "Publish project"
-                    )}
-                  </Button>
-                </div>
-
                 {/* Preview Card */}
                 <div className="space-y-3">
                   <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl overflow-hidden w-[339px]">
@@ -949,7 +986,7 @@ export function NewProjectSubmissionFormSinglePage({
                           <div className="flex items-center gap-1">
                             <CalendarClock className="h-5 w-5 text-[#575d65]" />
                             <span className="text-sm text-[#575d65]">
-                              11 Jan 2025
+                              {new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                             </span>
                           </div>
                           <div className="flex items-center gap-1">
@@ -1020,6 +1057,7 @@ export function NewProjectSubmissionFormSinglePage({
                 )}
               </div>
             </div>
+
           </div>
         </div>
       </div>
