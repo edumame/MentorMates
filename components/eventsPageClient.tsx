@@ -7,6 +7,7 @@ import { UI_TEXT } from "@/lib/config/constants";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { useAuth } from "@/features/user/authentication/auth/AuthContext";
+import { useAdmin } from "@/lib/hooks/use-admin";
 import { Search, ChevronDown } from "lucide-react";
 
 type SortOption = "date" | "name" | "type";
@@ -16,6 +17,7 @@ export function EventsPageClient({ eventsList }: { eventsList: EventItem[] }) {
   const [sortBy, setSortBy] = useState<SortOption>("date");
   const [showSortMenu, setShowSortMenu] = useState(false);
   const { isAuthenticated } = useAuth();
+  const isAdmin = useAdmin();
 
   const filteredAndSortedEvents = useMemo(() => {
     // First filter by search term

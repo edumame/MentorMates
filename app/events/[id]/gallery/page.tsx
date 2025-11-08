@@ -25,7 +25,8 @@ export default async function GalleryPage({ params, searchParams }: PageProps) {
     event_date,
     location,
     cover_image_url,
-    slug
+    slug,
+    paid
   `);
 
   if (isUUID) {
@@ -70,6 +71,7 @@ export default async function GalleryPage({ params, searchParams }: PageProps) {
       eventId={id}
       hasJoined={hasJoined}
       dbEventId={eventData.event_id}
+      paid={eventData.paid}
     >
       <GalleryContent
         eventId={eventData.event_id}

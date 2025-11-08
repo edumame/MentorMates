@@ -21,7 +21,8 @@ export default async function FAQPage({ params }: PageProps) {
     event_date,
     location,
     cover_image_url,
-    slug
+    slug,
+    paid
   `);
 
   if (isUUID) {
@@ -64,6 +65,7 @@ export default async function FAQPage({ params }: PageProps) {
       eventId={id}
       hasJoined={hasJoined}
       dbEventId={eventData.event_id}
+      paid={eventData.paid}
     >
       <FAQContent />
     </EventPageLayout>
