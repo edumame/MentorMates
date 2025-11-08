@@ -327,16 +327,16 @@ export function JoinEventButton({
             ? label
             : event?.paid
               ? !isAuthenticated
-                ? `Join ${eventName}`
+                ? `Join event`
                 : pricingTiers.length > 0
                   ? (() => {
                     const cheapestTier = getCheapestPricingTier(pricingTiers);
                     return cheapestTier
-                      ? `Join ${eventName} - From ${formatPrice(cheapestTier.price)}`
-                      : `Join ${eventName} - Multiple Tiers Available`;
+                      ? `Join event - From ${formatPrice(cheapestTier.price)}`
+                      : `Join event - Multiple Tiers Available`;
                   })()
-                  : `Join ${eventName} - Paid Event`
-              : `Join ${eventName}`}
+                  : `Join event - Paid Event`
+              : `Join event`}
         </Button>
       </DialogTrigger>
       <DialogContent

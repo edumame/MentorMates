@@ -63,7 +63,7 @@ const ProjectBoard = ({
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="mx-auto"
+          className="mx-auto w-full"
         >
           {projectList.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -283,15 +283,18 @@ const ProjectBoard = ({
                     );
                   case ProjectBoardContext.EventGallery:
                     return (
-                      <div className="flex flex-col items-center justify-center space-y-4 mt-12">
-                        <div className="text-center space-y-3">
+                      <div className="flex flex-col items-center justify-center py-20 border border-dashed border-[rgba(0,0,0,0.15)] rounded-[20px] p-8">
+                        <div className="text-center space-y-3 flex flex-col items-center justify-center">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="M11 3V11L14 8L17 11V3M5 3H19C20.1046 3 21 3.89543 21 5V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V5C3 3.89543 3.89543 3 5 3Z" stroke="#09090B" stroke-width="1.67" stroke-linecap="round" stroke-linejoin="round"></path></svg>
                           <h3 className="text-xl font-semibold text-gray-700">
-                            No Projects Found
+                            No project yet
                           </h3>
                           <p className="text-gray-500 max-w-sm">
-                            Try adjusting your search criteria or be the first
-                            to submit a project!
+                            Join the event to submit a project or create a project directly.
                           </p>
+                          <Button className="mt-4">
+                            <Link href="/projects/submit">Submit a project</Link>
+                          </Button>
                         </div>
                       </div>
                     );

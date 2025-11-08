@@ -57,7 +57,7 @@ export function EventPageHeader({
   return (
     <div className="bg-white flex flex-col items-center w-full">
       {/* Cover Image */}
-      <div className="h-[200px] sm:h-[240px] w-full relative overflow-hidden">
+      <div className="h-[200px] sm:h-[224px] w-full relative overflow-hidden">
         {coverImageUrl ? (
           <>
             <img
@@ -180,14 +180,14 @@ export function EventPageHeader({
                 </div>
 
                 {/* Date and Location */}
-                <div className="flex gap-[8px] items-center justify-around w-full">
-                  <div className="flex gap-[8px] items-center">
+                <div className="flex gap-[8px] items-center justify-around w-full ">
+                  <div className="flex gap-[8px] items-center flex-wrap">
                     <CalendarDays className="w-6 h-6 text-black flex-shrink-0" />
                     <p className="font-normal text-sm leading-[1.5] text-black">
                       {dayOfWeek}, {day} {monthYear}
                     </p>
                   </div>
-                  <div className="flex gap-[8px] items-center">
+                  <div className="flex gap-[8px] items-center flex-wrap">
                     <MapPin className="w-6 h-6 text-black flex-shrink-0" />
                     <p className="font-normal text-sm leading-[1.5] text-black">
                       {location}
