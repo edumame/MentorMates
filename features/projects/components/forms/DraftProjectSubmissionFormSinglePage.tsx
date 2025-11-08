@@ -387,15 +387,15 @@ export default function DraftProjectSubmissionFormSinglePage({
     <>
       {/* Sticky Auto-save Banner */}
       <div className="sticky top-0 z-40 bg-sky-50 border-b border-[#d8d8d8]">
-        <div className="mx-auto px-6 py-3.5 flex items-center justify-between">
+        <div className="mx-auto px-6 py-3.5 flex items-center justify-between flex-wrap">
           <div className="flex items-center gap-2">
             <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 0 24 24" width="24px" fill="#1f1f1f"><g><rect fill="none" height="24" width="24" /><path d="M12,3.19l7,3.11V11c0,4.52-2.98,8.69-7,9.93C7.98,19.69,5,15.52,5,11V6.3L12,3.19 M12,1L3,5v6c0,5.55,3.84,10.74,9,12 c5.16-1.26,9-6.45,9-12V5L12,1L12,1z M11,7h2v2h-2V7z M11,11h2v6h-2V11z" /></g></svg>
-            <p className="text-[#4c4c4c] text-lg font-medium tracking-[-0.06em]">
+            <p className="text-[#4c4c4c] text-base font-medium tracking-[-0.06em]">
               Your project is automatically saved as you edit
             </p>
           </div>
           {lastSaved && (
-            <div className="bg-transparent px-2.5 py-1">
+            <div className="bg-transparent px-2.5 py-1 ml-6 sm:m-0">
               <p className="text-[#7f7f7f] text-sm font-medium">
                 Saved at{" "}
                 {lastSaved.toLocaleDateString("en-US", {
@@ -417,9 +417,9 @@ export default function DraftProjectSubmissionFormSinglePage({
       {/* Main Content */}
       <div className="bg-gradient-to-br from-blue-100/45 via-transparent to-transparent">
         <div className="mx-auto px-8 py-6 min-h-[800px]">
-          <div className="flex gap-12 items-start justify-between">
+          <div className="flex gap-[50px] sm:gap-[85px] items-start justify-between flex-wrap-reverse sm:flex-nowrap">
             {/* Left Side - Form */}
-            <div className="flex-1 max-w-[640px] space-y-6">
+            <div className="flex-1 space-y-6">
               <div className="space-y-1">
                 <h1 className="text-[28px] font-semibold text-black tracking-[-0.06em] leading-[1.4]">
                   Edit your project
@@ -683,7 +683,7 @@ export default function DraftProjectSubmissionFormSinglePage({
 
               {/* Preview Card */}
               <div className="space-y-3 flex flex-col justify-center">
-                <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl overflow-hidden w-[339px]">
+                <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl overflow-hidden w-full sm:w-[339px]">
                   {/* Cover Image */}
                   <div className="aspect-[339/220] relative">
                     {formData.cover_image_url ? (
