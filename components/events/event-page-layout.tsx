@@ -79,7 +79,7 @@ export async function EventPageLayout({
 
   return (
     <ActiveRoleProvider initialRole={userRole}>
-      <div className="flex flex-col w-full">
+      <div className="flex flex-col w-full" style={{ maxWidth: "100vw" }}>
         {userRole ? (
           <EventPageClientWrapper
             userRole={userRole}
