@@ -117,7 +117,7 @@ export function MyEvents() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {events.map((e) => (
-            <div key={e.id} className="relative">
+            <div key={e.id} className="relative w-full max-w-[420px] mx-auto">
               <EventCard event={toEventItem(e)} />
               {e.roleLabel && (
                 <div className="absolute top-3 left-3 z-10">

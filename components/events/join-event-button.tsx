@@ -294,6 +294,7 @@ export function JoinEventButton({
       // Redirect to overview page after successful acceptance
       const overviewUrl = `/events/${event?.slug || eventId}/overview`;
       router.push(overviewUrl);
+      router.refresh();
     } catch (error) {
       console.error("Error joining event:", error);
       toast({

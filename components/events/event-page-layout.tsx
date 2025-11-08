@@ -16,6 +16,8 @@ interface EventPageLayoutProps {
   eventId: string;
   hasJoined: boolean;
   dbEventId: string; // The actual database UUID for the event
+  paid?: boolean;
+  eventType?: string;
 }
 
 export async function EventPageLayout({
@@ -28,6 +30,8 @@ export async function EventPageLayout({
   eventId,
   hasJoined,
   dbEventId,
+  paid,
+  eventType,
 }: EventPageLayoutProps) {
   const supabase = await createSupabaseClient();
 
@@ -88,6 +92,8 @@ export async function EventPageLayout({
             coverImageUrl={coverImageUrl}
             displayEventId={eventId}
             hasJoined={hasJoined}
+            paid={paid || false}
+            eventType={eventType || "Hackathon"}
             tabsAndContent={
               <>
                 {/* Tabs Navigation */}
@@ -95,11 +101,12 @@ export async function EventPageLayout({
                   eventId={eventId}
                   participantCount={participantCount || 0}
                   projectCount={projectCount || 0}
+                  showTicketsTab={(paid && hasJoined) || false}
                 />
 
                 {/* Main Content */}
                 <div className="w-full">
-                  <div className="flex flex-col md:flex-row items-start gap-6 w-full px-4 md:px-[88px] py-[24px]">
+                  <div className="mx-auto max-w-7xl flex flex-col md:flex-row items-start gap-6 w-full px-4 md:px-6 py-[24px]">
                     {children}
                   </div>
                 </div>
@@ -119,6 +126,8 @@ export async function EventPageLayout({
               hasJoined={hasJoined}
               userRole={null}
               activeRole={null}
+              paid={paid || false}
+              eventType={eventType || "Hackathon"}
             />
 
             {/* Tabs Navigation */}
@@ -126,6 +135,7 @@ export async function EventPageLayout({
               eventId={eventId}
               participantCount={participantCount || 0}
               projectCount={projectCount || 0}
+              showTicketsTab={(paid && hasJoined) || false}
             />
 
             {/* Main Content */}

@@ -80,6 +80,8 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
     { value: "email", label: "Email", icon: Mail },
   ];
 
+  const allTabs = [...primaryTabs, ...overflowTabs];
+
   useEffect(() => {
     async function fetchEvent() {
       try {
@@ -228,11 +230,11 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
   if (loading) {
     return (
       <PageContainer>
-        <PageContent className="px-[32px] pt-[24px]">
-          <div className="flex flex-col gap-[48px] max-w-[1064px] mx-auto">
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-      </div>
+        <PageContent className="px-4 pt-6 sm:px-6 lg:px-8">
+          <div className="mx-auto flex w-full max-w-[1064px] flex-col gap-12">
+            <div className="flex min-h-[400px] items-center justify-center">
+              <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-t-2 border-blue-500"></div>
+            </div>
           </div>
         </PageContent>
       </PageContainer>
@@ -242,11 +244,11 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
   if (!event) {
     return (
       <PageContainer>
-        <PageContent className="px-[32px] pt-[24px]">
-          <div className="flex flex-col gap-[48px] max-w-[1064px] mx-auto">
-      <div className="text-center py-8">
-        <p className="text-gray-600">Event not found</p>
-      </div>
+        <PageContent className="px-4 pt-6 sm:px-6 lg:px-8">
+          <div className="mx-auto flex w-full max-w-[1064px] flex-col gap-12">
+            <div className="py-8 text-center">
+              <p className="text-gray-600">Event not found</p>
+            </div>
           </div>
         </PageContent>
       </PageContainer>
@@ -255,110 +257,112 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
 
   return (
     <PageContainer>
-      <PageContent className="px-[32px] pt-[24px]">
-        <div className="flex flex-col gap-[48px] max-w-[1064px] mx-auto">
-    <div className="space-y-6">
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="mb-8 w-full h-auto flex flex-wrap gap-2 grid lg:grid-cols-3 md:grid-cols-2 grid-cols-2">
-          {[...primaryTabs, ...overflowTabs].map((item) => (
-            <TabsTrigger
-              key={item.value}
-              value={item.value}
-              title={item.label}
-              className="inline-flex items-center gap-2 px-3 py-1.5"
-            >
-              <item.icon className="h-4 w-4" />
-              {item.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+      <PageContent className="px-4 pt-6 sm:px-6 lg:px-8">
+        <div className="mx-auto flex w-full max-w-[1064px] flex-col gap-12">
+          <div className="space-y-6">
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
+              <div className="-mx-2 mb-6 overflow-x-auto pb-2 sm:mx-0 sm:overflow-visible">
+                <TabsList className="flex h-auto min-w-full gap-2 overflow-x-auto rounded-none bg-transparent p-0 sm:min-w-0 sm:flex-wrap sm:rounded-lg sm:bg-muted sm:p-1">
+                  {allTabs.map((item) => (
+                    <TabsTrigger
+                      key={item.value}
+                      value={item.value}
+                      title={item.label}
+                      className="flex-shrink-0 gap-2 px-3 py-2 text-xs sm:flex-1 sm:flex-shrink sm:text-sm"
+                    >
+                      <item.icon className="h-4 w-4" />
+                      <span className="whitespace-nowrap font-medium">{item.label}</span>
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+              </div>
 
-        <TabsContent value="details">
-          <EventDetailsTab
-            event={event}
-            setEvent={setEvent}
-            saving={saving}
-            setSaving={setSaving}
-            router={router}
-            toast={toast}
-            refetchEvent={refetchEvent}
-            isArchived={isArchived}
-          />
-        </TabsContent>
+              <TabsContent value="details">
+                <EventDetailsTab
+                  event={event}
+                  setEvent={setEvent}
+                  saving={saving}
+                  setSaving={setSaving}
+                  router={router}
+                  toast={toast}
+                  refetchEvent={refetchEvent}
+                  isArchived={isArchived}
+                />
+              </TabsContent>
 
-        {isAdmin && (
-          <TabsContent value="pricing">
-            <PricingTab
-              event={event}
-              setEvent={setEvent}
-              saving={saving}
-              setSaving={setSaving}
-            />
-          </TabsContent>
-        )}
+              {isAdmin && (
+                <TabsContent value="pricing">
+                  <PricingTab
+                    event={event}
+                    setEvent={setEvent}
+                    saving={saving}
+                    setSaving={setSaving}
+                  />
+                </TabsContent>
+              )}
 
-        <TabsContent value="access">
-          <AccessTab
-            eventId={eventId}
-            event={event}
-            setEvent={setEvent}
-            saving={saving}
-            setSaving={setSaving}
-          />
-        </TabsContent>
+              <TabsContent value="access">
+                <AccessTab
+                  eventId={eventId}
+                  event={event}
+                  setEvent={setEvent}
+                  saving={saving}
+                  setSaving={setSaving}
+                />
+              </TabsContent>
 
-        <TabsContent value="tracks">
-          <EventTracksContainer
-            eventId={eventId}
-            event={event}
-            setEvent={setEvent}
-            scoringConfig={scoringConfig}
-            setScoringConfig={setScoringConfig}
-            saving={saving}
-            setSaving={setSaving}
-            toast={toast}
-          />
-        </TabsContent>
+              <TabsContent value="tracks">
+                <EventTracksContainer
+                  eventId={eventId}
+                  event={event}
+                  setEvent={setEvent}
+                  scoringConfig={scoringConfig}
+                  setScoringConfig={setScoringConfig}
+                  saving={saving}
+                  setSaving={setSaving}
+                  toast={toast}
+                />
+              </TabsContent>
 
-        <TabsContent value="participants">
-          <ParticipantsTab eventId={eventId} />
-        </TabsContent>
+              <TabsContent value="participants">
+                <ParticipantsTab eventId={eventId} />
+              </TabsContent>
 
-        <TabsContent value="assign">
-          <AssignTab eventId={eventId} />
-        </TabsContent>
+              <TabsContent value="assign">
+                <AssignTab eventId={eventId} />
+              </TabsContent>
 
-        <TabsContent value="submissions">
-          <SubmissionsTab eventId={eventId} />
-        </TabsContent>
+              <TabsContent value="submissions">
+                <SubmissionsTab eventId={eventId} />
+              </TabsContent>
 
-        <TabsContent value="scores">
-          <ScoresTab
-            eventId={eventId}
-            scoringConfig={
-              scoringConfig || {
-                tracks: {},
-                defaultMin: 1,
-                defaultMax: 10,
-                defaultWeight: 1,
-              }
-            }
-          />
-        </TabsContent>
+              <TabsContent value="scores">
+                <ScoresTab
+                  eventId={eventId}
+                  scoringConfig={
+                    scoringConfig || {
+                      tracks: {},
+                      defaultMin: 1,
+                      defaultMax: 10,
+                      defaultWeight: 1,
+                    }
+                  }
+                />
+              </TabsContent>
 
-        <TabsContent value="import">
-          <ProjectImport eventId={eventId} />
-        </TabsContent>
+              <TabsContent value="import">
+                <ProjectImport eventId={eventId} />
+              </TabsContent>
 
-        <TabsContent value="email">
-          <EmailTab eventId={eventId} />
-        </TabsContent>
+              <TabsContent value="email">
+                <EmailTab eventId={eventId} />
+              </TabsContent>
 
-        <TabsContent value="notify">
-          <EmailDashboard eventId={eventId} eventName={event.event_name} />
-        </TabsContent>
-      </Tabs>
-    </div>
+              <TabsContent value="notify">
+                <EmailDashboard eventId={eventId} eventName={event.event_name} />
+              </TabsContent>
+            </Tabs>
+          </div>
         </div>
       </PageContent>
     </PageContainer>

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { parseEventDateLocal } from "@/lib/utils/date";
 import Link from "next/link";
 // Replaced Next.js Image with native img per request
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -35,21 +36,19 @@ type UIEvent = {
 
 const fmtDate = (iso?: string | null) => {
   if (!iso) return "TBD";
-  try {
-    return new Intl.DateTimeFormat("en-US", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    }).format(new Date(iso));
-  } catch {
-    return "TBD";
-  }
+  const d = parseEventDateLocal(iso);
+  if (!d) return "TBD";
+  return new Intl.DateTimeFormat("en-US", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(d);
 };
 
 const getDateParts = (iso?: string | null) => {
   if (!iso) return { dow: "", day: "", monYear: "" };
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return { dow: "", day: "", monYear: "" };
+  const d = parseEventDateLocal(iso);
+  if (!d) return { dow: "", day: "", monYear: "" };
   const dow = new Intl.DateTimeFormat("en-US", { weekday: "short" }).format(d);
   const day = new Intl.DateTimeFormat("en-US", { day: "2-digit" }).format(d);
   const mon = new Intl.DateTimeFormat("en-US", { month: "short" }).format(d);

@@ -11,19 +11,19 @@ import { useAuth } from "@/features/user/authentication/auth/AuthContext";
 const SUBSTACK_BASE = "https://mentormates.substack.com/";
 
 export function Footer() {
-  const [firstUrl, setFirstUrl] = useState("");
-  const [firstReferrer, setFirstReferrer] = useState("");
-  const { isAuthenticated } = useAuth();
+    const { isAuthenticated, isLoading } = useAuth();
+    const [firstUrl, setFirstUrl] = useState("");
+    const [firstReferrer, setFirstReferrer] = useState("");
 
-  useEffect(() => {
-    setFirstUrl(window.location.href);
-    setFirstReferrer(document.referrer || "");
-  }, []);
+    useEffect(() => {
+        setFirstUrl(window.location.href);
+        setFirstReferrer(document.referrer || "");
+    }, []);
 
-  // Don't render footer if user is authenticated
-  if (isAuthenticated) {
-    return null;
-  }
+    // Hide footer when authenticated or while loading to avoid a flash
+    if (isLoading || isAuthenticated) {
+        return null;
+    }
 
   return (
     <footer className="w-full bg-white">

@@ -14,6 +14,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { Download } from "@mui/icons-material";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Trash2 } from "lucide-react";
@@ -43,6 +45,7 @@ interface ParticipantsTabProps {
 export function ParticipantsTab({ eventId }: ParticipantsTabProps) {
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [loading, setLoading] = useState(true);
+  const [notifyOnSave, setNotifyOnSave] = useState<boolean>(false);
   const router = useRouter();
   const { toast } = useToast();
 
@@ -175,7 +178,7 @@ export function ParticipantsTab({ eventId }: ParticipantsTabProps) {
       const res = await fetch(`/api/events/${eventId}/participants/${userId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role: newRole }),
+        body: JSON.stringify({ role: newRole, notify: notifyOnSave }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({} as any));
@@ -195,6 +198,8 @@ export function ParticipantsTab({ eventId }: ParticipantsTabProps) {
     try {
       const res = await fetch(`/api/events/${eventId}/participants/${userId}`, {
         method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notify: notifyOnSave }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({} as any));
@@ -219,7 +224,17 @@ export function ParticipantsTab({ eventId }: ParticipantsTabProps) {
             <div>Loading participants...</div>
           ) : (
             <>
-              <div className="flex justify-end">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="notify-on-save"
+                    checked={notifyOnSave}
+                    onCheckedChange={(checked) => setNotifyOnSave(Boolean(checked))}
+                  />
+                  <Label htmlFor="notify-on-save" className="text-sm text-muted-foreground">
+                    Notify participant when saving changes
+                  </Label>
+                </div>
                 <Button onClick={handleExportCSV} variant="outline" size="sm">
                   <Download className="w-4 h-4 mr-2" />
                   Export CSV

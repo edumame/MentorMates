@@ -7,12 +7,14 @@ interface EventPageTabsProps {
   eventId: string;
   participantCount?: number;
   projectCount?: number;
+  showTicketsTab?: boolean;
 }
 
 export function EventPageTabs({
   eventId,
   participantCount,
   projectCount,
+  showTicketsTab,
 }: EventPageTabsProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -33,6 +35,10 @@ export function EventPageTabs({
     { name: "FAQs", path: `/events/${eventId}/faqs` },
     // { name: "Gallery", path: `/events/${eventId}/gallery` }, // TODO: Add back when image upload functionality is ready
   ];
+
+  if (showTicketsTab) {
+    tabs.push({ name: "Tickets", path: `/events/${eventId}/tickets` });
+  }
 
   // Helper function to preserve query params
   const getHrefWithParams = (path: string) => {

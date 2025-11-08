@@ -3,31 +3,31 @@
 import Link from "next/link";
 import { MapPin } from "lucide-react";
 import { EventItem } from "@/lib/types";
+import { parseEventDateLocal } from "@/lib/utils/date";
 
 interface EventCardProps {
-  event: EventItem & { event_blurb?: string };
+  event: EventItem;
 }
 
 export function EventCard({ event }: EventCardProps) {
   // Parse date for display with safe fallbacks
   const { dayOfWeek, day, monthYear } = (() => {
-    try {
-      const parsed = new Date(event.event_date);
-      if (Number.isNaN(parsed.getTime())) {
-        return { dayOfWeek: "TBD", day: "--", monthYear: "" };
-      }
-      return {
-        dayOfWeek: parsed.toLocaleDateString("en-US", { weekday: "short" }),
-        day: parsed.toLocaleDateString("en-US", { day: "2-digit" }),
-        monthYear: parsed.toLocaleDateString("en-US", { month: "short", year: "numeric" }),
-      };
-    } catch {
-      return { dayOfWeek: "TBD", day: "--", monthYear: "" };
-    }
+    const parsed = parseEventDateLocal(event.event_date);
+    if (!parsed) return { dayOfWeek: "TBD", day: "--", monthYear: "" };
+    return {
+      dayOfWeek: parsed.toLocaleDateString("en-US", { weekday: "short" }),
+      day: parsed.toLocaleDateString("en-US", { day: "2-digit" }),
+      monthYear: parsed.toLocaleDateString("en-US", {
+        month: "short",
+        year: "numeric",
+      }),
+    };
   })();
 
   // Determine if event is paid or free
   const isPaid = event.paid || event.stripe_price_id;
+
+  const eventType = event.event_type || "Hackathon";
 
   // Get event blurb or fallback to empty string
   const eventBlurb = event.event_blurb || "";
@@ -54,12 +54,13 @@ export function EventCard({ event }: EventCardProps) {
           {/* Date Badge */}
           <div className="absolute top-4 right-4 bg-white border border-[#aaaaaa] rounded-[6px] w-[112px] py-3 px-1 text-center">
             <p className="text-[14px] font-normal text-black">{dayOfWeek}</p>
-            <p className="text-[36px] font-semibold leading-[1.3] tracking-[-2.16px] text-black" style={{ fontFamily: "Geist, sans-serif" }}>
+            <p
+              className="text-[36px] font-semibold leading-[1.3] tracking-[-2.16px] text-black"
+              style={{ fontFamily: "Geist, sans-serif" }}
+            >
               {day}
             </p>
-            <p className="text-[14px] font-normal text-black">
-              {monthYear}
-            </p>
+            <p className="text-[14px] font-normal text-black">{monthYear}</p>
           </div>
         </div>
 
@@ -68,7 +69,9 @@ export function EventCard({ event }: EventCardProps) {
           {/* Event Details Tags */}
           <div className="flex flex-wrap gap-1 mb-3">
             <span className="px-[10px] py-1 border border-[rgba(0,0,0,0.15)] rounded-full text-[14px] font-semibold text-black">
-              Hackathon
+              {eventType
+                ? eventType.charAt(0).toUpperCase() + eventType.slice(1)
+                : "Hackathon"}
             </span>
             <span className="px-[10px] py-1 border border-[rgba(0,0,0,0.15)] rounded-full text-[14px] font-semibold text-black">
               {isPaid ? "Paid" : "Free"}
@@ -93,7 +96,8 @@ export function EventCard({ event }: EventCardProps) {
 
           {/* Description */}
           <p className="text-[16px] font-normal text-black leading-[1.5] line-clamp-3">
-            {eventBlurb || "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse varius enim in eros."}
+            {eventBlurb ||
+              "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse varius enim in eros."}
           </p>
         </div>
       </div>

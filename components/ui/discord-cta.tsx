@@ -15,7 +15,7 @@ export function DiscordCTA({
 }: DiscordCTAProps) {
   const discordUrl = "https://discord.gg/6pbUzK44eW";
 
-  const containerClasses = "w-full max-w-6xl mx-auto";
+  const containerClasses = "w-full max-w-7xl mx-auto";
 
   if (variant === "compact") {
     return (

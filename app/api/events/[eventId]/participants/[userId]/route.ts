@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { EventRole } from "@/lib/types";
 import { canAccessRole } from "@/features/user/roles/roles";
+import { EMAIL_TYPES } from "@/lib/email_templates/constants";
 
 const updateRoleSchema = z.object({
   role: z.enum([
@@ -11,6 +12,7 @@ const updateRoleSchema = z.object({
     EventRole.Judge,
     EventRole.Organizer,
   ]),
+  notify: z.boolean().optional().default(false),
 });
 
 async function authorizeAndGetContext(
@@ -96,6 +98,7 @@ export async function PATCH(
     }
 
     const newRole = parsed.data.role;
+    const shouldNotify = parsed.data.notify === true;
 
     const { error: updateError } = await auth.supabase
       .from("user_event_roles")
@@ -108,6 +111,25 @@ export async function PATCH(
       return NextResponse.json({ error: message }, { status: 400 });
     }
 
+    // Optionally notify the affected user about the change
+    if (shouldNotify) {
+      try {
+        await fetch(`${process.env.NEXT_PUBLIC_APP_URL || ''}/api/email_notification/user/${auth.userId}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              eventId: auth.eventId,
+              emailType: EMAIL_TYPES.EVENT_UPDATE,
+            }),
+          }
+        );
+      } catch (e) {
+        // Non-blocking: ignore failures to send email
+        console.error("Failed to send notification email for role update", e);
+      }
+    }
+
     return NextResponse.json({ success: true, user_id: auth.userId, role: newRole });
   } catch (error) {
     console.error("Error updating participant role:", error);
@@ -116,13 +138,14 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   context: { params: Promise<{ eventId: string; userId: string }> }
 ) {
   try {
     const { eventId, userId } = await context.params;
-    const auth = await authorizeAndGetContext(_request, { eventId, userId });
+    const auth = await authorizeAndGetContext(request, { eventId, userId });
     if ("error" in auth) return auth.error;
+    const { notify } = await request.json().catch(() => ({ notify: false }));
 
     const { error: deleteError } = await auth.supabase
       .from("user_event_roles")
@@ -132,6 +155,23 @@ export async function DELETE(
 
     if (deleteError) {
       return NextResponse.json({ error: deleteError.message || "Failed to remove user" }, { status: 400 });
+    }
+
+    if (notify === true) {
+      try {
+        await fetch(`${process.env.NEXT_PUBLIC_APP_URL || ''}/api/email_notification/user/${auth.userId}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              eventId: auth.eventId,
+              emailType: EMAIL_TYPES.EVENT_UPDATE,
+            }),
+          }
+        );
+      } catch (e) {
+        console.error("Failed to send notification email for removal", e);
+      }
     }
 
     return NextResponse.json({ success: true, user_id: auth.userId });

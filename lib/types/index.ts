@@ -103,6 +103,7 @@ export type EventItem = {
   event_id: string;
   slug?: string;
   event_name: string;
+  event_blurb?: string;
   event_date: string;
   location: string;
   visibility?: EventVisibility;
@@ -112,6 +113,7 @@ export type EventItem = {
   stripe_price_id?: string; // Stripe price ID for paid events
   participant_capacity?: number | null; // Max participants; null = unlimited
   finalist_recommendation_enabled?: boolean | null;
+  event_type?: string;
 };
 
 // Event Overview Types
@@ -194,6 +196,8 @@ export interface EventTrack {
 }
 
 export interface EventDetails extends EventItem {
+  paid: boolean;
+  event_type: string;
   event_description: string;
   event_blurb?: string;
   paywall_content?: string;

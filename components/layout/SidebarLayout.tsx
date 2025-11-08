@@ -21,12 +21,12 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
           </aside>
 
           {/* Main content with left margin to account for fixed sidebar and top padding for navbar */}
-          <main className="relative z-20 flex-1 lg:ml-[var(--sidebar-width,280px)] pt-[16px] overflow-y-auto">
+          <main className="relative z-20 flex-1 min-h-0 lg:ml-[var(--sidebar-width,280px)] pt-[16px] overflow-hidden">
             {children}
           </main>
         </div>
       ) : (
-        <div className="min-h-screen w-full">{children}</div>
+        <div className="h-full w-full overflow-auto">{children}</div>
       )}
     </>
   );

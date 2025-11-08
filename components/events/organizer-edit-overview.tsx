@@ -12,6 +12,13 @@ import {
   EventVisibility,
   ScoringCriterion,
 } from "@/lib/types";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 // Import existing tab components
 import { ParticipantsTab } from "@/features/user/dashboards/dashboard/organizer/participants";
@@ -259,8 +266,8 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
     const previewUrl = `/events/${event.slug || event.event_id}/overview?view=participant`;
 
     return (
-      <div className="flex-shrink-0 space-y-3">
-        <div className="w-[335px]">
+      <div className="flex-shrink-0 space-y-3 w-full lg:w-[335px]">
+        <div className="w-full lg:w-[335px]">
           <EventCard event={event} />
         </div>
 
@@ -375,9 +382,9 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
           "linear-gradient(209.28deg, rgba(219, 234, 254, 0.25) 13.188%, rgba(255, 255, 255, 0) 65.83%), linear-gradient(90deg, rgb(255, 255, 255) 0%, rgb(255, 255, 255) 100%)",
       }}
     >
-      <div className="px-8 py-6 space-y-6">
+      <div className="px-4 md:px-8 py-6 space-y-6">
         {/* Header with title and action buttons */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <h1
             className="font-semibold text-[28px] leading-[1.4] tracking-[-1.68px] text-black"
             style={{ fontFamily: "Geist, sans-serif" }}
@@ -385,19 +392,20 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
             Manage Event
           </h1>
 
-          <div className="flex gap-1">
+          <div className="flex gap-1 w-full sm:w-auto">
             {/* Archive Event Dialog */}
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button
                   variant="defaultGray"
-                  className="gap-[6px] px-6 py-[10px] text-[16px] font-medium"
+                  className="gap-[6px] px-4 sm:px-6 py-[10px] text-[14px] sm:text-[16px] font-medium flex-1 sm:flex-none"
                   disabled={
                     archiving || event.visibility === EventVisibility.Archived
                   }
                 >
-                  <Archive className="w-6 h-6" />
-                  {archiving ? "Archiving..." : "Archive"}
+                  <Archive className="w-5 h-5 sm:w-6 sm:h-6" />
+                  <span className="hidden sm:inline">{archiving ? "Archiving..." : "Archive"}</span>
+                  <span className="sm:hidden">{archiving ? "..." : "Archive"}</span>
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
@@ -430,10 +438,11 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                 <Button
                   variant="destructive"
                   disabled={deleting}
-                  className="gap-[6px] px-6 py-[10px] text-[16px] font-medium"
+                  className="gap-[6px] px-4 sm:px-6 py-[10px] text-[14px] sm:text-[16px] font-medium flex-1 sm:flex-none"
                 >
-                  <Trash2 className="w-6 h-6" />
-                  Delete
+                  <Trash2 className="w-5 h-5 sm:w-6 sm:h-6" />
+                  <span className="hidden sm:inline">Delete</span>
+                  <span className="sm:hidden">Delete</span>
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
@@ -456,8 +465,8 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
           </div>
         </div>
 
-        {/* Main tabs */}
-        <div className="flex gap-6 items-center border-b border-[#d2d7e7]">
+        {/* Main tabs - Desktop */}
+        <div className="hidden md:flex gap-6 items-center border-b border-[#d2d7e7]">
           {mainTabs.map((tab) => (
             <button
               key={tab.value}
@@ -478,9 +487,40 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
           ))}
         </div>
 
-        {/* Sub-tabs for Overview */}
+        {/* Main tabs - Mobile Dropdown */}
+        <div className="md:hidden">
+          <Select value={activeTab} onValueChange={setActiveTab}>
+            <SelectTrigger className="w-full h-12 text-[16px] font-medium">
+              <SelectValue>
+                {mainTabs.find((tab) => tab.value === activeTab)?.label}
+                {mainTabs.find((tab) => tab.value === activeTab)?.badge !== undefined &&
+                  mainTabs.find((tab) => tab.value === activeTab)!.badge! > 0 && (
+                    <span className="ml-2 bg-white border border-[rgba(0,0,0,0.15)] px-2 py-0 rounded-full text-[14px] font-normal">
+                      {mainTabs.find((tab) => tab.value === activeTab)!.badge}
+                    </span>
+                  )}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {mainTabs.map((tab) => (
+                <SelectItem key={tab.value} value={tab.value}>
+                  <span className="flex items-center gap-2">
+                    {tab.label}
+                    {tab.badge !== undefined && tab.badge > 0 && (
+                      <span className="bg-white border border-[rgba(0,0,0,0.15)] px-2 py-0 rounded-full text-[12px] font-normal">
+                        {tab.badge}
+                      </span>
+                    )}
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Sub-tabs for Overview - Desktop */}
         {activeTab === "overview" && (
-          <div className="inline-flex justify-start items-center">
+          <div className="hidden md:inline-flex justify-start items-center">
             {overviewSubTabs.map((subTab) => (
               <button
                 key={subTab.value}
@@ -498,13 +538,33 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
           </div>
         )}
 
+        {/* Sub-tabs for Overview - Mobile Dropdown */}
+        {activeTab === "overview" && (
+          <div className="md:hidden">
+            <Select value={activeSubTab} onValueChange={setActiveSubTab}>
+              <SelectTrigger className="w-full h-12 text-[14px] font-medium bg-blue-300">
+                <SelectValue>
+                  {overviewSubTabs.find((tab) => tab.value === activeSubTab)?.label}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {overviewSubTabs.map((subTab) => (
+                  <SelectItem key={subTab.value} value={subTab.value}>
+                    {subTab.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
         {/* Content Area */}
         <div className="w-full">
           {/* Overview Tab Content with Two-Column Layout */}
           {activeTab === "overview" && (
-            <div className="flex gap-12 items-start">
+            <div className="flex flex-col lg:flex-row gap-6 lg:gap-12 items-start">
               {/* Left Column - Form Content */}
-              <div className="flex-1">
+              <div className="flex-1 w-full">
                 {activeSubTab === "basics" && event && (
                   <BasicInfoTab
                     event={event}

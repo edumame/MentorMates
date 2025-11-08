@@ -20,6 +20,7 @@ interface Event {
   event_blurb?: string;
   paid?: boolean;
   stripe_price_id?: string;
+  event_type?: string;
 }
 
 interface UserEventRole {
@@ -93,7 +94,10 @@ export function EventsList({ events }: EventsListProps) {
         const userRole = getUserRoleForEvent(event.event_id);
 
         return (
-          <div key={event.event_id} className="relative">
+          <div
+            key={event.event_id}
+            className="relative w-full max-w-[420px] mx-auto"
+          >
             <EventCard event={event} />
             {/* User Role Badge Overlay */}
             {userRole && (

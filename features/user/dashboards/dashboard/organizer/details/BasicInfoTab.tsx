@@ -1,12 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { EventDetails, EventVisibility } from "@/lib/types";
 import { useRouter } from "next/navigation";
 import { toast as ToastType } from "@/lib/hooks/use-toast";
@@ -86,6 +93,29 @@ export function BasicInfoTab({
   const [archiving, setArchiving] = useState(false);
   const [devpostUrl, setDevpostUrl] = useState("");
   const [importing, setImporting] = useState(false);
+  const PRESET_EVENT_TYPES = ["Hackathon", "Workshop", "Conference"] as const;
+  const isPresetType = (val?: string | null) =>
+    !!val && PRESET_EVENT_TYPES.includes(val as (typeof PRESET_EVENT_TYPES)[number]);
+  const [eventTypeSelection, setEventTypeSelection] = useState<string>(
+    isPresetType(event?.event_type) ? event!.event_type : "Other"
+  );
+  const [customEventType, setCustomEventType] = useState<string>(
+    isPresetType(event?.event_type) ? "" : event?.event_type || ""
+  );
+
+  // Keep local event type controls in sync if parent event changes
+  // (e.g., after import or external updates)
+  useEffect(() => {
+    if (!event) return;
+    if (isPresetType(event.event_type)) {
+      setEventTypeSelection(event.event_type);
+      setCustomEventType("");
+    } else {
+      setEventTypeSelection("Other");
+      setCustomEventType(event.event_type || "");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [event?.event_type]);
 
   const handleBasicInfoUpdate = async () => {
     if (!event) return;
@@ -125,6 +155,7 @@ export function BasicInfoTab({
           location: event.location,
           event_description: event.event_description,
           event_blurb: event.event_blurb,
+          event_type: event.event_type,
           paywall_content: event.paywall_content,
           cover_image_url: coverImageUrl,
           submission_time_start: event.submission_time_start,
@@ -212,7 +243,7 @@ export function BasicInfoTab({
   const isArchived = event.visibility === EventVisibility.Archived;
 
   return (
-    <div className="space-y-4">
+    <div className="flex space-y-4 w-full flex-col">
       {/* Archived Event Warning */}
       {isArchived && (
         <Alert className="border-orange-200 bg-orange-50">
@@ -235,6 +266,53 @@ export function BasicInfoTab({
               setEvent({ ...event, event_name: e.target.value })
             }
           />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="event_type">Event Type</Label>
+          <Select
+            value={eventTypeSelection}
+            onValueChange={(val) => {
+              setEventTypeSelection(val);
+              if (val === "Other") {
+                setEvent({ ...event, event_type: customEventType });
+              } else {
+                setCustomEventType("");
+                setEvent({ ...event, event_type: val });
+              }
+            }}
+            disabled={isArchived}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select type" />
+            </SelectTrigger>
+            <SelectContent>
+              {PRESET_EVENT_TYPES.map((opt) => (
+                <SelectItem key={opt} value={opt}>
+                  {opt}
+                </SelectItem>
+              ))}
+              <SelectItem value="Other">Other</SelectItem>
+            </SelectContent>
+          </Select>
+          {eventTypeSelection === "Other" && (
+            <div className="pt-2 space-y-1">
+              <Input
+                id="event_type_custom"
+                placeholder="Enter custom type (e.g., Demo Day)"
+                value={customEventType}
+                disabled={isArchived}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setCustomEventType(val);
+                  setEvent({ ...event, event_type: val });
+                }}
+              />
+              <p className="text-xs text-gray-500">
+                Use a custom label like “Demo Day” or “Pitch Night”.
+              </p>
+            </div>
+          )}
         </div>
 
       <div className="space-y-2">
@@ -303,7 +381,7 @@ export function BasicInfoTab({
       {/* Import from Devpost */}
       <div className="space-y-2">
         <Label htmlFor="devpost_url">Import from Devpost</Label>
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2">
           <Input
             id="devpost_url"
             type="url"
@@ -311,10 +389,12 @@ export function BasicInfoTab({
             value={devpostUrl}
             disabled={isArchived || importing}
             onChange={(e) => setDevpostUrl(e.target.value)}
+            className="flex-1 min-w-0"
           />
           <Button
             type="button"
             disabled={isArchived || importing || !devpostUrl}
+            className="shrink-0 whitespace-nowrap"
             onClick={async () => {
               if (!event?.event_id) return;
               try {
@@ -412,6 +492,7 @@ export function BasicInfoTab({
             onChange={(e) =>
               setEvent({ ...event, event_date: e.target.value })
             }
+            className="w-full"
           />
         </div>
         <div className="space-y-2">
@@ -423,6 +504,7 @@ export function BasicInfoTab({
             onChange={(e) =>
               setEvent({ ...event, location: e.target.value })
             }
+            className="w-full"
           />
         </div>
       </div>
@@ -440,8 +522,9 @@ export function BasicInfoTab({
             onChange={(e) =>
               setEvent({ ...event, submission_time_start: e.target.value })
             }
+            className="w-full"
           />
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-gray-500 break-words overflow-hidden">
             {new Date(event.submission_time_start || "").toString()}
           </p>
         </div>
@@ -457,8 +540,9 @@ export function BasicInfoTab({
             onChange={(e) =>
               setEvent({ ...event, submission_time_cutoff: e.target.value })
             }
+            className="w-full"
           />
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-gray-500 break-words overflow-hidden">
             {new Date(event.submission_time_cutoff || "").toString()}
           </p>
         </div>
@@ -475,6 +559,7 @@ export function BasicInfoTab({
           }
           rows={2}
           placeholder="A short, catchy description of your event"
+          className="resize-none overflow-auto"
         />
       </div>
 
@@ -505,10 +590,11 @@ export function BasicInfoTab({
                     })
                   }
                   rows={4}
+                  className="resize-none overflow-auto"
                 />
               </TabsContent>
               <TabsContent value="preview" className="mt-0">
-                <div className="prose prose-sm dark:prose-invert max-w-none rounded-md border bg-white p-3">
+                <div className="prose prose-sm dark:prose-invert max-w-none rounded-md border bg-white p-3 overflow-auto max-h-[400px]">
                   <ReactMarkdown>{event.event_description || ""}</ReactMarkdown>
                 </div>
               </TabsContent>
@@ -541,69 +627,102 @@ export function BasicInfoTab({
         </div>
 
         {!useImageUrl ? (
-          <div className="flex items-center gap-3">
-            <input
-              type="file"
-              id="cover_image"
-              accept="image/*"
-              disabled={isArchived}
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) {
-                  setSelectedCoverImage(file);
-                  // Create preview URL
-                  const preview = URL.createObjectURL(file);
-                  setPreviewUrl(preview);
-                }
-              }}
-              className="flex-1 text-base file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
-            />
-            {(selectedCoverImage || event.cover_image_url) && (
-              <Button
-                type="button"
-                variant="destructive"
-                size="sm"
+          <div className="space-y-3">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+              <input
+                type="file"
+                id="cover_image"
+                accept="image/*"
                 disabled={isArchived}
-                onClick={() => {
-                  setSelectedCoverImage(null);
-                  setPreviewUrl(null);
-                  setEvent({ ...event, cover_image_url: "" });
-                  const fileInput = document.getElementById(
-                    "cover_image"
-                  ) as HTMLInputElement;
-                  if (fileInput) {
-                    fileInput.value = "";
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    setSelectedCoverImage(file);
+                    // Create preview URL
+                    const preview = URL.createObjectURL(file);
+                    setPreviewUrl(preview);
                   }
                 }}
-                className="px-2 py-1"
-              >
-                Remove
-              </Button>
+                className="flex-1 w-full text-base file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
+              />
+              {(selectedCoverImage || event.cover_image_url) && (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  disabled={isArchived}
+                  onClick={() => {
+                    setSelectedCoverImage(null);
+                    setPreviewUrl(null);
+                    setEvent({ ...event, cover_image_url: "" });
+                    const fileInput = document.getElementById(
+                      "cover_image"
+                    ) as HTMLInputElement;
+                    if (fileInput) {
+                      fileInput.value = "";
+                    }
+                  }}
+                  className="px-2 py-1 hidden md:block shrink-0 whitespace-nowrap"
+                >
+                  Remove Cover Image
+                </Button>
+              )}
+            </div>
+            {(previewUrl || event.cover_image_url) && (
+              <div className="space-y-2">
+                <img
+                  src={previewUrl || event.cover_image_url || ""}
+                  alt="Cover preview"
+                  className="rounded-md object-cover max-w-full w-[400px] h-[200px]"
+                />
+                {(selectedCoverImage || event.cover_image_url) && (
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    disabled={isArchived}
+                    onClick={() => {
+                      setSelectedCoverImage(null);
+                      setPreviewUrl(null);
+                      setEvent({ ...event, cover_image_url: "" });
+                      const fileInput = document.getElementById(
+                        "cover_image"
+                      ) as HTMLInputElement;
+                      if (fileInput) {
+                        fileInput.value = "";
+                      }
+                    }}
+                    className="px-2 py-1 md:hidden w-full sm:w-auto whitespace-nowrap"
+                  >
+                    Remove Cover Image
+                  </Button>
+                )}
+              </div>
             )}
           </div>
         ) : (
+          <div className="space-y-2">
             <Input
-            type="url"
-            value={event.cover_image_url || ""}
-            disabled={isArchived}
-            onChange={(e) => {
-              setEvent({
-                ...event,
-                cover_image_url: e.target.value,
-              });
-              setPreviewUrl(e.target.value);
-            }}
-            placeholder="https://example.com/image.jpg"
-          />
-        )}
-
-        {(previewUrl || event.cover_image_url) && (
-          <div className="mt-2">
-            <img
-              src={previewUrl || event.cover_image_url || ""}
-              alt="Cover preview"
-              className="rounded-md object-cover w-[400px] h-[200px]"
+              type="url"
+              value={event.cover_image_url || ""}
+              disabled={isArchived}
+              onChange={(e) => {
+                setEvent({
+                  ...event,
+                  cover_image_url: e.target.value,
+                });
+                setPreviewUrl(e.target.value);
+              }}
+              placeholder="https://example.com/image.jpg"
+              className="min-w-0"
             />
+            {previewUrl && (
+              <img
+                src={previewUrl}
+                alt="Cover preview"
+                className="rounded-md object-cover max-w-full w-[400px] h-[200px]"
+              />
+            )}
           </div>
         )}
       </div>
@@ -620,8 +739,8 @@ export function BasicInfoTab({
 
       {/* Archive Section */}
       <div className="mt-8 border-t pt-6">
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex-1">
             <p className="font-semibold text-orange-600">
               {event.visibility === EventVisibility.Archived ? "Unarchive Event" : "Archive Event"}
             </p>
@@ -633,7 +752,7 @@ export function BasicInfoTab({
           </div>
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button variant="destructive" disabled={archiving || isArchived}>
+              <Button variant="destructive" disabled={archiving || isArchived} className="shrink-0 whitespace-nowrap w-full sm:w-auto">
                 {archiving 
                   ? (event.visibility === EventVisibility.Archived ? "Unarchiving..." : "Archiving...") 
                   : (event.visibility === EventVisibility.Archived ? "Unarchive" : "Archive")}
@@ -663,14 +782,14 @@ export function BasicInfoTab({
 
       {/* Danger zone */}
       <div className="mt-8 border-t pt-6">
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex-1">
             <p className="font-semibold text-red-600">Delete Event</p>
             <p className="text-sm text-muted-foreground">This action cannot be undone.</p>
           </div>
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button variant="destructive" disabled={deleting}>
+              <Button variant="destructive" disabled={deleting} className="shrink-0 whitespace-nowrap w-full sm:w-auto">
                 {deleting ? "Deleting..." : "Delete Event"}
               </Button>
             </AlertDialogTrigger>

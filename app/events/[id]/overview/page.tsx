@@ -31,7 +31,9 @@ export default async function EventOverviewPage({ params }: PageProps) {
     paywall_content,
     participant_capacity,
     cover_image_url,
-    slug
+    slug,
+    paid,
+    event_type
   `);
 
   if (isUUID) {
@@ -98,6 +100,8 @@ export default async function EventOverviewPage({ params }: PageProps) {
       eventId={id}
       hasJoined={hasJoined}
       dbEventId={eventData.event_id}
+      paid={typedEvent.paid}
+      eventType={typedEvent.event_type}
     >
       {/* Main Content */}
       <EventPageContent

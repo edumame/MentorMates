@@ -76,7 +76,6 @@ export default function HomePage() {
     <SidebarLayout>
       <AuthHero />
       <ServiceWorkerRegistration />
-      {/* <Footer /> */}
     </SidebarLayout>
   );
 }
