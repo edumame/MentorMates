@@ -157,6 +157,8 @@ export async function GET(
         slug,
         event_date,
         location,
+        event_blurb,
+        event_description,
         visibility,
         cover_image_url,
         scoring_config,
