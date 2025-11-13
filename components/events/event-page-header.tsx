@@ -183,15 +183,15 @@ export function EventPageHeader({
 
                 {/* Date and Location */}
                 <div className="flex gap-[8px] items-start w-full md:w-[341px] flex-col md:flex-row">
-                  <div className="flex gap-[8px] items-start flex-1 w-full">
+                  <div className="flex gap-[8px] items-start flex-1 w-full min-w-0">
                     <CalendarDays className="w-6 h-6 text-black flex-shrink-0" />
-                    <p className="font-normal text-sm leading-[1.5] text-black">
+                    <p className="font-normal text-sm leading-[1.5] text-black break-words">
                       {dayOfWeek}, {day} {monthYear}
                     </p>
                   </div>
-                  <div className="flex gap-[8px] items-start flex-1 w-full">
+                  <div className="flex gap-[8px] items-start flex-1 w-full min-w-0">
                     <MapPin className="w-6 h-6 text-black flex-shrink-0" />
-                    <p className="font-normal text-sm leading-[1.5] text-black">
+                    <p className="font-normal text-sm leading-[1.5] text-black break-words">
                       {location}
                     </p>
                   </div>

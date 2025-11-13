@@ -44,33 +44,34 @@ export function EventPageSidebar({
   };
 
   return (
-    <div className="flex flex-col gap-6 w-full md:w-[341px] min-w-0">
-      {/* Important Links */}
-      {eventResources && eventResources.length > 0 && (
-        <div className="flex flex-col gap-4 w-full">
-          <h3 className="font-semibold text-[22px] leading-[1.4] text-black text-center md:text-left tracking-[-0.06em]">
-            Important links
-          </h3>
-
-          <div className="flex flex-col gap-4">
-            {eventResources.map((res, idx) => (
-              <a
-                key={idx}
-                href={res.link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="bg-[rgba(0,0,0,0.05)] flex gap-2 items-center justify-center px-6 py-2.5 rounded-xl shadow-sm relative"
-                style={{
-                  boxShadow:
-                    "0px 0px 0px 1px inset rgba(0,0,0,0.05), 0px -2px 1px 0px inset rgba(0,0,0,0.05)",
-                }}
-              >
-                <p className="font-medium text-base text-black">{res.name}</p>
-              </a>
-            ))}
+      <div className="flex flex-col gap-6 w-full md:w-[341px] min-w-0">
+        {/* Important Links */}
+        {eventResources && eventResources.length > 0 && (
+          <div className="flex flex-col gap-4 w-full">
+            <h3 className="font-semibold text-[22px] leading-[1.4] text-black text-center md:text-left tracking-[-0.06em]">
+              Important links
+            </h3>
+            <div className="flex flex-col gap-4">
+              {eventResources.map((res, idx) => (
+                <a
+                  key={idx}
+                  href={res.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-[rgba(0,0,0,0.05)] flex gap-2 items-center justify-center px-6 py-2.5 rounded-xl shadow-sm relative w-full"
+                  style={{
+                    boxShadow:
+                      "0px 0px 0px 1px inset rgba(0,0,0,0.05), 0px -2px 1px 0px inset rgba(0,0,0,0.05)",
+                  }}
+                >
+                  <p className="font-medium text-base text-black break-words text-center w-full">
+                    {res.name}
+                  </p>
+                </a>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
       {/* Divider - only show if important links exist */}
       {eventResources && eventResources.length > 0 && (
