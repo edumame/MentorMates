@@ -94,9 +94,7 @@ export default function FeedbackPage() {
       });
       if (res.ok) {
         setFeedbackList((prev) =>
-          prev.map((it) =>
-            it.id === id ? { ...it, isRead: true } : it
-          )
+          prev.map((it) => (it.id === id ? { ...it, isRead: true } : it))
         );
       }
     } catch (e) {
@@ -112,9 +110,7 @@ export default function FeedbackPage() {
         body: JSON.stringify({ markAll: true }),
       });
       if (res.ok)
-        setFeedbackList((prev) =>
-          prev.map((it) => ({ ...it, isRead: true }))
-        );
+        setFeedbackList((prev) => prev.map((it) => ({ ...it, isRead: true })));
     } catch (e) {
       console.error("Error marking all as read:", e);
     }
@@ -139,7 +135,9 @@ export default function FeedbackPage() {
               </h1>
               {unreadCount > 0 && (
                 <div className="flex items-center rounded-[50px] border border-[rgba(0,0,0,0.15)] bg-white px-[8px] py-0">
-                  <span className="text-sm leading-[1.5] text-black">{unreadCount}</span>
+                  <span className="text-sm leading-[1.5] text-black">
+                    {unreadCount}
+                  </span>
                 </div>
               )}
             </div>
@@ -172,9 +170,13 @@ export default function FeedbackPage() {
                   No feedback received yet
                 </h2>
                 <p className="text-gray-600 mb-6 leading-relaxed">
-                  Go join an event, submit a project and collect feedback from mentors and peers to improve your work!
+                  Go join an event, submit a project and collect feedback from
+                  mentors and peers to improve your work!
                 </p>
-                <Button asChild className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 h-auto">
+                <Button
+                  asChild
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 h-auto"
+                >
                   <Link href="/events">Explore Events</Link>
                 </Button>
               </div>
@@ -352,7 +354,6 @@ export default function FeedbackPage() {
             {isGivingFeedback ? (
               // ---------- Share feedback ----------
               <div className="relative flex flex-col lg:flex-row min-h-[540px] max-h-[80vh]">
-
                 {/* Left: input */}
                 <div className="flex-1 bg-white px-6 py-6 lg:px-8 lg:py-8 flex flex-col rounded-none lg:rounded-l-[6px]">
                   <div className="flex h-full flex-col">
@@ -367,7 +368,8 @@ export default function FeedbackPage() {
                         </button>
                       </h2>
                       <p className="mt-1 text-[12px] leading-[1.45] text-muted-foreground/80">
-                        Help this project improve by sharing your thoughts, suggestions, and ideas.
+                        Help this project improve by sharing your thoughts,
+                        suggestions, and ideas.
                       </p>
                     </div>
 
@@ -424,7 +426,9 @@ export default function FeedbackPage() {
                       <div>
                         <div className="mb-1 flex items-center gap-3">
                           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#E9F0FF]">
-                            <span className="text-[12px] font-semibold text-[#4B89EF]">01</span>
+                            <span className="text-[12px] font-semibold text-[#4B89EF]">
+                              01
+                            </span>
                           </div>
                           <p className="text-[14px] font-medium text-foreground">
                             What should they do next to improve the project?
@@ -438,7 +442,9 @@ export default function FeedbackPage() {
                       <div>
                         <div className="mb-1 flex items-center gap-3">
                           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#E9F0FF]">
-                            <span className="text-[12px] font-semibold text-[#4B89EF]">02</span>
+                            <span className="text-[12px] font-semibold text-[#4B89EF]">
+                              02
+                            </span>
                           </div>
                           <p className="text-[14px] font-medium text-foreground">
                             What could be better or work differently?
@@ -452,14 +458,18 @@ export default function FeedbackPage() {
                       <div>
                         <div className="mb-1 flex items-center gap-3">
                           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#E9F0FF]">
-                            <span className="text-[12px] font-semibold text-[#4B89EF]">03</span>
+                            <span className="text-[12px] font-semibold text-[#4B89EF]">
+                              03
+                            </span>
                           </div>
                           <p className="text-[14px] font-medium text-foreground">
-                            What works well, and are there similar projects to learn from?
+                            What works well, and are there similar projects to
+                            learn from?
                           </p>
                         </div>
                         <p className="pl-11 text-[12px] leading-[1.55] text-muted-foreground">
-                          Call out strengths and link references for inspiration.
+                          Call out strengths and link references for
+                          inspiration.
                         </p>
                       </div>
                     </div>
@@ -469,7 +479,6 @@ export default function FeedbackPage() {
             ) : (
               // -------- View feedback --------
               <div className="relative flex flex-col lg:flex-row min-h-[460px] max-h-[80vh] overflow-hidden rounded-[6px]">
-
                 {/* Left panel */}
                 <div className="flex w-full items-center justify-center bg-white px-6 py-8 lg:w-1/2 rounded-none lg:rounded-l-[6px]">
                   <div className="w-full max-w-xs text-center">
@@ -505,7 +514,9 @@ export default function FeedbackPage() {
                   </DialogClose>
                   <div className="w-full max-w-2xl">
                     <div className="mb-4 text-xs text-gray-600 sm:text-sm">
-                      {selectedFeedback ? formatDisplayDate(selectedFeedback.date) : ""}
+                      {selectedFeedback
+                        ? formatDisplayDate(selectedFeedback.date)
+                        : ""}
                     </div>
 
                     <div className="mb-6 text-[18px] leading-7 text-slate-900 sm:text-[20px]">
