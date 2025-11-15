@@ -1624,8 +1624,9 @@ export default function ProjectPage() {
                     </Card>
                   </TabsContent>
 
-                  <TabsContent value="feedback" className="mt-0">
-                    <Card>
+                  <TabsContent value="feedback" className="mt-0 space-y-6 w-full">
+                    {/* Public Feedback URL Section */}
+                    <Card className="w-full">
                       <CardHeader>
                         <CardTitle>Project Feedback</CardTitle>
                         <p className="text-sm text-gray-600">
@@ -1633,37 +1634,40 @@ export default function ProjectPage() {
                           below for others to provide feedback.
                         </p>
                       </CardHeader>
-                      <CardContent className="overflow-visible">
-                        <div className="mb-6">
-                          <div className="flex items-center gap-2 mb-2">
-                            <label className="text-sm font-medium text-gray-700">
-                              Public Feedback URL:
-                            </label>
-                          </div>
-                          <div className="flex flex-col sm:flex-row gap-2">
-                            <input
-                              type="text"
-                              value={feedbackUrl}
-                              readOnly
-                              className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-sm break-all"
-                            />
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                navigator.clipboard.writeText(feedbackUrl);
-                                toast({
-                                  title: "Copied!",
-                                  description: "Feedback URL copied to clipboard",
-                                });
-                              }}
-                              className="shrink-0"
-                            >
-                              <Copy className="h-4 w-4" />
-                            </Button>
-                          </div>
+                      <CardContent className="w-full">
+                        <div className="flex items-center gap-2 mb-2">
+                          <label className="text-sm font-medium text-gray-700">
+                            Public Feedback URL:
+                          </label>
                         </div>
+                        <div className="flex flex-col sm:flex-row gap-2 w-full">
+                          <input
+                            type="text"
+                            value={feedbackUrl}
+                            readOnly
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-sm break-all w-full"
+                          />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              navigator.clipboard.writeText(feedbackUrl);
+                              toast({
+                                title: "Copied!",
+                                description: "Feedback URL copied to clipboard",
+                              });
+                            }}
+                            className="shrink-0"
+                          >
+                            <Copy className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
 
+                    {/* Feedback Display Section */}
+                    <Card className="w-full">
+                      <CardContent className="overflow-visible pt-6 w-full">
                         <FeedbackDisplay projectId={project.id} showTitle={false} />
                       </CardContent>
                     </Card>
@@ -1799,7 +1803,7 @@ export default function ProjectPage() {
                 </div>
 
                 {/* Right Column: Sidebar */}
-                {activeTab !== "sharing" && (
+                {activeTab !== "sharing" && activeTab !== "feedback" && (
                 <div className="w-full lg:w-[420px] space-y-6">
                   {/* Meet the team */}
                   {activeTab === "overview" && (

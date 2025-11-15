@@ -44,18 +44,18 @@ export default function FeedbackDisplay({
   const feedbackContent = (
     <>
       {feedback.length > 0 ? (
-        <div className="space-y-4 sm:space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 w-full max-w-none auto-rows-fr">
           {feedback.map((item) => (
             <div
               key={item.id}
-              className="flex items-start gap-3 sm:gap-4 bg-white sm:bg-gray-50 p-4 sm:p-5 rounded-lg border border-gray-200 shadow-sm sm:shadow-none"
+              className="flex items-start gap-3 sm:gap-4 bg-white sm:bg-gray-50 p-4 sm:p-5 rounded-lg border border-gray-200 shadow-sm sm:shadow-none w-full min-w-0"
             >
               <div className="flex-shrink-0">
                 <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-blue-600 flex items-center justify-center text-white font-semibold text-sm sm:text-base">
                   {getInitials(item.mentor_name)}
                 </div>
               </div>
-              <div className="flex-1 min-w-0">
+              <div className="flex-1 min-w-0 w-full">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:flex-wrap gap-1 sm:gap-2 mb-2">
                   <span className="font-semibold text-gray-900 text-sm sm:text-base break-words">
                     {item.mentor_name || "Anonymous"}
@@ -121,7 +121,7 @@ export default function FeedbackDisplay({
   }
 
   return (
-    <div className={`${className} overflow-visible`}>
+    <div className={`${className} overflow-visible w-full min-w-0`}>
       {feedbackContent}
     </div>
   );
