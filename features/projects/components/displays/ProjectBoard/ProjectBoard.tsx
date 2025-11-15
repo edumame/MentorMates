@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import {
   Loader,
+  Loader2,
   Trophy,
   CalendarClock,
   ThumbsUp,
@@ -27,13 +28,29 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/hooks/use-toast";
 import QRCode from "react-qr-code";
 
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Project, ProjectBoardContext } from "@/lib/types";
+
+interface AssignableEvent {
+  event_id: string;
+  event_name: string;
+  slug?: string | null;
+  submission_time_cutoff?: string | null;
+}
 
 export interface ProjectBoardProps {
   isLoading: boolean;
@@ -51,7 +68,61 @@ const ProjectBoard = ({
   const [qrDialogOpen, setQrDialogOpen] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [assignDialogProject, setAssignDialogProject] = useState<Project | null>(
+    null
+  );
+  const [assignableEvents, setAssignableEvents] = useState<AssignableEvent[]>(
+    []
+  );
+  const [assignableEventsLoading, setAssignableEventsLoading] = useState(false);
+  const [assignableEventsError, setAssignableEventsError] = useState<
+    string | null
+  >(null);
+  const [selectedAssignEventId, setSelectedAssignEventId] = useState<
+    string | null
+  >(null);
+  const [isAssigning, setIsAssigning] = useState(false);
+
   const router = useRouter();
+
+  useEffect(() => {
+    if (!assignDialogProject) {
+      setSelectedAssignEventId(null);
+      setAssignableEventsError(null);
+      return;
+    }
+
+    setSelectedAssignEventId(assignDialogProject.event_id || null);
+    const loadEvents = async () => {
+      setAssignableEventsLoading(true);
+      setAssignableEventsError(null);
+      try {
+        const response = await fetch("/api/events/assignable", {
+          credentials: "include",
+          cache: "no-store",
+        });
+        if (!response.ok) {
+          throw new Error("Failed to load events");
+        }
+        const data = await response.json();
+        setAssignableEvents(data.events || []);
+      } catch (error) {
+        console.error("Failed to load assignable events", error);
+        setAssignableEvents([]);
+        setAssignableEventsError("Unable to load your active events right now.");
+      } finally {
+        setAssignableEventsLoading(false);
+      }
+    };
+
+    loadEvents();
+  }, [assignDialogProject]);
+
+  const assignDialogTitle = assignDialogProject
+    ? `Assign "${assignDialogProject.project_name || "project"}"`
+    : "Assign to event";
+  const assignDialogDescription =
+    "Only events you have joined as a participant with an open submission window appear here.";
 
   return (
     <>
@@ -247,7 +318,17 @@ const ProjectBoard = ({
                                 >
                                   <ExternalLink className="h-4 w-4 mr-2" />
                                   Feedback Page
-                                </DropdownMenuItem>
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      setAssignDialogProject(project);
+                                    }}
+                                  >
+                                    <Sparkles className="h-4 w-4 mr-2" />
+                                    Assign to event
+                                  </DropdownMenuItem>
                                 <DropdownMenuItem
                                   className="text-red-600 focus:text-red-600"
                                   onClick={(e) => {
@@ -391,6 +472,145 @@ const ProjectBoard = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+        {/* Assign to Event Dialog */}
+        <Dialog
+          open={!!assignDialogProject}
+          onOpenChange={() => {
+            if (isAssigning) return;
+            setAssignDialogProject(null);
+          }}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{assignDialogTitle}</DialogTitle>
+              <DialogDescription>{assignDialogDescription}</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              {assignableEventsLoading ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading events...
+                </div>
+              ) : (
+                <>
+                  <label className="text-sm font-medium text-gray-700">
+                    Choose an event
+                  </label>
+                  <Select
+                    value={selectedAssignEventId || undefined}
+                    onValueChange={(value) => setSelectedAssignEventId(value)}
+                    disabled={assignableEvents.length === 0}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select an event" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        {assignableEvents.map((event) => (
+                          <SelectItem key={event.event_id} value={event.event_id}>
+                            <div className="flex flex-col text-left">
+                              <span className="font-medium">
+                                {event.event_name}
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                {event.submission_time_cutoff
+                                  ? `Deadline: ${new Date(
+                                      event.submission_time_cutoff
+                                    ).toLocaleString()}`
+                                  : "No submission deadline"}
+                              </span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                  {assignableEvents.length === 0 && !assignableEventsError && (
+                    <p className="text-sm text-muted-foreground">
+                      You do not have any active events with open submissions.
+                    </p>
+                  )}
+                  {assignableEventsError && (
+                    <p className="text-sm text-red-500">
+                      {assignableEventsError}
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
+            <DialogFooter className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  if (isAssigning) return;
+                  setAssignDialogProject(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={async () => {
+                  if (!assignDialogProject || !selectedAssignEventId) {
+                    toast({
+                      title: "Select an event",
+                      description: "Choose an event to assign this project to.",
+                      variant: "destructive",
+                    });
+                    return;
+                  }
+                  setIsAssigning(true);
+                  try {
+                    const response = await fetch(
+                      `/api/projects/${assignDialogProject.id}`,
+                      {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          event_id: selectedAssignEventId,
+                        }),
+                      }
+                    );
+                    if (!response.ok) {
+                      throw new Error("Failed to assign project");
+                    }
+                    toast({
+                      title: "Project assigned",
+                      description:
+                        "Your project is now linked to the selected event.",
+                    });
+                    setAssignDialogProject(null);
+                    router.refresh();
+                  } catch (error) {
+                    console.error("Assignment error", error);
+                    toast({
+                      title: "Assignment failed",
+                      description:
+                        "We ran into an issue assigning this project. Try again.",
+                      variant: "destructive",
+                    });
+                  } finally {
+                    setIsAssigning(false);
+                  }
+                }}
+                disabled={
+                  !selectedAssignEventId ||
+                  assignableEventsLoading ||
+                  isAssigning
+                }
+              >
+                {isAssigning ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Assigning...
+                  </>
+                ) : (
+                  "Assign to event"
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
     </>
   );
 };
