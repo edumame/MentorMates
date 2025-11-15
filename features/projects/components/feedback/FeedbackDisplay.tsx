@@ -41,9 +41,67 @@ export default function FeedbackDisplay({
     );
   }
 
-  return (
-    <Card className={className}>
-      {showTitle && (
+  const feedbackContent = (
+    <>
+      {feedback.length > 0 ? (
+        <div className="space-y-4 sm:space-y-6">
+          {feedback.map((item) => (
+            <div
+              key={item.id}
+              className="flex items-start gap-3 sm:gap-4 bg-white sm:bg-gray-50 p-4 sm:p-5 rounded-lg border border-gray-200 shadow-sm sm:shadow-none"
+            >
+              <div className="flex-shrink-0">
+                <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-blue-600 flex items-center justify-center text-white font-semibold text-sm sm:text-base">
+                  {getInitials(item.mentor_name)}
+                </div>
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:flex-wrap gap-1 sm:gap-2 mb-2">
+                  <span className="font-semibold text-gray-900 text-sm sm:text-base break-words">
+                    {item.mentor_name || "Anonymous"}
+                  </span>
+                  {item.mentor_email && (
+                    <>
+                      <span className="hidden sm:inline text-sm text-gray-500">•</span>
+                      <span className="text-xs sm:text-sm text-gray-500 break-all">
+                        {item.mentor_email}
+                      </span>
+                    </>
+                  )}
+                  <span className="hidden sm:inline text-sm text-gray-500">•</span>
+                  <span className="text-xs sm:text-sm text-gray-500 whitespace-nowrap">
+                    {new Date(item.created_at).toLocaleDateString()}
+                  </span>
+                </div>
+                <p className="text-sm sm:text-base text-gray-700 leading-relaxed whitespace-pre-wrap break-words overflow-wrap-anywhere">
+                  {item.feedback_text}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-8">
+          <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+            <MessageSquare className="h-8 w-8 text-gray-400" />
+          </div>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            No feedback yet
+          </h3>
+          <p className="text-gray-600 mb-4">
+            This project hasn&apos;t received any feedback yet.
+          </p>
+          <p className="text-sm text-gray-500">
+            Share your project&apos;s QR code or link to start receiving valuable feedback from mentors and peers.
+          </p>
+        </div>
+      )}
+    </>
+  );
+
+  if (showTitle) {
+    return (
+      <Card className={className}>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <MessageSquare className="h-5 w-5" />
@@ -55,61 +113,16 @@ export default function FeedbackDisplay({
             )}
           </CardTitle>
         </CardHeader>
-      )}
-      <CardContent>
-        {feedback.length > 0 ? (
-          <div className="space-y-6">
-            {feedback.map((item) => (
-              <div
-                key={item.id}
-                className="flex items-start space-x-4 bg-gray-50 p-4 rounded-lg border"
-              >
-                <div className="flex-shrink-0">
-                  <div className="h-10 w-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold">
-                    {getInitials(item.mentor_name)}
-                  </div>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center space-x-2 mb-2">
-                    <span className="font-semibold text-gray-900">
-                      {item.mentor_name || "Anonymous"}
-                    </span>
-                    {item.mentor_email && (
-                      <span className="text-sm text-gray-500">
-                        ({item.mentor_email})
-                      </span>
-                    )}
-                    <span className="text-sm text-gray-500">
-                      •
-                    </span>
-                    <span className="text-sm text-gray-500">
-                      {new Date(item.created_at).toLocaleDateString()}
-                    </span>
-                  </div>
-                  <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
-                    {item.feedback_text}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-8">
-            <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-              <MessageSquare className="h-8 w-8 text-gray-400" />
-            </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              No feedback yet
-            </h3>
-            <p className="text-gray-600 mb-4">
-              This project hasn&apos;t received any feedback yet.
-            </p>
-            <p className="text-sm text-gray-500">
-              Share your project&apos;s QR code or link to start receiving valuable feedback from mentors and peers.
-            </p>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+        <CardContent className="overflow-visible">
+          {feedbackContent}
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className={`${className} overflow-visible`}>
+      {feedbackContent}
+    </div>
   );
 } 

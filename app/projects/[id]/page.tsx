@@ -1633,19 +1633,19 @@ export default function ProjectPage() {
                           below for others to provide feedback.
                         </p>
                       </CardHeader>
-                      <CardContent>
+                      <CardContent className="overflow-visible">
                         <div className="mb-6">
                           <div className="flex items-center gap-2 mb-2">
                             <label className="text-sm font-medium text-gray-700">
                               Public Feedback URL:
                             </label>
                           </div>
-                          <div className="flex gap-2">
+                          <div className="flex flex-col sm:flex-row gap-2">
                             <input
                               type="text"
                               value={feedbackUrl}
                               readOnly
-                              className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-sm"
+                              className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-sm break-all"
                             />
                             <Button
                               variant="outline"
@@ -1657,6 +1657,7 @@ export default function ProjectPage() {
                                   description: "Feedback URL copied to clipboard",
                                 });
                               }}
+                              className="shrink-0"
                             >
                               <Copy className="h-4 w-4" />
                             </Button>
