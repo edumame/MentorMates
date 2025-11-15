@@ -326,9 +326,18 @@ export function GiveFeedbackDialog({
                   <div className="flex flex-1 items-center justify-center">
                     <div className="text-center space-y-6">
                       <div className="flex items-center justify-center gap-2">
-                        <div className="h-3 w-3 rounded-full bg-[#4B89EF] animate-bounce" style={{ animationDelay: "0ms" }}></div>
-                        <div className="h-3 w-3 rounded-full bg-[#4B89EF] animate-bounce" style={{ animationDelay: "150ms" }}></div>
-                        <div className="h-3 w-3 rounded-full bg-[#4B89EF] animate-bounce" style={{ animationDelay: "300ms" }}></div>
+                        <div
+                          className="h-3 w-3 rounded-full bg-[#4B89EF] animate-bounce"
+                          style={{ animationDelay: "0ms" }}
+                        ></div>
+                        <div
+                          className="h-3 w-3 rounded-full bg-[#4B89EF] animate-bounce"
+                          style={{ animationDelay: "150ms" }}
+                        ></div>
+                        <div
+                          className="h-3 w-3 rounded-full bg-[#4B89EF] animate-bounce"
+                          style={{ animationDelay: "300ms" }}
+                        ></div>
                       </div>
                       <p className="text-[14px] text-zinc-600 max-w-[280px]">
                         Our AI is analyzing your feedback and creating helpful
