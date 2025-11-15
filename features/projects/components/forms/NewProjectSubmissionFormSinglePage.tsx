@@ -1011,7 +1011,10 @@ export function NewProjectSubmissionFormSinglePage({
                             location: eventDetails.location || "Online",
                             cover_image_url: eventDetails.cover_image_url,
                             paid: eventDetails.paid,
-                            event_blurb: eventDetails.event_description,
+                            event_blurb:
+                              eventDetails.event_blurb ||
+                              eventDetails.event_description,
+                            event_description: eventDetails.event_description,
                           }}
                         />
                       </div>

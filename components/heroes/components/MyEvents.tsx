@@ -13,6 +13,8 @@ type APIEvent = {
   location?: string | null;
   cover_image_url?: string | null;
   slug?: string | null;
+  event_blurb?: string | null;
+  event_description?: string | null;
   role_labels?: Record<string, string> | null;
   user_event_roles?: { role: number }[];
   visibility?: EventVisibility | null;
@@ -26,6 +28,8 @@ type UIEvent = {
   image: string;
   href: string;
   slug?: string;
+  blurb?: string;
+  description?: string;
   roleLabel?: string;
   visibility?: EventVisibility;
 };
@@ -39,6 +43,8 @@ function toEventItem(event: UIEvent): EventItem {
     location: event.location,
     cover_image_url: event.image,
     slug: event.slug,
+    event_blurb: event.blurb,
+    event_description: event.description,
   };
 }
 
@@ -86,6 +92,8 @@ export function MyEvents() {
             image: e.cover_image_url ?? "/img/placeholder.png",
             href: e.slug ? `/events/${e.slug}` : `/events/${id}`,
             slug: e.slug ?? undefined,
+            blurb: e.event_blurb ?? undefined,
+            description: e.event_description ?? undefined,
             roleLabel,
             visibility: e.visibility as EventVisibility,
           };
@@ -117,7 +125,7 @@ export function MyEvents() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {events.map((e) => (
-            <div key={e.id} className="relative">
+            <div key={e.id} className="relative w-full max-w-[420px] mx-auto">
               <EventCard event={toEventItem(e)} />
               {e.roleLabel && (
                 <div className="absolute top-3 left-3 z-10">

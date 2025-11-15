@@ -1217,8 +1217,8 @@ export default function ProjectPage() {
             <div className="py-6 sm:py-12">
               <div className="flex flex-col lg:flex-row gap-6 sm:gap-10">
                 {/* Left Column: Main Content */}
-                <div className="flex-1 space-y-12">
-                  <TabsContent value="overview" className="mt-0">
+                <div className="flex-1 min-w-0 space-y-12">
+                  <TabsContent value="overview" className="mt-0 overflow-hidden">
                     <div className="space-y-8">
                       {/* About this project */}
                       <div>
@@ -1255,10 +1255,6 @@ export default function ProjectPage() {
                               alt="Project cover"
                               className="w-full h-auto object-cover"
                             />
-                          </div>
-                          <div className="flex gap-2 items-start">
-                            <div className="w-0.5 bg-black/15 flex-shrink-0"></div>
-                            <p className="text-sm text-black">Image caption goes here</p>
                           </div>
                         </div>
                       )}
@@ -1301,7 +1297,7 @@ export default function ProjectPage() {
                                       displayClassName="text-blue-600 underline"
                                       renderDisplay={(value) =>
                                         value ? (
-                                          <span className="text-blue-600 hover:text-blue-800 cursor-pointer">
+                                          <span className="text-blue-600 hover:text-blue-800 cursor-pointer break-all">
                                             {value}
                                           </span>
                                         ) : (
@@ -1358,7 +1354,7 @@ export default function ProjectPage() {
                                       displayClassName="text-blue-600 underline"
                                       renderDisplay={(value) =>
                                         value ? (
-                                          <span className="text-blue-600 hover:text-blue-800 cursor-pointer">
+                                          <span className="text-blue-600 hover:text-blue-800 cursor-pointer break-all">
                                             {value}
                                           </span>
                                         ) : (
@@ -1409,7 +1405,7 @@ export default function ProjectPage() {
                                     displayClassName="text-blue-600 underline"
                                     renderDisplay={(value) =>
                                       value ? (
-                                        <span className="text-blue-600 hover:text-blue-800 cursor-pointer">
+                                        <span className="text-blue-600 hover:text-blue-800 cursor-pointer break-all">
                                           {value}
                                         </span>
                                       ) : (
@@ -1455,7 +1451,7 @@ export default function ProjectPage() {
                                     displayClassName="text-blue-600 underline"
                                     renderDisplay={(value) =>
                                       value ? (
-                                        <span className="text-blue-600 hover:text-blue-800 cursor-pointer">
+                                        <span className="text-blue-600 hover:text-blue-800 cursor-pointer break-all">
                                           {value}
                                         </span>
                                       ) : (
@@ -1501,7 +1497,7 @@ export default function ProjectPage() {
                     </div>
                   </TabsContent>
 
-                  <TabsContent value="tracks" className="mt-0">
+                  <TabsContent value="tracks" className="mt-0 overflow-hidden">
                     <TrackSelector
                       projectId={project.id}
                       eventId={project.event_id}
@@ -1510,7 +1506,7 @@ export default function ProjectPage() {
                     />
                   </TabsContent>
 
-                  <TabsContent value="team" className="mt-0">
+                  <TabsContent value="team" className="mt-0 overflow-hidden">
                     <Card>
                       <CardHeader>
                         <CardTitle>Team Members</CardTitle>
@@ -1634,33 +1630,34 @@ export default function ProjectPage() {
                           below for others to provide feedback.
                         </p>
                       </CardHeader>
-                      <CardContent className="w-full">
-                        <div className="flex items-center gap-2 mb-2">
-                          <label className="text-sm font-medium text-gray-700">
-                            Public Feedback URL:
-                          </label>
-                        </div>
-                        <div className="flex flex-col sm:flex-row gap-2 w-full">
-                          <input
-                            type="text"
-                            value={feedbackUrl}
-                            readOnly
-                            className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-sm break-all w-full"
-                          />
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              navigator.clipboard.writeText(feedbackUrl);
-                              toast({
-                                title: "Copied!",
-                                description: "Feedback URL copied to clipboard",
-                              });
-                            }}
-                            className="shrink-0"
-                          >
-                            <Copy className="h-4 w-4" />
-                          </Button>
+                      <CardContent>
+                        <div className="mb-6">
+                          <div className="flex items-center gap-2 mb-2">
+                            <label className="text-sm font-medium text-gray-700">
+                              Public Feedback URL:
+                            </label>
+                          </div>
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={feedbackUrl}
+                              readOnly
+                              className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-sm min-w-0"
+                            />
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                navigator.clipboard.writeText(feedbackUrl);
+                                toast({
+                                  title: "Copied!",
+                                  description: "Feedback URL copied to clipboard",
+                                });
+                              }}
+                            >
+                              <Copy className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
@@ -1674,10 +1671,10 @@ export default function ProjectPage() {
                   </TabsContent>
 
                   {/* Sharing Tab */}
-                  <TabsContent value="sharing" className="mt-0">
+                  <TabsContent value="sharing" className="mt-0 overflow-hidden">
                     <div className="grid grid-cols-1 lg:grid-cols-[1fr,500px] gap-6">
                       {/* Left Column: Share Card */}
-                      <Card className="border border-zinc-200">
+                      <Card className="border border-zinc-200 min-w-0">
                         <CardHeader>
                           <CardTitle className="text-[22px] font-semibold tracking-[-0.06em]">
                             Share & Get Feedback
@@ -1693,7 +1690,7 @@ export default function ProjectPage() {
                               <Input
                                 value={feedbackUrl}
                                 readOnly
-                                className="flex-1 bg-white"
+                                className="flex-1 bg-white min-w-0"
                               />
                               <Button
                                 variant="secondary"
@@ -1803,8 +1800,8 @@ export default function ProjectPage() {
                 </div>
 
                 {/* Right Column: Sidebar */}
-                {activeTab !== "sharing" && activeTab !== "feedback" && (
-                <div className="w-full lg:w-[420px] space-y-6">
+                {activeTab !== "sharing" && (
+                <div className="w-full lg:w-[420px] lg:flex-shrink-0 space-y-6">
                   {/* Meet the team */}
                   {activeTab === "overview" && (
                   <div className="space-y-6">

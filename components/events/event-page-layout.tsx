@@ -79,7 +79,7 @@ export async function EventPageLayout({
 
   return (
     <ActiveRoleProvider initialRole={userRole}>
-      <div className="flex flex-col w-full">
+      <div className="flex flex-col w-full" style={{ maxWidth: "100vw" }}>
         {userRole ? (
           <EventPageClientWrapper
             userRole={userRole}
@@ -101,6 +101,7 @@ export async function EventPageLayout({
                   eventId={eventId}
                   participantCount={participantCount || 0}
                   projectCount={projectCount || 0}
+                  showTicketsTab={(paid && hasJoined) || false}
                 />
 
                 {/* Main Content */}
@@ -134,6 +135,7 @@ export async function EventPageLayout({
               eventId={eventId}
               participantCount={participantCount || 0}
               projectCount={projectCount || 0}
+              showTicketsTab={(paid && hasJoined) || false}
             />
 
             {/* Main Content */}

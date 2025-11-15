@@ -24,7 +24,8 @@ export default async function EventSchedulePage({ params }: PageProps) {
     location,
     event_schedule,
     cover_image_url,
-    slug
+    slug,
+    paid
   `);
 
   if (isUUID) {
@@ -69,6 +70,7 @@ export default async function EventSchedulePage({ params }: PageProps) {
       eventId={id}
       hasJoined={hasJoined}
       dbEventId={eventData.event_id}
+      paid={typedEvent.paid}
     >
       <ScheduleContent schedule={typedEvent.event_schedule || []} />
     </EventPageLayout>

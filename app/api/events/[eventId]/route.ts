@@ -65,13 +65,11 @@ export async function DELETE(
 
     // Manual cleanup for related tables that do NOT have ON DELETE CASCADE
     // Order chosen to respect FKs observed in schema
+    // user_event_payments are not deleted
     // 1) Delete event_tickets (FK -> user_event_payments, user_profiles) by event_id
     await supabase.from("event_tickets").delete().eq("event_id", eventId);
 
-    // 2) Delete user_event_payments for this event
-    await supabase.from("user_event_payments").delete().eq("event_id", eventId);
-
-    // 3) Delete prize winners and prizes via event_tracks join
+    // 2) Delete prize winners and prizes via event_tracks join
     const { data: trackIds } = await supabase
       .from("event_tracks")
       .select("track_id")
