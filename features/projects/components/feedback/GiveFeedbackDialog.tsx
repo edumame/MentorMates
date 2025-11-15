@@ -1,11 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Sparkles, Lightbulb, Loader2 } from "lucide-react";
@@ -61,7 +57,9 @@ export function GiveFeedbackDialog({
   eventId = "",
 }: GiveFeedbackDialogProps) {
   const [feedback, setFeedback] = useState("");
-  const [aiSuggestions, setAiSuggestions] = useState<AISuggestions | null>(null);
+  const [aiSuggestions, setAiSuggestions] = useState<AISuggestions | null>(
+    null
+  );
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -194,8 +192,8 @@ export function GiveFeedbackDialog({
                 </DialogTitle>
                 <p className="text-sm leading-[1.5] text-zinc-500">
                   Thank you for giving feedback to{" "}
-                  <span className="text-[#4b89ef]">{projectName}</span>! They&apos;ll
-                  find it helpful to improve their work.
+                  <span className="text-[#4b89ef]">{projectName}</span>!
+                  They&apos;ll find it helpful to improve their work.
                 </p>
               </div>
             </div>
@@ -214,7 +212,8 @@ export function GiveFeedbackDialog({
                     Interested in Similar Projects?
                   </p>
                   <p className="text-sm leading-[22px] text-zinc-500">
-                    Join our community to discover more innovative projects and connect with creators.
+                    Join our community to discover more innovative projects and
+                    connect with creators.
                   </p>
                 </div>
                 <Button
@@ -241,12 +240,16 @@ export function GiveFeedbackDialog({
               <div className="mb-3">
                 <DialogTitle className="text-[18px] font-semibold leading-[1.35] text-zinc-900">
                   Share feedback for{" "}
-                  <button type="button" className="align-baseline text-[#4B89EF] hover:underline">
+                  <button
+                    type="button"
+                    className="align-baseline text-[#4B89EF] hover:underline"
+                  >
                     {projectName}
                   </button>
                 </DialogTitle>
                 <p className="mt-1 max-w-[440px] text-[12px] leading-[1.5] text-zinc-600">
-                  Help this project improve by sharing your thoughts, suggestions, and ideas.
+                  Help this project improve by sharing your thoughts,
+                  suggestions, and ideas.
                 </p>
               </div>
 
@@ -262,7 +265,9 @@ export function GiveFeedbackDialog({
                 ) : (
                   <Sparkles className="h-4 w-4" />
                 )}
-                {isGeneratingAI ? "Enhancing with AI..." : "Improve feedback with AI"}
+                {isGeneratingAI
+                  ? "Enhancing with AI..."
+                  : "Improve feedback with AI"}
               </button>
 
               <div className="mb-6 flex-1">
@@ -319,12 +324,15 @@ export function GiveFeedbackDialog({
                   </div>
 
                   <div className="flex flex-1 items-center justify-center">
-                    <div className="text-center space-y-4">
-                      <div className="relative mx-auto w-16 h-16">
-                        <Sparkles className="w-16 h-16 text-[#6E56CF] animate-pulse" />
+                    <div className="text-center space-y-6">
+                      <div className="flex items-center justify-center gap-2">
+                        <div className="h-3 w-3 rounded-full bg-[#4B89EF] animate-bounce" style={{ animationDelay: "0ms" }}></div>
+                        <div className="h-3 w-3 rounded-full bg-[#4B89EF] animate-bounce" style={{ animationDelay: "150ms" }}></div>
+                        <div className="h-3 w-3 rounded-full bg-[#4B89EF] animate-bounce" style={{ animationDelay: "300ms" }}></div>
                       </div>
                       <p className="text-[14px] text-zinc-600 max-w-[280px]">
-                        Our AI is analyzing your feedback and creating helpful suggestions...
+                        Our AI is analyzing your feedback and creating helpful
+                        suggestions...
                       </p>
                     </div>
                   </div>
@@ -344,17 +352,23 @@ export function GiveFeedbackDialog({
                     <SuggestionCard
                       title="More Specific"
                       suggestion={aiSuggestions["more specific"]}
-                      onAppend={() => handleAppendSuggestion(aiSuggestions["more specific"])}
+                      onAppend={() =>
+                        handleAppendSuggestion(aiSuggestions["more specific"])
+                      }
                     />
                     <SuggestionCard
                       title="More Actionable"
                       suggestion={aiSuggestions["more actionable"]}
-                      onAppend={() => handleAppendSuggestion(aiSuggestions["more actionable"])}
+                      onAppend={() =>
+                        handleAppendSuggestion(aiSuggestions["more actionable"])
+                      }
                     />
                     <SuggestionCard
                       title="More Positive"
                       suggestion={aiSuggestions["more positive"]}
-                      onAppend={() => handleAppendSuggestion(aiSuggestions["more positive"])}
+                      onAppend={() =>
+                        handleAppendSuggestion(aiSuggestions["more positive"])
+                      }
                     />
                   </div>
                 </>
@@ -371,7 +385,9 @@ export function GiveFeedbackDialog({
 
                   <div className="space-y-6">
                     <div>
-                      <p className="text-[18px] font-medium tracking-tight text-zinc-900">01</p>
+                      <p className="text-[18px] font-medium tracking-tight text-zinc-900">
+                        01
+                      </p>
                       <p className="mt-1 max-w-[440px] text-[13px] leading-[1.55] text-zinc-600">
                         What should they do next to improve the project?
                       </p>
@@ -379,7 +395,9 @@ export function GiveFeedbackDialog({
                     </div>
 
                     <div>
-                      <p className="text-[18px] font-medium tracking-tight text-zinc-900">02</p>
+                      <p className="text-[18px] font-medium tracking-tight text-zinc-900">
+                        02
+                      </p>
                       <p className="mt-1 max-w-[440px] text-[13px] leading-[1.55] text-zinc-600">
                         What could be better or work differently?
                       </p>
@@ -387,9 +405,12 @@ export function GiveFeedbackDialog({
                     </div>
 
                     <div>
-                      <p className="text-[18px] font-medium tracking-tight text-zinc-900">03</p>
+                      <p className="text-[18px] font-medium tracking-tight text-zinc-900">
+                        03
+                      </p>
                       <p className="mt-1 max-w-[440px] text-[13px] leading-[1.55] text-zinc-600">
-                        What works well, and are there similar projects to learn from?
+                        What works well, and are there similar projects to learn
+                        from?
                       </p>
                     </div>
                   </div>
