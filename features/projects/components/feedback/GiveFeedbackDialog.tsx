@@ -45,7 +45,7 @@ function SuggestionCard({ title, suggestion, onAppend }: SuggestionCardProps) {
           Add below
         </button>
       </div>
-      <p className="text-[13px] leading-[1.55] text-zinc-600 blur-sm group-hover:blur-none transition-all duration-200 select-none group-hover:select-text">
+      <p className="text-[13px] leading-[1.55] text-zinc-600 md:blur-sm md:group-hover:blur-none transition-all duration-200 md:select-none md:group-hover:select-text">
         {suggestion}
       </p>
     </div>
