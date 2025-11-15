@@ -752,9 +752,9 @@ export function NewProjectSubmissionFormSinglePage({
                         </span>
                       </label>
                     </div>
-                    <p className="text-base text-[#7f7f7f]">
-                      *Upload an image to showcase your project (Max 10MB).
-                    </p>
+                      <p className="text-base text-[#7f7f7f]">
+                        Upload an image to showcase your project (Max 10MB).
+                      </p>
                   </div>
 
                   {/* Additional Materials */}
@@ -786,9 +786,9 @@ export function NewProjectSubmissionFormSinglePage({
                         </span>
                       </label>
                     </div>
-                    <p className="text-base text-[#7f7f7f]">
-                      *Upload any additional documentation (Max 10MB).
-                    </p>
+                      <p className="text-base text-[#7f7f7f]">
+                        Upload any additional documentation (Max 10MB).
+                      </p>
                   </div>
 
                   {/* GitHub or Live Link */}
