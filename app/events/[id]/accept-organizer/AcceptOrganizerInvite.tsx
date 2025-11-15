@@ -48,7 +48,10 @@ export function AcceptOrganizerInvite({
           .eq("event_id", eventId)
           .maybeSingle();
 
-        if (existingRole?.role === EventRole.Organizer) {
+        if (
+          existingRole?.role === EventRole.Organizer ||
+          existingRole?.role === EventRole.Admin
+        ) {
           // Already an organizer, redirect
           const overviewUrl = `/events/${eventSlug || eventId}/overview`;
           router.push(overviewUrl);

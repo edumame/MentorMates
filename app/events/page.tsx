@@ -26,20 +26,23 @@ export default async function EventsPage() {
 
       const userId = user.id;
 
-      // Get user's roles in all events
-      const { data: userRoles, error: rolesError } = await supabase
-        .from("user_event_roles")
-        .select("event_id, role")
-        .eq("user_id", userId);
+        // Get user's roles in all events
+        const { data: userRoles, error: rolesError } = await supabase
+          .from("user_event_roles")
+          .select("event_id, role")
+          .eq("user_id", userId);
 
-      if (rolesError) throw rolesError;
+        if (rolesError) throw rolesError;
 
-      const isAdmin = isAdminGlobal;
+        const isAdmin = isAdminGlobal;
 
-      // Get event IDs where user is an organizer
-      const organizerEventIds = userRoles
-        .filter((role) => role.role === EventRole.Organizer)
-        .map((role) => role.event_id);
+        // Get event IDs where user is an organizer
+        const organizerEventIds = userRoles
+          .filter(
+            (role) =>
+              role.role === EventRole.Organizer || role.role === EventRole.Admin
+          )
+          .map((role) => role.event_id);
 
       // Build query for events based on visibility and user role
       let query = supabase.from("events").select("*");

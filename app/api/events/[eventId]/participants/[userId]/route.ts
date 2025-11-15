@@ -71,9 +71,16 @@ async function authorizeAndGetContext(
     return { error: NextResponse.json({ error: "You cannot modify your own role" }, { status: 403 }) } as const;
   }
 
-  const isTargetOrganizer = (targetRow.role as EventRole) === EventRole.Organizer;
+  const targetRole = targetRow.role as EventRole;
+  const isTargetOrganizer =
+    targetRole === EventRole.Organizer || targetRole === EventRole.Admin;
   if (isTargetOrganizer && !isAdmin) {
-    return { error: NextResponse.json({ error: "Only admins can modify organizer roles" }, { status: 403 }) } as const;
+    return {
+      error: NextResponse.json(
+        { error: "Only admins can modify organizer or admin roles" },
+        { status: 403 }
+      ),
+    } as const;
   }
 
   return { supabase, user, isAdmin, eventId, userId, targetRow } as const;
