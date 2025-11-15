@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Sparkles, Lightbulb, Loader2, ArrowRight } from "lucide-react";
+import { Sparkles, Lightbulb, Loader2 } from "lucide-react";
 import { useToast } from "@/lib/hooks/use-toast";
 import Link from "next/link";
 
@@ -30,30 +30,20 @@ interface GiveFeedbackDialogProps {
 interface SuggestionCardProps {
   title: string;
   suggestion: string;
-  onUse: () => void;
   onAppend: () => void;
 }
 
-function SuggestionCard({ title, suggestion, onUse, onAppend }: SuggestionCardProps) {
+function SuggestionCard({ title, suggestion, onAppend }: SuggestionCardProps) {
   return (
-    <div className="group relative rounded-lg border border-[rgba(0,0,0,0.08)] bg-white/60 p-4 transition-all hover:bg-white hover:shadow-sm cursor-pointer">
+    <div className="group relative rounded-lg border border-[rgba(0,0,0,0.08)] bg-white p-4 transition-all cursor-pointer">
       <div className="mb-2 flex items-center justify-between gap-2">
         <h4 className="text-[14px] font-semibold text-zinc-900">{title}</h4>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={onAppend}
-            className="inline-flex items-center gap-1 rounded-md border border-[#4B89EF] bg-white px-2.5 py-1.5 text-[12px] font-medium text-[#4B89EF] transition-all hover:bg-[#4B89EF]/10"
-          >
-            Add below
-          </button>
-          <button
-            onClick={onUse}
-            className="inline-flex items-center gap-1.5 rounded-md bg-[#4B89EF] px-2.5 py-1.5 text-[12px] font-medium text-white transition-all hover:bg-[#3F77D3]"
-          >
-            Use this
-            <ArrowRight className="h-3 w-3" />
-          </button>
-        </div>
+        <button
+          onClick={onAppend}
+          className="inline-flex items-center gap-1.5 rounded-md bg-[#4B89EF] px-2.5 py-1.5 text-[12px] font-medium text-white transition-all hover:bg-[#3F77D3]"
+        >
+          Add below
+        </button>
       </div>
       <p className="text-[13px] leading-[1.55] text-zinc-600 blur-sm group-hover:blur-none transition-all duration-200 select-none group-hover:select-text">
         {suggestion}
@@ -158,14 +148,6 @@ export function GiveFeedbackDialog({
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const handleUseSuggestion = (suggestionText: string) => {
-    setFeedback(suggestionText);
-    toast({
-      title: "Suggestion applied",
-      description: "The AI suggestion has replaced your feedback.",
-    });
   };
 
   const handleAppendSuggestion = (suggestionText: string) => {
@@ -362,19 +344,16 @@ export function GiveFeedbackDialog({
                     <SuggestionCard
                       title="More Specific"
                       suggestion={aiSuggestions["more specific"]}
-                      onUse={() => handleUseSuggestion(aiSuggestions["more specific"])}
                       onAppend={() => handleAppendSuggestion(aiSuggestions["more specific"])}
                     />
                     <SuggestionCard
                       title="More Actionable"
                       suggestion={aiSuggestions["more actionable"]}
-                      onUse={() => handleUseSuggestion(aiSuggestions["more actionable"])}
                       onAppend={() => handleAppendSuggestion(aiSuggestions["more actionable"])}
                     />
                     <SuggestionCard
                       title="More Positive"
                       suggestion={aiSuggestions["more positive"]}
-                      onUse={() => handleUseSuggestion(aiSuggestions["more positive"])}
                       onAppend={() => handleAppendSuggestion(aiSuggestions["more positive"])}
                     />
                   </div>
