@@ -200,7 +200,7 @@ export function GiveFeedbackDialog({
   if (isSubmitted) {
     return (
       <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className={contentBaseClasses}>
+        <DialogContent className={`${contentBaseClasses} min-h-[540px]`}>
           <div className="give-feedback-dialog-content flex h-full w-full flex-col overflow-y-auto md:flex-row md:overflow-hidden">
             <div className="flex min-w-0 grow basis-0 flex-col items-center justify-center border-b border-zinc-200 px-4 py-6 md:border-b-0 md:p-6 md:pr-4">
               <div className="flex max-w-md flex-col items-center gap-1.5 text-center">
@@ -219,7 +219,7 @@ export function GiveFeedbackDialog({
             </div>
 
             <div
-              className="w-full shrink-0 md:w-[450px] px-4 py-6 md:p-6 md:pl-4"
+              className="flex w-full shrink-0 md:w-[450px] items-center justify-center px-4 py-6 md:p-6 md:pl-4"
               style={{
                 borderTopRightRadius: "6px",
                 borderBottomRightRadius: "6px",

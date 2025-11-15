@@ -351,7 +351,7 @@ export default function FeedbackPage() {
 
             {isGivingFeedback ? (
               // ---------- Share feedback ----------
-              <div className="relative flex flex-col lg:flex-row min-h-[540px] h-[540px] max-h-[80vh]">
+              <div className="relative flex flex-col lg:flex-row min-h-[540px] max-h-[80vh]">
 
                 {/* Left: input */}
                 <div className="flex-1 bg-white px-6 py-6 lg:px-8 lg:py-8 flex flex-col rounded-none lg:rounded-l-[6px]">
@@ -468,7 +468,7 @@ export default function FeedbackPage() {
               </div>
             ) : (
               // -------- View feedback --------
-              <div className="relative flex flex-col lg:flex-row min-h-[460px] h-[540px] max-h-[80vh] overflow-hidden rounded-[6px]">
+              <div className="relative flex flex-col lg:flex-row min-h-[460px] max-h-[80vh] overflow-hidden rounded-[6px]">
 
                 {/* Left panel */}
                 <div className="flex w-full items-center justify-center bg-white px-6 py-8 lg:w-1/2 rounded-none lg:rounded-l-[6px]">
