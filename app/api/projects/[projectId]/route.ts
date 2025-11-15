@@ -27,6 +27,7 @@ export async function PATCH(
       "lead_name",
       "lead_email",
       "teammates",
+      "event_id",
       // video_url may or may not exist in schema; ignore TS here
       "video_url",
     ];

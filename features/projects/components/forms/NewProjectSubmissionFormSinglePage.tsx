@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,9 +27,18 @@ import { toast } from "@/lib/hooks/use-toast";
 import { Toaster } from "@/components/ui/toaster";
 import UserSearchWithInvite from "@/components/utils/UserSearchWithInvite";
 import { useAdmin } from "@/lib/hooks/use-admin";
-import { EventDetails } from "@/lib/types";
+import { EventDetails, EventRole } from "@/lib/types";
 import { useProjectSubmissionData } from "@/features/projects/components/forms/hooks/useProjectSubmissionData";
 import { EventCard } from "@/components/events/event-card";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface EventParticipant {
   user_id: string;
@@ -36,10 +46,55 @@ interface EventParticipant {
   email: string;
 }
 
+interface ActiveEventOption {
+  event_id: string;
+  event_name: string;
+  slug?: string | null;
+  event_date?: string | null;
+  location?: string | null;
+  cover_image_url?: string | null;
+  paid?: boolean | null;
+  submission_time_start?: string | null;
+  submission_time_cutoff?: string | null;
+}
+
+const formatDeadlineLabel = (iso?: string | null) => {
+  if (!iso) {
+    return "No submission deadline";
+  }
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) {
+    return "No submission deadline";
+  }
+  return date.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+};
+
+const formatTimeRemaining = (iso?: string | null) => {
+  if (!iso) return "";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  const diffMs = date.getTime() - Date.now();
+  if (diffMs <= 0) return "Deadline passed";
+
+  const minutes = Math.floor(diffMs / (1000 * 60));
+  if (minutes < 60) return `${minutes}m left`;
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h left`;
+
+  const days = Math.floor(hours / 24);
+  return `${days}d left`;
+};
+
 export function NewProjectSubmissionFormSinglePage({
   userEmail,
   leadName,
-  eventId,
+  eventId: initialEventId,
   onProjectSubmitted,
   onContextusLinked,
   contextusId: initialContextusId,
@@ -53,9 +108,25 @@ export function NewProjectSubmissionFormSinglePage({
 }) {
   const router = useRouter();
   const isAdmin = useAdmin();
+  const [selectedEventId, setSelectedEventId] = useState<string | undefined>(
+    initialEventId
+  );
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [activeEvents, setActiveEvents] = useState<ActiveEventOption[]>([]);
+  const [isActiveEventsLoading, setIsActiveEventsLoading] = useState(false);
+  const [activeEventsError, setActiveEventsError] = useState<string | null>(null);
+  const [isUpdatingEventAssignment, setIsUpdatingEventAssignment] =
+    useState(false);
 
   // Ref to track if draft creation has been attempted
   const draftCreationAttempted = useRef(false);
+  const hasSyncedEventAssignmentRef = useRef(false);
+  const hasEventSelectionInitializedRef = useRef(false);
+  const previousEventIdRef = useRef<string | undefined>(initialEventId);
+
+  useEffect(() => {
+    setSelectedEventId(initialEventId);
+  }, [initialEventId]);
 
   // State
   const [projectId, setProjectId] = useState<string | null>(null);
@@ -72,7 +143,7 @@ export function NewProjectSubmissionFormSinglePage({
   const [selectedTrackIds, setSelectedTrackIds] = useState<string[]>([]);
 
   // Load available tracks for the event (if any)
-  const { availableTracks } = useProjectSubmissionData(eventId);
+  const { availableTracks } = useProjectSubmissionData(selectedEventId);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -86,83 +157,285 @@ export function NewProjectSubmissionFormSinglePage({
     coverImageUrl: "",
     additionalMaterialsUrl: "",
   });
+  const eventSelectOptions = useMemo(() => {
+    if (
+      selectedEventId &&
+      eventDetails &&
+      !activeEvents.some((event) => event.event_id === selectedEventId)
+    ) {
+      return [
+        {
+          event_id: eventDetails.event_id,
+          event_name: eventDetails.event_name,
+          slug: eventDetails.slug,
+          event_date: eventDetails.event_date,
+          location: eventDetails.location,
+          cover_image_url: eventDetails.cover_image_url,
+          paid: eventDetails.paid,
+          submission_time_start: eventDetails.submission_time_start ?? null,
+          submission_time_cutoff: eventDetails.submission_time_cutoff ?? null,
+        },
+        ...activeEvents,
+      ];
+    }
+    return activeEvents;
+  }, [activeEvents, eventDetails, selectedEventId]);
+
+  const handleEventSelection = (value: string) => {
+    setSelectedEventId(value);
+  };
 
   useEffect(() => {
     const init = async () => {
-      // Hydrate from session if no props provided
-      if (!leadName || !userEmail) {
-        try {
-          const {
-            data: { session },
-          } = await supabase.auth.getSession();
-          const email = session?.user?.email || "";
-          const nameFromMeta = (session?.user?.user_metadata?.full_name ||
-            session?.user?.user_metadata?.name) as string | undefined;
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
 
-          if (email && !formData.leadEmail) {
-            setFormData((prev) => ({ ...prev, leadEmail: email }));
-          }
+        setCurrentUserId(session?.user?.id ?? null);
 
-          let displayName = nameFromMeta || "";
-          if (session?.user?.id) {
-            const { data: profile } = await supabase
-              .from("user_profiles")
-              .select("display_name")
-              .eq("uid", session.user.id)
-              .maybeSingle();
-            if (profile?.display_name) displayName = profile.display_name;
-          }
+        const emailFromSession = session?.user?.email || "";
+        const nameFromMeta = (session?.user?.user_metadata?.full_name ||
+          session?.user?.user_metadata?.name) as string | undefined;
 
-          if (displayName && !formData.leadName) {
-            setFormData((prev) => ({ ...prev, leadName: displayName }));
-          }
-        } catch {
-          // Silent fail
+        if (!userEmail && emailFromSession) {
+          setFormData((prev) =>
+            prev.leadEmail
+              ? prev
+              : {
+                  ...prev,
+                  leadEmail: emailFromSession,
+                }
+          );
         }
-      }
 
-      // Fetch event details
-      if (eventId && !eventDetails) {
-        try {
-          const { data, error } = await supabase
-            .from("events")
-            .select(
-              "event_id, event_name, slug, event_date, location, cover_image_url, paid, event_description"
-            )
-            .eq("event_id", eventId)
-            .single();
-
-          if (!error && data) {
-            setEventDetails(data as EventDetails);
-          }
-        } catch {
-          // Silent fail
+        let displayName = nameFromMeta || "";
+        if (session?.user?.id) {
+          const { data: profile } = await supabase
+            .from("user_profiles")
+            .select("display_name")
+            .eq("uid", session.user.id)
+            .maybeSingle();
+          if (profile?.display_name) displayName = profile.display_name;
         }
-      }
 
-      setIsLoading(false);
+        if (!leadName && displayName) {
+          setFormData((prev) =>
+            prev.leadName
+              ? prev
+              : {
+                  ...prev,
+                  leadName: displayName,
+                }
+          );
+        }
+      } catch {
+        setCurrentUserId(null);
+        // Silent fail
+      } finally {
+        setIsLoading(false);
+      }
     };
 
     init();
-  }, [eventId, leadName, userEmail]);
+  }, [leadName, userEmail]);
+  
+  useEffect(() => {
+    const fetchEventDetails = async () => {
+      if (!selectedEventId) {
+        setEventDetails(null);
+        return;
+      }
+
+      if (eventDetails?.event_id === selectedEventId) {
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from("events")
+          .select(
+            "event_id, event_name, slug, event_date, location, cover_image_url, paid, event_description, event_blurb, submission_time_start, submission_time_cutoff"
+          )
+          .eq("event_id", selectedEventId)
+          .single();
+
+        if (!error && data) {
+          setEventDetails(data as EventDetails);
+        }
+      } catch {
+        // Silent fail
+      }
+    };
+
+    fetchEventDetails();
+  }, [selectedEventId, eventDetails?.event_id]);
+  
+  useEffect(() => {
+    if (!currentUserId) {
+      if (!isLoading) {
+        setActiveEvents([]);
+        setActiveEventsError(null);
+        setIsActiveEventsLoading(false);
+      }
+      return;
+    }
+
+    let isMounted = true;
+    const loadActiveEvents = async () => {
+      setIsActiveEventsLoading(true);
+      setActiveEventsError(null);
+      try {
+        const { data: rolesData, error: rolesError } = await supabase
+          .from("user_event_roles")
+          .select("event_id, role")
+          .eq("user_id", currentUserId);
+
+        if (rolesError) {
+          throw rolesError;
+        }
+
+        const participantEventIds =
+          (rolesData || [])
+            .filter((role) => role.role === EventRole.Participant)
+            .map((role) => role.event_id) ?? [];
+
+        if (participantEventIds.length === 0) {
+          if (isMounted) {
+            setActiveEvents([]);
+          }
+          return;
+        }
+
+        const { data: eventsData, error: eventsError } = await supabase
+          .from("events")
+          .select(
+            "event_id, event_name, slug, event_date, location, cover_image_url, paid, submission_time_start, submission_time_cutoff"
+          )
+          .in("event_id", participantEventIds);
+
+        if (eventsError) {
+          throw eventsError;
+        }
+
+        const now = Date.now();
+        const filtered = (eventsData || [])
+          .filter((event: ActiveEventOption) => {
+            const start = event.submission_time_start
+              ? new Date(event.submission_time_start)
+              : null;
+            const cutoff = event.submission_time_cutoff
+              ? new Date(event.submission_time_cutoff)
+              : null;
+
+            const hasStarted =
+              !start || (!Number.isNaN(start.getTime()) && start.getTime() <= now);
+            const beforeDeadline =
+              !cutoff ||
+              (!Number.isNaN(cutoff.getTime()) && cutoff.getTime() >= now);
+
+            return hasStarted && beforeDeadline;
+          })
+          .sort((a: ActiveEventOption, b: ActiveEventOption) => {
+            const cutoffA = a.submission_time_cutoff
+              ? new Date(a.submission_time_cutoff).getTime()
+              : Number.POSITIVE_INFINITY;
+            const cutoffB = b.submission_time_cutoff
+              ? new Date(b.submission_time_cutoff).getTime()
+              : Number.POSITIVE_INFINITY;
+            return cutoffA - cutoffB;
+          }) as ActiveEventOption[];
+
+        if (isMounted) {
+          setActiveEvents(filtered);
+        }
+      } catch (error) {
+        console.error("Error loading active events:", error);
+        if (isMounted) {
+          setActiveEvents([]);
+          setActiveEventsError("Unable to load active events right now.");
+        }
+      } finally {
+        if (isMounted) {
+          setIsActiveEventsLoading(false);
+        }
+      }
+    };
+
+    loadActiveEvents();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentUserId, isLoading]);
+
+  useEffect(() => {
+    if (!hasEventSelectionInitializedRef.current) {
+      hasEventSelectionInitializedRef.current = true;
+      previousEventIdRef.current = selectedEventId;
+      return;
+    }
+
+    if (previousEventIdRef.current === selectedEventId) {
+      return;
+    }
+
+    previousEventIdRef.current = selectedEventId;
+    setFormData((prev) => ({ ...prev, teammates: [] }));
+    setSelectedTrackIds([]);
+  }, [selectedEventId]);
+  
+  useEffect(() => {
+    if (!projectId) return;
+    if (!hasSyncedEventAssignmentRef.current) {
+      hasSyncedEventAssignmentRef.current = true;
+      return;
+    }
+
+    const syncEventAssignment = async () => {
+      setIsUpdatingEventAssignment(true);
+      try {
+        await fetch(`/api/projects/${projectId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ event_id: selectedEventId || null }),
+        });
+      } catch (error) {
+        console.error("Failed to update project event assignment:", error);
+        toast({
+          title: "Unable to update event",
+          description:
+            "We couldn't update the event assignment. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsUpdatingEventAssignment(false);
+      }
+    };
+
+    syncEventAssignment();
+  }, [projectId, selectedEventId]);
 
   // Fetch event participants
   const fetchEventParticipants = useCallback(async () => {
-    if (!eventId) return;
+    if (!selectedEventId) {
+      setParticipants([]);
+      return;
+    }
 
     try {
       const { data } = await supabase
         .from("user_event_roles")
         .select(
           `
-          user_id,
-          profiles:user_id (
-            display_name,
-            email
-          )
-        `
+            user_id,
+            profiles:user_id (
+              display_name,
+              email
+            )
+          `
         )
-        .eq("event_id", eventId)
+        .eq("event_id", selectedEventId)
         .overrideTypes<
           {
             user_id: string;
@@ -193,13 +466,15 @@ export function NewProjectSubmissionFormSinglePage({
     } catch {
       // Silent fail
     }
-  }, [eventId]);
+  }, [selectedEventId]);
 
   useEffect(() => {
-    if (eventId) {
+    if (selectedEventId) {
       fetchEventParticipants();
+    } else {
+      setParticipants([]);
     }
-  }, [eventId, fetchEventParticipants]);
+  }, [selectedEventId, fetchEventParticipants]);
 
   // Create a draft as soon as user starts typing (only once)
   useEffect(() => {
@@ -220,7 +495,7 @@ export function NewProjectSubmissionFormSinglePage({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            eventId,
+            eventId: selectedEventId,
             leadName: formData.leadName,
             leadEmail: formData.leadEmail,
             contextus: isAdmin,
@@ -243,18 +518,18 @@ export function NewProjectSubmissionFormSinglePage({
       }
     };
 
-    createDraft();
-  }, [
-    formData.projectName,
-    formData.projectDescription,
-    formData.projectUrl,
-    projectId,
-    eventId,
-    formData.leadName,
-    formData.leadEmail,
-    onContextusLinked,
-    isAdmin,
-  ]);
+      createDraft();
+    }, [
+      formData.projectName,
+      formData.projectDescription,
+      formData.projectUrl,
+      projectId,
+      selectedEventId,
+      formData.leadName,
+      formData.leadEmail,
+      onContextusLinked,
+      isAdmin,
+    ]);
 
   // Auto-save functionality with debounce
   useEffect(() => {
@@ -290,6 +565,7 @@ export function NewProjectSubmissionFormSinglePage({
         lead_name: formData.leadName,
         lead_email: formData.leadEmail,
         teammates: validTeammates,
+      event_id: selectedEventId || null,
       };
 
       const resp = await fetch(`/api/projects/${projectId}`, {
@@ -423,13 +699,15 @@ export function NewProjectSubmissionFormSinglePage({
 
     setIsPrefilling(true);
     try {
-      const resp = await fetch("/api/contextus/prefill", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(
-          projectId ? { projectId } : { eventId, leadEmail: formData.leadEmail }
-        ),
-      });
+        const resp = await fetch("/api/contextus/prefill", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(
+            projectId
+              ? { projectId }
+              : { eventId: selectedEventId, leadEmail: formData.leadEmail }
+          ),
+        });
       if (!resp.ok) {
         const err = await resp.json().catch(() => ({}));
         throw new Error(err.error || `Prefill failed: ${resp.status}`);
@@ -511,7 +789,7 @@ export function NewProjectSubmissionFormSinglePage({
           projectUrl: formData.projectUrl,
           coverImageUrl: formData.coverImageUrl,
           additionalMaterialsUrl: formData.additionalMaterialsUrl,
-          eventId,
+            eventId: selectedEventId,
           trackIds: selectedTrackIds,
           videoUrl: formData.videoUrl,
         }),
@@ -651,7 +929,119 @@ export function NewProjectSubmissionFormSinglePage({
                   </Button>
                 )} */}
 
-                <div className="space-y-4">
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between gap-3">
+                        <label className="text-base text-black font-normal">
+                          Assign to an active event
+                        </label>
+                        {selectedEventId && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="text-sm text-[#4b89ef] hover:text-[#3d75d9]"
+                            onClick={() => setSelectedEventId(undefined)}
+                          >
+                            Clear
+                          </Button>
+                        )}
+                      </div>
+                      <Select
+                        value={selectedEventId}
+                        onValueChange={handleEventSelection}
+                        disabled={
+                          isActiveEventsLoading || eventSelectOptions.length === 0
+                        }
+                      >
+                        <SelectTrigger className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl h-11 px-3">
+                          <SelectValue
+                            placeholder={
+                              isActiveEventsLoading
+                                ? "Loading your events..."
+                                : "Select an event"
+                            }
+                          />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {eventSelectOptions.length > 0 ? (
+                            <SelectGroup>
+                              <SelectLabel>Active events</SelectLabel>
+                              {eventSelectOptions.map((eventOption) => {
+                                const deadlineLabel = formatDeadlineLabel(
+                                  eventOption.submission_time_cutoff
+                                );
+                                const remainingLabel = formatTimeRemaining(
+                                  eventOption.submission_time_cutoff
+                                );
+                                const isOptionActive = activeEvents.some(
+                                  (evt) => evt.event_id === eventOption.event_id
+                                );
+                                const isFallbackOption =
+                                  !isOptionActive &&
+                                  selectedEventId === eventOption.event_id;
+
+                                return (
+                                  <SelectItem
+                                    key={eventOption.event_id}
+                                    value={eventOption.event_id}
+                                    disabled={isFallbackOption}
+                                  >
+                                    <div className="flex flex-col text-left">
+                                      <span className="font-medium">
+                                        {eventOption.event_name}
+                                      </span>
+                                      <span className="text-xs text-[#7f7f7f]">
+                                        {deadlineLabel}
+                                        {remainingLabel
+                                          ? ` • ${remainingLabel}`
+                                          : ""}
+                                        {isFallbackOption
+                                          ? " • Deadline passed"
+                                          : ""}
+                                      </span>
+                                    </div>
+                                  </SelectItem>
+                                );
+                              })}
+                            </SelectGroup>
+                          ) : (
+                            <div className="px-3 py-2 text-sm text-muted-foreground">
+                              No active events available
+                            </div>
+                          )}
+                        </SelectContent>
+                      </Select>
+                      <div className="flex flex-wrap items-center gap-2 text-sm text-[#7f7f7f]">
+                        <span>
+                          Only events with open submission windows appear here.
+                        </span>
+                        <Link
+                          href="/events"
+                          className="text-[#4b89ef] hover:underline"
+                        >
+                          Browse events
+                        </Link>
+                        {isUpdatingEventAssignment && (
+                          <span className="flex items-center gap-1 text-[#4b89ef]">
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            Syncing...
+                          </span>
+                        )}
+                      </div>
+                      {activeEventsError && (
+                        <p className="text-sm text-red-500">{activeEventsError}</p>
+                      )}
+                      {!isActiveEventsLoading &&
+                        !activeEventsError &&
+                        currentUserId &&
+                        eventSelectOptions.length === 0 && (
+                          <p className="text-sm text-[#7f7f7f]">
+                            Join an event to enable project submissions.
+                          </p>
+                        )}
+                    </div>
+
                   {/* Project Name */}
                   <div className="space-y-2">
                     <label className="text-base text-black font-normal">
@@ -696,7 +1086,7 @@ export function NewProjectSubmissionFormSinglePage({
                   <div className="border-t border-gray-200" />
 
               {/* Tracks Selection (if event has tracks) */}
-              {eventId && availableTracks && availableTracks.length > 0 && (
+                {selectedEventId && availableTracks && availableTracks.length > 0 && (
                 <div className="space-y-2">
                   <label className="text-base text-black font-normal">
                     Select tracks
@@ -876,8 +1266,8 @@ export function NewProjectSubmissionFormSinglePage({
                       router.push(
                         eventDetails?.slug
                           ? `/events/${eventDetails.slug}/overview`
-                          : eventId
-                            ? `/events/${eventId}/overview`
+                            : selectedEventId
+                              ? `/events/${selectedEventId}/overview`
                             : `/projects`
                       )
                     }
