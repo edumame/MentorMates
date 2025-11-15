@@ -77,6 +77,8 @@ export async function EventPageLayout({
     .eq("event_id", dbEventId)
     .eq("submitted", true);
 
+  const canViewParticipants = hasJoined || !!userRole;
+
   return (
     <ActiveRoleProvider initialRole={userRole}>
       <div className="flex flex-col w-full" style={{ maxWidth: "100vw" }}>
@@ -94,58 +96,60 @@ export async function EventPageLayout({
             hasJoined={hasJoined}
             paid={paid || false}
             eventType={eventType || "Hackathon"}
-            tabsAndContent={
-              <>
-                {/* Tabs Navigation */}
-                <EventPageTabs
-                  eventId={eventId}
-                  participantCount={participantCount || 0}
-                  projectCount={projectCount || 0}
-                  showTicketsTab={(paid && hasJoined) || false}
-                />
+              tabsAndContent={
+                <>
+                  {/* Tabs Navigation */}
+                  <EventPageTabs
+                    eventId={eventId}
+                    participantCount={participantCount || 0}
+                    projectCount={projectCount || 0}
+                    showTicketsTab={(paid && hasJoined) || false}
+                    showParticipantsTab={canViewParticipants}
+                  />
 
-                {/* Main Content */}
-                <div className="w-full">
-                  <div className="mx-auto max-w-7xl flex flex-col md:flex-row items-start gap-6 w-full px-4 md:px-6 py-[24px]">
-                    {children}
+                  {/* Main Content */}
+                  <div className="w-full">
+                    <div className="mx-auto max-w-7xl flex flex-col md:flex-row items-start gap-6 w-full px-4 md:px-6 py-[24px]">
+                      {children}
+                    </div>
                   </div>
-                </div>
-              </>
-            }
+                </>
+              }
           />
-        ) : (
-          <>
-            {/* Page Header with Cover Image - No role */}
-            <EventPageHeader
-              eventName={eventName}
-              eventBlurb={eventBlurb}
-              eventDate={eventDate}
-              location={location}
-              coverImageUrl={coverImageUrl}
-              eventId={dbEventId}
-              hasJoined={hasJoined}
-              userRole={null}
-              activeRole={null}
-              paid={paid || false}
-              eventType={eventType || "Hackathon"}
-            />
+          ) : (
+            <>
+              {/* Page Header with Cover Image - No role */}
+              <EventPageHeader
+                eventName={eventName}
+                eventBlurb={eventBlurb}
+                eventDate={eventDate}
+                location={location}
+                coverImageUrl={coverImageUrl}
+                eventId={dbEventId}
+                hasJoined={hasJoined}
+                userRole={null}
+                activeRole={null}
+                paid={paid || false}
+                eventType={eventType || "Hackathon"}
+              />
 
-            {/* Tabs Navigation */}
-            <EventPageTabs
-              eventId={eventId}
-              participantCount={participantCount || 0}
-              projectCount={projectCount || 0}
-              showTicketsTab={(paid && hasJoined) || false}
-            />
+              {/* Tabs Navigation */}
+              <EventPageTabs
+                eventId={eventId}
+                participantCount={participantCount || 0}
+                projectCount={projectCount || 0}
+                showTicketsTab={(paid && hasJoined) || false}
+                showParticipantsTab={canViewParticipants}
+              />
 
-            {/* Main Content */}
-            <div className="w-full">
-              <div className="flex flex-col md:flex-row items-start gap-6 w-full px-4 md:px-6 py-[24px]">
-                {children}
+              {/* Main Content */}
+              <div className="w-full">
+                <div className="flex flex-col md:flex-row items-start gap-6 w-full px-4 md:px-6 py-[24px]">
+                  {children}
+                </div>
               </div>
-            </div>
-          </>
-        )}
+            </>
+          )}
       </div>
     </ActiveRoleProvider>
   );

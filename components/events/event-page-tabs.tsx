@@ -8,6 +8,7 @@ interface EventPageTabsProps {
   participantCount?: number;
   projectCount?: number;
   showTicketsTab?: boolean;
+  showParticipantsTab?: boolean;
 }
 
 export function EventPageTabs({
@@ -15,18 +16,18 @@ export function EventPageTabs({
   participantCount,
   projectCount,
   showTicketsTab,
+  showParticipantsTab = true,
 }: EventPageTabsProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const tabs = [
+  const tabs: Array<{
+    name: string;
+    path: string;
+    badge?: number | null;
+  }> = [
     { name: "Overview", path: `/events/${eventId}/overview` },
     { name: "Schedule", path: `/events/${eventId}/schedule`, badge: null },
-    {
-      name: "Participants",
-      path: `/events/${eventId}/participants`,
-      badge: participantCount,
-    },
     {
       name: "Projects",
       path: `/events/${eventId}/gallery`,
@@ -35,6 +36,14 @@ export function EventPageTabs({
     { name: "FAQs", path: `/events/${eventId}/faqs` },
     // { name: "Gallery", path: `/events/${eventId}/gallery` }, // TODO: Add back when image upload functionality is ready
   ];
+
+  if (showParticipantsTab) {
+    tabs.splice(2, 0, {
+      name: "Participants",
+      path: `/events/${eventId}/participants`,
+      badge: participantCount,
+    });
+  }
 
   if (showTicketsTab) {
     tabs.push({ name: "Tickets", path: `/events/${eventId}/tickets` });
