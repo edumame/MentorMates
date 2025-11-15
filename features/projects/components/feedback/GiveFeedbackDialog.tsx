@@ -36,26 +36,26 @@ interface SuggestionCardProps {
 
 function SuggestionCard({ title, suggestion, onUse, onAppend }: SuggestionCardProps) {
   return (
-    <div className="group relative rounded-lg border border-[rgba(0,0,0,0.08)] bg-white/60 p-4 transition-all hover:bg-white hover:shadow-sm">
+    <div className="group relative rounded-lg border border-[rgba(0,0,0,0.08)] bg-white/60 p-4 transition-all hover:bg-white hover:shadow-sm cursor-pointer">
       <div className="mb-2 flex items-center justify-between gap-2">
         <h4 className="text-[14px] font-semibold text-zinc-900">{title}</h4>
-        <div className="flex items-center gap-2 opacity-0 transition-all group-hover:opacity-100">
+        <div className="flex items-center gap-2">
           <button
             onClick={onAppend}
-            className="inline-flex items-center gap-1 rounded-md border border-[#6E56CF] bg-white px-2.5 py-1.5 text-[12px] font-medium text-[#6E56CF] transition-all hover:bg-[#6E56CF]/5"
+            className="inline-flex items-center gap-1 rounded-md border border-[#4B89EF] bg-white px-2.5 py-1.5 text-[12px] font-medium text-[#4B89EF] transition-all hover:bg-[#4B89EF]/10"
           >
             Add below
           </button>
           <button
             onClick={onUse}
-            className="inline-flex items-center gap-1.5 rounded-md bg-[#6E56CF] px-2.5 py-1.5 text-[12px] font-medium text-white transition-all hover:bg-[#5D46B8]"
+            className="inline-flex items-center gap-1.5 rounded-md bg-[#4B89EF] px-2.5 py-1.5 text-[12px] font-medium text-white transition-all hover:bg-[#3F77D3]"
           >
             Use this
             <ArrowRight className="h-3 w-3" />
           </button>
         </div>
       </div>
-      <p className="text-[13px] leading-[1.55] text-zinc-600 line-clamp-4">
+      <p className="text-[13px] leading-[1.55] text-zinc-600 blur-sm group-hover:blur-none transition-all duration-200 select-none group-hover:select-text">
         {suggestion}
       </p>
     </div>
@@ -325,7 +325,29 @@ export function GiveFeedbackDialog({
             }}
           >
             <div className="flex h-full flex-col">
-              {aiSuggestions ? (
+              {isGeneratingAI ? (
+                <>
+                  <div className="mb-5 flex items-center gap-3">
+                    <div className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/70 ring-1 ring-[rgba(0,0,0,0.1)]">
+                      <Loader2 className="h-4 w-4 animate-spin text-[#6E56CF]" />
+                    </div>
+                    <h3 className="text-[16px] font-semibold leading-[1.4] text-zinc-900">
+                      Generating AI Suggestions...
+                    </h3>
+                  </div>
+
+                  <div className="flex flex-1 items-center justify-center">
+                    <div className="text-center space-y-4">
+                      <div className="relative mx-auto w-16 h-16">
+                        <Sparkles className="w-16 h-16 text-[#6E56CF] animate-pulse" />
+                      </div>
+                      <p className="text-[14px] text-zinc-600 max-w-[280px]">
+                        Our AI is analyzing your feedback and creating helpful suggestions...
+                      </p>
+                    </div>
+                  </div>
+                </>
+              ) : aiSuggestions ? (
                 <>
                   <div className="mb-5 flex items-center gap-3">
                     <div className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/70 ring-1 ring-[rgba(0,0,0,0.1)]">
