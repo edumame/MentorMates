@@ -255,7 +255,7 @@ export function GiveFeedbackDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className={contentBaseClasses}>
+      <DialogContent className={contentBaseClasses + " overflow-y-auto"}>
         <div className="give-feedback-dialog-content flex h-full flex-col lg:flex-row">
           {/* LEFT: Input panel */}
           <div className="flex-1 bg-white px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
@@ -299,7 +299,7 @@ export function GiveFeedbackDialog({
                   value={feedback}
                   onChange={(e) => setFeedback(e.target.value)}
                   placeholder="Long description or markdown"
-                  className="min-h-[220px] w-full resize-none rounded-[10px] border border-[rgba(0,0,0,0.12)] p-4 text-[14px] leading-[1.5] text-zinc-900 placeholder:text-zinc-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#4B89EF]/60"
+                  className="min-h-[220px] max-h-[220px] w-full resize-none rounded-[10px] border border-[rgba(0,0,0,0.12)] p-4 text-[14px] leading-[1.5] text-zinc-900 placeholder:text-zinc-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#4B89EF]/60"
                 />
               </div>
 

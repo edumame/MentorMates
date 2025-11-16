@@ -70,23 +70,23 @@ export default function FeedbackDisplay({
                   </div>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center space-x-2 mb-2">
-                    <span className="font-semibold text-gray-900">
+                  <div className="flex items-center flex-wrap gap-x-2 gap-y-1 mb-2">
+                    <span className="font-semibold text-gray-900 break-words">
                       {item.mentor_name || "Anonymous"}
                     </span>
                     {item.mentor_email && (
-                      <span className="text-sm text-gray-500">
+                      <span className="text-sm text-gray-500 break-all">
                         ({item.mentor_email})
                       </span>
                     )}
                     <span className="text-sm text-gray-500">
                       •
                     </span>
-                    <span className="text-sm text-gray-500">
+                    <span className="text-sm text-gray-500 whitespace-nowrap">
                       {new Date(item.created_at).toLocaleDateString()}
                     </span>
                   </div>
-                  <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
+                  <p className="text-gray-700 leading-relaxed whitespace-pre-wrap break-words overflow-wrap-anywhere">
                     {item.feedback_text}
                   </p>
                 </div>
