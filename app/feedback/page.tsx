@@ -498,9 +498,9 @@ export default function FeedbackPage() {
                     </div>
 
                     <div className="mb-6 text-[16px] sm:text-[18px] lg:text-[20px] leading-7 text-slate-900 break-words whitespace-pre-wrap">
-                      <span className="align-top text-[18px] sm:text-[20px] lg:text-[22px]">"</span>
+                      <span className="align-top text-[18px] sm:text-[20px] lg:text-[22px]">&ldquo;</span>
                       {selectedFeedback?.message}
-                      <span className="align-top text-[18px] sm:text-[20px] lg:text-[22px]">"</span>
+                      <span className="align-top text-[18px] sm:text-[20px] lg:text-[22px]">&rdquo;</span>
                     </div>
 
                     <div className="flex items-center gap-3 flex-wrap">
