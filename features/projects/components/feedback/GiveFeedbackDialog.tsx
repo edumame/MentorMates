@@ -56,9 +56,7 @@ function SuggestionCard({
           </button>
         </div>
       </div>
-      <p className="text-[13px] leading-[1.55] text-zinc-600 blur-sm group-hover:blur-none transition-all duration-200 select-none group-hover:select-text">
-        {suggestion}
-      </p>
+      <p className="text-[13px] leading-[1.55] text-zinc-600">{suggestion}</p>
     </div>
   );
 }
@@ -352,7 +350,8 @@ export function GiveFeedbackDialog({
                         <Sparkles className="w-16 h-16 text-[#6E56CF] animate-pulse" />
                       </div>
                       <p className="text-[14px] text-zinc-600 max-w-[280px]">
-                        Our AI is analyzing your feedback and creating helpful suggestions...
+                        Our AI is analyzing your feedback and creating helpful
+                        suggestions...
                       </p>
                     </div>
                   </div>
