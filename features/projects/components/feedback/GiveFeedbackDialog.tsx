@@ -1,11 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Sparkles, Lightbulb, Loader2, ArrowRight } from "lucide-react";
@@ -34,7 +30,12 @@ interface SuggestionCardProps {
   onAppend: () => void;
 }
 
-function SuggestionCard({ title, suggestion, onUse, onAppend }: SuggestionCardProps) {
+function SuggestionCard({
+  title,
+  suggestion,
+  onUse,
+  onAppend,
+}: SuggestionCardProps) {
   return (
     <div className="group relative rounded-lg border border-[rgba(0,0,0,0.08)] bg-white/60 p-4 transition-all hover:bg-white hover:shadow-sm cursor-pointer">
       <div className="mb-2 flex items-center justify-between gap-2">
@@ -71,7 +72,9 @@ export function GiveFeedbackDialog({
   eventId = "",
 }: GiveFeedbackDialogProps) {
   const [feedback, setFeedback] = useState("");
-  const [aiSuggestions, setAiSuggestions] = useState<AISuggestions | null>(null);
+  const [aiSuggestions, setAiSuggestions] = useState<AISuggestions | null>(
+    null
+  );
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -200,7 +203,7 @@ export function GiveFeedbackDialog({
   if (isSubmitted) {
     return (
       <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className={contentBaseClasses}>
+        <DialogContent className={`${contentBaseClasses} min-h-[540px]`}>
           <div className="give-feedback-dialog-content flex h-full w-full flex-col overflow-y-auto md:flex-row md:overflow-hidden">
             <div className="flex min-w-0 grow basis-0 flex-col items-center justify-center border-b border-zinc-200 px-4 py-6 md:border-b-0 md:p-6 md:pr-4">
               <div className="flex max-w-md flex-col items-center gap-1.5 text-center">
@@ -212,14 +215,14 @@ export function GiveFeedbackDialog({
                 </DialogTitle>
                 <p className="text-sm leading-[1.5] text-zinc-500">
                   Thank you for giving feedback to{" "}
-                  <span className="text-[#4b89ef]">{projectName}</span>! They&apos;ll
-                  find it helpful to improve their work.
+                  <span className="text-[#4b89ef]">{projectName}</span>!
+                  They&apos;ll find it helpful to improve their work.
                 </p>
               </div>
             </div>
 
             <div
-              className="w-full shrink-0 md:w-[450px] px-4 py-6 md:p-6 md:pl-4"
+              className="flex w-full shrink-0 md:w-[450px] items-center justify-center px-4 py-6 md:p-6 md:pl-4"
               style={{
                 borderTopRightRadius: "6px",
                 borderBottomRightRadius: "6px",
@@ -232,7 +235,8 @@ export function GiveFeedbackDialog({
                     Interested in Similar Projects?
                   </p>
                   <p className="text-sm leading-[22px] text-zinc-500">
-                    Join our community to discover more innovative projects and connect with creators.
+                    Join our community to discover more innovative projects and
+                    connect with creators.
                   </p>
                 </div>
                 <Button
@@ -251,7 +255,7 @@ export function GiveFeedbackDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className={contentBaseClasses}>
+      <DialogContent className={contentBaseClasses + " overflow-y-auto"}>
         <div className="give-feedback-dialog-content flex h-full flex-col lg:flex-row">
           {/* LEFT: Input panel */}
           <div className="flex-1 bg-white px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
@@ -259,12 +263,16 @@ export function GiveFeedbackDialog({
               <div className="mb-3">
                 <DialogTitle className="text-[18px] font-semibold leading-[1.35] text-zinc-900">
                   Share feedback for{" "}
-                  <button type="button" className="align-baseline text-[#4B89EF] hover:underline">
+                  <button
+                    type="button"
+                    className="align-baseline text-[#4B89EF] hover:underline"
+                  >
                     {projectName}
                   </button>
                 </DialogTitle>
                 <p className="mt-1 max-w-[440px] text-[12px] leading-[1.5] text-zinc-600">
-                  Help this project improve by sharing your thoughts, suggestions, and ideas.
+                  Help this project improve by sharing your thoughts,
+                  suggestions, and ideas.
                 </p>
               </div>
 
@@ -280,7 +288,9 @@ export function GiveFeedbackDialog({
                 ) : (
                   <Sparkles className="h-4 w-4" />
                 )}
-                {isGeneratingAI ? "Enhancing with AI..." : "Improve feedback with AI"}
+                {isGeneratingAI
+                  ? "Enhancing with AI..."
+                  : "Improve feedback with AI"}
               </button>
 
               <div className="mb-6 flex-1">
@@ -289,7 +299,7 @@ export function GiveFeedbackDialog({
                   value={feedback}
                   onChange={(e) => setFeedback(e.target.value)}
                   placeholder="Long description or markdown"
-                  className="min-h-[220px] w-full resize-none rounded-[10px] border border-[rgba(0,0,0,0.12)] p-4 text-[14px] leading-[1.5] text-zinc-900 placeholder:text-zinc-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#4B89EF]/60"
+                  className="min-h-[220px] max-h-[220px] w-full resize-none rounded-[10px] border border-[rgba(0,0,0,0.12)] p-4 text-[14px] leading-[1.5] text-zinc-900 placeholder:text-zinc-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#4B89EF]/60"
                 />
               </div>
 
@@ -362,20 +372,32 @@ export function GiveFeedbackDialog({
                     <SuggestionCard
                       title="More Specific"
                       suggestion={aiSuggestions["more specific"]}
-                      onUse={() => handleUseSuggestion(aiSuggestions["more specific"])}
-                      onAppend={() => handleAppendSuggestion(aiSuggestions["more specific"])}
+                      onUse={() =>
+                        handleUseSuggestion(aiSuggestions["more specific"])
+                      }
+                      onAppend={() =>
+                        handleAppendSuggestion(aiSuggestions["more specific"])
+                      }
                     />
                     <SuggestionCard
                       title="More Actionable"
                       suggestion={aiSuggestions["more actionable"]}
-                      onUse={() => handleUseSuggestion(aiSuggestions["more actionable"])}
-                      onAppend={() => handleAppendSuggestion(aiSuggestions["more actionable"])}
+                      onUse={() =>
+                        handleUseSuggestion(aiSuggestions["more actionable"])
+                      }
+                      onAppend={() =>
+                        handleAppendSuggestion(aiSuggestions["more actionable"])
+                      }
                     />
                     <SuggestionCard
                       title="More Positive"
                       suggestion={aiSuggestions["more positive"]}
-                      onUse={() => handleUseSuggestion(aiSuggestions["more positive"])}
-                      onAppend={() => handleAppendSuggestion(aiSuggestions["more positive"])}
+                      onUse={() =>
+                        handleUseSuggestion(aiSuggestions["more positive"])
+                      }
+                      onAppend={() =>
+                        handleAppendSuggestion(aiSuggestions["more positive"])
+                      }
                     />
                   </div>
                 </>
@@ -392,7 +414,9 @@ export function GiveFeedbackDialog({
 
                   <div className="space-y-6">
                     <div>
-                      <p className="text-[18px] font-medium tracking-tight text-zinc-900">01</p>
+                      <p className="text-[18px] font-medium tracking-tight text-zinc-900">
+                        01
+                      </p>
                       <p className="mt-1 max-w-[440px] text-[13px] leading-[1.55] text-zinc-600">
                         What should they do next to improve the project?
                       </p>
@@ -400,7 +424,9 @@ export function GiveFeedbackDialog({
                     </div>
 
                     <div>
-                      <p className="text-[18px] font-medium tracking-tight text-zinc-900">02</p>
+                      <p className="text-[18px] font-medium tracking-tight text-zinc-900">
+                        02
+                      </p>
                       <p className="mt-1 max-w-[440px] text-[13px] leading-[1.55] text-zinc-600">
                         What could be better or work differently?
                       </p>
@@ -408,9 +434,12 @@ export function GiveFeedbackDialog({
                     </div>
 
                     <div>
-                      <p className="text-[18px] font-medium tracking-tight text-zinc-900">03</p>
+                      <p className="text-[18px] font-medium tracking-tight text-zinc-900">
+                        03
+                      </p>
                       <p className="mt-1 max-w-[440px] text-[13px] leading-[1.55] text-zinc-600">
-                        What works well, and are there similar projects to learn from?
+                        What works well, and are there similar projects to learn
+                        from?
                       </p>
                     </div>
                   </div>
