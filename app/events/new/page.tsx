@@ -56,6 +56,47 @@ export default function NewEventPage() {
     checkAccess();
   }, [router]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const stored = window.localStorage.getItem("mentorMates-event-prefill");
+      if (!stored) return;
+      const parsed = JSON.parse(stored);
+      if (!parsed || typeof parsed !== "object") return;
+
+      setForm((prev) => ({
+        ...prev,
+        event_name: parsed.event_name ?? prev.event_name,
+        event_date: parsed.event_date ?? prev.event_date,
+        location: parsed.location ?? prev.location,
+        slug: parsed.slug ?? prev.slug,
+        event_description: parsed.event_description ?? prev.event_description,
+        event_blurb: parsed.event_blurb ?? prev.event_blurb,
+        cover_image_url: parsed.cover_image_url ?? prev.cover_image_url,
+      }));
+
+      if (typeof parsed.paid === "boolean") {
+        setTicketType(parsed.paid ? "paid" : "free");
+      }
+
+      if (typeof parsed.visibility === "string") {
+        const v = parsed.visibility.toLowerCase();
+        if (v === "public") setVisibility(EventVisibility.Public);
+        else if (v === "private") setVisibility(EventVisibility.Private);
+        else if (v === "draft") setVisibility(EventVisibility.Draft);
+      }
+
+      toast({
+        title: "Imported event details",
+        description: "Review and customize before publishing.",
+      });
+    } catch (error) {
+      console.error("Failed to load event prefill", error);
+    } finally {
+      window.localStorage.removeItem("mentorMates-event-prefill");
+    }
+  }, [toast]);
+
   const handleCreate = async () => {
     if (!form.event_name || !form.event_date || !form.location) {
       toast({ title: "Missing fields", description: "Name, date, and location are required.", variant: "destructive" });
