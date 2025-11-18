@@ -9,8 +9,22 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/lib/hooks/use-toast";
 import { DatePicker } from "@/components/ui/date-picker";
-import { MapPin, Image, Type, Mail, Globe, Sparkles } from "lucide-react";
+import {
+  MapPin,
+  Image,
+  Type,
+  Mail,
+  Globe,
+  Sparkles,
+  Calendar,
+  FileText,
+  Shield,
+  FolderKanban,
+  DollarSign,
+  Bell,
+} from "lucide-react";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function NewEventPage() {
   const router = useRouter();
@@ -19,10 +33,14 @@ export default function NewEventPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [creating, setCreating] = useState(false);
   const [ticketType, setTicketType] = useState<"free" | "paid">("free");
-  const [visibility, setVisibility] = useState<EventVisibility>(EventVisibility.Draft);
+  const [visibility, setVisibility] = useState<EventVisibility>(
+    EventVisibility.Draft
+  );
   const [showVisibilityDropdown, setShowVisibilityDropdown] = useState(false);
   const [aiInput, setAiInput] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState("overview");
+  const [activeSubTab, setActiveSubTab] = useState("basics");
 
   const [form, setForm] = useState({
     event_name: "",
@@ -35,7 +53,8 @@ export default function NewEventPage() {
     organizer_emails: "",
   });
 
-  const onChange = (key: keyof typeof form, value: string) => setForm((p) => ({ ...p, [key]: value }));
+  const onChange = (key: keyof typeof form, value: string) =>
+    setForm((p) => ({ ...p, [key]: value }));
 
   useEffect(() => {
     const checkAccess = async () => {
@@ -45,7 +64,9 @@ export default function NewEventPage() {
         return;
       }
       const userId = sessionData.session.user.id;
-      const { data: adminData } = await supabase.rpc("is_admin_user", { user_id: userId });
+      const { data: adminData } = await supabase.rpc("is_admin_user", {
+        user_id: userId,
+      });
       if (!adminData) {
         router.push("/events");
         return;
@@ -99,21 +120,25 @@ export default function NewEventPage() {
 
   const handleCreate = async () => {
     if (!form.event_name || !form.event_date || !form.location) {
-      toast({ title: "Missing fields", description: "Name, date, and location are required.", variant: "destructive" });
+      toast({
+        title: "Missing fields",
+        description: "Name, date, and location are required.",
+        variant: "destructive",
+      });
       return;
     }
     setCreating(true);
     try {
-      // Get current user's email
       const { data: sessionData } = await supabase.auth.getSession();
       const currentUserEmail = sessionData?.session?.user?.email;
 
-      // Parse organizer emails from form and add current user
-      const organizerEmails = (form.organizer_emails || "").split(",").map((e) => e.trim()).filter(Boolean);
+      const organizerEmails = (form.organizer_emails || "")
+        .split(",")
+        .map((e) => e.trim())
+        .filter(Boolean);
 
-      // Add current user's email if not already in the list
       if (currentUserEmail && !organizerEmails.includes(currentUserEmail)) {
-        organizerEmails.unshift(currentUserEmail); // Add at the beginning
+        organizerEmails.unshift(currentUserEmail);
       }
 
       const res = await fetch("/api/events", {
@@ -136,19 +161,31 @@ export default function NewEventPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        toast({ title: "Create failed", description: data.error || "Error creating event.", variant: "destructive" });
+        toast({
+          title: "Create failed",
+          description: data.error || "Error creating event.",
+          variant: "destructive",
+        });
         return;
       }
-      toast({ title: "Event created", description: `${data.event.event_name} created successfully.` });
-      router.push(`/events/${data.event.slug || data.event.event_id}/overview`);
+      toast({
+        title: "Event created",
+        description: `${data.event.event_name} created successfully.`,
+      });
+      router.push(
+        `/events/${data.event.slug || data.event.event_id}/overview`
+      );
     } catch {
-      toast({ title: "Network error", description: "Unable to create event.", variant: "destructive" });
+      toast({
+        title: "Network error",
+        description: "Unable to create event.",
+        variant: "destructive",
+      });
     } finally {
       setCreating(false);
     }
   };
 
-  // Call AI endpoint to parse/generate event details from pasted text or a brief
   const handleAi = async (mode: "fill" | "generate") => {
     if (!aiInput.trim()) return;
     setAiLoading(true);
@@ -160,13 +197,16 @@ export default function NewEventPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        toast({ title: "AI fill failed", description: data?.error || "Unable to parse with AI.", variant: "destructive" });
+        toast({
+          title: "AI fill failed",
+          description: data?.error || "Unable to parse with AI.",
+          variant: "destructive",
+        });
         return;
       }
 
       const fields = data?.fields || {};
 
-      // Apply returned fields into the form in a controlled way
       setForm((prev) => ({
         ...prev,
         event_name: fields.event_name ?? prev.event_name,
@@ -178,12 +218,10 @@ export default function NewEventPage() {
         cover_image_url: fields.cover_image_url ?? prev.cover_image_url,
       }));
 
-      // Ticket type mapping
       if (typeof fields.paid === "boolean") {
         setTicketType(fields.paid ? "paid" : "free");
       }
 
-      // Visibility mapping (safely map case-insensitively)
       if (typeof fields.visibility === "string") {
         const v = (fields.visibility as string).toLowerCase();
         if (v === "public") setVisibility(EventVisibility.Public);
@@ -194,9 +232,16 @@ export default function NewEventPage() {
         else if (v === "archived") setVisibility(EventVisibility.Archived);
       }
 
-      toast({ title: "Fields updated", description: "AI filled the form from your input." });
+      toast({
+        title: "Fields updated",
+        description: "AI filled the form from your input.",
+      });
     } catch {
-      toast({ title: "Network error", description: "Unable to contact AI service.", variant: "destructive" });
+      toast({
+        title: "Network error",
+        description: "Unable to contact AI service.",
+        variant: "destructive",
+      });
     } finally {
       setAiLoading(false);
     }
@@ -215,7 +260,13 @@ export default function NewEventPage() {
   if (!isAdmin) return null;
 
   const formatDateForPreview = (dateStr: string) => {
-    if (!dateStr) return { day: "09", month: "Feb", year: "2024", weekday: "Fri" };
+    if (!dateStr)
+      return {
+        day: "09",
+        month: "Feb",
+        year: "2024",
+        weekday: "Fri",
+      };
     const date = new Date(dateStr);
     return {
       day: date.getDate().toString().padStart(2, "0"),
@@ -230,269 +281,539 @@ export default function NewEventPage() {
   return (
     <PageContainer>
       <PageContent className="px-0">
-        <div
-          className="min-h-full"
-          style={{
-            background: "linear-gradient(199.653deg, rgb(219, 234, 254) 13.188%, rgba(255, 255, 255, 0) 65.83%), linear-gradient(90deg, rgb(255, 255, 255) 0%, rgb(255, 255, 255) 100%)"
-          }}
-        >
-          <div className="px-8 py-6 max-w-[1128px] mx-auto">
-            {/* Header */}
-            <div className="flex items-center justify-between mb-6">
-              <div className="relative">
-                <button
-                  onClick={() => setShowVisibilityDropdown(!showVisibilityDropdown)}
-                  className="flex items-center gap-2 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] px-3 py-2 h-[44px] w-[142px] hover:bg-gray-50 transition-colors"
-                >
-                  <Globe className="w-6 h-6" />
-                  <span className="text-[16px] font-normal">{visibility}</span>
-                  <svg className="w-6 h-6 ml-auto" viewBox="0 0 24 24" fill="none">
-                    <path d="M7 10l5 5 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </button>
+        {/* Grey app background */}
+        <div className="min-h-full bg-[#f4f4f5]">
+          <div className="max-w-[1128px] mx-auto">
+            {/* Centered white card with gradient + shadow */}
+            <div className="bg-white border border-[rgba(15,23,42,0.06)]">
+              <div className="px-8 py-6">
+                {/* Header */}
+                <div className="flex items-center justify-between mb-6">
+                  <h1 className="text-2xl font-semibold text-gray-900">
+                    Create event
+                  </h1>
 
-                {showVisibilityDropdown && (
-                  <div className="absolute top-full mt-2 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] shadow-lg z-10 w-[142px] overflow-hidden">
-                    {[EventVisibility.Public, EventVisibility.Private, EventVisibility.Draft].map((vis) => (
+                  <div className="flex items-center gap-4">
+                    <div className="relative">
                       <button
-                        key={vis}
-                        onClick={() => {
-                          setVisibility(vis);
-                          setShowVisibilityDropdown(false);
-                        }}
-                        className="w-full text-left px-3 py-2 hover:bg-gray-50 text-[16px] font-normal"
+                        onClick={() =>
+                          setShowVisibilityDropdown(!showVisibilityDropdown)
+                        }
+                        className="flex items-center gap-2 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] px-3 py-2 h-[44px] w-[142px] hover:bg-gray-50 transition-colors"
                       >
-                        {vis}
+                        <Globe className="w-5 h-5" />
+                        <span className="text-[16px] font-normal">
+                          {visibility}
+                        </span>
+                        <svg
+                          className="w-5 h-5 ml-auto"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                        >
+                          <path
+                            d="M7 10l5 5 5-5"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
                       </button>
-                    ))}
-                  </div>
-                )}
-              </div>
 
-              <div className="flex gap-1">
-                <Button
-                  variant="defaultGray"
-                  onClick={() => router.back()}
-                  className="text-[16px] font-medium"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleCreate}
-                  disabled={creating}
-                  className="text-[16px] font-medium"
-                >
-                  {creating ? "Creating..." : "Create event"}
-                </Button>
-              </div>
-            </div>
+                      {showVisibilityDropdown && (
+                        <div className="absolute top-full mt-2 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] shadow-lg z-10 w-[142px] overflow-hidden">
+                          {[
+                            EventVisibility.Public,
+                            EventVisibility.Private,
+                            EventVisibility.Draft,
+                          ].map((vis) => (
+                            <button
+                              key={vis}
+                              onClick={() => {
+                                setVisibility(vis);
+                                setShowVisibilityDropdown(false);
+                              }}
+                              className="w-full text-left px-3 py-2 hover:bg-gray-50 text-[16px] font-normal"
+                            >
+                              {vis}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
 
-            {/* Content Area */}
-            <div className="flex gap-6 items-start">
-              {/* Form Section */}
-              <div className="flex-1 max-w-[640px]">
-                {/* AI Assist Panel */}
-                <div className="mb-6 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Sparkles className="w-5 h-5 text-[#4b89ef]" />
-                    <span className="text-[16px] font-semibold text-black">Generate or fill with AI</span>
-                  </div>
-                  <Textarea
-                    value={aiInput}
-                    onChange={(e) => setAiInput(e.target.value)}
-                    placeholder="Paste event details or a short brief here..."
-                    className="min-h-[120px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] p-3"
-                  />
-                  <div className="flex gap-2 mt-3">
-                    <Button onClick={() => handleAi("fill")} disabled={aiLoading || !aiInput.trim()} className="text-[16px] font-medium">
-                      {aiLoading ? "Working..." : "Fill with AI"}
-                    </Button>
-                    <Button variant="secondary" onClick={() => handleAi("generate")} disabled={aiLoading || !aiInput.trim()} className="text-[16px] font-medium">
-                      {aiLoading ? "Working..." : "Generate with AI"}
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="defaultGray"
+                        onClick={() => router.back()}
+                        className="text-[16px] font-medium"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={handleCreate}
+                        disabled={creating}
+                        className="text-[16px] font-medium"
+                      >
+                        {creating ? "Creating..." : "Create event"}
+                      </Button>
+                    </div>
                   </div>
                 </div>
 
-                <input
-                  type="text"
-                  value={form.event_name}
-                  onChange={(e) => onChange("event_name", e.target.value)}
-                  placeholder="Event Title"
-                  className="font-semibold text-[36px] leading-[1.3] tracking-[-2.16px] mb-6 w-full bg-transparent border-none outline-none focus:ring-0 p-0"
-                  style={{
-                    color: form.event_name ? "#000000" : "#d8d8d8",
-                    fontFamily: "Geist, sans-serif"
-                  }}
-                />
-
-                <div className="space-y-4">
-                  {/* Date */}
-                  <div className="space-y-2">
-                    <label className="text-[16px] font-normal text-black">Date</label>
-                    <DatePicker
-                      value={form.event_date}
-                      onChange={(value) => onChange("event_date", value)}
-                      placeholder="mm/dd/yyyy"
-                    />
-                  </div>
-
-                  {/* Location */}
-                  <div className="space-y-2">
-                    <label className="text-[16px] font-normal text-black">Location</label>
-                    <div className="relative">
-                      <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
-                      <Input
-                        value={form.location}
-                        onChange={(e) => onChange("location", e.target.value)}
-                        placeholder="Add offline location or virtual link"
-                        className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)]"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Cover Image URL */}
-                  <div className="space-y-2">
-                    <label className="text-[16px] font-normal text-black">Cover image url</label>
-                    <div className="relative">
-                      <Image className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
-                      <Input
-                        value={form.cover_image_url}
-                        onChange={(e) => onChange("cover_image_url", e.target.value)}
-                        placeholder="https://..."
-                        className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)]"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Blurb */}
-                  <div className="space-y-2">
-                    <label className="text-[16px] font-normal text-black">Blurb</label>
-                    <div className="relative">
-                      <Type className="absolute left-3 top-3 w-6 h-6 text-gray-600" />
-                      <Input
-                        value={form.event_blurb}
-                        onChange={(e) => onChange("event_blurb", e.target.value)}
-                        placeholder="Short description shown in the preview card"
-                        className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)]"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Description */}
-                  <div className="space-y-2">
-                    <label className="text-[16px] font-normal text-black">Description</label>
-                    <Textarea
-                      value={form.event_description}
-                      onChange={(e) => onChange("event_description", e.target.value)}
-                      placeholder="Long description or markdown"
-                      className="min-h-[179px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] p-3"
-                    />
-                  </div>
-
-                  {/* Tickets */}
-                  <div className="space-y-2">
-                    <label className="text-[16px] font-normal text-black">Tickets</label>
-                    <div className="flex gap-4">
-                      <button
-                        onClick={() => setTicketType("free")}
-                        className={`px-4 py-2 rounded-[12px] text-[16px] font-normal transition-colors ${
-                          ticketType === "free"
-                            ? "bg-[#4b89ef] text-white"
-                            : "bg-transparent border border-[rgba(0,0,0,0.15)] text-black"
-                        }`}
-                      >
-                        Free
-                      </button>
-                      <button
-                        onClick={() => setTicketType("paid")}
-                        className={`px-4 py-2 rounded-[12px] text-[16px] font-normal transition-colors ${
-                          ticketType === "paid"
-                            ? "bg-[#4b89ef] text-white"
-                            : "bg-transparent border border-[rgba(0,0,0,0.15)] text-black"
-                        }`}
-                      >
-                        Paid
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Add Organizer */}
-                  <div className="space-y-2">
-                    <label className="text-[16px] font-normal text-black">Add organizer</label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
-                      <Input
-                        value={form.organizer_emails}
-                        onChange={(e) => onChange("organizer_emails", e.target.value)}
-                        placeholder="Separate emails with ,"
-                        className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)]"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Preview Card */}
-              <div className="flex-shrink-0">
-                <div className="w-[335px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] overflow-hidden">
-                  {/* Image */}
-                  <div className="relative w-full aspect-[335/223]">
-                    {form.cover_image_url ? (
-                      <img
-                        src={form.cover_image_url}
-                        alt="Event cover"
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-orange-400 via-red-500 to-purple-600" />
-                    )}
-
-                    {/* Date Badge */}
-                    <div className="absolute top-4 right-4 bg-white border border-[#aaaaaa] rounded-[6px] w-[112px] py-3 px-1 text-center">
-                      <p className="text-[14px] font-normal text-black">{previewDate.weekday}</p>
-                      <p className="text-[36px] font-semibold leading-[1.3] tracking-[-2.16px] text-black" style={{ fontFamily: "Geist, sans-serif" }}>
-                        {previewDate.day}
-                      </p>
-                      <p className="text-[14px] font-normal text-black">
-                        {previewDate.month} {previewDate.year}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Content */}
-                  <div className="p-6">
-                    <div className="flex flex-wrap gap-1 mb-3">
-                      <span className="px-[10px] py-1 border border-[rgba(0,0,0,0.15)] rounded-full text-[14px] font-semibold text-black">
-                        Hackathon
-                      </span>
-                      <span className="px-[10px] py-1 border border-[rgba(0,0,0,0.15)] rounded-full text-[14px] font-semibold text-black">
-                        {ticketType === "free" ? "Free" : "Paid"}
-                      </span>
-                    </div>
-
-                    <h2
-                      className="text-[28px] font-semibold leading-[1.4] tracking-[-1.68px] text-black mb-1"
-                      style={{ fontFamily: "Geist, sans-serif" }}
+                {/* Primary Tabs */}
+                <Tabs
+                  value={activeTab}
+                  onValueChange={setActiveTab}
+                  className="mb-6"
+                >
+                  <TabsList className="flex h-auto gap-2 overflow-x-auto rounded-lg bg-transparent p-0 mb-6">
+                    <TabsTrigger
+                      value="overview"
+                      className="flex items-center gap-2 px-4 py-2 text-sm font-medium"
                     >
-                      {form.event_name || "Innovate Together"}
-                    </h2>
+                      <Sparkles className="w-4 h-4" />
+                      Overview
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="registration"
+                      className="flex items-center gap-2 px-4 py-2 text-sm font-medium"
+                    >
+                      <Calendar className="w-4 h-4" />
+                      Registration
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="project"
+                      className="flex items-center gap-2 px-4 py-2 text-sm font-medium"
+                    >
+                      <FileText className="w-4 h-4" />
+                      Project
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="access"
+                      className="flex items-center gap-2 px-4 py-2 text-sm font-medium"
+                    >
+                      <Shield className="w-4 h-4" />
+                      Access
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="tracks"
+                      className="flex items-center gap-2 px-4 py-2 text-sm font-medium"
+                    >
+                      <FolderKanban className="w-4 h-4" />
+                      Tracks
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="pricing"
+                      className="flex items-center gap-2 px-4 py-2 text-sm font-medium"
+                    >
+                      <DollarSign className="w-4 h-4" />
+                      Pricing
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="notify"
+                      className="flex items-center gap-2 px-4 py-2 text-sm font-medium"
+                    >
+                      <Bell className="w-4 h-4" />
+                      Notify
+                    </TabsTrigger>
+                  </TabsList>
 
-                    <div className="flex items-center gap-1 mb-2">
-                      <MapPin className="w-6 h-6" />
-                      <span className="text-[14px] font-normal text-black">
-                        {form.location || "Online"}
-                      </span>
+                  {/* Content Area */}
+                  <div className="flex gap-6 items-start">
+                    {/* Form Section */}
+                    <div className="flex-1 max-w-[640px]">
+                      <TabsContent value="overview" className="mt-0">
+                        <Tabs
+                          value={activeSubTab}
+                          onValueChange={setActiveSubTab}
+                        >
+                          <TabsList className="flex h-auto gap-2 overflow-x-auto rounded-lg bg-transparent p-0 mb-6 border-b border-gray-200">
+                            <TabsTrigger
+                              value="basics"
+                              className="px-4 py-2 text-sm font-medium border-b-2 border-transparent data-[state=active]:border-[#4b89ef]"
+                            >
+                              Basics
+                            </TabsTrigger>
+                            <TabsTrigger
+                              value="content"
+                              className="px-4 py-2 text-sm font-medium border-b-2 border-transparent data-[state=active]:border-[#4b89ef]"
+                            >
+                              Content
+                            </TabsTrigger>
+                            <TabsTrigger
+                              value="schedule"
+                              className="px-4 py-2 text-sm font-medium border-b-2 border-transparent data-[state=active]:border-[#4b89ef]"
+                            >
+                              Schedule
+                            </TabsTrigger>
+                            <TabsTrigger
+                              value="resources"
+                              className="px-4 py-2 text-sm font-medium border-b-2 border-transparent data-[state=active]:border-[#4b89ef]"
+                            >
+                              Resources
+                            </TabsTrigger>
+                            <TabsTrigger
+                              value="rules"
+                              className="px-4 py-2 text-sm font-medium border-b-2 border-transparent data-[state=active]:border-[#4b89ef]"
+                            >
+                              Rules
+                            </TabsTrigger>
+                            <TabsTrigger
+                              value="faqs"
+                              className="px-4 py-2 text-sm font-medium border-b-2 border-transparent data-[state=active]:border-[#4b89ef]"
+                            >
+                              FAQs
+                            </TabsTrigger>
+                            <TabsTrigger
+                              value="gallery"
+                              className="px-4 py-2 text-sm font-medium border-b-2 border-transparent data-[state=active]:border-[#4b89ef]"
+                            >
+                              Gallery
+                            </TabsTrigger>
+                          </TabsList>
+
+                          <TabsContent
+                            value="basics"
+                            className="mt-0 space-y-4"
+                          >
+                            <input
+                              type="text"
+                              value={form.event_name}
+                              onChange={(e) =>
+                                onChange("event_name", e.target.value)
+                              }
+                              placeholder="Event Title"
+                              className="font-semibold text-[36px] leading-[1.3] tracking-[-2.16px] mb-6 w-full bg-transparent border-none outline-none focus:ring-0 p-0"
+                              style={{
+                                color: form.event_name ? "#000000" : "#d8d8d8",
+                                fontFamily: "Geist, sans-serif",
+                              }}
+                            />
+
+                            <div className="space-y-4">
+                              <div className="space-y-2">
+                                <label className="text-[16px] font-normal text-black">
+                                  Date
+                                </label>
+                                <DatePicker
+                                  value={form.event_date}
+                                  onChange={(value) =>
+                                    onChange("event_date", value)
+                                  }
+                                  placeholder="mm/dd/yyyy"
+                                />
+                              </div>
+
+                              <div className="space-y-2">
+                                <label className="text-[16px] font-normal text-black">
+                                  Location
+                                </label>
+                                <div className="relative">
+                                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                                  <Input
+                                    value={form.location}
+                                    onChange={(e) =>
+                                      onChange("location", e.target.value)
+                                    }
+                                    placeholder="Add offline location or virtual link"
+                                    className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)]"
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="space-y-2">
+                                <label className="text-[16px] font-normal text-black">
+                                  Cover image url
+                                </label>
+                                <div className="relative">
+                                  <Image className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                                  <Input
+                                    value={form.cover_image_url}
+                                    onChange={(e) =>
+                                      onChange(
+                                        "cover_image_url",
+                                        e.target.value
+                                      )
+                                    }
+                                    placeholder="https://..."
+                                    className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)]"
+                                  />
+                                </div>
+                                <p className="text-xs text-gray-500">
+                                  *Upload an image to showcase your project (Max
+                                  10MB).
+                                </p>
+                              </div>
+
+                              <div className="space-y-2">
+                                <label className="text-[16px] font-normal text-black">
+                                  This is a paid event
+                                </label>
+                                <div className="flex items-center gap-4">
+                                  <button
+                                    onClick={() => setTicketType("free")}
+                                    className={`px-4 py-2 rounded-[12px] text-[16px] font-normal transition-colors ${
+                                      ticketType === "free"
+                                        ? "bg-[#4b89ef] text-white"
+                                        : "bg-transparent border border-[rgba(0,0,0,0.15)] text-black"
+                                    }`}
+                                  >
+                                    Free
+                                  </button>
+                                  <button
+                                    onClick={() => setTicketType("paid")}
+                                    className={`px-4 py-2 rounded-[12px] text-[16px] font-normal transition-colors ${
+                                      ticketType === "paid"
+                                        ? "bg-[#4b89ef] text-white"
+                                        : "bg-transparent border border-[rgba(0,0,0,0.15)] text-black"
+                                    }`}
+                                  >
+                                    Paid
+                                  </button>
+                                </div>
+                                <p className="text-xs text-gray-500">
+                                  *Toggle this on to set up pricing tiers for
+                                  your event. Participants will need to pay to
+                                  join.
+                                </p>
+                              </div>
+
+                              <div className="space-y-2">
+                                <label className="text-[16px] font-normal text-black">
+                                  Add organizer
+                                </label>
+                                <div className="relative">
+                                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                                  <Input
+                                    value={form.organizer_emails}
+                                    onChange={(e) =>
+                                      onChange(
+                                        "organizer_emails",
+                                        e.target.value
+                                      )
+                                    }
+                                    placeholder="Separate emails with ,"
+                                    className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)]"
+                                  />
+                                </div>
+                                <p className="text-xs text-gray-500">
+                                  *Invitee will receive an email notification
+                                  with access instructions.
+                                </p>
+                              </div>
+                            </div>
+                          </TabsContent>
+
+                          <TabsContent
+                            value="content"
+                            className="mt-0 space-y-4"
+                          >
+                            <div className="space-y-2">
+                              <label className="text-[16px] font-normal text-black">
+                                Blurb
+                              </label>
+                              <div className="relative">
+                                <Type className="absolute left-3 top-3 w-6 h-6 text-gray-600" />
+                                <Textarea
+                                  value={form.event_blurb}
+                                  onChange={(e) =>
+                                    onChange("event_blurb", e.target.value)
+                                  }
+                                  placeholder="Short description shown in the preview card"
+                                  className="min-h-[80px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] p-3"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between mb-2">
+                                <label className="text-[16px] font-normal text-black">
+                                  Description
+                                </label>
+                                <div className="flex gap-2">
+                                  <Button variant="outline" size="sm">
+                                    Edit
+                                  </Button>
+                                  <Button variant="outline" size="sm">
+                                    Preview
+                                  </Button>
+                                </div>
+                              </div>
+                              <Textarea
+                                value={form.event_description}
+                                onChange={(e) =>
+                                  onChange(
+                                    "event_description",
+                                    e.target.value
+                                  )
+                                }
+                                placeholder="Add long description (markdown supported)"
+                                className="min-h-[300px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] p-3"
+                              />
+                            </div>
+                          </TabsContent>
+
+                          <TabsContent value="schedule" className="mt-0">
+                            <div className="space-y-4">
+                              <div className="space-y-2">
+                                <label className="text-[16px] font-normal text-black">
+                                  Project submission window (UTC)
+                                </label>
+                                <div className="flex items-center gap-2">
+                                  <DatePicker
+                                    value={form.event_date}
+                                    onChange={(value) =>
+                                      onChange("event_date", value)
+                                    }
+                                    placeholder="mm/dd/yyyy"
+                                  />
+                                  <span className="text-gray-500">to</span>
+                                  <DatePicker
+                                    value={form.event_date}
+                                    onChange={(value) =>
+                                      onChange("event_date", value)
+                                    }
+                                    placeholder="mm/dd/yyyy"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          </TabsContent>
+
+                          <TabsContent value="resources" className="mt-0">
+                            <p className="text-gray-500">
+                              Resources section - coming soon
+                            </p>
+                          </TabsContent>
+
+                          <TabsContent value="rules" className="mt-0">
+                            <p className="text-gray-500">
+                              Rules section - coming soon
+                            </p>
+                          </TabsContent>
+
+                          <TabsContent value="faqs" className="mt-0">
+                            <p className="text-gray-500">
+                              FAQs section - coming soon
+                            </p>
+                          </TabsContent>
+
+                          <TabsContent value="gallery" className="mt-0">
+                            <p className="text-gray-500">
+                              Gallery section - coming soon
+                            </p>
+                          </TabsContent>
+                        </Tabs>
+                      </TabsContent>
+
+                      <TabsContent value="registration" className="mt-0">
+                        <p className="text-gray-500">
+                          Registration settings - coming soon
+                        </p>
+                      </TabsContent>
+
+                      <TabsContent value="project" className="mt-0">
+                        <p className="text-gray-500">
+                          Project settings - coming soon
+                        </p>
+                      </TabsContent>
+
+                      <TabsContent value="access" className="mt-0">
+                        <p className="text-gray-500">
+                          Access settings - coming soon
+                        </p>
+                      </TabsContent>
+
+                      <TabsContent value="tracks" className="mt-0">
+                        <p className="text-gray-500">
+                          Tracks settings - coming soon
+                        </p>
+                      </TabsContent>
+
+                      <TabsContent value="pricing" className="mt-0">
+                        <p className="text-gray-500">
+                          Pricing settings - coming soon
+                        </p>
+                      </TabsContent>
+
+                      <TabsContent value="notify" className="mt-0">
+                        <p className="text-gray-500">
+                          Notification settings - coming soon
+                        </p>
+                      </TabsContent>
                     </div>
 
-                    <p className="text-[16px] font-normal text-black leading-[1.5]">
-                      {form.event_blurb || "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse varius enim in eros."}
-                    </p>
-                  </div>
-                </div>
+                    {/* Preview Card */}
+                    <div className="flex-shrink-0">
+                      <div className="w-[335px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] overflow-hidden">
+                        {/* Image */}
+                        <div className="relative w-full aspect-[335/223]">
+                          {form.cover_image_url ? (
+                            <img
+                              src={form.cover_image_url}
+                              alt="Event cover"
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-gradient-to-br from-orange-400 via-red-500 to-purple-600" />
+                          )}
 
-                <p className="text-[16px] text-[#7f7f7f] text-center mt-3">
-                  This is a preview of the event.
-                </p>
+                          {/* Date Badge */}
+                          <div className="absolute top-4 right-4 bg-white border border-[#aaaaaa] rounded-[6px] w-[112px] py-3 px-1 text-center">
+                            <p className="text-[14px] font-normal text-black">
+                              {previewDate.weekday}
+                            </p>
+                            <p
+                              className="text-[36px] font-semibold leading-[1.3] tracking-[-2.16px] text-black"
+                              style={{ fontFamily: "Geist, sans-serif" }}
+                            >
+                              {previewDate.day}
+                            </p>
+                            <p className="text-[14px] font-normal text-black">
+                              {previewDate.month} {previewDate.year}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Content */}
+                        <div className="p-6">
+                          <div className="flex flex-wrap gap-1 mb-3">
+                            <span className="px-[10px] py-1 border border-[rgba(0,0,0,0.15)] rounded-full text-[14px] font-semibold text-black">
+                              Hackathon
+                            </span>
+                            <span className="px-[10px] py-1 border border-[rgba(0,0,0,0.15)] rounded-full text-[14px] font-semibold text-black">
+                              {ticketType === "free" ? "Free" : "Paid"}
+                            </span>
+                          </div>
+
+                          <h2
+                            className="text-[28px] font-semibold leading-[1.4] tracking-[-1.68px] text-black mb-1"
+                            style={{ fontFamily: "Geist, sans-serif" }}
+                          >
+                            {form.event_name || "Innovate Together"}
+                          </h2>
+
+                          <div className="flex items-center gap-1 mb-2">
+                            <MapPin className="w-6 h-6" />
+                            <span className="text-[14px] font-normal text-black">
+                              {form.location || "Online"}
+                            </span>
+                          </div>
+
+                          <p className="text-[16px] font-normal text-black leading-[1.5]">
+                            {form.event_blurb ||
+                              "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse varius enim in eros."}
+                          </p>
+                        </div>
+                      </div>
+
+                      <p className="text-[16px] text-[#7f7f7f] text-center mt-3">
+                        This is a preview of the event.
+                      </p>
+                    </div>
+                  </div>
+                </Tabs>
               </div>
             </div>
           </div>
