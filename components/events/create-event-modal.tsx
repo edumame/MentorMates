@@ -1,67 +1,14 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Sparkles, Download, ArrowLeft, Plus, Paperclip } from "lucide-react";
+import { Download, Plus, Paperclip } from "lucide-react";
 import { useToast } from "@/lib/hooks/use-toast";
-import React from "react";
-
-// Inline the new StartWithAiIcon SVG
-function StartWithAiIcon(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width={19}
-      height={19}
-      viewBox="0 0 19 19"
-      fill="none"
-      aria-hidden="true"
-      {...props}
-    >
-      <path
-        d="M13.3613 10.1623L11.0265 13.9271C10.8932 14.1477 10.7047 14.2331 10.461 14.1831C10.2173 14.1331 10.0622 13.9894 9.9955 13.7521L9.1765 10.4448L1.61625 17.9683C1.44625 18.1421 1.24733 18.2291 1.0195 18.2291C0.791666 18.2291 0.59275 18.1421 0.42275 17.9683C0.252917 17.7983 0.168 17.5994 0.168 17.3716C0.168 17.1437 0.252917 16.9448 0.42275 16.7748L7.958 9.24556L4.639 8.42631C4.40167 8.35964 4.259 8.20456 4.211 7.96106C4.163 7.71739 4.24733 7.52689 4.464 7.38956L8.22875 5.02981L7.92275 0.628059C7.90608 0.374059 8.01125 0.188726 8.23825 0.0720588C8.46525 -0.0446078 8.67242 -0.0196078 8.85975 0.147059L12.2375 2.98781L16.333 1.34606C16.5663 1.26272 16.7683 1.30639 16.939 1.47706C17.1097 1.64773 17.1533 1.84973 17.07 2.08306L15.4033 6.17856L18.244 9.56231C18.4107 9.74964 18.4398 9.95681 18.3315 10.1838C18.2232 10.4108 18.042 10.516 17.788 10.4993L13.3613 10.1623ZM0.137 3.43956C0.0456666 3.35223 0 3.24956 0 3.13156C0 3.01373 0.0456666 2.90914 0.137 2.81781L1.35875 1.59606C1.44608 1.50872 1.54867 1.46506 1.6665 1.46506C1.7845 1.46506 1.88917 1.50872 1.9805 1.59606L3.17125 2.79281C3.26242 2.88414 3.308 2.98773 3.308 3.10356C3.308 3.21956 3.26242 3.32323 3.17125 3.41456L1.9495 4.63631C1.85817 4.72748 1.7545 4.77306 1.6385 4.77306C1.52267 4.77306 1.41908 4.72748 1.32775 4.63631L0.137 3.43956ZM10.9625 10.9771L12.5015 8.49881L15.4238 8.71781L13.5218 6.47756L14.6228 3.77431L11.9195 4.86931L9.67325 2.96731L9.89825 5.88956L7.414 7.44756L10.2612 8.15481L10.9625 10.9771ZM15.0015 18.2791L13.7797 17.0633C13.6886 16.972 13.6472 16.8684 13.6555 16.7526C13.6638 16.6366 13.7136 16.5329 13.8048 16.4416L15.0015 15.2508C15.0888 15.1595 15.1915 15.1138 15.3095 15.1138C15.4273 15.1138 15.5319 15.1595 15.6233 15.2508L16.845 16.4666C16.9323 16.5579 16.9718 16.6616 16.9635 16.7776C16.9552 16.8934 16.9073 16.997 16.82 17.0883L15.6233 18.2791C15.5319 18.3704 15.4283 18.4161 15.3125 18.4161C15.1965 18.4161 15.0928 18.3704 15.0015 18.2791Z"
-        fill="black"
-      />
-      <path
-        d="M13.3613 10.1623L11.0265 13.9271C10.8932 14.1477 10.7047 14.2331 10.461 14.1831C10.2173 14.1331 10.0622 13.9894 9.9955 13.7521L9.1765 10.4448L1.61625 17.9683C1.44625 18.1421 1.24733 18.2291 1.0195 18.2291C0.791666 18.2291 0.59275 18.1421 0.42275 17.9683C0.252917 17.7983 0.168 17.5994 0.168 17.3716C0.168 17.1437 0.252917 16.9448 0.42275 16.7748L7.958 9.24556L4.639 8.42631C4.40167 8.35964 4.259 8.20456 4.211 7.96106C4.163 7.71739 4.24733 7.52689 4.464 7.38956L8.22875 5.02981L7.92275 0.628059C7.90608 0.374059 8.01125 0.188726 8.23825 0.0720588C8.46525 -0.0446078 8.67242 -0.0196078 8.85975 0.147059L12.2375 2.98781L16.333 1.34606C16.5663 1.26272 16.7683 1.30639 16.939 1.47706C17.1097 1.64773 17.1533 1.84973 17.07 2.08306L15.4033 6.17856L18.244 9.56231C18.4107 9.74964 18.4398 9.95681 18.3315 10.1838C18.2232 10.4108 18.042 10.516 17.788 10.4993L13.3613 10.1623ZM0.137 3.43956C0.0456666 3.35223 0 3.24956 0 3.13156C0 3.01373 0.0456666 2.90914 0.137 2.81781L1.35875 1.59606C1.44608 1.50872 1.54867 1.46506 1.6665 1.46506C1.7845 1.46506 1.88917 1.50872 1.9805 1.59606L3.17125 2.79281C3.26242 2.88414 3.308 2.98773 3.308 3.10356C3.308 3.21956 3.26242 3.32323 3.17125 3.41456L1.9495 4.63631C1.85817 4.72748 1.7545 4.77306 1.6385 4.77306C1.52267 4.77306 1.41908 4.72748 1.32775 4.63631L0.137 3.43956ZM10.9625 10.9771L12.5015 8.49881L15.4238 8.71781L13.5218 6.47756L14.6228 3.77431L11.9195 4.86931L9.67325 2.96731L9.89825 5.88956L7.414 7.44756L10.2612 8.15481L10.9625 10.9771ZM15.0015 18.2791L13.7797 17.0633C13.6886 16.972 13.6472 16.8684 13.6555 16.7526C13.6638 16.6366 13.7136 16.5329 13.8048 16.4416L15.0015 15.2508C15.0888 15.1595 15.1915 15.1138 15.3095 15.1138C15.4273 15.1138 15.5319 15.1595 15.6233 15.2508L16.845 16.4666C16.9323 16.5579 16.9718 16.6616 16.9635 16.7776C16.9552 16.8934 16.9073 16.997 16.82 17.0883L15.6233 18.2791C15.5319 18.3704 15.4283 18.4161 15.3125 18.4161C15.1965 18.4161 15.0928 18.3704 15.0015 18.2791Z"
-        fill="url(#paint0_linear_2404_6921)"
-      />
-      <path
-        d="M13.3613 10.1623L11.0265 13.9271C10.8932 14.1477 10.7047 14.2331 10.461 14.1831C10.2173 14.1331 10.0622 13.9894 9.9955 13.7521L9.1765 10.4448L1.61625 17.9683C1.44625 18.1421 1.24733 18.2291 1.0195 18.2291C0.791666 18.2291 0.59275 18.1421 0.42275 17.9683C0.252917 17.7983 0.168 17.5994 0.168 17.3716C0.168 17.1437 0.252917 16.9448 0.42275 16.7748L7.958 9.24556L4.639 8.42631C4.40167 8.35964 4.259 8.20456 4.211 7.96106C4.163 7.71739 4.24733 7.52689 4.464 7.38956L8.22875 5.02981L7.92275 0.628059C7.90608 0.374059 8.01125 0.188726 8.23825 0.0720588C8.46525 -0.0446078 8.67242 -0.0196078 8.85975 0.147059L12.2375 2.98781L16.333 1.34606C16.5663 1.26272 16.7683 1.30639 16.939 1.47706C17.1097 1.64773 17.1533 1.84973 17.07 2.08306L15.4033 6.17856L18.244 9.56231C18.4107 9.74964 18.4398 9.95681 18.3315 10.1838C18.2232 10.4108 18.042 10.516 17.788 10.4993L13.3613 10.1623ZM0.137 3.43956C0.0456666 3.35223 0 3.24956 0 3.13156C0 3.01373 0.0456666 2.90914 0.137 2.81781L1.35875 1.59606C1.44608 1.50872 1.54867 1.46506 1.6665 1.46506C1.7845 1.46506 1.88917 1.50872 1.9805 1.59606L3.17125 2.79281C3.26242 2.88414 3.308 2.98773 3.308 3.10356C3.308 3.21956 3.26242 3.32323 3.17125 3.41456L1.9495 4.63631C1.85817 4.72748 1.7545 4.77306 1.6385 4.77306C1.52267 4.77306 1.41908 4.72748 1.32775 4.63631L0.137 3.43956ZM10.9625 10.9771L12.5015 8.49881L15.4238 8.71781L13.5218 6.47756L14.6228 3.77431L11.9195 4.86931L9.67325 2.96731L9.89825 5.88956L7.414 7.44756L10.2612 8.15481L10.9625 10.9771ZM15.0015 18.2791L13.7797 17.0633C13.6886 16.972 13.6472 16.8684 13.6555 16.7526C13.6638 16.6366 13.7136 16.5329 13.8048 16.4416L15.0015 15.2508C15.0888 15.1595 15.1915 15.1138 15.3095 15.1138C15.4273 15.1138 15.5319 15.1595 15.6233 15.2508L16.845 16.4666C16.9323 16.5579 16.9718 16.6616 16.9635 16.7776C16.9552 16.8934 16.9073 16.997 16.82 17.0883L15.6233 18.2791C15.5319 18.3704 15.4283 18.4161 15.3125 18.4161C15.1965 18.4161 15.0928 18.3704 15.0015 18.2791Z"
-        fill="url(#paint1_linear_2404_6921)"
-      />
-      <defs>
-        <linearGradient
-          id="paint0_linear_2404_6921"
-          x1="0"
-          y1="9.20803"
-          x2="18.3955"
-          y2="9.20803"
-          gradientUnits="userSpaceOnUse"
-        >
-          <stop stopColor="#2DC7FA" />
-          <stop offset="1" stopColor="#058E5C" />
-        </linearGradient>
-        <linearGradient
-          id="paint1_linear_2404_6921"
-          x1="0"
-          y1="9.20803"
-          x2="18.3955"
-          y2="9.20803"
-          gradientUnits="userSpaceOnUse"
-        >
-          <stop stopColor="#A514FA" />
-          <stop offset="1" stopColor="#49C8F2" />
-        </linearGradient>
-      </defs>
-    </svg>
-  );
-}
 
 type CreateEventModalView = "options" | "ai" | "devpost";
 
@@ -72,19 +19,38 @@ interface CreateEventModalProps {
 
 const PREFILL_STORAGE_KEY = "mentorMates-event-prefill";
 
-// Right gradient panel (options view)
-const primaryCard = (
-  <div className="relative hidden lg:block w-[420px] shrink-0 -ml-px">
+// Simple custom AI icon
+function StartWithAiIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
+  <path d="M16.3847 12.7216L14.0499 16.4864C13.9166 16.7071 13.7281 16.7924 13.4844 16.7424C13.2408 16.6924 13.0856 16.5487 13.0189 16.3114L12.1999 13.0041L4.63969 20.5276C4.46969 20.7015 4.27077 20.7884 4.04294 20.7884C3.8151 20.7884 3.61619 20.7015 3.44619 20.5276C3.27635 20.3576 3.19144 20.1587 3.19144 19.9309C3.19144 19.7031 3.27635 19.5041 3.44619 19.3341L10.9814 11.8049L7.66244 10.9856C7.4251 10.919 7.28244 10.7639 7.23444 10.5204C7.18644 10.2767 7.27077 10.0862 7.48744 9.94889L11.2522 7.58914L10.9462 3.18738C10.9295 2.93338 11.0347 2.74805 11.2617 2.63138C11.4887 2.51472 11.6959 2.53972 11.8832 2.70639L15.2609 5.54714L19.3564 3.90538C19.5898 3.82205 19.7918 3.86572 19.9624 4.03639C20.1331 4.20705 20.1768 4.40905 20.0934 4.64239L18.4267 8.73789L21.2674 12.1216C21.4341 12.309 21.4633 12.5161 21.3549 12.7431C21.2466 12.9701 21.0654 13.0753 20.8114 13.0586L16.3847 12.7216ZM3.16044 5.99889C3.0691 5.91155 3.02344 5.80889 3.02344 5.69089C3.02344 5.57305 3.0691 5.46847 3.16044 5.37714L4.38219 4.15538C4.46952 4.06805 4.5721 4.02438 4.68994 4.02438C4.80794 4.02438 4.9126 4.06805 5.00394 4.15538L6.19469 5.35214C6.28585 5.44347 6.33144 5.54705 6.33144 5.66289C6.33144 5.77889 6.28585 5.88255 6.19469 5.97389L4.97294 7.19564C4.8816 7.2868 4.77794 7.33239 4.66194 7.33239C4.5461 7.33239 4.44252 7.2868 4.35119 7.19564L3.16044 5.99889ZM13.9859 13.5364L15.5249 11.0581L18.4472 11.2771L16.5452 9.03688L17.6462 6.33363L14.9429 7.42864L12.6967 5.52664L12.9217 8.44889L10.4374 10.0069L13.2847 10.7141L13.9859 13.5364ZM18.0249 20.8384L16.8032 19.6226C16.712 19.5313 16.6706 19.4277 16.6789 19.3119C16.6873 19.1959 16.737 19.0922 16.8282 19.0009L18.0249 17.8101C18.1123 17.7188 18.2149 17.6731 18.3329 17.6731C18.4508 17.6731 18.5554 17.7188 18.6467 17.8101L19.8684 19.0259C19.9558 19.1172 19.9953 19.2209 19.9869 19.3369C19.9786 19.4527 19.9308 19.5563 19.8434 19.6476L18.6467 20.8384C18.5554 20.9297 18.4518 20.9754 18.3359 20.9754C18.2199 20.9754 18.1163 20.9297 18.0249 20.8384Z" fill="black"/>
+  <path d="M16.3847 12.7216L14.0499 16.4864C13.9166 16.7071 13.7281 16.7924 13.4844 16.7424C13.2408 16.6924 13.0856 16.5487 13.0189 16.3114L12.1999 13.0041L4.63969 20.5276C4.46969 20.7015 4.27077 20.7884 4.04294 20.7884C3.8151 20.7884 3.61619 20.7015 3.44619 20.5276C3.27635 20.3576 3.19144 20.1587 3.19144 19.9309C3.19144 19.7031 3.27635 19.5041 3.44619 19.3341L10.9814 11.8049L7.66244 10.9856C7.4251 10.919 7.28244 10.7639 7.23444 10.5204C7.18644 10.2767 7.27077 10.0862 7.48744 9.94889L11.2522 7.58914L10.9462 3.18738C10.9295 2.93338 11.0347 2.74805 11.2617 2.63138C11.4887 2.51472 11.6959 2.53972 11.8832 2.70639L15.2609 5.54714L19.3564 3.90538C19.5898 3.82205 19.7918 3.86572 19.9624 4.03639C20.1331 4.20705 20.1768 4.40905 20.0934 4.64239L18.4267 8.73789L21.2674 12.1216C21.4341 12.309 21.4633 12.5161 21.3549 12.7431C21.2466 12.9701 21.0654 13.0753 20.8114 13.0586L16.3847 12.7216ZM3.16044 5.99889C3.0691 5.91155 3.02344 5.80889 3.02344 5.69089C3.02344 5.57305 3.0691 5.46847 3.16044 5.37714L4.38219 4.15538C4.46952 4.06805 4.5721 4.02438 4.68994 4.02438C4.80794 4.02438 4.9126 4.06805 5.00394 4.15538L6.19469 5.35214C6.28585 5.44347 6.33144 5.54705 6.33144 5.66289C6.33144 5.77889 6.28585 5.88255 6.19469 5.97389L4.97294 7.19564C4.8816 7.2868 4.77794 7.33239 4.66194 7.33239C4.5461 7.33239 4.44252 7.2868 4.35119 7.19564L3.16044 5.99889ZM13.9859 13.5364L15.5249 11.0581L18.4472 11.2771L16.5452 9.03688L17.6462 6.33363L14.9429 7.42864L12.6967 5.52664L12.9217 8.44889L10.4374 10.0069L13.2847 10.7141L13.9859 13.5364ZM18.0249 20.8384L16.8032 19.6226C16.712 19.5313 16.6706 19.4277 16.6789 19.3119C16.6873 19.1959 16.737 19.0922 16.8282 19.0009L18.0249 17.8101C18.1123 17.7188 18.2149 17.6731 18.3329 17.6731C18.4508 17.6731 18.5554 17.7188 18.6467 17.8101L19.8684 19.0259C19.9558 19.1172 19.9953 19.2209 19.9869 19.3369C19.9786 19.4527 19.9308 19.5563 19.8434 19.6476L18.6467 20.8384C18.5554 20.9297 18.4518 20.9754 18.3359 20.9754C18.2199 20.9754 18.1163 20.9297 18.0249 20.8384Z" fill="url(#paint0_linear_1956_25104)"/>
+  <path d="M16.3847 12.7216L14.0499 16.4864C13.9166 16.7071 13.7281 16.7924 13.4844 16.7424C13.2408 16.6924 13.0856 16.5487 13.0189 16.3114L12.1999 13.0041L4.63969 20.5276C4.46969 20.7015 4.27077 20.7884 4.04294 20.7884C3.8151 20.7884 3.61619 20.7015 3.44619 20.5276C3.27635 20.3576 3.19144 20.1587 3.19144 19.9309C3.19144 19.7031 3.27635 19.5041 3.44619 19.3341L10.9814 11.8049L7.66244 10.9856C7.4251 10.919 7.28244 10.7639 7.23444 10.5204C7.18644 10.2767 7.27077 10.0862 7.48744 9.94889L11.2522 7.58914L10.9462 3.18738C10.9295 2.93338 11.0347 2.74805 11.2617 2.63138C11.4887 2.51472 11.6959 2.53972 11.8832 2.70639L15.2609 5.54714L19.3564 3.90538C19.5898 3.82205 19.7918 3.86572 19.9624 4.03639C20.1331 4.20705 20.1768 4.40905 20.0934 4.64239L18.4267 8.73789L21.2674 12.1216C21.4341 12.309 21.4633 12.5161 21.3549 12.7431C21.2466 12.9701 21.0654 13.0753 20.8114 13.0586L16.3847 12.7216ZM3.16044 5.99889C3.0691 5.91155 3.02344 5.80889 3.02344 5.69089C3.02344 5.57305 3.0691 5.46847 3.16044 5.37714L4.38219 4.15538C4.46952 4.06805 4.5721 4.02438 4.68994 4.02438C4.80794 4.02438 4.9126 4.06805 5.00394 4.15538L6.19469 5.35214C6.28585 5.44347 6.33144 5.54705 6.33144 5.66289C6.33144 5.77889 6.28585 5.88255 6.19469 5.97389L4.97294 7.19564C4.8816 7.2868 4.77794 7.33239 4.66194 7.33239C4.5461 7.33239 4.44252 7.2868 4.35119 7.19564L3.16044 5.99889ZM13.9859 13.5364L15.5249 11.0581L18.4472 11.2771L16.5452 9.03688L17.6462 6.33363L14.9429 7.42864L12.6967 5.52664L12.9217 8.44889L10.4374 10.0069L13.2847 10.7141L13.9859 13.5364ZM18.0249 20.8384L16.8032 19.6226C16.712 19.5313 16.6706 19.4277 16.6789 19.3119C16.6873 19.1959 16.737 19.0922 16.8282 19.0009L18.0249 17.8101C18.1123 17.7188 18.2149 17.6731 18.3329 17.6731C18.4508 17.6731 18.5554 17.7188 18.6467 17.8101L19.8684 19.0259C19.9558 19.1172 19.9953 19.2209 19.9869 19.3369C19.9786 19.4527 19.9308 19.5563 19.8434 19.6476L18.6467 20.8384C18.5554 20.9297 18.4518 20.9754 18.3359 20.9754C18.2199 20.9754 18.1163 20.9297 18.0249 20.8384Z" fill="url(#paint1_linear_1956_25104)"/>
+  <defs>
+    <linearGradient id="paint0_linear_1956_25104" x1="3.02344" y1="11.7674" x2="21.419" y2="11.7674" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2DC7FA"/>
+      <stop offset="1" stop-color="#058E5C"/>
+    </linearGradient>
+    <linearGradient id="paint1_linear_1956_25104" x1="3.02344" y1="11.7674" x2="21.419" y2="11.7674" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#A514FA"/>
+      <stop offset="1" stop-color="#49C8F2"/>
+    </linearGradient>
+  </defs>
+</svg>
+  );
+}
+
+// Right gradient panel – 50% on lg
+const PrimaryCard = () => (
+  <div className="relative hidden lg:block w-full lg:w-1/2 shrink-0 -ml-px">
     <div className="relative h-full min-h-[520px] rounded-none lg:rounded-r-3xl overflow-hidden">
       <Image
         src="/img/gradient.png"
         alt="Gradient background"
         fill
-        // Slight scale to hide any white seams from the asset
         className="object-cover scale-110"
         priority
       />
-
       <div className="absolute inset-0 flex items-end justify-start p-10">
         <div className="text-white text-5xl font-extrabold tracking-wide leading-tight">
           <div>Learn,</div>
@@ -96,16 +62,13 @@ const primaryCard = (
   </div>
 );
 
-export function CreateEventModal({
-  open,
-  onOpenChange,
-}: CreateEventModalProps) {
+export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) {
   const router = useRouter();
   const { toast } = useToast();
 
   const [view, setView] = useState<CreateEventModalView>("options");
   const [aiText, setAiText] = useState("");
-  const [aiMode, setAiMode] = useState<"fill" | "generate">("fill");
+  const [aiMode] = useState<"fill" | "generate">("fill");
   const [aiLoading, setAiLoading] = useState(false);
 
   const [devpostUrl, setDevpostUrl] = useState("");
@@ -117,7 +80,6 @@ export function CreateEventModal({
         setView("options");
         setAiText("");
         setDevpostUrl("");
-        setAiMode("fill");
         setAiLoading(false);
         setDevpostLoading(false);
       }
@@ -211,9 +173,9 @@ export function CreateEventModal({
   // ---------------------------------------------------------------------------
 
   const renderOptions = () => (
-    <div className="flex flex-col lg:flex-row bg-white rounded-3xl overflow-hidden shadow-[0_18px_45px_rgba(15,23,42,0.18)]">
-      {/* Left panel */}
-      <div className="flex-1 px-10 py-10 lg:px-12 lg:py-12">
+    <div className="flex w-full flex-col lg:flex-row bg-white rounded-3xl overflow-hidden shadow-[0_18px_45px_rgba(15,23,42,0.18)]">
+      {/* Left panel – 50% on lg */}
+      <div className="w-full lg:w-1/2 px-10 py-10 lg:px-12 lg:py-12">
         <DialogTitle className="sr-only">Create event</DialogTitle>
 
         <h2 className="text-[22px] font-semibold mb-8 text-gray-900">
@@ -221,7 +183,7 @@ export function CreateEventModal({
         </h2>
 
         <div className="space-y-4">
-          {/* Create from scratch - primary, but no gradient until hover */}
+          {/* Create from scratch */}
           <button
             onClick={() => {
               closeModal(false);
@@ -251,7 +213,7 @@ export function CreateEventModal({
           >
             <div className="flex flex-col items-center gap-3">
               <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl group-hover:bg-white group-hover:border group-hover:border-[#4B89EF]">
-                <StartWithAiIcon className="h-5 w-5" />
+                <StartWithAiIcon />
               </span>
               <div className="space-y-1">
                 <p className="text-[15px] font-semibold text-gray-900">
@@ -268,7 +230,6 @@ export function CreateEventModal({
             className="group w-full rounded-xl border border-[#E4E4E7] bg-white px-6 py-5 text-center transition-all hover:border-[#4B89EF] hover:bg-[linear-gradient(203deg,_#DBEAFE_13.19%,_rgba(255,255,255,0)_65.83%)] hover:shadow-[0_12px_30px_rgba(15,23,42,0.20)]"
           >
             <div className="flex flex-col items-center gap-3">
-              {/* Use the same ring behavior as others: just a single ring-1 on hover */}
               <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl group-hover:border group-hover:border-[#4B89EF] group-hover:bg-white">
                 <Image
                   src="/img/devpost.png"
@@ -290,109 +251,60 @@ export function CreateEventModal({
         </div>
       </div>
 
-      {/* Right gradient panel */}
-      {primaryCard}
+      <PrimaryCard />
     </div>
   );
 
   const renderAiView = () => (
-    <div className="flex flex-col lg:flex-row bg-white rounded-3xl overflow-hidden shadow-[0_18px_45px_rgba(15,23,42,0.18)]">
-      <div className="flex-1 px-8 py-8 lg:px-10 lg:py-10 space-y-6">
-        <button
-          type="button"
-          className="inline-flex items-center gap-1 text-sm text-[#4B89EF]"
-          onClick={() => setView("options")}
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back
-        </button>
+    <div className="flex w-full flex-col lg:flex-row bg-white rounded-3xl overflow-hidden shadow-[0_18px_45px_rgba(15,23,42,0.18)]">
+      {/* Left – 50% on lg, vertically centered */}
+      <div className="w-full lg:w-1/2 px-8 py-8 lg:px-10 lg:py-10 flex flex-col justify-center">
+        <h2 className="text-2xl font-semibold text-gray-900 mb-3">
+          Start with AI
+        </h2>
 
-        <div className="space-y-2">
-          <h2 className="text-[20px] font-semibold tracking-tight">
-            Start with AI
-          </h2>
-
-          <button
-            type="button"
-            className="inline-flex items-center gap-2 text-sm font-medium text-[#4B89EF]"
-            onClick={() =>
-              setAiMode((prev) => (prev === "fill" ? "generate" : "fill"))
-            }
-          >
-            <StartWithAiIcon className="h-4 w-4" />
-            <span>Generate or fill with AI</span>
-          </button>
+        <div className="flex items-center gap-2 mb-6">
+          <StartWithAiIcon />
+          <span className="text-sm font-medium text-[#4B89EF]">
+            Generate or fill with AI.
+          </span>
         </div>
 
         <Textarea
           value={aiText}
           onChange={(e) => setAiText(e.target.value)}
-          placeholder="Paste event details or a short brief here"
-          className="min-h-[220px]"
+          placeholder="Paste event details or a short brief here."
+          className="min-h-[180px] w-full border-gray-300 rounded-xl text-sm resize-none"
         />
 
-        <div className="flex items-center justify-between pt-2">
-          {/* You still keep the mode toggle logic, just subtler */}
-          <div className="inline-flex items-center gap-2 text-xs text-muted-foreground">
-            <span
-              className={`px-3 py-1.5 rounded-full border cursor-pointer ${
-                aiMode === "fill"
-                  ? "border-[#4B89EF] text-[#4B89EF] bg-[#EEF2FF]"
-                  : "border-transparent bg-gray-100"
-              }`}
-              onClick={() => setAiMode("fill")}
-            >
-              Fill existing info
-            </span>
-            <span
-              className={`px-3 py-1.5 rounded-full border cursor-pointer ${
-                aiMode === "generate"
-                  ? "border-[#4B89EF] text-[#4B89EF] bg-[#EEF2FF]"
-                  : "border-transparent bg-gray-100"
-              }`}
-              onClick={() => setAiMode("generate")}
-            >
-              Generate from brief
-            </span>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <Button
-              variant="secondary"
-              type="button"
-              onClick={() => setView("options")}
-            >
-              Back
-            </Button>
-            <Button
-              onClick={handleAiSubmit}
-              disabled={aiLoading}
-              className="inline-flex items-center gap-2"
-            >
-              {aiLoading ? "Working..." : "Fill with AI"}
-              {!aiLoading && <StartWithAiIcon className="h-4 w-4" />}
-            </Button>
-          </div>
+        <div className="mt-6 flex items-center justify-end gap-3">
+          <Button
+            variant="secondary"
+            type="button"
+            onClick={() => setView("options")}
+            className="min-w-[90px] bg-gray-100 text-gray-700 hover:bg-gray-200"
+          >
+            Back
+          </Button>
+          <Button
+            onClick={handleAiSubmit}
+            disabled={aiLoading}
+            className="min-w-[130px] bg-[#4B89EF] text-white hover:bg-[#3B79DF]"
+          >
+            {aiLoading ? "Working..." : "Fill with AI"}
+          </Button>
         </div>
       </div>
 
-      {primaryCard}
+      <PrimaryCard />
     </div>
   );
 
   const renderDevpostView = () => (
-    <div className="flex flex-col lg:flex-row bg-white rounded-3xl overflow-hidden shadow-[0_18px_45px_rgba(15,23,42,0.18)]">
-      <div className="flex-1 px-8 py-8 lg:px-10 lg:py-10 space-y-6">
-        <button
-          type="button"
-          className="inline-flex items-center gap-1 text-sm text-[#4B89EF]"
-          onClick={() => setView("options")}
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back
-        </button>
-
-        <div className="space-y-2">
+    <div className="flex w-full flex-col lg:flex-row bg-white rounded-3xl overflow-hidden shadow-[0_18px_45px_rgba(15,23,42,0.18)]">
+      {/* Left – 50% on lg, vertically centered */}
+      <div className="w-full lg:w-1/2 px-8 py-8 lg:px-10 lg:py-10 flex flex-col justify-center">
+        <div className="space-y-2 mb-4">
           <h2 className="text-[20px] font-semibold tracking-tight">
             Import from DevPost
           </h2>
@@ -418,7 +330,7 @@ export function CreateEventModal({
           </p>
         </div>
 
-        <div className="flex items-center justify-end gap-3 pt-4">
+        <div className="flex items-center justify-end gap-3 pt-6">
           <Button
             variant="secondary"
             onClick={() => setView("options")}
@@ -437,7 +349,7 @@ export function CreateEventModal({
         </div>
       </div>
 
-      {primaryCard}
+      <PrimaryCard />
     </div>
   );
 
