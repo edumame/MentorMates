@@ -202,7 +202,7 @@ function LoginContent({
   const [password, setPassword] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
+  const baseUrl = window.location.origin;
   const cleanBaseUrl = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
 
   useEffect(() => {
