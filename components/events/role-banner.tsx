@@ -60,16 +60,16 @@ export function RoleBanner({
     <div className="sticky top-0 z-50 bg-sky-50 border-b border-[rgba(0,0,0,0.15)]">
       <div className="max-w-[1280px] mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between gap-2 sm:gap-4">
         <div className="flex items-center gap-2 flex-1 min-w-0">
-          <Headphones className="h-5 w-5 sm:h-6 sm:w-6 text-[#4c4c4c] flex-shrink-0" />
+          <Headphones className="h-5 w-5 sm:h-6 sm:w-6 text-[var(--brand-text-dark-hex)] flex-shrink-0" />
           
           {/* Desktop: Text with optional chevron dropdown */}
           <div className="hidden sm:flex items-center gap-2 flex-1 min-w-0">
-            <p className="text-[#4c4c4c] text-base sm:text-lg font-medium tracking-[-0.06em] leading-[1.4]">
+            <p className="text-[var(--brand-text-dark-hex)] text-base sm:text-lg font-medium tracking-[-0.06em] leading-[1.4]">
               {getRoleText()}
             </p>
             {canSwitchRoles && (
               <DropdownMenu>
-                <DropdownMenuTrigger className="flex items-center gap-1 text-[#4c4c4c] hover:text-black transition-colors">
+                <DropdownMenuTrigger className="flex items-center gap-1 text-[var(--brand-text-dark-hex)] hover:text-black transition-colors">
                   <ChevronDown className="h-5 w-5" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="min-w-[240px]">
@@ -117,7 +117,7 @@ export function RoleBanner({
           <div className="sm:hidden flex-1 min-w-0">
             {canSwitchRoles ? (
               <DropdownMenu>
-                <DropdownMenuTrigger className="flex items-start gap-1 w-full text-left text-[#4c4c4c] hover:text-black transition-colors">
+                <DropdownMenuTrigger className="flex items-start gap-1 w-full text-left text-[var(--brand-text-dark-hex)] hover:text-black transition-colors">
                   <div className="flex items-center gap-2 rounded-md bg-blue-200">
                     <span className="text-sm font-medium tracking-[-0.06em] leading-[1.4] max-w-40 line-clamp-2">
                       {getRoleText()}
@@ -164,7 +164,7 @@ export function RoleBanner({
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <p className="text-[#4c4c4c] text-sm font-medium tracking-[-0.06em] leading-[1.4] line-clamp-2">
+              <p className="text-[var(--brand-text-dark-hex)] text-sm font-medium tracking-[-0.06em] leading-[1.4] line-clamp-2">
                 {getRoleText()}
               </p>
             )}

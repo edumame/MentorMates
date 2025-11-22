@@ -75,14 +75,14 @@ export function LandingHero() {
                               }
                         }
                         transition={{ type: "spring", stiffness: 50 }}
-                        style={{
-                          background:
-                            "linear-gradient(90deg, #DBEAFE 0%, #4286F4 48%, #1C64F2 100%)",
-                          WebkitBackgroundClip: "text",
-                          WebkitTextFillColor: "transparent",
-                          backgroundClip: "text",
-                          color: "transparent",
-                        }}
+                          style={{
+                            background:
+                              "linear-gradient(90deg, var(--brand-gradient-hero-start) 0%, var(--brand-gradient-hero-mid) 48%, var(--brand-gradient-hero-end) 100%)",
+                            WebkitBackgroundClip: "text",
+                            WebkitTextFillColor: "transparent",
+                            backgroundClip: "text",
+                            color: "transparent",
+                          }}
                       >
                         {/* Keep word size in sync with the h1 for consistent height */}
                         <span className="text-5xl sm:text-6xl md:text-6xl lg:text-[72px] leading-[1.1]">

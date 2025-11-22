@@ -389,14 +389,14 @@ export default function DraftProjectSubmissionFormSinglePage({
       <div className="sticky top-0 z-40 bg-sky-50 border-b border-[#d8d8d8]">
         <div className="max-w-[1280px] mx-auto px-6 py-3.5 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Shield className="h-6 w-6 text-[#4c4c4c]" />
-            <p className="text-[#4c4c4c] text-lg font-medium tracking-[-0.06em]">
+            <Shield className="h-6 w-6 text-[var(--brand-text-dark-hex)]" />
+            <p className="text-[var(--brand-text-dark-hex)] text-lg font-medium tracking-[-0.06em]">
               Your project is automatically saved as you edit
             </p>
           </div>
           {lastSaved && (
             <div className="bg-transparent border border-[rgba(0,0,0,0.15)] rounded-full px-2.5 py-1">
-              <p className="text-[#7f7f7f] text-sm font-medium">
+              <p className="text-[var(--brand-text-muted-hex)] text-sm font-medium">
                 Saved at{" "}
                 {lastSaved.toLocaleDateString("en-US", {
                   day: "numeric",
@@ -464,7 +464,7 @@ export default function DraftProjectSubmissionFormSinglePage({
                     rows={7}
                     className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-3 py-2 text-base resize-none"
                   />
-                  <p className="text-base text-[#7f7f7f]">
+                  <p className="text-base text-[var(--brand-text-muted-hex)]">
                     *This will show under the project overview section
                   </p>
                 </div>
@@ -502,7 +502,7 @@ export default function DraftProjectSubmissionFormSinglePage({
                       </span>
                     </label>
                   </div>
-                  <p className="text-base text-[#7f7f7f]">
+                  <p className="text-base text-[var(--brand-text-muted-hex)]">
                     *Upload an image to showcase your project (Max 10MB)
                   </p>
                 </div>
@@ -536,7 +536,7 @@ export default function DraftProjectSubmissionFormSinglePage({
                       </span>
                     </label>
                   </div>
-                  <p className="text-base text-[#7f7f7f]">
+                  <p className="text-base text-[var(--brand-text-muted-hex)]">
                     *Upload any additional documentation (Max 10MB)
                   </p>
                 </div>
@@ -668,7 +668,7 @@ export default function DraftProjectSubmissionFormSinglePage({
                 )}
                 <Button
                   onClick={handlePublish}
-                  className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-6 py-2.5 shadow-sm font-medium"
+                  className="bg-[var(--brand-primary-hex)] hover:bg-[var(--brand-primary-strong-hex)] text-white rounded-xl px-6 py-2.5 shadow-sm font-medium"
                 >
                   Publish project
                 </Button>
@@ -721,18 +721,18 @@ export default function DraftProjectSubmissionFormSinglePage({
                       {/* Metadata */}
                       <div className="flex items-center gap-3">
                         <div className="flex items-center gap-1">
-                          <Calendar className="h-5 w-5 text-[#575d65]" />
-                          <span className="text-sm text-[#575d65]">
+                          <Calendar className="h-5 w-5 text-[var(--brand-text-secondary-hex)]" />
+                          <span className="text-sm text-[var(--brand-text-secondary-hex)]">
                             11 Jan 2025
                           </span>
                         </div>
                         <div className="flex items-center gap-1">
-                          <ThumbsUp className="h-5 w-5 text-[#575d65]" />
-                          <span className="text-sm text-[#575d65]">36</span>
+                          <ThumbsUp className="h-5 w-5 text-[var(--brand-text-secondary-hex)]" />
+                          <span className="text-sm text-[var(--brand-text-secondary-hex)]">36</span>
                         </div>
                         <div className="flex items-center gap-1">
-                          <MessageSquarePlus className="h-5 w-5 text-[#575d65]" />
-                          <span className="text-sm text-[#575d65]">2</span>
+                          <MessageSquarePlus className="h-5 w-5 text-[var(--brand-text-secondary-hex)]" />
+                          <span className="text-sm text-[var(--brand-text-secondary-hex)]">2</span>
                         </div>
                       </div>
                     </div>
@@ -747,7 +747,7 @@ export default function DraftProjectSubmissionFormSinglePage({
                           />
                         ))}
                       </div>
-                      <MoreHorizontal className="h-6 w-6 text-[#7f7f7f]" />
+                      <MoreHorizontal className="h-6 w-6 text-[var(--brand-text-muted-hex)]" />
                     </div>
                   </div>
                 </div>
@@ -756,7 +756,7 @@ export default function DraftProjectSubmissionFormSinglePage({
                   onClick={() =>
                     window.open(`/projects/${projectId}`, "_blank", "noopener,noreferrer")
                   }
-                  className="flex items-center gap-1 justify-center text-[#7f7f7f] hover:text-black transition-colors"
+                  className="flex items-center gap-1 justify-center text-[var(--brand-text-muted-hex)] hover:text-black transition-colors"
                 >
                   <span className="text-base">Preview project page</span>
                   <ExternalLink className="h-4.5 w-4.5" />

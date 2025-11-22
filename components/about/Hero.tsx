@@ -19,7 +19,7 @@ export function Hero() {
                             We research how generative AI can provide personalized, meaningful feedback. Our goal is to develop solutions that help students grow in hackathons and project-based learning without losing the impact of human mentorship.
                         </p>
 
-                        <Button asChild variant="default" className="rounded-xl px-4 py-2 text-sm sm:text-base hover:bg-[#4B89EF]/90">
+                        <Button asChild variant="default" className="rounded-xl px-4 py-2 text-sm sm:text-base hover:bg-[rgb(var(--brand-primary-rgb)/0.9)]">
                             <Link href="/research" aria-label="See our research">
                                 See our research
                             </Link>

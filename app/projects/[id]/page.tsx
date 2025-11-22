@@ -62,6 +62,9 @@ import { useAdmin } from "@/lib/hooks/use-admin";
 import { useProjectLike } from "@/features/projects/hooks/use-project-like";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 import UserSearchWithInvite from "@/components/utils/UserSearchWithInvite";
+import { ACTIVE_BRAND } from "@/lib/config/brands";
+
+const PROJECT_COVER_PLACEHOLDER = ACTIVE_BRAND.assets.placeholders.projectCover;
 
 interface EventParticipant {
   user_id: string;
@@ -1049,7 +1052,7 @@ export default function ProjectPage() {
               </Button>
               <Button
                 onClick={() => setShowFeedbackDialog(true)}
-                className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-5 py-2 shadow-sm text-base whitespace-nowrap"
+                className="bg-[var(--brand-primary-hex)] hover:bg-[var(--brand-primary-strong-hex)] text-white rounded-xl px-5 py-2 shadow-sm text-base whitespace-nowrap"
               >
                 Give feedback
               </Button>
@@ -1110,7 +1113,7 @@ export default function ProjectPage() {
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    <Button className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-6 py-2.5 shadow-sm">
+                    <Button className="bg-[var(--brand-primary-hex)] hover:bg-[var(--brand-primary-strong-hex)] text-white rounded-xl px-6 py-2.5 shadow-sm">
                       <ArrowUpRight className="h-5 w-5 mr-1.5" />
                       View Live Project
                     </Button>
@@ -1142,7 +1145,7 @@ export default function ProjectPage() {
                     className="w-full h-full bg-cover bg-center bg-no-repeat"
                     style={{
                       backgroundImage: `url(${
-                        project.cover_image_url || "/img/placeholder.png"
+                        project.cover_image_url || PROJECT_COVER_PLACEHOLDER
                       })`,
                     }}
                   ></div>
@@ -1155,7 +1158,7 @@ export default function ProjectPage() {
                   className="w-full h-full bg-cover bg-center bg-no-repeat"
                   style={{
                     backgroundImage: `url(${
-                      project.cover_image_url || "/img/placeholder.png"
+                      project.cover_image_url || PROJECT_COVER_PLACEHOLDER
                     })`,
                   }}
                 ></div>
@@ -1208,7 +1211,7 @@ export default function ProjectPage() {
             </Button>
             <Button
               onClick={() => setShowFeedbackDialog(true)}
-              className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-5 py-2 shadow-sm text-base whitespace-nowrap"
+              className="bg-[var(--brand-primary-hex)] hover:bg-[var(--brand-primary-strong-hex)] text-white rounded-xl px-5 py-2 shadow-sm text-base whitespace-nowrap"
             >
               Give feedback
             </Button>
@@ -1219,21 +1222,21 @@ export default function ProjectPage() {
             <TabsList className="bg-transparent border-b border-gray-200 rounded-none h-auto p-0 w-full justify-start gap-3 sm:gap-6 overflow-x-auto scrollbar-hide flex-nowrap">
               <TabsTrigger
                 value="overview"
-                className="shadow-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2 font-medium"
+                className="shadow-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[var(--brand-primary-hex)] rounded-none bg-transparent pb-2 font-medium"
               >
                 Overview
               </TabsTrigger>
               {hasEventTracks && (
                 <TabsTrigger
                   value="tracks"
-                  className="shadow-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2"
+                  className="shadow-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[var(--brand-primary-hex)] rounded-none bg-transparent pb-2"
                 >
                   Tracks
                 </TabsTrigger>
               )}
               <TabsTrigger
                 value="team"
-                className="shadow-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2 flex items-center gap-2"
+                className="shadow-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[var(--brand-primary-hex)] rounded-none bg-transparent pb-2 flex items-center gap-2"
               >
                 Team
                 <Badge variant="secondary" className="bg-white border border-black/15 text-black rounded-full text-xs">
@@ -1242,7 +1245,7 @@ export default function ProjectPage() {
               </TabsTrigger>
               <TabsTrigger
                 value="feedback"
-                className="shadow-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2 flex items-center gap-2"
+                className="shadow-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[var(--brand-primary-hex)] rounded-none bg-transparent pb-2 flex items-center gap-2"
               >
                 Feedback
                 <Badge variant="secondary" className="bg-white border border-black/15 text-black rounded-full text-xs">
@@ -1251,7 +1254,7 @@ export default function ProjectPage() {
               </TabsTrigger>
               <TabsTrigger
                 value="sharing"
-                className="shadow-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2"
+                className="shadow-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[var(--brand-primary-hex)] rounded-none bg-transparent pb-2"
               >
                 Sharing
               </TabsTrigger>

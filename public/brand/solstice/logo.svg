@@ -1,0 +1,9 @@
+<svg width="220" height="60" viewBox="0 0 220 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="220" height="60" rx="12" fill="#0B192F"/>
+  <text x="20" y="37" fill="#FF6B35" font-family="Inter, 'Segoe UI', sans-serif" font-weight="600" font-size="24">
+    Solstice
+  </text>
+  <text x="140" y="37" fill="#F4F1DE" font-family="Inter, 'Segoe UI', sans-serif" font-weight="500" font-size="20">
+    Labs
+  </text>
+</svg>

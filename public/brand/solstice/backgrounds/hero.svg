@@ -1,0 +1,14 @@
+<svg width="800" height="600" viewBox="0 0 800 600" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="solstice-hero-gradient" x1="0" y1="0" x2="0" y2="600" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0B192F"/>
+      <stop offset="0.55" stop-color="#1D3557"/>
+      <stop offset="1" stop-color="#2B2D42"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="600" fill="url(#solstice-hero-gradient)"/>
+  <circle cx="600" cy="120" r="80" fill="#FF6B35" fill-opacity="0.18"/>
+  <circle cx="160" cy="420" r="120" fill="#F3A712" fill-opacity="0.12"/>
+  <path d="M0 520C120 460 200 460 320 520C440 580 520 580 640 520C760 460 840 460 960 520V600H0V520Z" fill="#FF6B35" fill-opacity="0.15"/>
+  <path d="M100 180C180 140 260 140 340 180C420 220 500 220 580 180C660 140 740 140 820 180" stroke="#F4F1DE" stroke-opacity="0.15" stroke-width="2" stroke-linecap="round"/>
+</svg>

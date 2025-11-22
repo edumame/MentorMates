@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -14,10 +13,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { BrandLogo } from "@/components/brand/BrandLogo";
+import { ACTIVE_BRAND } from "@/lib/config/brands";
 
-const DISCORD_INVITE = "https://discord.gg/6pbUzK44eW";
-const MENTOR_FORM_URL =
-  "https://docs.google.com/forms/d/e/1FAIpQLSeKK8E8B63Sl4J0fjJZKDz3QdWImSqkrwPym-_EN6K2kcizsw/viewform";
+const DISCORD_INVITE = ACTIVE_BRAND.urls.discordInvite;
+const MENTOR_FORM_URL = ACTIVE_BRAND.urls.mentorForm;
+const PRIMARY_CTA_LABEL =
+  ACTIVE_BRAND.meta.primaryCtaLabel ?? "Join the mentor collective";
+const PRIMARY_CTA_HREF =
+  ACTIVE_BRAND.meta.primaryCtaHref ?? MENTOR_FORM_URL ?? "/events";
 
 // Discord icon component
 function DiscordIcon({
@@ -106,54 +110,54 @@ export function Navbar() {
         <div className="flex justify-between items-center py-4 px-4 sm:px-6 lg:px-10">
           {/* Logo and Desktop Menu */}
           {/* Desktop shows at lg+ to avoid wrapping on tablets/smaller laptops */}
-          <div className="hidden lg:flex items-center gap-8">
-            {!hideLogoOnAuthPages && (
-              <Link href="/" className="flex items-center gap-2">
-                <Image
-                  src="/mentormate.png"
-                  alt="Mentor Mate Logo"
-                  width={200}
-                  height={40}
-                  className="object-contain pl-2"
-                />
-              </Link>
-            )}
+            <div className="hidden lg:flex items-center gap-8">
+              {!hideLogoOnAuthPages && (
+                <Link
+                  href="/"
+                  className="flex items-center gap-2"
+                  aria-label={`${ACTIVE_BRAND.name} home`}
+                >
+                  <BrandLogo placement="navbar" />
+                </Link>
+              )}
 
             <Link
               href="/events"
-              className="text-base font-medium text-black hover:text-[#4B89EF] whitespace-nowrap"
+              className="text-base font-medium text-black hover:text-[var(--brand-primary-hex)] whitespace-nowrap"
             >
               Events
             </Link>
             <Link
               href="/host"
-              className="text-base font-medium text-black hover:text-[#4B89EF] whitespace-nowrap"
+              className="text-base font-medium text-black hover:text-[var(--brand-primary-hex)] whitespace-nowrap"
             >
               Host a hackathon
             </Link>
-            <Link
-              href={MENTOR_FORM_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-base font-medium text-black hover:text-[#4B89EF] whitespace-nowrap"
-            >
-              Become a Mentor
-            </Link>
+              <Link
+                href={PRIMARY_CTA_HREF}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-base font-medium text-black hover:text-[var(--brand-primary-hex)] whitespace-nowrap"
+              >
+                {PRIMARY_CTA_LABEL}
+              </Link>
 
             {/* Discord (desktop) */}
-            <Link
-              href={DISCORD_INVITE}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-base font-medium text-black hover:text-[#4B89EF] inline-flex items-center gap-2 whitespace-nowrap"
-            >
-              <DiscordIcon className="mr-1 h-[1.1em] w-[1.1em]" />
-              Join discord community
-            </Link>
+              {DISCORD_INVITE && (
+                <Link
+                  href={DISCORD_INVITE}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-base font-medium text-black hover:text-[var(--brand-primary-hex)] inline-flex items-center gap-2 whitespace-nowrap"
+                >
+                  <DiscordIcon className="mr-1 h-[1.1em] w-[1.1em]" />
+                  Join discord community
+                </Link>
+              )}
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="text-base font-medium text-black hover:text-[#4B89EF] inline-flex items-center gap-1 whitespace-nowrap">
+                <button className="text-base font-medium text-black hover:text-[var(--brand-primary-hex)] inline-flex items-center gap-1 whitespace-nowrap">
                   Resources
                   <svg
                     width="16"
@@ -186,18 +190,16 @@ export function Navbar() {
             </DropdownMenu>
           </div>
 
-          {/* Logo for <lg screens */}
-          {!hideLogoOnAuthPages && (
-            <Link href="/" className="flex lg:hidden items-center gap-2">
-              <Image
-                src="/mentormate.png"
-                alt="Mentor Mate Logo"
-                width={140}
-                height={28}
-                className="object-contain"
-              />
-            </Link>
-          )}
+            {/* Logo for <lg screens */}
+            {!hideLogoOnAuthPages && (
+              <Link
+                href="/"
+                className="flex lg:hidden items-center gap-2"
+                aria-label={`${ACTIVE_BRAND.name} home`}
+              >
+                <BrandLogo placement="auth" height={28} width={140} />
+              </Link>
+            )}
 
           {/* Desktop Auth Buttons (lg+) */}
           <div className="hidden lg:flex items-center gap-3">
@@ -281,41 +283,43 @@ export function Navbar() {
           <div className="px-6 py-6 space-y-1">
             <Link
               href="/events"
-              className="block py-4 text-lg font-medium text-black hover:text-[#4B89EF]"
+              className="block py-4 text-lg font-medium text-black hover:text-[var(--brand-primary-hex)]"
             >
               Events
             </Link>
             <Link
               href="/host"
-              className="block py-4 text-lg font-medium text-black hover:text-[#4B89EF]"
+              className="block py-4 text-lg font-medium text-black hover:text-[var(--brand-primary-hex)]"
             >
               Host a hackathon
             </Link>
-            <Link
-              href={MENTOR_FORM_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block py-4 text-lg font-medium text-black hover:text-[#4B89EF]"
-            >
-              Become a Mentor
-            </Link>
+              <Link
+                href={PRIMARY_CTA_HREF}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block py-4 text-lg font-medium text-black hover:text-[var(--brand-primary-hex)]"
+              >
+                {PRIMARY_CTA_LABEL}
+              </Link>
 
-            {/* Discord (mobile) */}
-            <Link
-              href={DISCORD_INVITE}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block py-4 text-lg font-medium text-black hover:text-[#4B89EF] inline-flex items-center gap-2"
-            >
-              <DiscordIcon className="mr-2 h-[1.2em] w-[1.2em]" />
-              Join discord community
-            </Link>
+              {/* Discord (mobile) */}
+              {DISCORD_INVITE && (
+                <Link
+                  href={DISCORD_INVITE}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block py-4 text-lg font-medium text-black hover:text-[var(--brand-primary-hex)] inline-flex items-center gap-2"
+                >
+                  <DiscordIcon className="mr-2 h-[1.2em] w-[1.2em]" />
+                  Join discord community
+                </Link>
+              )}
 
             {/* Resources Dropdown in Mobile */}
             <div className="py-4">
               <button
                 onClick={toggleResources}
-                className="w-full text-left text-lg font-medium text-black flex items-center justify-between hover:text-[#4B89EF]"
+                className="w-full text-left text-lg font-medium text-black flex items-center justify-between hover:text-[var(--brand-primary-hex)]"
               >
                 Resources
                 <svg
@@ -337,25 +341,25 @@ export function Navbar() {
               >
                 <Link
                   href="/about"
-                  className="block py-3 text-base font-normal text-black hover:text-[#4B89EF]"
+                  className="block py-3 text-base font-normal text-black hover:text-[var(--brand-primary-hex)]"
                 >
                   About us
                 </Link>
                 <Link
                   href="/research"
-                  className="block py-3 text-base font-normal text-black hover:text-[#4B89EF]"
+                  className="block py-3 text-base font-normal text-black hover:text-[var(--brand-primary-hex)]"
                 >
                   Research
                 </Link>
                 <Link
                   href="/blog"
-                  className="block py-3 text-base font-normal text-black hover:text-[#4B89EF]"
+                  className="block py-3 text-base font-normal text-black hover:text-[var(--brand-primary-hex)]"
                 >
                   Blog
                 </Link>
                 <Link
                   href="/help"
-                  className="block py-3 text-base font-normal text-black hover:text-[#4B89EF]"
+                  className="block py-3 text-base font-normal text-black hover:text-[var(--brand-primary-hex)]"
                 >
                   Help
                 </Link>

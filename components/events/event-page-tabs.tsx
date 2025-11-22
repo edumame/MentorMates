@@ -69,7 +69,7 @@ export function EventPageTabs({
               key={tab.name}
               href={getHrefWithParams(tab.path)}
               className={`inline-flex gap-2 items-center px-0 py-2 flex-shrink-0 ${
-                isActive ? "border-b-2 border-[#4b89ef]" : ""
+                isActive ? "border-b-2 border-[var(--brand-primary-hex)]" : ""
               }`}
             >
               <p

@@ -45,7 +45,7 @@ export function Team() {
   ];
 
   return (
-    <div className="bg-[#F1F7FE] py-16 px-4 sm:px-6 lg:px-8">
+    <div className="bg-[var(--brand-surface-soft-hex)] py-16 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-12">
           <h1 className="text-2xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-4">

@@ -15,6 +15,8 @@ export function Work() {
 
   const blueHeight = useTransform(scrollYProgress, [0, 1], ["0%", "100%"]);
 
+  const lineGradient =
+    "linear-gradient(to bottom,var(--brand-primary-hex) 0%,var(--brand-primary-hex) 88%,rgb(var(--brand-primary-rgb) / 0) 100%)";
   const steps = [
     {
       id: "01",
@@ -66,27 +68,25 @@ export function Work() {
         {/* Timeline */}
         <div className="relative">
           {/* Center line (desktop) */}
-          <div className="hidden md:block absolute left-1/2 -translate-x-1/2 h-full w-px z-0">
-            <div className="absolute inset-0 bg-[#D5E1F5]/80" />
+            <div className="hidden md:block absolute left-1/2 -translate-x-1/2 h-full w-px z-0">
+              <div className="absolute inset-0 bg-[var(--brand-primary-soft-hex)] opacity-80" />
             <motion.div
               className="absolute top-0 left-0 w-px"
               style={{
                 height: blueHeight,
-                background:
-                  "linear-gradient(to bottom,#4B89EF 0%,#4B89EF 88%,rgba(75,137,239,0) 100%)",
+                  background: lineGradient,
               }}
             />
           </div>
 
           {/* Left line (mobile) */}
           <div className="md:hidden absolute left-6 h-full w-px z-0">
-            <div className="absolute inset-0 bg-[#D5E1F5]/80" />
+              <div className="absolute inset-0 bg-[var(--brand-primary-soft-hex)] opacity-80" />
             <motion.div
               className="absolute top-0 left-0 w-px"
               style={{
                 height: blueHeight,
-                background:
-                  "linear-gradient(to bottom,#4B89EF 0%,#4B89EF 88%,rgba(75,137,239,0) 100%)",
+                  background: lineGradient,
               }}
             />
           </div>
@@ -111,7 +111,7 @@ export function Work() {
                   />
                   <span
                     aria-hidden
-                    className="hidden md:block absolute left-1/2 -translate-x-1/2 top-[10px] w-3 h-3 rounded-full bg-[#4B89EF] z-20"
+                    className="hidden md:block absolute left-1/2 -translate-x-1/2 top-[10px] w-3 h-3 rounded-full bg-[var(--brand-primary-hex)] z-20"
                   />
                   {/* Mobile */}
                   <span
@@ -120,7 +120,7 @@ export function Work() {
                   />
                   <span
                     aria-hidden
-                    className="md:hidden absolute left-6 -translate-x-1/2 top-[10px] w-3 h-3 rounded-full bg-[#4B89EF] z-20"
+                    className="md:hidden absolute left-6 -translate-x-1/2 top-[10px] w-3 h-3 rounded-full bg-[var(--brand-primary-hex)] z-20"
                   />
 
                   {/* Mobile Layout - Stack ID/Title above description and image */}

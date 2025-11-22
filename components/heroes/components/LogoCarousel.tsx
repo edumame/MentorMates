@@ -2,15 +2,9 @@
 
 import React from "react";
 import { LogoMarquee, type LogoItem } from "@/components/ui/LogoMarquee";
+import { ACTIVE_BRAND } from "@/lib/config/brands";
 
-export const logos: LogoItem[] = [
-    { alt: "Tencent", src: "/partners/tencent.png" },
-    { alt: "Goodnotes", src: "/partners/goodnotes.png" },
-    { alt: "Inspirit AI", src: "/partners/inspirit.png" },
-    { alt: "Johns Hopkins University", src: "/partners/jhu.png" },
-    { alt: "Stanford", src: "/partners/stanford.png" },
-    { alt: "HKPU", src: "/partners/hkpu.png" },
-];
+export const logos: LogoItem[] = ACTIVE_BRAND.assets.partnerLogos;
 
 type LogoCarouselProps = {
     items?: LogoItem[];

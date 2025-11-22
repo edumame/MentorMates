@@ -9,6 +9,8 @@ import Image from "next/image";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { TESTIMONIALS } from "@/lib/constants/testimonials";
 import Link from "next/link";
+import { BrandLogo } from "@/components/brand/BrandLogo";
+import { ACTIVE_BRAND } from "@/lib/config/brands";
 
 const supabase = createClient();
 
@@ -367,16 +369,11 @@ function LoginContent({
       {/* LEFT: form column */}
       <main className="flex flex-col h-screen">
         {/* NAV / logo */}
-        <div className="flex items-center gap-3 px-6 pt-6">
-          <Link href="/">
-            <Image
-              src="/mentormate.png"
-              alt="MentorMates"
-              width={180}
-              height={48}
-            />
-          </Link>
-        </div>
+          <div className="flex items-center gap-3 px-6 pt-6">
+            <Link href="/" aria-label={`${ACTIVE_BRAND.name} home`}>
+              <BrandLogo placement="auth" width={180} height={48} />
+            </Link>
+          </div>
 
         {/* centered content; extra pt on mobile */}
         <div className="flex-1 flex items-start lg:items-center justify-center px-6 pt-8 lg:pt-0">

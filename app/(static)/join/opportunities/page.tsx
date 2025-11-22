@@ -26,7 +26,7 @@ const positions = [
         🔥 Interested? Reach out to us at{" "}
         <a
           href="mailto:admin@mentormates.ai"
-          className="text-[#4285f4] underline hover:text-[#3367d6] font-medium"
+          className="text-[var(--brand-primary-hex)] underline hover:text-[#3367d6] font-medium"
         >
           admin@mentormates.ai
         </a>{" "}
@@ -44,7 +44,7 @@ export default function OpportunitiesPage() {
         <div className="text-center space-y-4">
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-gray-900 tracking-tight">
             Join Our{" "}
-            <span className="text-[#4285f4]">
+            <span className="text-[var(--brand-primary-hex)]">
               Team
             </span>
           </h1>
@@ -56,10 +56,10 @@ export default function OpportunitiesPage() {
         {positions.map((role) => (
           <section
             key={role.title}
-            className="bg-white border border-gray-200 shadow-sm p-8 rounded-2xl hover:shadow-lg transition-all duration-300 hover:border-[#4285f4]"
+            className="bg-white border border-gray-200 shadow-sm p-8 rounded-2xl hover:shadow-lg transition-all duration-300 hover:border-[var(--brand-primary-hex)]"
           >
             <div className="space-y-6">
-              <div className="border-l-4 border-[#4285f4] pl-6">
+              <div className="border-l-4 border-[var(--brand-primary-hex)] pl-6">
                 <h2 className="text-3xl font-bold text-gray-900 mb-2">
                   {role.title}
                 </h2>
@@ -67,14 +67,14 @@ export default function OpportunitiesPage() {
               
               <div className="space-y-6">
                 <div>
-                  <h3 className="text-xl font-semibold text-[#4285f4] mb-3 flex items-center">
-                    <span className="w-2 h-2 bg-[#4285f4] rounded-full mr-3"></span>
+                  <h3 className="text-xl font-semibold text-[var(--brand-primary-hex)] mb-3 flex items-center">
+                    <span className="w-2 h-2 bg-[var(--brand-primary-hex)] rounded-full mr-3"></span>
                     About the Role
                   </h3>
                   <ul className="space-y-2 text-gray-700 leading-relaxed">
                     {role.about.map((item, idx) => (
                       <li key={idx} className="flex items-start">
-                        <span className="text-[#4285f4] mr-3 mt-1.5">•</span>
+                        <span className="text-[var(--brand-primary-hex)] mr-3 mt-1.5">•</span>
                         <span>{item}</span>
                       </li>
                     ))}
@@ -82,14 +82,14 @@ export default function OpportunitiesPage() {
                 </div>
 
                 <div>
-                  <h3 className="text-xl font-semibold text-[#4285f4] mb-3 flex items-center">
-                    <span className="w-2 h-2 bg-[#4285f4] rounded-full mr-3"></span>
+                  <h3 className="text-xl font-semibold text-[var(--brand-primary-hex)] mb-3 flex items-center">
+                    <span className="w-2 h-2 bg-[var(--brand-primary-hex)] rounded-full mr-3"></span>
                     What We&apos;re Looking For
                   </h3>
                   <ul className="space-y-2 text-gray-700 leading-relaxed">
                     {role.lookingFor.map((item, idx) => (
                       <li key={idx} className="flex items-start">
-                        <span className="text-[#4285f4] mr-3 mt-1.5">•</span>
+                        <span className="text-[var(--brand-primary-hex)] mr-3 mt-1.5">•</span>
                         <span>{item}</span>
                       </li>
                     ))}
@@ -97,26 +97,26 @@ export default function OpportunitiesPage() {
                 </div>
 
                 <div>
-                  <h3 className="text-xl font-semibold text-[#4285f4] mb-3 flex items-center">
-                    <span className="w-2 h-2 bg-[#4285f4] rounded-full mr-3"></span>
+                  <h3 className="text-xl font-semibold text-[var(--brand-primary-hex)] mb-3 flex items-center">
+                    <span className="w-2 h-2 bg-[var(--brand-primary-hex)] rounded-full mr-3"></span>
                     Compensation
                   </h3>
                   <ul className="space-y-2 text-gray-700 leading-relaxed">
                     {role.compensation.map((item, idx) => (
                       <li key={idx} className="flex items-start">
-                        <span className="text-[#4285f4] mr-3 mt-1.5">•</span>
+                        <span className="text-[var(--brand-primary-hex)] mr-3 mt-1.5">•</span>
                         <span>{item}</span>
                       </li>
                     ))}
                   </ul>
                 </div>
 
-                <div className="bg-[#4285f4]/5 p-6 rounded-xl border border-[#4285f4]/20">
-                  <h3 className="text-xl font-semibold text-[#4285f4] mb-3">
+                <div className="bg-[rgb(var(--brand-primary-rgb)/0.05)] p-6 rounded-xl border border-[rgb(var(--brand-primary-rgb)/0.2)]">
+                  <h3 className="text-xl font-semibold text-[var(--brand-primary-hex)] mb-3">
                     Why Join Us
                   </h3>
                   <p className="text-gray-700 leading-relaxed mb-4">{role.why}</p>
-                  <div className="bg-white p-4 rounded-lg border border-[#4285f4]/30">
+                  <div className="bg-white p-4 rounded-lg border border-[rgb(var(--brand-primary-rgb)/0.3)]">
                     <p className="text-gray-800 leading-relaxed">{role.contact}</p>
                   </div>
                 </div>

@@ -35,7 +35,7 @@ export function Build() {
   ];
 
   return (
-    <section className="bg-[#eef4ff] py-20 px-4 sm:px-8 lg:px-24">
+    <section className="bg-[var(--brand-surface-soft-hex)] py-20 px-4 sm:px-8 lg:px-24">
       <div className="mx-auto max-w-7xl">
         <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-2">
           {/* Left — gradient panel with phone mock */}

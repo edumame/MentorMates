@@ -1,29 +1,32 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import InstagramIcon from "@mui/icons-material/Instagram";
 import XIcon from "@mui/icons-material/X";
 import LinkedInIcon from "@mui/icons-material/LinkedIn";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/user/authentication/auth/AuthContext";
-
-const SUBSTACK_BASE = "https://mentormates.substack.com/";
+import { BrandLogo } from "@/components/brand/BrandLogo";
+import { ACTIVE_BRAND } from "@/lib/config/brands";
 
 export function Footer() {
-    const { isAuthenticated, isLoading } = useAuth();
-    const [firstUrl, setFirstUrl] = useState("");
-    const [firstReferrer, setFirstReferrer] = useState("");
+  const { isAuthenticated, isLoading } = useAuth();
+  const [firstUrl, setFirstUrl] = useState("");
+  const [firstReferrer, setFirstReferrer] = useState("");
+  const substackBase = ACTIVE_BRAND.urls.substack;
+  const socialLinks = ACTIVE_BRAND.social;
+  const brandName = ACTIVE_BRAND.name;
+  const currentYear = new Date().getFullYear();
 
-    useEffect(() => {
-        setFirstUrl(window.location.href);
-        setFirstReferrer(document.referrer || "");
-    }, []);
+  useEffect(() => {
+    setFirstUrl(window.location.href);
+    setFirstReferrer(document.referrer || "");
+  }, []);
 
-    // Hide footer when authenticated or while loading to avoid a flash
-    if (isLoading || isAuthenticated) {
-        return null;
-    }
+  // Hide footer when authenticated or while loading to avoid a flash
+  if (isLoading || isAuthenticated) {
+    return null;
+  }
 
   return (
     <footer className="w-full bg-white">
@@ -32,28 +35,23 @@ export function Footer() {
         <div className="rounded-xl border border-gray-200 px-[24px] md:p-[64px]">
           <div className="grid grid-cols-1 justify-around gap-10 md:grid-cols-2 py-12">
             {/* Brand + newsletter */}
-            <div className="text-center md:text-left justify-center">
-              <div className="flex justify-center md:justify-start items-center gap-2">
-                <Image
-                  src="/mentormate.png"
-                  alt="MentorMates Logo"
-                  width={200}
-                  height={40}
-                  priority
-                />
-              </div>
+              <div className="text-center md:text-left justify-center">
+                <div className="flex justify-center md:justify-start items-center gap-2">
+                  <BrandLogo placement="footer" priority />
+                </div>
 
               <p className="mt-6 text-sm text-gray-600">
                 Join our newsletter to stay up to date on features and releases.
               </p>
 
               {/* Substack subscribe form */}
-              <form
-                action={`${SUBSTACK_BASE}/api/v1/free`}
-                method="post"
-                target="_blank" // open Substack confirm page in new tab
-                className="mt-4 flex w-full max-w-xl gap-3 mx-auto md:mx-0 flex-col md:flex-row"
-              >
+                {substackBase ? (
+                  <form
+                    action={`${substackBase}/api/v1/free`}
+                    method="post"
+                    target="_blank"
+                    className="mt-4 flex w-full max-w-xl gap-3 mx-auto md:mx-0 flex-col md:flex-row"
+                  >
                 <input
                   type="email"
                   name="email" // <-- Substack expects this name
@@ -68,17 +66,23 @@ export function Footer() {
                   name="first_referrer"
                   value={firstReferrer}
                 />
-                <input type="hidden" name="utm_source" value="footer" />
-                {/* optional redirect after Substack processes the signup */}
-                <input
-                  type="hidden"
-                  name="redirect"
-                  value={`${SUBSTACK_BASE}/welcome`}
-                />
-                <Button type="submit" variant="defaultGray">
-                  Subscribe
-                </Button>
-              </form>
+                    <input type="hidden" name="utm_source" value="footer" />
+                    {/* optional redirect after Substack processes the signup */}
+                    <input
+                      type="hidden"
+                      name="redirect"
+                      value={`${substackBase}/welcome`}
+                    />
+                    <Button type="submit" variant="defaultGray">
+                      Subscribe
+                    </Button>
+                  </form>
+                ) : (
+                  <p className="mt-4 text-sm text-gray-600">
+                    {brandName} updates coming soon. Check back for newsletter
+                    signup.
+                  </p>
+                )}
 
               <p className="mt-3 text-xs text-gray-500">
                 By subscribing you agree to our{" "}
@@ -169,37 +173,31 @@ export function Footer() {
           </div>
         </div>
 
-        {/* Bottom bar */}
-        <div className="mt-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-t border-transparent pt-0">
-          {/* Socials */}
-          <div className="order-1 md:order-2 flex items-center gap-5 text-gray-700 justify-start md:justify-end">
-            <Link
-              href="https://www.instagram.com/mentormates.official"
-              aria-label="Instagram"
-              className="hover:text-black"
-            >
-              <InstagramIcon fontSize="medium" />
-            </Link>
-            <Link
-              href="https://x.com/mentormates?s=11"
-              aria-label="X"
-              className="hover:text-black"
-            >
-              <XIcon fontSize="medium" />
-            </Link>
-            <Link
-              href="https://www.linkedin.com/in/mentor-mates-a6898036b/"
-              aria-label="LinkedIn"
-              className="hover:text-black"
-            >
-              <LinkedInIcon fontSize="medium" />
-            </Link>
-          </div>
+          {/* Bottom bar */}
+          <div className="mt-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-t border-transparent pt-0">
+            {/* Socials */}
+            <div className="order-1 md:order-2 flex items-center gap-5 text-gray-700 justify-start md:justify-end">
+              {socialLinks.instagram && (
+                <Link href={socialLinks.instagram} aria-label="Instagram" className="hover:text-black">
+                  <InstagramIcon fontSize="medium" />
+                </Link>
+              )}
+              {socialLinks.x && (
+                <Link href={socialLinks.x} aria-label="X" className="hover:text-black">
+                  <XIcon fontSize="medium" />
+                </Link>
+              )}
+              {socialLinks.linkedin && (
+                <Link href={socialLinks.linkedin} aria-label="LinkedIn" className="hover:text-black">
+                  <LinkedInIcon fontSize="medium" />
+                </Link>
+              )}
+            </div>
 
-          <p className="order-2 md:order-1 text-xs md:text-sm text-gray-600">
-            &copy; 2025 MentorMates. All rights reserved.
-          </p>
-        </div>
+            <p className="order-2 md:order-1 text-xs md:text-sm text-gray-600">
+              &copy; {currentYear} {brandName}. All rights reserved.
+            </p>
+          </div>
       </div>
     </footer>
   );

@@ -74,12 +74,12 @@ export default function ComingSoonPage() {
                         }
                         transition={{ type: "spring", stiffness: 50 }}
                         style={{
-                        background:
-                            "linear-gradient(90deg, #DBEAFE 0%, #4286F4 48%, #1C64F2 100%)",
-                        WebkitBackgroundClip: "text",
-                        WebkitTextFillColor: "transparent",
-                        backgroundClip: "text",
-                        color: "transparent",
+                          background:
+                            "linear-gradient(90deg, var(--brand-gradient-hero-start) 0%, var(--brand-gradient-hero-mid) 48%, var(--brand-gradient-hero-end) 100%)",
+                          WebkitBackgroundClip: "text",
+                          WebkitTextFillColor: "transparent",
+                          backgroundClip: "text",
+                          color: "transparent",
                         }}
                     >
                         <span className="text-5xl sm:text-6xl md:text-6xl lg:text-[72px] leading-[1.1]">

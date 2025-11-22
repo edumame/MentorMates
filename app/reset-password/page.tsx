@@ -4,8 +4,9 @@ import { useState, useEffect, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/app/utils/supabase/client";
 import { Footer } from "@/components/layout/Footer";
-import Image from "next/image";
 import Link from "next/link";
+import { BrandLogo } from "@/components/brand/BrandLogo";
+import { ACTIVE_BRAND } from "@/lib/config/brands";
 
 const supabase = createClient();
 
@@ -89,14 +90,14 @@ function ResetPasswordContent() {
 
   return (
     <div>
-      <div className="sm:mx-auto sm:w-full sm:max-w-md pt-5">
-        <Image
-          alt="MentorMates"
-          src="/mentormate.png"
-          width={40}
-          height={40}
-          className="mx-auto object-contain"
-        />
+        <div className="sm:mx-auto sm:w-full sm:max-w-md pt-5">
+          <BrandLogo
+            placement="auth"
+            width={140}
+            height={40}
+            className="mx-auto"
+            alt={`${ACTIVE_BRAND.name} logo`}
+          />
         <h2 className="m-2 text-center text-2xl font-bold tracking-tight text-gray-900">
           Reset Your Password
         </h2>

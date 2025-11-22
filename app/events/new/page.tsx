@@ -253,7 +253,7 @@ export default function NewEventPage() {
                 {/* AI Assist Panel */}
                 <div className="mb-6 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-4">
                   <div className="flex items-center gap-2 mb-2">
-                    <Sparkles className="w-5 h-5 text-[#4b89ef]" />
+                    <Sparkles className="w-5 h-5 text-[var(--brand-primary-hex)]" />
                     <span className="text-[16px] font-semibold text-black">Generate or fill with AI</span>
                   </div>
                   <Textarea
@@ -356,7 +356,7 @@ export default function NewEventPage() {
                         onClick={() => setTicketType("free")}
                         className={`px-4 py-2 rounded-[12px] text-[16px] font-normal transition-colors ${
                           ticketType === "free"
-                            ? "bg-[#4b89ef] text-white"
+                            ? "bg-[var(--brand-primary-hex)] text-white"
                             : "bg-transparent border border-[rgba(0,0,0,0.15)] text-black"
                         }`}
                       >
@@ -366,7 +366,7 @@ export default function NewEventPage() {
                         onClick={() => setTicketType("paid")}
                         className={`px-4 py-2 rounded-[12px] text-[16px] font-normal transition-colors ${
                           ticketType === "paid"
-                            ? "bg-[#4b89ef] text-white"
+                            ? "bg-[var(--brand-primary-hex)] text-white"
                             : "bg-transparent border border-[rgba(0,0,0,0.15)] text-black"
                         }`}
                       >
@@ -449,7 +449,7 @@ export default function NewEventPage() {
                   </div>
                 </div>
 
-                <p className="text-[16px] text-[#7f7f7f] text-center mt-3">
+                <p className="text-[16px] text-[var(--brand-text-muted-hex)] text-center mt-3">
                   This is a preview of the event.
                 </p>
               </div>

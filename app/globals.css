@@ -75,6 +75,29 @@ body {
     --sidebar-accent-foreground: 0 0% 10%;
     --sidebar-border: 0 0% 0% / 0.15;
     --sidebar-ring: 217 84% 62%;
+
+      /* Brand hex helpers (overwritten per brand) */
+      --brand-primary-hex: #4B89EF;
+      --brand-primary-rgb: 75 137 239;
+      --brand-primary-strong-hex: #3F77D3;
+      --brand-primary-strong-rgb: 63 119 211;
+      --brand-primary-tint-hex: #DBEAFE;
+      --brand-primary-soft-hex: #E9F0FF;
+      --brand-primary-wash-hex: #F9F9FF;
+      --brand-accent-hex: #6E56CF;
+      --brand-accent-rgb: 110 86 207;
+      --brand-warning-hex: #B98500;
+      --brand-warning-soft-hex: #FFF2B8;
+      --brand-surface-hex: #FBFCFE;
+      --brand-surface-soft-hex: #F1F7FE;
+      --brand-text-muted-hex: #7F7F7F;
+      --brand-text-dark-hex: #4C4C4C;
+      --brand-text-secondary-hex: #575D65;
+      --brand-gradient-hero-start: #DBEAFE;
+      --brand-gradient-hero-mid: #4286F4;
+      --brand-gradient-hero-end: #1C64F2;
+      --brand-gradient-banner-start: #DBEAFE;
+      --brand-gradient-banner-end: #F9F9FF;
   }
 
   /* Dark mode (pragmatic inverse of the same scheme) */

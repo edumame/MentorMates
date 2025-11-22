@@ -69,7 +69,7 @@ export function ParticipantsContent({
 
           {/* Right: Follow Button (optional - can be removed if not needed) */}
           {/* Uncomment if you want to add follow functionality
-          <button className="bg-[#4b89ef] flex gap-2 items-center justify-center px-5 py-2 rounded-xl shadow-sm shrink-0 text-white font-medium text-[16px] leading-[1.5]">
+          <button className="bg-[var(--brand-primary-hex)] flex gap-2 items-center justify-center px-5 py-2 rounded-xl shadow-sm shrink-0 text-white font-medium text-[16px] leading-[1.5]">
             Follow
           </button>
           */}

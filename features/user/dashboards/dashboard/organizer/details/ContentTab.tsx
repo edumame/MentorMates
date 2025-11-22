@@ -287,7 +287,7 @@ export function ContentTab({
       <Button onClick={saveContent} disabled={isArchived || savingContent} className="w-full">
         {savingContent ? "Saving Content..." : "Save Content"}
       </Button>
-      <p className="font-['Inter'] font-normal leading-[1.5] not-italic relative shrink-0 text-[#7f7f7f] text-[16px] w-full">
+      <p className="font-['Inter'] font-normal leading-[1.5] not-italic relative shrink-0 text-[var(--brand-text-muted-hex)] text-[16px] w-full">
         *This content is visible only to participants who have joined/paid for
         the event.
       </p>

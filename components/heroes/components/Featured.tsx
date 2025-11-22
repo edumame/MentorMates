@@ -7,6 +7,9 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { ACTIVE_BRAND } from "@/lib/config/brands";
+
+const EVENT_COVER_PLACEHOLDER = ACTIVE_BRAND.assets.placeholders.projectCover;
 
 type APIEvent = {
   event_id?: string | number;
@@ -131,7 +134,7 @@ export function Featured() {
             dateLabel: fmtDate(dateISO),
             location: e.location ?? "Online",
             category: e.category ?? "General",
-            image: e.cover_image_url ?? "/img/placeholder.png",
+            image: e.cover_image_url ?? EVENT_COVER_PLACEHOLDER,
             href: e.slug ? `/events/${e.slug}` : `/events/${id}`,
           };
         });
@@ -222,8 +225,8 @@ export function Featured() {
                       className="h-56 w-full object-cover"
                       onError={(ev) => {
                         const target = ev.currentTarget as HTMLImageElement;
-                        if (target.src !== "/img/placeholder.png") {
-                          target.src = "/img/placeholder.png";
+                        if (target.src !== EVENT_COVER_PLACEHOLDER) {
+                          target.src = EVENT_COVER_PLACEHOLDER;
                         }
                       }}
                       loading="lazy"

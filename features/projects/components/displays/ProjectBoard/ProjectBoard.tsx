@@ -34,6 +34,9 @@ import { toast } from "@/lib/hooks/use-toast";
 import QRCode from "react-qr-code";
 
 import { Project, ProjectBoardContext } from "@/lib/types";
+import { ACTIVE_BRAND } from "@/lib/config/brands";
+
+const PROJECT_COVER_PLACEHOLDER = ACTIVE_BRAND.assets.placeholders.projectCover;
 
 export interface ProjectBoardProps {
   isLoading: boolean;
@@ -100,16 +103,16 @@ const ProjectBoard = ({
                       )}
 
                       {/* Thumbnail (top half) – using <img>, no next/image */}
-                      <div className="relative w-full aspect-[16/9] md:aspect-[4/3] bg-slate-100">
-                        <img
-                          src={
-                            project.cover_image_url || "/img/placeholder.png"
-                          }
-                          alt={`${project.project_name || "Project"} thumbnail`}
-                          className="w-full h-full object-cover"
-                          loading="lazy"
-                          decoding="async"
-                        />
+                        <div className="relative w-full aspect-[16/9] md:aspect-[4/3] bg-slate-100">
+                          <img
+                            src={
+                              project.cover_image_url || PROJECT_COVER_PLACEHOLDER
+                            }
+                            alt={`${project.project_name || "Project"} thumbnail`}
+                            className="w-full h-full object-cover"
+                            loading="lazy"
+                            decoding="async"
+                          />
                         {!project.cover_image_url && (
                           <div className="absolute inset-0 flex items-center justify-center p-4 bg-gradient-to-br from-gray-500/60 to-gray-700/60">
                             <h3 className="text-white text-xl font-semibold text-center break-words">

@@ -275,13 +275,13 @@ export default function FeedbackPage() {
                         <div className="flex items-center gap-[12px] px-[24px] py-[24px] w-[208px] flex-shrink-0">
                           <button
                             onClick={() => handleViewFeedback(item)}
-                            className="text-[16px] font-medium text-[#4B89EF] tracking-[-0.04em]"
+                            className="text-[16px] font-medium text-[var(--brand-primary-hex)] tracking-[-0.04em]"
                           >
                             View
                           </button>
                           <button
                             onClick={() => handleMarkAsRead(item.id)}
-                            className="text-[16px] font-medium text-[#4B89EF] tracking-[-0.04em] disabled:text-gray-300"
+                            className="text-[16px] font-medium text-[var(--brand-primary-hex)] tracking-[-0.04em] disabled:text-gray-300"
                             disabled={item.isRead}
                           >
                             Mark as read
@@ -362,7 +362,7 @@ export default function FeedbackPage() {
                         Share feedback for{" "}
                         <button
                           type="button"
-                          className="inline-flex items-center text-[16px] font-semibold text-[#4B89EF] hover:underline"
+                          className="inline-flex items-center text-[16px] font-semibold text-[var(--brand-primary-hex)] hover:underline"
                         >
                           {selectedProject?.name}
                         </button>
@@ -375,7 +375,7 @@ export default function FeedbackPage() {
 
                     <button
                       type="button"
-                      className="mb-3 inline-flex items-center gap-2 text-[14px] font-medium text-[#6E56CF] hover:opacity-90"
+                      className="mb-3 inline-flex items-center gap-2 text-[14px] font-medium text-[var(--brand-accent-hex)] hover:opacity-90"
                     >
                       <Sparkles className="h-4 w-4" />
                       Enhance with AI
@@ -386,12 +386,12 @@ export default function FeedbackPage() {
                         value={feedbackText}
                         onChange={(e) => setFeedbackText(e.target.value)}
                         placeholder="Long description or markdown"
-                        className="min-h-[180px] max-h-[180px] h-[180px] w-full resize-none rounded-[10px] border border-[rgba(0,0,0,0.12)] p-4 text-[14px] leading-[1.5] text-foreground placeholder:text-muted-foreground/60 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#4B89EF]/60"
+                        className="min-h-[180px] max-h-[180px] h-[180px] w-full resize-none rounded-[10px] border border-[rgba(0,0,0,0.12)] p-4 text-[14px] leading-[1.5] text-foreground placeholder:text-muted-foreground/60 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[rgb(var(--brand-primary-rgb)/0.6)]"
                       />
                     </div>
 
                     <div className="mt-auto">
-                      <Button className="md:w-auto inline-flex w-full items-center justify-center gap-2 rounded-[10px] bg-[#4B89EF] px-4 py-2 text-[14px] font-medium text-white hover:bg-[#3F77D3]">
+                      <Button className="md:w-auto inline-flex w-full items-center justify-center gap-2 rounded-[10px] bg-[var(--brand-primary-hex)] px-4 py-2 text-[14px] font-medium text-white hover:bg-[var(--brand-primary-strong-hex)]">
                         <Sparkles className="h-4 w-4" />
                         Improve feedback with AI
                       </Button>
@@ -404,7 +404,7 @@ export default function FeedbackPage() {
                   className="relative flex-1 border-t lg:border-t-0 lg:border-l border-[rgba(0,0,0,0.10)] p-6 lg:p-8 flex flex-col rounded-none lg:rounded-r-[6px]"
                   style={{
                     background:
-                      "linear-gradient(180deg, #DBEAFE 0%, #F9F9FF 100%)",
+                      "linear-gradient(180deg, var(--brand-gradient-banner-start) 0%, var(--brand-gradient-banner-end) 100%)",
                   }}
                 >
                   <DialogClose className="absolute right-4 top-4 z-10 inline-flex h-8 w-8 items-center justify-center rounded-md text-gray-600 hover:bg-gray-200/50 transition-colors">
@@ -414,8 +414,8 @@ export default function FeedbackPage() {
                   <div className="flex h-full flex-col">
                     <div className="mb-6 flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-[#FFF2B8]">
-                          <Lightbulb className="h-4 w-4 text-[#B98500]" />
+                        <div className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--brand-warning-soft-hex)]">
+                          <Lightbulb className="h-4 w-4 text-[var(--brand-warning-hex)]" />
                         </div>
                         <h3 className="text-[16px] font-semibold leading-[1.4] text-foreground">
                           Writing Tips
@@ -425,8 +425,8 @@ export default function FeedbackPage() {
                     <div className="space-y-5">
                       <div>
                         <div className="mb-1 flex items-center gap-3">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#E9F0FF]">
-                            <span className="text-[12px] font-semibold text-[#4B89EF]">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--brand-primary-soft-hex)]">
+                            <span className="text-[12px] font-semibold text-[var(--brand-primary-hex)]">
                               01
                             </span>
                           </div>
@@ -441,8 +441,8 @@ export default function FeedbackPage() {
                       <div className="border-t border-[rgba(0,0,0,0.08)]" />
                       <div>
                         <div className="mb-1 flex items-center gap-3">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#E9F0FF]">
-                            <span className="text-[12px] font-semibold text-[#4B89EF]">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--brand-primary-soft-hex)]">
+                            <span className="text-[12px] font-semibold text-[var(--brand-primary-hex)]">
                               02
                             </span>
                           </div>
@@ -457,8 +457,8 @@ export default function FeedbackPage() {
                       <div className="border-t border-[rgba(0,0,0,0.08)]" />
                       <div>
                         <div className="mb-1 flex items-center gap-3">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#E9F0FF]">
-                            <span className="text-[12px] font-semibold text-[#4B89EF]">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--brand-primary-soft-hex)]">
+                            <span className="text-[12px] font-semibold text-[var(--brand-primary-hex)]">
                               03
                             </span>
                           </div>
@@ -489,7 +489,7 @@ export default function FeedbackPage() {
                       View feedback for{" "}
                       <button
                         type="button"
-                        className="text-[#4B89EF] hover:underline"
+                        className="text-[var(--brand-primary-hex)] hover:underline"
                       >
                         {selectedFeedback?.projectName}
                       </button>
@@ -505,7 +505,7 @@ export default function FeedbackPage() {
                   className="relative flex w-full lg:w-1/2 grow items-center justify-center px-6 py-10 rounded-none lg:rounded-r-[6px]"
                   style={{
                     background:
-                      "linear-gradient(180deg, #DBEAFE 0%, #F9F9FF 100%)",
+                      "linear-gradient(180deg, var(--brand-gradient-banner-start) 0%, var(--brand-gradient-banner-end) 100%)",
                   }}
                 >
                   <DialogClose className="absolute right-4 top-4 z-10 inline-flex h-8 w-8 items-center justify-center rounded-md text-gray-600 hover:bg-gray-200/50 transition-colors">

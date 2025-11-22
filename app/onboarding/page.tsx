@@ -487,9 +487,9 @@ export default function OnboardingPage() {
                     disabled={isSubmitting || (currentStep !== totalSteps && !isCurrentStepValid())}
                     className={`flex-1 ${
                       isCurrentStepValid() && currentStep !== totalSteps
-                        ? "bg-[#4B89EF] hover:bg-[#3F77D3] text-white"
+                        ? "bg-[var(--brand-primary-hex)] hover:bg-[var(--brand-primary-strong-hex)] text-white"
                         : currentStep === totalSteps
-                        ? "bg-[#4B89EF] hover:bg-[#3F77D3] text-white"
+                        ? "bg-[var(--brand-primary-hex)] hover:bg-[var(--brand-primary-strong-hex)] text-white"
                         : ""
                     }`}
                   >

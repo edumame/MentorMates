@@ -43,13 +43,13 @@ function SuggestionCard({
         <div className="flex items-center gap-2">
           <button
             onClick={onAppend}
-            className="inline-flex items-center gap-1 rounded-md border border-[#4B89EF] bg-white px-2.5 py-1.5 text-[12px] font-medium text-[#4B89EF] transition-all hover:bg-[#4B89EF]/10"
+            className="inline-flex items-center gap-1 rounded-md border border-[var(--brand-primary-hex)] bg-white px-2.5 py-1.5 text-[12px] font-medium text-[var(--brand-primary-hex)] transition-all hover:bg-[rgb(var(--brand-primary-rgb)/0.1)]"
           >
             Add below
           </button>
           <button
             onClick={onUse}
-            className="inline-flex items-center gap-1.5 rounded-md bg-[#4B89EF] px-2.5 py-1.5 text-[12px] font-medium text-white transition-all hover:bg-[#3F77D3]"
+            className="inline-flex items-center gap-1.5 rounded-md bg-[var(--brand-primary-hex)] px-2.5 py-1.5 text-[12px] font-medium text-white transition-all hover:bg-[var(--brand-primary-strong-hex)]"
           >
             Use this
             <ArrowRight className="h-3 w-3" />
@@ -215,7 +215,7 @@ export function GiveFeedbackDialog({
                 </DialogTitle>
                 <p className="text-sm leading-[1.5] text-zinc-500">
                   Thank you for giving feedback to{" "}
-                  <span className="text-[#4b89ef]">{projectName}</span>!
+                  <span className="text-[var(--brand-primary-hex)]">{projectName}</span>!
                   They&apos;ll find it helpful to improve their work.
                 </p>
               </div>
@@ -226,7 +226,8 @@ export function GiveFeedbackDialog({
               style={{
                 borderTopRightRadius: "6px",
                 borderBottomRightRadius: "6px",
-                background: "linear-gradient(180deg, #DBEAFE 0%, #F9F9FF 100%)",
+                background:
+                  "linear-gradient(180deg, var(--brand-gradient-banner-start) 0%, var(--brand-gradient-banner-end) 100%)",
               }}
             >
               <div className="flex w-full flex-col items-center gap-3 text-center">
@@ -241,7 +242,7 @@ export function GiveFeedbackDialog({
                 </div>
                 <Button
                   asChild
-                  className="h-10 rounded-xl bg-[#4b89ef] px-6 py-2.5 text-sm font-medium text-white shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] hover:bg-[#3d75d9]"
+                  className="h-10 rounded-xl bg-[var(--brand-primary-hex)] px-6 py-2.5 text-sm font-medium text-white shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] hover:bg-[var(--brand-primary-strong-hex)]"
                 >
                   <Link href="/events">Explore events</Link>
                 </Button>
@@ -265,7 +266,7 @@ export function GiveFeedbackDialog({
                   Share feedback for{" "}
                   <button
                     type="button"
-                    className="align-baseline text-[#4B89EF] hover:underline"
+                    className="align-baseline text-[var(--brand-primary-hex)] hover:underline"
                   >
                     {projectName}
                   </button>
@@ -281,7 +282,7 @@ export function GiveFeedbackDialog({
               <button
                 onClick={handleEnhanceWithAI}
                 disabled={isGeneratingAI || !feedback.trim()}
-                className="mb-3 inline-flex items-center gap-2 text-[14px] font-medium text-[#6E56CF] hover:opacity-90 disabled:opacity-40"
+                className="mb-3 inline-flex items-center gap-2 text-[14px] font-medium text-[var(--brand-accent-hex)] hover:opacity-90 disabled:opacity-40"
               >
                 {isGeneratingAI ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -299,7 +300,7 @@ export function GiveFeedbackDialog({
                   value={feedback}
                   onChange={(e) => setFeedback(e.target.value)}
                   placeholder="Long description or markdown"
-                  className="min-h-[220px] max-h-[220px] w-full resize-none rounded-[10px] border border-[rgba(0,0,0,0.12)] p-4 text-[14px] leading-[1.5] text-zinc-900 placeholder:text-zinc-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#4B89EF]/60"
+                  className="min-h-[220px] max-h-[220px] w-full resize-none rounded-[10px] border border-[rgba(0,0,0,0.12)] p-4 text-[14px] leading-[1.5] text-zinc-900 placeholder:text-zinc-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[rgb(var(--brand-primary-rgb)/0.6)]"
                 />
               </div>
 
@@ -307,7 +308,7 @@ export function GiveFeedbackDialog({
                 <Button
                   onClick={handleSubmit}
                   disabled={!feedback.trim() || isSubmitting}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-[10px] bg-[#4B89EF] px-4 py-2 text-[14px] font-medium text-white hover:bg-[#3F77D3] disabled:opacity-50"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-[10px] bg-[var(--brand-primary-hex)] px-4 py-2 text-[14px] font-medium text-white hover:bg-[var(--brand-primary-strong-hex)] disabled:opacity-50"
                 >
                   {isSubmitting ? (
                     <>
@@ -331,7 +332,8 @@ export function GiveFeedbackDialog({
             style={{
               borderTopRightRadius: "6px",
               borderBottomRightRadius: "6px",
-              background: "linear-gradient(180deg, #DBEAFE 0%, #F9F9FF 100%)",
+              background:
+                "linear-gradient(180deg, var(--brand-gradient-banner-start) 0%, var(--brand-gradient-banner-end) 100%)",
             }}
           >
             <div className="flex h-full flex-col">
@@ -339,7 +341,7 @@ export function GiveFeedbackDialog({
                 <>
                   <div className="mb-5 flex items-center gap-3">
                     <div className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/70 ring-1 ring-[rgba(0,0,0,0.1)]">
-                      <Loader2 className="h-4 w-4 animate-spin text-[#6E56CF]" />
+                      <Loader2 className="h-4 w-4 animate-spin text-[var(--brand-accent-hex)]" />
                     </div>
                     <h3 className="text-[16px] font-semibold leading-[1.4] text-zinc-900">
                       Generating AI Suggestions...
@@ -349,7 +351,7 @@ export function GiveFeedbackDialog({
                   <div className="flex flex-1 items-center justify-center">
                     <div className="text-center space-y-4">
                       <div className="relative mx-auto w-16 h-16">
-                        <Sparkles className="w-16 h-16 text-[#6E56CF] animate-pulse" />
+                        <Sparkles className="w-16 h-16 text-[var(--brand-accent-hex)] animate-pulse" />
                       </div>
                       <p className="text-[14px] text-zinc-600 max-w-[280px]">
                         Our AI is analyzing your feedback and creating helpful suggestions...
@@ -361,7 +363,7 @@ export function GiveFeedbackDialog({
                 <>
                   <div className="mb-5 flex items-center gap-3">
                     <div className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/70 ring-1 ring-[rgba(0,0,0,0.1)]">
-                      <Sparkles className="h-4 w-4 text-[#6E56CF]" />
+                      <Sparkles className="h-4 w-4 text-[var(--brand-accent-hex)]" />
                     </div>
                     <h3 className="text-[16px] font-semibold leading-[1.4] text-zinc-900">
                       AI Suggestions

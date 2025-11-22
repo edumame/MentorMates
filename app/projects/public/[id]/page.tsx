@@ -37,6 +37,9 @@ import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { QRCodeSVG } from "qrcode.react";
 import { Input } from "@/components/ui/input";
+import { ACTIVE_BRAND } from "@/lib/config/brands";
+
+const PROJECT_COVER_PLACEHOLDER = ACTIVE_BRAND.assets.placeholders.projectCover;
 
 //REFACTOR this to use the Project type from the lib/types.ts file
 interface Project {
@@ -326,7 +329,7 @@ export default function PublicProjectPage() {
                 </Button>
                 <Button
                   onClick={() => setShowFeedbackDialog(true)}
-                  className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-5 py-2 shadow-sm text-base whitespace-nowrap"
+                  className="bg-[var(--brand-primary-hex)] hover:bg-[var(--brand-primary-strong-hex)] text-white rounded-xl px-5 py-2 shadow-sm text-base whitespace-nowrap"
                 >
                   Give feedback
                 </Button>
@@ -355,7 +358,7 @@ export default function PublicProjectPage() {
                       target="_blank"
                       rel="noopener noreferrer"
                     >
-                      <Button className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-6 py-2.5 shadow-sm">
+                      <Button className="bg-[var(--brand-primary-hex)] hover:bg-[var(--brand-primary-strong-hex)] text-white rounded-xl px-6 py-2.5 shadow-sm">
                         <ArrowUpRight className="h-5 w-5 mr-1.5" />
                         View Live Project
                       </Button>
@@ -381,14 +384,14 @@ export default function PublicProjectPage() {
 
               {/* Right: Cover Image */}
               <div className="w-full lg:w-[520px] h-[200px] sm:h-[250px] lg:h-[300px] rounded-2xl overflow-hidden shadow-lg order-2">
-                <div
-                  className="w-full h-full bg-cover bg-center bg-no-repeat"
-                  style={{
-                    backgroundImage: `url(${
-                      project.cover_image_url || "/img/placeholder.png"
-                    })`,
-                  }}
-                ></div>
+                  <div
+                    className="w-full h-full bg-cover bg-center bg-no-repeat"
+                    style={{
+                      backgroundImage: `url(${
+                        project.cover_image_url || PROJECT_COVER_PLACEHOLDER
+                      })`,
+                    }}
+                  ></div>
               </div>
             </div>
 
@@ -417,7 +420,7 @@ export default function PublicProjectPage() {
               </Button>
               <Button
                 onClick={() => setShowFeedbackDialog(true)}
-                className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-5 py-2 shadow-sm text-base whitespace-nowrap"
+                className="bg-[var(--brand-primary-hex)] hover:bg-[var(--brand-primary-strong-hex)] text-white rounded-xl px-5 py-2 shadow-sm text-base whitespace-nowrap"
               >
                 Give feedback
               </Button>
@@ -428,13 +431,13 @@ export default function PublicProjectPage() {
               <TabsList className="bg-transparent border-b border-gray-200 rounded-none h-auto p-0 w-full justify-start gap-3 sm:gap-6 overflow-x-auto scrollbar-hide flex-nowrap">
                 <TabsTrigger
                   value="overview"
-                  className="shadow-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2 font-medium"
+                  className="shadow-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[var(--brand-primary-hex)] rounded-none bg-transparent pb-2 font-medium"
                 >
                   Overview
                 </TabsTrigger>
                 <TabsTrigger
                   value="team"
-                  className="shadow-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2 flex items-center gap-2"
+                  className="shadow-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[var(--brand-primary-hex)] rounded-none bg-transparent pb-2 flex items-center gap-2"
                 >
                   Team
                   <Badge variant="secondary" className="bg-white border border-black/15 text-black rounded-full text-xs">
@@ -443,21 +446,21 @@ export default function PublicProjectPage() {
                 </TabsTrigger>
                 <TabsTrigger
                   value="feedback"
-                  className="shadow-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2"
+                  className="shadow-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[var(--brand-primary-hex)] rounded-none bg-transparent pb-2"
                 >
                   Feedback
                 </TabsTrigger>
                 {isJudge && (
                   <TabsTrigger
                     value="scoring"
-                    className="shadow-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2"
+                    className="shadow-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[var(--brand-primary-hex)] rounded-none bg-transparent pb-2"
                   >
                     Judge Scoring
                   </TabsTrigger>
                 )}
                 <TabsTrigger
                   value="sharing"
-                  className="shadow-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2"
+                  className="shadow-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[var(--brand-primary-hex)] rounded-none bg-transparent pb-2"
                 >
                   Sharing
                 </TabsTrigger>
@@ -569,7 +572,7 @@ export default function PublicProjectPage() {
                           <CardContent>
                             <Button
                               onClick={() => setShowFeedbackDialog(true)}
-                              className="w-full bg-[#4B89EF] hover:bg-[#3F77D3] text-white"
+                              className="w-full bg-[var(--brand-primary-hex)] hover:bg-[var(--brand-primary-strong-hex)] text-white"
                             >
                               <MessageSquare className="mr-2 h-4 w-4" />
                               Give Feedback

@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -24,6 +23,8 @@ import {
 import { useAdmin } from "@/lib/hooks/use-admin";
 import posthog from "posthog-js";
 import { UserProfile } from "@/lib/types";
+import { BrandLogo } from "@/components/brand/BrandLogo";
+import { ACTIVE_BRAND } from "@/lib/config/brands";
 
 interface ExtendedUserProfile extends UserProfile {
   onboarding_metadata: object;
@@ -85,16 +86,14 @@ export function AuthNavbar() {
 
   return (
     <>
-      <nav className="fixed inset-x-0 z-50 bg-[#fbfcfe] top-[var(--banner-h,0px)]">
+        <nav className="fixed inset-x-0 z-50 bg-[var(--brand-surface-hex)] top-[var(--banner-h,0px)]">
         <div className="flex items-center justify-between p-4">
-          <Link href="/" className="flex items-center gap-2">
-            <Image
-              src="/mentormate.png"
-              alt="Logo"
-              width={200}
-              height={40}
-              className="object-contain pl-2"
-            />
+            <Link
+              href="/"
+              className="flex items-center gap-2"
+              aria-label={`${ACTIVE_BRAND.name} home`}
+            >
+              <BrandLogo placement="navbar" />
           </Link>
 
           {/* Desktop Right Controls: notifications (popover) + avatar */}
@@ -246,35 +245,35 @@ export function AuthNavbar() {
             {/* Navigation Links */}
             <Link
               href="/"
-              className="block py-4 text-lg font-medium text-black hover:text-[#4B89EF]"
+              className="block py-4 text-lg font-medium text-black hover:text-[var(--brand-primary-hex)]"
               onClick={() => setIsOpen(false)}
             >
               Home
             </Link>
             <Link
               href="/events"
-              className="block py-4 text-lg font-medium text-black hover:text-[#4B89EF]"
+              className="block py-4 text-lg font-medium text-black hover:text-[var(--brand-primary-hex)]"
               onClick={() => setIsOpen(false)}
             >
               Events
             </Link>
             <Link
               href="/learn"
-              className="block py-4 text-lg font-medium text-black hover:text-[#4B89EF]"
+              className="block py-4 text-lg font-medium text-black hover:text-[var(--brand-primary-hex)]"
               onClick={() => setIsOpen(false)}
             >
               Learn
             </Link>
             <Link
               href="/projects"
-              className="block py-4 text-lg font-medium text-black hover:text-[#4B89EF]"
+              className="block py-4 text-lg font-medium text-black hover:text-[var(--brand-primary-hex)]"
               onClick={() => setIsOpen(false)}
             >
               Projects
             </Link>
             <Link
               href="/feedback"
-              className="block py-4 text-lg font-medium text-black hover:text-[#4B89EF]"
+              className="block py-4 text-lg font-medium text-black hover:text-[var(--brand-primary-hex)]"
               onClick={() => setIsOpen(false)}
             >
               Feedback
@@ -286,21 +285,21 @@ export function AuthNavbar() {
             {/* Additional Links */}
             <Link
               href={`/profile/${session?.user.id}`}
-              className="block py-4 text-lg font-medium text-black hover:text-[#4B89EF]"
+              className="block py-4 text-lg font-medium text-black hover:text-[var(--brand-primary-hex)]"
               onClick={() => setIsOpen(false)}
             >
               My Profile
             </Link>
             <Link
               href="/resources"
-              className="block py-4 text-lg font-medium text-black hover:text-[#4B89EF]"
+              className="block py-4 text-lg font-medium text-black hover:text-[var(--brand-primary-hex)]"
               onClick={() => setIsOpen(false)}
             >
               Resources
             </Link>
             <Link
               href="/help"
-              className="block py-4 text-lg font-medium text-black hover:text-[#4B89EF]"
+              className="block py-4 text-lg font-medium text-black hover:text-[var(--brand-primary-hex)]"
               onClick={() => setIsOpen(false)}
             >
               Support

@@ -4,6 +4,9 @@ import { Badge } from "@/components/ui/badge";
 import { getRoleLabel } from "@/features/user/roles/roles";
 import { EventCard } from "@/components/events/event-card";
 import { EventItem, EventVisibility } from "@/lib/types";
+import { ACTIVE_BRAND } from "@/lib/config/brands";
+
+const EVENT_COVER_PLACEHOLDER = ACTIVE_BRAND.assets.placeholders.projectCover;
 
 type APIEvent = {
   event_id?: string | number;
@@ -84,13 +87,13 @@ export function MyEvents() {
           const roleLabel = e.user_event_roles?.[0]?.role
             ? getRoleLabel(String(e.user_event_roles[0].role), e.role_labels)
             : undefined;
-          return {
-            id,
-            title: e.event_name ?? "Untitled Event",
-            dateISO,
-            location: e.location ?? "Online",
-            image: e.cover_image_url ?? "/img/placeholder.png",
-            href: e.slug ? `/events/${e.slug}` : `/events/${id}`,
+            return {
+              id,
+              title: e.event_name ?? "Untitled Event",
+              dateISO,
+              location: e.location ?? "Online",
+              image: e.cover_image_url ?? EVENT_COVER_PLACEHOLDER,
+              href: e.slug ? `/events/${e.slug}` : `/events/${id}`,
             slug: e.slug ?? undefined,
             blurb: e.event_blurb ?? undefined,
             description: e.event_description ?? undefined,
