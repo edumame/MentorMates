@@ -28,7 +28,11 @@ import {
 } from "@/lib/types";
 import { toast } from "@/lib/hooks/use-toast";
 import { PricingTierSelector } from "./pricing-tier-selector";
-import { getCheapestPricingTier, formatPrice } from "@/lib/utils/pricing";
+import {
+  getAvailablePricingTiers,
+  getCheapestPricingTier,
+  formatPrice,
+} from "@/lib/utils/pricing";
 import { getRoleLabel, isHigherOrEqualRole } from "@/features/user/roles/roles";
 import { Ticket } from "lucide-react";
 
@@ -159,6 +163,23 @@ export function JoinEventButton({
 
     init();
   }, [eventId]);
+
+  useEffect(() => {
+    if (
+      !showPricingTiers ||
+      selectedPricingTierId ||
+      pricingTiers.length === 0
+    ) {
+      return;
+    }
+
+    // Ensure the payment modal always has a default choice for beginner-friendly UX
+    const firstAvailableTier = getAvailablePricingTiers(pricingTiers)[0];
+
+    if (firstAvailableTier) {
+      setSelectedPricingTierId(firstAvailableTier.id);
+    }
+  }, [showPricingTiers, pricingTiers, selectedPricingTierId]);
 
   const handleRoleSelect = (value: EventRole) => {
     setSelectedRole(value);
