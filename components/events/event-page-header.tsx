@@ -122,10 +122,12 @@ export function EventPageHeader({
                     {eventBlurb}
                   </p>
                 </div>
-                <Link href={`/events/${eventId}/sponsorships`}>
-                  {/* <img src="{{sponsorsImageUrl}}" /> */}
+
+                {/* TODO: Add back when sponsorships are implemented */}
+                {/* <Link href={`/events/${eventId}/sponsorships`}>
+                  <img src="{{sponsorsImageUrl}}" />
                   <span className="font-normal text-sm leading-[1.5] text-black text-nowrap whitespace-pre">Sponsors</span>
-                </Link>
+                </Link> */}
               </div>
 
               {/* Right: Join Button and Meta */}
