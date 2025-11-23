@@ -52,6 +52,7 @@ import { updateProjectClient } from "@/features/projects/client-actions/client-u
 import { updateProjectTeamClient } from "@/features/projects/client-actions/client-update";
 import { deleteProjectClient } from "@/features/projects/client-actions/client-delete";
 import { TrackSelector } from "@/features/projects/components/tracks/TrackSelector";
+import { fetchEventTracks } from "@/features/projects/client-actions/client-track-update";
 import { ProjectQRCodeSection } from "@/features/projects/components/displays/project-dashboard/ProjectQRCodeSection";
 import { FileUpload } from "@/components/db/fileUpload";
 import { ImageUpload } from "@/components/db/imageUpload";
@@ -93,6 +94,7 @@ export default function ProjectPage() {
 
   // Loading state for updates
   const [isUpdating, setIsUpdating] = useState(false);
+  const [hasEventTracks, setHasEventTracks] = useState(true);
 
   // Participant search state
   const [participants, setParticipants] = useState<EventParticipant[]>([]);
@@ -189,6 +191,46 @@ export default function ProjectPage() {
 
     fetchEventDetails();
   }, [project?.event_id]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const checkEventTracks = async () => {
+      if (!project?.event_id) {
+        return;
+      }
+
+      try {
+        const { data, error } = await fetchEventTracks(project.event_id);
+        if (!isMounted) {
+          return;
+        }
+
+        if (error) {
+          console.error("Error checking event tracks:", error);
+          return;
+        }
+
+        setHasEventTracks(Boolean(data?.length));
+      } catch (error) {
+        if (isMounted) {
+          console.error("Error determining event tracks:", error);
+        }
+      }
+    };
+
+    void checkEventTracks();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [project?.event_id]);
+
+  useEffect(() => {
+    if (!hasEventTracks && activeTab === "tracks") {
+      setActiveTab("overview");
+    }
+  }, [hasEventTracks, activeTab]);
 
   const fetchProject = async () => {
     const { data, error } = await supabase
@@ -1209,13 +1251,15 @@ export default function ProjectPage() {
                 >
                   Overview
                 </TabsTrigger>
+                {hasEventTracks && (
                 <TabsTrigger
-                  value="tracks"
-                  className="text-base shadow-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2"
-                >
-                  Tracks
-                </TabsTrigger>
-                <TabsTrigger
+                    value="tracks"
+                    className="text-base shadow-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2"
+                  >
+                    Tracks
+                  </TabsTrigger>
+                )}
+              <TabsTrigger
                   value="team"
                   className="text-base shadow-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2 flex items-center gap-2"
                 >
@@ -1525,6 +1569,7 @@ export default function ProjectPage() {
                       </div>
                     </TabsContent>
 
+                  {hasEventTracks && (
                     <TabsContent value="tracks" className="mt-0 overflow-hidden">
                       <TrackSelector
                         projectId={project.id}
@@ -1533,6 +1578,7 @@ export default function ProjectPage() {
                         isLoading={isUpdating}
                       />
                     </TabsContent>
+                  )}
 
                     <TabsContent value="team" className="mt-0 overflow-hidden">
                       <Card>

@@ -29,8 +29,13 @@ export function EventCard({ event }: EventCardProps) {
 
   const eventType = event.event_type || "Hackathon";
 
-  // Get event blurb or fallback to empty string
-  const eventBlurb = event.event_blurb || "";
+  // Choose the best available summary for the event
+  const normalizeSummary = (text?: string | null) =>
+    text?.replace(/\s+/g, " ").trim();
+  const eventSummary =
+    normalizeSummary(event.event_blurb) ||
+    normalizeSummary(event.event_description) ||
+    "";
 
   return (
     <Link
@@ -96,8 +101,8 @@ export function EventCard({ event }: EventCardProps) {
 
           {/* Description */}
           <p className="text-[16px] font-normal text-black leading-[1.5] line-clamp-3">
-            {eventBlurb ||
-              "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse varius enim in eros."}
+            {eventSummary ||
+              "Event details will be added soon. Check back for the latest info."}
           </p>
         </div>
       </div>

@@ -320,23 +320,27 @@ export function JoinEventButton({
       <DialogTrigger asChild>
         <Button
           variant="default"
-          className="rounded-full gap-2 w-full"
+          size="lg"
+          className="rounded-full px-6 py-5 gap-2 w-full min-w-0 overflow-hidden"
         >
-          <Ticket className="h-6 w-6" />{" "}
-          {label
-            ? label
-            : event?.paid
-              ? !isAuthenticated
-                ? `Join event`
-                : pricingTiers.length > 0
-                  ? (() => {
-                    const cheapestTier = getCheapestPricingTier(pricingTiers);
-                    return cheapestTier
-                      ? `Join event - From ${formatPrice(cheapestTier.price)}`
-                      : `Join event - Multiple Tiers Available`;
-                  })()
-                  : `Join event - Paid Event`
-              : `Join event`}
+          <Ticket className="h-6 w-6 flex-shrink-0" />
+          <span className="truncate">
+            {label
+              ? label
+              : event?.paid
+                ? !isAuthenticated
+                  ? `Join ${eventName}`
+                  : pricingTiers.length > 0
+                    ? (() => {
+                        const cheapestTier =
+                          getCheapestPricingTier(pricingTiers);
+                        return cheapestTier
+                          ? `Join ${eventName} - From ${formatPrice(cheapestTier.price)}`
+                          : `Join ${eventName} - Multiple Tiers Available`;
+                      })()
+                    : `Join ${eventName} - Paid Event`
+                : `Join ${eventName}`}
+          </span>
         </Button>
       </DialogTrigger>
       <DialogContent
@@ -422,7 +426,9 @@ export function JoinEventButton({
             </div>
           )}
           {isFull && selectedRole === EventRole.Participant && (
-            <p className="text-xs text-red-600 mt-2">This event is full for participants.</p>
+            <p className="text-xs text-red-600 mt-2">
+              This event is full for participants.
+            </p>
           )}
         </div>
       </DialogContent>

@@ -104,6 +104,7 @@ export type EventItem = {
   slug?: string;
   event_name: string;
   event_blurb?: string;
+  event_description?: string;
   event_date: string;
   location: string;
   visibility?: EventVisibility;

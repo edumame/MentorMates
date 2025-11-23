@@ -815,9 +815,9 @@ export function NewProjectSubmissionFormSinglePage({
                         </span>
                       </label>
                     </div>
-                    <p className="text-base text-[#7f7f7f]">
-                      *Upload an image to showcase your project (Max 10MB).
-                    </p>
+                      <p className="text-base text-[#7f7f7f]">
+                        Upload an image to showcase your project (Max 10MB).
+                      </p>
                   </div>
 
                   {/* Additional Materials */}
@@ -849,9 +849,9 @@ export function NewProjectSubmissionFormSinglePage({
                         </span>
                       </label>
                     </div>
-                    <p className="text-base text-[#7f7f7f]">
-                      *Upload any additional documentation (Max 10MB).
-                    </p>
+                      <p className="text-base text-[#7f7f7f]">
+                        Upload any additional documentation (Max 10MB).
+                      </p>
                   </div>
 
                   {/* GitHub or Live Link */}
@@ -1048,7 +1048,10 @@ export function NewProjectSubmissionFormSinglePage({
                             location: eventDetails.location || "Online",
                             cover_image_url: eventDetails.cover_image_url,
                             paid: eventDetails.paid,
-                            event_blurb: eventDetails.event_description,
+                            event_blurb:
+                              eventDetails.event_blurb ||
+                              eventDetails.event_description,
+                            event_description: eventDetails.event_description,
                           }}
                         />
                       </div>

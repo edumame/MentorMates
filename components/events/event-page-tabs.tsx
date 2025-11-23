@@ -8,6 +8,7 @@ interface EventPageTabsProps {
   participantCount?: number;
   projectCount?: number;
   showTicketsTab?: boolean;
+  showParticipantsTab?: boolean;
 }
 
 export function EventPageTabs({
@@ -15,26 +16,36 @@ export function EventPageTabs({
   participantCount,
   projectCount,
   showTicketsTab,
+  showParticipantsTab = true,
 }: EventPageTabsProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const tabs = [
+  const tabs: Array<{
+    name: string;
+    path: string;
+    badge?: number | null;
+  }> = [
     { name: "Overview", path: `/events/${eventId}/overview` },
     { name: "Schedule", path: `/events/${eventId}/schedule`, badge: null },
-    {
+  ];
+
+  if (showParticipantsTab) {
+    tabs.push({
       name: "Participants",
       path: `/events/${eventId}/participants`,
       badge: participantCount,
-    },
-    {
-      name: "Projects",
-      path: `/events/${eventId}/gallery`,
-      badge: projectCount,
-    },
-    { name: "FAQs", path: `/events/${eventId}/faqs` },
-    // { name: "Gallery", path: `/events/${eventId}/gallery` }, // TODO: Add back when image upload functionality is ready
-  ];
+    });
+  }
+
+  tabs.push({
+    name: "Projects",
+    path: `/events/${eventId}/gallery`,
+    badge: projectCount,
+  });
+
+  tabs.push({ name: "FAQs", path: `/events/${eventId}/faqs` });
+  // { name: "Gallery", path: `/events/${eventId}/gallery` }, // TODO: Add back when image upload functionality is ready
 
   if (showTicketsTab) {
     tabs.push({ name: "Tickets", path: `/events/${eventId}/tickets` });
@@ -48,8 +59,8 @@ export function EventPageTabs({
   };
 
   return (
-    <div className="border-b border-[#f2f2f2] w-full overflow-x-auto">
-      <div className="flex gap-6 items-start px-6 w-fit">
+    <div className="border-b border-[#f2f2f2] w-full">
+      <div className="flex gap-4 md:gap-6 items-start px-4 w-full overflow-x-auto no-scrollbar whitespace-nowrap">
         {tabs.map((tab) => {
           const isActive = pathname === tab.path;
 
@@ -57,8 +68,9 @@ export function EventPageTabs({
             <Link
               key={tab.name}
               href={getHrefWithParams(tab.path)}
-              className={`flex gap-2 items-center px-0 py-2 ${isActive ? "border-b-2 border-[#4b89ef]" : ""
-                }`}
+              className={`inline-flex gap-2 items-center px-0 py-2 flex-shrink-0 ${
+                isActive ? "border-b-2 border-[#4b89ef]" : ""
+              }`}
             >
               <p
                 className={`${isActive ? "font-medium" : "font-normal"
@@ -67,7 +79,7 @@ export function EventPageTabs({
                 {tab.name}
               </p>
               {tab.badge !== null && tab.badge !== undefined && (
-                <div className="border border-[rgba(0,0,0,0.15)] flex gap-3 items-start px-2 rounded-[50px]">
+                <div className="border border-[rgba(0,0,0,0.15)] flex gap-3 items-start px-2 rounded-[50px] flex-shrink-0">
                   <p className="font-normal text-xs md:text-sm text-black">
                     {tab.badge}
                   </p>

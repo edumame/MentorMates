@@ -46,15 +46,15 @@ export function EventPageContent({
   return (
     <div className="flex flex-col flex-1 px-2 md:px-4">
       {/* Introduction */}
-      <div className="flex flex-col pb-4 pt-0 px-0 w-full">
-        <h2 className="font-semibold text-[24px] leading-[32px] text-black tracking-[-0.6px]">
+      <div className="flex flex-col pb-4 pt-0 px-0 w-full min-w-0 max-w-full">
+        <h2 className="font-semibold text-[24px] leading-[32px] text-black tracking-[-0.6px] break-words">
           Introduction
         </h2>
       </div>
 
       {/* Event Description */}
-      <div className="flex flex-col pb-4 pt-0 px-0 w-full">
-        <div className="prose prose-blue max-w-none">
+      <div className="flex flex-col pb-4 pt-0 px-0 w-full min-w-0 max-w-full">
+        <div className="prose prose-blue max-w-full break-words w-full">
           <ReactMarkdown
             rehypePlugins={markdownRehypePlugins}
             components={customMarkdownComponents}
@@ -70,7 +70,7 @@ export function EventPageContent({
           <h3 className="text-yellow-800 font-semibold text-xl mb-4">
             🔒 Content for Event Participants
           </h3>
-          <div className="prose prose-blue max-w-none">
+          <div className="prose prose-blue max-w-full w-full break-words">
             <ReactMarkdown>{event.paywall_content}</ReactMarkdown>
           </div>
         </div>
@@ -136,8 +136,8 @@ export function EventPageContent({
       {/* Rules */}
       {event.rules && event.rules.length > 0 && (
         <>
-          <div className="flex flex-col pb-4 pt-0 px-0 w-full">
-            <h2 className="font-semibold text-[24px] leading-[32px] text-black tracking-[-0.6px]">
+          <div className="flex flex-col pb-4 pt-0 px-0 w-full min-w-0 max-w-full">
+            <h2 className="font-semibold text-[24px] leading-[32px] text-black tracking-[-0.6px] break-words">
               Rules
             </h2>
           </div>
@@ -168,27 +168,37 @@ export function EventPageContent({
       {/* Schedule */}
       {event.event_schedule?.length > 0 && (
         <>
-          <div className="flex flex-col pb-4 pt-5 px-0 w-full">
-            <h2 className="font-semibold text-[28px] leading-[1.4] text-black tracking-[-0.06em]">
+          <div className="flex flex-col pb-4 pt-5 px-0 w-full min-w-0 max-w-full">
+            <h2 className="font-semibold text-[28px] leading-[1.4] text-black tracking-[-0.06em] break-words">
               Project Presentations
             </h2>
           </div>
 
           {event.event_schedule.map((day: ScheduleDay, idx) => (
-            <div key={idx} className="flex flex-col pb-4 pt-0 px-0 w-full">
+            <div
+              key={idx}
+              className="flex flex-col pb-4 pt-0 px-0 w-full min-w-0 max-w-full"
+            >
               <div className="font-normal text-black">
-                <p className="font-medium text-base leading-[1.5] mb-0">
+                <p className="font-medium text-base leading-[1.5] mb-0 break-words">
                   {day.time}
                 </p>
                 <ul className="list-disc pl-6">
                   {day.events.map((event: ScheduleEvent, eIdx: number) => (
-                    <li key={eIdx} className="mb-0 text-base leading-[1.5]">
-                      <div className="flex justify-between items-start">
-                        <span>{event.name}</span>
-                        <span className="text-gray-500">{event.time}</span>
+                    <li
+                      key={eIdx}
+                      className="mb-0 text-base leading-[1.5] break-words"
+                    >
+                      <div className="flex justify-between items-start gap-2">
+                        <span className="break-words flex-1 min-w-0">
+                          {event.name}
+                        </span>
+                        <span className="text-gray-500 flex-shrink-0">
+                          {event.time}
+                        </span>
                       </div>
                       {event.description && (
-                        <div className="prose prose-sm prose-blue max-w-none text-gray-600 mt-2">
+                        <div className="prose prose-sm prose-blue max-w-full w-full text-gray-600 mt-2 break-words">
                           <ReactMarkdown
                             rehypePlugins={markdownRehypePlugins}
                             components={customMarkdownComponents}
@@ -252,13 +262,13 @@ export function EventPageContent({
       {/* FAQ */}
       {event.faq && (
         <>
-          <div className="flex flex-col pb-4 pt-5 px-0 w-full">
+          <div className="flex flex-col pb-4 pt-5 px-0 w-full max-w-full">
             <h2 className="font-semibold text-[22px] leading-[1.4] text-black tracking-[-0.06em]">
               Award Ceremony
             </h2>
           </div>
-          <div className="flex flex-col pb-4 pt-0 px-0 w-full">
-            <div className="prose prose-blue max-w-none">
+          <div className="flex flex-col pb-4 pt-0 px-0 w-full max-w-full">
+            <div className="prose prose-blue max-w-full w-full break-words">
               <ReactMarkdown
                 rehypePlugins={markdownRehypePlugins}
                 components={customMarkdownComponents}

@@ -18,6 +18,7 @@ interface Event {
   role_labels?: Record<string, string>;
   visibility?: EventVisibility;
   event_blurb?: string;
+  event_description?: string;
   paid?: boolean;
   stripe_price_id?: string;
   event_type?: string;

@@ -12,6 +12,8 @@ interface CountsState {
   feedback: number;
 }
 
+const BLUE_PRIMARY = "#3B82F6";
+
 const svgIcons = {
   calendar: (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="25" viewBox="0 0 24 25" fill="none">
@@ -31,12 +33,12 @@ const svgIcons = {
   ),
   feedback: (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="25" viewBox="0 0 24 25" fill="none">
-      <path d="M18 9.5H20C20.5304 9.5 21.0391 9.71071 21.4142 10.0858C21.7893 10.4609 22 10.9696 22 11.5V22.5L18 18.5H12C11.4696 18.5 10.9609 18.2893 10.5858 17.9142C10.2107 17.5391 10 17.0304 10 16.5V15.5M14 9.5C14 10.0304 13.7893 10.5391 13.4142 10.9142C13.0391 11.2893 12.5304 11.5 12 11.5H6L2 15.5V4.5C2 3.4 2.9 2.5 4 2.5H12C12.5304 2.5 13.0391 2.71071 13.4142 3.08579C13.7893 3.46086 14 3.96957 14 4.5V9.5Z" stroke="#09090B" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M18 9.5H20C20.5304 9.5 21.0391 9.71071 21.4142 10.0858C21.7893 10.4609 22 10.9696 22 11.5V22.5L18 18.5H12C11.4696 18.5 10.9609 18.2893 10.5858 17.9142C10.2107 17.5391 10 17.0304 10 16.5V15.5M14 9.5C14 10.0304 13.7893 10.5391 13.4142 10.9142C13.0391 11.2893 12.5304 11.5 12 11.5H6L2 15.5V4.5C2 3.4 2.9 2.5 4 2.5H12C12.5304 2.5 13.0391 2.71071 13.4142 3.08579C13.7893 3.46086 14 3.96957 14 4.5V9.5Z" stroke={BLUE_PRIMARY} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
     </svg>
   ),
   album: (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="25" viewBox="0 0 24 25" fill="none">
-      <path d="M11 3.5V11.5L14 8.5L17 11.5V3.5M5 3.5H19C20.1046 3.5 21 4.39543 21 5.5V19.5C21 20.6046 20.1046 21.5 19 21.5H5C3.89543 21.5 3 20.6046 3 19.5V5.5C3 4.39543 3.89543 3.5 5 3.5Z" stroke="#09090B" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M11 3.5V11.5L14 8.5L17 11.5V3.5M5 3.5H19C20.1046 3.5 21 4.39543 21 5.5V19.5C21 20.6046 20.1046 21.5 19 21.5H5C3.89543 21.5 3 20.6046 3 19.5V5.5C3 4.39543 3.89543 3.5 5 3.5Z" stroke={BLUE_PRIMARY} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
     </svg>
   ),
 };

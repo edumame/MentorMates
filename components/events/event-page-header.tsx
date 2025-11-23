@@ -55,7 +55,10 @@ export function EventPageHeader({
     };
   })();
   return (
-    <div className="bg-white flex flex-col items-center w-full">
+    <div
+      className="bg-white flex flex-col w-full"
+      style={{ maxWidth: "100vw" }}
+    >
       {/* Cover Image */}
       <div className="h-[200px] sm:h-[224px] w-full relative overflow-hidden">
         {coverImageUrl ? (
@@ -76,7 +79,7 @@ export function EventPageHeader({
         )}
 
         {/* Event Tags */}
-        <div className="absolute left-6 top-6 flex flex-wrap gap-1 z-10">
+        <div className="absolute left-4 md:left-6 top-4 md:top-6 flex flex-wrap gap-1 z-10">
           <div className="bg-white border border-[rgba(0,0,0,0.15)] px-2.5 py-1 rounded-full">
             <p className="font-semibold text-sm leading-[1.5] text-black whitespace-nowrap">
               {eventType
@@ -115,7 +118,7 @@ export function EventPageHeader({
                   <h1 className="font-semibold text-[28px] leading-[1.4] tracking-[-1.68px] text-black w-full">
                     {eventName}
                   </h1>
-                  <p className="font-normal text-base leading-[1.5] text-black line-clamp-3 w-full">
+                  <p className="font-normal text-sm md:text-base leading-[1.5] text-black w-full break-words">
                     {eventBlurb}
                   </p>
                 </div>
