@@ -66,6 +66,7 @@ export function JoinEventButton({
     useState<string>("");
   const [showPricingTiers, setShowPricingTiers] = useState(false);
   const [isFull, setIsFull] = useState(false);
+  const [hasAutoOpenedPricing, setHasAutoOpenedPricing] = useState(false);
 
   useEffect(() => {
     async function init() {
@@ -160,50 +161,112 @@ export function JoinEventButton({
     init();
   }, [eventId]);
 
-  const handleRoleSelect = (value: EventRole) => {
-    setSelectedRole(value);
-    // Show password input for protected roles
-    if (event?.visibility === EventVisibility.Private) {
-      setShowPasswordInput(true);
-    } else {
-      setShowPasswordInput(isHigherOrEqualRole(value, EventRole.Judge));
-    }
-  };
+    const isPricingTierAvailable = (tier: PricingTier) => {
+      if (tier.available_until) {
+        const availableUntil = new Date(tier.available_until);
+        if (availableUntil.getTime() < Date.now()) {
+          return false;
+        }
+      }
 
-  const handlePricingTierContinue = async () => {
+      if (
+        typeof tier.max_quantity === "number" &&
+        typeof tier.current_quantity === "number"
+      ) {
+        if (tier.max_quantity > 0 && tier.current_quantity >= tier.max_quantity) {
+          return false;
+        }
+      }
+
+      return true;
+    };
+
+    const handleRoleSelect = (value: EventRole) => {
+      setSelectedRole(value);
+      // Show password input for protected roles
+      if (event?.visibility === EventVisibility.Private) {
+        setShowPasswordInput(true);
+      } else {
+        setShowPasswordInput(isHigherOrEqualRole(value, EventRole.Judge));
+      }
+    };
+
+    useEffect(() => {
+      if (!pricingTiers.length || selectedPricingTierId) return;
+
+      const firstAvailableTier =
+        pricingTiers.find(isPricingTierAvailable) ?? pricingTiers[0];
+
+      if (firstAvailableTier) {
+        setSelectedPricingTierId(firstAvailableTier.id);
+      }
+    }, [pricingTiers, selectedPricingTierId]);
+
+    useEffect(() => {
+      if (!isDialogOpen) {
+        setHasAutoOpenedPricing(false);
+        return;
+      }
+
+      if (
+        event?.paid &&
+        pricingTiers.length > 0 &&
+        !hasAutoOpenedPricing
+      ) {
+        setShowPricingTiers(true);
+        setHasAutoOpenedPricing(true);
+      }
+    }, [event?.paid, isDialogOpen, pricingTiers, hasAutoOpenedPricing]);
+
+    const handlePricingTierContinue = async () => {
     try {
       setIsLoading(true);
 
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      if (!session) {
-        localStorage.setItem("returnUrl", window.location.pathname);
-        router.push("/login");
-        return;
-      }
+        const searchParams = new URLSearchParams({
+          eventId: eventId,
+          eventSlug: event?.slug || eventId,
+          eventName: event?.event_name || eventName,
+          pricingTierId: selectedPricingTierId,
+        });
 
-      // Store the event join intent in localStorage for after payment
-      localStorage.setItem(
-        "joinEventIntent",
-        JSON.stringify({
+        const pendingCheckoutPayload = {
           eventId,
+          eventSlug: event?.slug || eventId,
+          eventName: event?.event_name || eventName,
+          pricingTierId: selectedPricingTierId,
           role: selectedRole,
           password: showPasswordInput ? password : undefined,
-          userId: session.user.id,
-          pricingTierId: selectedPricingTierId,
-        })
-      );
+        };
 
-      // Redirect to checkout with event and pricing tier information
-      const searchParams = new URLSearchParams({
-        eventId: eventId,
-        eventSlug: event?.slug || eventId,
-        eventName: event?.event_name || eventName,
-        pricingTierId: selectedPricingTierId,
-      });
+        if (!session) {
+          localStorage.setItem(
+            "pendingEventCheckout",
+            JSON.stringify(pendingCheckoutPayload)
+          );
+          const checkoutPath = `/checkout?${searchParams.toString()}`;
+          localStorage.setItem("returnUrl", checkoutPath);
+          router.push("/login?mode=signup");
+          return;
+        }
 
-      router.push(`/checkout?${searchParams.toString()}`);
+        // Store the event join intent in localStorage for after payment
+        localStorage.setItem(
+          "joinEventIntent",
+          JSON.stringify({
+            eventId,
+            role: selectedRole,
+            password: showPasswordInput ? password : undefined,
+            userId: session.user.id,
+            pricingTierId: selectedPricingTierId,
+          })
+        );
+        localStorage.removeItem("pendingEventCheckout");
+
+        // Redirect to checkout with event and pricing tier information
+        router.push(`/checkout?${searchParams.toString()}`);
     } catch (error) {
       console.error("Error processing pricing tier selection:", error);
       toast({
