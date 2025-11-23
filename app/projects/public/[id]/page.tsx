@@ -17,7 +17,7 @@ import {
   Video as VideoIcon,
   Download,
   Copy,
-  Share2,
+  QrCode,
   Link as LinkIcon,
   Scale,
   MessageSquare,
@@ -267,6 +267,32 @@ export default function PublicProjectPage() {
   const selectedTrack = projectTracks.find(
     (track) => track.track_id === selectedTrackId
   );
+  const handleShare = (platform: string) => {
+    switch (platform) {
+      case "copy":
+        navigator.clipboard.writeText(feedbackUrl);
+        alert("Link copied to clipboard!");
+        break;
+      case "linkedin":
+        window.open(
+          `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(feedbackUrl)}`,
+          "_blank"
+        );
+        break;
+      case "facebook":
+        window.open(
+          `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(feedbackUrl)}`,
+          "_blank"
+        );
+        break;
+      case "twitter":
+        window.open(
+          `https://twitter.com/intent/tweet?url=${encodeURIComponent(feedbackUrl)}`,
+          "_blank"
+        );
+        break;
+    }
+  };
 
   return (
     <PageContainer>
@@ -307,11 +333,10 @@ export default function PublicProjectPage() {
                   aria-pressed={liked}
                   disabled={likeIsLoading}
                   onClick={() => void toggleLike()}
-                  className={`rounded-xl px-5 py-2 shadow-sm text-base ${
-                    liked
-                      ? "bg-red-100 text-red-700 hover:bg-red-200"
-                      : "bg-black/5 hover:bg-black/10"
-                  }`}
+                  className={`rounded-xl px-5 py-2 shadow-sm text-base ${liked
+                    ? "bg-red-100 text-red-700 hover:bg-red-200"
+                    : "bg-black/5 hover:bg-black/10"
+                    }`}
                 >
                   {likeIsLoading ? (
                     <Loader className="h-6 w-6 mr-1.5" />
@@ -384,9 +409,8 @@ export default function PublicProjectPage() {
                 <div
                   className="w-full h-full bg-cover bg-center bg-no-repeat"
                   style={{
-                    backgroundImage: `url(${
-                      project.cover_image_url || "/img/placeholder.png"
-                    })`,
+                    backgroundImage: `url(${project.cover_image_url || "/img/placeholder.png"
+                      })`,
                   }}
                 ></div>
               </div>
@@ -399,11 +423,10 @@ export default function PublicProjectPage() {
                 aria-pressed={liked}
                 disabled={likeIsLoading}
                 onClick={() => void toggleLike()}
-                className={`rounded-xl px-3 py-2 shadow-sm text-base ${
-                  liked
-                    ? "bg-red-100 text-red-700 hover:bg-red-200"
-                    : "bg-black/5 hover:bg-black/10"
-                }`}
+                className={`rounded-xl px-3 py-2 shadow-sm text-base ${liked
+                  ? "bg-red-100 text-red-700 hover:bg-red-200"
+                  : "bg-black/5 hover:bg-black/10"
+                  }`}
               >
                 {likeIsLoading ? (
                   <Loader className="h-6 w-6" />
@@ -673,9 +696,9 @@ export default function PublicProjectPage() {
 
                     {/* Sharing Tab */}
                     <TabsContent value="sharing" className="mt-0">
-                      <div className="grid grid-cols-1 lg:grid-cols-[1fr,500px] gap-6">
+                      <div className="grid grid-cols-1 lg:grid-cols-[1fr,500px] gap-6 border border-zinc-200">
                         {/* Left Column: Share Card */}
-                        <Card className="border border-zinc-200">
+                        <Card className="1">
                           <CardHeader>
                             <CardTitle className="text-[22px] font-semibold tracking-[-0.06em]">
                               Share & Get Feedback
@@ -801,173 +824,202 @@ export default function PublicProjectPage() {
 
                   {/* Right Column: Sidebar */}
                   {activeTab !== "sharing" && (
-                  <div className="w-full lg:w-[420px] space-y-6">
-                    {/* Meet the team */}
-                    {activeTab === "overview" && (
-                    <div className="space-y-6">
-                      <h3 className="text-lg font-bold text-black tracking-tight">
-                        Meet the team
-                      </h3>
-                      <div className="space-y-6">
-                        {/* Project Lead */}
-                        <div className="flex gap-4 items-center">
-                          <div className="w-14 h-14 rounded-full bg-gray-300 flex-shrink-0"></div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <p className="font-semibold text-base text-black">
-                                {project.lead_name}
-                              </p>
-                              <Badge
-                                variant="secondary"
-                                className="bg-transparent border border-black/15 text-black rounded-full text-sm px-2.5 py-0.5"
-                              >
-                                Lead
-                              </Badge>
+                    <div className="w-full lg:w-[420px] space-y-6">
+                      {/* Meet the team */}
+                      {activeTab === "overview" && (
+                        <div className="space-y-6">
+                          <h3 className="text-lg font-bold text-black tracking-tight">
+                            Meet the team
+                          </h3>
+                          <div className="space-y-6">
+                            {/* Project Lead */}
+                            <div className="flex gap-4 items-center">
+                              <div className="w-14 h-14 rounded-full bg-gray-300 flex-shrink-0"></div>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <p className="font-semibold text-base text-black">
+                                    {project.lead_name}
+                                  </p>
+                                  <Badge
+                                    variant="secondary"
+                                    className="bg-transparent border border-black/15 text-black rounded-full text-sm px-2.5 py-0.5"
+                                  >
+                                    Lead
+                                  </Badge>
+                                </div>
+                                <p className="text-base text-black">
+                                  {project.lead_email}
+                                </p>
+                              </div>
                             </div>
-                            <p className="text-base text-black">
-                              {project.lead_email}
-                            </p>
+
+                            {/* Team Members */}
+                            {project.teammates?.slice(0, 1).map((teammate, index) => (
+                              <div key={index} className="flex gap-4 items-center">
+                                <div className="w-14 h-14 rounded-full bg-gray-300 flex-shrink-0"></div>
+                                <div className="space-y-0">
+                                  <p className="font-semibold text-base text-black">
+                                    {teammate}
+                                  </p>
+                                </div>
+                              </div>
+                            ))}
                           </div>
                         </div>
+                      )}
 
-                        {/* Team Members */}
-                        {project.teammates?.slice(0, 1).map((teammate, index) => (
-                          <div key={index} className="flex gap-4 items-center">
-                            <div className="w-14 h-14 rounded-full bg-gray-300 flex-shrink-0"></div>
-                            <div className="space-y-0">
-                              <p className="font-semibold text-base text-black">
-                                {teammate}
-                              </p>
+                      {/* Divider */}
+                      {activeTab === "overview" && (
+                        <div className="border-t border-gray-200"></div>
+                      )}
+
+                      {/* Submitted to Event */}
+                      {activeTab === "overview" && eventDetails && (
+                        <div className="space-y-4">
+                          <h3 className="text-lg font-bold text-black tracking-tight">
+                            Submitted to
+                          </h3>
+                          <Card className="border border-black/15 rounded-xl overflow-hidden">
+                            <div className="relative">
+                              {eventDetails.cover_image_url ? (
+                                <img
+                                  src={eventDetails.cover_image_url}
+                                  alt={eventDetails.event_name}
+                                  className="w-full h-[180px] object-cover"
+                                />
+                              ) : (
+                                <div className="w-full h-[180px] bg-gradient-to-br from-orange-400 via-blue-500 to-purple-600"></div>
+                              )}
+                              {eventDetails.start_date && (
+                                <div className="absolute top-4 right-4 bg-white border border-gray-300 rounded-xl py-3 px-1 text-center w-28">
+                                  <p className="text-sm text-black">
+                                    {new Date(eventDetails.start_date).toLocaleDateString("en-US", { weekday: "short" })}
+                                  </p>
+                                  <p className="text-4xl font-semibold text-black tracking-tight leading-none">
+                                    {new Date(eventDetails.start_date).getDate()}
+                                  </p>
+                                  <p className="text-sm text-black">
+                                    {new Date(eventDetails.start_date).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
+                                  </p>
+                                </div>
+                              )}
                             </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    )}
-
-                    {/* Divider */}
-                    {activeTab === "overview" && (
-                    <div className="border-t border-gray-200"></div>
-                    )}
-
-                    {/* Submitted to Event */}
-                    {activeTab === "overview" && eventDetails && (
-                      <div className="space-y-4">
-                        <h3 className="text-lg font-bold text-black tracking-tight">
-                          Submitted to
-                        </h3>
-                        <Card className="border border-black/15 rounded-xl overflow-hidden">
-                          <div className="relative">
-                            {eventDetails.cover_image_url ? (
-                              <img
-                                src={eventDetails.cover_image_url}
-                                alt={eventDetails.event_name}
-                                className="w-full h-[180px] object-cover"
-                              />
-                            ) : (
-                              <div className="w-full h-[180px] bg-gradient-to-br from-orange-400 via-blue-500 to-purple-600"></div>
-                            )}
-                            {eventDetails.start_date && (
-                              <div className="absolute top-4 right-4 bg-white border border-gray-300 rounded-xl py-3 px-1 text-center w-28">
-                                <p className="text-sm text-black">
-                                  {new Date(eventDetails.start_date).toLocaleDateString("en-US", { weekday: "short" })}
-                                </p>
-                                <p className="text-4xl font-semibold text-black tracking-tight leading-none">
-                                  {new Date(eventDetails.start_date).getDate()}
-                                </p>
-                                <p className="text-sm text-black">
-                                  {new Date(eventDetails.start_date).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
-                                </p>
+                            <CardContent className="p-6 space-y-4">
+                              <div className="space-y-2">
+                                <h4 className="text-2xl font-semibold text-black tracking-tight">
+                                  {eventDetails.event_name}
+                                </h4>
+                                <div className="flex items-center gap-1 text-sm">
+                                  <MapPin className="h-4 w-4 text-black" />
+                                  <span className="text-black text-center">
+                                    {eventDetails.location || "Online"}
+                                  </span>
+                                </div>
                               </div>
-                            )}
+                            </CardContent>
+                          </Card>
+                        </div>
+                      )}
+
+                      {/* Divider */}
+                      {activeTab === "overview" && (
+                        <div className="border-t border-gray-200"></div>
+                      )}
+
+                      {/* Additional materials */}
+                      {activeTab === "overview" && (
+                        <div className="space-y-4">
+                          <h3 className="text-lg font-semibold text-black tracking-tight">
+                            Additional materials
+                          </h3>
+                          {project.additional_materials_url ? (
+                            <a
+                              href={project.additional_materials_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <Button
+                                variant="secondary"
+                                className="w-full bg-black/5 hover:bg-black/10 rounded-xl py-2.5 shadow-sm justify-center"
+                              >
+                                <ArrowUpRight className="h-5 w-5 mr-1.5" />
+                                View Materials
+                              </Button>
+                            </a>
+                          ) : (
+                            <p className="text-sm text-gray-500 italic">
+                              No additional materials available
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Divider */}
+                      {activeTab === "overview" && (
+                        <div className="border-t border-gray-200"></div>
+                      )}
+
+                      {/* Share this project */}
+                      {activeTab === "overview" && (
+                        <div className="space-y-4">
+                          <h3 className="text-lg font-semibold text-black tracking-tight">
+                            Share this project
+                          </h3>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="bg-white rounded-full"
+                              onClick={() => {
+                                navigator.clipboard.writeText(feedbackUrl);
+                                toast({
+                                  title: "Link copied!",
+                                  description: "Project link copied to clipboard",
+                                });
+                              }}
+                            >
+                              <LinkIcon className="h-5 w-5" />
+                            </Button>
+                            {/* QR Code */}
+                            <button className="flex flex-col items-center justify-center overflow-hidden p-1 rounded-lg">
+                              <QrCode className="w-6 h-6 text-black" />
+                            </button>
+
+                            {/* LinkedIn */}
+                            <button
+                              onClick={() => handleShare("linkedin")}
+                              className="bg-white flex flex-col items-center justify-center overflow-hidden p-1 rounded-full"
+                            >
+                              {/* <Linkedin className="w-6 h-6 text-black" /> */}
+                              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 18 18" fill="none">
+                                <path clip-rule="evenodd" d="M1.5 0C0.67157 0 0 0.67157 0 1.5V16.5C0 17.3284 0.67157 18 1.5 18H16.5C17.3284 18 18 17.3284 18 16.5V1.5C18 0.67157 17.3284 0 16.5 0H1.5ZM5.52076 4.00272C5.52639 4.95897 4.81061 5.54819 3.96123 5.54397C3.16107 5.53975 2.46357 4.90272 2.46779 4.00413C2.47201 3.15897 3.13998 2.47975 4.00764 2.49944C4.88795 2.51913 5.52639 3.1646 5.52076 4.00272ZM9.2797 6.76176H6.75971H6.7583V15.3216H9.4217V15.1219C9.4217 14.742 9.4214 14.362 9.4211 13.9819C9.4203 12.9681 9.4194 11.9532 9.4246 10.9397C9.426 10.6936 9.4372 10.4377 9.5005 10.2028C9.7381 9.3253 10.5271 8.7586 11.4074 8.8979C11.9727 8.9864 12.3467 9.3141 12.5042 9.8471C12.6013 10.1803 12.6449 10.5389 12.6491 10.8863C12.6605 11.9339 12.6589 12.9815 12.6573 14.0292C12.6567 14.399 12.6561 14.769 12.6561 15.1388V15.3202H15.328V15.1149C15.328 14.6629 15.3278 14.211 15.3275 13.7591C15.327 12.6296 15.3264 11.5001 15.3294 10.3702C15.3308 9.8597 15.276 9.3563 15.1508 8.8627C14.9638 8.1286 14.5771 7.5211 13.9485 7.0824C13.5027 6.77019 13.0133 6.5691 12.4663 6.5466C12.404 6.54401 12.3412 6.54062 12.2781 6.53721C11.9984 6.52209 11.7141 6.50673 11.4467 6.56066C10.6817 6.71394 10.0096 7.0641 9.5019 7.6814C9.4429 7.7522 9.3852 7.8241 9.2991 7.9314L9.2797 7.9557V6.76176ZM2.68164 15.3244H5.33242V6.76733H2.68164V15.3244Z" fill="black" />
+                              </svg>
+                            </button>
+
+                            {/* Twitter/X */}
+                            <button
+                              onClick={() => handleShare("twitter")}
+                              className="bg-white flex flex-col items-center justify-center overflow-hidden p-1 rounded-full"
+                            >
+                              <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                              </svg>
+                            </button>
+
+                            {/* Facebook */}
+                            <button
+                              onClick={() => handleShare("facebook")}
+                              className="bg-white flex flex-col items-center justify-center overflow-hidden p-1 rounded-full"
+                            >
+                              {/* <Facebook className="w-6 h-6 text-black" /> */}
+                              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                <path d="M22 12.3033C22 6.7467 17.5229 2.24219 12 2.24219C6.47715 2.24219 2 6.7467 2 12.3033C2 17.325 5.65684 21.4874 10.4375 22.2422V15.2116H7.89844V12.3033H10.4375V10.0867C10.4375 7.56515 11.9305 6.17231 14.2146 6.17231C15.3088 6.17231 16.4531 6.36882 16.4531 6.36882V8.8448H15.1922C13.95 8.8448 13.5625 9.62041 13.5625 10.4161V12.3033H16.3359L15.8926 15.2116H13.5625V22.2422C18.3432 21.4874 22 17.3252 22 12.3033Z" fill="black" />
+                              </svg>
+                            </button>
                           </div>
-                          <CardContent className="p-6 space-y-4">
-                            <div className="space-y-2">
-                              <h4 className="text-2xl font-semibold text-black tracking-tight">
-                                {eventDetails.event_name}
-                              </h4>
-                              <div className="flex items-center gap-1 text-sm">
-                                <MapPin className="h-4 w-4 text-black" />
-                                <span className="text-black text-center">
-                                  {eventDetails.location || "Online"}
-                                </span>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      </div>
-                    )}
-
-                    {/* Divider */}
-                    {activeTab === "overview" && (
-                    <div className="border-t border-gray-200"></div>
-                    )}
-
-                    {/* Additional materials */}
-                    {activeTab === "overview" && (
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-semibold text-black tracking-tight">
-                        Additional materials
-                      </h3>
-                      {project.additional_materials_url ? (
-                        <a
-                          href={project.additional_materials_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          <Button
-                            variant="secondary"
-                            className="w-full bg-black/5 hover:bg-black/10 rounded-xl py-2.5 shadow-sm justify-center"
-                          >
-                            <ArrowUpRight className="h-5 w-5 mr-1.5" />
-                            View Materials
-                          </Button>
-                        </a>
-                      ) : (
-                        <p className="text-sm text-gray-500 italic">
-                          No additional materials available
-                        </p>
+                        </div>
                       )}
                     </div>
-                    )}
-
-                    {/* Divider */}
-                    {activeTab === "overview" && (
-                    <div className="border-t border-gray-200"></div>
-                    )}
-
-                    {/* Share this project */}
-                    {activeTab === "overview" && (
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-semibold text-black tracking-tight">
-                        Share this project
-                      </h3>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="bg-white rounded-full"
-                          onClick={() => {
-                            navigator.clipboard.writeText(feedbackUrl);
-                            toast({
-                              title: "Link copied!",
-                              description: "Project link copied to clipboard",
-                            });
-                          }}
-                        >
-                          <LinkIcon className="h-5 w-5" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="bg-white rounded-full"
-                        >
-                          <Share2 className="h-5 w-5" />
-                        </Button>
-                      </div>
-                    </div>
-                    )}
-                  </div>
                   )}
                 </div>
               </div>

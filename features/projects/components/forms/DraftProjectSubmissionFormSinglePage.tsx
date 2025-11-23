@@ -14,7 +14,6 @@ import {
   Github,
   Youtube,
   Trash2,
-  Shield,
   ExternalLink,
   ThumbsUp,
   MessageSquarePlus,
@@ -38,6 +37,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { TextFields } from "@mui/icons-material";
 
 interface EventParticipant {
   user_id: string;
@@ -155,7 +155,7 @@ export default function DraftProjectSubmissionFormSinglePage({
       formData.video_url !== (project.video_url || "") ||
       formData.cover_image_url !== (project.cover_image_url || "") ||
       formData.additional_materials_url !==
-        (project.additional_materials_url || "");
+      (project.additional_materials_url || "");
 
     if (!hasChanges) return;
 
@@ -387,15 +387,15 @@ export default function DraftProjectSubmissionFormSinglePage({
     <>
       {/* Sticky Auto-save Banner */}
       <div className="sticky top-0 z-40 bg-sky-50 border-b border-[#d8d8d8]">
-        <div className="max-w-[1280px] mx-auto px-6 py-3.5 flex items-center justify-between">
+        <div className="mx-auto px-6 py-3.5 flex items-center justify-between flex-wrap">
           <div className="flex items-center gap-2">
-            <Shield className="h-6 w-6 text-[#4c4c4c]" />
-            <p className="text-[#4c4c4c] text-lg font-medium tracking-[-0.06em]">
+            <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 0 24 24" width="24px" fill="#1f1f1f"><g><rect fill="none" height="24" width="24" /><path d="M12,3.19l7,3.11V11c0,4.52-2.98,8.69-7,9.93C7.98,19.69,5,15.52,5,11V6.3L12,3.19 M12,1L3,5v6c0,5.55,3.84,10.74,9,12 c5.16-1.26,9-6.45,9-12V5L12,1L12,1z M11,7h2v2h-2V7z M11,11h2v6h-2V11z" /></g></svg>
+            <p className="text-[#4c4c4c] text-base font-medium tracking-[-0.06em]">
               Your project is automatically saved as you edit
             </p>
           </div>
           {lastSaved && (
-            <div className="bg-transparent border border-[rgba(0,0,0,0.15)] rounded-full px-2.5 py-1">
+            <div className="bg-transparent px-2.5 py-1 ml-6 sm:m-0">
               <p className="text-[#7f7f7f] text-sm font-medium">
                 Saved at{" "}
                 {lastSaved.toLocaleDateString("en-US", {
@@ -416,10 +416,10 @@ export default function DraftProjectSubmissionFormSinglePage({
 
       {/* Main Content */}
       <div className="bg-gradient-to-br from-blue-100/45 via-transparent to-transparent">
-        <div className="max-w-[1280px] mx-auto px-8 py-6 min-h-[800px]">
-          <div className="flex gap-12 items-start justify-between">
+        <div className="mx-auto px-8 py-6 min-h-[800px]">
+          <div className="flex gap-[50px] sm:gap-[85px] items-start justify-between flex-wrap-reverse sm:flex-nowrap">
             {/* Left Side - Form */}
-            <div className="flex-1 max-w-[640px] space-y-6">
+            <div className="flex-1 space-y-6">
               <div className="space-y-1">
                 <h1 className="text-[28px] font-semibold text-black tracking-[-0.06em] leading-[1.4]">
                   Edit your project
@@ -433,6 +433,7 @@ export default function DraftProjectSubmissionFormSinglePage({
                     Project name
                   </label>
                   <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-3 py-2 flex items-center gap-3 h-11">
+                    <TextFields className="h-6 w-6 shrink-0" />
                     <Input
                       value={formData.project_name}
                       onChange={(e) =>
@@ -470,7 +471,7 @@ export default function DraftProjectSubmissionFormSinglePage({
                 </div>
 
                 {/* Divider */}
-                <div className="border-t border-gray-200" />
+                <div className="border-t border-dashed border-gray-200" />
 
                 {/* Cover Image */}
                 <div className="space-y-2">
@@ -584,70 +585,76 @@ export default function DraftProjectSubmissionFormSinglePage({
                 </div>
 
                 {/* Divider */}
-                <div className="border-t border-gray-200" />
+                <div className="border-t border-dashed border-gray-200" />
 
                 {/* Add Teammates */}
                 <div className="space-y-2">
-                  <label className="text-base text-black font-normal">
+                  <label className="text-base text-black font-normal mb-2">
                     Add teammates (Optional)
                   </label>
-                  <UserSearchWithInvite
-                    allTags={participants.map((p) => p.email)}
-                    onTagsChange={handleTeammatesChange}
-                    initialTags={project.teammates || []}
-                    projectId={projectId}
-                    enableInvite={true}
-                  />
-
-                  {/* Team Members List */}
-                  <div className="border border-gray-200 rounded-xl p-3 space-y-4 mt-4">
-                    {/* Lead */}
-                    <div className="flex items-center gap-4">
-                      <div className="w-14 h-14 rounded-full bg-gray-300 shrink-0" />
-                      <div className="space-y-0">
-                        <div className="flex items-center gap-1">
-                          <p className="text-base font-semibold text-black">
-                            {project.lead_name}
-                          </p>
-                          <Badge
-                            variant="secondary"
-                            className="bg-transparent border border-[rgba(0,0,0,0.15)] text-black rounded-full text-sm font-semibold"
-                          >
-                            Lead
-                          </Badge>
-                        </div>
-                        <p className="text-base text-black">
-                          {project.lead_email}
-                        </p>
-                      </div>
+                  <div className="border border-gray-200 rounded-xl">
+                    <div className="pt-2 px-3 border-b border-gray-200">
+                      <UserSearchWithInvite
+                        allTags={participants.map((p) => p.email)}
+                        onTagsChange={handleTeammatesChange}
+                        initialTags={project.teammates || []}
+                        projectId={projectId}
+                        enableInvite={true}
+                        enableMailIcon={true}
+                        inputStyle="pure"
+                        placeholder="Enter your teammates' emails. Press Enter or comma to add each."
+                      />
                     </div>
-
-                    {project.teammates && project.teammates.length > 0 && (
-                      <>
-                        <div className="border-t border-gray-200" />
-                        {project.teammates.map((teammate, index) => (
-                          <div key={index} className="flex items-center gap-4">
-                            <div className="w-14 h-14 rounded-full bg-gray-300 shrink-0" />
-                            <div className="flex-1">
-                              <p className="text-base font-semibold text-black">
-                                {teammate}
-                              </p>
-                              <p className="text-base text-black">{teammate}</p>
-                            </div>
-                            {isLead && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleRemoveTeammate(teammate)}
-                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                              >
-                                Remove
-                              </Button>
-                            )}
+                    {/* Team Members List */}
+                    <div className="border-b last:border-b-0 border-gray-200 space-y-4 mt-3 p-3">
+                      {/* Lead */}
+                      <div className="flex items-center gap-4">
+                        <div className="w-14 h-14 rounded-full bg-gray-300 shrink-0" />
+                        <div className="space-y-0">
+                          <div className="flex items-center gap-1">
+                            <p className="text-base font-semibold text-black">
+                              {project.lead_name}
+                            </p>
+                            <Badge
+                              variant="secondary"
+                              className="bg-transparent border border-[rgba(0,0,0,0.15)] text-black rounded-full text-sm font-semibold"
+                            >
+                              Lead
+                            </Badge>
                           </div>
-                        ))}
-                      </>
-                    )}
+                          <p className="text-base text-black">
+                            {project.lead_email}
+                          </p>
+                        </div>
+                      </div>
+
+                      {project.teammates && project.teammates.length > 0 && (
+                        <>
+                          <div className="border-t border-dashed border-gray-200" />
+                          {project.teammates.map((teammate, index) => (
+                            <div key={index} className="flex items-center gap-4 border-b last:border-b-0 border-gray-200 py-4 !m-0">
+                              <div className="w-14 h-14 rounded-full bg-gray-300 shrink-0" />
+                              <div className="flex-1">
+                                <p className="text-base font-semibold text-black">
+                                  {teammate}
+                                </p>
+                                <p className="text-base text-black">{teammate}</p>
+                              </div>
+                              {isLead && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleRemoveTeammate(teammate)}
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                >
+                                  Remove
+                                </Button>
+                              )}
+                            </div>
+                          ))}
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -675,8 +682,8 @@ export default function DraftProjectSubmissionFormSinglePage({
               </div>
 
               {/* Preview Card */}
-              <div className="space-y-3">
-                <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl overflow-hidden w-[339px]">
+              <div className="space-y-3 flex flex-col justify-center">
+                <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl overflow-hidden w-full sm:w-[339px]">
                   {/* Cover Image */}
                   <div className="aspect-[339/220] relative">
                     {formData.cover_image_url ? (

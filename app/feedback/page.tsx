@@ -7,12 +7,12 @@ import { Button } from "@/components/ui/button";
 import {
   ChevronLeft,
   ChevronRight,
-  ArrowDownUp,
   X,
   FileText,
   MessageSquare,
   Lightbulb,
   Sparkles,
+  ArrowDown,
 } from "lucide-react";
 import {
   Dialog,
@@ -21,6 +21,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
+import { Forum } from "@mui/icons-material";
 
 interface FeedbackItem {
   id: string;
@@ -128,7 +129,7 @@ export default function FeedbackPage() {
       <PageContent className="pt-[24px] pb-8">
         <div className="flex flex-col gap-[24px] px-[32px]">
           {/* Header */}
-          <div className="flex items-end justify-between">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-[8px]">
               <h1 className="text-[20px] sm:text-[28px] font-semibold leading-[1.4] tracking-[-0.06em] text-black">
                 Feedback
@@ -161,23 +162,27 @@ export default function FeedbackPage() {
 
           {/* Empty state */}
           {!isLoading && feedbackList.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-16 px-4">
+            <div className="flex flex-col items-center justify-center py-20 sm:py-40 px-4 border border-dashed border-[rgba(0,0,0,0.15)] rounded-[20px]">
               <div className="max-w-md text-center">
                 <div className="mx-auto w-24 h-24 bg-gradient-to-br from-blue-50 to-blue-100 rounded-full flex items-center justify-center mb-6">
                   <MessageSquare className="h-12 w-12 text-blue-600" />
                 </div>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-3">
+
+                {/* Heading */}
+                <h2 className="text-2xl font-semibold text-gray-900 mb-2">
                   No feedback received yet
                 </h2>
-                <p className="text-gray-600 mb-6 leading-relaxed">
+
+                {/* Description */}
+                <p className="text-gray-600 mb-4 leading-relaxed">
                   Go join an event, submit a project and collect feedback from
                   mentors and peers to improve your work!
                 </p>
                 <Button
                   asChild
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 h-auto"
+                  className="bg-blue-400 hover:bg-blue-600 text-white px-6 py-3 h-auto"
                 >
-                  <Link href="/events">Explore Events</Link>
+                  <Link href="/events">Explore event</Link>
                 </Button>
               </div>
             </div>
@@ -210,7 +215,7 @@ export default function FeedbackPage() {
                         <p className="text-[16px] font-medium text-black tracking-[-0.04em]">
                           Date
                         </p>
-                        <ArrowDownUp className="h-[24px] w-[24px] ml-1" />
+                        <ArrowDown className="h-[24px] w-[24px] ml-1" />
                       </div>
                       <div className="w-[208px] flex-shrink-0 border-b border-[rgba(0,0,0,0.15)] px-[24px] py-[16px]">
                         <p className="text-[16px] font-medium text-black tracking-[-0.04em]">
@@ -223,21 +228,20 @@ export default function FeedbackPage() {
                     {feedbackList.map((item, index) => (
                       <div
                         key={item.id}
-                        className={`flex w-full ${
-                          index !== feedbackList.length - 1
-                            ? "border-b border-[rgba(0,0,0,0.15)]"
-                            : ""
-                        }`}
+                        className={`flex w-full ${index !== feedbackList.length - 1
+                          ? "border-b border-[rgba(0,0,0,0.15)]"
+                          : ""
+                          }`}
                       >
-                        {/* From */}
-                        <div className="flex items-center gap-[8px] px-[24px] py-[24px] w-[264px] flex-shrink-0">
+                        {/* Send from Column */}
+                        <div className="flex items-center gap-[6px] px-[24px] py-[28px] w-[264px] flex-shrink-0">
                           <Avatar className="h-[40px] w-[40px]">
                             <AvatarImage
                               src={item.sender.avatar}
                               alt={item.sender.name}
                             />
-                            <AvatarFallback>
-                              {item.sender.name.charAt(0)}
+                            <AvatarFallback className="bg-gray-200 text-black font-semibold text-base">
+                              {item.sender.name.charAt(0).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
                           <p className="text-[16px] text-black truncate">
@@ -250,16 +254,16 @@ export default function FeedbackPage() {
                           )}
                         </div>
 
-                        {/* Project */}
-                        <div className="flex items-center px-[24px] py-[24px] w-[196px] flex-shrink-0">
+                        {/* Project Name Column */}
+                        <div className="flex items-center px-[24px] py-[28px] w-[196px] flex-shrink-0">
                           <p className="text-[16px] text-black tracking-[-0.04em] truncate">
                             {item.projectName}
                           </p>
                         </div>
 
-                        {/* Message */}
-                        <div className="flex items-center px-[24px] py-[24px] min-w-[215px] flex-1">
-                          <p className="text-[16px] text-black tracking-[-0.04em] line-clamp-2">
+                        {/* Message Column */}
+                        <div className="flex items-center px-[24px] py-[28px] min-w-[215px] flex-1">
+                          <p className="text-[16px] text-black tracking-[-0.04em] line-clamp-2 break-all">
                             {item.message}
                           </p>
                         </div>
@@ -271,8 +275,8 @@ export default function FeedbackPage() {
                           </p>
                         </div>
 
-                        {/* Actions */}
-                        <div className="flex items-center gap-[12px] px-[24px] py-[24px] w-[208px] flex-shrink-0">
+                        {/* Action Column */}
+                        <div className="flex items-center gap-[12px] px-[24px] py-[28px] w-[208px] flex-shrink-0">
                           <button
                             onClick={() => handleViewFeedback(item)}
                             className="text-[16px] font-medium text-[#4B89EF] tracking-[-0.04em]"
@@ -311,11 +315,10 @@ export default function FeedbackPage() {
                       <button
                         key={page}
                         onClick={() => setCurrentPage(page)}
-                        className={`w-[40px] h-[40px] flex items-center justify-center rounded-[6px] text-[16px] ${
-                          currentPage === page
-                            ? "border border-[rgba(0,0,0,0.15)]"
-                            : ""
-                        }`}
+                        className={`w-[40px] h-[40px] flex items-center justify-center rounded-[6px] text-[16px] ${currentPage === page
+                          ? "border border-[rgba(0,0,0,0.15)]"
+                          : ""
+                          }`}
                       >
                         {page}
                       </button>

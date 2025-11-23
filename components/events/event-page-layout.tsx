@@ -107,7 +107,7 @@ export async function EventPageLayout({
 
                 {/* Main Content */}
                 <div className="w-full">
-                  <div className="mx-auto max-w-7xl flex flex-col md:flex-row items-start gap-6 w-full px-4 md:px-6 py-[24px]">
+                  <div className="mx-auto flex flex-col md:flex-row items-start gap-6 w-full px-4 md:px-6 py-[24px]">
                     {children}
                   </div>
                 </div>
@@ -142,7 +142,7 @@ export async function EventPageLayout({
 
             {/* Main Content */}
             <div className="w-full">
-              <div className="flex flex-col md:flex-row items-start gap-6 w-full px-4 md:px-6 py-[24px]">
+              <div className="flex flex-wrap sm:flex-nowrap gap-6 w-full px-6 py-[24px]">
                 {children}
               </div>
             </div>

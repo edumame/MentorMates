@@ -73,9 +73,8 @@ export function EventPageTabs({
               }`}
             >
               <p
-                className={`${
-                  isActive ? "font-medium" : "font-normal"
-                } text-sm md:text-base text-black`}
+                className={`${isActive ? "font-medium" : "font-normal"
+                  } text-base text-black`}
               >
                 {tab.name}
               </p>

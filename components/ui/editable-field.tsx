@@ -88,21 +88,19 @@ export function EditableField({
         />
         <div className="flex gap-2">
           <Button
-            size="sm"
             onClick={handleSave}
             disabled={isSaving || isLoading}
             className="bg-green-600 hover:bg-green-700"
           >
-            <Check className="h-4 w-4 mr-2" />
+            <Check className="mr-2" />
             Save
           </Button>
           <Button
-            size="sm"
             variant="outline"
             onClick={handleCancel}
             disabled={isSaving || isLoading}
           >
-            <Close className="h-4 w-4 mr-2" />
+            <Close className="mr-2" />
             Cancel
           </Button>
         </div>

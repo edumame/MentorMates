@@ -34,7 +34,7 @@ import {
   formatPrice,
 } from "@/lib/utils/pricing";
 import { getRoleLabel, isHigherOrEqualRole } from "@/features/user/roles/roles";
-import { Ticket } from "lucide-react";
+import { Ticket, Users, Lock } from "lucide-react";
 
 export interface JoinEventButtonProps {
   eventId: string;
@@ -366,23 +366,23 @@ export function JoinEventButton({
       </DialogTrigger>
       <DialogContent
         aria-describedby="join-event-dialog"
-        className="max-w-2xl max-h-[85vh] overflow-y-auto"
+        className="max-h-[85vh] overflow-y-auto"
       >
         <DialogHeader>
           <DialogTitle>
             {showPricingTiers ? "Select Pricing Tier" : "Choose Your Role"}
           </DialogTitle>
         </DialogHeader>
-        <div className="space-y-4 py-4">
+        <div className="space-y-4">
           {showPricingTiers ? (
             <div className="space-y-4 max-h-[65vh] overflow-y-auto px-1">
-              <Button
+              {/* <Button
                 variant="outline"
                 onClick={() => setShowPricingTiers(false)}
                 className="mb-4"
               >
                 ← Back to Role Selection
-              </Button>
+              </Button> */}
               <PricingTierSelector
                 pricingTiers={pricingTiers}
                 selectedTierId={selectedPricingTierId}
@@ -395,8 +395,9 @@ export function JoinEventButton({
             <div className="space-y-2">
               <label className="text-sm font-medium">Select your role:</label>
               <Select value={selectedRole} onValueChange={handleRoleSelect}>
-                <SelectTrigger>
-                  <SelectValue />
+                <SelectTrigger className="relative w-full flex text-left pl-10">
+                  <Users className="h-6 w-6 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <SelectValue placeholder="Select your role" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={EventRole.Participant}>
@@ -417,12 +418,16 @@ export function JoinEventButton({
               {showPasswordInput && (
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Enter password:</label>
-                  <Input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter event password"
-                  />
+                  <div className="flex items-center justify-start relative">
+                    <Lock className="h-5 w-5 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <Input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Enter event password"
+                      className="pl-10"
+                    />
+                  </div>
                 </div>
               )}
 
@@ -434,8 +439,9 @@ export function JoinEventButton({
                   (isFull && selectedRole === EventRole.Participant)
                 }
                 variant="default"
-                className="w-full rounded-full"
+                className="w-full rounded-full !mt-5"
               >
+                <Ticket className="h-6 w-6 mr-2" />
                 {isLoading ? "Joining..." : "Confirm"}
               </Button>
             </div>
