@@ -37,7 +37,7 @@ export function GalleryContent({
           throw new Error("Failed to fetch projects");
         }
         const data = await response.json();
-        // setProjects(data.projects || []);
+        setProjects(data.projects || []);
       } catch (error) {
         console.error("Error fetching projects:", error);
         setProjects([]);
