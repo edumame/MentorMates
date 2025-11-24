@@ -1,5 +1,5 @@
 import { createClient } from "@/app/utils/supabase/client";
-import { notFound, redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import { isValidUUID } from "@/app/utils/supabase/queries";
 import { AcceptOrganizerInvite } from "./AcceptOrganizerInvite";
 
@@ -26,7 +26,17 @@ export default async function AcceptOrganizerInvitePage({ params, searchParams }
   const { data: eventData, error } = await query.single();
 
   if (error || !eventData) {
-    notFound();
+    // Event not found - pass null to show error state
+    return (
+      <AcceptOrganizerInvite
+        eventId=""
+        eventName=""
+        eventBlurb={null}
+        eventSlug={null}
+        invitedEmail={email}
+        eventNotFound={true}
+      />
+    );
   }
 
   // Check if user is authenticated and already an organizer
@@ -54,6 +64,7 @@ export default async function AcceptOrganizerInvitePage({ params, searchParams }
       eventBlurb={eventData.event_blurb}
       eventSlug={eventData.slug}
       invitedEmail={email}
+      eventNotFound={false}
     />
   );
 }
