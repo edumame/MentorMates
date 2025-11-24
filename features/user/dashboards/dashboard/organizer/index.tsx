@@ -360,7 +360,9 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
                   <TabsContent value="gallery" className="mt-0">
                     <div className="rounded-lg border bg-card p-6">
                       <h3 className="text-lg font-semibold mb-4">Gallery</h3>
-                      <p className="text-gray-500">Gallery management coming soon</p>
+                      <p className="text-gray-500">
+                        Gallery management coming soon
+                      </p>
                     </div>
                   </TabsContent>
                 </Tabs>
@@ -368,14 +370,20 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
 
               <TabsContent value="registration" className="mt-0">
                 <div className="rounded-lg border bg-card p-6">
-                  <h3 className="text-lg font-semibold mb-4">Registration Settings</h3>
-                  <p className="text-gray-500">Registration configuration coming soon</p>
+                  <h3 className="text-lg font-semibold mb-4">
+                    Registration Settings
+                  </h3>
+                  <p className="text-gray-500">
+                    Registration configuration coming soon
+                  </p>
                 </div>
               </TabsContent>
 
               <TabsContent value="project" className="mt-0">
                 <div className="rounded-lg border bg-card p-6">
-                  <h3 className="text-lg font-semibold mb-4">Project Settings</h3>
+                  <h3 className="text-lg font-semibold mb-4">
+                    Project Settings
+                  </h3>
                   <div className="space-y-4">
                     <SubmissionsTab eventId={eventId} />
                     <ScoresTab
@@ -428,7 +436,10 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
               </TabsContent>
 
               <TabsContent value="notify" className="mt-0">
-                <EmailDashboard eventId={eventId} eventName={event.event_name} />
+                <EmailDashboard
+                  eventId={eventId}
+                  eventName={event.event_name}
+                />
               </TabsContent>
             </Tabs>
           </div>
