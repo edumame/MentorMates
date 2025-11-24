@@ -363,46 +363,46 @@ export default function NewEventPage() {
                 onValueChange={setActiveTab}
                 className="flex-1 flex flex-col min-h-0"
               >
-                <TabsList className="flex h-auto gap-2 overflow-x-auto p-0 mb-6 justify-start flex-shrink-0">
+                <TabsList className="flex h-auto gap-6 items-center border-b border-[#d2d7e7] p-0 mb-6 justify-start flex-shrink-0 bg-transparent">
                   <TabsTrigger
                     value="overview"
-                    className="px-4 py-2 text-sm font-medium text-left"
+                    className="px-0 py-2 text-[16px] font-normal text-black data-[state=active]:font-medium data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none"
                   >
                     Overview
                   </TabsTrigger>
                   <TabsTrigger
                     value="registration"
-                    className="px-4 py-2 text-sm font-medium text-left"
+                    className="px-0 py-2 text-[16px] font-normal text-black data-[state=active]:font-medium data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none"
                   >
                     Registration
                   </TabsTrigger>
                   <TabsTrigger
                     value="project"
-                    className="px-4 py-2 text-sm font-medium text-left"
+                    className="px-0 py-2 text-[16px] font-normal text-black data-[state=active]:font-medium data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none"
                   >
                     Project
                   </TabsTrigger>
                   <TabsTrigger
                     value="access"
-                    className="px-4 py-2 text-sm font-medium text-left"
+                    className="px-0 py-2 text-[16px] font-normal text-black data-[state=active]:font-medium data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none"
                   >
                     Access
                   </TabsTrigger>
                   <TabsTrigger
                     value="tracks"
-                    className="px-4 py-2 text-sm font-medium text-left"
+                    className="px-0 py-2 text-[16px] font-normal text-black data-[state=active]:font-medium data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none"
                   >
                     Tracks
                   </TabsTrigger>
                   <TabsTrigger
                     value="pricing"
-                    className="px-4 py-2 text-sm font-medium text-left"
+                    className="px-0 py-2 text-[16px] font-normal text-black data-[state=active]:font-medium data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none"
                   >
                     Pricing
                   </TabsTrigger>
                   <TabsTrigger
                     value="notify"
-                    className="px-4 py-2 text-sm font-medium text-left"
+                    className="px-0 py-2 text-[16px] font-normal text-black data-[state=active]:font-medium data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none"
                   >
                     Notify
                   </TabsTrigger>
@@ -417,46 +417,53 @@ export default function NewEventPage() {
                         value={activeSubTab}
                         onValueChange={setActiveSubTab}
                       >
-                        <TabsList className="flex h-auto gap-2 overflow-x-auto rounded-lg bg-transparent p-0 mb-6 border-b border-gray-200">
+                        <TabsList className="flex h-auto gap-2 overflow-x-auto bg-transparent p-0 mb-6 justify-start pb-1 items-center">
                           <TabsTrigger
                             value="basics"
-                            className="px-4 py-2 text-sm font-medium border-b-2 border-transparent data-[state=active]:border-[#4b89ef]"
+                            className="px-4 py-2.5 rounded-[100px] text-sm leading-normal font-normal text-black border border-transparent data-[state=active]:font-medium data-[state=active]:bg-white data-[state=active]:border-[rgba(0,0,0,0.15)]"
+                            style={{ fontFamily: "Inter, sans-serif" }}
                           >
                             Basics
                           </TabsTrigger>
                           <TabsTrigger
                             value="content"
-                            className="px-4 py-2 text-sm font-medium border-b-2 border-transparent data-[state=active]:border-[#4b89ef]"
+                            className="px-4 py-2.5 rounded-[100px] text-sm leading-normal font-normal text-black border border-transparent data-[state=active]:font-medium data-[state=active]:bg-white data-[state=active]:border-[rgba(0,0,0,0.15)]"
+                            style={{ fontFamily: "Inter, sans-serif" }}
                           >
                             Content
                           </TabsTrigger>
                           <TabsTrigger
                             value="schedule"
-                            className="px-4 py-2 text-sm font-medium border-b-2 border-transparent data-[state=active]:border-[#4b89ef]"
+                            className="px-4 py-2.5 rounded-[100px] text-sm leading-normal font-normal text-black border border-transparent data-[state=active]:font-medium data-[state=active]:bg-white data-[state=active]:border-[rgba(0,0,0,0.15)]"
+                            style={{ fontFamily: "Inter, sans-serif" }}
                           >
                             Schedule
                           </TabsTrigger>
                           <TabsTrigger
                             value="resources"
-                            className="px-4 py-2 text-sm font-medium border-b-2 border-transparent data-[state=active]:border-[#4b89ef]"
+                            className="px-4 py-2.5 rounded-[100px] text-sm leading-normal font-normal text-black border border-transparent data-[state=active]:font-medium data-[state=active]:bg-white data-[state=active]:border-[rgba(0,0,0,0.15)]"
+                            style={{ fontFamily: "Inter, sans-serif" }}
                           >
                             Resources
                           </TabsTrigger>
                           <TabsTrigger
                             value="rules"
-                            className="px-4 py-2 text-sm font-medium border-b-2 border-transparent data-[state=active]:border-[#4b89ef]"
+                            className="px-4 py-2.5 rounded-[100px] text-sm leading-normal font-normal text-black border border-transparent data-[state=active]:font-medium data-[state=active]:bg-white data-[state=active]:border-[rgba(0,0,0,0.15)]"
+                            style={{ fontFamily: "Inter, sans-serif" }}
                           >
                             Rules
                           </TabsTrigger>
                           <TabsTrigger
                             value="faqs"
-                            className="px-4 py-2 text-sm font-medium border-b-2 border-transparent data-[state=active]:border-[#4b89ef]"
+                            className="px-4 py-2.5 rounded-[100px] text-sm leading-normal font-normal text-black border border-transparent data-[state=active]:font-medium data-[state=active]:bg-white data-[state=active]:border-[rgba(0,0,0,0.15)]"
+                            style={{ fontFamily: "Inter, sans-serif" }}
                           >
                             FAQs
                           </TabsTrigger>
                           <TabsTrigger
                             value="gallery"
-                            className="px-4 py-2 text-sm font-medium border-b-2 border-transparent data-[state=active]:border-[#4b89ef]"
+                            className="px-4 py-2.5 rounded-[100px] text-sm leading-normal font-normal text-black border border-transparent data-[state=active]:font-medium data-[state=active]:bg-white data-[state=active]:border-[rgba(0,0,0,0.15)]"
+                            style={{ fontFamily: "Inter, sans-serif" }}
                           >
                             Gallery
                           </TabsTrigger>
