@@ -363,46 +363,46 @@ export default function NewEventPage() {
                 onValueChange={setActiveTab}
                 className="flex-1 flex flex-col min-h-0"
               >
-                <TabsList className="flex h-auto gap-6 items-center border-b border-[#d2d7e7] p-0 mb-6 justify-start flex-shrink-0 bg-transparent">
+                <TabsList className="flex h-auto gap-6 items-center border-b border-[#d2d7e7] p-0 mb-6 justify-start flex-shrink-0 bg-transparent rounded-none">
                   <TabsTrigger
                     value="overview"
-                    className="px-0 py-2 text-[16px] font-normal text-black data-[state=active]:font-medium data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none"
+                    className="px-0 py-2 text-[16px] font-normal text-black border-b-2 border-transparent data-[state=active]:font-medium data-[state=active]:border-[#4b89ef] data-[state=active]:shadow-none data-[state=active]:bg-transparent rounded-none bg-transparent shadow-none outline-none ring-0 border-x-0 border-t-0"
                   >
                     Overview
                   </TabsTrigger>
                   <TabsTrigger
                     value="registration"
-                    className="px-0 py-2 text-[16px] font-normal text-black data-[state=active]:font-medium data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none"
+                    className="px-0 py-2 text-[16px] font-normal text-black border-b-2 border-transparent data-[state=active]:font-medium data-[state=active]:border-[#4b89ef] data-[state=active]:shadow-none data-[state=active]:bg-transparent rounded-none bg-transparent shadow-none outline-none ring-0 border-x-0 border-t-0"
                   >
                     Registration
                   </TabsTrigger>
                   <TabsTrigger
                     value="project"
-                    className="px-0 py-2 text-[16px] font-normal text-black data-[state=active]:font-medium data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none"
+                    className="px-0 py-2 text-[16px] font-normal text-black border-b-2 border-transparent data-[state=active]:font-medium data-[state=active]:border-[#4b89ef] data-[state=active]:shadow-none data-[state=active]:bg-transparent rounded-none bg-transparent shadow-none outline-none ring-0 border-x-0 border-t-0"
                   >
                     Project
                   </TabsTrigger>
                   <TabsTrigger
                     value="access"
-                    className="px-0 py-2 text-[16px] font-normal text-black data-[state=active]:font-medium data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none"
+                    className="px-0 py-2 text-[16px] font-normal text-black border-b-2 border-transparent data-[state=active]:font-medium data-[state=active]:border-[#4b89ef] data-[state=active]:shadow-none data-[state=active]:bg-transparent rounded-none bg-transparent shadow-none outline-none ring-0 border-x-0 border-t-0"
                   >
                     Access
                   </TabsTrigger>
                   <TabsTrigger
                     value="tracks"
-                    className="px-0 py-2 text-[16px] font-normal text-black data-[state=active]:font-medium data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none"
+                    className="px-0 py-2 text-[16px] font-normal text-black border-b-2 border-transparent data-[state=active]:font-medium data-[state=active]:border-[#4b89ef] data-[state=active]:shadow-none data-[state=active]:bg-transparent rounded-none bg-transparent shadow-none outline-none ring-0 border-x-0 border-t-0"
                   >
                     Tracks
                   </TabsTrigger>
                   <TabsTrigger
                     value="pricing"
-                    className="px-0 py-2 text-[16px] font-normal text-black data-[state=active]:font-medium data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none"
+                    className="px-0 py-2 text-[16px] font-normal text-black border-b-2 border-transparent data-[state=active]:font-medium data-[state=active]:border-[#4b89ef] data-[state=active]:shadow-none data-[state=active]:bg-transparent rounded-none bg-transparent shadow-none outline-none ring-0 border-x-0 border-t-0"
                   >
                     Pricing
                   </TabsTrigger>
                   <TabsTrigger
                     value="notify"
-                    className="px-0 py-2 text-[16px] font-normal text-black data-[state=active]:font-medium data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none"
+                    className="px-0 py-2 text-[16px] font-normal text-black border-b-2 border-transparent data-[state=active]:font-medium data-[state=active]:border-[#4b89ef] data-[state=active]:shadow-none data-[state=active]:bg-transparent rounded-none bg-transparent shadow-none outline-none ring-0 border-x-0 border-t-0"
                   >
                     Notify
                   </TabsTrigger>
