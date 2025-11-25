@@ -7,6 +7,7 @@ import { EventVisibility } from "@/lib/types";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/lib/hooks/use-toast";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
@@ -22,6 +23,10 @@ import {
   FolderKanban,
   DollarSign,
   Bell,
+  Users,
+  Building2,
+  Video,
+  Upload,
 } from "lucide-react";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -51,6 +56,11 @@ export default function NewEventPage() {
     event_blurb: "",
     cover_image_url: "",
     organizer_emails: "",
+    submission_time_start: "",
+    submission_time_cutoff: "",
+    participant_capacity: "",
+    event_type: "",
+    location_type: "virtual", // "in-person" or "virtual"
   });
 
   const onChange = (key: keyof typeof form, value: string) =>
@@ -155,6 +165,12 @@ export default function NewEventPage() {
             event_blurb: form.event_blurb || undefined,
             cover_image_url: form.cover_image_url || undefined,
             paid: ticketType === "paid",
+            submission_time_start: form.submission_time_start || undefined,
+            submission_time_cutoff: form.submission_time_cutoff || undefined,
+            participant_capacity: form.participant_capacity
+              ? parseInt(form.participant_capacity, 10)
+              : undefined,
+            event_type: form.event_type || undefined,
           },
           organizerEmails,
         }),
@@ -500,8 +516,86 @@ export default function NewEventPage() {
 
                             <div className="space-y-2">
                               <label className="text-[16px] font-normal text-black">
+                                Project submission window (UTC)
+                              </label>
+                              <div className="flex items-center gap-2">
+                                <DatePicker
+                                  value={form.submission_time_start}
+                                  onChange={(value) =>
+                                    onChange("submission_time_start", value)
+                                  }
+                                  placeholder="mm/dd/yyyy"
+                                />
+                                <span className="text-gray-500">to</span>
+                                <DatePicker
+                                  value={form.submission_time_cutoff}
+                                  onChange={(value) =>
+                                    onChange("submission_time_cutoff", value)
+                                  }
+                                  placeholder="mm/dd/yyyy"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="space-y-2">
+                              <label className="text-[16px] font-normal text-black">
+                                Seat Cap
+                              </label>
+                              <div className="relative">
+                                <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                                <Input
+                                  type="number"
+                                  value={form.participant_capacity}
+                                  onChange={(e) =>
+                                    onChange(
+                                      "participant_capacity",
+                                      e.target.value
+                                    )
+                                  }
+                                  placeholder="Leave blank for unlimited participants"
+                                  className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="space-y-2 w-full">
+                              <label className="text-[16px] font-normal text-black">
                                 Location
                               </label>
+                              <div className="flex items-center gap-4 mb-2 w-full">
+                                <button
+                                  onClick={() =>
+                                    setForm((p) => ({
+                                      ...p,
+                                      location_type: "in-person",
+                                    }))
+                                  }
+                                  className={`flex items-center gap-2 px-4 py-2 rounded-[12px] text-[16px] font-normal transition-colors w-[180px] ${
+                                    form.location_type === "in-person"
+                                      ? "bg-[#4b89ef] text-white"
+                                      : "bg-transparent border border-[rgba(0,0,0,0.15)] text-black"
+                                  }`}
+                                >
+                                  <Building2 className="w-5 h-5" />
+                                  In-person
+                                </button>
+                                <button
+                                  onClick={() =>
+                                    setForm((p) => ({
+                                      ...p,
+                                      location_type: "virtual",
+                                    }))
+                                  }
+                                  className={`flex items-center gap-2 px-4 py-2 rounded-[12px] text-[16px] font-normal transition-colors w-[180px] ${
+                                    form.location_type === "virtual"
+                                      ? "bg-[#4b89ef] text-white"
+                                      : "bg-transparent border border-[rgba(0,0,0,0.15)] text-black"
+                                  }`}
+                                >
+                                  <Video className="w-5 h-5" />
+                                  Virtual event
+                                </button>
+                              </div>
                               <div className="relative">
                                 <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
                                 <Input
@@ -509,8 +603,8 @@ export default function NewEventPage() {
                                   onChange={(e) =>
                                     onChange("location", e.target.value)
                                   }
-                                  placeholder="Add offline location or virtual link"
-                                  className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)]"
+                                  placeholder="Add offline location"
+                                  className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
                                 />
                               </div>
                             </div>
@@ -519,16 +613,29 @@ export default function NewEventPage() {
                               <label className="text-[16px] font-normal text-black">
                                 Cover image url
                               </label>
-                              <div className="relative">
-                                <Image className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
-                                <Input
-                                  value={form.cover_image_url}
-                                  onChange={(e) =>
-                                    onChange("cover_image_url", e.target.value)
-                                  }
-                                  placeholder="https://..."
-                                  className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)]"
-                                />
+                              <div className="flex items-center gap-2">
+                                <div className="relative flex-1">
+                                  <Image className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                                  <Input
+                                    value={form.cover_image_url}
+                                    onChange={(e) =>
+                                      onChange(
+                                        "cover_image_url",
+                                        e.target.value
+                                      )
+                                    }
+                                    placeholder="https://..."
+                                    className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+                                  />
+                                </div>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  className="h-[44px] px-4 border border-[rgba(0,0,0,0.15)] rounded-[12px]"
+                                >
+                                  <Upload className="w-4 h-4 mr-2" />
+                                  Upload
+                                </Button>
                               </div>
                               <p className="text-xs text-gray-500">
                                 *Upload an image to showcase your project (Max
@@ -538,29 +645,52 @@ export default function NewEventPage() {
 
                             <div className="space-y-2">
                               <label className="text-[16px] font-normal text-black">
-                                This is a paid event
+                                URL slug
                               </label>
-                              <div className="flex items-center gap-4">
-                                <button
-                                  onClick={() => setTicketType("free")}
-                                  className={`px-4 py-2 rounded-[12px] text-[16px] font-normal transition-colors ${
-                                    ticketType === "free"
-                                      ? "bg-[#4b89ef] text-white"
-                                      : "bg-transparent border border-[rgba(0,0,0,0.15)] text-black"
-                                  }`}
-                                >
-                                  Free
-                                </button>
-                                <button
-                                  onClick={() => setTicketType("paid")}
-                                  className={`px-4 py-2 rounded-[12px] text-[16px] font-normal transition-colors ${
-                                    ticketType === "paid"
-                                      ? "bg-[#4b89ef] text-white"
-                                      : "bg-transparent border border-[rgba(0,0,0,0.15)] text-black"
-                                  }`}
-                                >
-                                  Paid
-                                </button>
+                              <Input
+                                value={form.slug}
+                                onChange={(e) =>
+                                  onChange("slug", e.target.value)
+                                }
+                                placeholder="url-friendly-event-name"
+                                className="h-[44px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] font-mono focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+                              />
+                              <p className="text-xs text-gray-500">
+                                URL-friendly identifier for your event
+                                (lowercase, hyphens only)
+                              </p>
+                            </div>
+
+                            <div className="space-y-2">
+                              <label className="text-[16px] font-normal text-black">
+                                Event Type
+                              </label>
+                              <select
+                                value={form.event_type}
+                                onChange={(e) =>
+                                  onChange("event_type", e.target.value)
+                                }
+                                className="h-[44px] w-full bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] px-3 focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+                              >
+                                <option value="">Select type</option>
+                                <option value="Hackathon">Hackathon</option>
+                                <option value="Workshop">Workshop</option>
+                                <option value="Conference">Conference</option>
+                                <option value="Other">Other</option>
+                              </select>
+                            </div>
+
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <label className="text-[16px] font-normal text-black">
+                                  This is a paid event
+                                </label>
+                                <Switch
+                                  checked={ticketType === "paid"}
+                                  onCheckedChange={(checked) =>
+                                    setTicketType(checked ? "paid" : "free")
+                                  }
+                                />
                               </div>
                               <p className="text-xs text-gray-500">
                                 *Toggle this on to set up pricing tiers for your
@@ -580,7 +710,7 @@ export default function NewEventPage() {
                                     onChange("organizer_emails", e.target.value)
                                   }
                                   placeholder="Separate emails with ,"
-                                  className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)]"
+                                  className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
                                 />
                               </div>
                               <p className="text-xs text-gray-500">
