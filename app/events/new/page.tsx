@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import ReactMarkdown from "react-markdown";
 
 export default function NewEventPage() {
   const router = useRouter();
@@ -47,6 +48,9 @@ export default function NewEventPage() {
   const [activeTab, setActiveTab] = useState("overview");
   const [activeSubTab, setActiveSubTab] = useState("basics");
 
+  // Content edit/preview toggling state
+  const [paywallMode, setPaywallMode] = useState<"edit" | "preview">("edit");
+
   const [form, setForm] = useState({
     event_name: "",
     event_date: "",
@@ -61,6 +65,7 @@ export default function NewEventPage() {
     participant_capacity: "",
     event_type: "",
     location_type: "virtual", // "in-person" or "virtual"
+    paywall_content: "",
   });
 
   const onChange = (key: keyof typeof form, value: string) =>
@@ -171,6 +176,7 @@ export default function NewEventPage() {
               ? parseInt(form.participant_capacity, 10)
               : undefined,
             event_type: form.event_type || undefined,
+            paywall_content: form.paywall_content || undefined,
           },
           organizerEmails,
         }),
@@ -723,44 +729,61 @@ export default function NewEventPage() {
 
                         <TabsContent value="content" className="mt-0 space-y-4">
                           <div className="space-y-2">
-                            <label className="text-[16px] font-normal text-black">
-                              Blurb
-                            </label>
-                            <div className="relative">
-                              <Type className="absolute left-3 top-3 w-6 h-6 text-gray-600" />
-                              <Textarea
-                                value={form.event_blurb}
-                                onChange={(e) =>
-                                  onChange("event_blurb", e.target.value)
-                                }
-                                placeholder="Short description shown in the preview card"
-                                className="min-h-[80px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] p-3"
-                              />
-                            </div>
-                          </div>
-
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between mb-2">
-                              <label className="text-[16px] font-normal text-black">
-                                Description
-                              </label>
-                              <div className="flex gap-2">
-                                <Button variant="outline" size="sm">
+                            <div className="flex items-center justify-between">
+                              <h3 className="text-[16px] font-semibold text-black">
+                                Exclusive Content for Participants
+                              </h3>
+                              <div className="inline-flex items-center border border-[rgba(0,0,0,0.15)] rounded-[12px] p-1 bg-white">
+                                <button
+                                  onClick={() => setPaywallMode("edit")}
+                                  className={`px-4 py-2 rounded-[8px] text-sm font-normal transition-colors ${
+                                    paywallMode === "edit"
+                                      ? "bg-white border border-[rgba(0,0,0,0.15)] text-black shadow-sm"
+                                      : "bg-transparent text-black hover:bg-gray-50"
+                                  }`}
+                                  data-testid="paywall-edit"
+                                >
                                   Edit
-                                </Button>
-                                <Button variant="outline" size="sm">
+                                </button>
+                                <button
+                                  onClick={() => setPaywallMode("preview")}
+                                  className={`px-4 py-2 rounded-[8px] text-sm font-normal transition-colors ${
+                                    paywallMode === "preview"
+                                      ? "bg-white border border-[rgba(0,0,0,0.15)] text-black shadow-sm"
+                                      : "bg-transparent text-black hover:bg-gray-50"
+                                  }`}
+                                  data-testid="paywall-preview"
+                                >
                                   Preview
-                                </Button>
+                                </button>
                               </div>
                             </div>
-                            <Textarea
-                              value={form.event_description}
-                              onChange={(e) =>
-                                onChange("event_description", e.target.value)
-                              }
-                              placeholder="Add long description (markdown supported)"
-                              className="min-h-[300px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] p-3"
-                            />
+                            {paywallMode === "edit" ? (
+                              <>
+                                <Textarea
+                                  value={form.paywall_content}
+                                  onChange={(e) =>
+                                    onChange("paywall_content", e.target.value)
+                                  }
+                                  placeholder="Add content (markdown supported)"
+                                  className="min-h-[300px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] p-3"
+                                />
+                                <p className="text-xs text-gray-500 italic">
+                                  *This content is visible only to participants
+                                  who have joined the event.
+                                </p>
+                              </>
+                            ) : (
+                              <div className="min-h-[300px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] p-3 overflow-auto prose prose-sm max-w-full">
+                                {form.paywall_content ? (
+                                  <ReactMarkdown>
+                                    {form.paywall_content}
+                                  </ReactMarkdown>
+                                ) : (
+                                  <em>No exclusive content added yet.</em>
+                                )}
+                              </div>
+                            )}
                           </div>
                         </TabsContent>
 
@@ -890,7 +913,7 @@ export default function NewEventPage() {
                       <div className="p-6">
                         <div className="flex flex-wrap gap-1 mb-3">
                           <span className="px-[10px] py-1 border border-[rgba(0,0,0,0.15)] rounded-full text-[14px] font-semibold text-black">
-                            Hackathon
+                            {form.event_type || "Hackathon"}
                           </span>
                           <span className="px-[10px] py-1 border border-[rgba(0,0,0,0.15)] rounded-full text-[14px] font-semibold text-black">
                             {ticketType === "free" ? "Free" : "Paid"}
