@@ -303,21 +303,21 @@ export default function NewEventPage() {
       <PageContent>
         <div className="min-h-full">
           {/* Apply correct border and rounding for events/projects pages */}
-          <div className="h-[calc(100vh-88px)] overflow-hidden flex flex-col lg:rounded-tl-2xl lg:border-t lg:border-l lg:border-[#D8D8D8] bg-white">
-            <div className="px-6 sm:px-10 py-6 sm:py-8 flex-1 flex flex-col min-h-0">
+          <div className="min-h-[calc(100vh-88px)] lg:h-[calc(100vh-88px)] overflow-hidden flex flex-col lg:rounded-tl-2xl lg:border-t lg:border-l lg:border-[#D8D8D8] bg-white">
+            <div className="px-4 sm:px-6 lg:px-10 py-4 sm:py-6 lg:py-8 flex-1 flex flex-col min-h-0">
               {/* Header */}
-              <div className="flex items-center justify-between mb-6 flex-shrink-0">
-                <h1 className="text-2xl font-semibold text-gray-900">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 flex-shrink-0">
+                <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">
                   Create event
                 </h1>
 
-                <div className="flex items-center gap-4">
-                  <div className="relative">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4 w-full sm:w-auto">
+                  <div className="relative w-full sm:w-auto">
                     <button
                       onClick={() =>
                         setShowVisibilityDropdown(!showVisibilityDropdown)
                       }
-                      className="flex items-center gap-2 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] px-3 py-2 h-[44px] w-[142px] hover:bg-gray-50 transition-colors"
+                      className="flex items-center gap-2 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] px-3 py-2 h-[44px] w-full sm:w-[142px] hover:bg-gray-50 transition-colors"
                     >
                       <Globe className="w-5 h-5" />
                       <span className="text-[16px] font-normal">
@@ -360,18 +360,18 @@ export default function NewEventPage() {
                     )}
                   </div>
 
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 w-full sm:w-auto">
                     <Button
                       variant="defaultGray"
                       onClick={() => router.back()}
-                      className="text-[16px] font-medium"
+                      className="text-[16px] font-medium flex-1 sm:flex-none"
                     >
                       Cancel
                     </Button>
                     <Button
                       onClick={handleCreate}
                       disabled={creating}
-                      className="text-[16px] font-medium"
+                      className="text-[16px] font-medium flex-1 sm:flex-none"
                     >
                       {creating ? "Creating..." : "Create event"}
                     </Button>
@@ -385,7 +385,7 @@ export default function NewEventPage() {
                 onValueChange={setActiveTab}
                 className="flex-1 flex flex-col min-h-0"
               >
-                <TabsList className="flex h-auto gap-6 items-center border-b border-[#d2d7e7] p-0 mb-6 justify-start flex-shrink-0 bg-transparent rounded-none">
+                <TabsList className="flex h-auto gap-4 sm:gap-6 items-center border-b border-[#d2d7e7] p-0 mb-6 justify-start flex-shrink-0 bg-transparent rounded-none overflow-x-auto">
                   <TabsTrigger
                     value="overview"
                     className="px-0 py-2 text-[16px] font-normal text-black border-b-2 border-transparent data-[state=active]:font-medium data-[state=active]:border-[#4b89ef] data-[state=active]:shadow-none data-[state=active]:bg-transparent rounded-none bg-transparent shadow-none outline-none ring-0 border-x-0 border-t-0"
@@ -431,9 +431,9 @@ export default function NewEventPage() {
                 </TabsList>
 
                 {/* Content Area - Scrollable */}
-                <div className="flex gap-6 items-start flex-1 min-h-0 overflow-auto no-scrollbar w-full">
+                <div className="flex flex-col lg:flex-row gap-6 items-start flex-1 min-h-0 overflow-auto no-scrollbar w-full">
                   {/* Form Section */}
-                  <div className="flex-1 min-w-0 w-full left-0 flex flex-col items-start">
+                  <div className="flex-1 min-w-0 w-full lg:max-w-[640px] flex flex-col items-start order-last lg:order-first">
                     <TabsContent value="overview" className="mt-0">
                       <Tabs
                         value={activeSubTab}
@@ -524,7 +524,7 @@ export default function NewEventPage() {
                               <label className="text-[16px] font-normal text-black">
                                 Project submission window (UTC)
                               </label>
-                              <div className="flex items-center gap-2">
+                              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                                 <DatePicker
                                   value={form.submission_time_start}
                                   onChange={(value) =>
@@ -532,7 +532,9 @@ export default function NewEventPage() {
                                   }
                                   placeholder="mm/dd/yyyy"
                                 />
-                                <span className="text-gray-500">to</span>
+                                <span className="text-gray-500 text-center sm:text-left">
+                                  to
+                                </span>
                                 <DatePicker
                                   value={form.submission_time_cutoff}
                                   onChange={(value) =>
@@ -568,7 +570,7 @@ export default function NewEventPage() {
                               <label className="text-[16px] font-normal text-black">
                                 Location
                               </label>
-                              <div className="flex items-center gap-4 mb-2 w-full">
+                              <div className="flex items-center gap-2 sm:gap-4 mb-2 w-full">
                                 <button
                                   onClick={() =>
                                     setForm((p) => ({
@@ -576,7 +578,7 @@ export default function NewEventPage() {
                                       location_type: "in-person",
                                     }))
                                   }
-                                  className={`flex items-center gap-2 px-4 py-2 rounded-[12px] text-[16px] font-normal transition-colors w-[180px] ${
+                                  className={`flex items-center justify-center gap-2 px-4 py-2 rounded-[12px] text-[16px] font-normal transition-colors flex-1 sm:w-[180px] ${
                                     form.location_type === "in-person"
                                       ? "bg-[#4b89ef] text-white"
                                       : "bg-transparent border border-[rgba(0,0,0,0.15)] text-black"
@@ -592,7 +594,7 @@ export default function NewEventPage() {
                                       location_type: "virtual",
                                     }))
                                   }
-                                  className={`flex items-center gap-2 px-4 py-2 rounded-[12px] text-[16px] font-normal transition-colors w-[180px] ${
+                                  className={`flex items-center justify-center gap-2 px-4 py-2 rounded-[12px] text-[16px] font-normal transition-colors flex-1 sm:w-[180px] ${
                                     form.location_type === "virtual"
                                       ? "bg-[#4b89ef] text-white"
                                       : "bg-transparent border border-[rgba(0,0,0,0.15)] text-black"
@@ -619,7 +621,7 @@ export default function NewEventPage() {
                               <label className="text-[16px] font-normal text-black">
                                 Cover image url
                               </label>
-                              <div className="flex items-center gap-2">
+                              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                                 <div className="relative flex-1">
                                   <Image className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
                                   <Input
@@ -637,7 +639,7 @@ export default function NewEventPage() {
                                 <Button
                                   type="button"
                                   variant="outline"
-                                  className="h-[44px] px-4 border border-[rgba(0,0,0,0.15)] rounded-[12px]"
+                                  className="h-[44px] px-4 border border-[rgba(0,0,0,0.15)] rounded-[12px] w-full sm:w-auto"
                                 >
                                   <Upload className="w-4 h-4 mr-2" />
                                   Upload
@@ -878,8 +880,8 @@ export default function NewEventPage() {
                   </div>
 
                   {/* Preview Card */}
-                  <div className="flex-shrink-0">
-                    <div className="w-[335px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] overflow-hidden">
+                  <div className="flex-shrink-0 w-full lg:w-[335px] order-first lg:order-last">
+                    <div className="w-full lg:w-[335px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] overflow-hidden">
                       {/* Image */}
                       <div className="relative w-full aspect-[335/223]">
                         {form.cover_image_url ? (
