@@ -16,7 +16,6 @@ export default function NotFound() {
         <div className="mb-8">
           <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
             Page Not Found. This page may have been deleted or never existed.
-            Click the button below to go to the home page.
           </h1>
           <button
             onClick={handleGoHome}
