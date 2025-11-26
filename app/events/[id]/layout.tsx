@@ -45,7 +45,7 @@ export default async function Layout({
 
   const { data: event } = await query.maybeSingle();
 
-  if (!event?.event_id) {
+  if (!event) {
     notFound();
   }
 
