@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import { EventRole } from "@/lib/types";
 import { toast } from "@/lib/hooks/use-toast";
-import { Shield, Loader2, CheckCircle2 } from "lucide-react";
+import { Shield, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { User } from "@supabase/supabase-js";
 
 interface AcceptOrganizerInviteProps {
@@ -15,14 +15,16 @@ interface AcceptOrganizerInviteProps {
   eventBlurb: string | null;
   eventSlug: string | null;
   invitedEmail?: string;
+  eventNotFound?: boolean;
 }
 
-export function AcceptOrganizerInvite({
+export function  AcceptOrganizerInvite({
   eventId,
   eventName,
   eventBlurb,
   eventSlug,
   invitedEmail,
+  eventNotFound = false,
 }: AcceptOrganizerInviteProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -143,6 +145,61 @@ export function AcceptOrganizerInvite({
       setIsLoading(false);
     }
   };
+
+  if (eventNotFound) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-orange-50 py-8 px-4">
+        <div className="container mx-auto flex items-center justify-center min-h-[calc(100vh-4rem)]">
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 md:p-12 text-center max-w-2xl w-full">
+            <div className="mb-6 flex justify-center">
+              <div className="bg-red-100 rounded-full p-4">
+                <AlertCircle className="h-12 w-12 text-red-600" />
+              </div>
+            </div>
+            <h1 className="text-3xl sm:text-4xl font-bold mb-4 text-gray-900">
+              Event Link Changed
+            </h1>
+            <p className="text-lg text-gray-600 mb-6">
+              The event link you&apos;re trying to access has been changed or no longer exists.
+            </p>
+            <div className="bg-red-50 border border-red-200 rounded-lg p-6 mb-6 text-left">
+              <h3 className="font-semibold text-red-900 mb-3">
+                What to do next:
+              </h3>
+              <ul className="space-y-2 text-red-800">
+                <li className="flex items-start">
+                  <span className="mr-2">•</span>
+                  <span>Contact the event organizer to request a new invitation link</span>
+                </li>
+                <li className="flex items-start">
+                  <span className="mr-2">•</span>
+                  <span>Check if you received a more recent invitation email</span>
+                </li>
+                <li className="flex items-start">
+                  <span className="mr-2">•</span>
+                  <span>Verify that you&apos;re using the correct link</span>
+                </li>
+              </ul>
+            </div>
+            {invitedEmail && (
+              <p className="text-sm text-gray-500 mb-6">
+                This invitation was sent to{" "}
+                <span className="font-medium text-gray-700">{invitedEmail}</span>
+              </p>
+            )}
+            <Button
+              onClick={() => router.push("/")}
+              size="lg"
+              variant="outline"
+              className="w-full rounded-full px-6 py-6 text-lg"
+            >
+              Return to Home
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (hasAccepted) {
     return (
