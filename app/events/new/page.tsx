@@ -50,6 +50,9 @@ export default function NewEventPage() {
 
   // Content edit/preview toggling state
   const [paywallMode, setPaywallMode] = useState<"edit" | "preview">("edit");
+  const [descriptionMode, setDescriptionMode] = useState<"edit" | "preview">(
+    "edit"
+  );
 
   const [form, setForm] = useState({
     event_name: "",
@@ -385,55 +388,60 @@ export default function NewEventPage() {
                 onValueChange={setActiveTab}
                 className="flex-1 flex flex-col min-h-0"
               >
-                <TabsList className="flex h-auto gap-4 sm:gap-6 items-center border-b border-[#d2d7e7] p-0 mb-6 justify-start flex-shrink-0 bg-transparent rounded-none overflow-x-auto">
-                  <TabsTrigger
-                    value="overview"
-                    className="px-0 py-2 text-[16px] font-normal text-black border-b-2 border-transparent data-[state=active]:font-medium data-[state=active]:border-[#4b89ef] data-[state=active]:shadow-none data-[state=active]:bg-transparent rounded-none bg-transparent shadow-none outline-none ring-0 border-x-0 border-t-0"
-                  >
-                    Overview
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="registration"
-                    className="px-0 py-2 text-[16px] font-normal text-black border-b-2 border-transparent data-[state=active]:font-medium data-[state=active]:border-[#4b89ef] data-[state=active]:shadow-none data-[state=active]:bg-transparent rounded-none bg-transparent shadow-none outline-none ring-0 border-x-0 border-t-0"
-                  >
-                    Registration
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="project"
-                    className="px-0 py-2 text-[16px] font-normal text-black border-b-2 border-transparent data-[state=active]:font-medium data-[state=active]:border-[#4b89ef] data-[state=active]:shadow-none data-[state=active]:bg-transparent rounded-none bg-transparent shadow-none outline-none ring-0 border-x-0 border-t-0"
-                  >
-                    Project
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="access"
-                    className="px-0 py-2 text-[16px] font-normal text-black border-b-2 border-transparent data-[state=active]:font-medium data-[state=active]:border-[#4b89ef] data-[state=active]:shadow-none data-[state=active]:bg-transparent rounded-none bg-transparent shadow-none outline-none ring-0 border-x-0 border-t-0"
-                  >
-                    Access
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="tracks"
-                    className="px-0 py-2 text-[16px] font-normal text-black border-b-2 border-transparent data-[state=active]:font-medium data-[state=active]:border-[#4b89ef] data-[state=active]:shadow-none data-[state=active]:bg-transparent rounded-none bg-transparent shadow-none outline-none ring-0 border-x-0 border-t-0"
-                  >
-                    Tracks
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="pricing"
-                    className="px-0 py-2 text-[16px] font-normal text-black border-b-2 border-transparent data-[state=active]:font-medium data-[state=active]:border-[#4b89ef] data-[state=active]:shadow-none data-[state=active]:bg-transparent rounded-none bg-transparent shadow-none outline-none ring-0 border-x-0 border-t-0"
-                  >
-                    Pricing
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="notify"
-                    className="px-0 py-2 text-[16px] font-normal text-black border-b-2 border-transparent data-[state=active]:font-medium data-[state=active]:border-[#4b89ef] data-[state=active]:shadow-none data-[state=active]:bg-transparent rounded-none bg-transparent shadow-none outline-none ring-0 border-x-0 border-t-0"
-                  >
-                    Notify
-                  </TabsTrigger>
-                </TabsList>
+                <div
+                  className="w-full overflow-x-auto -mx-4 sm:-mx-6 lg:-mx-10 px-4 sm:px-6 lg:px-10 mb-6 flex-shrink-0"
+                  style={{ WebkitOverflowScrolling: "touch" }}
+                >
+                  <TabsList className="flex h-auto gap-4 sm:gap-6 items-center border-b border-[#d2d7e7] p-0 justify-start bg-transparent rounded-none flex-nowrap min-w-max">
+                    <TabsTrigger
+                      value="overview"
+                      className="px-0 py-2 text-[16px] font-normal text-black border-b-2 border-transparent data-[state=active]:font-medium data-[state=active]:border-[#4b89ef] data-[state=active]:shadow-none data-[state=active]:bg-transparent rounded-none bg-transparent shadow-none outline-none ring-0 border-x-0 border-t-0 whitespace-nowrap flex-shrink-0"
+                    >
+                      Overview
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="registration"
+                      className="px-0 py-2 text-[16px] font-normal text-black border-b-2 border-transparent data-[state=active]:font-medium data-[state=active]:border-[#4b89ef] data-[state=active]:shadow-none data-[state=active]:bg-transparent rounded-none bg-transparent shadow-none outline-none ring-0 border-x-0 border-t-0 whitespace-nowrap flex-shrink-0"
+                    >
+                      Registration
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="project"
+                      className="px-0 py-2 text-[16px] font-normal text-black border-b-2 border-transparent data-[state=active]:font-medium data-[state=active]:border-[#4b89ef] data-[state=active]:shadow-none data-[state=active]:bg-transparent rounded-none bg-transparent shadow-none outline-none ring-0 border-x-0 border-t-0 whitespace-nowrap flex-shrink-0"
+                    >
+                      Project
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="access"
+                      className="px-0 py-2 text-[16px] font-normal text-black border-b-2 border-transparent data-[state=active]:font-medium data-[state=active]:border-[#4b89ef] data-[state=active]:shadow-none data-[state=active]:bg-transparent rounded-none bg-transparent shadow-none outline-none ring-0 border-x-0 border-t-0 whitespace-nowrap flex-shrink-0"
+                    >
+                      Access
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="tracks"
+                      className="px-0 py-2 text-[16px] font-normal text-black border-b-2 border-transparent data-[state=active]:font-medium data-[state=active]:border-[#4b89ef] data-[state=active]:shadow-none data-[state=active]:bg-transparent rounded-none bg-transparent shadow-none outline-none ring-0 border-x-0 border-t-0 whitespace-nowrap flex-shrink-0"
+                    >
+                      Tracks
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="pricing"
+                      className="px-0 py-2 text-[16px] font-normal text-black border-b-2 border-transparent data-[state=active]:font-medium data-[state=active]:border-[#4b89ef] data-[state=active]:shadow-none data-[state=active]:bg-transparent rounded-none bg-transparent shadow-none outline-none ring-0 border-x-0 border-t-0 whitespace-nowrap flex-shrink-0"
+                    >
+                      Pricing
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="notify"
+                      className="px-0 py-2 text-[16px] font-normal text-black border-b-2 border-transparent data-[state=active]:font-medium data-[state=active]:border-[#4b89ef] data-[state=active]:shadow-none data-[state=active]:bg-transparent rounded-none bg-transparent shadow-none outline-none ring-0 border-x-0 border-t-0 whitespace-nowrap flex-shrink-0"
+                    >
+                      Notify
+                    </TabsTrigger>
+                  </TabsList>
+                </div>
 
                 {/* Content Area - Scrollable */}
                 <div className="flex flex-col lg:flex-row gap-6 items-start flex-1 min-h-0 overflow-auto no-scrollbar w-full">
                   {/* Form Section */}
-                  <div className="flex-1 min-w-0 w-full lg:max-w-[640px] flex flex-col items-start order-last lg:order-first">
+                  <div className="flex-[2] min-w-0 w-full lg:max-w-[800px] flex flex-col items-start order-last lg:order-first">
                     <TabsContent value="overview" className="mt-0">
                       <Tabs
                         value={activeSubTab}
@@ -639,6 +647,18 @@ export default function NewEventPage() {
                                 <Button
                                   type="button"
                                   variant="outline"
+                                  onClick={() => {
+                                    const input = document.createElement("input");
+                                    input.type = "file";
+                                    input.accept = "image/*";
+                                    input.onchange = (e) => {
+                                      const file = (e.target as HTMLInputElement).files?.[0];
+                                      if (file) {
+                                        onChange("cover_image_url", URL.createObjectURL(file));
+                                      }
+                                    };
+                                    input.click();
+                                  }}
                                   className="h-[44px] px-4 border border-[rgba(0,0,0,0.15)] rounded-[12px] w-full sm:w-auto"
                                 >
                                   <Upload className="w-4 h-4 mr-2" />
@@ -653,39 +673,84 @@ export default function NewEventPage() {
 
                             <div className="space-y-2">
                               <label className="text-[16px] font-normal text-black">
-                                URL slug
+                                Blurb
                               </label>
-                              <Input
-                                value={form.slug}
-                                onChange={(e) =>
-                                  onChange("slug", e.target.value)
-                                }
-                                placeholder="url-friendly-event-name"
-                                className="h-[44px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] font-mono focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
-                              />
+                              <div className="relative">
+                                <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                                <Input
+                                  value={form.event_blurb}
+                                  onChange={(e) =>
+                                    onChange("event_blurb", e.target.value)
+                                  }
+                                  placeholder="Short description shown in the preview card"
+                                  className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+                                />
+                              </div>
                               <p className="text-xs text-gray-500">
-                                URL-friendly identifier for your event
-                                (lowercase, hyphens only)
+                                A short description that appears in the event
+                                preview card.
                               </p>
                             </div>
 
                             <div className="space-y-2">
-                              <label className="text-[16px] font-normal text-black">
-                                Event Type
-                              </label>
-                              <select
-                                value={form.event_type}
-                                onChange={(e) =>
-                                  onChange("event_type", e.target.value)
-                                }
-                                className="h-[44px] w-full bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] px-3 focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
-                              >
-                                <option value="">Select type</option>
-                                <option value="Hackathon">Hackathon</option>
-                                <option value="Workshop">Workshop</option>
-                                <option value="Conference">Conference</option>
-                                <option value="Other">Other</option>
-                              </select>
+                              <div className="flex items-center justify-between">
+                                <label className="text-[16px] font-normal text-black">
+                                  Description
+                                </label>
+                                <div className="inline-flex items-center border border-[rgba(0,0,0,0.15)] rounded-[12px] p-1 bg-white">
+                                  <button
+                                    onClick={() => setDescriptionMode("edit")}
+                                    className={`px-4 py-2 rounded-[8px] text-sm font-normal transition-colors ${
+                                      descriptionMode === "edit"
+                                        ? "bg-white border border-[rgba(0,0,0,0.15)] text-black shadow-sm"
+                                        : "bg-transparent text-black hover:bg-gray-50"
+                                    }`}
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    onClick={() =>
+                                      setDescriptionMode("preview")
+                                    }
+                                    className={`px-4 py-2 rounded-[8px] text-sm font-normal transition-colors ${
+                                      descriptionMode === "preview"
+                                        ? "bg-white border border-[rgba(0,0,0,0.15)] text-black shadow-sm"
+                                        : "bg-transparent text-black hover:bg-gray-50"
+                                    }`}
+                                  >
+                                    Preview
+                                  </button>
+                                </div>
+                              </div>
+                              {descriptionMode === "edit" ? (
+                                <>
+                                  <Textarea
+                                    value={form.event_description}
+                                    onChange={(e) =>
+                                      onChange(
+                                        "event_description",
+                                        e.target.value
+                                      )
+                                    }
+                                    placeholder="Add long description (markdown supported)"
+                                    className="min-h-[300px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] p-3 focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none resize-y"
+                                  />
+                                  <p className="text-xs text-gray-500 italic">
+                                    *Full event description. Markdown formatting
+                                    is supported.
+                                  </p>
+                                </>
+                              ) : (
+                                <div className="min-h-[300px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] p-3 overflow-auto prose prose-sm max-w-full">
+                                  {form.event_description ? (
+                                    <ReactMarkdown>
+                                      {form.event_description}
+                                    </ReactMarkdown>
+                                  ) : (
+                                    <em>No description added yet.</em>
+                                  )}
+                                </div>
+                              )}
                             </div>
 
                             <div className="space-y-2">
@@ -914,9 +979,6 @@ export default function NewEventPage() {
                       {/* Content */}
                       <div className="p-6">
                         <div className="flex flex-wrap gap-1 mb-3">
-                          <span className="px-[10px] py-1 border border-[rgba(0,0,0,0.15)] rounded-full text-[14px] font-semibold text-black">
-                            {form.event_type || "Hackathon"}
-                          </span>
                           <span className="px-[10px] py-1 border border-[rgba(0,0,0,0.15)] rounded-full text-[14px] font-semibold text-black">
                             {ticketType === "free" ? "Free" : "Paid"}
                           </span>
