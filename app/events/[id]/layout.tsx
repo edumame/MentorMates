@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { isValidUUID } from "@/app/utils/supabase/queries";
 import { ConditionalEventLayout } from "./conditional-event-layout";
-import { ServerRouteBasedLayoutConfig } from "./ServerRouteBasedLayoutConfig";
+import { RouteBasedLayoutConfig } from "./RouteBasedLayoutConfig";
 
 // add authentication check for non private/public events
 
@@ -43,18 +43,18 @@ export default async function Layout({
     query = query.eq("slug", id);
   }
 
-  const { data: event } = await query.single();
+  const { data: event } = await query.maybeSingle();
 
-  if (!event) {
+  if (!event?.event_id) {
     notFound();
   }
 
   return (
-    <ServerRouteBasedLayoutConfig>
+    <RouteBasedLayoutConfig>
       <ConditionalEventLayout event={event}>
         {children}
       </ConditionalEventLayout>
-    </ServerRouteBasedLayoutConfig>
+    </RouteBasedLayoutConfig>
   );
 }
 
