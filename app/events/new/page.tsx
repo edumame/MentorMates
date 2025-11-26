@@ -27,6 +27,7 @@ import {
   Building2,
   Video,
   Upload,
+  ArrowUpRight,
 } from "lucide-react";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -73,6 +74,18 @@ export default function NewEventPage() {
 
   const onChange = (key: keyof typeof form, value: string) =>
     setForm((p) => ({ ...p, [key]: value }));
+
+  // Generate slug from event name for preview
+  const getPreviewSlug = () => {
+    if (form.slug) return form.slug;
+    if (form.event_name) {
+      return form.event_name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+    }
+    return null;
+  };
 
   useEffect(() => {
     const checkAccess = async () => {
@@ -648,13 +661,19 @@ export default function NewEventPage() {
                                   type="button"
                                   variant="outline"
                                   onClick={() => {
-                                    const input = document.createElement("input");
+                                    const input =
+                                      document.createElement("input");
                                     input.type = "file";
                                     input.accept = "image/*";
                                     input.onchange = (e) => {
-                                      const file = (e.target as HTMLInputElement).files?.[0];
+                                      const file = (
+                                        e.target as HTMLInputElement
+                                      ).files?.[0];
                                       if (file) {
-                                        onChange("cover_image_url", URL.createObjectURL(file));
+                                        onChange(
+                                          "cover_image_url",
+                                          URL.createObjectURL(file)
+                                        );
                                       }
                                     };
                                     input.click();
@@ -1005,9 +1024,26 @@ export default function NewEventPage() {
                       </div>
                     </div>
 
-                    <p className="text-[16px] text-[#7f7f7f] text-center mt-3">
-                      This is a preview of the event.
-                    </p>
+                    <button
+                      onClick={() => {
+                        const previewSlug = getPreviewSlug();
+                        if (previewSlug) {
+                          window.open(`/events/${previewSlug}`, "_blank");
+                        } else {
+                          toast({
+                            title: "Event name required",
+                            description:
+                              "Please enter an event name to preview the event page.",
+                            variant: "destructive",
+                          });
+                        }
+                      }}
+                      disabled={!form.event_name}
+                      className="flex items-center gap-2 text-[16px] text-[#7f7f7f] hover:text-[#4b89ef] transition-colors mt-3 mx-auto disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Preview event page
+                      <ArrowUpRight className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
               </Tabs>
