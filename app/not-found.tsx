@@ -3,6 +3,7 @@
 import { ArrowLeft } from "lucide-react";
 
 export default function NotFound() {
+  // client-side navigation to avoid server-side transition issues and force reload to avoid client side caching issues
   const handleGoHome = () => {
     // Use router.push with a full page reload to avoid client-side transition issues
     // when navigating away from a not-found state within dynamic route layouts
@@ -14,7 +15,8 @@ export default function NotFound() {
       <div className="max-w-md mx-auto text-center">
         <div className="mb-8">
           <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
-            Page Not Found
+            Page Not Found. This page may have been deleted or never existed.
+            Click the button below to go to the home page.
           </h1>
           <button
             onClick={handleGoHome}
