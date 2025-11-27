@@ -108,12 +108,10 @@ export default function DraftProjectSubmissionFormSinglePage({
       fetchEventParticipants();
       setSelectedEventId(project.event_id);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project?.event_id]);
 
   useEffect(() => {
     fetchAvailableEvents();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -251,7 +249,6 @@ export default function DraftProjectSubmissionFormSinglePage({
     }, 2000);
 
     return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formData]);
 
   const handleAutoSave = async () => {
