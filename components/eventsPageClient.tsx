@@ -126,7 +126,7 @@ export function EventsPageClient({ eventsList }: { eventsList: EventItem[] }) {
               </div>
 
               {/* Create Event Button - Desktop only */}
-              {isAuthenticated && (
+              {isAuthenticated && isAdmin && (
                 <Button asChild className="h-10 hidden sm:inline-flex">
                   <Link href="/events/new">Create event</Link>
                 </Button>
@@ -135,7 +135,7 @@ export function EventsPageClient({ eventsList }: { eventsList: EventItem[] }) {
           </div>
 
           {/* Create Event Button - Mobile only */}
-          {isAuthenticated && (
+          {isAuthenticated && isAdmin && (
             <Button asChild className="h-10 sm:hidden w-full">
               <Link href="/events/new">Create event</Link>
             </Button>
