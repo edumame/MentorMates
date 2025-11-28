@@ -27,6 +27,7 @@ import { EventDetails, EventVisibility } from "@/lib/types";
 import { useProjectSubmissionData } from "@/features/projects/components/forms/hooks/useProjectSubmissionData";
 import { EventCard } from "@/components/events/event-card";
 import { Public, TextFields } from "@mui/icons-material";
+import Link from "next/link";
 
 interface EventParticipant {
   user_id: string;
@@ -1132,21 +1133,25 @@ export function NewProjectSubmissionFormSinglePage({
                         Submitted to
                       </h3>
                       <div className="w-[339px]">
-                        <EventCard
-                          event={{
-                            event_id: eventDetails.event_id,
-                            slug: eventDetails.slug,
-                            event_name: eventDetails.event_name,
-                            event_date: eventDetails.event_date,
-                            location: eventDetails.location || "Online",
-                            cover_image_url: eventDetails.cover_image_url,
-                            paid: eventDetails.paid,
-                            event_blurb:
-                              eventDetails.event_blurb ||
-                              eventDetails.event_description,
-                            event_description: eventDetails.event_description,
-                          }}
-                        />
+                        <Link
+                          href={`/events/${eventDetails.event_id}/overview`}
+                        >
+                          <EventCard
+                            event={{
+                              event_id: eventDetails.event_id,
+                              slug: eventDetails.slug,
+                              event_name: eventDetails.event_name,
+                              event_date: eventDetails.event_date,
+                              location: eventDetails.location || "Online",
+                              cover_image_url: eventDetails.cover_image_url,
+                              paid: eventDetails.paid,
+                              event_blurb:
+                                eventDetails.event_blurb ||
+                                eventDetails.event_description,
+                              event_description: eventDetails.event_description,
+                            }}
+                          />
+                        </Link>
                       </div>
                     </div>
                   </>

@@ -60,6 +60,12 @@ interface EventOption {
   event_date: string;
 }
 
+interface EventTrack {
+  track_id: string;
+  name: string;
+  description?: string;
+}
+
 interface DraftProjectSubmissionFormProps {
   projectId: string;
   session: Session | null;
@@ -103,25 +109,12 @@ export default function DraftProjectSubmissionFormSinglePage({
   );
   const [isLoadingEvents, setIsLoadingEvents] = useState(false);
 
-  useEffect(() => {
-    if (project?.event_id) {
-      fetchEventParticipants();
-      setSelectedEventId(project.event_id);
-    }
-  }, [project?.event_id]);
+  // Track selection
+  const [availableTracks, setAvailableTracks] = useState<EventTrack[]>([]);
+  const [selectedTrackIds, setSelectedTrackIds] = useState<string[]>([]);
+  const [isLoadingTracks, setIsLoadingTracks] = useState(false);
 
-  useEffect(() => {
-    fetchAvailableEvents();
-  }, []);
-
-  useEffect(() => {
-    // Update parent component when project changes
-    if (onProjectUpdate) {
-      onProjectUpdate(project);
-    }
-  }, [project, onProjectUpdate]);
-
-  const fetchAvailableEvents = async () => {
+  const fetchAvailableEvents = useCallback(async () => {
     setIsLoadingEvents(true);
     try {
       if (!session?.user?.id) {
@@ -166,9 +159,7 @@ export default function DraftProjectSubmissionFormSinglePage({
 
           // Only include public and private events
           return (
-            event &&
-            (event.visibility === EventVisibility.Public ||
-              event.visibility === EventVisibility.Private)
+            event
           );
         })
         .map((role) => {
@@ -199,7 +190,7 @@ export default function DraftProjectSubmissionFormSinglePage({
     } finally {
       setIsLoadingEvents(false);
     }
-  };
+  }, [session?.user?.id]);
 
   const fetchEventParticipants = useCallback(async () => {
     if (!project?.event_id) return;
@@ -242,6 +233,77 @@ export default function DraftProjectSubmissionFormSinglePage({
     }
   }, [project?.event_id]);
 
+  const fetchEventTracks = useCallback(async (eventId: string) => {
+    setIsLoadingTracks(true);
+    try {
+      const { data, error } = await supabase
+        .from("event_tracks")
+        .select("track_id, name, description")
+        .eq("event_id", eventId);
+
+      if (error) {
+        console.error("Error fetching event tracks:", error);
+        setAvailableTracks([]);
+        return;
+      }
+
+      const tracks: EventTrack[] = (data || []).map((track) => ({
+        track_id: track.track_id,
+        name: track.name,
+        description: track.description || undefined,
+      }));
+
+      setAvailableTracks(tracks);
+    } catch (error) {
+      console.error("Error fetching event tracks:", error);
+      setAvailableTracks([]);
+    } finally {
+      setIsLoadingTracks(false);
+    }
+  }, []);
+
+  const fetchProjectTracks = useCallback(async () => {
+    if (!projectId) return;
+
+    try {
+      const { data, error } = await supabase
+        .from("project_tracks")
+        .select("track_id")
+        .eq("project_id", projectId);
+
+      if (error) {
+        console.error("Error fetching project tracks:", error);
+        return;
+      }
+
+      const trackIds = (data || []).map((pt) => pt.track_id);
+      setSelectedTrackIds(trackIds);
+    } catch (error) {
+      console.error("Error fetching project tracks:", error);
+    }
+  }, [projectId]);
+
+  // Effects
+  useEffect(() => {
+    if (project?.event_id) {
+      fetchEventParticipants();
+      setSelectedEventId(project.event_id);
+      fetchEventTracks(project.event_id);
+      fetchProjectTracks();
+    }
+  }, [project?.event_id, fetchEventParticipants, fetchEventTracks, fetchProjectTracks]);
+
+  useEffect(() => {
+    fetchAvailableEvents();
+  }, [fetchAvailableEvents]);
+
+  useEffect(() => {
+    // Update parent component when project changes
+    if (onProjectUpdate) {
+      onProjectUpdate(project);
+    }
+  }, [project, onProjectUpdate]);
+
   // Auto-save functionality with debounce
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -249,6 +311,7 @@ export default function DraftProjectSubmissionFormSinglePage({
     }, 2000);
 
     return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formData]);
 
   const handleAutoSave = async () => {
@@ -489,14 +552,65 @@ export default function DraftProjectSubmissionFormSinglePage({
         description: `Project moved to "${selectedEvent.event_name}"`,
       });
 
-      // Refresh participants for new event
+      // Refresh participants and tracks for new event
       fetchEventParticipants();
+      fetchEventTracks(newEventId);
+      
+      // Clear selected tracks when event changes
+      setSelectedTrackIds([]);
     } catch {
       toast({
         title: "Error",
         description: "Failed to update event",
         variant: "destructive",
       });
+    }
+  };
+
+  const handleTrackToggle = async (trackId: string, checked: boolean) => {
+    const newTrackIds = checked
+      ? [...selectedTrackIds, trackId]
+      : selectedTrackIds.filter((id) => id !== trackId);
+
+    setSelectedTrackIds(newTrackIds);
+
+    // Update tracks in database
+    try {
+      // Delete existing tracks
+      await supabase
+        .from("project_tracks")
+        .delete()
+        .eq("project_id", projectId);
+
+      // Insert new tracks
+      if (newTrackIds.length > 0) {
+        const trackInserts = newTrackIds.map((tid) => ({
+          project_id: projectId,
+          track_id: tid,
+        }));
+
+        const { error } = await supabase
+          .from("project_tracks")
+          .insert(trackInserts);
+
+        if (error) {
+          throw error;
+        }
+      }
+
+      toast({
+        title: "Tracks Updated",
+        description: "Project tracks have been updated successfully",
+      });
+    } catch (error) {
+      console.error("Error updating tracks:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update project tracks",
+        variant: "destructive",
+      });
+      // Revert the state on error
+      fetchProjectTracks();
     }
   };
 
@@ -713,6 +827,51 @@ export default function DraftProjectSubmissionFormSinglePage({
                     *You can only submit to events with open submission windows
                   </p>
                 </div>
+
+                {/* Track Selection */}
+                {availableTracks.length > 0 && (
+                  <div className="space-y-2">
+                    <label className="text-base text-black font-normal">
+                      Select tracks (Optional)
+                    </label>
+                    <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl p-4 space-y-3">
+                      {isLoadingTracks ? (
+                        <div className="flex items-center justify-center py-4">
+                          <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
+                        </div>
+                      ) : (
+                        availableTracks.map((track) => (
+                          <label
+                            key={track.track_id}
+                            className="flex items-start gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedTrackIds.includes(track.track_id)}
+                              onChange={(e) =>
+                                handleTrackToggle(track.track_id, e.target.checked)
+                              }
+                              className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            <div className="flex-1">
+                              <span className="text-base text-black font-medium">
+                                {track.name}
+                              </span>
+                              {track.description && (
+                                <p className="text-sm text-[#7f7f7f] mt-0.5">
+                                  {track.description}
+                                </p>
+                              )}
+                            </div>
+                          </label>
+                        ))
+                      )}
+                    </div>
+                    <p className="text-base text-[#7f7f7f]">
+                      *Choose the tracks your project should compete in
+                    </p>
+                  </div>
+                )}
 
                 {/* Project Description */}
                 <div className="space-y-2">
