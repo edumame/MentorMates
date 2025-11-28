@@ -28,6 +28,9 @@ import {
   Video,
   Upload,
   ArrowUpRight,
+  Clock,
+  Search,
+  Plus,
 } from "lucide-react";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -54,6 +57,14 @@ export default function NewEventPage() {
   const [descriptionMode, setDescriptionMode] = useState<"edit" | "preview">(
     "edit"
   );
+  const [showScheduleForm, setShowScheduleForm] = useState(false);
+  const [scheduleForm, setScheduleForm] = useState({
+    dayTitle: "",
+    eventName: "",
+    time: "",
+    guests: "",
+    description: "",
+  });
 
   const [form, setForm] = useState({
     event_name: "",
@@ -874,30 +885,239 @@ export default function NewEventPage() {
                         </TabsContent>
 
                         <TabsContent value="schedule" className="mt-0">
-                          <div className="space-y-4">
-                            <div className="space-y-2">
-                              <label className="text-[16px] font-normal text-black">
-                                Project submission window (UTC)
-                              </label>
-                              <div className="flex items-center gap-2">
-                                <DatePicker
-                                  value={form.event_date}
-                                  onChange={(value) =>
-                                    onChange("event_date", value)
-                                  }
-                                  placeholder="mm/dd/yyyy"
-                                />
-                                <span className="text-gray-500">to</span>
-                                <DatePicker
-                                  value={form.event_date}
-                                  onChange={(value) =>
-                                    onChange("event_date", value)
-                                  }
-                                  placeholder="mm/dd/yyyy"
-                                />
+                          {!showScheduleForm ? (
+                            <div className="border-2 border-dashed border-gray-300 rounded-[12px] p-12 flex flex-col items-center justify-center text-center min-h-[400px]">
+                              <div className="flex flex-col items-center gap-4">
+                                <div className="relative">
+                                  <Calendar className="w-16 h-16 text-gray-400" />
+                                  <div className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
+                                    <span className="text-white text-xs font-bold">
+                                      ×
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="space-y-2">
+                                  <h3 className="text-[18px] font-semibold text-black">
+                                    No schedule yet
+                                  </h3>
+                                  <p className="text-[14px] text-gray-500 max-w-md">
+                                    Add day and events to display the event
+                                    schedule
+                                  </p>
+                                </div>
+                                <Button
+                                  type="button"
+                                  onClick={() => setShowScheduleForm(true)}
+                                  className="mt-2 bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
+                                >
+                                  Add schedule
+                                </Button>
                               </div>
                             </div>
-                          </div>
+                          ) : (
+                            <div className="space-y-4">
+                              <div className="space-y-2">
+                                <label className="text-[16px] font-normal text-black">
+                                  Day Title
+                                </label>
+                                <div className="relative">
+                                  <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                                  <Input
+                                    value={scheduleForm.dayTitle}
+                                    onChange={(e) =>
+                                      setScheduleForm((prev) => ({
+                                        ...prev,
+                                        dayTitle: e.target.value,
+                                      }))
+                                    }
+                                    placeholder="Short description shown in the preview card"
+                                    className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="space-y-2">
+                                <label className="text-[16px] font-normal text-black">
+                                  Event Name
+                                </label>
+                                <div className="relative">
+                                  <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                                  <Input
+                                    value={scheduleForm.eventName}
+                                    onChange={(e) =>
+                                      setScheduleForm((prev) => ({
+                                        ...prev,
+                                        eventName: e.target.value,
+                                      }))
+                                    }
+                                    placeholder="Short description shown in the preview card"
+                                    className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="space-y-2">
+                                <label className="text-[16px] font-normal text-black">
+                                  Time
+                                </label>
+                                <div className="relative">
+                                  <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                                  <Input
+                                    value={scheduleForm.time}
+                                    onChange={(e) =>
+                                      setScheduleForm((prev) => ({
+                                        ...prev,
+                                        time: e.target.value,
+                                      }))
+                                    }
+                                    placeholder="11-22-33"
+                                    className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <label className="text-[16px] font-normal text-black">
+                                    Add guests
+                                  </label>
+                                  <button
+                                    type="button"
+                                    className="text-[14px] text-[#4b89ef] hover:underline"
+                                  >
+                                    Invite guest
+                                  </button>
+                                </div>
+                                <div className="relative">
+                                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                                  <Input
+                                    value={scheduleForm.guests}
+                                    onChange={(e) =>
+                                      setScheduleForm((prev) => ({
+                                        ...prev,
+                                        guests: e.target.value,
+                                      }))
+                                    }
+                                    placeholder="Search guests"
+                                    className="h-[44px] pl-11 pr-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+                                  />
+                                  <svg
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M19 9l-7 7-7-7"
+                                    />
+                                  </svg>
+                                </div>
+                              </div>
+
+                              <div className="space-y-2">
+                                <label className="text-[16px] font-normal text-black">
+                                  Description
+                                </label>
+                                <Textarea
+                                  value={scheduleForm.description}
+                                  onChange={(e) =>
+                                    setScheduleForm((prev) => ({
+                                      ...prev,
+                                      description: e.target.value,
+                                    }))
+                                  }
+                                  placeholder="Add long description (markdown supported)"
+                                  className="min-h-[200px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] p-3 focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none resize-y"
+                                />
+                              </div>
+
+                              <div className="flex items-center gap-2 pt-4">
+                                <Button
+                                  type="button"
+                                  className="bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
+                                  onClick={() => {
+                                    toast({
+                                      title: "Schedule created",
+                                      description:
+                                        "Schedule item added successfully.",
+                                    });
+                                    setScheduleForm({
+                                      dayTitle: "",
+                                      eventName: "",
+                                      time: "",
+                                      guests: "",
+                                      description: "",
+                                    });
+                                  }}
+                                >
+                                  Create
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setShowScheduleForm(false);
+                                    setScheduleForm({
+                                      dayTitle: "",
+                                      eventName: "",
+                                      time: "",
+                                      guests: "",
+                                      description: "",
+                                    });
+                                  }}
+                                  className="border border-[rgba(0,0,0,0.15)]"
+                                >
+                                  Cancel
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  className="border border-[rgba(0,0,0,0.15)]"
+                                  onClick={() => {
+                                    toast({
+                                      title: "Event added",
+                                      description: "Event added to schedule.",
+                                    });
+                                    setScheduleForm({
+                                      dayTitle: "",
+                                      eventName: "",
+                                      time: "",
+                                      guests: "",
+                                      description: "",
+                                    });
+                                  }}
+                                >
+                                  Add event
+                                </Button>
+                              </div>
+
+                              <Button
+                                type="button"
+                                variant="outline"
+                                className="w-full border border-[rgba(0,0,0,0.15)] mt-4"
+                                onClick={() => {
+                                  setScheduleForm({
+                                    dayTitle: "",
+                                    eventName: "",
+                                    time: "",
+                                    guests: "",
+                                    description: "",
+                                  });
+                                  toast({
+                                    title: "New day",
+                                    description:
+                                      "Ready to add a new day to the schedule.",
+                                  });
+                                }}
+                              >
+                                <Plus className="w-4 h-4 mr-2" />
+                                Add new day
+                              </Button>
+                            </div>
+                          )}
                         </TabsContent>
 
                         <TabsContent value="resources" className="mt-0">
@@ -967,12 +1187,12 @@ export default function NewEventPage() {
                   <div className="flex-shrink-0 w-full lg:w-[335px] order-first lg:order-last">
                     <div className="w-full lg:w-[335px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] overflow-hidden">
                       {/* Image */}
-                      <div className="relative w-full aspect-[335/223]">
+                      <div className="relative w-full aspect-[335/223] overflow-hidden">
                         {form.cover_image_url ? (
                           <img
                             src={form.cover_image_url}
                             alt="Event cover"
-                            className="w-full h-full object-cover"
+                            className="w-full h-full object-cover block"
                           />
                         ) : (
                           <div className="w-full h-full bg-gradient-to-br from-orange-400 via-red-500 to-purple-600" />
