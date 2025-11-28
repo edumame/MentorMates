@@ -488,393 +488,90 @@ export default function PublicProjectPage() {
 
               {/* Main Content Area */}
               <div className="py-6 sm:py-12">
-                <div className="flex flex-col lg:flex-row gap-6 sm:gap-10">
-                  {/* Left Column: Main Content */}
-                  <div className="flex-1 space-y-12">
-                    <TabsContent value="overview" className="mt-0">
-                      <div className="space-y-8">
-                        {/* About this project */}
-                        <div>
-                          <h2 className="text-3xl font-semibold text-black mb-6 tracking-tight">
-                            About this project
-                          </h2>
-                          <p className="text-base text-black leading-relaxed">
-                            {project.project_description}
-                          </p>
-                        </div>
-
-                        {/* Cover Image Display */}
-                        {project.cover_image_url && (
-                          <div className="space-y-2">
-                            <div className="rounded-xl overflow-hidden">
-                              <img
-                                src={project.cover_image_url}
-                                alt="Project cover"
-                                className="w-full h-auto object-cover"
-                              />
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Video Embed */}
-                        {project.video_url && canEmbed(project.video_url) && (
-                          <div className="space-y-4">
-                            <VideoEmbed url={project.video_url} title="Project Video" />
-                          </div>
-                        )}
+                {/* Overview Tab - 2 Column Layout */}
+                <TabsContent value="overview" className="mt-0">
+                  <div className="flex flex-col lg:flex-row gap-6 sm:gap-10">
+                    {/* Left Column: Main Content */}
+                    <div className="flex-1 space-y-8">
+                      {/* About this project */}
+                      <div>
+                        <h2 className="text-3xl font-semibold text-black mb-6 tracking-tight">
+                          About this project
+                        </h2>
+                        <p className="text-base text-black leading-relaxed">
+                          {project.project_description}
+                        </p>
                       </div>
-                    </TabsContent>
 
-                    <TabsContent value="team" className="mt-0">
-                      <Card>
-                        <CardHeader>
-                          <CardTitle>Team Members</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-3">
-                            <div className="flex items-center justify-between p-3 border rounded">
-                              <div>
-                                <p className="font-medium">{project.lead_name}</p>
-                                <p className="text-sm text-gray-500">
-                                  {project.lead_email}
-                                </p>
-                              </div>
-                              <Badge>Lead</Badge>
-                            </div>
-
-                            {project.teammates?.map((teammate, index) => (
-                              <div
-                                key={index}
-                                className="flex items-center justify-between p-3 border rounded"
-                              >
-                                <div>
-                                  <p className="font-medium">{teammate}</p>
-                                  <p className="text-sm text-gray-500">Team Member</p>
-                                </div>
-                                <Badge variant="secondary">Member</Badge>
-                              </div>
-                            ))}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </TabsContent>
-
-                    <TabsContent value="feedback" className="mt-0">
-                      <div className="space-y-8">
-                        {/* Display Existing Feedback */}
-                        <Card>
-                          <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                              <MessageSquare className="h-5 w-5" />
-                              Project Feedback
-                            </CardTitle>
-                            <p className="text-sm text-gray-600">
-                              See what mentors and peers have said about this project.
-                            </p>
-                          </CardHeader>
-                          <CardContent>
-                            <FeedbackDisplay projectId={project.id} showTitle={false} />
-                          </CardContent>
-                        </Card>
-
-                        {/* Submit Feedback Section */}
-                        <Card>
-                          <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                              <MessageSquare className="h-5 w-5" />
-                              Share Your Feedback
-                            </CardTitle>
-                            <p className="text-sm text-gray-600">
-                              Help this project improve by sharing your thoughts, suggestions,
-                              and ideas.
-                            </p>
-                          </CardHeader>
-                          <CardContent>
-                            <Button
-                              onClick={() => setShowFeedbackDialog(true)}
-                              className="w-full bg-[#4B89EF] hover:bg-[#3F77D3] text-white"
-                            >
-                              <MessageSquare className="mr-2 h-4 w-4" />
-                              Give Feedback
-                            </Button>
-                          </CardContent>
-                        </Card>
-                      </div>
-                    </TabsContent>
-
-                    {/* Judge Scoring Tab */}
-                    {isJudge && (
-                      <TabsContent value="scoring" className="mt-0">
-                        <Card className="border-purple-200 bg-purple-50">
-                          <CardHeader>
-                            <CardTitle className="flex items-center gap-2 text-purple-900">
-                              <Scale className="h-5 w-5" />
-                              Judge Scoring (Private)
-                            </CardTitle>
-                            <p className="text-sm text-purple-700">
-                              This section is only visible to judges and administrators. Use
-                              this form to score the project based on the track criteria.
-                              Your feedback as a judge will not be visible to the public.
-                            </p>
-                          </CardHeader>
-                          <CardContent className="bg-white rounded-lg border border-purple-200">
-                            {projectTracks.length === 0 ? (
-                              <div className="text-center py-8">
-                                <p className="text-gray-600 mb-2">
-                                  This project is not assigned to any tracks yet.
-                                </p>
-                                <p className="text-sm text-gray-500">
-                                  Contact the event organizer to assign this project to a
-                                  track before scoring.
-                                </p>
-                              </div>
-                            ) : (
-                              <div className="space-y-6">
-                                {/* Track Selection */}
-                                {projectTracks.length > 1 && (
-                                  <div className="space-y-2 mt-4">
-                                    <label className="text-sm font-medium text-gray-700">
-                                      Select Track to Score:
-                                    </label>
-                                    <select
-                                      value={selectedTrackId}
-                                      onChange={(e) => setSelectedTrackId(e.target.value)}
-                                      className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-sm"
-                                    >
-                                      {projectTracks.map((track) => (
-                                        <option key={track.track_id} value={track.track_id}>
-                                          {track.name}
-                                        </option>
-                                      ))}
-                                    </select>
-                                  </div>
-                                )}
-
-                                {/* Track Info */}
-                                {selectedTrack && (
-                                  <div className="p-4 bg-blue-50 rounded-lg mt-4">
-                                    <h4 className="font-medium text-gray-900 mb-1">
-                                      {selectedTrack.name}
-                                    </h4>
-                                    {selectedTrack.description && (
-                                      <p className="text-sm text-gray-600">
-                                        {selectedTrack.description}
-                                      </p>
-                                    )}
-                                  </div>
-                                )}
-
-                                {/* Scoring Form */}
-                                {selectedTrack && selectedTrack.scoring_criteria ? (
-                                  <ProjectScoringForm
-                                    projectId={project.id}
-                                    trackId={selectedTrackId}
-                                    criteria={
-                                      (selectedTrack.scoring_criteria as TrackScoringConfig)
-                                        .criteria
-                                    }
-                                    onScoreSubmitted={handleScoreSubmitted}
-                                    finalistFeatureEnabled={finalistFeatureEnabled}
-                                  />
-                                ) : (
-                                  <div className="text-center py-8">
-                                    <p className="text-yellow-600 mb-2">
-                                      Scoring criteria not configured for this track.
-                                    </p>
-                                    <p className="text-sm text-gray-500">
-                                      Contact the event organizer to set up scoring
-                                      criteria.
-                                    </p>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </CardContent>
-                        </Card>
-                      </TabsContent>
-                    )}
-
-                    {/* Sharing Tab */}
-                    <TabsContent value="sharing" className="mt-0">
-                      <div className="grid grid-cols-1 lg:grid-cols-[1fr,500px] gap-6 border border-zinc-200">
-                        {/* Left Column: Share Card */}
-                        <Card className="1">
-                          <CardHeader>
-                            <CardTitle className="text-[22px] font-semibold tracking-[-0.06em]">
-                              Share & Get Feedback
-                            </CardTitle>
-                            <p className="text-sm text-zinc-500">
-                              Share this project with others using the QR code or direct link.
-                            </p>
-                          </CardHeader>
-                          <CardContent className="space-y-6">
-                            {/* Copy Link Section */}
-                            <div className="space-y-2">
-                              <div className="flex gap-2">
-                                <Input
-                                  value={feedbackUrl}
-                                  readOnly
-                                  className="flex-1 bg-white"
-                                />
-                                <Button
-                                  variant="secondary"
-                                  className="bg-zinc-100 hover:bg-zinc-200"
-                                  onClick={() => {
-                                    navigator.clipboard.writeText(feedbackUrl);
-                                    toast({
-                                      title: "Copied!",
-                                      description: "Link copied to clipboard",
-                                    });
-                                  }}
-                                >
-                                  Copy Link
-                                </Button>
-                              </div>
-                            </div>
-
-                            {/* Divider */}
-                            <div className="border-t border-zinc-200" />
-
-                            {/* QR Code Section */}
-                            <div className="space-y-4">
-                              <div className="w-[206px] h-[201px] bg-white">
-                                <QRCodeSVG
-                                  id="project-qr-code"
-                                  value={feedbackUrl}
-                                  size={200}
-                                  level="H"
-                                />
-                              </div>
-
-                              <p className="text-sm text-black">
-                                Scan this QR code to share and provide feedback
-                              </p>
-
-                              <div className="flex gap-3">
-                                <Button
-                                  variant="outline"
-                                  className="border-[1.5px] border-[rgba(0,0,0,0.05)]"
-                                  onClick={handleCopyQR}
-                                >
-                                  <Copy className="h-5 w-5 mr-2" />
-                                  Copy
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  className="border-[1.5px] border-[rgba(0,0,0,0.05)]"
-                                  onClick={handleDownloadQR}
-                                >
-                                  <Download className="h-5 w-5 mr-2" />
-                                  Download
-                                </Button>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-
-                        {/* Right Column: Sharing Tips */}
-                        <div className="bg-gradient-to-b from-blue-100/45 to-blue-50/30 rounded-lg p-6 space-y-6">
-                          <div className="bg-white rounded-[13px] p-1.5 w-fit">
-                            <Lightbulb className="h-6 w-6" />
-                          </div>
-
-                          <div className="text-center">
-                            <p className="font-medium text-base text-black">Sharing Tips</p>
-                          </div>
-
-                          <div className="space-y-3">
-                            <div className="py-3 space-y-1">
-                              <p className="text-[24px] font-sans text-zinc-900">01</p>
-                              <p className="text-sm text-zinc-500 leading-[22px]">
-                                Save the QR code image to share digitally
-                              </p>
-                            </div>
-
-                            <div className="border-t border-gray-200" />
-
-                            <div className="py-3 space-y-1">
-                              <p className="text-[24px] font-sans text-zinc-900">02</p>
-                              <p className="text-sm text-zinc-500 leading-[22px]">
-                                Print it on business cards or project handouts
-                              </p>
-                            </div>
-
-                            <div className="border-t border-gray-200" />
-
-                            <div className="py-3 space-y-1">
-                              <p className="text-[24px] font-sans text-zinc-900">03</p>
-                              <p className="text-sm text-zinc-500 leading-[22px]">
-                                Display it at your project booth or presentation
-                              </p>
-                            </div>
-
-                            <div className="border-t border-gray-200" />
-
-                            <div className="py-3 space-y-1">
-                              <p className="text-[24px] font-sans text-zinc-900">04</p>
-                              <p className="text-sm text-zinc-500 leading-[22px]">
-                                Add it to your LinkedIn or GitHub profile
-                              </p>
-                            </div>
+                      {/* Cover Image Display */}
+                      {project.cover_image_url && (
+                        <div className="space-y-2">
+                          <div className="rounded-xl overflow-hidden">
+                            <img
+                              src={project.cover_image_url}
+                              alt="Project cover"
+                              className="w-full h-auto object-cover"
+                            />
                           </div>
                         </div>
-                      </div>
-                    </TabsContent>
-                  </div>
+                      )}
 
-                  {/* Right Column: Sidebar */}
-                  {activeTab !== "sharing" && (
+                      {/* Video Embed */}
+                      {project.video_url && canEmbed(project.video_url) && (
+                        <div className="space-y-4">
+                          <VideoEmbed url={project.video_url} title="Project Video" />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Right Column: Sidebar - Only for Overview */}
                     <div className="w-full lg:w-[420px] space-y-6">
                       {/* Meet the team */}
-                      {activeTab === "overview" && (
+                      <div className="space-y-6">
+                        <h3 className="text-lg font-bold text-black tracking-tight">
+                          Meet the team
+                        </h3>
                         <div className="space-y-6">
-                          <h3 className="text-lg font-bold text-black tracking-tight">
-                            Meet the team
-                          </h3>
-                          <div className="space-y-6">
-                            {/* Project Lead */}
-                            <div className="flex gap-4 items-center">
+                          {/* Project Lead */}
+                          <div className="flex gap-4 items-center">
+                            <div className="w-14 h-14 rounded-full bg-gray-300 flex-shrink-0"></div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <p className="font-semibold text-base text-black">
+                                  {project.lead_name}
+                                </p>
+                                <Badge
+                                  variant="secondary"
+                                  className="bg-transparent border border-black/15 text-black rounded-full text-sm px-2.5 py-0.5"
+                                >
+                                  Lead
+                                </Badge>
+                              </div>
+                              <p className="text-base text-black">
+                                {project.lead_email}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Team Members */}
+                          {project.teammates?.slice(0, 1).map((teammate, index) => (
+                            <div key={index} className="flex gap-4 items-center">
                               <div className="w-14 h-14 rounded-full bg-gray-300 flex-shrink-0"></div>
-                              <div>
-                                <div className="flex items-center gap-2">
-                                  <p className="font-semibold text-base text-black">
-                                    {project.lead_name}
-                                  </p>
-                                  <Badge
-                                    variant="secondary"
-                                    className="bg-transparent border border-black/15 text-black rounded-full text-sm px-2.5 py-0.5"
-                                  >
-                                    Lead
-                                  </Badge>
-                                </div>
-                                <p className="text-base text-black">
-                                  {project.lead_email}
+                              <div className="space-y-0">
+                                <p className="font-semibold text-base text-black">
+                                  {teammate}
                                 </p>
                               </div>
                             </div>
-
-                            {/* Team Members */}
-                            {project.teammates?.slice(0, 1).map((teammate, index) => (
-                              <div key={index} className="flex gap-4 items-center">
-                                <div className="w-14 h-14 rounded-full bg-gray-300 flex-shrink-0"></div>
-                                <div className="space-y-0">
-                                  <p className="font-semibold text-base text-black">
-                                    {teammate}
-                                  </p>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
+                          ))}
                         </div>
-                      )}
+                      </div>
 
                       {/* Divider */}
-                      {activeTab === "overview" && (
-                        <div className="border-t border-gray-200"></div>
-                      )}
+                      <div className="border-t border-gray-200"></div>
 
                       {/* Submitted to Event */}
-                      {activeTab === "overview" && eventDetails && (
+                      {eventDetails && (
                         <div className="space-y-4">
                           <h3 className="text-lg font-bold text-black tracking-tight">
                             Submitted to
@@ -922,106 +619,396 @@ export default function PublicProjectPage() {
                       )}
 
                       {/* Divider */}
-                      {activeTab === "overview" && (
-                        <div className="border-t border-gray-200"></div>
-                      )}
+                      <div className="border-t border-gray-200"></div>
 
                       {/* Additional materials */}
-                      {activeTab === "overview" && (
-                        <div className="space-y-4">
-                          <h3 className="text-lg font-semibold text-black tracking-tight">
-                            Additional materials
-                          </h3>
-                          {project.additional_materials_url ? (
-                            <a
-                              href={project.additional_materials_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
+                      <div className="space-y-4">
+                        <h3 className="text-lg font-semibold text-black tracking-tight">
+                          Additional materials
+                        </h3>
+                        {project.additional_materials_url ? (
+                          <a
+                            href={project.additional_materials_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <Button
+                              variant="secondary"
+                              className="w-full bg-black/5 hover:bg-black/10 rounded-xl py-2.5 shadow-sm justify-center"
                             >
-                              <Button
-                                variant="secondary"
-                                className="w-full bg-black/5 hover:bg-black/10 rounded-xl py-2.5 shadow-sm justify-center"
-                              >
-                                <ArrowUpRight className="h-5 w-5 mr-1.5" />
-                                View Materials
-                              </Button>
-                            </a>
-                          ) : (
-                            <p className="text-sm text-gray-500 italic">
-                              No additional materials available
-                            </p>
-                          )}
-                        </div>
-                      )}
+                              <ArrowUpRight className="h-5 w-5 mr-1.5" />
+                              View Materials
+                            </Button>
+                          </a>
+                        ) : (
+                          <p className="text-sm text-gray-500 italic">
+                            No additional materials available
+                          </p>
+                        )}
+                      </div>
 
                       {/* Divider */}
-                      {activeTab === "overview" && (
-                        <div className="border-t border-gray-200"></div>
-                      )}
+                      <div className="border-t border-gray-200"></div>
 
                       {/* Share this project */}
-                      {activeTab === "overview" && (
-                        <div className="space-y-4">
-                          <h3 className="text-lg font-semibold text-black tracking-tight">
-                            Share this project
-                          </h3>
+                      <div className="space-y-4">
+                        <h3 className="text-lg font-semibold text-black tracking-tight">
+                          Share this project
+                        </h3>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="bg-white rounded-full"
+                            onClick={() => {
+                              navigator.clipboard.writeText(feedbackUrl);
+                              toast({
+                                title: "Link copied!",
+                                description: "Project link copied to clipboard",
+                              });
+                            }}
+                          >
+                            <LinkIcon className="h-5 w-5" />
+                          </Button>
+                          {/* QR Code */}
+                          <button className="flex flex-col items-center justify-center overflow-hidden p-1 rounded-lg">
+                            <QrCode className="w-6 h-6 text-black" />
+                          </button>
+
+                          {/* LinkedIn */}
+                          <button
+                            onClick={() => handleShare("linkedin")}
+                            className="bg-white flex flex-col items-center justify-center overflow-hidden p-1 rounded-full"
+                          >
+                            {/* <Linkedin className="w-6 h-6 text-black" /> */}
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 18 18" fill="none">
+                              <path clipRule="evenodd" d="M1.5 0C0.67157 0 0 0.67157 0 1.5V16.5C0 17.3284 0.67157 18 1.5 18H16.5C17.3284 18 18 17.3284 18 16.5V1.5C18 0.67157 17.3284 0 16.5 0H1.5ZM5.52076 4.00272C5.52639 4.95897 4.81061 5.54819 3.96123 5.54397C3.16107 5.53975 2.46357 4.90272 2.46779 4.00413C2.47201 3.15897 3.13998 2.47975 4.00764 2.49944C4.88795 2.51913 5.52639 3.1646 5.52076 4.00272ZM9.2797 6.76176H6.75971H6.7583V15.3216H9.4217V15.1219C9.4217 14.742 9.4214 14.362 9.4211 13.9819C9.4203 12.9681 9.4194 11.9532 9.4246 10.9397C9.426 10.6936 9.4372 10.4377 9.5005 10.2028C9.7381 9.3253 10.5271 8.7586 11.4074 8.8979C11.9727 8.9864 12.3467 9.3141 12.5042 9.8471C12.6013 10.1803 12.6449 10.5389 12.6491 10.8863C12.6605 11.9339 12.6589 12.9815 12.6573 14.0292C12.6567 14.399 12.6561 14.769 12.6561 15.1388V15.3202H15.328V15.1149C15.328 14.6629 15.3278 14.211 15.3275 13.7591C15.327 12.6296 15.3264 11.5001 15.3294 10.3702C15.3308 9.8597 15.276 9.3563 15.1508 8.8627C14.9638 8.1286 14.5771 7.5211 13.9485 7.0824C13.5027 6.77019 13.0133 6.5691 12.4663 6.5466C12.404 6.54401 12.3412 6.54062 12.2781 6.53721C11.9984 6.52209 11.7141 6.50673 11.4467 6.56066C10.6817 6.71394 10.0096 7.0641 9.5019 7.6814C9.4429 7.7522 9.3852 7.8241 9.2991 7.9314L9.2797 7.9557V6.76176ZM2.68164 15.3244H5.33242V6.76733H2.68164V15.3244Z" fill="black" />
+                            </svg>
+                          </button>
+
+                          {/* Twitter/X */}
+                          <button
+                            onClick={() => handleShare("twitter")}
+                            className="bg-white flex flex-col items-center justify-center overflow-hidden p-1 rounded-full"
+                          >
+                            <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                            </svg>
+                          </button>
+
+                          {/* Facebook */}
+                          <button
+                            onClick={() => handleShare("facebook")}
+                            className="bg-white flex flex-col items-center justify-center overflow-hidden p-1 rounded-full"
+                          >
+                            {/* <Facebook className="w-6 h-6 text-black" /> */}
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
+                              <path d="M22 12.3033C22 6.7467 17.5229 2.24219 12 2.24219C6.47715 2.24219 2 6.7467 2 12.3033C2 17.325 5.65684 21.4874 10.4375 22.2422V15.2116H7.89844V12.3033H10.4375V10.0867C10.4375 7.56515 11.9305 6.17231 14.2146 6.17231C15.3088 6.17231 16.4531 6.36882 16.4531 6.36882V8.8448H15.1922C13.95 8.8448 13.5625 9.62041 13.5625 10.4161V12.3033H16.3359L15.8926 15.2116H13.5625V22.2422C18.3432 21.4874 22 17.3252 22 12.3033Z" fill="black" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </TabsContent>
+
+                {/* Team Tab - Single Column */}
+                <TabsContent value="team" className="mt-0">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Team Members</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between p-3 border rounded">
+                          <div>
+                            <p className="font-medium">{project.lead_name}</p>
+                            <p className="text-sm text-gray-500">
+                              {project.lead_email}
+                            </p>
+                          </div>
+                          <Badge>Lead</Badge>
+                        </div>
+
+                        {project.teammates?.map((teammate, index) => (
+                          <div
+                            key={index}
+                            className="flex items-center justify-between p-3 border rounded"
+                          >
+                            <div>
+                              <p className="font-medium">{teammate}</p>
+                              <p className="text-sm text-gray-500">Team Member</p>
+                            </div>
+                            <Badge variant="secondary">Member</Badge>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                {/* Feedback Tab - Single Column */}
+                <TabsContent value="feedback" className="mt-0">
+                  <div className="space-y-8">
+                    {/* Display Existing Feedback */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <MessageSquare className="h-5 w-5" />
+                          Project Feedback
+                        </CardTitle>
+                        <p className="text-sm text-gray-600">
+                          See what mentors and peers have said about this project.
+                        </p>
+                      </CardHeader>
+                      <CardContent>
+                        <FeedbackDisplay projectId={project.id} showTitle={false} />
+                      </CardContent>
+                    </Card>
+
+                    {/* Submit Feedback Section */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <MessageSquare className="h-5 w-5" />
+                          Share Your Feedback
+                        </CardTitle>
+                        <p className="text-sm text-gray-600">
+                          Help this project improve by sharing your thoughts, suggestions,
+                          and ideas.
+                        </p>
+                      </CardHeader>
+                      <CardContent>
+                        <Button
+                          onClick={() => setShowFeedbackDialog(true)}
+                          className="w-full bg-[#4B89EF] hover:bg-[#3F77D3] text-white"
+                        >
+                          <MessageSquare className="mr-2 h-4 w-4" />
+                          Give Feedback
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </TabsContent>
+
+                {/* Judge Scoring Tab - Single Column */}
+                {isJudge && (
+                  <TabsContent value="scoring" className="mt-0">
+                    <Card className="border-purple-200 bg-purple-50">
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-purple-900">
+                          <Scale className="h-5 w-5" />
+                          Judge Scoring (Private)
+                        </CardTitle>
+                        <p className="text-sm text-purple-700">
+                          This section is only visible to judges and administrators. Use
+                          this form to score the project based on the track criteria.
+                          Your feedback as a judge will not be visible to the public.
+                        </p>
+                      </CardHeader>
+                      <CardContent className="bg-white rounded-lg border border-purple-200">
+                        {projectTracks.length === 0 ? (
+                          <div className="text-center py-8">
+                            <p className="text-gray-600 mb-2">
+                              This project is not assigned to any tracks yet.
+                            </p>
+                            <p className="text-sm text-gray-500">
+                              Contact the event organizer to assign this project to a
+                              track before scoring.
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="space-y-6">
+                            {/* Track Selection */}
+                            {projectTracks.length > 1 && (
+                              <div className="space-y-2 mt-4">
+                                <label className="text-sm font-medium text-gray-700">
+                                  Select Track to Score:
+                                </label>
+                                <select
+                                  value={selectedTrackId}
+                                  onChange={(e) => setSelectedTrackId(e.target.value)}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-sm"
+                                >
+                                  {projectTracks.map((track) => (
+                                    <option key={track.track_id} value={track.track_id}>
+                                      {track.name}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            )}
+
+                            {/* Track Info */}
+                            {selectedTrack && (
+                              <div className="p-4 bg-blue-50 rounded-lg mt-4">
+                                <h4 className="font-medium text-gray-900 mb-1">
+                                  {selectedTrack.name}
+                                </h4>
+                                {selectedTrack.description && (
+                                  <p className="text-sm text-gray-600">
+                                    {selectedTrack.description}
+                                  </p>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Scoring Form */}
+                            {selectedTrack && selectedTrack.scoring_criteria ? (
+                              <ProjectScoringForm
+                                projectId={project.id}
+                                trackId={selectedTrackId}
+                                criteria={
+                                  (selectedTrack.scoring_criteria as TrackScoringConfig)
+                                    .criteria
+                                }
+                                onScoreSubmitted={handleScoreSubmitted}
+                                finalistFeatureEnabled={finalistFeatureEnabled}
+                              />
+                            ) : (
+                              <div className="text-center py-8">
+                                <p className="text-yellow-600 mb-2">
+                                  Scoring criteria not configured for this track.
+                                </p>
+                                <p className="text-sm text-gray-500">
+                                  Contact the event organizer to set up scoring
+                                  criteria.
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+                )}
+
+                {/* Sharing Tab - Single Column with custom layout */}
+                <TabsContent value="sharing" className="mt-0">
+                  <div className="grid grid-cols-1 lg:grid-cols-[1fr,500px] gap-6">
+                    {/* Left Column: Share Card */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-[22px] font-semibold tracking-[-0.06em]">
+                          Share & Get Feedback
+                        </CardTitle>
+                        <p className="text-sm text-zinc-500">
+                          Share this project with others using the QR code or direct link.
+                        </p>
+                      </CardHeader>
+                      <CardContent className="space-y-6">
+                        {/* Copy Link Section */}
+                        <div className="space-y-2">
                           <div className="flex gap-2">
+                            <Input
+                              value={feedbackUrl}
+                              readOnly
+                              className="flex-1 bg-white"
+                            />
                             <Button
-                              variant="ghost"
-                              size="icon"
-                              className="bg-white rounded-full"
+                              variant="secondary"
+                              className="bg-zinc-100 hover:bg-zinc-200"
                               onClick={() => {
                                 navigator.clipboard.writeText(feedbackUrl);
                                 toast({
-                                  title: "Link copied!",
-                                  description: "Project link copied to clipboard",
+                                  title: "Copied!",
+                                  description: "Link copied to clipboard",
                                 });
                               }}
                             >
-                              <LinkIcon className="h-5 w-5" />
+                              Copy Link
                             </Button>
-                            {/* QR Code */}
-                            <button className="flex flex-col items-center justify-center overflow-hidden p-1 rounded-lg">
-                              <QrCode className="w-6 h-6 text-black" />
-                            </button>
-
-                            {/* LinkedIn */}
-                            <button
-                              onClick={() => handleShare("linkedin")}
-                              className="bg-white flex flex-col items-center justify-center overflow-hidden p-1 rounded-full"
-                            >
-                              {/* <Linkedin className="w-6 h-6 text-black" /> */}
-                              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 18 18" fill="none">
-                                <path clip-rule="evenodd" d="M1.5 0C0.67157 0 0 0.67157 0 1.5V16.5C0 17.3284 0.67157 18 1.5 18H16.5C17.3284 18 18 17.3284 18 16.5V1.5C18 0.67157 17.3284 0 16.5 0H1.5ZM5.52076 4.00272C5.52639 4.95897 4.81061 5.54819 3.96123 5.54397C3.16107 5.53975 2.46357 4.90272 2.46779 4.00413C2.47201 3.15897 3.13998 2.47975 4.00764 2.49944C4.88795 2.51913 5.52639 3.1646 5.52076 4.00272ZM9.2797 6.76176H6.75971H6.7583V15.3216H9.4217V15.1219C9.4217 14.742 9.4214 14.362 9.4211 13.9819C9.4203 12.9681 9.4194 11.9532 9.4246 10.9397C9.426 10.6936 9.4372 10.4377 9.5005 10.2028C9.7381 9.3253 10.5271 8.7586 11.4074 8.8979C11.9727 8.9864 12.3467 9.3141 12.5042 9.8471C12.6013 10.1803 12.6449 10.5389 12.6491 10.8863C12.6605 11.9339 12.6589 12.9815 12.6573 14.0292C12.6567 14.399 12.6561 14.769 12.6561 15.1388V15.3202H15.328V15.1149C15.328 14.6629 15.3278 14.211 15.3275 13.7591C15.327 12.6296 15.3264 11.5001 15.3294 10.3702C15.3308 9.8597 15.276 9.3563 15.1508 8.8627C14.9638 8.1286 14.5771 7.5211 13.9485 7.0824C13.5027 6.77019 13.0133 6.5691 12.4663 6.5466C12.404 6.54401 12.3412 6.54062 12.2781 6.53721C11.9984 6.52209 11.7141 6.50673 11.4467 6.56066C10.6817 6.71394 10.0096 7.0641 9.5019 7.6814C9.4429 7.7522 9.3852 7.8241 9.2991 7.9314L9.2797 7.9557V6.76176ZM2.68164 15.3244H5.33242V6.76733H2.68164V15.3244Z" fill="black" />
-                              </svg>
-                            </button>
-
-                            {/* Twitter/X */}
-                            <button
-                              onClick={() => handleShare("twitter")}
-                              className="bg-white flex flex-col items-center justify-center overflow-hidden p-1 rounded-full"
-                            >
-                              <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                              </svg>
-                            </button>
-
-                            {/* Facebook */}
-                            <button
-                              onClick={() => handleShare("facebook")}
-                              className="bg-white flex flex-col items-center justify-center overflow-hidden p-1 rounded-full"
-                            >
-                              {/* <Facebook className="w-6 h-6 text-black" /> */}
-                              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
-                                <path d="M22 12.3033C22 6.7467 17.5229 2.24219 12 2.24219C6.47715 2.24219 2 6.7467 2 12.3033C2 17.325 5.65684 21.4874 10.4375 22.2422V15.2116H7.89844V12.3033H10.4375V10.0867C10.4375 7.56515 11.9305 6.17231 14.2146 6.17231C15.3088 6.17231 16.4531 6.36882 16.4531 6.36882V8.8448H15.1922C13.95 8.8448 13.5625 9.62041 13.5625 10.4161V12.3033H16.3359L15.8926 15.2116H13.5625V22.2422C18.3432 21.4874 22 17.3252 22 12.3033Z" fill="black" />
-                              </svg>
-                            </button>
                           </div>
                         </div>
-                      )}
+
+                        {/* Divider */}
+                        <div className="border-t border-zinc-200" />
+
+                        {/* QR Code Section */}
+                        <div className="space-y-4">
+                          <div className="w-[206px] h-[201px] bg-white">
+                            <QRCodeSVG
+                              id="project-qr-code"
+                              value={feedbackUrl}
+                              size={200}
+                              level="H"
+                            />
+                          </div>
+
+                          <p className="text-sm text-black">
+                            Scan this QR code to share and provide feedback
+                          </p>
+
+                          <div className="flex gap-3">
+                            <Button
+                              variant="outline"
+                              className="border-[1.5px] border-[rgba(0,0,0,0.05)]"
+                              onClick={handleCopyQR}
+                            >
+                              <Copy className="h-5 w-5 mr-2" />
+                              Copy
+                            </Button>
+                            <Button
+                              variant="outline"
+                              className="border-[1.5px] border-[rgba(0,0,0,0.05)]"
+                              onClick={handleDownloadQR}
+                            >
+                              <Download className="h-5 w-5 mr-2" />
+                              Download
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Right Column: Sharing Tips */}
+                    <div className="bg-gradient-to-b from-blue-100/45 to-blue-50/30 rounded-lg p-6 space-y-6">
+                      <div className="bg-white rounded-[13px] p-1.5 w-fit">
+                        <Lightbulb className="h-6 w-6" />
+                      </div>
+
+                      <div className="text-center">
+                        <p className="font-medium text-base text-black">Sharing Tips</p>
+                      </div>
+
+                      <div className="space-y-3">
+                        <div className="py-3 space-y-1">
+                          <p className="text-[24px] font-sans text-zinc-900">01</p>
+                          <p className="text-sm text-zinc-500 leading-[22px]">
+                            Save the QR code image to share digitally
+                          </p>
+                        </div>
+
+                        <div className="border-t border-gray-200" />
+
+                        <div className="py-3 space-y-1">
+                          <p className="text-[24px] font-sans text-zinc-900">02</p>
+                          <p className="text-sm text-zinc-500 leading-[22px]">
+                            Print it on business cards or project handouts
+                          </p>
+                        </div>
+
+                        <div className="border-t border-gray-200" />
+
+                        <div className="py-3 space-y-1">
+                          <p className="text-[24px] font-sans text-zinc-900">03</p>
+                          <p className="text-sm text-zinc-500 leading-[22px]">
+                            Display it at your project booth or presentation
+                          </p>
+                        </div>
+
+                        <div className="border-t border-gray-200" />
+
+                        <div className="py-3 space-y-1">
+                          <p className="text-[24px] font-sans text-zinc-900">04</p>
+                          <p className="text-sm text-zinc-500 leading-[22px]">
+                            Add it to your LinkedIn or GitHub profile
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                  )}
-                </div>
+                  </div>
+                </TabsContent>
               </div>
             </Tabs>
           </div>
