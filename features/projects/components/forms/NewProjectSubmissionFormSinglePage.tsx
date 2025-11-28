@@ -18,7 +18,6 @@ import {
   Github,
   Youtube,
   ExternalLink,
-
 } from "lucide-react";
 import { toast } from "@/lib/hooks/use-toast";
 import { Toaster } from "@/components/ui/toaster";
@@ -28,6 +27,7 @@ import { EventDetails, EventVisibility } from "@/lib/types";
 import { useProjectSubmissionData } from "@/features/projects/components/forms/hooks/useProjectSubmissionData";
 import { EventCard } from "@/components/events/event-card";
 import { Public, TextFields } from "@mui/icons-material";
+import Link from "next/link";
 
 interface EventParticipant {
   user_id: string;
@@ -69,8 +69,11 @@ export function NewProjectSubmissionFormSinglePage({
   const [participants, setParticipants] = useState<EventParticipant[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedTrackIds, setSelectedTrackIds] = useState<string[]>([]);
-  const [visibility, setVisibility] = useState<EventVisibility>(EventVisibility.Public);
+  const [visibility, setVisibility] = useState<EventVisibility>(
+    EventVisibility.Public
+  );
   const [showVisibilityDropdown, setShowVisibilityDropdown] = useState(false);
+  const [isDeletingDraft, setIsDeletingDraft] = useState(false);
 
   // Load available tracks for the event (if any)
   const { availableTracks } = useProjectSubmissionData(eventId);
@@ -554,6 +557,54 @@ export function NewProjectSubmissionFormSinglePage({
     }
   };
 
+  const handleDeleteDraft = async () => {
+    setIsDeletingDraft(true);
+    if (!projectId) {
+      toast({
+        title: "Draft project deleted",
+        description: "Draft project has been deleted.",
+      });
+      router.push(
+        eventDetails?.slug
+          ? `/events/${eventDetails.slug}/overview`
+          : eventId
+            ? `/events/${eventId}/overview`
+            : `/projects`
+      );
+      setIsDeletingDraft(false);
+      return;
+    }
+    try {
+      const response = await fetch(`/api/projects/${projectId}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to delete draft");
+      }
+      toast({
+        title: "Draft project deleted",
+        description: "Draft project has been deleted.",
+      });
+      router.push(
+        eventDetails?.slug
+          ? `/events/${eventDetails.slug}/overview`
+          : eventId
+            ? `/events/${eventId}/overview`
+            : `/projects`
+      );
+    } catch (error) {
+      console.error(error);
+      toast({
+        title: "Error",
+        description: "Failed to delete draft",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeletingDraft(false);
+    }
+  };
+
   const handlePreviewClick = useCallback(() => {
     // If no project has been created/saved yet, do not navigate
     if (!projectId) {
@@ -588,7 +639,18 @@ export function NewProjectSubmissionFormSinglePage({
       <div className="sticky top-0 z-20 bg-sky-50 border-b border-[#d8d8d8]">
         <div className="px-6 py-3.5 flex items-center justify-between flex-wrap">
           <div className="flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 0 24 24" width="24px" fill="#1f1f1f"><g><rect fill="none" height="24" width="24" /><path d="M12,3.19l7,3.11V11c0,4.52-2.98,8.69-7,9.93C7.98,19.69,5,15.52,5,11V6.3L12,3.19 M12,1L3,5v6c0,5.55,3.84,10.74,9,12 c5.16-1.26,9-6.45,9-12V5L12,1L12,1z M11,7h2v2h-2V7z M11,11h2v6h-2V11z" /></g></svg>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              height="24px"
+              viewBox="0 0 24 24"
+              width="24px"
+              fill="#1f1f1f"
+            >
+              <g>
+                <rect fill="none" height="24" width="24" />
+                <path d="M12,3.19l7,3.11V11c0,4.52-2.98,8.69-7,9.93C7.98,19.69,5,15.52,5,11V6.3L12,3.19 M12,1L3,5v6c0,5.55,3.84,10.74,9,12 c5.16-1.26,9-6.45,9-12V5L12,1L12,1z M11,7h2v2h-2V7z M11,11h2v6h-2V11z" />
+              </g>
+            </svg>
             <p className="text-[#4c4c4c] text-base font-medium tracking-[-0.06em]">
               Your project is automatically saved as you edit
             </p>
@@ -621,30 +683,46 @@ export function NewProjectSubmissionFormSinglePage({
             <div className="flex items-center justify-between mb-6 flex-wrap gap-2 sm:gap-0">
               <div className="relative">
                 <button
-                  onClick={() => setShowVisibilityDropdown(!showVisibilityDropdown)}
+                  onClick={() =>
+                    setShowVisibilityDropdown(!showVisibilityDropdown)
+                  }
                   className="flex items-center gap-2 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] px-3 py-2 h-[44px] w-[142px] hover:bg-gray-50 transition-colors"
                 >
                   <Public className="w-6 h-6" />
-                  <span className="text-[16px] font-normal">{visibility.charAt(0).toUpperCase() + visibility.slice(1)}</span>
-                  <svg className="w-6 h-6 ml-auto" viewBox="0 0 24 24" fill="none">
-                    <path d="M7 10l5 5 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <span className="text-[16px] font-normal">
+                    {visibility.charAt(0).toUpperCase() + visibility.slice(1)}
+                  </span>
+                  <svg
+                    className="w-6 h-6 ml-auto"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                  >
+                    <path
+                      d="M7 10l5 5 5-5"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
                   </svg>
                 </button>
 
                 {showVisibilityDropdown && (
                   <div className="absolute top-full py-1.5 px-1 mt-2 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] shadow-lg z-10 w-[160px] overflow-hidden">
-                    {[EventVisibility.Public, EventVisibility.Private].map((vis) => (
-                      <button
-                        key={vis}
-                        onClick={() => {
-                          setVisibility(vis);
-                          setShowVisibilityDropdown(false);
-                        }}
-                        className="w-full text-left px-3 py-2 hover:bg-[#F2F2F2] text-[16px] rounded-[8px]"
-                      >
-                        {vis.charAt(0).toUpperCase() + vis.slice(1)}
-                      </button>
-                    ))}
+                    {[EventVisibility.Public, EventVisibility.Private].map(
+                      (vis) => (
+                        <button
+                          key={vis}
+                          onClick={() => {
+                            setVisibility(vis);
+                            setShowVisibilityDropdown(false);
+                          }}
+                          className="w-full text-left px-3 py-2 hover:bg-[#F2F2F2] text-[16px] rounded-[8px]"
+                        >
+                          {vis.charAt(0).toUpperCase() + vis.slice(1)}
+                        </button>
+                      )
+                    )}
                   </div>
                 )}
               </div>
@@ -662,7 +740,14 @@ export function NewProjectSubmissionFormSinglePage({
                   }
                   className="bg-[#f2f2f2] hover:bg-[#e8e8e8] text-black rounded-xl px-6 py-2.5 shadow-sm font-medium"
                 >
-                  Cancel
+                  Save draft and exit
+                </Button>
+                <Button
+                  onClick={handleDeleteDraft}
+                  disabled={isDeletingDraft}
+                  className="bg-red-600 hover:bg-red-700 text-white rounded-xl px-6 py-2.5 shadow-sm font-medium"
+                >
+                  Delete draft
                 </Button>
                 <Button
                   onClick={handlePublish}
@@ -766,7 +851,10 @@ export function NewProjectSubmissionFormSinglePage({
                       </label>
                       <div className="space-y-2">
                         {availableTracks.map((track) => (
-                          <label key={track.id} className="flex items-center gap-2">
+                          <label
+                            key={track.id}
+                            className="flex items-center gap-2"
+                          >
                             <input
                               type="checkbox"
                               checked={selectedTrackIds.includes(track.id)}
@@ -775,7 +863,9 @@ export function NewProjectSubmissionFormSinglePage({
                               }
                               className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                             />
-                            <span className="text-sm text-black">{track.name}</span>
+                            <span className="text-sm text-black">
+                              {track.name}
+                            </span>
                           </label>
                         ))}
                       </div>
@@ -815,9 +905,9 @@ export function NewProjectSubmissionFormSinglePage({
                         </span>
                       </label>
                     </div>
-                      <p className="text-base text-[#7f7f7f]">
-                        Upload an image to showcase your project (Max 10MB).
-                      </p>
+                    <p className="text-base text-[#7f7f7f]">
+                      Upload an image to showcase your project (Max 10MB).
+                    </p>
                   </div>
 
                   {/* Additional Materials */}
@@ -849,9 +939,9 @@ export function NewProjectSubmissionFormSinglePage({
                         </span>
                       </label>
                     </div>
-                      <p className="text-base text-[#7f7f7f]">
-                        Upload any additional documentation (Max 10MB).
-                      </p>
+                    <p className="text-base text-[#7f7f7f]">
+                      Upload any additional documentation (Max 10MB).
+                    </p>
                   </div>
 
                   {/* GitHub or Live Link */}
@@ -986,7 +1076,11 @@ export function NewProjectSubmissionFormSinglePage({
                           <div className="flex items-center gap-1">
                             <CalendarClock className="h-5 w-5 text-[#575d65]" />
                             <span className="text-sm text-[#575d65]">
-                              {new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                              {new Date().toLocaleDateString("en-US", {
+                                month: "short",
+                                day: "numeric",
+                                year: "numeric",
+                              })}
                             </span>
                           </div>
                           <div className="flex items-center gap-1">
@@ -1039,28 +1133,31 @@ export function NewProjectSubmissionFormSinglePage({
                         Submitted to
                       </h3>
                       <div className="w-[339px]">
-                        <EventCard
-                          event={{
-                            event_id: eventDetails.event_id,
-                            slug: eventDetails.slug,
-                            event_name: eventDetails.event_name,
-                            event_date: eventDetails.event_date,
-                            location: eventDetails.location || "Online",
-                            cover_image_url: eventDetails.cover_image_url,
-                            paid: eventDetails.paid,
-                            event_blurb:
-                              eventDetails.event_blurb ||
-                              eventDetails.event_description,
-                            event_description: eventDetails.event_description,
-                          }}
-                        />
+                        <Link
+                          href={`/events/${eventDetails.event_id}/overview`}
+                        >
+                          <EventCard
+                            event={{
+                              event_id: eventDetails.event_id,
+                              slug: eventDetails.slug,
+                              event_name: eventDetails.event_name,
+                              event_date: eventDetails.event_date,
+                              location: eventDetails.location || "Online",
+                              cover_image_url: eventDetails.cover_image_url,
+                              paid: eventDetails.paid,
+                              event_blurb:
+                                eventDetails.event_blurb ||
+                                eventDetails.event_description,
+                              event_description: eventDetails.event_description,
+                            }}
+                          />
+                        </Link>
                       </div>
                     </div>
                   </>
                 )}
               </div>
             </div>
-
           </div>
         </div>
       </div>

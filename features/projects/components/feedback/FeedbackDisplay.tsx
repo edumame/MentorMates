@@ -1,7 +1,6 @@
 "use client";
 
 import { useFeedbackData } from "@/features/projects/components/management/project-dashboard/hooks/useFeedbackData";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MessageSquare } from "lucide-react";
 import { getInitials } from "@/lib/utils/string";
 import { Gesture } from "@mui/icons-material";
@@ -14,24 +13,6 @@ interface FeedbackDisplayProps {
   projectId: string;
   showTitle?: boolean;
   className?: string;
-}
-
-/**
- * Distributes an array in a round-robin manner to a specified number of columns
- * Example: [1,2,3,4,5,6,7] -> [[1,4,7], [2,5], [3,6]]
- * @param items The array to distribute
- * @param columns The number of columns
- * @returns A 2D array, where each sub-array represents a column
- */
-function distributeToColumns<T>(items: T[], columns: number): T[][] {
-  const result: T[][] = Array.from({ length: columns }, () => []);
-
-  items.forEach((item, index) => {
-    const columnIndex = index % columns;
-    result[columnIndex].push(item);
-  });
-
-  return result;
 }
 
 function FeedbackCard({ item }: { item: FeedbackItem }) {
@@ -76,7 +57,6 @@ export default function FeedbackDisplay({
   className = ""
 }: FeedbackDisplayProps) {
   const { feedback, isLoadingFeedback } = useFeedbackData(projectId);
-  const feedbackColumns = distributeToColumns(feedback, 3);
   const [showShareFeedbackDialog, setShowShareFeedbackDialog] = useState(false);
 
   if (isLoadingFeedback) {
@@ -119,22 +99,11 @@ export default function FeedbackDisplay({
       )}
       <div>
         {feedback.length > 0 ? (
-          <>
-            <div className="gap-4 hidden sm:flex">
-              {feedbackColumns.map((column, index) => (
-                <div key={`column-${index}`} className="flex flex-col gap-4">
-                  {column.map((item) => (
-                    <FeedbackCard key={item.id} item={item} />
-                  ))}
-                </div>
-              ))}
-            </div>
-            <div className="flex flex-col gap-4 sm:hidden">
-              {feedback.map((item) => (
-                <FeedbackCard key={item.id} item={item} />
-              ))}
-            </div>
-          </>
+          <div className="flex flex-col gap-4">
+            {feedback.map((item) => (
+              <FeedbackCard key={item.id} item={item} />
+            ))}
+          </div>
         ) : (
           <div className="text-center py-20 border border-dashed border-gray-200 rounded-[20px]">
             <div className="mx-auto flex items-center justify-center mb-4 relative">
