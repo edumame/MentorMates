@@ -26,7 +26,6 @@ import {
   ArrowUpRight,
   Link as LinkIcon,
   Video,
-  Share2,
   Lightbulb,
   Download,
 } from "lucide-react";
@@ -102,6 +101,7 @@ export default function ProjectPage() {
 
   // Event details state
   const [eventDetails, setEventDetails] = useState<EventDetails | null>(null);
+  const [feedbackCount, setFeedbackCount] = useState(0);
 
   // Contextus ID state
   const [showContextusId, setShowContextusId] = useState(false);
@@ -156,43 +156,52 @@ export default function ProjectPage() {
     }
   }, [session, projectId]);
 
-  // Fetch event details when project is loaded
+  // Fetch event details and feedback count when project is loaded
   useEffect(() => {
-    const fetchEventDetails = async () => {
-      if (!project?.event_id) return;
+    const fetchEventDetailsAndFeedback = async () => {
+      if (!project?.event_id || !project?.id) return;
 
       try {
-        const { data: eventData, error } = await supabase
-          .from("events")
-          .select(
-            "event_id, event_name, slug, event_date, location, cover_image_url"
-          )
-          .eq("event_id", project.event_id)
-          .single();
+        const [eventResult, feedbackResult] = await Promise.all([
+          supabase
+            .from("events")
+            .select(
+              "event_id, event_name, slug, event_date, location, cover_image_url"
+            )
+            .eq("event_id", project.event_id)
+            .single(),
+          supabase
+            .from("feedback")
+            .select("id", { count: "exact", head: true })
+            .eq("project_id", project.id),
+        ]);
 
-        if (error) {
-          return;
-        }
-
-        if (eventData) {
+        // Handle event data
+        if (!eventResult.error && eventResult.data) {
           setEventDetails({
-            event_id: eventData.event_id,
-            event_name: eventData.event_name,
-            slug: eventData.slug || "",
-            start_date: eventData.event_date,
-            end_date: eventData.event_date,
-            location: eventData.location || undefined,
+            event_id: eventResult.data.event_id,
+            event_name: eventResult.data.event_name,
+            slug: eventResult.data.slug || "",
+            start_date: eventResult.data.event_date,
+            end_date: eventResult.data.event_date,
+            location: eventResult.data.location || undefined,
             event_type: undefined,
-            cover_image_url: eventData.cover_image_url || undefined,
+            cover_image_url: eventResult.data.cover_image_url || undefined,
           });
         }
+
+        // Handle feedback count
+        if (!feedbackResult.error) {
+          setFeedbackCount(feedbackResult.count || 0);
+        }
       } catch (error) {
-        // Silently fail if event details cannot be fetched
+        // Silently fail if data cannot be fetched
+        console.error("Error fetching event details and feedback:", error);
       }
     };
 
-    fetchEventDetails();
-  }, [project?.event_id]);
+    fetchEventDetailsAndFeedback();
+  }, [project?.event_id, project?.id]);
 
   useEffect(() => {
     let isMounted = true;
@@ -1304,7 +1313,7 @@ export default function ProjectPage() {
                     variant="secondary"
                     className="bg-white border border-black/15 text-black rounded-full text-xs"
                   >
-                    0
+                    {feedbackCount}
                   </Badge>
                 </TabsTrigger>
                 <TabsTrigger
