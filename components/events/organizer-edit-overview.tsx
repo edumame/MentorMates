@@ -72,7 +72,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
   const [deleting, setDeleting] = useState(false);
   const [archiving, setArchiving] = useState(false);
   const [isPending, startTransition] = useTransition();
-  
+
   // Use URL as single source of truth for tab state
   const activeTab = searchParams.get("tab") || "overview";
   const activeSubTab = searchParams.get("subtab") || "basics";
@@ -392,8 +392,12 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                   }
                 >
                   <Archive className="w-5 h-5 sm:w-6 sm:h-6" />
-                  <span className="hidden sm:inline">{archiving ? "Archiving..." : "Archive"}</span>
-                  <span className="sm:hidden">{archiving ? "..." : "Archive"}</span>
+                  <span className="hidden sm:inline">
+                    {archiving ? "Archiving..." : "Archive"}
+                  </span>
+                  <span className="sm:hidden">
+                    {archiving ? "..." : "Archive"}
+                  </span>
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
@@ -444,7 +448,10 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction className="bg-red-600 hover:bg-red-700 text-white"onClick={handleDelete}>
+                  <AlertDialogAction
+                    className="bg-red-600 hover:bg-red-700 text-white"
+                    onClick={handleDelete}
+                  >
                     Confirm Delete
                   </AlertDialogAction>
                 </AlertDialogFooter>
@@ -481,8 +488,10 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
             <SelectTrigger className="w-full h-12 text-[16px] font-medium">
               <SelectValue>
                 {mainTabs.find((tab) => tab.value === activeTab)?.label}
-                {mainTabs.find((tab) => tab.value === activeTab)?.badge !== undefined &&
-                  mainTabs.find((tab) => tab.value === activeTab)!.badge! > 0 && (
+                {mainTabs.find((tab) => tab.value === activeTab)?.badge !==
+                  undefined &&
+                  mainTabs.find((tab) => tab.value === activeTab)!.badge! >
+                    0 && (
                     <span className="ml-2 bg-white border border-[rgba(0,0,0,0.15)] px-2 py-0 rounded-full text-[14px] font-normal">
                       {mainTabs.find((tab) => tab.value === activeTab)!.badge}
                     </span>
@@ -532,7 +541,10 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
             <Select value={activeSubTab} onValueChange={setActiveSubTab}>
               <SelectTrigger className="w-full h-12 text-[14px] font-medium bg-blue-300">
                 <SelectValue>
-                  {overviewSubTabs.find((tab) => tab.value === activeSubTab)?.label}
+                  {
+                    overviewSubTabs.find((tab) => tab.value === activeSubTab)
+                      ?.label
+                  }
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -547,7 +559,10 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
         )}
 
         {/* Content Area */}
-        <div className="w-full" style={{ opacity: isPending ? 0.4 : 1, transition: 'opacity 150ms' }}>
+        <div
+          className="w-full"
+          style={{ opacity: isPending ? 0.4 : 1, transition: "opacity 150ms" }}
+        >
           {/* Overview Tab Content with Two-Column Layout */}
           {activeTab === "overview" && (
             <div className="flex flex-col lg:flex-row gap-6 lg:gap-12 items-start">
