@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/lib/hooks/use-toast";
@@ -71,11 +71,11 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
   );
   const [deleting, setDeleting] = useState(false);
   const [archiving, setArchiving] = useState(false);
-  // Get tab state from URL or use defaults
-  const tabFromUrl = searchParams.get("tab") || "overview";
-  const subTabFromUrl = searchParams.get("subtab") || "basics";
-  const [activeTab, setActiveTabState] = useState<string>(tabFromUrl);
-  const [activeSubTab, setActiveSubTabState] = useState<string>(subTabFromUrl);
+  const [isPending, startTransition] = useTransition();
+
+  // Use URL as single source of truth for tab state
+  const activeTab = searchParams.get("tab") || "overview";
+  const activeSubTab = searchParams.get("subtab") || "basics";
 
   const [participantCount, setParticipantCount] = useState<number>(0);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -104,40 +104,28 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
     { value: "gallery", label: "Gallery" },
   ];
 
-  // Update URL when tabs change
+  // Update URL when tabs change with optimistic UI
   const setActiveTab = (tab: string) => {
-    setActiveTabState(tab);
-    const params = new URLSearchParams(searchParams);
-    params.set("tab", tab);
-    // Reset subtab to basics when changing main tabs
-    if (tab === "overview") {
-      params.set("subtab", "basics");
-      setActiveSubTabState("basics");
-    } else {
-      params.delete("subtab");
-    }
-    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    startTransition(() => {
+      const params = new URLSearchParams(searchParams);
+      params.set("tab", tab);
+      // Reset subtab to basics when changing main tabs
+      if (tab === "overview") {
+        params.set("subtab", "basics");
+      } else {
+        params.delete("subtab");
+      }
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    });
   };
 
   const setActiveSubTab = (subtab: string) => {
-    setActiveSubTabState(subtab);
-    const params = new URLSearchParams(searchParams);
-    params.set("subtab", subtab);
-    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    startTransition(() => {
+      const params = new URLSearchParams(searchParams);
+      params.set("subtab", subtab);
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    });
   };
-
-  // Sync state with URL changes
-  useEffect(() => {
-    const tabParam = searchParams.get("tab");
-    const subtabParam = searchParams.get("subtab");
-
-    if (tabParam && tabParam !== activeTab) {
-      setActiveTabState(tabParam);
-    }
-    if (subtabParam && subtabParam !== activeSubTab) {
-      setActiveSubTabState(subtabParam);
-    }
-  }, [searchParams, activeTab, activeSubTab]);
 
   useEffect(() => {
     fetchEvent();
@@ -404,8 +392,12 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                   }
                 >
                   <Archive className="w-5 h-5 sm:w-6 sm:h-6" />
-                  <span className="hidden sm:inline">{archiving ? "Archiving..." : "Archive"}</span>
-                  <span className="sm:hidden">{archiving ? "..." : "Archive"}</span>
+                  <span className="hidden sm:inline">
+                    {archiving ? "Archiving..." : "Archive"}
+                  </span>
+                  <span className="sm:hidden">
+                    {archiving ? "..." : "Archive"}
+                  </span>
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
@@ -456,7 +448,10 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction className="bg-red-600 hover:bg-red-700 text-white"onClick={handleDelete}>
+                  <AlertDialogAction
+                    className="bg-red-600 hover:bg-red-700 text-white"
+                    onClick={handleDelete}
+                  >
                     Confirm Delete
                   </AlertDialogAction>
                 </AlertDialogFooter>
@@ -493,8 +488,10 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
             <SelectTrigger className="w-full h-12 text-[16px] font-medium">
               <SelectValue>
                 {mainTabs.find((tab) => tab.value === activeTab)?.label}
-                {mainTabs.find((tab) => tab.value === activeTab)?.badge !== undefined &&
-                  mainTabs.find((tab) => tab.value === activeTab)!.badge! > 0 && (
+                {mainTabs.find((tab) => tab.value === activeTab)?.badge !==
+                  undefined &&
+                  mainTabs.find((tab) => tab.value === activeTab)!.badge! >
+                    0 && (
                     <span className="ml-2 bg-white border border-[rgba(0,0,0,0.15)] px-2 py-0 rounded-full text-[14px] font-normal">
                       {mainTabs.find((tab) => tab.value === activeTab)!.badge}
                     </span>
@@ -544,7 +541,10 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
             <Select value={activeSubTab} onValueChange={setActiveSubTab}>
               <SelectTrigger className="w-full h-12 text-[14px] font-medium bg-blue-300">
                 <SelectValue>
-                  {overviewSubTabs.find((tab) => tab.value === activeSubTab)?.label}
+                  {
+                    overviewSubTabs.find((tab) => tab.value === activeSubTab)
+                      ?.label
+                  }
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -559,7 +559,10 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
         )}
 
         {/* Content Area */}
-        <div className="w-full">
+        <div
+          className="w-full"
+          style={{ opacity: isPending ? 0.4 : 1, transition: "opacity 150ms" }}
+        >
           {/* Overview Tab Content with Two-Column Layout */}
           {activeTab === "overview" && (
             <div className="flex flex-col lg:flex-row gap-6 lg:gap-12 items-start">
