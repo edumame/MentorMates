@@ -9,6 +9,7 @@ import { ConditionalNavbar } from "@/components/layout/ConditionalNavbar";
 import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
 import { LayoutConfigProvider } from "@/components/layout/LayoutConfigProvider";
 import { ConditionalAnnouncement } from "@/components/layout/ConditionalAnnouncement";
+import { RouteProgressBar } from "@/components/ui/route-progress-bar";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -38,6 +39,7 @@ export default function RootLayout({
         <Providers>
           <AuthContextProvider>
             <LayoutConfigProvider>
+              <RouteProgressBar />
               <ConditionalAnnouncement />
               <ConditionalNavbar />
               <AuthProvider>
