@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 
 // Import existing tab components
 import { ParticipantsTab } from "@/features/user/dashboards/dashboard/organizer/participants";
@@ -373,12 +374,21 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
       <div className="px-4 md:px-8 py-6 space-y-6">
         {/* Header with title and action buttons */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <h1
-            className="font-semibold text-[28px] leading-[1.4] tracking-[-1.68px] text-black"
-            style={{ fontFamily: "Geist, sans-serif" }}
-          >
-            Manage Event
-          </h1>
+          <div className="flex items-center gap-2">
+            <h1
+              className="font-semibold text-[28px] leading-[1.4] tracking-[-1.68px] text-black"
+              style={{ fontFamily: "Geist, sans-serif" }}
+            >
+              Manage Event
+            </h1>
+            {event.visibility && (
+              <Badge
+                className={`${event.visibility === EventVisibility.Draft ? "bg-orange-500/20 text-black border-none text-xs sm:text-sm" : "bg-green-500/20 text-black-300 border-none text-xs sm:text-sm"}`}
+              >
+                {event.visibility.toUpperCase()}
+              </Badge>
+            )}
+          </div>
 
           <div className="flex gap-1 w-full sm:w-auto">
             {/* Archive Event Dialog */}
