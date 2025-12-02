@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { supabase } from "@/lib/supabase";
 import { EventVisibility } from "@/lib/types";
 import { Input } from "@/components/ui/input";
@@ -12,7 +13,7 @@ import { useToast } from "@/lib/hooks/use-toast";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
   MapPin,
-  Image,
+  Image as ImageIcon,
   Type,
   Mail,
   Globe,
@@ -655,7 +656,7 @@ export default function NewEventPage() {
                               </label>
                               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                                 <div className="relative flex-1">
-                                  <Image className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                                  <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
                                   <Input
                                     value={form.cover_image_url}
                                     onChange={(e) =>
@@ -887,16 +888,18 @@ export default function NewEventPage() {
                         <TabsContent value="schedule" className="mt-0">
                           {!showScheduleForm ? (
                             <div className="border-2 border-dashed border-gray-300 rounded-[12px] p-12 flex flex-col items-center justify-center text-center min-h-[400px]">
-                              <div className="flex flex-col items-center gap-4">
+                              <div className="flex flex-col items-center gap-2">
                                 <div className="relative">
-                                  <Calendar className="w-16 h-16 text-gray-400" />
-                                  <div className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
-                                    <span className="text-white text-xs font-bold">
-                                      ×
-                                    </span>
-                                  </div>
+                                  <Image
+                                    src="/img/cancel_schedule_send.png"
+                                    alt="No schedule illustration"
+                                    width={40}
+                                    height={40}
+                                    className="object-contain"
+                                    priority
+                                  />
                                 </div>
-                                <div className="space-y-2">
+                                <div className="space-y-1">
                                   <h3 className="text-[18px] font-semibold text-black">
                                     No schedule yet
                                   </h3>
