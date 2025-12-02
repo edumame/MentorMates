@@ -3,7 +3,7 @@ import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { z } from "zod";
 
 // Schema for social links validation
-export const SocialLinksSchema = z
+const SocialLinksSchema = z
   .object({
     linkedin: z.string().url().optional().nullable(),
     github: z.string().url().optional().nullable(),
@@ -16,7 +16,7 @@ export const SocialLinksSchema = z
   .partial();
 
 // Schema for profile update request
-export const ProfileUpdateSchema = z.object({
+const ProfileUpdateSchema = z.object({
   display_name: z.string().min(1).max(100).optional(),
   avatar_url: z.string().url().optional().nullable(),
   bio: z.string().max(500).optional().nullable(),
