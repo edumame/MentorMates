@@ -31,6 +31,7 @@ import { useToast } from "@/lib/hooks/use-toast";
 import { Toaster } from "@/components/ui/toaster";
 import { getRoleLabel } from "@/features/user/roles/roles";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
+import { z } from "zod";
 
 // Interface for events with role information
 interface EventWithRole extends EventDetails {
@@ -38,6 +39,33 @@ interface EventWithRole extends EventDetails {
     role: EventRole;
   }[];
 }
+
+// Validation schemas (matching server-side validation)
+const SocialLinksSchema = z
+  .object({
+    linkedin: z.string().url("Invalid LinkedIn URL").optional().or(z.literal("")),
+    github: z.string().url("Invalid GitHub URL").optional().or(z.literal("")),
+    twitter: z.string().url("Invalid Twitter URL").optional().or(z.literal("")),
+    facebook: z.string().url("Invalid Facebook URL").optional().or(z.literal("")),
+    instagram: z.string().url("Invalid Instagram URL").optional().or(z.literal("")),
+    youtube: z.string().url("Invalid YouTube URL").optional().or(z.literal("")),
+    portfolio: z.string().url("Invalid Portfolio URL").optional().or(z.literal("")),
+  })
+  .partial();
+
+const ProfileUpdateSchema = z.object({
+  display_name: z
+    .string()
+    .min(1, "Display name is required")
+    .max(100, "Display name must be less than 100 characters")
+    .optional(),
+  bio: z
+    .string()
+    .max(500, "Bio must be less than 500 characters")
+    .optional()
+    .or(z.literal("")),
+  links: SocialLinksSchema.optional(),
+});
 
 // Interface for social media links
 interface SocialLinks {
@@ -92,6 +120,8 @@ export default function ProfilePage() {
   const [isProfileAdmin, setIsProfileAdmin] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [isSaving, setIsSaving] = useState(false);
 
   // Check if the current user is viewing their own profile
   const isOwnProfile = session?.user?.id === userId;
@@ -218,6 +248,37 @@ export default function ProfilePage() {
   };
 
   const handleUpdateProfile = async () => {
+    // Clear previous validation errors
+    setIsSaving(true);
+    setValidationErrors({});
+
+    // Prepare data for validation
+    const updateData = {
+      display_name: newDisplayName || undefined,
+      bio: newBio || undefined,
+      links: Object.fromEntries(
+        Object.entries(newSocialLinks).filter(([, value]) => value && value.trim() !== "")
+      ),
+    };
+
+    // Client-side validation
+    const validationResult = ProfileUpdateSchema.safeParse(updateData);
+    if (!validationResult.success) {
+      const errors: Record<string, string> = {};
+      validationResult.error.errors.forEach((err) => {
+        const path = err.path.join(".");
+        errors[path] = err.message;
+      });
+      setValidationErrors(errors);
+
+      toast({
+        title: "Validation Error",
+        description: "Please fix the errors in the form",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       // Use the PATCH API endpoint for profile updates
       const response = await fetch(`/api/users/${userId}`, {
@@ -233,7 +294,19 @@ export default function ProfilePage() {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to update profile");
+        const errorData = await response.json().catch(() => ({}));
+        
+        // Handle server-side validation errors
+        if (errorData.details) {
+          const errors: Record<string, string> = {};
+          errorData.details.forEach((err: { path: string[]; message: string }) => {
+            const path = err.path.join(".");
+            errors[path] = err.message;
+          });
+          setValidationErrors(errors);
+        }
+        
+        throw new Error(errorData.error || "Failed to update profile");
       }
 
       toast({
@@ -251,13 +324,16 @@ export default function ProfilePage() {
           : null
       );
       setIsEditingLinks(false);
+      setValidationErrors({});
+      setIsSaving(false);
     } catch (error) {
       toast({
         title: "Error updating profile",
-        description: "Please try again later",
+        description: error instanceof Error ? error.message : "Please try again later",
         variant: "destructive",
       });
       console.error("Error updating profile:", error);
+      setIsSaving(false);
     }
   };
 
@@ -664,6 +740,7 @@ export default function ProfilePage() {
                           setNewSocialLinks(userProfile?.links || {});
                           setNewBio(userProfile?.bio || "");
                           setNewDisplayName(userProfile?.display_name || "");
+                          setValidationErrors({});
                         }}
                         className="flex items-center gap-1.5 px-5 py-2 text-base font-medium text-black hover:text-gray-600 transition-colors rounded-xl"
                       >
@@ -889,6 +966,7 @@ export default function ProfilePage() {
                   onClick={() => {
                     setIsEditingLinks(false);
                     setAvatarPreview(null);
+                    setValidationErrors({});
                   }}
                   className="w-12 h-12 flex items-center justify-center hover:bg-gray-100 rounded-lg transition-colors"
                 >
@@ -988,7 +1066,9 @@ export default function ProfilePage() {
                 {/* Name */}
                 <div className="space-y-2">
                   <label className="text-base text-black">Name</label>
-                  <div className="h-11 bg-white border border-black/15 rounded-xl flex items-center px-3 gap-3">
+                  <div className={`h-11 bg-white border rounded-xl flex items-center px-3 gap-3 ${
+                    validationErrors.display_name ? "border-red-500" : "border-black/15"
+                  }`}>
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
                       <path
                         d="M4 7V4H20V7"
@@ -1016,16 +1096,31 @@ export default function ProfilePage() {
                       type="text"
                       placeholder="Your name"
                       value={newDisplayName}
-                      onChange={(e) => setNewDisplayName(e.target.value)}
+                      onChange={(e) => {
+                        setNewDisplayName(e.target.value);
+                        // Clear error on change
+                        if (validationErrors.display_name) {
+                          setValidationErrors((prev) => {
+                            const newErrors = { ...prev };
+                            delete newErrors.display_name;
+                            return newErrors;
+                          });
+                        }
+                      }}
                       className="flex-1 text-base bg-transparent outline-none placeholder:text-black/60"
                     />
                   </div>
+                  {validationErrors.display_name && (
+                    <p className="text-sm text-red-500">{validationErrors.display_name}</p>
+                  )}
                 </div>
 
                 {/* Description */}
                 <div className="space-y-2">
                   <label className="text-base text-black">Description</label>
-                  <div className="h-11 bg-white border border-black/15 rounded-xl flex items-center px-3 gap-3">
+                  <div className={`h-11 bg-white border rounded-xl flex items-center px-3 gap-3 ${
+                    validationErrors.bio ? "border-red-500" : "border-black/15"
+                  }`}>
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
                       <path
                         d="M4 7V4H20V7"
@@ -1053,95 +1148,168 @@ export default function ProfilePage() {
                       type="text"
                       placeholder="Short description shown in your profile page"
                       value={newBio}
-                      onChange={(e) => setNewBio(e.target.value)}
+                      onChange={(e) => {
+                        setNewBio(e.target.value);
+                        // Clear error on change
+                        if (validationErrors.bio) {
+                          setValidationErrors((prev) => {
+                            const newErrors = { ...prev };
+                            delete newErrors.bio;
+                            return newErrors;
+                          });
+                        }
+                      }}
                       maxLength={500}
                       className="flex-1 text-base bg-transparent outline-none placeholder:text-black/60"
                     />
                   </div>
+                  {validationErrors.bio && (
+                    <p className="text-sm text-red-500">{validationErrors.bio}</p>
+                  )}
                 </div>
 
                 {/* Socials */}
                 <div className="space-y-2">
                   <label className="text-base text-black">Socials</label>
                   <div className="space-y-2">
-                    <div className="h-11 bg-white border border-black/15 rounded-xl flex items-center px-3 gap-3">
-                      <FaLinkedin className="w-6 h-6 text-black" />
-                      <input
-                        type="url"
-                        placeholder="LinkedIn Profile URL"
-                        value={newSocialLinks.linkedin || ""}
-                        onChange={(e) =>
-                          setNewSocialLinks((prev) => ({
-                            ...prev,
-                            linkedin: e.target.value || undefined,
-                          }))
-                        }
-                        className="flex-1 text-base bg-transparent outline-none placeholder:text-black/60"
-                      />
-                    </div>
-                    <div className="h-11 bg-white border border-black/15 rounded-xl flex items-center px-3 gap-3">
-                      <FaGithub className="w-6 h-6 text-black" />
-                      <input
-                        type="url"
-                        placeholder="GitHub Profile URL"
-                        value={newSocialLinks.github || ""}
-                        onChange={(e) =>
-                          setNewSocialLinks((prev) => ({
-                            ...prev,
-                            github: e.target.value || undefined,
-                          }))
-                        }
-                        className="flex-1 text-base bg-transparent outline-none placeholder:text-black/60"
-                      />
-                    </div>
-                    <div className="h-11 bg-white border border-black/15 rounded-xl flex items-center px-3 gap-3">
-                      <FaXTwitter className="w-6 h-6 text-black" />
-                      <input
-                        type="url"
-                        placeholder="Twitter Profile URL"
-                        value={newSocialLinks.twitter || ""}
-                        onChange={(e) =>
-                          setNewSocialLinks((prev) => ({
-                            ...prev,
-                            twitter: e.target.value || undefined,
-                          }))
-                        }
-                        className="flex-1 text-base bg-transparent outline-none placeholder:text-black/60"
-                      />
-                    </div>
-                    <div className="h-11 bg-white border border-black/15 rounded-xl flex items-center px-3 gap-3">
-                      <svg
-                        width="24"
-                        height="24"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                      >
-                        <circle
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="black"
-                          strokeWidth="2"
+                    <div>
+                      <div className={`h-11 bg-white border rounded-xl flex items-center px-3 gap-3 ${
+                        validationErrors["links.linkedin"] ? "border-red-500" : "border-black/15"
+                      }`}>
+                        <FaLinkedin className="w-6 h-6 text-black" />
+                        <input
+                          type="url"
+                          placeholder="LinkedIn Profile URL"
+                          value={newSocialLinks.linkedin || ""}
+                          onChange={(e) => {
+                            setNewSocialLinks((prev) => ({
+                              ...prev,
+                              linkedin: e.target.value || undefined,
+                            }));
+                            // Clear error on change
+                            if (validationErrors["links.linkedin"]) {
+                              setValidationErrors((prev) => {
+                                const newErrors = { ...prev };
+                                delete newErrors["links.linkedin"];
+                                return newErrors;
+                              });
+                            }
+                          }}
+                          className="flex-1 text-base bg-transparent outline-none placeholder:text-black/60"
                         />
-                        <path d="M2 12H22" stroke="black" strokeWidth="2" />
-                        <path
-                          d="M12 2C14.5 4.5 16 8 16 12C16 16 14.5 19.5 12 22C9.5 19.5 8 16 8 12C8 8 9.5 4.5 12 2Z"
-                          stroke="black"
-                          strokeWidth="2"
+                      </div>
+                      {validationErrors["links.linkedin"] && (
+                        <p className="text-sm text-red-500 mt-1">{validationErrors["links.linkedin"]}</p>
+                      )}
+                    </div>
+                    <div>
+                      <div className={`h-11 bg-white border rounded-xl flex items-center px-3 gap-3 ${
+                        validationErrors["links.github"] ? "border-red-500" : "border-black/15"
+                      }`}>
+                        <FaGithub className="w-6 h-6 text-black" />
+                        <input
+                          type="url"
+                          placeholder="GitHub Profile URL"
+                          value={newSocialLinks.github || ""}
+                          onChange={(e) => {
+                            setNewSocialLinks((prev) => ({
+                              ...prev,
+                              github: e.target.value || undefined,
+                            }));
+                            // Clear error on change
+                            if (validationErrors["links.github"]) {
+                              setValidationErrors((prev) => {
+                                const newErrors = { ...prev };
+                                delete newErrors["links.github"];
+                                return newErrors;
+                              });
+                            }
+                          }}
+                          className="flex-1 text-base bg-transparent outline-none placeholder:text-black/60"
                         />
-                      </svg>
-                      <input
-                        type="url"
-                        placeholder="Portfolio Website URL"
-                        value={newSocialLinks.portfolio || ""}
-                        onChange={(e) =>
-                          setNewSocialLinks((prev) => ({
-                            ...prev,
-                            portfolio: e.target.value || undefined,
-                          }))
-                        }
-                        className="flex-1 text-base bg-transparent outline-none placeholder:text-black/60"
-                      />
+                      </div>
+                      {validationErrors["links.github"] && (
+                        <p className="text-sm text-red-500 mt-1">{validationErrors["links.github"]}</p>
+                      )}
+                    </div>
+                    <div>
+                      <div className={`h-11 bg-white border rounded-xl flex items-center px-3 gap-3 ${
+                        validationErrors["links.twitter"] ? "border-red-500" : "border-black/15"
+                      }`}>
+                        <FaXTwitter className="w-6 h-6 text-black" />
+                        <input
+                          type="url"
+                          placeholder="Twitter Profile URL"
+                          value={newSocialLinks.twitter || ""}
+                          onChange={(e) => {
+                            setNewSocialLinks((prev) => ({
+                              ...prev,
+                              twitter: e.target.value || undefined,
+                            }));
+                            // Clear error on change
+                            if (validationErrors["links.twitter"]) {
+                              setValidationErrors((prev) => {
+                                const newErrors = { ...prev };
+                                delete newErrors["links.twitter"];
+                                return newErrors;
+                              });
+                            }
+                          }}
+                          className="flex-1 text-base bg-transparent outline-none placeholder:text-black/60"
+                        />
+                      </div>
+                      {validationErrors["links.twitter"] && (
+                        <p className="text-sm text-red-500 mt-1">{validationErrors["links.twitter"]}</p>
+                      )}
+                    </div>
+                    <div>
+                      <div className={`h-11 bg-white border rounded-xl flex items-center px-3 gap-3 ${
+                        validationErrors["links.portfolio"] ? "border-red-500" : "border-black/15"
+                      }`}>
+                        <svg
+                          width="24"
+                          height="24"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                        >
+                          <circle
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="black"
+                            strokeWidth="2"
+                          />
+                          <path d="M2 12H22" stroke="black" strokeWidth="2" />
+                          <path
+                            d="M12 2C14.5 4.5 16 8 16 12C16 16 14.5 19.5 12 22C9.5 19.5 8 16 8 12C8 8 9.5 4.5 12 2Z"
+                            stroke="black"
+                            strokeWidth="2"
+                          />
+                        </svg>
+                        <input
+                          type="url"
+                          placeholder="Portfolio Website URL"
+                          value={newSocialLinks.portfolio || ""}
+                          onChange={(e) => {
+                            setNewSocialLinks((prev) => ({
+                              ...prev,
+                              portfolio: e.target.value || undefined,
+                            }));
+                            // Clear error on change
+                            if (validationErrors["links.portfolio"]) {
+                              setValidationErrors((prev) => {
+                                const newErrors = { ...prev };
+                                delete newErrors["links.portfolio"];
+                                return newErrors;
+                              });
+                            }
+                          }}
+                          className="flex-1 text-base bg-transparent outline-none placeholder:text-black/60"
+                        />
+                      </div>
+                      {validationErrors["links.portfolio"] && (
+                        <p className="text-sm text-red-500 mt-1">{validationErrors["links.portfolio"]}</p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1152,17 +1320,19 @@ export default function ProfilePage() {
                     onClick={() => {
                       setIsEditingLinks(false);
                       setAvatarPreview(null);
+                      setValidationErrors({});
                     }}
                     className="flex-1 h-10 bg-black/5 hover:bg-black/10 rounded-xl text-base font-medium text-black transition-colors"
                   >
                     Cancel
                   </button>
-                  <button
+                  <Button
                     onClick={handleUpdateProfile}
                     className="flex-1 h-10 bg-[#4b89ef] hover:bg-[#3d7ce0] rounded-xl text-base font-medium text-white transition-colors"
+                    disabled={isSaving}
                   >
-                    Save
-                  </button>
+                    {isSaving ? "Saving..." : "Save"}
+                  </Button>
                 </div>
               </div>
             </div>

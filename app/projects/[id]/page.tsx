@@ -112,6 +112,8 @@ export default function ProjectPage() {
   // Give Feedback Dialog state
   const [showFeedbackDialog, setShowFeedbackDialog] = useState(false);
 
+  const [fetchComplete, setFetchComplete] = useState(false);
+
   // QR Code functionality
   const { handleCopyQR, handleDownloadQR } = useQRCodeActions(
     project?.event_id || "",
@@ -235,6 +237,9 @@ export default function ProjectPage() {
   }, [hasEventTracks, activeTab]);
 
   const fetchProject = async () => {
+    setIsLoading(true);
+    setFetchComplete(false);
+    
     const { data, error } = await supabase
       .from("projects")
       .select(
@@ -260,6 +265,9 @@ export default function ProjectPage() {
       const canEditProject = isLead || isTeammate;
       setCanEdit(canEditProject);
     }
+    
+    setIsLoading(false);
+    setFetchComplete(true);
   };
 
   const handleUpdateTitle = async (newTitle: string): Promise<boolean> => {
@@ -941,11 +949,13 @@ export default function ProjectPage() {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || !fetchComplete) {
     return (
       <PageContainer>
         <div className="flex items-center justify-center flex-grow">
-          <div className="text-lg">Loading project...</div>
+          <div className="flex flex-col items-center gap-3">
+            <Loader className="h-10 w-10 animate-spin text-blue-500" />
+          </div>
         </div>
       </PageContainer>
     );
