@@ -32,6 +32,8 @@ import {
   Clock,
   Search,
   Plus,
+  Link2,
+  Trash2,
 } from "lucide-react";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -66,6 +68,24 @@ export default function NewEventPage() {
     guests: "",
     description: "",
   });
+  const [schedules, setSchedules] = useState<
+    Array<{
+      id: string;
+      dayTitle: string;
+      eventName: string;
+      time: string;
+      guests: string;
+      description: string;
+    }>
+  >([]);
+  const [showResourcesForm, setShowResourcesForm] = useState(false);
+  const [resourcesForm, setResourcesForm] = useState({
+    resourceName: "",
+    resourceLink: "",
+  });
+  const [resources, setResources] = useState<
+    Array<{ id: string; name: string; link: string }>
+  >([]);
 
   const [form, setForm] = useState({
     event_name: "",
@@ -886,7 +906,7 @@ export default function NewEventPage() {
                         </TabsContent>
 
                         <TabsContent value="schedule" className="mt-0">
-                          {!showScheduleForm ? (
+                          {schedules.length === 0 && !showScheduleForm ? (
                             <div className="border-2 border-dashed border-gray-300 rounded-[12px] p-12 flex flex-col items-center justify-center text-center min-h-[400px]">
                               <div className="flex flex-col items-center gap-2">
                                 <div className="relative">
@@ -916,6 +936,73 @@ export default function NewEventPage() {
                                   Add schedule
                                 </Button>
                               </div>
+                            </div>
+                          ) : schedules.length > 0 && !showScheduleForm ? (
+                            <div className="space-y-4">
+                              {schedules.map((schedule) => (
+                                <div
+                                  key={schedule.id}
+                                  className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-4"
+                                >
+                                  <div className="flex items-start justify-between mb-2">
+                                    <div className="flex-1">
+                                      <h4 className="text-[18px] font-semibold text-black">
+                                        {schedule.dayTitle}
+                                      </h4>
+                                      <div className="mt-2 space-y-1">
+                                        <p className="text-[16px] font-medium text-black">
+                                          {schedule.eventName}
+                                        </p>
+                                        {schedule.time && (
+                                          <p className="text-[14px] text-gray-600">
+                                            Time: {schedule.time}
+                                          </p>
+                                        )}
+                                        {schedule.guests && (
+                                          <p className="text-[14px] text-gray-600">
+                                            Guests: {schedule.guests}
+                                          </p>
+                                        )}
+                                        {schedule.description && (
+                                          <div className="mt-2 text-[14px] text-gray-600 prose prose-sm max-w-full">
+                                            <ReactMarkdown>
+                                              {schedule.description}
+                                            </ReactMarkdown>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => {
+                                        setSchedules(
+                                          schedules.filter(
+                                            (s) => s.id !== schedule.id
+                                          )
+                                        );
+                                        toast({
+                                          title: "Schedule deleted",
+                                          description:
+                                            "Schedule item removed successfully.",
+                                        });
+                                      }}
+                                      className="text-red-500 hover:text-red-700 hover:bg-red-50 ml-2"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              ))}
+                              <Button
+                                type="button"
+                                onClick={() => setShowScheduleForm(true)}
+                                className="w-full bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
+                              >
+                                <Plus className="w-4 h-4 mr-2" />
+                                Add schedule
+                              </Button>
                             </div>
                           ) : (
                             <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4">
@@ -1050,6 +1137,29 @@ export default function NewEventPage() {
                                   type="button"
                                   className="bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
                                   onClick={() => {
+                                    if (
+                                      !scheduleForm.dayTitle ||
+                                      !scheduleForm.eventName
+                                    ) {
+                                      toast({
+                                        title: "Missing fields",
+                                        description:
+                                          "Please fill in day title and event name.",
+                                        variant: "destructive",
+                                      });
+                                      return;
+                                    }
+                                    setSchedules([
+                                      ...schedules,
+                                      {
+                                        id: Date.now().toString(),
+                                        dayTitle: scheduleForm.dayTitle,
+                                        eventName: scheduleForm.eventName,
+                                        time: scheduleForm.time,
+                                        guests: scheduleForm.guests,
+                                        description: scheduleForm.description,
+                                      },
+                                    ]);
                                     toast({
                                       title: "Schedule created",
                                       description:
@@ -1062,6 +1172,7 @@ export default function NewEventPage() {
                                       guests: "",
                                       description: "",
                                     });
+                                    setShowScheduleForm(false);
                                   }}
                                 >
                                   Create
@@ -1120,10 +1231,210 @@ export default function NewEventPage() {
                         )}
 
                         <TabsContent value="resources" className="mt-0">
-                          <p className="text-gray-500">
-                            Resources section - coming soon
-                          </p>
+                          {resources.length === 0 && !showResourcesForm ? (
+                            <div className="border-2 border-dashed border-gray-300 rounded-[12px] p-12 flex flex-col items-center justify-center text-center min-h-[400px]">
+                              <div className="flex flex-col items-center gap-2">
+                                <div className="relative">
+                                  <Link2 className="w-16 h-16 text-gray-400" />
+                                  <div className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
+                                    <span className="text-white text-xs font-bold">
+                                      ×
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="space-y-1">
+                                  <h3 className="text-[18px] font-semibold text-black">
+                                    No resource yet
+                                  </h3>
+                                  <p className="text-[14px] text-gray-500 max-w-md">
+                                    Resources will be shown as individual links
+                                    on the event page.
+                                  </p>
+                                </div>
+                                <Button
+                                  type="button"
+                                  onClick={() => setShowResourcesForm(true)}
+                                  className="mt-2 bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
+                                >
+                                  Add resource
+                                </Button>
+                              </div>
+                            </div>
+                          ) : resources.length > 0 && !showResourcesForm ? (
+                            <div className="space-y-4">
+                              {resources.map((resource) => (
+                                <div
+                                  key={resource.id}
+                                  className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-4 flex items-center justify-between"
+                                >
+                                  <div className="flex-1">
+                                    <h4 className="text-[16px] font-medium text-black">
+                                      {resource.name}
+                                    </h4>
+                                    <a
+                                      href={resource.link}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-[14px] text-[#4b89ef] hover:underline mt-1 block"
+                                    >
+                                      {resource.link}
+                                    </a>
+                                  </div>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                      setResources(
+                                        resources.filter(
+                                          (r) => r.id !== resource.id
+                                        )
+                                      );
+                                      toast({
+                                        title: "Resource deleted",
+                                        description:
+                                          "Resource removed successfully.",
+                                      });
+                                    }}
+                                    className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              ))}
+                              <Button
+                                type="button"
+                                onClick={() => setShowResourcesForm(true)}
+                                className="w-full bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
+                              >
+                                <Plus className="w-4 h-4 mr-2" />
+                                Add resource
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4">
+                              <div className="space-y-2">
+                                <label className="text-[16px] font-normal text-black">
+                                  Resource name
+                                </label>
+                                <div className="relative">
+                                  <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                                  <Input
+                                    value={resourcesForm.resourceName}
+                                    onChange={(e) =>
+                                      setResourcesForm((prev) => ({
+                                        ...prev,
+                                        resourceName: e.target.value,
+                                      }))
+                                    }
+                                    placeholder="Short description shown in the preview card"
+                                    className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="space-y-2">
+                                <label className="text-[16px] font-normal text-black">
+                                  Resource link
+                                </label>
+                                <div className="relative">
+                                  <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                                  <Input
+                                    value={resourcesForm.resourceLink}
+                                    onChange={(e) =>
+                                      setResourcesForm((prev) => ({
+                                        ...prev,
+                                        resourceLink: e.target.value,
+                                      }))
+                                    }
+                                    placeholder="https://"
+                                    className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-2 pt-4">
+                                <Button
+                                  type="button"
+                                  className="bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
+                                  onClick={() => {
+                                    if (
+                                      !resourcesForm.resourceName ||
+                                      !resourcesForm.resourceLink
+                                    ) {
+                                      toast({
+                                        title: "Missing fields",
+                                        description:
+                                          "Please fill in both resource name and link.",
+                                        variant: "destructive",
+                                      });
+                                      return;
+                                    }
+                                    setResources([
+                                      ...resources,
+                                      {
+                                        id: Date.now().toString(),
+                                        name: resourcesForm.resourceName,
+                                        link: resourcesForm.resourceLink,
+                                      },
+                                    ]);
+                                    toast({
+                                      title: "Resource created",
+                                      description:
+                                        "Resource added successfully.",
+                                    });
+                                    setResourcesForm({
+                                      resourceName: "",
+                                      resourceLink: "",
+                                    });
+                                    setShowResourcesForm(false);
+                                  }}
+                                >
+                                  Create
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setShowResourcesForm(false);
+                                    setResourcesForm({
+                                      resourceName: "",
+                                      resourceLink: "",
+                                    });
+                                  }}
+                                  className="border border-[rgba(0,0,0,0.15)] bg-white"
+                                >
+                                  Cancel
+                                </Button>
+                              </div>
+                            </div>
+                          )}
                         </TabsContent>
+
+                        {showResourcesForm && (
+                          <Button
+                            type="button"
+                            className="rounded-[12px] border-0 mt-4 text-black bg-gray-50 hover:bg-gray-100"
+                            style={{
+                              background: "rgba(0, 0, 0, 0.05)",
+                              boxShadow:
+                                "0 0 0 1px rgba(0, 0, 0, 0.05) inset, 0 -2px 1px 0 rgba(0, 0, 0, 0.05) inset, 0 1px 2px 0 rgba(0, 0, 0, 0.05)",
+                            }}
+                            onClick={() => {
+                              setResourcesForm({
+                                resourceName: "",
+                                resourceLink: "",
+                              });
+                              toast({
+                                title: "New resource",
+                                description: "Ready to add a new resource.",
+                              });
+                            }}
+                          >
+                            <Plus className="w-4 h-4 mr-2" />
+                            Add new resource
+                          </Button>
+                        )}
 
                         <TabsContent value="rules" className="mt-0">
                           <p className="text-gray-500">
