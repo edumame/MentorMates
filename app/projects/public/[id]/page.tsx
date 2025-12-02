@@ -70,6 +70,7 @@ export default function PublicProjectPage() {
 
   const [project, setProject] = useState<Project | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [fetchComplete, setFetchComplete] = useState(false);
   const [isJudge, setIsJudge] = useState(false);
   const [isCheckingJudgeStatus, setIsCheckingJudgeStatus] = useState(false);
   const [projectTracks, setProjectTracks] = useState<EventTrack[]>([]);
@@ -96,6 +97,9 @@ export default function PublicProjectPage() {
 
   useEffect(() => {
     const fetchProject = async () => {
+      setIsLoading(true);
+      setFetchComplete(false);
+      
       const { data, error } = await supabase
         .from("projects")
         .select("*")
@@ -108,7 +112,9 @@ export default function PublicProjectPage() {
       } else {
         setProject(data);
       }
+      
       setIsLoading(false);
+      setFetchComplete(true);
     };
 
     fetchProject();
@@ -246,11 +252,13 @@ export default function PublicProjectPage() {
     });
   };
 
-  if (isLoading) {
+  if (isLoading || !fetchComplete) {
     return (
       <PageContainer>
         <div className="flex items-center justify-center flex-grow">
-          <div className="text-lg">Loading project...</div>
+          <div className="flex flex-col items-center gap-3">
+            <Loader className="h-10 w-10 animate-spin text-blue-500" />
+          </div>
         </div>
       </PageContainer>
     );
