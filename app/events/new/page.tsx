@@ -918,7 +918,7 @@ export default function NewEventPage() {
                               </div>
                             </div>
                           ) : (
-                            <div className="space-y-4">
+                            <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4">
                               <div className="space-y-2">
                                 <label className="text-[16px] font-normal text-black">
                                   Day Title
@@ -939,102 +939,110 @@ export default function NewEventPage() {
                                 </div>
                               </div>
 
-                              <div className="space-y-2">
-                                <label className="text-[16px] font-normal text-black">
-                                  Event Name
-                                </label>
-                                <div className="relative">
-                                  <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
-                                  <Input
-                                    value={scheduleForm.eventName}
-                                    onChange={(e) =>
-                                      setScheduleForm((prev) => ({
-                                        ...prev,
-                                        eventName: e.target.value,
-                                      }))
-                                    }
-                                    placeholder="Short description shown in the preview card"
-                                    className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
-                                  />
+                              <div
+                                className="rounded-[12px] border border-[rgba(0,0,0,0.15)] bg-[#F7FAFE] p-4 flex flex-col items-start gap-6"
+                                style={{
+                                  boxShadow:
+                                    "0 0 0 1px rgba(0, 0, 0, 0.05) inset, 0 -2px 1px 0 rgba(0, 0, 0, 0.05) inset, 0 1px 2px 0 rgba(0, 0, 0, 0.05)",
+                                }}
+                              >
+                                <div className="space-y-2 w-full">
+                                  <label className="text-[16px] font-normal text-black">
+                                    Event Name
+                                  </label>
+                                  <div className="relative">
+                                    <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                                    <Input
+                                      value={scheduleForm.eventName}
+                                      onChange={(e) =>
+                                        setScheduleForm((prev) => ({
+                                          ...prev,
+                                          eventName: e.target.value,
+                                        }))
+                                      }
+                                      placeholder="Short description shown in the preview card"
+                                      className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+                                    />
+                                  </div>
                                 </div>
-                              </div>
 
-                              <div className="space-y-2">
-                                <label className="text-[16px] font-normal text-black">
-                                  Time
-                                </label>
-                                <div className="relative">
-                                  <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
-                                  <Input
-                                    value={scheduleForm.time}
-                                    onChange={(e) =>
-                                      setScheduleForm((prev) => ({
-                                        ...prev,
-                                        time: e.target.value,
-                                      }))
-                                    }
-                                    placeholder="11-22-33"
-                                    className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
-                                  />
+                                <div className="space-y-2 w-full">
+                                  <label className="text-[16px] font-normal text-black">
+                                    Time
+                                  </label>
+                                  <div className="relative">
+                                    <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                                    <Input
+                                      value={scheduleForm.time}
+                                      onChange={(e) =>
+                                        setScheduleForm((prev) => ({
+                                          ...prev,
+                                          time: e.target.value,
+                                        }))
+                                      }
+                                      placeholder="11-22-33"
+                                      className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+                                    />
+                                  </div>
                                 </div>
-                              </div>
 
-                              <div className="space-y-2">
-                                <div className="flex items-center justify-between">
+                                <div className="space-y-2 w-full">
                                   <label className="text-[16px] font-normal text-black">
                                     Add guests
                                   </label>
-                                  <button
-                                    type="button"
-                                    className="text-[14px] text-[#4b89ef] hover:underline"
-                                  >
-                                    Invite guest
-                                  </button>
+                                  <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                                    <Input
+                                      value={scheduleForm.guests}
+                                      onChange={(e) =>
+                                        setScheduleForm((prev) => ({
+                                          ...prev,
+                                          guests: e.target.value,
+                                        }))
+                                      }
+                                      placeholder="Search guests"
+                                      className="h-[44px] pl-11 pr-32 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+                                    />
+                                    <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                                      <button
+                                        type="button"
+                                        className="text-[14px] text-[#4b89ef] hover:underline whitespace-nowrap"
+                                      >
+                                        Invite guest
+                                      </button>
+                                      <svg
+                                        className="w-5 h-5 text-gray-400"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth={2}
+                                          d="M19 9l-7 7-7-7"
+                                        />
+                                      </svg>
+                                    </div>
+                                  </div>
                                 </div>
-                                <div className="relative">
-                                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
-                                  <Input
-                                    value={scheduleForm.guests}
+
+                                <div className="space-y-2 w-full">
+                                  <label className="text-[16px] font-normal text-black">
+                                    Description
+                                  </label>
+                                  <Textarea
+                                    value={scheduleForm.description}
                                     onChange={(e) =>
                                       setScheduleForm((prev) => ({
                                         ...prev,
-                                        guests: e.target.value,
+                                        description: e.target.value,
                                       }))
                                     }
-                                    placeholder="Search guests"
-                                    className="h-[44px] pl-11 pr-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+                                    placeholder="Add long description (markdown supported)"
+                                    className="min-h-[200px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] p-3 focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none resize-y"
                                   />
-                                  <svg
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M19 9l-7 7-7-7"
-                                    />
-                                  </svg>
                                 </div>
-                              </div>
-
-                              <div className="space-y-2">
-                                <label className="text-[16px] font-normal text-black">
-                                  Description
-                                </label>
-                                <Textarea
-                                  value={scheduleForm.description}
-                                  onChange={(e) =>
-                                    setScheduleForm((prev) => ({
-                                      ...prev,
-                                      description: e.target.value,
-                                    }))
-                                  }
-                                  placeholder="Add long description (markdown supported)"
-                                  className="min-h-[200px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] p-3 focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none resize-y"
-                                />
                               </div>
 
                               <div className="flex items-center gap-2 pt-4">
@@ -1071,14 +1079,14 @@ export default function NewEventPage() {
                                       description: "",
                                     });
                                   }}
-                                  className="border border-[rgba(0,0,0,0.15)]"
+                                  className="border border-[rgba(0,0,0,0.15)] bg-white"
                                 >
                                   Cancel
                                 </Button>
                                 <Button
                                   type="button"
                                   variant="outline"
-                                  className="border border-[rgba(0,0,0,0.15)]"
+                                  className="border border-[#4b89ef] text-[#4b89ef] bg-white hover:bg-[#4b89ef]/10"
                                   onClick={() => {
                                     toast({
                                       title: "Event added",
@@ -1096,32 +1104,20 @@ export default function NewEventPage() {
                                   Add event
                                 </Button>
                               </div>
-
-                              <Button
-                                type="button"
-                                variant="outline"
-                                className="w-full border border-[rgba(0,0,0,0.15)] mt-4"
-                                onClick={() => {
-                                  setScheduleForm({
-                                    dayTitle: "",
-                                    eventName: "",
-                                    time: "",
-                                    guests: "",
-                                    description: "",
-                                  });
-                                  toast({
-                                    title: "New day",
-                                    description:
-                                      "Ready to add a new day to the schedule.",
-                                  });
-                                }}
-                              >
-                                <Plus className="w-4 h-4 mr-2" />
-                                Add new day
-                              </Button>
                             </div>
                           )}
                         </TabsContent>
+
+                        {showScheduleForm && (
+                          <Button
+                            type="button"
+                            className="rounded-[12px] border-0 mt-4 text-black bg-gray-50 hover:bg-gray-100"
+                            onClick={() => setShowScheduleForm(true)}
+                          >
+                            <Plus className="w-4 h-4 mr-2" />
+                            Add new day
+                          </Button>
+                        )}
 
                         <TabsContent value="resources" className="mt-0">
                           <p className="text-gray-500">
