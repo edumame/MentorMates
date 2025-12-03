@@ -34,6 +34,8 @@ import {
   Plus,
   Link2,
   Trash2,
+  Pencil,
+  Paperclip,
 } from "lucide-react";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -86,6 +88,13 @@ export default function NewEventPage() {
   const [resources, setResources] = useState<
     Array<{ id: string; name: string; link: string }>
   >([]);
+  const [editingResourceId, setEditingResourceId] = useState<string | null>(
+    null
+  );
+  const [editingResourceForm, setEditingResourceForm] = useState({
+    resourceName: "",
+    resourceLink: "",
+  });
 
   const [form, setForm] = useState({
     event_name: "",
@@ -1265,50 +1274,201 @@ export default function NewEventPage() {
                               {resources.map((resource) => (
                                 <div
                                   key={resource.id}
-                                  className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-4 flex items-center justify-between"
+                                  className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4 relative"
                                 >
-                                  <div className="flex-1">
-                                    <h4 className="text-[16px] font-medium text-black">
-                                      {resource.name}
-                                    </h4>
-                                    <a
-                                      href={resource.link}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="text-[14px] text-[#4b89ef] hover:underline mt-1 block"
-                                    >
-                                      {resource.link}
-                                    </a>
-                                  </div>
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => {
-                                      setResources(
-                                        resources.filter(
-                                          (r) => r.id !== resource.id
-                                        )
-                                      );
-                                      toast({
-                                        title: "Resource deleted",
-                                        description:
-                                          "Resource removed successfully.",
-                                      });
-                                    }}
-                                    className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </Button>
+                                  {editingResourceId === resource.id ? (
+                                    <>
+                                      <div className="space-y-2">
+                                        <label className="text-[16px] font-normal text-black">
+                                          Resource name
+                                        </label>
+                                        <div className="relative">
+                                          <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                                          <Input
+                                            value={
+                                              editingResourceForm.resourceName
+                                            }
+                                            onChange={(e) =>
+                                              setEditingResourceForm(
+                                                (prev) => ({
+                                                  ...prev,
+                                                  resourceName: e.target.value,
+                                                })
+                                              )
+                                            }
+                                            className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+                                          />
+                                        </div>
+                                      </div>
+
+                                      <div className="space-y-2">
+                                        <label className="text-[16px] font-normal text-black">
+                                          Resource link
+                                        </label>
+                                        <div className="relative">
+                                          <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                                          <Input
+                                            value={
+                                              editingResourceForm.resourceLink
+                                            }
+                                            onChange={(e) =>
+                                              setEditingResourceForm(
+                                                (prev) => ({
+                                                  ...prev,
+                                                  resourceLink: e.target.value,
+                                                })
+                                              )
+                                            }
+                                            className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+                                          />
+                                        </div>
+                                        {editingResourceForm.resourceLink && (
+                                          <div className="flex items-center gap-2 text-[14px] text-gray-600">
+                                            <Paperclip className="w-4 h-4" />
+                                            <span className="truncate">
+                                              {editingResourceForm.resourceLink}
+                                            </span>
+                                          </div>
+                                        )}
+                                      </div>
+
+                                      <div className="flex items-center gap-2 pt-2">
+                                        <Button
+                                          type="button"
+                                          className="bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
+                                          onClick={() => {
+                                            if (
+                                              !editingResourceForm.resourceName ||
+                                              !editingResourceForm.resourceLink
+                                            ) {
+                                              toast({
+                                                title: "Missing fields",
+                                                description:
+                                                  "Please fill in both resource name and link.",
+                                                variant: "destructive",
+                                              });
+                                              return;
+                                            }
+                                            setResources(
+                                              resources.map((r) =>
+                                                r.id === resource.id
+                                                  ? {
+                                                      ...r,
+                                                      name: editingResourceForm.resourceName,
+                                                      link: editingResourceForm.resourceLink,
+                                                    }
+                                                  : r
+                                              )
+                                            );
+                                            setEditingResourceId(null);
+                                            setEditingResourceForm({
+                                              resourceName: "",
+                                              resourceLink: "",
+                                            });
+                                            toast({
+                                              title: "Resource updated",
+                                              description:
+                                                "Resource saved successfully.",
+                                            });
+                                          }}
+                                        >
+                                          Save
+                                        </Button>
+                                        <Button
+                                          type="button"
+                                          className="text-white rounded-[12px] hover:bg-red-600"
+                                          style={{
+                                            background:
+                                              "var(--Component-colors-Utility-Error-utility-error-600, #D92D20)",
+                                            boxShadow:
+                                              "0 32px 24px 0 rgba(255, 255, 255, 0.05) inset, 0 2px 1px 0 rgba(255, 255, 255, 0.25) inset, 0 0 0 1px var(--Opacity-Neutral-Darkest-15, rgba(0, 0, 0, 0.15)) inset, 0 -2px 1px 0 rgba(0, 0, 0, 0.20) inset, 0 1px 2px 0 var(--Opacity-Neutral-Darkest-5, rgba(0, 0, 0, 0.05))",
+                                          }}
+                                          onClick={() => {
+                                            setResources(
+                                              resources.filter(
+                                                (r) => r.id !== resource.id
+                                              )
+                                            );
+                                            setEditingResourceId(null);
+                                            setEditingResourceForm({
+                                              resourceName: "",
+                                              resourceLink: "",
+                                            });
+                                            toast({
+                                              title: "Resource deleted",
+                                              description:
+                                                "Resource removed successfully.",
+                                            });
+                                          }}
+                                        >
+                                          Delete
+                                        </Button>
+                                      </div>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <div className="absolute top-4 right-4">
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setEditingResourceId(resource.id);
+                                            setEditingResourceForm({
+                                              resourceName: resource.name,
+                                              resourceLink: resource.link,
+                                            });
+                                          }}
+                                          className="p-2 hover:bg-gray-50 rounded-[8px] transition-colors"
+                                        >
+                                          <Pencil className="w-4 h-4 text-gray-600" />
+                                        </button>
+                                      </div>
+
+                                      <div className="space-y-2">
+                                        <label className="text-[16px] font-normal text-black">
+                                          Resource name
+                                        </label>
+                                        <div className="relative">
+                                          <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                                          <Input
+                                            value={resource.name}
+                                            readOnly
+                                            className="h-[44px] pl-11 bg-gray-50 border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] text-gray-600 cursor-not-allowed"
+                                          />
+                                        </div>
+                                      </div>
+
+                                      <div className="space-y-2">
+                                        <label className="text-[16px] font-normal text-black">
+                                          Resource link
+                                        </label>
+                                        <div className="relative">
+                                          <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                                          <Input
+                                            value={resource.link}
+                                            readOnly
+                                            className="h-[44px] pl-11 bg-gray-50 border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] text-gray-600 cursor-not-allowed"
+                                          />
+                                        </div>
+                                        {resource.link && (
+                                          <div className="flex items-center gap-2 text-[14px] text-gray-600">
+                                            <Paperclip className="w-4 h-4" />
+                                            <span className="truncate">
+                                              {resource.link}
+                                            </span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </>
+                                  )}
                                 </div>
                               ))}
                               <Button
                                 type="button"
                                 onClick={() => setShowResourcesForm(true)}
-                                className="w-full bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
+                                className="w-full rounded-[12px] border-0 text-black bg-[rgba(0,0,0,0.05)] hover:bg-gray-50 shadow-[0_0_0_1px_rgba(0,0,0,0.05)_inset,0_-2px_1px_0_rgba(0,0,0,0.05)_inset,0_1px_2px_0_rgba(0,0,0,0.05)]"
                               >
                                 <Plus className="w-4 h-4 mr-2" />
-                                Add resource
+                                Add new resource
                               </Button>
                             </div>
                           ) : (
