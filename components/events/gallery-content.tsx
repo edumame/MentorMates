@@ -3,9 +3,18 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Plus, Search } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Copy, Download, Plus, QrCode, Search, Share2 } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 import ProjectBoard from "@/features/projects/components/displays/ProjectBoard/ProjectBoard";
 import { ProjectBoardContext, Project, EventRole } from "@/lib/types";
+import { useToast } from "@/lib/hooks/use-toast";
 
 interface GalleryContentProps {
   eventId: string;
@@ -25,6 +34,12 @@ export function GalleryContent({
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
+  const [galleryUrl, setGalleryUrl] = useState(
+    () => (typeof window !== "undefined" ? window.location.href : "")
+  );
+  const { toast } = useToast();
+  const qrCodeId = "gallery-share-qr-code";
 
   useEffect(() => {
     const fetchProjects = async () => {
@@ -48,6 +63,12 @@ export function GalleryContent({
     fetchProjects();
   }, [eventId]);
 
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setGalleryUrl(`${window.location.origin}/events/${slug}/gallery`);
+    }
+  }, [slug]);
+
   const filteredProjects = projects.filter(
     (project) =>
       project.project_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -56,18 +77,166 @@ export function GalleryContent({
         .includes(searchQuery.toLowerCase())
   );
 
+  const handleCopyLink = async () => {
+    if (!galleryUrl) return;
+    if (typeof navigator === "undefined" || !navigator.clipboard) {
+      toast({
+        title: "Copy unavailable",
+        description: "Clipboard access is not supported in this browser",
+        variant: "destructive",
+      });
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(galleryUrl);
+      toast({
+        title: "Link copied",
+        description: "Gallery link copied to clipboard",
+      });
+    } catch (error) {
+      console.error("Error copying gallery link:", error);
+      toast({
+        title: "Copy failed",
+        description: "Unable to copy gallery link",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Converts the rendered SVG into a canvas so we can copy/download the QR
+  const getQrCanvas = async () => {
+    const svg = document.getElementById(qrCodeId) as SVGSVGElement | null;
+    if (!svg) {
+      throw new Error("QR code not ready yet");
+    }
+
+    const canvas = document.createElement("canvas");
+    const size = svg.getBoundingClientRect().width || svg.clientWidth || 200;
+    canvas.width = size;
+    canvas.height = size;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      throw new Error("Canvas context not available");
+    }
+
+    const serializer = new XMLSerializer();
+    const svgString = serializer.serializeToString(svg);
+    const svgBlob = new Blob([svgString], {
+      type: "image/svg+xml;charset=utf-8",
+    });
+    const svgUrl = URL.createObjectURL(svgBlob);
+
+    await new Promise<void>((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        ctx.drawImage(img, 0, 0, size, size);
+        URL.revokeObjectURL(svgUrl);
+        resolve();
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(svgUrl);
+        reject(new Error("Failed to load QR image"));
+      };
+      img.src = svgUrl;
+    });
+
+    return canvas;
+  };
+
+  const handleCopyQr = async () => {
+    try {
+      const canvas = await getQrCanvas();
+      const dataUrl = canvas.toDataURL("image/png");
+      const blob = await (await fetch(dataUrl)).blob();
+
+      if (typeof ClipboardItem === "undefined") {
+        throw new Error("ClipboardItem not supported");
+      }
+
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          [blob.type]: blob,
+        }),
+      ]);
+
+      toast({
+        title: "QR copied",
+        description: "QR code image copied to clipboard",
+      });
+    } catch (error) {
+      console.error("Error copying QR code:", error);
+      if (
+        galleryUrl &&
+        typeof navigator !== "undefined" &&
+        navigator.clipboard
+      ) {
+        try {
+          await navigator.clipboard.writeText(galleryUrl);
+          toast({
+            title: "Link copied instead",
+            description:
+              "QR image copy is not supported here, so we copied the gallery link.",
+          });
+          return;
+        } catch (linkError) {
+          console.error("Error copying fallback link:", linkError);
+        }
+      }
+
+      toast({
+        title: "Copy failed",
+        description: "Unable to copy QR code",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDownloadQr = async () => {
+    try {
+      const canvas = await getQrCanvas();
+      const link = document.createElement("a");
+      link.download = "gallery-share-qr.png";
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+
+      toast({
+        title: "Download started",
+        description: "QR code saved as PNG",
+      });
+    } catch (error) {
+      console.error("Error downloading QR code:", error);
+      toast({
+        title: "Download failed",
+        description: "Unable to download QR code",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="flex flex-col flex-1 w-full">
-      {/* Search Bar */}
-      <div className="bg-transparent border border-[rgba(0,0,0,0.15)] rounded-xl flex gap-3 items-center px-3 py-2 mb-6 w-full max-w-[560px]">
-        <Search className="w-6 h-6 text-black shrink-0" />
-        <input
-          type="text"
-          placeholder="Search projects by name or team members"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="font-normal text-[16px] leading-[1.5] text-black placeholder:text-[rgba(0,0,0,0.6)] bg-transparent border-none outline-none flex-1"
-        />
+      {/* Search + Share */}
+      <div className="flex flex-col gap-4 mb-6 sm:flex-row sm:items-center sm:justify-between">
+        <div className="bg-transparent border border-[rgba(0,0,0,0.15)] rounded-xl flex gap-3 items-center px-3 py-2 w-full sm:max-w-[560px]">
+          <Search className="w-6 h-6 text-black shrink-0" />
+          <input
+            type="text"
+            placeholder="Search projects by name or team members"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="font-normal text-[16px] leading-[1.5] text-black placeholder:text-[rgba(0,0,0,0.6)] bg-transparent border-none outline-none flex-1"
+          />
+        </div>
+
+        <Button
+          variant="outline"
+          className="w-full sm:w-auto border-[1.5px] border-[rgba(0,0,0,0.1)]"
+          onClick={() => setIsShareDialogOpen(true)}
+        >
+          <Share2 className="h-5 w-5 mr-2" />
+          Share Gallery
+        </Button>
       </div>
 
       {/* Create Project Button - Only show for participants and organizers */}
@@ -91,6 +260,80 @@ export function GalleryContent({
         projectList={filteredProjects}
         projectBoardContext={ProjectBoardContext.EventGallery}
       />
+
+      <Dialog open={isShareDialogOpen} onOpenChange={setIsShareDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              <QrCode className="h-5 w-5" />
+              Share this gallery
+            </DialogTitle>
+            <p className="text-sm text-muted-foreground">
+              Share the public gallery with attendees or display the QR code at
+              your event booth.
+            </p>
+          </DialogHeader>
+
+          <div className="space-y-5">
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-muted-foreground">
+                Public link
+              </p>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Input
+                  value={galleryUrl}
+                  readOnly
+                  className="flex-1 bg-white"
+                />
+                <Button
+                  variant="secondary"
+                  className="bg-zinc-100 hover:bg-zinc-200"
+                  onClick={handleCopyLink}
+                >
+                  <Copy className="h-4 w-4 mr-2" />
+                  Copy link
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <QrCode className="h-4 w-4" />
+                <p className="text-sm font-medium text-muted-foreground">
+                  QR code
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="p-4 border border-zinc-200 rounded-2xl bg-white flex items-center justify-center">
+                  <QRCodeSVG
+                    id={qrCodeId}
+                    value={
+                      galleryUrl ||
+                      (typeof window !== "undefined"
+                        ? window.location.href
+                        : "")
+                    }
+                    size={200}
+                    level="H"
+                    includeMargin
+                  />
+                </div>
+                <div className="flex flex-col gap-2 w-full sm:w-auto">
+                  <Button variant="outline" onClick={handleCopyQr}>
+                    <Copy className="h-4 w-4 mr-2" />
+                    Copy QR
+                  </Button>
+                  <Button variant="outline" onClick={handleDownloadQr}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Download PNG
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
