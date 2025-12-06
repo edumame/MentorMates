@@ -102,6 +102,19 @@ export default function NewEventPage() {
     sectionTitle: "",
     rules: [""],
   });
+  const [faqs, setFaqs] = useState<
+    Array<{ id: string; question: string; answer: string }>
+  >([]);
+  const [showFaqsForm, setShowFaqsForm] = useState(false);
+  const [faqsForm, setFaqsForm] = useState({
+    question: "",
+    answer: "",
+  });
+  const [editingFaqId, setEditingFaqId] = useState<string | null>(null);
+  const [editingFaqForm, setEditingFaqForm] = useState({
+    question: "",
+    answer: "",
+  });
 
   const [form, setForm] = useState({
     event_name: "",
@@ -242,6 +255,8 @@ export default function NewEventPage() {
             event_type: form.event_type || undefined,
             paywall_content: form.paywall_content || undefined,
             rules: rules.length > 0 ? rules : undefined,
+            faqs:
+              faqs.length > 0 ? faqs.map(({ id, ...faq }) => faq) : undefined,
           },
           organizerEmails,
         }),
@@ -1997,9 +2012,307 @@ export default function NewEventPage() {
                       value="faqs"
                       className="mt-0 overflow-x-hidden"
                     >
-                      <p className="text-gray-500">
-                        FAQs section - coming soon
-                      </p>
+                      {faqs.length === 0 && !showFaqsForm ? (
+                        <div className="border-2 border-dashed border-gray-300 rounded-[12px] p-12 flex flex-col items-center justify-center text-center min-h-[400px]">
+                          <div className="flex flex-col items-center gap-2">
+                            <div className="relative">
+                              <FileText className="w-16 h-16 text-gray-400" />
+                              <div className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
+                                <span className="text-white text-xs font-bold">
+                                  ×
+                                </span>
+                              </div>
+                            </div>
+                            <div className="space-y-1">
+                              <h3 className="text-[18px] font-semibold text-black">
+                                No FAQ yet
+                              </h3>
+                              <p className="text-[14px] text-gray-500 max-w-md">
+                                Add questions and answers to help participants
+                                understand your event better.
+                              </p>
+                            </div>
+                            <Button
+                              type="button"
+                              onClick={() => setShowFaqsForm(true)}
+                              className="mt-2 bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
+                            >
+                              Add question
+                            </Button>
+                          </div>
+                        </div>
+                      ) : faqs.length > 0 && !showFaqsForm ? (
+                        <div className="space-y-4">
+                          {faqs.map((faq) => (
+                            <div
+                              key={faq.id}
+                              className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4 relative"
+                            >
+                              {editingFaqId === faq.id ? (
+                                <>
+                                  <div className="space-y-2">
+                                    <label className="text-[16px] font-normal text-black">
+                                      Question
+                                    </label>
+                                    <div className="relative">
+                                      <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                                      <Input
+                                        value={editingFaqForm.question}
+                                        onChange={(e) =>
+                                          setEditingFaqForm((prev) => ({
+                                            ...prev,
+                                            question: e.target.value,
+                                          }))
+                                        }
+                                        className="w-full min-w-0 h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+                                      />
+                                    </div>
+                                  </div>
+
+                                  <div className="space-y-2">
+                                    <label className="text-[16px] font-normal text-black">
+                                      Answer
+                                    </label>
+                                    <Textarea
+                                      value={editingFaqForm.answer}
+                                      onChange={(e) =>
+                                        setEditingFaqForm((prev) => ({
+                                          ...prev,
+                                          answer: e.target.value,
+                                        }))
+                                      }
+                                      placeholder="Add answer (markdown supported)"
+                                      className="min-h-[150px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] p-3 focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none resize-y"
+                                    />
+                                  </div>
+
+                                  <div className="flex items-center gap-2 pt-2">
+                                    <Button
+                                      type="button"
+                                      className="bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
+                                      onClick={() => {
+                                        if (
+                                          !editingFaqForm.question.trim() ||
+                                          !editingFaqForm.answer.trim()
+                                        ) {
+                                          toast({
+                                            title: "Missing fields",
+                                            description:
+                                              "Please fill in both question and answer.",
+                                            variant: "destructive",
+                                          });
+                                          return;
+                                        }
+                                        setFaqs(
+                                          faqs.map((f) =>
+                                            f.id === faq.id
+                                              ? {
+                                                  ...f,
+                                                  question:
+                                                    editingFaqForm.question,
+                                                  answer: editingFaqForm.answer,
+                                                }
+                                              : f
+                                          )
+                                        );
+                                        setEditingFaqId(null);
+                                        setEditingFaqForm({
+                                          question: "",
+                                          answer: "",
+                                        });
+                                        toast({
+                                          title: "FAQ updated",
+                                          description:
+                                            "FAQ saved successfully.",
+                                        });
+                                      }}
+                                    >
+                                      Save
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      className="text-white rounded-[12px] hover:bg-red-600"
+                                      style={{
+                                        background:
+                                          "var(--Component-colors-Utility-Error-utility-error-600, #D92D20)",
+                                        boxShadow:
+                                          "0 32px 24px 0 rgba(255, 255, 255, 0.05) inset, 0 2px 1px 0 rgba(255, 255, 255, 0.25) inset, 0 0 0 1px var(--Opacity-Neutral-Darkest-15, rgba(0, 0, 0, 0.15)) inset, 0 -2px 1px 0 rgba(0, 0, 0, 0.20) inset, 0 1px 2px 0 var(--Opacity-Neutral-Darkest-5, rgba(0, 0, 0, 0.05))",
+                                      }}
+                                      onClick={() => {
+                                        setFaqs(
+                                          faqs.filter((f) => f.id !== faq.id)
+                                        );
+                                        setEditingFaqId(null);
+                                        setEditingFaqForm({
+                                          question: "",
+                                          answer: "",
+                                        });
+                                        toast({
+                                          title: "FAQ deleted",
+                                          description:
+                                            "FAQ removed successfully.",
+                                        });
+                                      }}
+                                    >
+                                      Delete
+                                    </Button>
+                                  </div>
+                                </>
+                              ) : (
+                                <>
+                                  <div className="absolute top-4 right-4">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setEditingFaqId(faq.id);
+                                        setEditingFaqForm({
+                                          question: faq.question,
+                                          answer: faq.answer,
+                                        });
+                                      }}
+                                      className="p-2 hover:bg-gray-50 rounded-[8px] transition-colors"
+                                    >
+                                      <Pencil className="w-4 h-4 text-gray-600" />
+                                    </button>
+                                  </div>
+
+                                  <div className="space-y-2 pr-10">
+                                    <label className="text-[16px] font-normal text-black">
+                                      Question
+                                    </label>
+                                    <div className="relative">
+                                      <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                                      <Input
+                                        value={faq.question}
+                                        readOnly
+                                        className="w-full min-w-0 h-[44px] pl-11 bg-gray-50 border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] text-gray-600 cursor-not-allowed"
+                                      />
+                                    </div>
+                                  </div>
+
+                                  <div className="space-y-2 pr-10">
+                                    <label className="text-[16px] font-normal text-black">
+                                      Answer
+                                    </label>
+                                    <div className="min-h-[100px] bg-gray-50 border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] p-3 overflow-auto prose prose-sm max-w-full">
+                                      {faq.answer ? (
+                                        <ReactMarkdown>
+                                          {faq.answer}
+                                        </ReactMarkdown>
+                                      ) : (
+                                        <em className="text-gray-400">
+                                          No answer provided.
+                                        </em>
+                                      )}
+                                    </div>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          ))}
+                          <Button
+                            type="button"
+                            onClick={() => setShowFaqsForm(true)}
+                            className="rounded-[12px] border-0 text-black bg-[rgba(0,0,0,0.05)] hover:bg-gray-50 shadow-[0_0_0_1px_rgba(0,0,0,0.05)_inset,0_-2px_1px_0_rgba(0,0,0,0.05)_inset,0_1px_2px_0_rgba(0,0,0,0.05)]"
+                          >
+                            <Plus className="w-4 h-4 mr-2" />
+                            Add new question
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4">
+                          <div className="space-y-2">
+                            <label className="text-[16px] font-normal text-black">
+                              Question
+                            </label>
+                            <div className="relative">
+                              <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                              <Input
+                                value={faqsForm.question}
+                                onChange={(e) =>
+                                  setFaqsForm((prev) => ({
+                                    ...prev,
+                                    question: e.target.value,
+                                  }))
+                                }
+                                placeholder="Short description shown in the preview card"
+                                className="w-full min-w-0 h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className="text-[16px] font-normal text-black">
+                              Answer
+                            </label>
+                            <Textarea
+                              value={faqsForm.answer}
+                              onChange={(e) =>
+                                setFaqsForm((prev) => ({
+                                  ...prev,
+                                  answer: e.target.value,
+                                }))
+                              }
+                              placeholder="Add answer (markdown supported)"
+                              className="min-h-[200px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] p-3 focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none resize-y"
+                            />
+                          </div>
+
+                          <div className="flex items-center gap-2 pt-4">
+                            <Button
+                              type="button"
+                              className="bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
+                              onClick={() => {
+                                if (
+                                  !faqsForm.question.trim() ||
+                                  !faqsForm.answer.trim()
+                                ) {
+                                  toast({
+                                    title: "Missing fields",
+                                    description:
+                                      "Please fill in both question and answer.",
+                                    variant: "destructive",
+                                  });
+                                  return;
+                                }
+                                setFaqs([
+                                  ...faqs,
+                                  {
+                                    id: Date.now().toString(),
+                                    question: faqsForm.question,
+                                    answer: faqsForm.answer,
+                                  },
+                                ]);
+                                toast({
+                                  title: "FAQ created",
+                                  description: "FAQ added successfully.",
+                                });
+                                setFaqsForm({
+                                  question: "",
+                                  answer: "",
+                                });
+                                setShowFaqsForm(false);
+                              }}
+                            >
+                              Create
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => {
+                                setShowFaqsForm(false);
+                                setFaqsForm({
+                                  question: "",
+                                  answer: "",
+                                });
+                              }}
+                              className="border border-[rgba(0,0,0,0.15)] bg-white"
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                        </div>
+                      )}
                     </TabsContent>
 
                     <TabsContent
