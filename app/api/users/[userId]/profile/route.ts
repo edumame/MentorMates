@@ -208,7 +208,7 @@ export async function GET(
       `
       )
       .eq("user_event_roles.user_id", userId)
-      .in("visibility", ["public", "private", "draft"]);
+      .in("visibility", ["public", "private", "draft", "unlisted", "archived"]);
 
     if (eventsError) {
       console.error("Error fetching events:", eventsError);

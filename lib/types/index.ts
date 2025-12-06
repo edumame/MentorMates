@@ -18,6 +18,7 @@ export enum EventRole {
 export enum EventVisibility {
   Test = "test",
   Demo = "demo",
+  Unlisted = "unlisted",
   Private = "private",
   Public = "public",
   Draft = "draft",

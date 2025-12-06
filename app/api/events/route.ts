@@ -15,7 +15,7 @@ export async function GET() {
     } = await supabase.auth.getUser();
 
     if (!user) {
-      // If not authenticated, only return public and private events (exclude archived)
+      // Unauthenticated: only return public events
       const { data: visibleEvents, error: visibleError } = await supabase
         .from("events")
         .select(
@@ -27,7 +27,7 @@ export async function GET() {
           event_date,
           visibility`
         )
-        .in("visibility", [EventVisibility.Public, EventVisibility.Private]);
+        .eq("visibility", EventVisibility.Public);
 
       if (visibleError) throw visibleError;
       return NextResponse.json({ events: visibleEvents });
@@ -61,14 +61,18 @@ export async function GET() {
       // No additional filter needed
     } else if (organizerEventIds.length > 0) {
       // For organizers:
-      // - Public and private events (visible to everyone)
-      // - Draft events where user is an organizer
-      // - Archived events where user is an organizer
-      // - No demo or test events
+      // - Public events (discoverable by everyone)
+      // - Their own Private/Unlisted/Draft/Archived events
+      const idsList = organizerEventIds.join(",");
+      const organizerOnlyVis = [
+        EventVisibility.Private,
+        EventVisibility.Unlisted,
+        EventVisibility.Draft,
+        EventVisibility.Archived,
+      ].join(",");
       query = query.or(
-        `visibility.in.(${[EventVisibility.Public, EventVisibility.Private].join(",")}),` +
-          `and(visibility.eq.${EventVisibility.Draft},event_id.in.(${organizerEventIds.join(",")})),` +
-          `and(visibility.eq.${EventVisibility.Archived},event_id.in.(${organizerEventIds.join(",")}))`
+        `visibility.eq.${EventVisibility.Public},` +
+          `and(event_id.in.(${idsList}),visibility.in.(${organizerOnlyVis}))`
       );
     } else {
       // Regular users only see public and private events (exclude archived)

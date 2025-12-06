@@ -135,13 +135,28 @@ export function MyEvents() {
                   >
                     {e.roleLabel}
                   </Badge>
-
                   {e.visibility === EventVisibility.Draft && (
                     <Badge
                       variant="secondary"
                       className="rounded-full bg-yellow-300 text-gray-700 hover:bg-yellow-200"
                     >
                       Draft
+                    </Badge>
+                  )}
+                  {e.visibility === EventVisibility.Unlisted && (
+                    <Badge
+                      variant="secondary"
+                      className="rounded-full bg-gray-300 text-gray-800 hover:bg-gray-200 ml-2"
+                    >
+                      Unlisted
+                    </Badge>
+                  )}
+                  {e.visibility === EventVisibility.Private && (
+                    <Badge
+                      variant="secondary"
+                      className="rounded-full bg-yellow-200 text-yellow-800 hover:bg-yellow-100 ml-2"
+                    >
+                      Private
                     </Badge>
                   )}
                 </div>

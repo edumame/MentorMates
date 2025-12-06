@@ -1,0 +1,2 @@
+-- Add unlisted status to event_visibility enum
+ALTER TYPE event_visibility ADD VALUE 'unlisted';
