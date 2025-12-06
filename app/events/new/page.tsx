@@ -115,6 +115,9 @@ export default function NewEventPage() {
     question: "",
     answer: "",
   });
+  const [galleryImages, setGalleryImages] = useState<
+    Array<{ id: string; url: string }>
+  >([]);
 
   const [form, setForm] = useState({
     event_name: "",
@@ -257,6 +260,10 @@ export default function NewEventPage() {
             rules: rules.length > 0 ? rules : undefined,
             faqs:
               faqs.length > 0 ? faqs.map(({ id, ...faq }) => faq) : undefined,
+            gallery_images:
+              galleryImages.length > 0
+                ? galleryImages.map(({ id, ...img }) => img)
+                : undefined,
           },
           organizerEmails,
         }),
@@ -2319,9 +2326,134 @@ export default function NewEventPage() {
                       value="gallery"
                       className="mt-0 overflow-x-hidden"
                     >
-                      <p className="text-gray-500">
-                        Gallery section - coming soon
-                      </p>
+                      {galleryImages.length === 0 ? (
+                        <div className="border-2 border-dashed border-gray-300 rounded-[12px] p-12 flex flex-col items-center justify-center text-center min-h-[400px]">
+                          <div className="flex flex-col items-center gap-2">
+                            <div className="relative">
+                              <ImageIcon className="w-16 h-16 text-gray-400" />
+                              <div className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
+                                <span className="text-white text-xs font-bold">
+                                  ×
+                                </span>
+                              </div>
+                            </div>
+                            <div className="space-y-1">
+                              <h3 className="text-[18px] font-semibold text-black">
+                                No images yet
+                              </h3>
+                              <p className="text-[14px] text-gray-500 max-w-md">
+                                Drop event images here or upload
+                              </p>
+                            </div>
+                            <Button
+                              type="button"
+                              onClick={() => {
+                                const input = document.createElement("input");
+                                input.type = "file";
+                                input.accept = "image/*";
+                                input.multiple = true;
+                                input.onchange = (e) => {
+                                  const files = (e.target as HTMLInputElement)
+                                    .files;
+                                  if (files && files.length > 0) {
+                                    const newImages = Array.from(files).map(
+                                      (file) => ({
+                                        id:
+                                          Date.now().toString() + Math.random(),
+                                        url: URL.createObjectURL(file),
+                                      })
+                                    );
+                                    setGalleryImages([
+                                      ...galleryImages,
+                                      ...newImages,
+                                    ]);
+                                    toast({
+                                      title: "Images uploaded",
+                                      description: `${newImages.length} image(s) added to gallery.`,
+                                    });
+                                  }
+                                };
+                                input.click();
+                              }}
+                              className="mt-2 bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
+                            >
+                              <Upload className="w-4 h-4 mr-2" />
+                              Upload Images
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                            {galleryImages.map((image) => (
+                              <div
+                                key={image.id}
+                                className="relative aspect-square rounded-[12px] overflow-hidden border border-[rgba(0,0,0,0.15)] bg-gray-100 group"
+                              >
+                                <img
+                                  src={image.url}
+                                  alt="Gallery image"
+                                  className="w-full h-full object-cover"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setGalleryImages(
+                                      galleryImages.filter(
+                                        (img) => img.id !== image.id
+                                      )
+                                    );
+                                    toast({
+                                      title: "Image deleted",
+                                      description:
+                                        "Image removed from gallery.",
+                                    });
+                                  }}
+                                  className="absolute top-2 right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                  <span className="text-white text-xs font-bold">
+                                    ×
+                                  </span>
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                          <Button
+                            type="button"
+                            onClick={() => {
+                              const input = document.createElement("input");
+                              input.type = "file";
+                              input.accept = "image/*";
+                              input.multiple = true;
+                              input.onchange = (e) => {
+                                const files = (e.target as HTMLInputElement)
+                                  .files;
+                                if (files && files.length > 0) {
+                                  const newImages = Array.from(files).map(
+                                    (file) => ({
+                                      id: Date.now().toString() + Math.random(),
+                                      url: URL.createObjectURL(file),
+                                    })
+                                  );
+                                  setGalleryImages([
+                                    ...galleryImages,
+                                    ...newImages,
+                                  ]);
+                                  toast({
+                                    title: "Images uploaded",
+                                    description: `${newImages.length} image(s) added to gallery.`,
+                                  });
+                                }
+                              };
+                              input.click();
+                            }}
+                            className="rounded-[12px] border-0 text-black bg-[rgba(0,0,0,0.05)] hover:bg-gray-50 shadow-[0_0_0_1px_rgba(0,0,0,0.05)_inset,0_-2px_1px_0_rgba(0,0,0,0.05)_inset,0_1px_2px_0_rgba(0,0,0,0.05)]"
+                          >
+                            <Plus className="w-4 h-4 mr-2" />
+                            Add more images
+                          </Button>
+                        </div>
+                      )}
                     </TabsContent>
                   </Tabs>
                 </TabsContent>
