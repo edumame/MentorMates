@@ -37,7 +37,7 @@ import {
   Pencil,
   Paperclip,
 } from "lucide-react";
-import { PageContainer, PageContent } from "@/components/layout/PageContainer";
+import { PageContainer } from "@/components/layout/PageContainer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ReactMarkdown from "react-markdown";
 
@@ -364,12 +364,9 @@ export default function NewEventPage() {
   const previewDate = formatDateForPreview(form.event_date);
 
   return (
-    <PageContainer showBorder={false}>
-      <PageContent>
-        <div className="min-h-full">
-          {/* Apply correct border and rounding for events/projects pages */}
-          <div className="min-h-[calc(100vh-88px)] lg:h-[calc(100vh-88px)] overflow-hidden flex flex-col lg:rounded-tl-2xl lg:border-t lg:border-l lg:border-[#D8D8D8] bg-white">
-            <div className="px-4 sm:px-6 lg:px-10 py-4 sm:py-6 lg:py-8 flex-1 flex flex-col min-h-0">
+    <div className="w-full min-h-screen">
+      <div className="w-full lg:min-h-[calc(100vh-88px)] lg:h-[calc(100vh-88px)] lg:overflow-hidden flex flex-col lg:rounded-tl-2xl lg:border-t lg:border-l lg:border-[#D8D8D8] bg-white">
+        <div className="px-4 sm:px-6 lg:px-10 py-4 sm:py-6 lg:py-8 w-full flex flex-col lg:flex-1 lg:min-h-0 pb-20 lg:pb-4">
               {/* Header */}
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 flex-shrink-0">
                 <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">
@@ -404,7 +401,12 @@ export default function NewEventPage() {
                     </button>
 
                     {showVisibilityDropdown && (
-                      <div className="absolute top-full mt-2 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] shadow-lg z-10 w-[142px] overflow-hidden">
+                      <>
+                        <div
+                          className="fixed inset-0 z-[5]"
+                          onClick={() => setShowVisibilityDropdown(false)}
+                        />
+                        <div className="absolute top-full mt-2 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] shadow-lg z-[10] w-[142px] overflow-hidden">
                         {[
                           EventVisibility.Public,
                           EventVisibility.Private,
@@ -422,6 +424,7 @@ export default function NewEventPage() {
                           </button>
                         ))}
                       </div>
+                      </>
                     )}
                   </div>
 
@@ -501,7 +504,7 @@ export default function NewEventPage() {
                 </div>
 
                 {/* Content Area - Scrollable */}
-                <div className="flex flex-col lg:flex-row gap-6 items-start flex-1 min-h-0 overflow-auto no-scrollbar w-full">
+                <div className="flex flex-col lg:flex-row gap-6 items-start flex-1 min-h-0 lg:overflow-auto no-scrollbar w-full">
                   {/* Form Section */}
                   <div className="flex-[2] min-w-0 w-full lg:max-w-[800px] flex flex-col items-start order-last lg:order-first">
                     <TabsContent value="overview" className="mt-0">
@@ -1286,13 +1289,13 @@ export default function NewEventPage() {
                                 >
                                   {editingResourceId === resource.id ? (
                                     <>
-                                      <div className="space-y-2">
-                                        <label className="text-[16px] font-normal text-black">
-                                          Resource name
-                                        </label>
-                                        <div className="relative">
-                                          <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
-                                          <Input
+                                  <div className="space-y-2">
+                                    <label className="text-[16px] font-normal text-black">
+                                      Resource name
+                                    </label>
+                                    <div className="relative">
+                                      <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                                      <Input
                                             value={
                                               editingResourceForm.resourceName
                                             }
@@ -1304,18 +1307,18 @@ export default function NewEventPage() {
                                                 })
                                               )
                                             }
-                                            className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
-                                          />
-                                        </div>
-                                      </div>
+                                        className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+                                      />
+                                    </div>
+                                  </div>
 
-                                      <div className="space-y-2">
-                                        <label className="text-[16px] font-normal text-black">
-                                          Resource link
-                                        </label>
-                                        <div className="relative">
-                                          <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
-                                          <Input
+                                  <div className="space-y-2">
+                                    <label className="text-[16px] font-normal text-black">
+                                      Resource link
+                                    </label>
+                                    <div className="relative">
+                                      <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                                      <Input
                                             value={
                                               editingResourceForm.resourceLink
                                             }
@@ -1357,17 +1360,17 @@ export default function NewEventPage() {
                                               });
                                               return;
                                             }
-                                            setResources(
-                                              resources.map((r) =>
-                                                r.id === resource.id
+                                          setResources(
+                                            resources.map((r) =>
+                                              r.id === resource.id
                                                   ? {
                                                       ...r,
                                                       name: editingResourceForm.resourceName,
                                                       link: editingResourceForm.resourceLink,
                                                     }
-                                                  : r
-                                              )
-                                            );
+                                                : r
+                                            )
+                                          );
                                             setEditingResourceId(null);
                                             setEditingResourceForm({
                                               resourceName: "",
@@ -1441,9 +1444,9 @@ export default function NewEventPage() {
                                             value={resource.name}
                                             readOnly
                                             className="h-[44px] pl-11 bg-gray-50 border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] text-gray-600 cursor-not-allowed"
-                                          />
-                                        </div>
-                                      </div>
+                                      />
+                                    </div>
+                                  </div>
 
                                       <div className="space-y-2">
                                         <label className="text-[16px] font-normal text-black">
@@ -2138,7 +2141,6 @@ export default function NewEventPage() {
             </div>
           </div>
         </div>
-      </PageContent>
-    </PageContainer>
+
   );
 }
