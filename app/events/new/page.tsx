@@ -364,276 +364,705 @@ export default function NewEventPage() {
   const previewDate = formatDateForPreview(form.event_date);
 
   return (
-    <div className="w-full min-h-screen">
-      <div className="w-full lg:min-h-[calc(100vh-88px)] lg:h-[calc(100vh-88px)] lg:overflow-hidden flex flex-col lg:rounded-tl-2xl lg:border-t lg:border-l lg:border-[#D8D8D8] bg-white">
-        <div className="px-4 sm:px-6 lg:px-10 py-4 sm:py-6 lg:py-8 w-full flex flex-col lg:flex-1 lg:min-h-0 pb-20 lg:pb-4">
-              {/* Header */}
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 flex-shrink-0">
-                <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">
-                  Create event
-                </h1>
+    <div className="w-full overflow-x-hidden">
+      <div className="w-full flex flex-col lg:min-h-[calc(100vh-88px)] lg:h-[calc(100vh-88px)] lg:overflow-hidden lg:rounded-tl-2xl lg:border-t lg:border-l lg:border-[#D8D8D8] bg-white">
+        <div className="px-4 sm:px-6 lg:px-10 py-4 sm:py-6 lg:py-8 w-full flex flex-col pb-20 lg:pb-4 lg:flex-1 lg:min-h-0 overflow-x-hidden">
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 flex-shrink-0">
+            <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">
+              Create event
+            </h1>
 
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4 w-full sm:w-auto">
-                  <div className="relative w-full sm:w-auto">
-                    <button
-                      onClick={() =>
-                        setShowVisibilityDropdown(!showVisibilityDropdown)
-                      }
-                      className="flex items-center gap-2 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] px-3 py-2 h-[44px] w-full sm:w-[142px] hover:bg-gray-50 transition-colors"
-                    >
-                      <Globe className="w-5 h-5" />
-                      <span className="text-[16px] font-normal">
-                        {visibility}
-                      </span>
-                      <svg
-                        className="w-5 h-5 ml-auto"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                      >
-                        <path
-                          d="M7 10l5 5 5-5"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                    </button>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4 w-full sm:w-auto">
+              <div className="relative w-full sm:w-auto">
+                <button
+                  onClick={() =>
+                    setShowVisibilityDropdown(!showVisibilityDropdown)
+                  }
+                  className="flex items-center gap-2 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] px-3 py-2 h-[44px] w-full sm:w-[142px] hover:bg-gray-50 transition-colors"
+                >
+                  <Globe className="w-5 h-5" />
+                  <span className="text-[16px] font-normal">{visibility}</span>
+                  <svg
+                    className="w-5 h-5 ml-auto"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                  >
+                    <path
+                      d="M7 10l5 5 5-5"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </button>
 
-                    {showVisibilityDropdown && (
-                      <>
-                        <div
-                          className="fixed inset-0 z-[5]"
-                          onClick={() => setShowVisibilityDropdown(false)}
-                        />
-                        <div className="absolute top-full mt-2 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] shadow-lg z-[10] w-[142px] overflow-hidden">
-                        {[
-                          EventVisibility.Public,
-                          EventVisibility.Private,
-                          EventVisibility.Draft,
-                        ].map((vis) => (
-                          <button
-                            key={vis}
-                            onClick={() => {
-                              setVisibility(vis);
-                              setShowVisibilityDropdown(false);
-                            }}
-                            className="w-full text-left px-3 py-2 hover:bg-gray-50 text-[16px] font-normal"
-                          >
-                            {vis}
-                          </button>
-                        ))}
-                      </div>
-                      </>
-                    )}
-                  </div>
-
-                  <div className="flex gap-2 w-full sm:w-auto">
-                    <Button
-                      variant="defaultGray"
-                      onClick={() => router.back()}
-                      className="text-[16px] font-medium flex-1 sm:flex-none"
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      onClick={handleCreate}
-                      disabled={creating}
-                      className="text-[16px] font-medium flex-1 sm:flex-none"
-                    >
-                      {creating ? "Creating..." : "Create event"}
-                    </Button>
-                  </div>
-                </div>
+                {showVisibilityDropdown && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-[5]"
+                      onClick={() => setShowVisibilityDropdown(false)}
+                    />
+                    <div className="absolute top-full mt-2 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] shadow-lg z-[10] w-[142px] overflow-hidden">
+                      {[
+                        EventVisibility.Public,
+                        EventVisibility.Private,
+                        EventVisibility.Draft,
+                      ].map((vis) => (
+                        <button
+                          key={vis}
+                          onClick={() => {
+                            setVisibility(vis);
+                            setShowVisibilityDropdown(false);
+                          }}
+                          className="w-full text-left px-3 py-2 hover:bg-gray-50 text-[16px] font-normal"
+                        >
+                          {vis}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
 
-              {/* Primary Tabs */}
-              <Tabs
-                value={activeTab}
-                onValueChange={setActiveTab}
-                className="flex-1 flex flex-col min-h-0"
-              >
-                <div
-                  className="w-full overflow-x-auto -mx-4 sm:-mx-6 lg:-mx-10 px-4 sm:px-6 lg:px-10 mb-6 flex-shrink-0"
-                  style={{ WebkitOverflowScrolling: "touch" }}
+              <div className="flex gap-2 w-full sm:w-auto">
+                <Button
+                  variant="defaultGray"
+                  onClick={() => router.back()}
+                  className="text-[16px] font-medium flex-1 sm:flex-none"
                 >
-                  <TabsList className="flex h-auto gap-4 sm:gap-6 items-center border-b border-[#d2d7e7] p-0 justify-start bg-transparent rounded-none flex-nowrap min-w-max">
-                    <TabsTrigger
-                      value="overview"
-                      className="px-0 py-2 text-[16px] font-normal text-black border-b-2 border-transparent data-[state=active]:font-medium data-[state=active]:border-[#4b89ef] data-[state=active]:shadow-none data-[state=active]:bg-transparent rounded-none bg-transparent shadow-none outline-none ring-0 border-x-0 border-t-0 whitespace-nowrap flex-shrink-0"
-                    >
-                      Overview
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="registration"
-                      className="px-0 py-2 text-[16px] font-normal text-black border-b-2 border-transparent data-[state=active]:font-medium data-[state=active]:border-[#4b89ef] data-[state=active]:shadow-none data-[state=active]:bg-transparent rounded-none bg-transparent shadow-none outline-none ring-0 border-x-0 border-t-0 whitespace-nowrap flex-shrink-0"
-                    >
-                      Registration
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="project"
-                      className="px-0 py-2 text-[16px] font-normal text-black border-b-2 border-transparent data-[state=active]:font-medium data-[state=active]:border-[#4b89ef] data-[state=active]:shadow-none data-[state=active]:bg-transparent rounded-none bg-transparent shadow-none outline-none ring-0 border-x-0 border-t-0 whitespace-nowrap flex-shrink-0"
-                    >
-                      Project
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="access"
-                      className="px-0 py-2 text-[16px] font-normal text-black border-b-2 border-transparent data-[state=active]:font-medium data-[state=active]:border-[#4b89ef] data-[state=active]:shadow-none data-[state=active]:bg-transparent rounded-none bg-transparent shadow-none outline-none ring-0 border-x-0 border-t-0 whitespace-nowrap flex-shrink-0"
-                    >
-                      Access
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="tracks"
-                      className="px-0 py-2 text-[16px] font-normal text-black border-b-2 border-transparent data-[state=active]:font-medium data-[state=active]:border-[#4b89ef] data-[state=active]:shadow-none data-[state=active]:bg-transparent rounded-none bg-transparent shadow-none outline-none ring-0 border-x-0 border-t-0 whitespace-nowrap flex-shrink-0"
-                    >
-                      Tracks
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="pricing"
-                      className="px-0 py-2 text-[16px] font-normal text-black border-b-2 border-transparent data-[state=active]:font-medium data-[state=active]:border-[#4b89ef] data-[state=active]:shadow-none data-[state=active]:bg-transparent rounded-none bg-transparent shadow-none outline-none ring-0 border-x-0 border-t-0 whitespace-nowrap flex-shrink-0"
-                    >
-                      Pricing
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="notify"
-                      className="px-0 py-2 text-[16px] font-normal text-black border-b-2 border-transparent data-[state=active]:font-medium data-[state=active]:border-[#4b89ef] data-[state=active]:shadow-none data-[state=active]:bg-transparent rounded-none bg-transparent shadow-none outline-none ring-0 border-x-0 border-t-0 whitespace-nowrap flex-shrink-0"
-                    >
-                      Notify
-                    </TabsTrigger>
-                  </TabsList>
-                </div>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleCreate}
+                  disabled={creating}
+                  className="text-[16px] font-medium flex-1 sm:flex-none"
+                >
+                  {creating ? "Creating..." : "Create event"}
+                </Button>
+              </div>
+            </div>
+          </div>
 
-                {/* Content Area - Scrollable */}
-                <div className="flex flex-col lg:flex-row gap-6 items-start flex-1 min-h-0 lg:overflow-auto no-scrollbar w-full">
-                  {/* Form Section */}
-                  <div className="flex-[2] min-w-0 w-full lg:max-w-[800px] flex flex-col items-start order-last lg:order-first">
-                    <TabsContent value="overview" className="mt-0">
-                      <Tabs
-                        value={activeSubTab}
-                        onValueChange={setActiveSubTab}
-                      >
-                        <TabsList className="flex h-auto gap-2 overflow-x-auto bg-transparent p-0 mb-6 justify-start pb-1 items-center">
-                          <TabsTrigger
-                            value="basics"
-                            className="px-4 py-2.5 rounded-[100px] text-sm leading-normal font-normal text-black border border-transparent data-[state=active]:font-medium data-[state=active]:bg-white data-[state=active]:border-[rgba(0,0,0,0.15)]"
-                            style={{ fontFamily: "Inter, sans-serif" }}
-                          >
-                            Basics
-                          </TabsTrigger>
-                          <TabsTrigger
-                            value="content"
-                            className="px-4 py-2.5 rounded-[100px] text-sm leading-normal font-normal text-black border border-transparent data-[state=active]:font-medium data-[state=active]:bg-white data-[state=active]:border-[rgba(0,0,0,0.15)]"
-                            style={{ fontFamily: "Inter, sans-serif" }}
-                          >
-                            Content
-                          </TabsTrigger>
-                          <TabsTrigger
-                            value="schedule"
-                            className="px-4 py-2.5 rounded-[100px] text-sm leading-normal font-normal text-black border border-transparent data-[state=active]:font-medium data-[state=active]:bg-white data-[state=active]:border-[rgba(0,0,0,0.15)]"
-                            style={{ fontFamily: "Inter, sans-serif" }}
-                          >
-                            Schedule
-                          </TabsTrigger>
-                          <TabsTrigger
-                            value="resources"
-                            className="px-4 py-2.5 rounded-[100px] text-sm leading-normal font-normal text-black border border-transparent data-[state=active]:font-medium data-[state=active]:bg-white data-[state=active]:border-[rgba(0,0,0,0.15)]"
-                            style={{ fontFamily: "Inter, sans-serif" }}
-                          >
-                            Resources
-                          </TabsTrigger>
-                          <TabsTrigger
-                            value="rules"
-                            className="px-4 py-2.5 rounded-[100px] text-sm leading-normal font-normal text-black border border-transparent data-[state=active]:font-medium data-[state=active]:bg-white data-[state=active]:border-[rgba(0,0,0,0.15)]"
-                            style={{ fontFamily: "Inter, sans-serif" }}
-                          >
-                            Rules
-                          </TabsTrigger>
-                          <TabsTrigger
-                            value="faqs"
-                            className="px-4 py-2.5 rounded-[100px] text-sm leading-normal font-normal text-black border border-transparent data-[state=active]:font-medium data-[state=active]:bg-white data-[state=active]:border-[rgba(0,0,0,0.15)]"
-                            style={{ fontFamily: "Inter, sans-serif" }}
-                          >
-                            FAQs
-                          </TabsTrigger>
-                          <TabsTrigger
-                            value="gallery"
-                            className="px-4 py-2.5 rounded-[100px] text-sm leading-normal font-normal text-black border border-transparent data-[state=active]:font-medium data-[state=active]:bg-white data-[state=active]:border-[rgba(0,0,0,0.15)]"
-                            style={{ fontFamily: "Inter, sans-serif" }}
-                          >
-                            Gallery
-                          </TabsTrigger>
-                        </TabsList>
+          {/* Primary Tabs */}
+          <Tabs
+            value={activeTab}
+            onValueChange={setActiveTab}
+            className="flex flex-col lg:flex-1 lg:min-h-0"
+          >
+            <div
+              className="w-full overflow-x-auto -mx-4 sm:-mx-6 lg:-mx-10 px-4 sm:px-6 lg:px-10 mb-6 flex-shrink-0"
+              style={{ WebkitOverflowScrolling: "touch" }}
+            >
+              <TabsList className="flex h-auto gap-4 sm:gap-6 items-center border-b border-[#d2d7e7] p-0 justify-start bg-transparent rounded-none flex-nowrap min-w-max">
+                <TabsTrigger
+                  value="overview"
+                  className="px-0 py-2 text-[16px] font-normal text-black border-b-2 border-transparent data-[state=active]:font-medium data-[state=active]:border-[#4b89ef] data-[state=active]:shadow-none data-[state=active]:bg-transparent rounded-none bg-transparent shadow-none outline-none ring-0 border-x-0 border-t-0 whitespace-nowrap flex-shrink-0"
+                >
+                  Overview
+                </TabsTrigger>
+                <TabsTrigger
+                  value="registration"
+                  className="px-0 py-2 text-[16px] font-normal text-black border-b-2 border-transparent data-[state=active]:font-medium data-[state=active]:border-[#4b89ef] data-[state=active]:shadow-none data-[state=active]:bg-transparent rounded-none bg-transparent shadow-none outline-none ring-0 border-x-0 border-t-0 whitespace-nowrap flex-shrink-0"
+                >
+                  Registration
+                </TabsTrigger>
+                <TabsTrigger
+                  value="project"
+                  className="px-0 py-2 text-[16px] font-normal text-black border-b-2 border-transparent data-[state=active]:font-medium data-[state=active]:border-[#4b89ef] data-[state=active]:shadow-none data-[state=active]:bg-transparent rounded-none bg-transparent shadow-none outline-none ring-0 border-x-0 border-t-0 whitespace-nowrap flex-shrink-0"
+                >
+                  Project
+                </TabsTrigger>
+                <TabsTrigger
+                  value="access"
+                  className="px-0 py-2 text-[16px] font-normal text-black border-b-2 border-transparent data-[state=active]:font-medium data-[state=active]:border-[#4b89ef] data-[state=active]:shadow-none data-[state=active]:bg-transparent rounded-none bg-transparent shadow-none outline-none ring-0 border-x-0 border-t-0 whitespace-nowrap flex-shrink-0"
+                >
+                  Access
+                </TabsTrigger>
+                <TabsTrigger
+                  value="tracks"
+                  className="px-0 py-2 text-[16px] font-normal text-black border-b-2 border-transparent data-[state=active]:font-medium data-[state=active]:border-[#4b89ef] data-[state=active]:shadow-none data-[state=active]:bg-transparent rounded-none bg-transparent shadow-none outline-none ring-0 border-x-0 border-t-0 whitespace-nowrap flex-shrink-0"
+                >
+                  Tracks
+                </TabsTrigger>
+                <TabsTrigger
+                  value="pricing"
+                  className="px-0 py-2 text-[16px] font-normal text-black border-b-2 border-transparent data-[state=active]:font-medium data-[state=active]:border-[#4b89ef] data-[state=active]:shadow-none data-[state=active]:bg-transparent rounded-none bg-transparent shadow-none outline-none ring-0 border-x-0 border-t-0 whitespace-nowrap flex-shrink-0"
+                >
+                  Pricing
+                </TabsTrigger>
+                <TabsTrigger
+                  value="notify"
+                  className="px-0 py-2 text-[16px] font-normal text-black border-b-2 border-transparent data-[state=active]:font-medium data-[state=active]:border-[#4b89ef] data-[state=active]:shadow-none data-[state=active]:bg-transparent rounded-none bg-transparent shadow-none outline-none ring-0 border-x-0 border-t-0 whitespace-nowrap flex-shrink-0"
+                >
+                  Notify
+                </TabsTrigger>
+              </TabsList>
+            </div>
 
-                        <TabsContent value="basics" className="mt-0 space-y-4">
-                          <input
-                            type="text"
-                            value={form.event_name}
-                            onChange={(e) =>
-                              onChange("event_name", e.target.value)
-                            }
-                            placeholder="Event Title"
-                            className="font-semibold text-[36px] leading-[1.3] tracking-[-2.16px] mb-6 w-full bg-transparent border-none outline-none focus:ring-0 p-0"
-                            style={{
-                              color: form.event_name ? "#000000" : "#d8d8d8",
-                              fontFamily: "Geist, sans-serif",
-                            }}
+            {/* Content Area - Scrollable */}
+            <div className="flex flex-col lg:flex-row gap-6 items-start w-full lg:flex-1 lg:min-h-0 lg:overflow-auto no-scrollbar">
+              {/* Form Section */}
+              <div className="w-full lg:flex-[2] lg:min-w-0 lg:max-w-[800px] flex flex-col items-start order-last lg:order-first">
+                <TabsContent value="overview" className="mt-0">
+                  <Tabs value={activeSubTab} onValueChange={setActiveSubTab}>
+                    <div
+                      className="w-screen -mx-4 sm:-mx-6 lg:w-full lg:mx-0 overflow-x-auto overflow-y-visible px-4 sm:px-6 lg:px-0 mb-6"
+                      style={{
+                        WebkitOverflowScrolling: "touch",
+                        scrollbarWidth: "thin",
+                        msOverflowStyle: "-ms-autohiding-scrollbar",
+                      }}
+                    >
+                      <TabsList className="inline-flex h-auto gap-2 bg-transparent p-0 justify-start pb-1 items-center flex-nowrap">
+                        <TabsTrigger
+                          value="basics"
+                          className="px-4 py-2.5 rounded-[100px] text-sm leading-normal font-normal text-black border border-transparent data-[state=active]:font-medium data-[state=active]:bg-white data-[state=active]:border-[rgba(0,0,0,0.15)] flex-shrink-0"
+                          style={{ fontFamily: "Inter, sans-serif" }}
+                        >
+                          Basics
+                        </TabsTrigger>
+                        <TabsTrigger
+                          value="content"
+                          className="px-4 py-2.5 rounded-[100px] text-sm leading-normal font-normal text-black border border-transparent data-[state=active]:font-medium data-[state=active]:bg-white data-[state=active]:border-[rgba(0,0,0,0.15)] flex-shrink-0"
+                          style={{ fontFamily: "Inter, sans-serif" }}
+                        >
+                          Content
+                        </TabsTrigger>
+                        <TabsTrigger
+                          value="schedule"
+                          className="px-4 py-2.5 rounded-[100px] text-sm leading-normal font-normal text-black border border-transparent data-[state=active]:font-medium data-[state=active]:bg-white data-[state=active]:border-[rgba(0,0,0,0.15)] flex-shrink-0"
+                          style={{ fontFamily: "Inter, sans-serif" }}
+                        >
+                          Schedule
+                        </TabsTrigger>
+                        <TabsTrigger
+                          value="resources"
+                          className="px-4 py-2.5 rounded-[100px] text-sm leading-normal font-normal text-black border border-transparent data-[state=active]:font-medium data-[state=active]:bg-white data-[state=active]:border-[rgba(0,0,0,0.15)] flex-shrink-0"
+                          style={{ fontFamily: "Inter, sans-serif" }}
+                        >
+                          Resources
+                        </TabsTrigger>
+                        <TabsTrigger
+                          value="rules"
+                          className="px-4 py-2.5 rounded-[100px] text-sm leading-normal font-normal text-black border border-transparent data-[state=active]:font-medium data-[state=active]:bg-white data-[state=active]:border-[rgba(0,0,0,0.15)] flex-shrink-0"
+                          style={{ fontFamily: "Inter, sans-serif" }}
+                        >
+                          Rules
+                        </TabsTrigger>
+                        <TabsTrigger
+                          value="faqs"
+                          className="px-4 py-2.5 rounded-[100px] text-sm leading-normal font-normal text-black border border-transparent data-[state=active]:font-medium data-[state=active]:bg-white data-[state=active]:border-[rgba(0,0,0,0.15)] flex-shrink-0"
+                          style={{ fontFamily: "Inter, sans-serif" }}
+                        >
+                          FAQs
+                        </TabsTrigger>
+                        <TabsTrigger
+                          value="gallery"
+                          className="px-4 py-2.5 rounded-[100px] text-sm leading-normal font-normal text-black border border-transparent data-[state=active]:font-medium data-[state=active]:bg-white data-[state=active]:border-[rgba(0,0,0,0.15)] flex-shrink-0"
+                          style={{ fontFamily: "Inter, sans-serif" }}
+                        >
+                          Gallery
+                        </TabsTrigger>
+                      </TabsList>
+                    </div>
+
+                    <TabsContent
+                      value="basics"
+                      className="mt-0 space-y-4 overflow-x-hidden w-full min-w-0"
+                    >
+                      <input
+                        type="text"
+                        value={form.event_name}
+                        onChange={(e) => onChange("event_name", e.target.value)}
+                        placeholder="Event Title"
+                        className="font-semibold text-[36px] leading-[1.3] tracking-[-2.16px] mb-6 w-full min-w-0 bg-transparent border-none outline-none focus:ring-0 p-0"
+                        style={{
+                          color: form.event_name ? "#000000" : "#d8d8d8",
+                          fontFamily: "Geist, sans-serif",
+                        }}
+                      />
+
+                      <div className="space-y-4 w-full min-w-0">
+                        <div className="space-y-2 w-full min-w-0">
+                          <label className="text-[16px] font-normal text-black">
+                            Date
+                          </label>
+                          <DatePicker
+                            value={form.event_date}
+                            onChange={(value) => onChange("event_date", value)}
+                            placeholder="mm/dd/yyyy"
                           />
+                        </div>
 
-                          <div className="space-y-4">
-                            <div className="space-y-2">
-                              <label className="text-[16px] font-normal text-black">
-                                Date
-                              </label>
-                              <DatePicker
-                                value={form.event_date}
-                                onChange={(value) =>
-                                  onChange("event_date", value)
+                        <div className="space-y-2">
+                          <label className="text-[16px] font-normal text-black">
+                            Project submission window (UTC)
+                          </label>
+                          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                            <DatePicker
+                              value={form.submission_time_start}
+                              onChange={(value) =>
+                                onChange("submission_time_start", value)
+                              }
+                              placeholder="mm/dd/yyyy"
+                            />
+                            <span className="text-gray-500 text-center sm:text-left">
+                              to
+                            </span>
+                            <DatePicker
+                              value={form.submission_time_cutoff}
+                              onChange={(value) =>
+                                onChange("submission_time_cutoff", value)
+                              }
+                              placeholder="mm/dd/yyyy"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-[16px] font-normal text-black">
+                            Seat Cap
+                          </label>
+                          <div className="relative w-full min-w-0">
+                            <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                            <Input
+                              type="number"
+                              value={form.participant_capacity}
+                              onChange={(e) =>
+                                onChange("participant_capacity", e.target.value)
+                              }
+                              placeholder="Leave blank for unlimited participants"
+                              className="w-full min-w-0 h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-2 w-full">
+                          <label className="text-[16px] font-normal text-black">
+                            Location
+                          </label>
+                          <div className="flex items-center gap-2 sm:gap-4 mb-2 w-full">
+                            <button
+                              onClick={() =>
+                                setForm((p) => ({
+                                  ...p,
+                                  location_type: "in-person",
+                                }))
+                              }
+                              className={`flex items-center justify-center gap-2 px-4 py-2 rounded-[12px] text-[16px] font-normal transition-colors flex-1 sm:w-[180px] ${
+                                form.location_type === "in-person"
+                                  ? "bg-[#4b89ef] text-white"
+                                  : "bg-transparent border border-[rgba(0,0,0,0.15)] text-black"
+                              }`}
+                            >
+                              <Building2 className="w-5 h-5" />
+                              In-person
+                            </button>
+                            <button
+                              onClick={() =>
+                                setForm((p) => ({
+                                  ...p,
+                                  location_type: "virtual",
+                                }))
+                              }
+                              className={`flex items-center justify-center gap-2 px-4 py-2 rounded-[12px] text-[16px] font-normal transition-colors flex-1 sm:w-[180px] ${
+                                form.location_type === "virtual"
+                                  ? "bg-[#4b89ef] text-white"
+                                  : "bg-transparent border border-[rgba(0,0,0,0.15)] text-black"
+                              }`}
+                            >
+                              <Video className="w-5 h-5" />
+                              Virtual event
+                            </button>
+                          </div>
+                          <div className="relative w-full min-w-0">
+                            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                            <Input
+                              value={form.location}
+                              onChange={(e) =>
+                                onChange("location", e.target.value)
+                              }
+                              placeholder="Add offline location"
+                              className="w-full min-w-0 h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-[16px] font-normal text-black">
+                            Cover image url
+                          </label>
+                          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                            <div className="relative flex-1 min-w-0">
+                              <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                              <Input
+                                value={form.cover_image_url}
+                                onChange={(e) =>
+                                  onChange("cover_image_url", e.target.value)
                                 }
-                                placeholder="mm/dd/yyyy"
+                                placeholder="https://..."
+                                className="w-full min-w-0 h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
                               />
                             </div>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => {
+                                const input = document.createElement("input");
+                                input.type = "file";
+                                input.accept = "image/*";
+                                input.onchange = (e) => {
+                                  const file = (e.target as HTMLInputElement)
+                                    .files?.[0];
+                                  if (file) {
+                                    onChange(
+                                      "cover_image_url",
+                                      URL.createObjectURL(file)
+                                    );
+                                  }
+                                };
+                                input.click();
+                              }}
+                              className="h-[44px] px-4 border border-[rgba(0,0,0,0.15)] rounded-[12px] w-full sm:w-auto"
+                            >
+                              <Upload className="w-4 h-4 mr-2" />
+                              Upload
+                            </Button>
+                          </div>
+                          <p className="text-xs text-gray-500">
+                            *Upload an image to showcase your project (Max
+                            10MB).
+                          </p>
+                        </div>
 
-                            <div className="space-y-2">
-                              <label className="text-[16px] font-normal text-black">
-                                Project submission window (UTC)
-                              </label>
-                              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                                <DatePicker
-                                  value={form.submission_time_start}
-                                  onChange={(value) =>
-                                    onChange("submission_time_start", value)
-                                  }
-                                  placeholder="mm/dd/yyyy"
-                                />
-                                <span className="text-gray-500 text-center sm:text-left">
-                                  to
-                                </span>
-                                <DatePicker
-                                  value={form.submission_time_cutoff}
-                                  onChange={(value) =>
-                                    onChange("submission_time_cutoff", value)
-                                  }
-                                  placeholder="mm/dd/yyyy"
-                                />
+                        <div className="space-y-2">
+                          <label className="text-[16px] font-normal text-black">
+                            Blurb
+                          </label>
+                          <div className="relative w-full min-w-0">
+                            <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                            <Input
+                              value={form.event_blurb}
+                              onChange={(e) =>
+                                onChange("event_blurb", e.target.value)
+                              }
+                              placeholder="Short description shown in the preview card"
+                              className="w-full min-w-0 h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+                            />
+                          </div>
+                          <p className="text-xs text-gray-500">
+                            A short description that appears in the event
+                            preview card.
+                          </p>
+                        </div>
+
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <label className="text-[16px] font-normal text-black">
+                              Description
+                            </label>
+                            <div className="inline-flex items-center border border-[rgba(0,0,0,0.15)] rounded-[12px] p-1 bg-white">
+                              <button
+                                onClick={() => setDescriptionMode("edit")}
+                                className={`px-4 py-2 rounded-[8px] text-sm font-normal transition-colors ${
+                                  descriptionMode === "edit"
+                                    ? "bg-white border border-[rgba(0,0,0,0.15)] text-black shadow-sm"
+                                    : "bg-transparent text-black hover:bg-gray-50"
+                                }`}
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => setDescriptionMode("preview")}
+                                className={`px-4 py-2 rounded-[8px] text-sm font-normal transition-colors ${
+                                  descriptionMode === "preview"
+                                    ? "bg-white border border-[rgba(0,0,0,0.15)] text-black shadow-sm"
+                                    : "bg-transparent text-black hover:bg-gray-50"
+                                }`}
+                              >
+                                Preview
+                              </button>
+                            </div>
+                          </div>
+                          {descriptionMode === "edit" ? (
+                            <>
+                              <Textarea
+                                value={form.event_description}
+                                onChange={(e) =>
+                                  onChange("event_description", e.target.value)
+                                }
+                                placeholder="Add long description (markdown supported)"
+                                className="min-h-[300px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] p-3 focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none resize-y"
+                              />
+                              <p className="text-xs text-gray-500 italic">
+                                *Full event description. Markdown formatting is
+                                supported.
+                              </p>
+                            </>
+                          ) : (
+                            <div className="min-h-[300px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] p-3 overflow-auto prose prose-sm max-w-full">
+                              {form.event_description ? (
+                                <ReactMarkdown>
+                                  {form.event_description}
+                                </ReactMarkdown>
+                              ) : (
+                                <em>No description added yet.</em>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <label className="text-[16px] font-normal text-black">
+                              This is a paid event
+                            </label>
+                            <Switch
+                              checked={ticketType === "paid"}
+                              onCheckedChange={(checked) =>
+                                setTicketType(checked ? "paid" : "free")
+                              }
+                            />
+                          </div>
+                          <p className="text-xs text-gray-500">
+                            *Toggle this on to set up pricing tiers for your
+                            event. Participants will need to pay to join.
+                          </p>
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-[16px] font-normal text-black">
+                            Add organizer
+                          </label>
+                          <div className="relative w-full min-w-0">
+                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                            <Input
+                              value={form.organizer_emails}
+                              onChange={(e) =>
+                                onChange("organizer_emails", e.target.value)
+                              }
+                              placeholder="Separate emails with ,"
+                              className="w-full min-w-0 h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+                            />
+                          </div>
+                          <p className="text-xs text-gray-500">
+                            *Invitee will receive an email notification with
+                            access instructions.
+                          </p>
+                        </div>
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent
+                      value="content"
+                      className="mt-0 space-y-4 overflow-x-hidden"
+                    >
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-[16px] font-semibold text-black">
+                            Exclusive Content for Participants
+                          </h3>
+                          <div className="inline-flex items-center border border-[rgba(0,0,0,0.15)] rounded-[12px] p-1 bg-white">
+                            <button
+                              onClick={() => setPaywallMode("edit")}
+                              className={`px-4 py-2 rounded-[8px] text-sm font-normal transition-colors ${
+                                paywallMode === "edit"
+                                  ? "bg-white border border-[rgba(0,0,0,0.15)] text-black shadow-sm"
+                                  : "bg-transparent text-black hover:bg-gray-50"
+                              }`}
+                              data-testid="paywall-edit"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => setPaywallMode("preview")}
+                              className={`px-4 py-2 rounded-[8px] text-sm font-normal transition-colors ${
+                                paywallMode === "preview"
+                                  ? "bg-white border border-[rgba(0,0,0,0.15)] text-black shadow-sm"
+                                  : "bg-transparent text-black hover:bg-gray-50"
+                              }`}
+                              data-testid="paywall-preview"
+                            >
+                              Preview
+                            </button>
+                          </div>
+                        </div>
+                        {paywallMode === "edit" ? (
+                          <>
+                            <Textarea
+                              value={form.paywall_content}
+                              onChange={(e) =>
+                                onChange("paywall_content", e.target.value)
+                              }
+                              placeholder="Add content (markdown supported)"
+                              className="min-h-[300px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] p-3"
+                            />
+                            <p className="text-xs text-gray-500 italic">
+                              *This content is visible only to participants who
+                              have joined the event.
+                            </p>
+                          </>
+                        ) : (
+                          <div className="min-h-[300px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] p-3 overflow-auto prose prose-sm max-w-full">
+                            {form.paywall_content ? (
+                              <ReactMarkdown>
+                                {form.paywall_content}
+                              </ReactMarkdown>
+                            ) : (
+                              <em>No exclusive content added yet.</em>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent
+                      value="schedule"
+                      className="mt-0 overflow-x-hidden"
+                    >
+                      {schedules.length === 0 && !showScheduleForm ? (
+                        <div className="border-2 border-dashed border-gray-300 rounded-[12px] p-12 flex flex-col items-center justify-center text-center min-h-[400px]">
+                          <div className="flex flex-col items-center gap-2">
+                            <div className="relative">
+                              <Image
+                                src="/img/cancel_schedule_send.png"
+                                alt="No schedule illustration"
+                                width={40}
+                                height={40}
+                                className="object-contain"
+                                priority
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <h3 className="text-[18px] font-semibold text-black">
+                                No schedule yet
+                              </h3>
+                              <p className="text-[14px] text-gray-500 max-w-md">
+                                Add day and events to display the event schedule
+                              </p>
+                            </div>
+                            <Button
+                              type="button"
+                              onClick={() => setShowScheduleForm(true)}
+                              className="mt-2 bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
+                            >
+                              Add schedule
+                            </Button>
+                          </div>
+                        </div>
+                      ) : schedules.length > 0 && !showScheduleForm ? (
+                        <div className="space-y-4">
+                          {schedules.map((schedule) => (
+                            <div
+                              key={schedule.id}
+                              className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-4"
+                            >
+                              <div className="flex items-start justify-between mb-2">
+                                <div className="flex-1">
+                                  <h4 className="text-[18px] font-semibold text-black">
+                                    {schedule.dayTitle}
+                                  </h4>
+                                  <div className="mt-2 space-y-1">
+                                    <p className="text-[16px] font-medium text-black">
+                                      {schedule.eventName}
+                                    </p>
+                                    {schedule.time && (
+                                      <p className="text-[14px] text-gray-600">
+                                        Time: {schedule.time}
+                                      </p>
+                                    )}
+                                    {schedule.guests && (
+                                      <p className="text-[14px] text-gray-600">
+                                        Guests: {schedule.guests}
+                                      </p>
+                                    )}
+                                    {schedule.description && (
+                                      <div className="mt-2 text-[14px] text-gray-600 prose prose-sm max-w-full">
+                                        <ReactMarkdown>
+                                          {schedule.description}
+                                        </ReactMarkdown>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSchedules(
+                                      schedules.filter(
+                                        (s) => s.id !== schedule.id
+                                      )
+                                    );
+                                    toast({
+                                      title: "Schedule deleted",
+                                      description:
+                                        "Schedule item removed successfully.",
+                                    });
+                                  }}
+                                  className="text-red-500 hover:text-red-700 hover:bg-red-50 ml-2"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
                               </div>
                             </div>
+                          ))}
+                          <Button
+                            type="button"
+                            onClick={() => setShowScheduleForm(true)}
+                            className="w-full bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
+                          >
+                            <Plus className="w-4 h-4 mr-2" />
+                            Add schedule
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4">
+                          <div className="space-y-2">
+                            <label className="text-[16px] font-normal text-black">
+                              Day Title
+                            </label>
+                            <div className="relative">
+                              <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                              <Input
+                                value={scheduleForm.dayTitle}
+                                onChange={(e) =>
+                                  setScheduleForm((prev) => ({
+                                    ...prev,
+                                    dayTitle: e.target.value,
+                                  }))
+                                }
+                                placeholder="Short description shown in the preview card"
+                                className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+                              />
+                            </div>
+                          </div>
 
-                            <div className="space-y-2">
+                          <div
+                            className="rounded-[12px] border border-[rgba(0,0,0,0.15)] bg-[#F7FAFE] p-4 flex flex-col items-start gap-6"
+                            style={{
+                              boxShadow:
+                                "0 0 0 1px rgba(0, 0, 0, 0.05) inset, 0 -2px 1px 0 rgba(0, 0, 0, 0.05) inset, 0 1px 2px 0 rgba(0, 0, 0, 0.05)",
+                            }}
+                          >
+                            <div className="space-y-2 w-full">
                               <label className="text-[16px] font-normal text-black">
-                                Seat Cap
+                                Event Name
                               </label>
                               <div className="relative">
-                                <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                                <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
                                 <Input
-                                  type="number"
-                                  value={form.participant_capacity}
+                                  value={scheduleForm.eventName}
                                   onChange={(e) =>
-                                    onChange(
-                                      "participant_capacity",
-                                      e.target.value
-                                    )
+                                    setScheduleForm((prev) => ({
+                                      ...prev,
+                                      eventName: e.target.value,
+                                    }))
                                   }
-                                  placeholder="Leave blank for unlimited participants"
+                                  placeholder="Short description shown in the preview card"
                                   className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
                                 />
                               </div>
@@ -641,654 +1070,223 @@ export default function NewEventPage() {
 
                             <div className="space-y-2 w-full">
                               <label className="text-[16px] font-normal text-black">
-                                Location
+                                Time
                               </label>
-                              <div className="flex items-center gap-2 sm:gap-4 mb-2 w-full">
-                                <button
-                                  onClick={() =>
-                                    setForm((p) => ({
-                                      ...p,
-                                      location_type: "in-person",
+                              <div className="relative">
+                                <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                                <Input
+                                  value={scheduleForm.time}
+                                  onChange={(e) =>
+                                    setScheduleForm((prev) => ({
+                                      ...prev,
+                                      time: e.target.value,
                                     }))
                                   }
-                                  className={`flex items-center justify-center gap-2 px-4 py-2 rounded-[12px] text-[16px] font-normal transition-colors flex-1 sm:w-[180px] ${
-                                    form.location_type === "in-person"
-                                      ? "bg-[#4b89ef] text-white"
-                                      : "bg-transparent border border-[rgba(0,0,0,0.15)] text-black"
-                                  }`}
-                                >
-                                  <Building2 className="w-5 h-5" />
-                                  In-person
-                                </button>
-                                <button
-                                  onClick={() =>
-                                    setForm((p) => ({
-                                      ...p,
-                                      location_type: "virtual",
+                                  placeholder="11-22-33"
+                                  className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="space-y-2 w-full">
+                              <label className="text-[16px] font-normal text-black">
+                                Add guests
+                              </label>
+                              <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                                <Input
+                                  value={scheduleForm.guests}
+                                  onChange={(e) =>
+                                    setScheduleForm((prev) => ({
+                                      ...prev,
+                                      guests: e.target.value,
                                     }))
                                   }
-                                  className={`flex items-center justify-center gap-2 px-4 py-2 rounded-[12px] text-[16px] font-normal transition-colors flex-1 sm:w-[180px] ${
-                                    form.location_type === "virtual"
-                                      ? "bg-[#4b89ef] text-white"
-                                      : "bg-transparent border border-[rgba(0,0,0,0.15)] text-black"
-                                  }`}
-                                >
-                                  <Video className="w-5 h-5" />
-                                  Virtual event
-                                </button>
-                              </div>
-                              <div className="relative">
-                                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
-                                <Input
-                                  value={form.location}
-                                  onChange={(e) =>
-                                    onChange("location", e.target.value)
-                                  }
-                                  placeholder="Add offline location"
-                                  className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+                                  placeholder="Search guests"
+                                  className="h-[44px] pl-11 pr-32 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
                                 />
-                              </div>
-                            </div>
-
-                            <div className="space-y-2">
-                              <label className="text-[16px] font-normal text-black">
-                                Cover image url
-                              </label>
-                              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                                <div className="relative flex-1">
-                                  <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
-                                  <Input
-                                    value={form.cover_image_url}
-                                    onChange={(e) =>
-                                      onChange(
-                                        "cover_image_url",
-                                        e.target.value
-                                      )
-                                    }
-                                    placeholder="https://..."
-                                    className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
-                                  />
-                                </div>
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  onClick={() => {
-                                    const input =
-                                      document.createElement("input");
-                                    input.type = "file";
-                                    input.accept = "image/*";
-                                    input.onchange = (e) => {
-                                      const file = (
-                                        e.target as HTMLInputElement
-                                      ).files?.[0];
-                                      if (file) {
-                                        onChange(
-                                          "cover_image_url",
-                                          URL.createObjectURL(file)
-                                        );
-                                      }
-                                    };
-                                    input.click();
-                                  }}
-                                  className="h-[44px] px-4 border border-[rgba(0,0,0,0.15)] rounded-[12px] w-full sm:w-auto"
-                                >
-                                  <Upload className="w-4 h-4 mr-2" />
-                                  Upload
-                                </Button>
-                              </div>
-                              <p className="text-xs text-gray-500">
-                                *Upload an image to showcase your project (Max
-                                10MB).
-                              </p>
-                            </div>
-
-                            <div className="space-y-2">
-                              <label className="text-[16px] font-normal text-black">
-                                Blurb
-                              </label>
-                              <div className="relative">
-                                <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
-                                <Input
-                                  value={form.event_blurb}
-                                  onChange={(e) =>
-                                    onChange("event_blurb", e.target.value)
-                                  }
-                                  placeholder="Short description shown in the preview card"
-                                  className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
-                                />
-                              </div>
-                              <p className="text-xs text-gray-500">
-                                A short description that appears in the event
-                                preview card.
-                              </p>
-                            </div>
-
-                            <div className="space-y-2">
-                              <div className="flex items-center justify-between">
-                                <label className="text-[16px] font-normal text-black">
-                                  Description
-                                </label>
-                                <div className="inline-flex items-center border border-[rgba(0,0,0,0.15)] rounded-[12px] p-1 bg-white">
+                                <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
                                   <button
-                                    onClick={() => setDescriptionMode("edit")}
-                                    className={`px-4 py-2 rounded-[8px] text-sm font-normal transition-colors ${
-                                      descriptionMode === "edit"
-                                        ? "bg-white border border-[rgba(0,0,0,0.15)] text-black shadow-sm"
-                                        : "bg-transparent text-black hover:bg-gray-50"
-                                    }`}
+                                    type="button"
+                                    className="text-[14px] text-[#4b89ef] hover:underline whitespace-nowrap"
                                   >
-                                    Edit
+                                    Invite guest
                                   </button>
-                                  <button
-                                    onClick={() =>
-                                      setDescriptionMode("preview")
-                                    }
-                                    className={`px-4 py-2 rounded-[8px] text-sm font-normal transition-colors ${
-                                      descriptionMode === "preview"
-                                        ? "bg-white border border-[rgba(0,0,0,0.15)] text-black shadow-sm"
-                                        : "bg-transparent text-black hover:bg-gray-50"
-                                    }`}
+                                  <svg
+                                    className="w-5 h-5 text-gray-400"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
                                   >
-                                    Preview
-                                  </button>
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M19 9l-7 7-7-7"
+                                    />
+                                  </svg>
                                 </div>
                               </div>
-                              {descriptionMode === "edit" ? (
-                                <>
-                                  <Textarea
-                                    value={form.event_description}
-                                    onChange={(e) =>
-                                      onChange(
-                                        "event_description",
-                                        e.target.value
-                                      )
-                                    }
-                                    placeholder="Add long description (markdown supported)"
-                                    className="min-h-[300px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] p-3 focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none resize-y"
-                                  />
-                                  <p className="text-xs text-gray-500 italic">
-                                    *Full event description. Markdown formatting
-                                    is supported.
-                                  </p>
-                                </>
-                              ) : (
-                                <div className="min-h-[300px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] p-3 overflow-auto prose prose-sm max-w-full">
-                                  {form.event_description ? (
-                                    <ReactMarkdown>
-                                      {form.event_description}
-                                    </ReactMarkdown>
-                                  ) : (
-                                    <em>No description added yet.</em>
-                                  )}
-                                </div>
-                              )}
                             </div>
 
-                            <div className="space-y-2">
-                              <div className="flex items-center justify-between">
-                                <label className="text-[16px] font-normal text-black">
-                                  This is a paid event
-                                </label>
-                                <Switch
-                                  checked={ticketType === "paid"}
-                                  onCheckedChange={(checked) =>
-                                    setTicketType(checked ? "paid" : "free")
-                                  }
-                                />
-                              </div>
-                              <p className="text-xs text-gray-500">
-                                *Toggle this on to set up pricing tiers for your
-                                event. Participants will need to pay to join.
-                              </p>
-                            </div>
-
-                            <div className="space-y-2">
+                            <div className="space-y-2 w-full">
                               <label className="text-[16px] font-normal text-black">
-                                Add organizer
+                                Description
                               </label>
-                              <div className="relative">
-                                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
-                                <Input
-                                  value={form.organizer_emails}
-                                  onChange={(e) =>
-                                    onChange("organizer_emails", e.target.value)
-                                  }
-                                  placeholder="Separate emails with ,"
-                                  className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
-                                />
-                              </div>
-                              <p className="text-xs text-gray-500">
-                                *Invitee will receive an email notification with
-                                access instructions.
-                              </p>
+                              <Textarea
+                                value={scheduleForm.description}
+                                onChange={(e) =>
+                                  setScheduleForm((prev) => ({
+                                    ...prev,
+                                    description: e.target.value,
+                                  }))
+                                }
+                                placeholder="Add long description (markdown supported)"
+                                className="min-h-[200px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] p-3 focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none resize-y"
+                              />
                             </div>
                           </div>
-                        </TabsContent>
 
-                        <TabsContent value="content" className="mt-0 space-y-4">
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between">
-                              <h3 className="text-[16px] font-semibold text-black">
-                                Exclusive Content for Participants
+                          <div className="flex items-center gap-2 pt-4">
+                            <Button
+                              type="button"
+                              className="bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
+                              onClick={() => {
+                                if (
+                                  !scheduleForm.dayTitle ||
+                                  !scheduleForm.eventName
+                                ) {
+                                  toast({
+                                    title: "Missing fields",
+                                    description:
+                                      "Please fill in day title and event name.",
+                                    variant: "destructive",
+                                  });
+                                  return;
+                                }
+                                setSchedules([
+                                  ...schedules,
+                                  {
+                                    id: Date.now().toString(),
+                                    dayTitle: scheduleForm.dayTitle,
+                                    eventName: scheduleForm.eventName,
+                                    time: scheduleForm.time,
+                                    guests: scheduleForm.guests,
+                                    description: scheduleForm.description,
+                                  },
+                                ]);
+                                toast({
+                                  title: "Schedule created",
+                                  description:
+                                    "Schedule item added successfully.",
+                                });
+                                setScheduleForm({
+                                  dayTitle: "",
+                                  eventName: "",
+                                  time: "",
+                                  guests: "",
+                                  description: "",
+                                });
+                                setShowScheduleForm(false);
+                              }}
+                            >
+                              Create
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => {
+                                setShowScheduleForm(false);
+                                setScheduleForm({
+                                  dayTitle: "",
+                                  eventName: "",
+                                  time: "",
+                                  guests: "",
+                                  description: "",
+                                });
+                              }}
+                              className="border border-[rgba(0,0,0,0.15)] bg-white"
+                            >
+                              Cancel
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="border border-[#4b89ef] text-[#4b89ef] bg-white hover:bg-[#4b89ef]/10"
+                              onClick={() => {
+                                toast({
+                                  title: "Event added",
+                                  description: "Event added to schedule.",
+                                });
+                                setScheduleForm({
+                                  dayTitle: "",
+                                  eventName: "",
+                                  time: "",
+                                  guests: "",
+                                  description: "",
+                                });
+                              }}
+                            >
+                              Add event
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </TabsContent>
+
+                    {showScheduleForm && (
+                      <Button
+                        type="button"
+                        className="rounded-[12px] border-0 mt-4 text-black bg-gray-50 hover:bg-gray-100"
+                        onClick={() => setShowScheduleForm(true)}
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add new day
+                      </Button>
+                    )}
+
+                    <TabsContent
+                      value="resources"
+                      className="mt-0 overflow-x-hidden"
+                    >
+                      {resources.length === 0 && !showResourcesForm ? (
+                        <div className="border-2 border-dashed border-gray-300 rounded-[12px] p-12 flex flex-col items-center justify-center text-center min-h-[400px]">
+                          <div className="flex flex-col items-center gap-2">
+                            <div className="relative">
+                              <Link2 className="w-16 h-16 text-gray-400" />
+                              <div className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
+                                <span className="text-white text-xs font-bold">
+                                  ×
+                                </span>
+                              </div>
+                            </div>
+                            <div className="space-y-1">
+                              <h3 className="text-[18px] font-semibold text-black">
+                                No resource yet
                               </h3>
-                              <div className="inline-flex items-center border border-[rgba(0,0,0,0.15)] rounded-[12px] p-1 bg-white">
-                                <button
-                                  onClick={() => setPaywallMode("edit")}
-                                  className={`px-4 py-2 rounded-[8px] text-sm font-normal transition-colors ${
-                                    paywallMode === "edit"
-                                      ? "bg-white border border-[rgba(0,0,0,0.15)] text-black shadow-sm"
-                                      : "bg-transparent text-black hover:bg-gray-50"
-                                  }`}
-                                  data-testid="paywall-edit"
-                                >
-                                  Edit
-                                </button>
-                                <button
-                                  onClick={() => setPaywallMode("preview")}
-                                  className={`px-4 py-2 rounded-[8px] text-sm font-normal transition-colors ${
-                                    paywallMode === "preview"
-                                      ? "bg-white border border-[rgba(0,0,0,0.15)] text-black shadow-sm"
-                                      : "bg-transparent text-black hover:bg-gray-50"
-                                  }`}
-                                  data-testid="paywall-preview"
-                                >
-                                  Preview
-                                </button>
-                              </div>
+                              <p className="text-[14px] text-gray-500 max-w-md">
+                                Resources will be shown as individual links on
+                                the event page.
+                              </p>
                             </div>
-                            {paywallMode === "edit" ? (
-                              <>
-                                <Textarea
-                                  value={form.paywall_content}
-                                  onChange={(e) =>
-                                    onChange("paywall_content", e.target.value)
-                                  }
-                                  placeholder="Add content (markdown supported)"
-                                  className="min-h-[300px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] p-3"
-                                />
-                                <p className="text-xs text-gray-500 italic">
-                                  *This content is visible only to participants
-                                  who have joined the event.
-                                </p>
-                              </>
-                            ) : (
-                              <div className="min-h-[300px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] p-3 overflow-auto prose prose-sm max-w-full">
-                                {form.paywall_content ? (
-                                  <ReactMarkdown>
-                                    {form.paywall_content}
-                                  </ReactMarkdown>
-                                ) : (
-                                  <em>No exclusive content added yet.</em>
-                                )}
-                              </div>
-                            )}
+                            <Button
+                              type="button"
+                              onClick={() => setShowResourcesForm(true)}
+                              className="mt-2 bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
+                            >
+                              Add resource
+                            </Button>
                           </div>
-                        </TabsContent>
-
-                        <TabsContent value="schedule" className="mt-0">
-                          {schedules.length === 0 && !showScheduleForm ? (
-                            <div className="border-2 border-dashed border-gray-300 rounded-[12px] p-12 flex flex-col items-center justify-center text-center min-h-[400px]">
-                              <div className="flex flex-col items-center gap-2">
-                                <div className="relative">
-                                  <Image
-                                    src="/img/cancel_schedule_send.png"
-                                    alt="No schedule illustration"
-                                    width={40}
-                                    height={40}
-                                    className="object-contain"
-                                    priority
-                                  />
-                                </div>
-                                <div className="space-y-1">
-                                  <h3 className="text-[18px] font-semibold text-black">
-                                    No schedule yet
-                                  </h3>
-                                  <p className="text-[14px] text-gray-500 max-w-md">
-                                    Add day and events to display the event
-                                    schedule
-                                  </p>
-                                </div>
-                                <Button
-                                  type="button"
-                                  onClick={() => setShowScheduleForm(true)}
-                                  className="mt-2 bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
-                                >
-                                  Add schedule
-                                </Button>
-                              </div>
-                            </div>
-                          ) : schedules.length > 0 && !showScheduleForm ? (
-                            <div className="space-y-4">
-                              {schedules.map((schedule) => (
-                                <div
-                                  key={schedule.id}
-                                  className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-4"
-                                >
-                                  <div className="flex items-start justify-between mb-2">
-                                    <div className="flex-1">
-                                      <h4 className="text-[18px] font-semibold text-black">
-                                        {schedule.dayTitle}
-                                      </h4>
-                                      <div className="mt-2 space-y-1">
-                                        <p className="text-[16px] font-medium text-black">
-                                          {schedule.eventName}
-                                        </p>
-                                        {schedule.time && (
-                                          <p className="text-[14px] text-gray-600">
-                                            Time: {schedule.time}
-                                          </p>
-                                        )}
-                                        {schedule.guests && (
-                                          <p className="text-[14px] text-gray-600">
-                                            Guests: {schedule.guests}
-                                          </p>
-                                        )}
-                                        {schedule.description && (
-                                          <div className="mt-2 text-[14px] text-gray-600 prose prose-sm max-w-full">
-                                            <ReactMarkdown>
-                                              {schedule.description}
-                                            </ReactMarkdown>
-                                          </div>
-                                        )}
-                                      </div>
-                                    </div>
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => {
-                                        setSchedules(
-                                          schedules.filter(
-                                            (s) => s.id !== schedule.id
-                                          )
-                                        );
-                                        toast({
-                                          title: "Schedule deleted",
-                                          description:
-                                            "Schedule item removed successfully.",
-                                        });
-                                      }}
-                                      className="text-red-500 hover:text-red-700 hover:bg-red-50 ml-2"
-                                    >
-                                      <Trash2 className="w-4 h-4" />
-                                    </Button>
-                                  </div>
-                                </div>
-                              ))}
-                              <Button
-                                type="button"
-                                onClick={() => setShowScheduleForm(true)}
-                                className="w-full bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
-                              >
-                                <Plus className="w-4 h-4 mr-2" />
-                                Add schedule
-                              </Button>
-                            </div>
-                          ) : (
-                            <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4">
-                              <div className="space-y-2">
-                                <label className="text-[16px] font-normal text-black">
-                                  Day Title
-                                </label>
-                                <div className="relative">
-                                  <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
-                                  <Input
-                                    value={scheduleForm.dayTitle}
-                                    onChange={(e) =>
-                                      setScheduleForm((prev) => ({
-                                        ...prev,
-                                        dayTitle: e.target.value,
-                                      }))
-                                    }
-                                    placeholder="Short description shown in the preview card"
-                                    className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
-                                  />
-                                </div>
-                              </div>
-
-                              <div
-                                className="rounded-[12px] border border-[rgba(0,0,0,0.15)] bg-[#F7FAFE] p-4 flex flex-col items-start gap-6"
-                                style={{
-                                  boxShadow:
-                                    "0 0 0 1px rgba(0, 0, 0, 0.05) inset, 0 -2px 1px 0 rgba(0, 0, 0, 0.05) inset, 0 1px 2px 0 rgba(0, 0, 0, 0.05)",
-                                }}
-                              >
-                                <div className="space-y-2 w-full">
-                                  <label className="text-[16px] font-normal text-black">
-                                    Event Name
-                                  </label>
-                                  <div className="relative">
-                                    <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
-                                    <Input
-                                      value={scheduleForm.eventName}
-                                      onChange={(e) =>
-                                        setScheduleForm((prev) => ({
-                                          ...prev,
-                                          eventName: e.target.value,
-                                        }))
-                                      }
-                                      placeholder="Short description shown in the preview card"
-                                      className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
-                                    />
-                                  </div>
-                                </div>
-
-                                <div className="space-y-2 w-full">
-                                  <label className="text-[16px] font-normal text-black">
-                                    Time
-                                  </label>
-                                  <div className="relative">
-                                    <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
-                                    <Input
-                                      value={scheduleForm.time}
-                                      onChange={(e) =>
-                                        setScheduleForm((prev) => ({
-                                          ...prev,
-                                          time: e.target.value,
-                                        }))
-                                      }
-                                      placeholder="11-22-33"
-                                      className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
-                                    />
-                                  </div>
-                                </div>
-
-                                <div className="space-y-2 w-full">
-                                  <label className="text-[16px] font-normal text-black">
-                                    Add guests
-                                  </label>
-                                  <div className="relative">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
-                                    <Input
-                                      value={scheduleForm.guests}
-                                      onChange={(e) =>
-                                        setScheduleForm((prev) => ({
-                                          ...prev,
-                                          guests: e.target.value,
-                                        }))
-                                      }
-                                      placeholder="Search guests"
-                                      className="h-[44px] pl-11 pr-32 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
-                                    />
-                                    <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                                      <button
-                                        type="button"
-                                        className="text-[14px] text-[#4b89ef] hover:underline whitespace-nowrap"
-                                      >
-                                        Invite guest
-                                      </button>
-                                      <svg
-                                        className="w-5 h-5 text-gray-400"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 24 24"
-                                      >
-                                        <path
-                                          strokeLinecap="round"
-                                          strokeLinejoin="round"
-                                          strokeWidth={2}
-                                          d="M19 9l-7 7-7-7"
-                                        />
-                                      </svg>
-                                    </div>
-                                  </div>
-                                </div>
-
-                                <div className="space-y-2 w-full">
-                                  <label className="text-[16px] font-normal text-black">
-                                    Description
-                                  </label>
-                                  <Textarea
-                                    value={scheduleForm.description}
-                                    onChange={(e) =>
-                                      setScheduleForm((prev) => ({
-                                        ...prev,
-                                        description: e.target.value,
-                                      }))
-                                    }
-                                    placeholder="Add long description (markdown supported)"
-                                    className="min-h-[200px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] p-3 focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none resize-y"
-                                  />
-                                </div>
-                              </div>
-
-                              <div className="flex items-center gap-2 pt-4">
-                                <Button
-                                  type="button"
-                                  className="bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
-                                  onClick={() => {
-                                    if (
-                                      !scheduleForm.dayTitle ||
-                                      !scheduleForm.eventName
-                                    ) {
-                                      toast({
-                                        title: "Missing fields",
-                                        description:
-                                          "Please fill in day title and event name.",
-                                        variant: "destructive",
-                                      });
-                                      return;
-                                    }
-                                    setSchedules([
-                                      ...schedules,
-                                      {
-                                        id: Date.now().toString(),
-                                        dayTitle: scheduleForm.dayTitle,
-                                        eventName: scheduleForm.eventName,
-                                        time: scheduleForm.time,
-                                        guests: scheduleForm.guests,
-                                        description: scheduleForm.description,
-                                      },
-                                    ]);
-                                    toast({
-                                      title: "Schedule created",
-                                      description:
-                                        "Schedule item added successfully.",
-                                    });
-                                    setScheduleForm({
-                                      dayTitle: "",
-                                      eventName: "",
-                                      time: "",
-                                      guests: "",
-                                      description: "",
-                                    });
-                                    setShowScheduleForm(false);
-                                  }}
-                                >
-                                  Create
-                                </Button>
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  onClick={() => {
-                                    setShowScheduleForm(false);
-                                    setScheduleForm({
-                                      dayTitle: "",
-                                      eventName: "",
-                                      time: "",
-                                      guests: "",
-                                      description: "",
-                                    });
-                                  }}
-                                  className="border border-[rgba(0,0,0,0.15)] bg-white"
-                                >
-                                  Cancel
-                                </Button>
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  className="border border-[#4b89ef] text-[#4b89ef] bg-white hover:bg-[#4b89ef]/10"
-                                  onClick={() => {
-                                    toast({
-                                      title: "Event added",
-                                      description: "Event added to schedule.",
-                                    });
-                                    setScheduleForm({
-                                      dayTitle: "",
-                                      eventName: "",
-                                      time: "",
-                                      guests: "",
-                                      description: "",
-                                    });
-                                  }}
-                                >
-                                  Add event
-                                </Button>
-                              </div>
-                            </div>
-                          )}
-                        </TabsContent>
-
-                        {showScheduleForm && (
-                          <Button
-                            type="button"
-                            className="rounded-[12px] border-0 mt-4 text-black bg-gray-50 hover:bg-gray-100"
-                            onClick={() => setShowScheduleForm(true)}
-                          >
-                            <Plus className="w-4 h-4 mr-2" />
-                            Add new day
-                          </Button>
-                        )}
-
-                        <TabsContent value="resources" className="mt-0">
-                          {resources.length === 0 && !showResourcesForm ? (
-                            <div className="border-2 border-dashed border-gray-300 rounded-[12px] p-12 flex flex-col items-center justify-center text-center min-h-[400px]">
-                              <div className="flex flex-col items-center gap-2">
-                                <div className="relative">
-                                  <Link2 className="w-16 h-16 text-gray-400" />
-                                  <div className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
-                                    <span className="text-white text-xs font-bold">
-                                      ×
-                                    </span>
-                                  </div>
-                                </div>
-                                <div className="space-y-1">
-                                  <h3 className="text-[18px] font-semibold text-black">
-                                    No resource yet
-                                  </h3>
-                                  <p className="text-[14px] text-gray-500 max-w-md">
-                                    Resources will be shown as individual links
-                                    on the event page.
-                                  </p>
-                                </div>
-                                <Button
-                                  type="button"
-                                  onClick={() => setShowResourcesForm(true)}
-                                  className="mt-2 bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
-                                >
-                                  Add resource
-                                </Button>
-                              </div>
-                            </div>
-                          ) : resources.length > 0 && !showResourcesForm ? (
-                            <div className="space-y-4">
-                              {resources.map((resource) => (
-                                <div
-                                  key={resource.id}
-                                  className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4 relative"
-                                >
-                                  {editingResourceId === resource.id ? (
-                                    <>
+                        </div>
+                      ) : resources.length > 0 && !showResourcesForm ? (
+                        <div className="space-y-4">
+                          {resources.map((resource) => (
+                            <div
+                              key={resource.id}
+                              className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4 relative"
+                            >
+                              {editingResourceId === resource.id ? (
+                                <>
                                   <div className="space-y-2">
                                     <label className="text-[16px] font-normal text-black">
                                       Resource name
@@ -1296,17 +1294,13 @@ export default function NewEventPage() {
                                     <div className="relative">
                                       <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
                                       <Input
-                                            value={
-                                              editingResourceForm.resourceName
-                                            }
-                                            onChange={(e) =>
-                                              setEditingResourceForm(
-                                                (prev) => ({
-                                                  ...prev,
-                                                  resourceName: e.target.value,
-                                                })
-                                              )
-                                            }
+                                        value={editingResourceForm.resourceName}
+                                        onChange={(e) =>
+                                          setEditingResourceForm((prev) => ({
+                                            ...prev,
+                                            resourceName: e.target.value,
+                                          }))
+                                        }
                                         className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
                                       />
                                     </div>
@@ -1319,828 +1313,828 @@ export default function NewEventPage() {
                                     <div className="relative">
                                       <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
                                       <Input
-                                            value={
-                                              editingResourceForm.resourceLink
-                                            }
-                                            onChange={(e) =>
-                                              setEditingResourceForm(
-                                                (prev) => ({
-                                                  ...prev,
-                                                  resourceLink: e.target.value,
-                                                })
-                                              )
-                                            }
-                                            className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
-                                          />
-                                        </div>
-                                        {editingResourceForm.resourceLink && (
-                                          <div className="flex items-center gap-2 text-[14px] text-gray-600">
-                                            <Paperclip className="w-4 h-4" />
-                                            <span className="truncate">
-                                              {editingResourceForm.resourceLink}
-                                            </span>
-                                          </div>
-                                        )}
+                                        value={editingResourceForm.resourceLink}
+                                        onChange={(e) =>
+                                          setEditingResourceForm((prev) => ({
+                                            ...prev,
+                                            resourceLink: e.target.value,
+                                          }))
+                                        }
+                                        className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+                                      />
+                                    </div>
+                                    {editingResourceForm.resourceLink && (
+                                      <div className="flex items-center gap-2 text-[14px] text-gray-600">
+                                        <Paperclip className="w-4 h-4" />
+                                        <span className="truncate">
+                                          {editingResourceForm.resourceLink}
+                                        </span>
                                       </div>
+                                    )}
+                                  </div>
 
-                                      <div className="flex items-center gap-2 pt-2">
-                                        <Button
-                                          type="button"
-                                          className="bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
-                                          onClick={() => {
-                                            if (
-                                              !editingResourceForm.resourceName ||
-                                              !editingResourceForm.resourceLink
-                                            ) {
-                                              toast({
-                                                title: "Missing fields",
-                                                description:
-                                                  "Please fill in both resource name and link.",
-                                                variant: "destructive",
-                                              });
-                                              return;
-                                            }
-                                          setResources(
-                                            resources.map((r) =>
-                                              r.id === resource.id
-                                                  ? {
-                                                      ...r,
-                                                      name: editingResourceForm.resourceName,
-                                                      link: editingResourceForm.resourceLink,
-                                                    }
-                                                : r
-                                            )
-                                          );
-                                            setEditingResourceId(null);
-                                            setEditingResourceForm({
-                                              resourceName: "",
-                                              resourceLink: "",
-                                            });
-                                            toast({
-                                              title: "Resource updated",
-                                              description:
-                                                "Resource saved successfully.",
-                                            });
-                                          }}
-                                        >
-                                          Save
-                                        </Button>
-                                        <Button
-                                          type="button"
-                                          className="text-white rounded-[12px] hover:bg-red-600"
-                                          style={{
-                                            background:
-                                              "var(--Component-colors-Utility-Error-utility-error-600, #D92D20)",
-                                            boxShadow:
-                                              "0 32px 24px 0 rgba(255, 255, 255, 0.05) inset, 0 2px 1px 0 rgba(255, 255, 255, 0.25) inset, 0 0 0 1px var(--Opacity-Neutral-Darkest-15, rgba(0, 0, 0, 0.15)) inset, 0 -2px 1px 0 rgba(0, 0, 0, 0.20) inset, 0 1px 2px 0 var(--Opacity-Neutral-Darkest-5, rgba(0, 0, 0, 0.05))",
-                                          }}
-                                          onClick={() => {
-                                            setResources(
-                                              resources.filter(
-                                                (r) => r.id !== resource.id
-                                              )
-                                            );
-                                            setEditingResourceId(null);
-                                            setEditingResourceForm({
-                                              resourceName: "",
-                                              resourceLink: "",
-                                            });
-                                            toast({
-                                              title: "Resource deleted",
-                                              description:
-                                                "Resource removed successfully.",
-                                            });
-                                          }}
-                                        >
-                                          Delete
-                                        </Button>
-                                      </div>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <div className="absolute top-4 right-4">
-                                        <button
-                                          type="button"
-                                          onClick={() => {
-                                            setEditingResourceId(resource.id);
-                                            setEditingResourceForm({
-                                              resourceName: resource.name,
-                                              resourceLink: resource.link,
-                                            });
-                                          }}
-                                          className="p-2 hover:bg-gray-50 rounded-[8px] transition-colors"
-                                        >
-                                          <Pencil className="w-4 h-4 text-gray-600" />
-                                        </button>
-                                      </div>
+                                  <div className="flex items-center gap-2 pt-2">
+                                    <Button
+                                      type="button"
+                                      className="bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
+                                      onClick={() => {
+                                        if (
+                                          !editingResourceForm.resourceName ||
+                                          !editingResourceForm.resourceLink
+                                        ) {
+                                          toast({
+                                            title: "Missing fields",
+                                            description:
+                                              "Please fill in both resource name and link.",
+                                            variant: "destructive",
+                                          });
+                                          return;
+                                        }
+                                        setResources(
+                                          resources.map((r) =>
+                                            r.id === resource.id
+                                              ? {
+                                                  ...r,
+                                                  name: editingResourceForm.resourceName,
+                                                  link: editingResourceForm.resourceLink,
+                                                }
+                                              : r
+                                          )
+                                        );
+                                        setEditingResourceId(null);
+                                        setEditingResourceForm({
+                                          resourceName: "",
+                                          resourceLink: "",
+                                        });
+                                        toast({
+                                          title: "Resource updated",
+                                          description:
+                                            "Resource saved successfully.",
+                                        });
+                                      }}
+                                    >
+                                      Save
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      className="text-white rounded-[12px] hover:bg-red-600"
+                                      style={{
+                                        background:
+                                          "var(--Component-colors-Utility-Error-utility-error-600, #D92D20)",
+                                        boxShadow:
+                                          "0 32px 24px 0 rgba(255, 255, 255, 0.05) inset, 0 2px 1px 0 rgba(255, 255, 255, 0.25) inset, 0 0 0 1px var(--Opacity-Neutral-Darkest-15, rgba(0, 0, 0, 0.15)) inset, 0 -2px 1px 0 rgba(0, 0, 0, 0.20) inset, 0 1px 2px 0 var(--Opacity-Neutral-Darkest-5, rgba(0, 0, 0, 0.05))",
+                                      }}
+                                      onClick={() => {
+                                        setResources(
+                                          resources.filter(
+                                            (r) => r.id !== resource.id
+                                          )
+                                        );
+                                        setEditingResourceId(null);
+                                        setEditingResourceForm({
+                                          resourceName: "",
+                                          resourceLink: "",
+                                        });
+                                        toast({
+                                          title: "Resource deleted",
+                                          description:
+                                            "Resource removed successfully.",
+                                        });
+                                      }}
+                                    >
+                                      Delete
+                                    </Button>
+                                  </div>
+                                </>
+                              ) : (
+                                <>
+                                  <div className="absolute top-4 right-4">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setEditingResourceId(resource.id);
+                                        setEditingResourceForm({
+                                          resourceName: resource.name,
+                                          resourceLink: resource.link,
+                                        });
+                                      }}
+                                      className="p-2 hover:bg-gray-50 rounded-[8px] transition-colors"
+                                    >
+                                      <Pencil className="w-4 h-4 text-gray-600" />
+                                    </button>
+                                  </div>
 
-                                      <div className="space-y-2">
-                                        <label className="text-[16px] font-normal text-black">
-                                          Resource name
-                                        </label>
-                                        <div className="relative">
-                                          <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
-                                          <Input
-                                            value={resource.name}
-                                            readOnly
-                                            className="h-[44px] pl-11 bg-gray-50 border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] text-gray-600 cursor-not-allowed"
+                                  <div className="space-y-2">
+                                    <label className="text-[16px] font-normal text-black">
+                                      Resource name
+                                    </label>
+                                    <div className="relative">
+                                      <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                                      <Input
+                                        value={resource.name}
+                                        readOnly
+                                        className="h-[44px] pl-11 bg-gray-50 border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] text-gray-600 cursor-not-allowed"
                                       />
                                     </div>
                                   </div>
 
-                                      <div className="space-y-2">
-                                        <label className="text-[16px] font-normal text-black">
-                                          Resource link
-                                        </label>
-                                        <div className="relative">
-                                          <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
-                                          <Input
-                                            value={resource.link}
-                                            readOnly
-                                            className="h-[44px] pl-11 bg-gray-50 border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] text-gray-600 cursor-not-allowed"
-                                          />
-                                        </div>
-                                        {resource.link && (
-                                          <div className="flex items-center gap-2 text-[14px] text-gray-600">
-                                            <Paperclip className="w-4 h-4" />
-                                            <span className="truncate">
-                                              {resource.link}
-                                            </span>
-                                          </div>
-                                        )}
+                                  <div className="space-y-2">
+                                    <label className="text-[16px] font-normal text-black">
+                                      Resource link
+                                    </label>
+                                    <div className="relative">
+                                      <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                                      <Input
+                                        value={resource.link}
+                                        readOnly
+                                        className="h-[44px] pl-11 bg-gray-50 border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] text-gray-600 cursor-not-allowed"
+                                      />
+                                    </div>
+                                    {resource.link && (
+                                      <div className="flex items-center gap-2 text-[14px] text-gray-600">
+                                        <Paperclip className="w-4 h-4" />
+                                        <span className="truncate">
+                                          {resource.link}
+                                        </span>
                                       </div>
-                                    </>
-                                  )}
-                                </div>
-                              ))}
-                              <Button
-                                type="button"
-                                onClick={() => setShowResourcesForm(true)}
-                                className="w-full rounded-[12px] border-0 text-black bg-[rgba(0,0,0,0.05)] hover:bg-gray-50 shadow-[0_0_0_1px_rgba(0,0,0,0.05)_inset,0_-2px_1px_0_rgba(0,0,0,0.05)_inset,0_1px_2px_0_rgba(0,0,0,0.05)]"
-                              >
-                                <Plus className="w-4 h-4 mr-2" />
-                                Add new resource
-                              </Button>
+                                    )}
+                                  </div>
+                                </>
+                              )}
                             </div>
-                          ) : (
-                            <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4">
-                              <div className="space-y-2">
-                                <label className="text-[16px] font-normal text-black">
-                                  Resource name
-                                </label>
-                                <div className="relative">
-                                  <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
-                                  <Input
-                                    value={resourcesForm.resourceName}
-                                    onChange={(e) =>
-                                      setResourcesForm((prev) => ({
-                                        ...prev,
-                                        resourceName: e.target.value,
-                                      }))
-                                    }
-                                    placeholder="Short description shown in the preview card"
-                                    className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
-                                  />
-                                </div>
-                              </div>
-
-                              <div className="space-y-2">
-                                <label className="text-[16px] font-normal text-black">
-                                  Resource link
-                                </label>
-                                <div className="relative">
-                                  <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
-                                  <Input
-                                    value={resourcesForm.resourceLink}
-                                    onChange={(e) =>
-                                      setResourcesForm((prev) => ({
-                                        ...prev,
-                                        resourceLink: e.target.value,
-                                      }))
-                                    }
-                                    placeholder="https://"
-                                    className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
-                                  />
-                                </div>
-                              </div>
-
-                              <div className="flex items-center gap-2 pt-4">
-                                <Button
-                                  type="button"
-                                  className="bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
-                                  onClick={() => {
-                                    if (
-                                      !resourcesForm.resourceName ||
-                                      !resourcesForm.resourceLink
-                                    ) {
-                                      toast({
-                                        title: "Missing fields",
-                                        description:
-                                          "Please fill in both resource name and link.",
-                                        variant: "destructive",
-                                      });
-                                      return;
-                                    }
-                                    setResources([
-                                      ...resources,
-                                      {
-                                        id: Date.now().toString(),
-                                        name: resourcesForm.resourceName,
-                                        link: resourcesForm.resourceLink,
-                                      },
-                                    ]);
-                                    toast({
-                                      title: "Resource created",
-                                      description:
-                                        "Resource added successfully.",
-                                    });
-                                    setResourcesForm({
-                                      resourceName: "",
-                                      resourceLink: "",
-                                    });
-                                    setShowResourcesForm(false);
-                                  }}
-                                >
-                                  Create
-                                </Button>
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  onClick={() => {
-                                    setShowResourcesForm(false);
-                                    setResourcesForm({
-                                      resourceName: "",
-                                      resourceLink: "",
-                                    });
-                                  }}
-                                  className="border border-[rgba(0,0,0,0.15)] bg-white"
-                                >
-                                  Cancel
-                                </Button>
-                              </div>
-                            </div>
-                          )}
-                        </TabsContent>
-
-                        {showResourcesForm && (
+                          ))}
                           <Button
                             type="button"
-                            className="rounded-[12px] border-0 mt-4 text-black bg-gray-50 hover:bg-gray-100"
-                            style={{
-                              background: "rgba(0, 0, 0, 0.05)",
-                              boxShadow:
-                                "0 0 0 1px rgba(0, 0, 0, 0.05) inset, 0 -2px 1px 0 rgba(0, 0, 0, 0.05) inset, 0 1px 2px 0 rgba(0, 0, 0, 0.05)",
-                            }}
-                            onClick={() => {
-                              setResourcesForm({
-                                resourceName: "",
-                                resourceLink: "",
-                              });
-                              toast({
-                                title: "New resource",
-                                description: "Ready to add a new resource.",
-                              });
-                            }}
+                            onClick={() => setShowResourcesForm(true)}
+                            className="w-full rounded-[12px] border-0 text-black bg-[rgba(0,0,0,0.05)] hover:bg-gray-50 shadow-[0_0_0_1px_rgba(0,0,0,0.05)_inset,0_-2px_1px_0_rgba(0,0,0,0.05)_inset,0_1px_2px_0_rgba(0,0,0,0.05)]"
                           >
                             <Plus className="w-4 h-4 mr-2" />
                             Add new resource
                           </Button>
-                        )}
+                        </div>
+                      ) : (
+                        <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4">
+                          <div className="space-y-2">
+                            <label className="text-[16px] font-normal text-black">
+                              Resource name
+                            </label>
+                            <div className="relative">
+                              <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                              <Input
+                                value={resourcesForm.resourceName}
+                                onChange={(e) =>
+                                  setResourcesForm((prev) => ({
+                                    ...prev,
+                                    resourceName: e.target.value,
+                                  }))
+                                }
+                                placeholder="Short description shown in the preview card"
+                                className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+                              />
+                            </div>
+                          </div>
 
-                        <TabsContent value="rules" className="mt-0">
-                          {rules.length === 0 && !showRulesForm ? (
-                            <div className="border-2 border-dashed border-gray-300 rounded-[12px] p-12 flex flex-col items-center justify-center text-center min-h-[400px]">
-                              <div className="flex flex-col items-center gap-2">
-                                <div className="relative">
-                                  <FileText className="w-16 h-16 text-gray-400" />
-                                  <div className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
-                                    <span className="text-white text-xs font-bold">
-                                      ×
-                                    </span>
-                                  </div>
-                                </div>
-                                <div className="space-y-1">
-                                  <h3 className="text-[18px] font-semibold text-black">
-                                    No Rules yet
-                                  </h3>
-                                  <p className="text-[14px] text-gray-500 max-w-md">
-                                    Rules will be shown under the overview tab
-                                    on the event page.
-                                  </p>
-                                </div>
-                                <Button
-                                  type="button"
-                                  onClick={() => setShowRulesForm(true)}
-                                  className="mt-2 bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
-                                >
-                                  Add rules
-                                </Button>
+                          <div className="space-y-2">
+                            <label className="text-[16px] font-normal text-black">
+                              Resource link
+                            </label>
+                            <div className="relative">
+                              <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                              <Input
+                                value={resourcesForm.resourceLink}
+                                onChange={(e) =>
+                                  setResourcesForm((prev) => ({
+                                    ...prev,
+                                    resourceLink: e.target.value,
+                                  }))
+                                }
+                                placeholder="https://"
+                                className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 pt-4">
+                            <Button
+                              type="button"
+                              className="bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
+                              onClick={() => {
+                                if (
+                                  !resourcesForm.resourceName ||
+                                  !resourcesForm.resourceLink
+                                ) {
+                                  toast({
+                                    title: "Missing fields",
+                                    description:
+                                      "Please fill in both resource name and link.",
+                                    variant: "destructive",
+                                  });
+                                  return;
+                                }
+                                setResources([
+                                  ...resources,
+                                  {
+                                    id: Date.now().toString(),
+                                    name: resourcesForm.resourceName,
+                                    link: resourcesForm.resourceLink,
+                                  },
+                                ]);
+                                toast({
+                                  title: "Resource created",
+                                  description: "Resource added successfully.",
+                                });
+                                setResourcesForm({
+                                  resourceName: "",
+                                  resourceLink: "",
+                                });
+                                setShowResourcesForm(false);
+                              }}
+                            >
+                              Create
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => {
+                                setShowResourcesForm(false);
+                                setResourcesForm({
+                                  resourceName: "",
+                                  resourceLink: "",
+                                });
+                              }}
+                              className="border border-[rgba(0,0,0,0.15)] bg-white"
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </TabsContent>
+
+                    {showResourcesForm && (
+                      <Button
+                        type="button"
+                        className="rounded-[12px] border-0 mt-4 text-black bg-gray-50 hover:bg-gray-100"
+                        style={{
+                          background: "rgba(0, 0, 0, 0.05)",
+                          boxShadow:
+                            "0 0 0 1px rgba(0, 0, 0, 0.05) inset, 0 -2px 1px 0 rgba(0, 0, 0, 0.05) inset, 0 1px 2px 0 rgba(0, 0, 0, 0.05)",
+                        }}
+                        onClick={() => {
+                          setResourcesForm({
+                            resourceName: "",
+                            resourceLink: "",
+                          });
+                          toast({
+                            title: "New resource",
+                            description: "Ready to add a new resource.",
+                          });
+                        }}
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add new resource
+                      </Button>
+                    )}
+
+                    <TabsContent
+                      value="rules"
+                      className="mt-0 overflow-x-hidden"
+                    >
+                      {rules.length === 0 && !showRulesForm ? (
+                        <div className="border-2 border-dashed border-gray-300 rounded-[12px] p-12 flex flex-col items-center justify-center text-center min-h-[400px]">
+                          <div className="flex flex-col items-center gap-2">
+                            <div className="relative">
+                              <FileText className="w-16 h-16 text-gray-400" />
+                              <div className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
+                                <span className="text-white text-xs font-bold">
+                                  ×
+                                </span>
                               </div>
                             </div>
-                          ) : rules.length > 0 && !showRulesForm ? (
-                            <div className="space-y-4">
-                              {rules.map((rule, ruleIndex) => (
-                                <div
-                                  key={ruleIndex}
-                                  className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4 relative"
-                                >
-                                  {editingRuleIndex === ruleIndex ? (
-                                    <>
-                                      <div className="space-y-2">
-                                        <label className="text-[16px] font-normal text-black">
-                                          Section Title
-                                        </label>
-                                        <div className="relative">
-                                          <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
-                                          <Input
-                                            value={rulesForm.sectionTitle}
-                                            onChange={(e) =>
-                                              setRulesForm((prev) => ({
-                                                ...prev,
-                                                sectionTitle: e.target.value,
-                                              }))
-                                            }
-                                            placeholder="Short description shown in the preview card"
-                                            className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
-                                          />
-                                        </div>
-                                      </div>
-
-                                      {rulesForm.rules.map(
-                                        (ruleItem, itemIndex) => (
-                                          <div
-                                            key={itemIndex}
-                                            className="space-y-2"
-                                          >
-                                            <label className="text-[16px] font-normal text-black">
-                                              Rule {itemIndex + 1}
-                                            </label>
-                                            <div className="flex items-center gap-2">
-                                              <div className="relative flex-1">
-                                                <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
-                                                <Input
-                                                  value={ruleItem}
-                                                  onChange={(e) => {
-                                                    const newRules = [
-                                                      ...rulesForm.rules,
-                                                    ];
-                                                    newRules[itemIndex] =
-                                                      e.target.value;
-                                                    setRulesForm((prev) => ({
-                                                      ...prev,
-                                                      rules: newRules,
-                                                    }));
-                                                  }}
-                                                  placeholder="Short description shown in the preview card"
-                                                  className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
-                                                />
-                                              </div>
-                                              <Button
-                                                type="button"
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => {
-                                                  const newRules =
-                                                    rulesForm.rules.filter(
-                                                      (_, i) => i !== itemIndex
-                                                    );
-                                                  setRulesForm((prev) => ({
-                                                    ...prev,
-                                                    rules: newRules,
-                                                  }));
-                                                }}
-                                                className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                                              >
-                                                <Trash2 className="w-4 h-4" />
-                                              </Button>
-                                            </div>
-                                          </div>
-                                        )
-                                      )}
-
-                                      <Button
-                                        type="button"
-                                        variant="outline"
-                                        onClick={() => {
-                                          setRulesForm((prev) => ({
-                                            ...prev,
-                                            rules: [...prev.rules, ""],
-                                          }));
-                                        }}
-                                        className="border border-[#4b89ef] text-[#4b89ef] bg-white hover:bg-[#4b89ef]/10"
-                                      >
-                                        Add rule
-                                      </Button>
-
-                                      <div className="flex items-center gap-2 pt-2">
-                                        <Button
-                                          type="button"
-                                          className="bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
-                                          onClick={() => {
-                                            if (
-                                              !rulesForm.sectionTitle.trim()
-                                            ) {
-                                              toast({
-                                                title: "Missing field",
-                                                description:
-                                                  "Please enter a section title.",
-                                                variant: "destructive",
-                                              });
-                                              return;
-                                            }
-                                            const updatedRules = [...rules];
-                                            updatedRules[ruleIndex] = {
-                                              title: rulesForm.sectionTitle,
-                                              items: rulesForm.rules.filter(
-                                                (r) => r.trim() !== ""
-                                              ),
-                                            };
-                                            setRules(updatedRules);
-                                            setEditingRuleIndex(null);
-                                            setRulesForm({
-                                              sectionTitle: "",
-                                              rules: [""],
-                                            });
-                                            toast({
-                                              title: "Rule updated",
-                                              description:
-                                                "Rule section saved successfully.",
-                                            });
-                                          }}
-                                        >
-                                          Save
-                                        </Button>
-                                        <Button
-                                          type="button"
-                                          className="text-white rounded-[12px] hover:bg-red-600"
-                                          style={{
-                                            background:
-                                              "var(--Component-colors-Utility-Error-utility-error-600, #D92D20)",
-                                            boxShadow:
-                                              "0 32px 24px 0 rgba(255, 255, 255, 0.05) inset, 0 2px 1px 0 rgba(255, 255, 255, 0.25) inset, 0 0 0 1px var(--Opacity-Neutral-Darkest-15, rgba(0, 0, 0, 0.15)) inset, 0 -2px 1px 0 rgba(0, 0, 0, 0.20) inset, 0 1px 2px 0 var(--Opacity-Neutral-Darkest-5, rgba(0, 0, 0, 0.05))",
-                                          }}
-                                          onClick={() => {
-                                            setRules(
-                                              rules.filter(
-                                                (_, i) => i !== ruleIndex
-                                              )
-                                            );
-                                            setEditingRuleIndex(null);
-                                            setRulesForm({
-                                              sectionTitle: "",
-                                              rules: [""],
-                                            });
-                                            toast({
-                                              title: "Rule deleted",
-                                              description:
-                                                "Rule section removed successfully.",
-                                            });
-                                          }}
-                                        >
-                                          Delete
-                                        </Button>
-                                      </div>
-                                    </>
-                                  ) : (
+                            <div className="space-y-1">
+                              <h3 className="text-[18px] font-semibold text-black">
+                                No Rules yet
+                              </h3>
+                              <p className="text-[14px] text-gray-500 max-w-md">
+                                Rules will be shown under the overview tab on
+                                the event page.
+                              </p>
+                            </div>
+                            <Button
+                              type="button"
+                              onClick={() => setShowRulesForm(true)}
+                              className="mt-2 bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
+                            >
+                              Add rules
+                            </Button>
+                          </div>
+                        </div>
+                      ) : rules.length > 0 && !showRulesForm ? (
+                        <div className="space-y-4">
+                          {rules.map((rule, ruleIndex) => (
+                            <div
+                              key={ruleIndex}
+                              className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4 relative"
+                            >
+                              {editingRuleIndex === ruleIndex ? (
+                                <>
+                                  <div className="space-y-2">
+                                    <label className="text-[16px] font-normal text-black">
+                                      Section Title
+                                    </label>
                                     <div className="relative">
-                                      <div className="absolute top-4 right-4">
-                                        <button
-                                          type="button"
-                                          onClick={() => {
-                                            setEditingRuleIndex(ruleIndex);
-                                            setRulesForm({
-                                              sectionTitle: rule.title,
-                                              rules:
-                                                rule.items.length > 0
-                                                  ? rule.items
-                                                  : [""],
-                                            });
-                                          }}
-                                          className="p-2 hover:bg-gray-50 rounded-[8px] transition-colors"
-                                        >
-                                          <Pencil className="w-4 h-4 text-gray-600" />
-                                        </button>
-                                      </div>
-                                      <div className="space-y-4 pr-10">
-                                        <div className="space-y-2">
-                                          <label className="text-[16px] font-normal text-black">
-                                            Section Title
-                                          </label>
-                                          <div className="relative">
-                                            <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
-                                            <Input
-                                              value={rule.title}
-                                              readOnly
-                                              className="h-[44px] pl-11 bg-gray-50 border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] text-gray-600 cursor-not-allowed"
-                                            />
-                                          </div>
-                                        </div>
-
-                                        {rule.items.map((item, itemIndex) => (
-                                          <div
-                                            key={itemIndex}
-                                            className="space-y-2"
-                                          >
-                                            <label className="text-[16px] font-normal text-black">
-                                              Rule {itemIndex + 1}
-                                            </label>
-                                            <div className="relative">
-                                              <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
-                                              <Input
-                                                value={item}
-                                                readOnly
-                                                className="h-[44px] pl-11 bg-gray-50 border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] text-gray-600 cursor-not-allowed"
-                                              />
-                                            </div>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              ))}
-                              <Button
-                                type="button"
-                                onClick={() => setShowRulesForm(true)}
-                                className="rounded-[12px] border-0 text-black bg-[rgba(0,0,0,0.05)] hover:bg-gray-50 shadow-[0_0_0_1px_rgba(0,0,0,0.05)_inset,0_-2px_1px_0_rgba(0,0,0,0.05)_inset,0_1px_2px_0_rgba(0,0,0,0.05)]"
-                              >
-                                <Plus className="w-4 h-4 mr-2" />
-                                Add new section
-                              </Button>
-                            </div>
-                          ) : (
-                            <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4">
-                              <div className="space-y-2">
-                                <label className="text-[16px] font-normal text-black">
-                                  Section Title
-                                </label>
-                                <div className="relative">
-                                  <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
-                                  <Input
-                                    value={rulesForm.sectionTitle}
-                                    onChange={(e) =>
-                                      setRulesForm((prev) => ({
-                                        ...prev,
-                                        sectionTitle: e.target.value,
-                                      }))
-                                    }
-                                    placeholder="Short description shown in the preview card"
-                                    className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
-                                  />
-                                </div>
-                              </div>
-
-                              {rulesForm.rules.map((ruleItem, itemIndex) => (
-                                <div key={itemIndex} className="space-y-2">
-                                  <label className="text-[16px] font-normal text-black">
-                                    Rule {itemIndex + 1}
-                                  </label>
-                                  <div className="flex items-center gap-2">
-                                    <div className="relative flex-1">
                                       <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
                                       <Input
-                                        value={ruleItem}
-                                        onChange={(e) => {
-                                          const newRules = [...rulesForm.rules];
-                                          newRules[itemIndex] = e.target.value;
+                                        value={rulesForm.sectionTitle}
+                                        onChange={(e) =>
                                           setRulesForm((prev) => ({
                                             ...prev,
-                                            rules: newRules,
-                                          }));
-                                        }}
+                                            sectionTitle: e.target.value,
+                                          }))
+                                        }
                                         placeholder="Short description shown in the preview card"
                                         className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
                                       />
                                     </div>
+                                  </div>
+
+                                  {rulesForm.rules.map(
+                                    (ruleItem, itemIndex) => (
+                                      <div
+                                        key={itemIndex}
+                                        className="space-y-2"
+                                      >
+                                        <label className="text-[16px] font-normal text-black">
+                                          Rule {itemIndex + 1}
+                                        </label>
+                                        <div className="flex items-center gap-2">
+                                          <div className="relative flex-1">
+                                            <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                                            <Input
+                                              value={ruleItem}
+                                              onChange={(e) => {
+                                                const newRules = [
+                                                  ...rulesForm.rules,
+                                                ];
+                                                newRules[itemIndex] =
+                                                  e.target.value;
+                                                setRulesForm((prev) => ({
+                                                  ...prev,
+                                                  rules: newRules,
+                                                }));
+                                              }}
+                                              placeholder="Short description shown in the preview card"
+                                              className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+                                            />
+                                          </div>
+                                          <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => {
+                                              const newRules =
+                                                rulesForm.rules.filter(
+                                                  (_, i) => i !== itemIndex
+                                                );
+                                              setRulesForm((prev) => ({
+                                                ...prev,
+                                                rules: newRules,
+                                              }));
+                                            }}
+                                            className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                          >
+                                            <Trash2 className="w-4 h-4" />
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    )
+                                  )}
+
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => {
+                                      setRulesForm((prev) => ({
+                                        ...prev,
+                                        rules: [...prev.rules, ""],
+                                      }));
+                                    }}
+                                    className="border border-[#4b89ef] text-[#4b89ef] bg-white hover:bg-[#4b89ef]/10"
+                                  >
+                                    Add rule
+                                  </Button>
+
+                                  <div className="flex items-center gap-2 pt-2">
                                     <Button
                                       type="button"
-                                      variant="ghost"
-                                      size="sm"
+                                      className="bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
                                       onClick={() => {
-                                        const newRules = rulesForm.rules.filter(
-                                          (_, i) => i !== itemIndex
-                                        );
-                                        setRulesForm((prev) => ({
-                                          ...prev,
-                                          rules: newRules,
-                                        }));
+                                        if (!rulesForm.sectionTitle.trim()) {
+                                          toast({
+                                            title: "Missing field",
+                                            description:
+                                              "Please enter a section title.",
+                                            variant: "destructive",
+                                          });
+                                          return;
+                                        }
+                                        const updatedRules = [...rules];
+                                        updatedRules[ruleIndex] = {
+                                          title: rulesForm.sectionTitle,
+                                          items: rulesForm.rules.filter(
+                                            (r) => r.trim() !== ""
+                                          ),
+                                        };
+                                        setRules(updatedRules);
+                                        setEditingRuleIndex(null);
+                                        setRulesForm({
+                                          sectionTitle: "",
+                                          rules: [""],
+                                        });
+                                        toast({
+                                          title: "Rule updated",
+                                          description:
+                                            "Rule section saved successfully.",
+                                        });
                                       }}
-                                      className="text-red-500 hover:text-red-700 hover:bg-red-50"
                                     >
-                                      <Trash2 className="w-4 h-4" />
+                                      Save
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      className="text-white rounded-[12px] hover:bg-red-600"
+                                      style={{
+                                        background:
+                                          "var(--Component-colors-Utility-Error-utility-error-600, #D92D20)",
+                                        boxShadow:
+                                          "0 32px 24px 0 rgba(255, 255, 255, 0.05) inset, 0 2px 1px 0 rgba(255, 255, 255, 0.25) inset, 0 0 0 1px var(--Opacity-Neutral-Darkest-15, rgba(0, 0, 0, 0.15)) inset, 0 -2px 1px 0 rgba(0, 0, 0, 0.20) inset, 0 1px 2px 0 var(--Opacity-Neutral-Darkest-5, rgba(0, 0, 0, 0.05))",
+                                      }}
+                                      onClick={() => {
+                                        setRules(
+                                          rules.filter(
+                                            (_, i) => i !== ruleIndex
+                                          )
+                                        );
+                                        setEditingRuleIndex(null);
+                                        setRulesForm({
+                                          sectionTitle: "",
+                                          rules: [""],
+                                        });
+                                        toast({
+                                          title: "Rule deleted",
+                                          description:
+                                            "Rule section removed successfully.",
+                                        });
+                                      }}
+                                    >
+                                      Delete
                                     </Button>
                                   </div>
-                                </div>
-                              ))}
+                                </>
+                              ) : (
+                                <div className="relative">
+                                  <div className="absolute top-4 right-4">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setEditingRuleIndex(ruleIndex);
+                                        setRulesForm({
+                                          sectionTitle: rule.title,
+                                          rules:
+                                            rule.items.length > 0
+                                              ? rule.items
+                                              : [""],
+                                        });
+                                      }}
+                                      className="p-2 hover:bg-gray-50 rounded-[8px] transition-colors"
+                                    >
+                                      <Pencil className="w-4 h-4 text-gray-600" />
+                                    </button>
+                                  </div>
+                                  <div className="space-y-4 pr-10">
+                                    <div className="space-y-2">
+                                      <label className="text-[16px] font-normal text-black">
+                                        Section Title
+                                      </label>
+                                      <div className="relative">
+                                        <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                                        <Input
+                                          value={rule.title}
+                                          readOnly
+                                          className="h-[44px] pl-11 bg-gray-50 border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] text-gray-600 cursor-not-allowed"
+                                        />
+                                      </div>
+                                    </div>
 
-                              <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => {
+                                    {rule.items.map((item, itemIndex) => (
+                                      <div
+                                        key={itemIndex}
+                                        className="space-y-2"
+                                      >
+                                        <label className="text-[16px] font-normal text-black">
+                                          Rule {itemIndex + 1}
+                                        </label>
+                                        <div className="relative">
+                                          <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                                          <Input
+                                            value={item}
+                                            readOnly
+                                            className="h-[44px] pl-11 bg-gray-50 border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] text-gray-600 cursor-not-allowed"
+                                          />
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                          <Button
+                            type="button"
+                            onClick={() => setShowRulesForm(true)}
+                            className="rounded-[12px] border-0 text-black bg-[rgba(0,0,0,0.05)] hover:bg-gray-50 shadow-[0_0_0_1px_rgba(0,0,0,0.05)_inset,0_-2px_1px_0_rgba(0,0,0,0.05)_inset,0_1px_2px_0_rgba(0,0,0,0.05)]"
+                          >
+                            <Plus className="w-4 h-4 mr-2" />
+                            Add new section
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4">
+                          <div className="space-y-2">
+                            <label className="text-[16px] font-normal text-black">
+                              Section Title
+                            </label>
+                            <div className="relative">
+                              <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                              <Input
+                                value={rulesForm.sectionTitle}
+                                onChange={(e) =>
                                   setRulesForm((prev) => ({
                                     ...prev,
-                                    rules: [...prev.rules, ""],
-                                  }));
-                                }}
-                                className="border border-[#4b89ef] text-[#4b89ef] bg-white hover:bg-[#4b89ef]/10"
-                              >
-                                Add rule
-                              </Button>
+                                    sectionTitle: e.target.value,
+                                  }))
+                                }
+                                placeholder="Short description shown in the preview card"
+                                className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+                              />
+                            </div>
+                          </div>
 
-                              <div className="flex items-center gap-2 pt-4">
+                          {rulesForm.rules.map((ruleItem, itemIndex) => (
+                            <div key={itemIndex} className="space-y-2">
+                              <label className="text-[16px] font-normal text-black">
+                                Rule {itemIndex + 1}
+                              </label>
+                              <div className="flex items-center gap-2">
+                                <div className="relative flex-1">
+                                  <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                                  <Input
+                                    value={ruleItem}
+                                    onChange={(e) => {
+                                      const newRules = [...rulesForm.rules];
+                                      newRules[itemIndex] = e.target.value;
+                                      setRulesForm((prev) => ({
+                                        ...prev,
+                                        rules: newRules,
+                                      }));
+                                    }}
+                                    placeholder="Short description shown in the preview card"
+                                    className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+                                  />
+                                </div>
                                 <Button
                                   type="button"
-                                  className="bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
+                                  variant="ghost"
+                                  size="sm"
                                   onClick={() => {
-                                    if (!rulesForm.sectionTitle.trim()) {
-                                      toast({
-                                        title: "Missing field",
-                                        description:
-                                          "Please enter a section title.",
-                                        variant: "destructive",
-                                      });
-                                      return;
-                                    }
-                                    setRules([
-                                      ...rules,
-                                      {
-                                        title: rulesForm.sectionTitle,
-                                        items: rulesForm.rules.filter(
-                                          (r) => r.trim() !== ""
-                                        ),
-                                      },
-                                    ]);
-                                    toast({
-                                      title: "Rule created",
-                                      description:
-                                        "Rule section added successfully.",
-                                    });
-                                    setRulesForm({
-                                      sectionTitle: "",
-                                      rules: [""],
-                                    });
-                                    setShowRulesForm(false);
+                                    const newRules = rulesForm.rules.filter(
+                                      (_, i) => i !== itemIndex
+                                    );
+                                    setRulesForm((prev) => ({
+                                      ...prev,
+                                      rules: newRules,
+                                    }));
                                   }}
+                                  className="text-red-500 hover:text-red-700 hover:bg-red-50"
                                 >
-                                  Create
-                                </Button>
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  onClick={() => {
-                                    setShowRulesForm(false);
-                                    setRulesForm({
-                                      sectionTitle: "",
-                                      rules: [""],
-                                    });
-                                  }}
-                                  className="border border-[rgba(0,0,0,0.15)] bg-white"
-                                >
-                                  Cancel
+                                  <Trash2 className="w-4 h-4" />
                                 </Button>
                               </div>
                             </div>
-                          )}
-                        </TabsContent>
+                          ))}
 
-                        <TabsContent value="faqs" className="mt-0">
-                          <p className="text-gray-500">
-                            FAQs section - coming soon
-                          </p>
-                        </TabsContent>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => {
+                              setRulesForm((prev) => ({
+                                ...prev,
+                                rules: [...prev.rules, ""],
+                              }));
+                            }}
+                            className="border border-[#4b89ef] text-[#4b89ef] bg-white hover:bg-[#4b89ef]/10"
+                          >
+                            Add rule
+                          </Button>
 
-                        <TabsContent value="gallery" className="mt-0">
-                          <p className="text-gray-500">
-                            Gallery section - coming soon
-                          </p>
-                        </TabsContent>
-                      </Tabs>
+                          <div className="flex items-center gap-2 pt-4">
+                            <Button
+                              type="button"
+                              className="bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
+                              onClick={() => {
+                                if (!rulesForm.sectionTitle.trim()) {
+                                  toast({
+                                    title: "Missing field",
+                                    description:
+                                      "Please enter a section title.",
+                                    variant: "destructive",
+                                  });
+                                  return;
+                                }
+                                setRules([
+                                  ...rules,
+                                  {
+                                    title: rulesForm.sectionTitle,
+                                    items: rulesForm.rules.filter(
+                                      (r) => r.trim() !== ""
+                                    ),
+                                  },
+                                ]);
+                                toast({
+                                  title: "Rule created",
+                                  description:
+                                    "Rule section added successfully.",
+                                });
+                                setRulesForm({
+                                  sectionTitle: "",
+                                  rules: [""],
+                                });
+                                setShowRulesForm(false);
+                              }}
+                            >
+                              Create
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => {
+                                setShowRulesForm(false);
+                                setRulesForm({
+                                  sectionTitle: "",
+                                  rules: [""],
+                                });
+                              }}
+                              className="border border-[rgba(0,0,0,0.15)] bg-white"
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                        </div>
+                      )}
                     </TabsContent>
 
-                    <TabsContent value="registration" className="mt-0">
+                    <TabsContent
+                      value="faqs"
+                      className="mt-0 overflow-x-hidden"
+                    >
                       <p className="text-gray-500">
-                        Registration settings - coming soon
+                        FAQs section - coming soon
                       </p>
                     </TabsContent>
 
-                    <TabsContent value="project" className="mt-0">
+                    <TabsContent
+                      value="gallery"
+                      className="mt-0 overflow-x-hidden"
+                    >
                       <p className="text-gray-500">
-                        Project settings - coming soon
+                        Gallery section - coming soon
                       </p>
                     </TabsContent>
+                  </Tabs>
+                </TabsContent>
 
-                    <TabsContent value="access" className="mt-0">
-                      <p className="text-gray-500">
-                        Access settings - coming soon
-                      </p>
-                    </TabsContent>
+                <TabsContent
+                  value="registration"
+                  className="mt-0 overflow-x-hidden"
+                >
+                  <p className="text-gray-500">
+                    Registration settings - coming soon
+                  </p>
+                </TabsContent>
 
-                    <TabsContent value="tracks" className="mt-0">
-                      <p className="text-gray-500">
-                        Tracks settings - coming soon
-                      </p>
-                    </TabsContent>
+                <TabsContent value="project" className="mt-0 overflow-x-hidden">
+                  <p className="text-gray-500">
+                    Project settings - coming soon
+                  </p>
+                </TabsContent>
 
-                    <TabsContent value="pricing" className="mt-0">
-                      <p className="text-gray-500">
-                        Pricing settings - coming soon
-                      </p>
-                    </TabsContent>
+                <TabsContent value="access" className="mt-0 overflow-x-hidden">
+                  <p className="text-gray-500">Access settings - coming soon</p>
+                </TabsContent>
 
-                    <TabsContent value="notify" className="mt-0">
-                      <p className="text-gray-500">
-                        Notification settings - coming soon
+                <TabsContent value="tracks" className="mt-0 overflow-x-hidden">
+                  <p className="text-gray-500">Tracks settings - coming soon</p>
+                </TabsContent>
+
+                <TabsContent value="pricing" className="mt-0 overflow-x-hidden">
+                  <p className="text-gray-500">
+                    Pricing settings - coming soon
+                  </p>
+                </TabsContent>
+
+                <TabsContent value="notify" className="mt-0 overflow-x-hidden">
+                  <p className="text-gray-500">
+                    Notification settings - coming soon
+                  </p>
+                </TabsContent>
+              </div>
+
+              {/* Preview Card */}
+              <div className="flex-shrink-0 w-full lg:w-[335px] order-first lg:order-last overflow-x-hidden">
+                <div className="w-full lg:w-[335px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] overflow-hidden">
+                  {/* Image */}
+                  <div className="relative w-full aspect-[335/223] overflow-hidden">
+                    {form.cover_image_url ? (
+                      <img
+                        src={form.cover_image_url}
+                        alt="Event cover"
+                        className="w-full h-full object-cover block"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-orange-400 via-red-500 to-purple-600" />
+                    )}
+
+                    {/* Date Badge */}
+                    <div className="absolute top-4 right-4 bg-white border border-[#aaaaaa] rounded-[6px] w-[112px] py-3 px-1 text-center">
+                      <p className="text-[14px] font-normal text-black">
+                        {previewDate.weekday}
                       </p>
-                    </TabsContent>
+                      <p
+                        className="text-[36px] font-semibold leading-[1.3] tracking-[-2.16px] text-black"
+                        style={{ fontFamily: "Geist, sans-serif" }}
+                      >
+                        {previewDate.day}
+                      </p>
+                      <p className="text-[14px] font-normal text-black">
+                        {previewDate.month} {previewDate.year}
+                      </p>
+                    </div>
                   </div>
 
-                  {/* Preview Card */}
-                  <div className="flex-shrink-0 w-full lg:w-[335px] order-first lg:order-last">
-                    <div className="w-full lg:w-[335px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] overflow-hidden">
-                      {/* Image */}
-                      <div className="relative w-full aspect-[335/223] overflow-hidden">
-                        {form.cover_image_url ? (
-                          <img
-                            src={form.cover_image_url}
-                            alt="Event cover"
-                            className="w-full h-full object-cover block"
-                          />
-                        ) : (
-                          <div className="w-full h-full bg-gradient-to-br from-orange-400 via-red-500 to-purple-600" />
-                        )}
-
-                        {/* Date Badge */}
-                        <div className="absolute top-4 right-4 bg-white border border-[#aaaaaa] rounded-[6px] w-[112px] py-3 px-1 text-center">
-                          <p className="text-[14px] font-normal text-black">
-                            {previewDate.weekday}
-                          </p>
-                          <p
-                            className="text-[36px] font-semibold leading-[1.3] tracking-[-2.16px] text-black"
-                            style={{ fontFamily: "Geist, sans-serif" }}
-                          >
-                            {previewDate.day}
-                          </p>
-                          <p className="text-[14px] font-normal text-black">
-                            {previewDate.month} {previewDate.year}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Content */}
-                      <div className="p-6">
-                        <div className="flex flex-wrap gap-1 mb-3">
-                          <span className="px-[10px] py-1 border border-[rgba(0,0,0,0.15)] rounded-full text-[14px] font-semibold text-black">
-                            {ticketType === "free" ? "Free" : "Paid"}
-                          </span>
-                        </div>
-
-                        <h2
-                          className="text-[28px] font-semibold leading-[1.4] tracking-[-1.68px] text-black mb-1"
-                          style={{ fontFamily: "Geist, sans-serif" }}
-                        >
-                          {form.event_name || "Innovate Together"}
-                        </h2>
-
-                        <div className="flex items-center gap-1 mb-2">
-                          <MapPin className="w-6 h-6" />
-                          <span className="text-[14px] font-normal text-black">
-                            {form.location || "Online"}
-                          </span>
-                        </div>
-
-                        <p className="text-[16px] font-normal text-black leading-[1.5]">
-                          {form.event_blurb ||
-                            "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse varius enim in eros."}
-                        </p>
-                      </div>
+                  {/* Content */}
+                  <div className="p-6">
+                    <div className="flex flex-wrap gap-1 mb-3">
+                      <span className="px-[10px] py-1 border border-[rgba(0,0,0,0.15)] rounded-full text-[14px] font-semibold text-black">
+                        {ticketType === "free" ? "Free" : "Paid"}
+                      </span>
                     </div>
 
-                    <button
-                      onClick={() => {
-                        const previewSlug = getPreviewSlug();
-                        if (previewSlug) {
-                          window.open(`/events/${previewSlug}`, "_blank");
-                        } else {
-                          toast({
-                            title: "Event name required",
-                            description:
-                              "Please enter an event name to preview the event page.",
-                            variant: "destructive",
-                          });
-                        }
-                      }}
-                      disabled={!form.event_name}
-                      className="flex items-center gap-2 text-[16px] text-[#7f7f7f] hover:text-[#4b89ef] transition-colors mt-3 mx-auto disabled:opacity-50 disabled:cursor-not-allowed"
+                    <h2
+                      className="text-[28px] font-semibold leading-[1.4] tracking-[-1.68px] text-black mb-1"
+                      style={{ fontFamily: "Geist, sans-serif" }}
                     >
-                      Preview event page
-                      <ArrowUpRight className="w-4 h-4" />
-                    </button>
+                      {form.event_name || "Innovate Together"}
+                    </h2>
+
+                    <div className="flex items-center gap-1 mb-2">
+                      <MapPin className="w-6 h-6" />
+                      <span className="text-[14px] font-normal text-black">
+                        {form.location || "Online"}
+                      </span>
+                    </div>
+
+                    <p className="text-[16px] font-normal text-black leading-[1.5]">
+                      {form.event_blurb ||
+                        "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse varius enim in eros."}
+                    </p>
                   </div>
                 </div>
-              </Tabs>
-            </div>
-          </div>
-        </div>
 
+                <button
+                  onClick={() => {
+                    const previewSlug = getPreviewSlug();
+                    if (previewSlug) {
+                      window.open(`/events/${previewSlug}`, "_blank");
+                    } else {
+                      toast({
+                        title: "Event name required",
+                        description:
+                          "Please enter an event name to preview the event page.",
+                        variant: "destructive",
+                      });
+                    }
+                  }}
+                  disabled={!form.event_name}
+                  className="flex items-center gap-2 text-[16px] text-[#7f7f7f] hover:text-[#4b89ef] transition-colors mt-3 mx-auto disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Preview event page
+                  <ArrowUpRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </Tabs>
+        </div>
+      </div>
+    </div>
   );
 }
