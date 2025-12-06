@@ -36,6 +36,10 @@ import {
   Trash2,
   Pencil,
   Paperclip,
+  Send,
+  X,
+  Check,
+  User,
 } from "lucide-react";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -118,6 +122,14 @@ export default function NewEventPage() {
   const [galleryImages, setGalleryImages] = useState<
     Array<{ id: string; url: string }>
   >([]);
+  const [messageType, setMessageType] = useState<"individual" | "group">(
+    "individual"
+  );
+  const [emailSubject, setEmailSubject] = useState("");
+  const [emailMessage, setEmailMessage] = useState("");
+  const [selectedRecipients, setSelectedRecipients] = useState<string[]>([]);
+  const [showRecipientModal, setShowRecipientModal] = useState(false);
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
 
   const [form, setForm] = useState({
     event_name: "",
@@ -2488,9 +2500,378 @@ export default function NewEventPage() {
                 </TabsContent>
 
                 <TabsContent value="notify" className="mt-0 overflow-x-hidden">
-                  <p className="text-gray-500">
-                    Notification settings - coming soon
-                  </p>
+                  <div className="space-y-4">
+                    {/* Message Type Selection */}
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setMessageType("individual")}
+                        className={`flex items-center justify-center gap-2 px-4 py-2 rounded-[12px] text-[16px] font-normal transition-colors ${
+                          messageType === "individual"
+                            ? "bg-[#4b89ef] text-white"
+                            : "bg-transparent border border-[rgba(0,0,0,0.15)] text-black"
+                        }`}
+                      >
+                        <Mail className="w-5 h-5" />
+                        Send individual message
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setMessageType("group")}
+                        className={`flex items-center justify-center gap-2 px-4 py-2 rounded-[12px] text-[16px] font-normal transition-colors ${
+                          messageType === "group"
+                            ? "bg-[#4b89ef] text-white"
+                            : "bg-transparent border border-[rgba(0,0,0,0.15)] text-black"
+                        }`}
+                      >
+                        <Users className="w-5 h-5" />
+                        Send group message
+                      </button>
+                    </div>
+
+                    {/* Email Form */}
+                    <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-3">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                        <h3 className="text-[16px] font-semibold text-black">
+                          Send email to event participants
+                        </h3>
+                        <div className="flex items-center gap-3 sm:gap-4">
+                          <button
+                            type="button"
+                            onClick={() => setShowTemplateModal(true)}
+                            className="flex items-center gap-2 text-[14px] text-[#4b89ef] hover:underline"
+                          >
+                            <FileText className="w-4 h-4" />
+                            Use template
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setShowRecipientModal(true)}
+                            className="flex items-center gap-2 text-[14px] text-[#4b89ef] hover:underline"
+                          >
+                            <Users className="w-4 h-4" />
+                            Select recipient
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[16px] font-normal text-black">
+                          Email subject
+                        </label>
+                        <div className="relative">
+                          <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                          <Input
+                            value={emailSubject}
+                            onChange={(e) => setEmailSubject(e.target.value)}
+                            placeholder="Enter email subject"
+                            className="w-full min-w-0 h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[16px] font-normal text-black">
+                          Message
+                        </label>
+                        <Textarea
+                          value={emailMessage}
+                          onChange={(e) => setEmailMessage(e.target.value)}
+                          placeholder="Enter your message"
+                          className="min-h-[200px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] p-3 focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none resize-y"
+                        />
+                      </div>
+
+                      <Button
+                        type="button"
+                        className="bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
+                        onClick={() => {
+                          if (!emailSubject.trim() || !emailMessage.trim()) {
+                            toast({
+                              title: "Missing fields",
+                              description:
+                                "Please fill in both subject and message.",
+                              variant: "destructive",
+                            });
+                            return;
+                          }
+                          toast({
+                            title: "Email sent",
+                            description: `Email sent to ${selectedRecipients.length || 0} participant(s).`,
+                          });
+                        }}
+                      >
+                        <Send className="w-4 h-4 mr-2" />
+                        Send to {selectedRecipients.length || 0} participant
+                        {selectedRecipients.length !== 1 ? "s" : ""}
+                      </Button>
+                    </div>
+
+                    {/* Email Preview */}
+                    <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6">
+                      <h3 className="text-[16px] font-semibold text-black mb-3">
+                        Email preview
+                      </h3>
+                      {emailSubject || emailMessage ? (
+                        <div className="space-y-4">
+                          <div>
+                            <p className="text-sm text-gray-500 mb-1">
+                              Subject:
+                            </p>
+                            <p className="text-[16px] font-medium text-black">
+                              {emailSubject || "No subject"}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-500 mb-1">
+                              Message:
+                            </p>
+                            <div className="prose prose-sm max-w-full">
+                              <ReactMarkdown>{emailMessage}</ReactMarkdown>
+                            </div>
+                          </div>
+                          <div className="pt-4 border-t border-[rgba(0,0,0,0.15)]">
+                            <p className="text-[14px] text-gray-600">
+                              Best Regards
+                            </p>
+                            <p className="text-[14px] text-gray-600">
+                              The Event Organizers
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center py-8 text-center">
+                          <Mail className="w-12 h-12 text-gray-400 mb-3" />
+                          <p className="text-[14px] text-gray-500">
+                            No preview yet
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Recipient Selection Modal */}
+                    {showRecipientModal && (
+                      <>
+                        <div
+                          className="fixed inset-0 bg-black/50 z-[50]"
+                          onClick={() => setShowRecipientModal(false)}
+                        />
+                        <div className="fixed inset-0 flex items-center justify-center z-[60] p-4">
+                          <div className="bg-white rounded-[12px] shadow-lg w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+                            <div className="flex items-center justify-between p-6 border-b border-[rgba(0,0,0,0.15)]">
+                              <h2 className="text-[20px] font-semibold text-black">
+                                Select recipient ({selectedRecipients.length}{" "}
+                                selected)
+                              </h2>
+                              <button
+                                type="button"
+                                onClick={() => setShowRecipientModal(false)}
+                                className="p-2 hover:bg-gray-50 rounded-[8px] transition-colors"
+                              >
+                                <X className="w-5 h-5 text-gray-600" />
+                              </button>
+                            </div>
+                            <div className="p-6 overflow-y-auto flex-1">
+                              <div className="flex items-center gap-4 mb-4">
+                                <select className="px-4 py-2 border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] bg-white">
+                                  <option>All roles</option>
+                                  <option>Organizer</option>
+                                  <option>Participant</option>
+                                  <option>Mentor</option>
+                                  <option>Judge</option>
+                                </select>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  onClick={() => setSelectedRecipients([])}
+                                  className="border border-[rgba(0,0,0,0.15)] bg-white"
+                                >
+                                  Clear all
+                                </Button>
+                                <div className="flex items-center gap-2 ml-auto">
+                                  <input
+                                    type="checkbox"
+                                    id="select-all"
+                                    className="w-4 h-4"
+                                  />
+                                  <label
+                                    htmlFor="select-all"
+                                    className="text-[14px] text-black"
+                                  >
+                                    Select all
+                                  </label>
+                                </div>
+                              </div>
+                              <div className="space-y-2">
+                                {/* Placeholder recipients - in real app, fetch from API */}
+                                {[1, 2, 3, 4].map((i) => (
+                                  <div
+                                    key={i}
+                                    className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-[8px]"
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedRecipients.includes(
+                                        `recipient-${i}`
+                                      )}
+                                      onChange={(e) => {
+                                        if (e.target.checked) {
+                                          setSelectedRecipients([
+                                            ...selectedRecipients,
+                                            `recipient-${i}`,
+                                          ]);
+                                        } else {
+                                          setSelectedRecipients(
+                                            selectedRecipients.filter(
+                                              (r) => r !== `recipient-${i}`
+                                            )
+                                          );
+                                        }
+                                      }}
+                                      className="w-4 h-4"
+                                    />
+                                    <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
+                                      <User className="w-5 h-5 text-gray-600" />
+                                    </div>
+                                    <div className="flex-1">
+                                      <p className="text-[16px] font-medium text-black">
+                                        Participant {i}
+                                      </p>
+                                      <p className="text-[14px] text-gray-500">
+                                        participant{i}@example.com
+                                      </p>
+                                    </div>
+                                    <span className="text-[14px] text-gray-600">
+                                      Participant
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                            <div className="p-6 border-t border-[rgba(0,0,0,0.15)]">
+                              <Button
+                                type="button"
+                                onClick={() => setShowRecipientModal(false)}
+                                className="w-full bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
+                              >
+                                Confirm
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                    )}
+
+                    {/* Template Selection Modal */}
+                    {showTemplateModal && (
+                      <>
+                        <div
+                          className="fixed inset-0 bg-black/50 z-[50]"
+                          onClick={() => setShowTemplateModal(false)}
+                        />
+                        <div className="fixed inset-0 flex items-center justify-center z-[60] p-4">
+                          <div className="bg-white rounded-[12px] shadow-lg w-full max-w-3xl max-h-[80vh] overflow-hidden flex flex-col">
+                            <div className="flex items-center justify-between p-6 border-b border-[rgba(0,0,0,0.15)]">
+                              <div>
+                                <h2 className="text-[20px] font-semibold text-black">
+                                  Email template
+                                </h2>
+                                <p className="text-[14px] text-gray-500 mt-1">
+                                  Choose from predefined templates to get
+                                  started quickly. You can customize them as
+                                  needed.
+                                </p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setShowTemplateModal(false)}
+                                className="p-2 hover:bg-gray-50 rounded-[8px] transition-colors"
+                              >
+                                <X className="w-5 h-5 text-gray-600" />
+                              </button>
+                            </div>
+                            <div className="p-6 overflow-y-auto flex-1">
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {[
+                                  {
+                                    icon: Bell,
+                                    title: "Welcome message",
+                                    description:
+                                      "Welcome new participants to event",
+                                  },
+                                  {
+                                    icon: FileText,
+                                    title: "Feedback available",
+                                    description:
+                                      "Notify about available project feedback",
+                                  },
+                                  {
+                                    icon: Calendar,
+                                    title: "Event reminder",
+                                    description:
+                                      "Remind participants about upcoming deadlines",
+                                  },
+                                  {
+                                    icon: Clock,
+                                    title: "Submission reminder",
+                                    description:
+                                      "Remind teams about submission deadline",
+                                  },
+                                  {
+                                    icon: ArrowUpRight,
+                                    title: "Schedule update",
+                                    description:
+                                      "Notify about schedule or event change",
+                                  },
+                                  {
+                                    icon: Sparkles,
+                                    title: "Result announcement",
+                                    description:
+                                      "Announce event results and winners",
+                                  },
+                                ].map((template, index) => {
+                                  const IconComponent = template.icon;
+                                  return (
+                                    <button
+                                      key={index}
+                                      type="button"
+                                      onClick={() => {
+                                        setEmailSubject(template.title);
+                                        setEmailMessage(
+                                          `This is a ${template.title.toLowerCase()} template. Customize this message as needed.`
+                                        );
+                                        setShowTemplateModal(false);
+                                        toast({
+                                          title: "Template applied",
+                                          description: `${template.title} template loaded.`,
+                                        });
+                                      }}
+                                      className="text-left p-4 border border-[rgba(0,0,0,0.15)] rounded-[12px] hover:bg-gray-50 transition-colors"
+                                    >
+                                      <div className="flex items-start gap-4">
+                                        <div className="w-12 h-12 rounded-[8px] bg-[#4b89ef]/10 flex items-center justify-center flex-shrink-0">
+                                          <IconComponent className="w-6 h-6 text-[#4b89ef]" />
+                                        </div>
+                                        <div className="flex-1">
+                                          <h3 className="text-[16px] font-semibold text-black mb-1">
+                                            {template.title}
+                                          </h3>
+                                          <p className="text-[14px] text-gray-500">
+                                            {template.description}
+                                          </p>
+                                        </div>
+                                        <ArrowUpRight className="w-5 h-5 text-gray-400" />
+                                      </div>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </TabsContent>
               </div>
 
