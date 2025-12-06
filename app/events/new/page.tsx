@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { supabase } from "@/lib/supabase";
-import { EventVisibility } from "@/lib/types";
+import { EventVisibility, Rule } from "@/lib/types";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -94,6 +94,13 @@ export default function NewEventPage() {
   const [editingResourceForm, setEditingResourceForm] = useState({
     resourceName: "",
     resourceLink: "",
+  });
+  const [rules, setRules] = useState<Rule[]>([]);
+  const [editingRuleIndex, setEditingRuleIndex] = useState<number | null>(null);
+  const [showRulesForm, setShowRulesForm] = useState(false);
+  const [rulesForm, setRulesForm] = useState({
+    sectionTitle: "",
+    rules: [""],
   });
 
   const [form, setForm] = useState({
@@ -234,6 +241,7 @@ export default function NewEventPage() {
               : undefined,
             event_type: form.event_type || undefined,
             paywall_content: form.paywall_content || undefined,
+            rules: rules.length > 0 ? rules : undefined,
           },
           organizerEmails,
         }),
@@ -1597,9 +1605,399 @@ export default function NewEventPage() {
                         )}
 
                         <TabsContent value="rules" className="mt-0">
-                          <p className="text-gray-500">
-                            Rules section - coming soon
-                          </p>
+                          {rules.length === 0 && !showRulesForm ? (
+                            <div className="border-2 border-dashed border-gray-300 rounded-[12px] p-12 flex flex-col items-center justify-center text-center min-h-[400px]">
+                              <div className="flex flex-col items-center gap-2">
+                                <div className="relative">
+                                  <FileText className="w-16 h-16 text-gray-400" />
+                                  <div className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
+                                    <span className="text-white text-xs font-bold">
+                                      ×
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="space-y-1">
+                                  <h3 className="text-[18px] font-semibold text-black">
+                                    No Rules yet
+                                  </h3>
+                                  <p className="text-[14px] text-gray-500 max-w-md">
+                                    Rules will be shown under the overview tab
+                                    on the event page.
+                                  </p>
+                                </div>
+                                <Button
+                                  type="button"
+                                  onClick={() => setShowRulesForm(true)}
+                                  className="mt-2 bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
+                                >
+                                  Add rules
+                                </Button>
+                              </div>
+                            </div>
+                          ) : rules.length > 0 && !showRulesForm ? (
+                            <div className="space-y-4">
+                              {rules.map((rule, ruleIndex) => (
+                                <div
+                                  key={ruleIndex}
+                                  className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4 relative"
+                                >
+                                  {editingRuleIndex === ruleIndex ? (
+                                    <>
+                                      <div className="space-y-2">
+                                        <label className="text-[16px] font-normal text-black">
+                                          Section Title
+                                        </label>
+                                        <div className="relative">
+                                          <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                                          <Input
+                                            value={rulesForm.sectionTitle}
+                                            onChange={(e) =>
+                                              setRulesForm((prev) => ({
+                                                ...prev,
+                                                sectionTitle: e.target.value,
+                                              }))
+                                            }
+                                            placeholder="Short description shown in the preview card"
+                                            className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+                                          />
+                                        </div>
+                                      </div>
+
+                                      {rulesForm.rules.map(
+                                        (ruleItem, itemIndex) => (
+                                          <div
+                                            key={itemIndex}
+                                            className="space-y-2"
+                                          >
+                                            <label className="text-[16px] font-normal text-black">
+                                              Rule {itemIndex + 1}
+                                            </label>
+                                            <div className="flex items-center gap-2">
+                                              <div className="relative flex-1">
+                                                <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                                                <Input
+                                                  value={ruleItem}
+                                                  onChange={(e) => {
+                                                    const newRules = [
+                                                      ...rulesForm.rules,
+                                                    ];
+                                                    newRules[itemIndex] =
+                                                      e.target.value;
+                                                    setRulesForm((prev) => ({
+                                                      ...prev,
+                                                      rules: newRules,
+                                                    }));
+                                                  }}
+                                                  placeholder="Short description shown in the preview card"
+                                                  className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+                                                />
+                                              </div>
+                                              <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => {
+                                                  const newRules =
+                                                    rulesForm.rules.filter(
+                                                      (_, i) => i !== itemIndex
+                                                    );
+                                                  setRulesForm((prev) => ({
+                                                    ...prev,
+                                                    rules: newRules,
+                                                  }));
+                                                }}
+                                                className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                              >
+                                                <Trash2 className="w-4 h-4" />
+                                              </Button>
+                                            </div>
+                                          </div>
+                                        )
+                                      )}
+
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => {
+                                          setRulesForm((prev) => ({
+                                            ...prev,
+                                            rules: [...prev.rules, ""],
+                                          }));
+                                        }}
+                                        className="border border-[#4b89ef] text-[#4b89ef] bg-white hover:bg-[#4b89ef]/10"
+                                      >
+                                        Add rule
+                                      </Button>
+
+                                      <div className="flex items-center gap-2 pt-2">
+                                        <Button
+                                          type="button"
+                                          className="bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
+                                          onClick={() => {
+                                            if (
+                                              !rulesForm.sectionTitle.trim()
+                                            ) {
+                                              toast({
+                                                title: "Missing field",
+                                                description:
+                                                  "Please enter a section title.",
+                                                variant: "destructive",
+                                              });
+                                              return;
+                                            }
+                                            const updatedRules = [...rules];
+                                            updatedRules[ruleIndex] = {
+                                              title: rulesForm.sectionTitle,
+                                              items: rulesForm.rules.filter(
+                                                (r) => r.trim() !== ""
+                                              ),
+                                            };
+                                            setRules(updatedRules);
+                                            setEditingRuleIndex(null);
+                                            setRulesForm({
+                                              sectionTitle: "",
+                                              rules: [""],
+                                            });
+                                            toast({
+                                              title: "Rule updated",
+                                              description:
+                                                "Rule section saved successfully.",
+                                            });
+                                          }}
+                                        >
+                                          Save
+                                        </Button>
+                                        <Button
+                                          type="button"
+                                          className="text-white rounded-[12px] hover:bg-red-600"
+                                          style={{
+                                            background:
+                                              "var(--Component-colors-Utility-Error-utility-error-600, #D92D20)",
+                                            boxShadow:
+                                              "0 32px 24px 0 rgba(255, 255, 255, 0.05) inset, 0 2px 1px 0 rgba(255, 255, 255, 0.25) inset, 0 0 0 1px var(--Opacity-Neutral-Darkest-15, rgba(0, 0, 0, 0.15)) inset, 0 -2px 1px 0 rgba(0, 0, 0, 0.20) inset, 0 1px 2px 0 var(--Opacity-Neutral-Darkest-5, rgba(0, 0, 0, 0.05))",
+                                          }}
+                                          onClick={() => {
+                                            setRules(
+                                              rules.filter(
+                                                (_, i) => i !== ruleIndex
+                                              )
+                                            );
+                                            setEditingRuleIndex(null);
+                                            setRulesForm({
+                                              sectionTitle: "",
+                                              rules: [""],
+                                            });
+                                            toast({
+                                              title: "Rule deleted",
+                                              description:
+                                                "Rule section removed successfully.",
+                                            });
+                                          }}
+                                        >
+                                          Delete
+                                        </Button>
+                                      </div>
+                                    </>
+                                  ) : (
+                                    <div className="relative">
+                                      <div className="absolute top-4 right-4">
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setEditingRuleIndex(ruleIndex);
+                                            setRulesForm({
+                                              sectionTitle: rule.title,
+                                              rules:
+                                                rule.items.length > 0
+                                                  ? rule.items
+                                                  : [""],
+                                            });
+                                          }}
+                                          className="p-2 hover:bg-gray-50 rounded-[8px] transition-colors"
+                                        >
+                                          <Pencil className="w-4 h-4 text-gray-600" />
+                                        </button>
+                                      </div>
+                                      <div className="space-y-4 pr-10">
+                                        <div className="space-y-2">
+                                          <label className="text-[16px] font-normal text-black">
+                                            Section Title
+                                          </label>
+                                          <div className="relative">
+                                            <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                                            <Input
+                                              value={rule.title}
+                                              readOnly
+                                              className="h-[44px] pl-11 bg-gray-50 border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] text-gray-600 cursor-not-allowed"
+                                            />
+                                          </div>
+                                        </div>
+
+                                        {rule.items.map((item, itemIndex) => (
+                                          <div
+                                            key={itemIndex}
+                                            className="space-y-2"
+                                          >
+                                            <label className="text-[16px] font-normal text-black">
+                                              Rule {itemIndex + 1}
+                                            </label>
+                                            <div className="relative">
+                                              <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                                              <Input
+                                                value={item}
+                                                readOnly
+                                                className="h-[44px] pl-11 bg-gray-50 border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] text-gray-600 cursor-not-allowed"
+                                              />
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                              <Button
+                                type="button"
+                                onClick={() => setShowRulesForm(true)}
+                                className="rounded-[12px] border-0 text-black bg-[rgba(0,0,0,0.05)] hover:bg-gray-50 shadow-[0_0_0_1px_rgba(0,0,0,0.05)_inset,0_-2px_1px_0_rgba(0,0,0,0.05)_inset,0_1px_2px_0_rgba(0,0,0,0.05)]"
+                              >
+                                <Plus className="w-4 h-4 mr-2" />
+                                Add new section
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4">
+                              <div className="space-y-2">
+                                <label className="text-[16px] font-normal text-black">
+                                  Section Title
+                                </label>
+                                <div className="relative">
+                                  <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                                  <Input
+                                    value={rulesForm.sectionTitle}
+                                    onChange={(e) =>
+                                      setRulesForm((prev) => ({
+                                        ...prev,
+                                        sectionTitle: e.target.value,
+                                      }))
+                                    }
+                                    placeholder="Short description shown in the preview card"
+                                    className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+                                  />
+                                </div>
+                              </div>
+
+                              {rulesForm.rules.map((ruleItem, itemIndex) => (
+                                <div key={itemIndex} className="space-y-2">
+                                  <label className="text-[16px] font-normal text-black">
+                                    Rule {itemIndex + 1}
+                                  </label>
+                                  <div className="flex items-center gap-2">
+                                    <div className="relative flex-1">
+                                      <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                                      <Input
+                                        value={ruleItem}
+                                        onChange={(e) => {
+                                          const newRules = [...rulesForm.rules];
+                                          newRules[itemIndex] = e.target.value;
+                                          setRulesForm((prev) => ({
+                                            ...prev,
+                                            rules: newRules,
+                                          }));
+                                        }}
+                                        placeholder="Short description shown in the preview card"
+                                        className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+                                      />
+                                    </div>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => {
+                                        const newRules = rulesForm.rules.filter(
+                                          (_, i) => i !== itemIndex
+                                        );
+                                        setRulesForm((prev) => ({
+                                          ...prev,
+                                          rules: newRules,
+                                        }));
+                                      }}
+                                      className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              ))}
+
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => {
+                                  setRulesForm((prev) => ({
+                                    ...prev,
+                                    rules: [...prev.rules, ""],
+                                  }));
+                                }}
+                                className="border border-[#4b89ef] text-[#4b89ef] bg-white hover:bg-[#4b89ef]/10"
+                              >
+                                Add rule
+                              </Button>
+
+                              <div className="flex items-center gap-2 pt-4">
+                                <Button
+                                  type="button"
+                                  className="bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
+                                  onClick={() => {
+                                    if (!rulesForm.sectionTitle.trim()) {
+                                      toast({
+                                        title: "Missing field",
+                                        description:
+                                          "Please enter a section title.",
+                                        variant: "destructive",
+                                      });
+                                      return;
+                                    }
+                                    setRules([
+                                      ...rules,
+                                      {
+                                        title: rulesForm.sectionTitle,
+                                        items: rulesForm.rules.filter(
+                                          (r) => r.trim() !== ""
+                                        ),
+                                      },
+                                    ]);
+                                    toast({
+                                      title: "Rule created",
+                                      description:
+                                        "Rule section added successfully.",
+                                    });
+                                    setRulesForm({
+                                      sectionTitle: "",
+                                      rules: [""],
+                                    });
+                                    setShowRulesForm(false);
+                                  }}
+                                >
+                                  Create
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setShowRulesForm(false);
+                                    setRulesForm({
+                                      sectionTitle: "",
+                                      rules: [""],
+                                    });
+                                  }}
+                                  className="border border-[rgba(0,0,0,0.15)] bg-white"
+                                >
+                                  Cancel
+                                </Button>
+                              </div>
+                            </div>
+                          )}
                         </TabsContent>
 
                         <TabsContent value="faqs" className="mt-0">
