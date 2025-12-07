@@ -2563,43 +2563,30 @@ export default function NewEventPage() {
                   className="mt-0 overflow-x-hidden w-full"
                 >
                   <div className="w-full min-w-0 space-y-6">
-                    {/* Paid Event Toggle */}
-                    <div className="flex items-center gap-3">
-                      <label className="text-[16px] font-normal text-black">
-                        This is a paid event
-                      </label>
-                      <Switch
-                        checked={ticketType === "paid"}
-                        onCheckedChange={(checked) =>
-                          setTicketType(checked ? "paid" : "free")
-                        }
-                      />
-                    </div>
-
                     {/* Pricing Sub-tabs */}
-                    {ticketType === "paid" && (
+                    {ticketType === "paid" ? (
                       <Tabs
                         value={activePricingSubTab}
                         onValueChange={setActivePricingSubTab}
                         className="w-full"
                       >
                         <div className="w-full overflow-x-auto mb-6">
-                          <TabsList className="inline-flex h-auto gap-2 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-1">
+                          <TabsList className="inline-flex h-auto gap-2 bg-transparent p-0 rounded-full">
                             <TabsTrigger
                               value="tiers"
-                              className="px-4 py-2 rounded-[8px] text-sm font-normal text-black data-[state=active]:bg-[#4b89ef] data-[state=active]:text-white flex-shrink-0"
+                              className="px-4 py-2 rounded-full text-sm font-normal text-black border border-transparent data-[state=active]:bg-white data-[state=active]:border-[rgba(0,0,0,0.15)] data-[state=active]:shadow-sm flex-shrink-0"
                             >
                               Pricing Tiers
                             </TabsTrigger>
                             <TabsTrigger
                               value="coupon"
-                              className="px-4 py-2 rounded-[8px] text-sm font-normal text-black data-[state=active]:bg-[#4b89ef] data-[state=active]:text-white flex-shrink-0"
+                              className="px-4 py-2 rounded-full text-sm font-normal text-black border border-transparent data-[state=active]:bg-white data-[state=active]:border-[rgba(0,0,0,0.15)] data-[state=active]:shadow-sm flex-shrink-0"
                             >
                               Coupon
                             </TabsTrigger>
                             <TabsTrigger
                               value="promo"
-                              className="px-4 py-2 rounded-[8px] text-sm font-normal text-black data-[state=active]:bg-[#4b89ef] data-[state=active]:text-white flex-shrink-0"
+                              className="px-4 py-2 rounded-full text-sm font-normal text-black border border-transparent data-[state=active]:bg-white data-[state=active]:border-[rgba(0,0,0,0.15)] data-[state=active]:shadow-sm flex-shrink-0"
                             >
                               Promo Code
                             </TabsTrigger>
@@ -3649,6 +3636,19 @@ export default function NewEventPage() {
                           </div>
                         </TabsContent>
                       </Tabs>
+                    ) : (
+                      <div className="bg-white border-2 border-dashed border-[rgba(0,0,0,0.15)] rounded-[12px] p-12 text-center">
+                        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
+                          <DollarSign className="w-8 h-8 text-gray-400" />
+                        </div>
+                        <h3 className="text-[18px] font-semibold text-black mb-2">
+                          Paid event required
+                        </h3>
+                        <p className="text-[16px] text-gray-500">
+                          Please enable "This is a paid event" in the Overview
+                          tab to access pricing settings.
+                        </p>
+                      </div>
                     )}
                   </div>
                 </TabsContent>
