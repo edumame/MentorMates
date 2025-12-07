@@ -4653,8 +4653,11 @@ export default function NewEventPage() {
                   </div>
                 </TabsContent>
 
-                <TabsContent value="notify" className="mt-0 overflow-x-hidden">
-                  <div className="space-y-4">
+                <TabsContent
+                  value="notify"
+                  className="mt-0 overflow-x-hidden w-full"
+                >
+                  <div className="w-full min-w-0 space-y-4">
                     {/* Message Type Selection */}
                     <div className="flex flex-col sm:flex-row gap-2">
                       <button
