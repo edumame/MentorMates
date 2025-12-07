@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { supabase } from "@/lib/supabase";
-import { EventVisibility, Rule } from "@/lib/types";
+import { EventVisibility, EventRole, Rule } from "@/lib/types";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -239,6 +239,18 @@ export default function NewEventPage() {
     description: "",
     coverImageUrl: "",
   });
+  const [activeAccessSubTab, setActiveAccessSubTab] = useState("password");
+  const [rolePasswords, setRolePasswords] = useState<Record<string, string>>(
+    {}
+  );
+  const [roleLabels, setRoleLabels] = useState<Record<string, string>>({
+    [EventRole.Participant]: "Participant",
+    [EventRole.Mentor]: "Mentor",
+    [EventRole.Judge]: "Judge",
+    [EventRole.Organizer]: "Organizer",
+  });
+  const [organizerEmails, setOrganizerEmails] = useState<string[]>([]);
+  const [organizerEmailInput, setOrganizerEmailInput] = useState("");
 
   const [form, setForm] = useState({
     event_name: "",
@@ -651,7 +663,8 @@ export default function NewEventPage() {
                 className={`w-full flex flex-col items-start order-last lg:order-first ${
                   activeTab === "pricing" ||
                   activeTab === "notify" ||
-                  activeTab === "tracks"
+                  activeTab === "tracks" ||
+                  activeTab === "access"
                     ? "lg:flex-1 lg:min-w-0"
                     : "lg:flex-[2] lg:min-w-0 lg:max-w-[800px]"
                 }`}
@@ -2602,8 +2615,359 @@ export default function NewEventPage() {
                   </p>
                 </TabsContent>
 
-                <TabsContent value="access" className="mt-0 overflow-x-hidden">
-                  <p className="text-gray-500">Access settings - coming soon</p>
+                <TabsContent
+                  value="access"
+                  className="mt-0 overflow-x-hidden w-full"
+                >
+                  <div className="w-full min-w-0 space-y-6">
+                    <Tabs
+                      value={activeAccessSubTab}
+                      onValueChange={setActiveAccessSubTab}
+                      className="w-full"
+                    >
+                      <div className="w-full overflow-x-auto mb-6">
+                        <TabsList className="inline-flex h-auto gap-2 bg-transparent p-0 rounded-full">
+                          <TabsTrigger
+                            value="password"
+                            className="px-4 py-2 rounded-full text-sm font-normal text-black border border-transparent data-[state=active]:bg-white data-[state=active]:border-[rgba(0,0,0,0.15)] data-[state=active]:shadow-sm flex-shrink-0"
+                          >
+                            Password
+                          </TabsTrigger>
+                          <TabsTrigger
+                            value="role-labels"
+                            className="px-4 py-2 rounded-full text-sm font-normal text-black border border-transparent data-[state=active]:bg-white data-[state=active]:border-[rgba(0,0,0,0.15)] data-[state=active]:shadow-sm flex-shrink-0"
+                          >
+                            Role Labels
+                          </TabsTrigger>
+                          <TabsTrigger
+                            value="invite-organizers"
+                            className="px-4 py-2 rounded-full text-sm font-normal text-black border border-transparent data-[state=active]:bg-white data-[state=active]:border-[rgba(0,0,0,0.15)] data-[state=active]:shadow-sm flex-shrink-0"
+                          >
+                            Invite Organizers
+                          </TabsTrigger>
+                        </TabsList>
+                      </div>
+
+                      {/* Password Tab */}
+                      <TabsContent value="password" className="mt-0">
+                        <div className="space-y-6">
+                          {/* Event Visibility */}
+                          <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4">
+                            <h3 className="text-[18px] font-semibold text-black">
+                              Event Visibility
+                            </h3>
+                            <div className="space-y-2">
+                              <label className="text-[16px] font-normal text-black">
+                                Event Visibility
+                              </label>
+                              <div className="relative">
+                                <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                <select
+                                  value={visibility}
+                                  onChange={(e) =>
+                                    setVisibility(
+                                      e.target.value as EventVisibility
+                                    )
+                                  }
+                                  className="w-full pl-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px] px-3"
+                                >
+                                  <option value={EventVisibility.Public}>
+                                    Public
+                                  </option>
+                                  <option value={EventVisibility.Private}>
+                                    Private (Password Protected)
+                                  </option>
+                                  <option value={EventVisibility.Draft}>
+                                    Draft
+                                  </option>
+                                </select>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Role Passwords */}
+                          <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4">
+                            <h3 className="text-[18px] font-semibold text-black">
+                              Role Passwords
+                            </h3>
+                            <div className="space-y-4">
+                              {[
+                                EventRole.Participant,
+                                EventRole.Mentor,
+                                EventRole.Judge,
+                                EventRole.Organizer,
+                              ].map((role) => {
+                                const label = roleLabels[role] || role;
+                                return (
+                                  <div key={role} className="space-y-2">
+                                    <label className="text-[16px] font-normal text-black">
+                                      {label} Password
+                                    </label>
+                                    <div className="flex gap-2">
+                                      <div className="relative flex-1">
+                                        <Shield className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                        <Input
+                                          type="password"
+                                          value={rolePasswords[role] || ""}
+                                          onChange={(e) =>
+                                            setRolePasswords((prev) => ({
+                                              ...prev,
+                                              [role]: e.target.value,
+                                            }))
+                                          }
+                                          placeholder={`Set ${label.toLowerCase()} password`}
+                                          className="pl-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px]"
+                                        />
+                                      </div>
+                                      <Button
+                                        onClick={() => {
+                                          if (!rolePasswords[role]) {
+                                            toast({
+                                              title: "Password required",
+                                              description:
+                                                "Please enter a password.",
+                                              variant: "destructive",
+                                            });
+                                            return;
+                                          }
+                                          toast({
+                                            title: "Password saved",
+                                            description: `${label} password saved successfully.`,
+                                          });
+                                          setRolePasswords((prev) => ({
+                                            ...prev,
+                                            [role]: "",
+                                          }));
+                                        }}
+                                        disabled={!rolePasswords[role]}
+                                        className="bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
+                                      >
+                                        Save
+                                      </Button>
+                                    </div>
+                                    <p className="text-[14px] text-gray-500">
+                                      *This password will be used by{" "}
+                                      {label.toLowerCase()}s to join the event.
+                                    </p>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                      </TabsContent>
+
+                      {/* Role Labels Tab */}
+                      <TabsContent value="role-labels" className="mt-0">
+                        <div className="space-y-6">
+                          <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4">
+                            <h3 className="text-[18px] font-semibold text-black">
+                              Customize Role Labels
+                            </h3>
+                            <p className="text-[16px] text-gray-500">
+                              Customize how roles are labeled throughout the
+                              platform. For example, you can change "Judge" to
+                              "Investor" for a demo day event.
+                            </p>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {[
+                                EventRole.Participant,
+                                EventRole.Mentor,
+                                EventRole.Judge,
+                                EventRole.Organizer,
+                              ].map((role) => {
+                                const defaultLabel =
+                                  role === EventRole.Participant
+                                    ? "Participant"
+                                    : role === EventRole.Mentor
+                                      ? "Mentor"
+                                      : role === EventRole.Judge
+                                        ? "Judge"
+                                        : "Organizer";
+                                return (
+                                  <div key={role} className="space-y-2">
+                                    <label className="text-[16px] font-normal text-black">
+                                      {defaultLabel} Label
+                                    </label>
+                                    <div className="relative">
+                                      <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                      <Input
+                                        value={roleLabels[role] || defaultLabel}
+                                        onChange={(e) =>
+                                          setRoleLabels((prev) => ({
+                                            ...prev,
+                                            [role]: e.target.value,
+                                          }))
+                                        }
+                                        placeholder={`Custom label for ${defaultLabel}`}
+                                        className="pl-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px]"
+                                      />
+                                    </div>
+                                    <p className="text-[14px] text-gray-500">
+                                      *Default: {defaultLabel}
+                                    </p>
+                                  </div>
+                                );
+                              })}
+                            </div>
+
+                            <div className="flex gap-3 justify-end pt-4">
+                              <Button
+                                variant="outline"
+                                onClick={() => {
+                                  setRoleLabels({
+                                    [EventRole.Participant]: "Participant",
+                                    [EventRole.Mentor]: "Mentor",
+                                    [EventRole.Judge]: "Judge",
+                                    [EventRole.Organizer]: "Organizer",
+                                  });
+                                  toast({
+                                    title: "Reset to defaults",
+                                    description:
+                                      "Role labels reset to default values.",
+                                  });
+                                }}
+                                className="border border-[rgba(0,0,0,0.15)] bg-white"
+                              >
+                                Reset to default
+                              </Button>
+                              <Button
+                                onClick={() => {
+                                  toast({
+                                    title: "Labels saved",
+                                    description:
+                                      "Role labels saved successfully.",
+                                  });
+                                }}
+                                className="bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
+                              >
+                                Save labels
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </TabsContent>
+
+                      {/* Invite Organizers Tab */}
+                      <TabsContent value="invite-organizers" className="mt-0">
+                        <div className="space-y-4">
+                          <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4">
+                            <h3 className="text-[18px] font-semibold text-black">
+                              Invite organizers
+                            </h3>
+                            <div className="space-y-2">
+                              <label className="text-[16px] font-normal text-black">
+                                Add organizer
+                              </label>
+                              <div className="relative">
+                                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                <Input
+                                  type="email"
+                                  value={organizerEmailInput}
+                                  onChange={(e) =>
+                                    setOrganizerEmailInput(e.target.value)
+                                  }
+                                  onKeyDown={(e) => {
+                                    if (
+                                      e.key === "Enter" &&
+                                      organizerEmailInput.trim()
+                                    ) {
+                                      const emails = organizerEmailInput
+                                        .split(",")
+                                        .map((e) => e.trim())
+                                        .filter(Boolean);
+                                      setOrganizerEmails([
+                                        ...organizerEmails,
+                                        ...emails,
+                                      ]);
+                                      setOrganizerEmailInput("");
+                                    }
+                                  }}
+                                  placeholder="Separate emails with , and hit enter or click the send invite button"
+                                  className="pl-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px]"
+                                />
+                              </div>
+                              <p className="text-[14px] text-gray-500">
+                                *Invitee will receive an email notification with
+                                access instructions.
+                              </p>
+                            </div>
+
+                            {organizerEmails.length > 0 && (
+                              <div className="space-y-2 pt-4 border-t border-[rgba(0,0,0,0.15)]">
+                                {organizerEmails.map((email, index) => (
+                                  <div
+                                    key={index}
+                                    className="flex items-center justify-between p-3 bg-gray-50 rounded-[8px]"
+                                  >
+                                    <div className="flex items-center gap-3">
+                                      <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
+                                        <User className="w-5 h-5 text-gray-600" />
+                                      </div>
+                                      <div>
+                                        <p className="text-[16px] font-medium text-black">
+                                          {email}
+                                        </p>
+                                        <p className="text-[14px] text-gray-500">
+                                          {email}
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => {
+                                        setOrganizerEmails(
+                                          organizerEmails.filter(
+                                            (_, i) => i !== index
+                                          )
+                                        );
+                                      }}
+                                      className="text-red-600 hover:text-red-700"
+                                    >
+                                      <X className="w-4 h-4" />
+                                    </Button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            <Button
+                              onClick={() => {
+                                if (!organizerEmailInput.trim()) {
+                                  toast({
+                                    title: "Email required",
+                                    description:
+                                      "Please enter an email address.",
+                                    variant: "destructive",
+                                  });
+                                  return;
+                                }
+                                const emails = organizerEmailInput
+                                  .split(",")
+                                  .map((e) => e.trim())
+                                  .filter(Boolean);
+                                setOrganizerEmails([
+                                  ...organizerEmails,
+                                  ...emails,
+                                ]);
+                                setOrganizerEmailInput("");
+                                toast({
+                                  title: "Invitation sent",
+                                  description: `Invitation sent to ${emails.length} organizer(s).`,
+                                });
+                              }}
+                              className="w-full bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
+                            >
+                              <Send className="w-4 h-4 mr-2" />
+                              Send invite
+                            </Button>
+                          </div>
+                        </div>
+                      </TabsContent>
+                    </Tabs>
+                  </div>
                 </TabsContent>
 
                 <TabsContent
