@@ -40,6 +40,8 @@ import {
   X,
   Check,
   User,
+  Trophy,
+  GripVertical,
 } from "lucide-react";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -188,6 +190,54 @@ export default function NewEventPage() {
     promoCode: "",
     couponId: "",
     overwrite: false,
+  });
+  const [activeTracksSubTab, setActiveTracksSubTab] = useState("tracks");
+  const [tracks, setTracks] = useState<
+    Array<{
+      id: string;
+      name: string;
+      description: string;
+      criteria: Array<{
+        id: string;
+        name: string;
+        description: string;
+        questionType: string;
+        minScore: number;
+        maxScore: number;
+        weight: number;
+      }>;
+    }>
+  >([]);
+  const [showTrackForm, setShowTrackForm] = useState(false);
+  const [trackForm, setTrackForm] = useState({
+    name: "",
+    description: "",
+    criterionName: "",
+    criterionDescription: "",
+    questionType: "",
+    minScore: "1",
+    maxScore: "1",
+    weight: "1",
+  });
+  const [defaultMinScore, setDefaultMinScore] = useState("1");
+  const [defaultMaxScore, setDefaultMaxScore] = useState("1");
+  const [defaultWeight, setDefaultWeight] = useState("1");
+  const [prizes, setPrizes] = useState<
+    Array<{
+      id: string;
+      trackId: string;
+      trackName: string;
+      name: string;
+      description: string;
+      coverImageUrl: string;
+    }>
+  >([]);
+  const [showPrizeForm, setShowPrizeForm] = useState(false);
+  const [prizeForm, setPrizeForm] = useState({
+    trackId: "",
+    name: "",
+    description: "",
+    coverImageUrl: "",
   });
 
   const [form, setForm] = useState({
@@ -599,7 +649,9 @@ export default function NewEventPage() {
               {/* Form Section */}
               <div
                 className={`w-full flex flex-col items-start order-last lg:order-first ${
-                  activeTab === "pricing"
+                  activeTab === "pricing" ||
+                  activeTab === "notify" ||
+                  activeTab === "tracks"
                     ? "lg:flex-1 lg:min-w-0"
                     : "lg:flex-[2] lg:min-w-0 lg:max-w-[800px]"
                 }`}
@@ -2554,8 +2606,956 @@ export default function NewEventPage() {
                   <p className="text-gray-500">Access settings - coming soon</p>
                 </TabsContent>
 
-                <TabsContent value="tracks" className="mt-0 overflow-x-hidden">
-                  <p className="text-gray-500">Tracks settings - coming soon</p>
+                <TabsContent
+                  value="tracks"
+                  className="mt-0 overflow-x-hidden w-full"
+                >
+                  <div className="w-full min-w-0 space-y-6">
+                    <Tabs
+                      value={activeTracksSubTab}
+                      onValueChange={setActiveTracksSubTab}
+                      className="w-full"
+                    >
+                      <div className="w-full overflow-x-auto mb-6">
+                        <TabsList className="inline-flex h-auto gap-2 bg-transparent p-0 rounded-full">
+                          <TabsTrigger
+                            value="tracks"
+                            className="px-4 py-2 rounded-full text-sm font-normal text-black border border-transparent data-[state=active]:bg-white data-[state=active]:border-[rgba(0,0,0,0.15)] data-[state=active]:shadow-sm flex-shrink-0"
+                          >
+                            Tracks & Scoring
+                          </TabsTrigger>
+                          <TabsTrigger
+                            value="prizes"
+                            className="px-4 py-2 rounded-full text-sm font-normal text-black border border-transparent data-[state=active]:bg-white data-[state=active]:border-[rgba(0,0,0,0.15)] data-[state=active]:shadow-sm flex-shrink-0"
+                          >
+                            Prizes
+                          </TabsTrigger>
+                        </TabsList>
+                      </div>
+
+                      {/* Tracks & Scoring Tab */}
+                      <TabsContent value="tracks" className="mt-0">
+                        <div className="space-y-6">
+                          <div>
+                            <h3 className="text-[18px] font-semibold text-black mb-2">
+                              Tracks & Scoring
+                            </h3>
+                            <p className="text-[16px] text-gray-500">
+                              Configure your event tracks below. For each track,
+                              you can set up scoring criteria.
+                            </p>
+                          </div>
+
+                          {/* Default Scoring Criteria */}
+                          <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4">
+                            <h4 className="text-[16px] font-semibold text-black">
+                              Default Scoring Criteria
+                            </h4>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                              <div className="space-y-2">
+                                <label className="text-[16px] font-normal text-black">
+                                  Default Min Score
+                                </label>
+                                <Input
+                                  type="number"
+                                  value={defaultMinScore}
+                                  onChange={(e) =>
+                                    setDefaultMinScore(e.target.value)
+                                  }
+                                  className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px]"
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <label className="text-[16px] font-normal text-black">
+                                  Default Max Score
+                                </label>
+                                <Input
+                                  type="number"
+                                  value={defaultMaxScore}
+                                  onChange={(e) =>
+                                    setDefaultMaxScore(e.target.value)
+                                  }
+                                  className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px]"
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <label className="text-[16px] font-normal text-black">
+                                  Default Weight
+                                </label>
+                                <Input
+                                  type="number"
+                                  value={defaultWeight}
+                                  onChange={(e) =>
+                                    setDefaultWeight(e.target.value)
+                                  }
+                                  className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px]"
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Tracks List or Empty State */}
+                          {tracks.length === 0 && !showTrackForm ? (
+                            <div className="bg-white border-2 border-dashed border-[rgba(0,0,0,0.15)] rounded-[12px] p-12 text-center">
+                              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
+                                <GripVertical className="w-8 h-8 text-gray-400" />
+                              </div>
+                              <h3 className="text-[18px] font-semibold text-black mb-2">
+                                No track yet
+                              </h3>
+                              <p className="text-[16px] text-gray-500 mb-6">
+                                Tracks will be used to group will be shown as
+                                individual links on the event page
+                              </p>
+                              <Button
+                                onClick={() => setShowTrackForm(true)}
+                                className="bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
+                              >
+                                Add track
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="space-y-4">
+                              {tracks.map((track) => (
+                                <div
+                                  key={track.id}
+                                  className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4"
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <h4 className="text-[18px] font-semibold text-black">
+                                      {track.name}
+                                    </h4>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => {
+                                        setTracks(
+                                          tracks.filter(
+                                            (t) => t.id !== track.id
+                                          )
+                                        );
+                                      }}
+                                      className="text-red-600 hover:text-red-700"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                  </div>
+                                  <div className="space-y-2">
+                                    <label className="text-[16px] font-normal text-black">
+                                      Track Name
+                                    </label>
+                                    <div className="relative">
+                                      <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                      <Input
+                                        value={track.name}
+                                        onChange={(e) => {
+                                          setTracks(
+                                            tracks.map((t) =>
+                                              t.id === track.id
+                                                ? { ...t, name: e.target.value }
+                                                : t
+                                            )
+                                          );
+                                        }}
+                                        placeholder="Short description shown in the preview card"
+                                        className="pl-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px]"
+                                      />
+                                    </div>
+                                  </div>
+                                  <div className="space-y-2">
+                                    <label className="text-[16px] font-normal text-black">
+                                      Description
+                                    </label>
+                                    <Textarea
+                                      value={track.description}
+                                      onChange={(e) => {
+                                        setTracks(
+                                          tracks.map((t) =>
+                                            t.id === track.id
+                                              ? {
+                                                  ...t,
+                                                  description: e.target.value,
+                                                }
+                                              : t
+                                          )
+                                        );
+                                      }}
+                                      placeholder="Add long description (markdown supported)"
+                                      className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] min-h-[100px]"
+                                    />
+                                  </div>
+                                  {track.criteria.map((criterion) => (
+                                    <div
+                                      key={criterion.id}
+                                      className="bg-[#F7FAFE] border border-[rgba(0,0,0,0.15)] rounded-[12px] p-4 space-y-4"
+                                    >
+                                      <div className="flex items-center justify-between">
+                                        <h5 className="text-[16px] font-semibold text-black">
+                                          Criterion: {criterion.name}
+                                        </h5>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => {
+                                            setTracks(
+                                              tracks.map((t) =>
+                                                t.id === track.id
+                                                  ? {
+                                                      ...t,
+                                                      criteria:
+                                                        t.criteria.filter(
+                                                          (c) =>
+                                                            c.id !==
+                                                            criterion.id
+                                                        ),
+                                                    }
+                                                  : t
+                                              )
+                                            );
+                                          }}
+                                          className="text-red-600 hover:text-red-700"
+                                        >
+                                          <Trash2 className="w-4 h-4" />
+                                        </Button>
+                                      </div>
+                                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <div className="space-y-2">
+                                          <label className="text-[16px] font-normal text-black">
+                                            Min Score
+                                          </label>
+                                          <Input
+                                            type="number"
+                                            value={criterion.minScore}
+                                            onChange={(e) => {
+                                              setTracks(
+                                                tracks.map((t) =>
+                                                  t.id === track.id
+                                                    ? {
+                                                        ...t,
+                                                        criteria:
+                                                          t.criteria.map((c) =>
+                                                            c.id ===
+                                                            criterion.id
+                                                              ? {
+                                                                  ...c,
+                                                                  minScore:
+                                                                    parseInt(
+                                                                      e.target
+                                                                        .value
+                                                                    ),
+                                                                }
+                                                              : c
+                                                          ),
+                                                      }
+                                                    : t
+                                                )
+                                              );
+                                            }}
+                                            className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px]"
+                                          />
+                                        </div>
+                                        <div className="space-y-2">
+                                          <label className="text-[16px] font-normal text-black">
+                                            Max Score
+                                          </label>
+                                          <Input
+                                            type="number"
+                                            value={criterion.maxScore}
+                                            onChange={(e) => {
+                                              setTracks(
+                                                tracks.map((t) =>
+                                                  t.id === track.id
+                                                    ? {
+                                                        ...t,
+                                                        criteria:
+                                                          t.criteria.map((c) =>
+                                                            c.id ===
+                                                            criterion.id
+                                                              ? {
+                                                                  ...c,
+                                                                  maxScore:
+                                                                    parseInt(
+                                                                      e.target
+                                                                        .value
+                                                                    ),
+                                                                }
+                                                              : c
+                                                          ),
+                                                      }
+                                                    : t
+                                                )
+                                              );
+                                            }}
+                                            className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px]"
+                                          />
+                                        </div>
+                                        <div className="space-y-2">
+                                          <label className="text-[16px] font-normal text-black">
+                                            Weight
+                                          </label>
+                                          <Input
+                                            type="number"
+                                            value={criterion.weight}
+                                            onChange={(e) => {
+                                              setTracks(
+                                                tracks.map((t) =>
+                                                  t.id === track.id
+                                                    ? {
+                                                        ...t,
+                                                        criteria:
+                                                          t.criteria.map((c) =>
+                                                            c.id ===
+                                                            criterion.id
+                                                              ? {
+                                                                  ...c,
+                                                                  weight:
+                                                                    parseInt(
+                                                                      e.target
+                                                                        .value
+                                                                    ),
+                                                                }
+                                                              : c
+                                                          ),
+                                                      }
+                                                    : t
+                                                )
+                                              );
+                                            }}
+                                            className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px]"
+                                          />
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                  <Button
+                                    variant="outline"
+                                    onClick={() => {
+                                      setTracks(
+                                        tracks.map((t) =>
+                                          t.id === track.id
+                                            ? {
+                                                ...t,
+                                                criteria: [
+                                                  ...t.criteria,
+                                                  {
+                                                    id: `criterion-${Date.now()}`,
+                                                    name: "",
+                                                    description: "",
+                                                    questionType: "scale",
+                                                    minScore:
+                                                      parseInt(defaultMinScore),
+                                                    maxScore:
+                                                      parseInt(defaultMaxScore),
+                                                    weight:
+                                                      parseInt(defaultWeight),
+                                                  },
+                                                ],
+                                              }
+                                            : t
+                                        )
+                                      );
+                                    }}
+                                    className="w-full border border-[rgba(0,0,0,0.15)] bg-white"
+                                  >
+                                    <Plus className="w-4 h-4 mr-2" />
+                                    Add criterion
+                                  </Button>
+                                </div>
+                              ))}
+                              {showTrackForm && (
+                                <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4">
+                                  <h4 className="text-[18px] font-semibold text-black">
+                                    New Track
+                                  </h4>
+                                  <div className="space-y-2">
+                                    <label className="text-[16px] font-normal text-black">
+                                      Track Name
+                                    </label>
+                                    <div className="relative">
+                                      <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                      <Input
+                                        value={trackForm.name}
+                                        onChange={(e) =>
+                                          setTrackForm({
+                                            ...trackForm,
+                                            name: e.target.value,
+                                          })
+                                        }
+                                        placeholder="Short description shown in the preview card"
+                                        className="pl-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px]"
+                                      />
+                                    </div>
+                                  </div>
+                                  <div className="space-y-2">
+                                    <label className="text-[16px] font-normal text-black">
+                                      Criterion Name
+                                    </label>
+                                    <div className="relative">
+                                      <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                      <Input
+                                        value={trackForm.criterionName}
+                                        onChange={(e) =>
+                                          setTrackForm({
+                                            ...trackForm,
+                                            criterionName: e.target.value,
+                                          })
+                                        }
+                                        placeholder="Short description shown in the preview card"
+                                        className="pl-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px]"
+                                      />
+                                    </div>
+                                  </div>
+                                  <div className="space-y-2">
+                                    <label className="text-[16px] font-normal text-black">
+                                      Description
+                                    </label>
+                                    <Textarea
+                                      value={trackForm.description}
+                                      onChange={(e) =>
+                                        setTrackForm({
+                                          ...trackForm,
+                                          description: e.target.value,
+                                        })
+                                      }
+                                      placeholder="Add long description (markdown supported)"
+                                      className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] min-h-[100px]"
+                                    />
+                                  </div>
+                                  <div className="space-y-2">
+                                    <label className="text-[16px] font-normal text-black">
+                                      Question Type
+                                    </label>
+                                    <select
+                                      value={trackForm.questionType}
+                                      onChange={(e) =>
+                                        setTrackForm({
+                                          ...trackForm,
+                                          questionType: e.target.value,
+                                        })
+                                      }
+                                      className="w-full bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px] px-3"
+                                    >
+                                      <option value="scale">Scale</option>
+                                      <option value="text">Text</option>
+                                      <option value="multiple">
+                                        Multiple Choice
+                                      </option>
+                                    </select>
+                                  </div>
+                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div className="space-y-2">
+                                      <label className="text-[16px] font-normal text-black">
+                                        Min Score
+                                      </label>
+                                      <Input
+                                        type="number"
+                                        value={trackForm.minScore}
+                                        onChange={(e) =>
+                                          setTrackForm({
+                                            ...trackForm,
+                                            minScore: e.target.value,
+                                          })
+                                        }
+                                        className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px]"
+                                      />
+                                    </div>
+                                    <div className="space-y-2">
+                                      <label className="text-[16px] font-normal text-black">
+                                        Max Score
+                                      </label>
+                                      <Input
+                                        type="number"
+                                        value={trackForm.maxScore}
+                                        onChange={(e) =>
+                                          setTrackForm({
+                                            ...trackForm,
+                                            maxScore: e.target.value,
+                                          })
+                                        }
+                                        className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px]"
+                                      />
+                                    </div>
+                                    <div className="space-y-2">
+                                      <label className="text-[16px] font-normal text-black">
+                                        Weight
+                                      </label>
+                                      <Input
+                                        type="number"
+                                        value={trackForm.weight}
+                                        onChange={(e) =>
+                                          setTrackForm({
+                                            ...trackForm,
+                                            weight: e.target.value,
+                                          })
+                                        }
+                                        className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px]"
+                                      />
+                                    </div>
+                                  </div>
+                                  <div className="flex gap-3">
+                                    <Button
+                                      onClick={() => {
+                                        if (!trackForm.name) {
+                                          toast({
+                                            title: "Missing fields",
+                                            description:
+                                              "Please fill in track name.",
+                                            variant: "destructive",
+                                          });
+                                          return;
+                                        }
+                                        const newTrack = {
+                                          id: `track-${Date.now()}`,
+                                          name: trackForm.name,
+                                          description: trackForm.description,
+                                          criteria: trackForm.criterionName
+                                            ? [
+                                                {
+                                                  id: `criterion-${Date.now()}`,
+                                                  name: trackForm.criterionName,
+                                                  description:
+                                                    trackForm.criterionDescription,
+                                                  questionType:
+                                                    trackForm.questionType ||
+                                                    "scale",
+                                                  minScore: parseInt(
+                                                    trackForm.minScore
+                                                  ),
+                                                  maxScore: parseInt(
+                                                    trackForm.maxScore
+                                                  ),
+                                                  weight: parseInt(
+                                                    trackForm.weight
+                                                  ),
+                                                },
+                                              ]
+                                            : [],
+                                        };
+                                        setTracks([...tracks, newTrack]);
+                                        setTrackForm({
+                                          name: "",
+                                          description: "",
+                                          criterionName: "",
+                                          criterionDescription: "",
+                                          questionType: "",
+                                          minScore: "1",
+                                          maxScore: "1",
+                                          weight: "1",
+                                        });
+                                        setShowTrackForm(false);
+                                        toast({
+                                          title: "Track added",
+                                          description:
+                                            "Track added successfully.",
+                                        });
+                                      }}
+                                      className="bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
+                                    >
+                                      Create
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      onClick={() => {
+                                        setShowTrackForm(false);
+                                        setTrackForm({
+                                          name: "",
+                                          description: "",
+                                          criterionName: "",
+                                          criterionDescription: "",
+                                          questionType: "",
+                                          minScore: "1",
+                                          maxScore: "1",
+                                          weight: "1",
+                                        });
+                                      }}
+                                      className="border border-[rgba(0,0,0,0.15)] bg-white"
+                                    >
+                                      Cancel
+                                    </Button>
+                                  </div>
+                                </div>
+                              )}
+                              {!showTrackForm && (
+                                <Button
+                                  onClick={() => setShowTrackForm(true)}
+                                  variant="outline"
+                                  className="w-full border border-[rgba(0,0,0,0.15)] bg-white"
+                                >
+                                  <Plus className="w-4 h-4 mr-2" />
+                                  Add new track
+                                </Button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </TabsContent>
+
+                      {/* Prizes Tab */}
+                      <TabsContent value="prizes" className="mt-0">
+                        <div className="space-y-4">
+                          {prizes.length === 0 && !showPrizeForm ? (
+                            <div className="bg-white border-2 border-dashed border-[rgba(0,0,0,0.15)] rounded-[12px] p-12 text-center">
+                              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
+                                <Trophy className="w-8 h-8 text-gray-400" />
+                              </div>
+                              <h3 className="text-[18px] font-semibold text-black mb-2">
+                                No prize yet
+                              </h3>
+                              <p className="text-[16px] text-gray-500 mb-6">
+                                Add prizes to tracks and assign winners for each
+                                track
+                              </p>
+                              <Button
+                                onClick={() => setShowPrizeForm(true)}
+                                className="bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
+                              >
+                                Add prize
+                              </Button>
+                            </div>
+                          ) : (
+                            <>
+                              {prizes.map((prize) => (
+                                <div
+                                  key={prize.id}
+                                  className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4"
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <div>
+                                      <h3 className="text-[18px] font-semibold text-black">
+                                        {prize.name}
+                                      </h3>
+                                      <p className="text-[14px] text-gray-500">
+                                        Track: {prize.trackName}
+                                      </p>
+                                    </div>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => {
+                                        setPrizes(
+                                          prizes.filter(
+                                            (p) => p.id !== prize.id
+                                          )
+                                        );
+                                      }}
+                                      className="text-red-600 hover:text-red-700"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                  </div>
+                                  <div className="space-y-2">
+                                    <label className="text-[16px] font-normal text-black">
+                                      Prize Name
+                                    </label>
+                                    <div className="relative">
+                                      <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                      <Input
+                                        value={prize.name}
+                                        onChange={(e) => {
+                                          setPrizes(
+                                            prizes.map((p) =>
+                                              p.id === prize.id
+                                                ? {
+                                                    ...p,
+                                                    name: e.target.value,
+                                                  }
+                                                : p
+                                            )
+                                          );
+                                        }}
+                                        placeholder="e.g. iPad and Apple Pencil"
+                                        className="pl-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px]"
+                                      />
+                                    </div>
+                                  </div>
+                                  <div className="space-y-2">
+                                    <label className="text-[16px] font-normal text-black">
+                                      Description
+                                    </label>
+                                    <Textarea
+                                      value={prize.description}
+                                      onChange={(e) => {
+                                        setPrizes(
+                                          prizes.map((p) =>
+                                            p.id === prize.id
+                                              ? {
+                                                  ...p,
+                                                  description: e.target.value,
+                                                }
+                                              : p
+                                          )
+                                        );
+                                      }}
+                                      placeholder="e.g. $7,000 iPad and Apple Pencil"
+                                      className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] min-h-[100px]"
+                                    />
+                                  </div>
+                                  <div className="space-y-2">
+                                    <label className="text-[16px] font-normal text-black">
+                                      Cover image url
+                                    </label>
+                                    <div className="flex gap-2">
+                                      <div className="relative flex-1">
+                                        <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                        <Input
+                                          value={prize.coverImageUrl}
+                                          onChange={(e) => {
+                                            setPrizes(
+                                              prizes.map((p) =>
+                                                p.id === prize.id
+                                                  ? {
+                                                      ...p,
+                                                      coverImageUrl:
+                                                        e.target.value,
+                                                    }
+                                                  : p
+                                              )
+                                            );
+                                          }}
+                                          placeholder="https://..."
+                                          className="pl-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px]"
+                                        />
+                                      </div>
+                                      <Button
+                                        variant="outline"
+                                        onClick={() => {
+                                          const input =
+                                            document.createElement("input");
+                                          input.type = "file";
+                                          input.accept = "image/*";
+                                          input.onchange = (e) => {
+                                            const file = (
+                                              e.target as HTMLInputElement
+                                            ).files?.[0];
+                                            if (file) {
+                                              setPrizes(
+                                                prizes.map((p) =>
+                                                  p.id === prize.id
+                                                    ? {
+                                                        ...p,
+                                                        coverImageUrl:
+                                                          URL.createObjectURL(
+                                                            file
+                                                          ),
+                                                      }
+                                                    : p
+                                                )
+                                              );
+                                            }
+                                          };
+                                          input.click();
+                                        }}
+                                        className="border border-[rgba(0,0,0,0.15)] bg-white"
+                                      >
+                                        <Upload className="w-4 h-4 mr-2" />
+                                        Upload
+                                      </Button>
+                                    </div>
+                                    <p className="text-[14px] text-gray-500">
+                                      *Upload an image to showcase your project
+                                      (Max 10MB).
+                                    </p>
+                                  </div>
+                                </div>
+                              ))}
+                              {showPrizeForm && (
+                                <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4">
+                                  <h4 className="text-[18px] font-semibold text-black">
+                                    New Prize
+                                  </h4>
+                                  <div className="space-y-2">
+                                    <label className="text-[16px] font-normal text-black">
+                                      Select Track
+                                    </label>
+                                    <select
+                                      value={prizeForm.trackId}
+                                      onChange={(e) =>
+                                        setPrizeForm({
+                                          ...prizeForm,
+                                          trackId: e.target.value,
+                                        })
+                                      }
+                                      className="w-full bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px] px-3"
+                                    >
+                                      <option value="">Select a track</option>
+                                      {tracks.map((track) => (
+                                        <option key={track.id} value={track.id}>
+                                          {track.name}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                  <div className="space-y-2">
+                                    <label className="text-[16px] font-normal text-black">
+                                      Prize Name
+                                    </label>
+                                    <div className="relative">
+                                      <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                      <Input
+                                        value={prizeForm.name}
+                                        onChange={(e) =>
+                                          setPrizeForm({
+                                            ...prizeForm,
+                                            name: e.target.value,
+                                          })
+                                        }
+                                        placeholder="e.g. iPad and Apple Pencil"
+                                        className="pl-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px]"
+                                      />
+                                    </div>
+                                  </div>
+                                  <div className="space-y-2">
+                                    <label className="text-[16px] font-normal text-black">
+                                      Description
+                                    </label>
+                                    <Textarea
+                                      value={prizeForm.description}
+                                      onChange={(e) =>
+                                        setPrizeForm({
+                                          ...prizeForm,
+                                          description: e.target.value,
+                                        })
+                                      }
+                                      placeholder="e.g. $7,000 iPad and Apple Pencil"
+                                      className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] min-h-[100px]"
+                                    />
+                                  </div>
+                                  <div className="space-y-2">
+                                    <label className="text-[16px] font-normal text-black">
+                                      Cover image url
+                                    </label>
+                                    <div className="flex gap-2">
+                                      <div className="relative flex-1">
+                                        <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                        <Input
+                                          value={prizeForm.coverImageUrl}
+                                          onChange={(e) =>
+                                            setPrizeForm({
+                                              ...prizeForm,
+                                              coverImageUrl: e.target.value,
+                                            })
+                                          }
+                                          placeholder="https://..."
+                                          className="pl-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px]"
+                                        />
+                                      </div>
+                                      <Button
+                                        variant="outline"
+                                        onClick={() => {
+                                          const input =
+                                            document.createElement("input");
+                                          input.type = "file";
+                                          input.accept = "image/*";
+                                          input.onchange = (e) => {
+                                            const file = (
+                                              e.target as HTMLInputElement
+                                            ).files?.[0];
+                                            if (file) {
+                                              setPrizeForm({
+                                                ...prizeForm,
+                                                coverImageUrl:
+                                                  URL.createObjectURL(file),
+                                              });
+                                            }
+                                          };
+                                          input.click();
+                                        }}
+                                        className="border border-[rgba(0,0,0,0.15)] bg-white"
+                                      >
+                                        <Upload className="w-4 h-4 mr-2" />
+                                        Upload
+                                      </Button>
+                                    </div>
+                                    <p className="text-[14px] text-gray-500">
+                                      *Upload an image to showcase your project
+                                      (Max 10MB).
+                                    </p>
+                                  </div>
+                                  <div className="flex gap-3">
+                                    <Button
+                                      onClick={() => {
+                                        if (!prizeForm.name) {
+                                          toast({
+                                            title: "Missing fields",
+                                            description:
+                                              "Please fill in prize name.",
+                                            variant: "destructive",
+                                          });
+                                          return;
+                                        }
+                                        if (!prizeForm.trackId) {
+                                          toast({
+                                            title: "Missing fields",
+                                            description:
+                                              "Please select a track.",
+                                            variant: "destructive",
+                                          });
+                                          return;
+                                        }
+                                        const selectedTrack = tracks.find(
+                                          (t) => t.id === prizeForm.trackId
+                                        );
+                                        const newPrize = {
+                                          id: `prize-${Date.now()}`,
+                                          trackId: prizeForm.trackId,
+                                          trackName: selectedTrack?.name || "",
+                                          name: prizeForm.name,
+                                          description: prizeForm.description,
+                                          coverImageUrl:
+                                            prizeForm.coverImageUrl,
+                                        };
+                                        setPrizes([...prizes, newPrize]);
+                                        setPrizeForm({
+                                          trackId: "",
+                                          name: "",
+                                          description: "",
+                                          coverImageUrl: "",
+                                        });
+                                        setShowPrizeForm(false);
+                                        toast({
+                                          title: "Prize added",
+                                          description:
+                                            "Prize added successfully.",
+                                        });
+                                      }}
+                                      className="bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
+                                    >
+                                      Create
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      onClick={() => {
+                                        setShowPrizeForm(false);
+                                        setPrizeForm({
+                                          trackId: "",
+                                          name: "",
+                                          description: "",
+                                          coverImageUrl: "",
+                                        });
+                                      }}
+                                      className="border border-[rgba(0,0,0,0.15)] bg-white"
+                                    >
+                                      Cancel
+                                    </Button>
+                                  </div>
+                                </div>
+                              )}
+                              {!showPrizeForm && (
+                                <Button
+                                  onClick={() => setShowPrizeForm(true)}
+                                  variant="outline"
+                                  className="w-full border border-[rgba(0,0,0,0.15)] bg-white"
+                                >
+                                  <Plus className="w-4 h-4 mr-2" />
+                                  Add new prize
+                                </Button>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </TabsContent>
+                    </Tabs>
+                  </div>
                 </TabsContent>
 
                 <TabsContent
