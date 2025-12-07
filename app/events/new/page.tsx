@@ -130,6 +130,65 @@ export default function NewEventPage() {
   const [selectedRecipients, setSelectedRecipients] = useState<string[]>([]);
   const [showRecipientModal, setShowRecipientModal] = useState(false);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [activePricingSubTab, setActivePricingSubTab] = useState("tiers");
+  const [pricingTiers, setPricingTiers] = useState<
+    Array<{
+      id: string;
+      name: string;
+      price: number;
+      description: string;
+      available_until?: string;
+      max_quantity?: number;
+      stripe_price_id: string;
+    }>
+  >([]);
+  const [showTierForm, setShowTierForm] = useState(false);
+  const [tierForm, setTierForm] = useState({
+    name: "",
+    price: "",
+    description: "",
+    available_until: "",
+    max_quantity: "",
+    stripe_price_id: "",
+  });
+  const [editingTierId, setEditingTierId] = useState<string | null>(null);
+  const [coupons, setCoupons] = useState<
+    Array<{
+      id: string;
+      couponName: string;
+      duration: string;
+      percent_off?: number;
+      amount_off?: number;
+      currency?: string;
+      max_uses?: number;
+      valid_until?: string;
+    }>
+  >([]);
+  const [showCouponForm, setShowCouponForm] = useState(false);
+  const [couponForm, setCouponForm] = useState({
+    couponName: "",
+    duration: "once",
+    percent_off: "",
+    amount_off: "",
+    currency: "USD",
+    max_uses: "",
+    valid_until: "",
+  });
+  const [editingCouponId, setEditingCouponId] = useState<string | null>(null);
+  const [promoCodes, setPromoCodes] = useState<
+    Array<{
+      id: string;
+      promoCode: string;
+      couponId: string;
+      couponName?: string;
+    }>
+  >([]);
+  const [showPromoCodeForm, setShowPromoCodeForm] = useState(false);
+  const [promoCodeForm, setPromoCodeForm] = useState({
+    promoCode: "",
+    couponId: "",
+    overwrite: false,
+  });
 
   const [form, setForm] = useState({
     event_name: "",
@@ -538,7 +597,13 @@ export default function NewEventPage() {
             {/* Content Area - Scrollable */}
             <div className="flex flex-col lg:flex-row gap-6 lg:gap-12 items-start w-full lg:flex-1 lg:min-h-0 lg:overflow-auto no-scrollbar">
               {/* Form Section */}
-              <div className="w-full lg:flex-[2] lg:min-w-0 lg:max-w-[800px] flex flex-col items-start order-last lg:order-first">
+              <div
+                className={`w-full flex flex-col items-start order-last lg:order-first ${
+                  activeTab === "pricing"
+                    ? "lg:flex-1 lg:min-w-0"
+                    : "lg:flex-[2] lg:min-w-0 lg:max-w-[800px]"
+                }`}
+              >
                 <TabsContent value="overview" className="mt-0">
                   <Tabs value={activeSubTab} onValueChange={setActiveSubTab}>
                     <div
@@ -665,10 +730,7 @@ export default function NewEventPage() {
                               type="number"
                               value={form.participant_capacity}
                               onChange={(e) =>
-                                onChange(
-                                  "participant_capacity",
-                                  e.target.value
-                                )
+                                onChange("participant_capacity", e.target.value)
                               }
                               placeholder="Leave blank for unlimited participants"
                               className="w-full min-w-0 h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
@@ -828,10 +890,7 @@ export default function NewEventPage() {
                               <Textarea
                                 value={form.event_description}
                                 onChange={(e) =>
-                                  onChange(
-                                    "event_description",
-                                    e.target.value
-                                  )
+                                  onChange("event_description", e.target.value)
                                 }
                                 placeholder="Add long description (markdown supported)"
                                 className="min-h-[300px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] p-3 focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none resize-y"
@@ -2485,42 +2544,1116 @@ export default function NewEventPage() {
                   </p>
                 </TabsContent>
 
-                <TabsContent
-                  value="project"
-                  className="mt-0 overflow-x-hidden"
-                >
+                <TabsContent value="project" className="mt-0 overflow-x-hidden">
                   <p className="text-gray-500">
                     Project settings - coming soon
                   </p>
                 </TabsContent>
 
-                <TabsContent
-                  value="access"
-                  className="mt-0 overflow-x-hidden"
-                >
+                <TabsContent value="access" className="mt-0 overflow-x-hidden">
                   <p className="text-gray-500">Access settings - coming soon</p>
                 </TabsContent>
 
-                <TabsContent
-                  value="tracks"
-                  className="mt-0 overflow-x-hidden"
-                >
+                <TabsContent value="tracks" className="mt-0 overflow-x-hidden">
                   <p className="text-gray-500">Tracks settings - coming soon</p>
                 </TabsContent>
 
                 <TabsContent
                   value="pricing"
-                  className="mt-0 overflow-x-hidden"
+                  className="mt-0 overflow-x-hidden w-full"
                 >
-                  <p className="text-gray-500">
-                    Pricing settings - coming soon
-                  </p>
+                  <div className="w-full min-w-0 space-y-6">
+                    {/* Paid Event Toggle */}
+                    <div className="flex items-center gap-3">
+                      <label className="text-[16px] font-normal text-black">
+                        This is a paid event
+                      </label>
+                      <Switch
+                        checked={ticketType === "paid"}
+                        onCheckedChange={(checked) =>
+                          setTicketType(checked ? "paid" : "free")
+                        }
+                      />
+                    </div>
+
+                    {/* Pricing Sub-tabs */}
+                    {ticketType === "paid" && (
+                      <Tabs
+                        value={activePricingSubTab}
+                        onValueChange={setActivePricingSubTab}
+                        className="w-full"
+                      >
+                        <div className="w-full overflow-x-auto mb-6">
+                          <TabsList className="inline-flex h-auto gap-2 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-1">
+                            <TabsTrigger
+                              value="tiers"
+                              className="px-4 py-2 rounded-[8px] text-sm font-normal text-black data-[state=active]:bg-[#4b89ef] data-[state=active]:text-white flex-shrink-0"
+                            >
+                              Pricing Tiers
+                            </TabsTrigger>
+                            <TabsTrigger
+                              value="coupon"
+                              className="px-4 py-2 rounded-[8px] text-sm font-normal text-black data-[state=active]:bg-[#4b89ef] data-[state=active]:text-white flex-shrink-0"
+                            >
+                              Coupon
+                            </TabsTrigger>
+                            <TabsTrigger
+                              value="promo"
+                              className="px-4 py-2 rounded-[8px] text-sm font-normal text-black data-[state=active]:bg-[#4b89ef] data-[state=active]:text-white flex-shrink-0"
+                            >
+                              Promo Code
+                            </TabsTrigger>
+                          </TabsList>
+                        </div>
+
+                        {/* Pricing Tiers Tab */}
+                        <TabsContent value="tiers" className="mt-0">
+                          <div className="space-y-4">
+                            {pricingTiers.length === 0 && !showTierForm ? (
+                              <div className="bg-white border-2 border-dashed border-[rgba(0,0,0,0.15)] rounded-[12px] p-12 text-center">
+                                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
+                                  <DollarSign className="w-8 h-8 text-gray-400" />
+                                </div>
+                                <h3 className="text-[18px] font-semibold text-black mb-2">
+                                  No tier created yet
+                                </h3>
+                                <p className="text-[16px] text-gray-500 mb-6">
+                                  Add your first pricing tier to get started
+                                </p>
+                                <Button
+                                  onClick={() => setShowTierForm(true)}
+                                  className="bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
+                                >
+                                  Add pricing tier
+                                </Button>
+                              </div>
+                            ) : (
+                              <>
+                                {pricingTiers.map((tier, index) => (
+                                  <div
+                                    key={tier.id}
+                                    className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4"
+                                  >
+                                    <div className="flex items-center justify-between">
+                                      <h3 className="text-[18px] font-semibold text-black">
+                                        Tier {index + 1}
+                                      </h3>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => {
+                                          setPricingTiers(
+                                            pricingTiers.filter(
+                                              (t) => t.id !== tier.id
+                                            )
+                                          );
+                                        }}
+                                        className="text-red-600 hover:text-red-700"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </Button>
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                      <div className="space-y-2">
+                                        <label className="text-[16px] font-normal text-black">
+                                          Tier Name
+                                        </label>
+                                        <div className="relative">
+                                          <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                          <Input
+                                            value={tier.name}
+                                            onChange={(e) => {
+                                              setPricingTiers(
+                                                pricingTiers.map((t) =>
+                                                  t.id === tier.id
+                                                    ? {
+                                                        ...t,
+                                                        name: e.target.value,
+                                                      }
+                                                    : t
+                                                )
+                                              );
+                                            }}
+                                            placeholder="Short description shown in the preview card."
+                                            className="pl-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px]"
+                                          />
+                                        </div>
+                                      </div>
+                                      <div className="space-y-2">
+                                        <label className="text-[16px] font-normal text-black">
+                                          Price (USD)
+                                        </label>
+                                        <div className="relative">
+                                          <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                          <Input
+                                            type="number"
+                                            step="0.01"
+                                            value={tier.price / 100}
+                                            onChange={(e) => {
+                                              setPricingTiers(
+                                                pricingTiers.map((t) =>
+                                                  t.id === tier.id
+                                                    ? {
+                                                        ...t,
+                                                        price: Math.round(
+                                                          parseFloat(
+                                                            e.target.value ||
+                                                              "0"
+                                                          ) * 100
+                                                        ),
+                                                      }
+                                                    : t
+                                                )
+                                              );
+                                            }}
+                                            placeholder="e.g. 9"
+                                            className="pl-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px]"
+                                          />
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="space-y-2">
+                                      <label className="text-[16px] font-normal text-black">
+                                        Description
+                                      </label>
+                                      <Textarea
+                                        value={tier.description}
+                                        onChange={(e) => {
+                                          setPricingTiers(
+                                            pricingTiers.map((t) =>
+                                              t.id === tier.id
+                                                ? {
+                                                    ...t,
+                                                    description: e.target.value,
+                                                  }
+                                                : t
+                                            )
+                                          );
+                                        }}
+                                        placeholder="Add long description (markdown supported)."
+                                        className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] min-h-[100px]"
+                                      />
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                      <div className="space-y-2">
+                                        <label className="text-[16px] font-normal text-black">
+                                          Available Until
+                                        </label>
+                                        <div className="relative">
+                                          <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                          <Input
+                                            type="date"
+                                            value={
+                                              tier.available_until
+                                                ? tier.available_until.split(
+                                                    "T"
+                                                  )[0]
+                                                : ""
+                                            }
+                                            onChange={(e) => {
+                                              setPricingTiers(
+                                                pricingTiers.map((t) =>
+                                                  t.id === tier.id
+                                                    ? {
+                                                        ...t,
+                                                        available_until: e
+                                                          .target.value
+                                                          ? new Date(
+                                                              e.target.value
+                                                            ).toISOString()
+                                                          : undefined,
+                                                      }
+                                                    : t
+                                                )
+                                              );
+                                            }}
+                                            placeholder="mm/dd/yyyy"
+                                            className="pl-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px]"
+                                          />
+                                        </div>
+                                      </div>
+                                      <div className="space-y-2">
+                                        <label className="text-[16px] font-normal text-black">
+                                          Max Quantity
+                                        </label>
+                                        <div className="relative">
+                                          <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                          <Input
+                                            type="number"
+                                            value={tier.max_quantity || ""}
+                                            onChange={(e) => {
+                                              setPricingTiers(
+                                                pricingTiers.map((t) =>
+                                                  t.id === tier.id
+                                                    ? {
+                                                        ...t,
+                                                        max_quantity: e.target
+                                                          .value
+                                                          ? parseInt(
+                                                              e.target.value,
+                                                              10
+                                                            )
+                                                          : undefined,
+                                                      }
+                                                    : t
+                                                )
+                                              );
+                                            }}
+                                            placeholder="Leave blank for unlimited participants"
+                                            className="pl-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px]"
+                                          />
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="space-y-2">
+                                      <label className="text-[16px] font-normal text-black">
+                                        Stripe Price ID
+                                      </label>
+                                      <div className="relative">
+                                        <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                        <Input
+                                          value={tier.stripe_price_id}
+                                          onChange={(e) => {
+                                            setPricingTiers(
+                                              pricingTiers.map((t) =>
+                                                t.id === tier.id
+                                                  ? {
+                                                      ...t,
+                                                      stripe_price_id:
+                                                        e.target.value,
+                                                    }
+                                                  : t
+                                              )
+                                            );
+                                          }}
+                                          placeholder="price_"
+                                          className="pl-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px]"
+                                        />
+                                      </div>
+                                      <p className="text-[14px] text-gray-500">
+                                        *Create a Stripe price in your Stripe
+                                        dashboard and paste the ID here.
+                                      </p>
+                                    </div>
+                                  </div>
+                                ))}
+                                {showTierForm && (
+                                  <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4">
+                                    <h3 className="text-[18px] font-semibold text-black">
+                                      New Tier
+                                    </h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                      <div className="space-y-2">
+                                        <label className="text-[16px] font-normal text-black">
+                                          Tier Name
+                                        </label>
+                                        <div className="relative">
+                                          <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                          <Input
+                                            value={tierForm.name}
+                                            onChange={(e) =>
+                                              setTierForm({
+                                                ...tierForm,
+                                                name: e.target.value,
+                                              })
+                                            }
+                                            placeholder="Short description shown in the preview card."
+                                            className="pl-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px]"
+                                          />
+                                        </div>
+                                      </div>
+                                      <div className="space-y-2">
+                                        <label className="text-[16px] font-normal text-black">
+                                          Price (USD)
+                                        </label>
+                                        <div className="relative">
+                                          <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                          <Input
+                                            type="number"
+                                            step="0.01"
+                                            value={tierForm.price}
+                                            onChange={(e) =>
+                                              setTierForm({
+                                                ...tierForm,
+                                                price: e.target.value,
+                                              })
+                                            }
+                                            placeholder="e.g. 9"
+                                            className="pl-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px]"
+                                          />
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="space-y-2">
+                                      <label className="text-[16px] font-normal text-black">
+                                        Description
+                                      </label>
+                                      <Textarea
+                                        value={tierForm.description}
+                                        onChange={(e) =>
+                                          setTierForm({
+                                            ...tierForm,
+                                            description: e.target.value,
+                                          })
+                                        }
+                                        placeholder="Add long description (markdown supported)."
+                                        className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] min-h-[100px]"
+                                      />
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                      <div className="space-y-2">
+                                        <label className="text-[16px] font-normal text-black">
+                                          Available Until
+                                        </label>
+                                        <div className="relative">
+                                          <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                          <Input
+                                            type="date"
+                                            value={tierForm.available_until}
+                                            onChange={(e) =>
+                                              setTierForm({
+                                                ...tierForm,
+                                                available_until: e.target.value,
+                                              })
+                                            }
+                                            placeholder="mm/dd/yyyy"
+                                            className="pl-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px]"
+                                          />
+                                        </div>
+                                      </div>
+                                      <div className="space-y-2">
+                                        <label className="text-[16px] font-normal text-black">
+                                          Max Quantity
+                                        </label>
+                                        <div className="relative">
+                                          <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                          <Input
+                                            type="number"
+                                            value={tierForm.max_quantity}
+                                            onChange={(e) =>
+                                              setTierForm({
+                                                ...tierForm,
+                                                max_quantity: e.target.value,
+                                              })
+                                            }
+                                            placeholder="Leave blank for unlimited participants"
+                                            className="pl-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px]"
+                                          />
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="space-y-2">
+                                      <label className="text-[16px] font-normal text-black">
+                                        Stripe Price ID
+                                      </label>
+                                      <div className="relative">
+                                        <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                        <Input
+                                          value={tierForm.stripe_price_id}
+                                          onChange={(e) =>
+                                            setTierForm({
+                                              ...tierForm,
+                                              stripe_price_id: e.target.value,
+                                            })
+                                          }
+                                          placeholder="price_"
+                                          className="pl-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px]"
+                                        />
+                                      </div>
+                                      <p className="text-[14px] text-gray-500">
+                                        *Create a Stripe price in your Stripe
+                                        dashboard and paste the ID here.
+                                      </p>
+                                    </div>
+                                    <div className="flex gap-3">
+                                      <Button
+                                        onClick={() => {
+                                          if (
+                                            !tierForm.name ||
+                                            !tierForm.price ||
+                                            !tierForm.stripe_price_id
+                                          ) {
+                                            toast({
+                                              title: "Missing fields",
+                                              description:
+                                                "Please fill in tier name, price, and Stripe Price ID.",
+                                              variant: "destructive",
+                                            });
+                                            return;
+                                          }
+                                          const newTier = {
+                                            id: `tier-${Date.now()}`,
+                                            name: tierForm.name,
+                                            price: Math.round(
+                                              parseFloat(tierForm.price) * 100
+                                            ),
+                                            description: tierForm.description,
+                                            available_until:
+                                              tierForm.available_until
+                                                ? new Date(
+                                                    tierForm.available_until
+                                                  ).toISOString()
+                                                : undefined,
+                                            max_quantity: tierForm.max_quantity
+                                              ? parseInt(
+                                                  tierForm.max_quantity,
+                                                  10
+                                                )
+                                              : undefined,
+                                            stripe_price_id:
+                                              tierForm.stripe_price_id,
+                                          };
+                                          setPricingTiers([
+                                            ...pricingTiers,
+                                            newTier,
+                                          ]);
+                                          setTierForm({
+                                            name: "",
+                                            price: "",
+                                            description: "",
+                                            available_until: "",
+                                            max_quantity: "",
+                                            stripe_price_id: "",
+                                          });
+                                          setShowTierForm(false);
+                                          toast({
+                                            title: "Tier added",
+                                            description:
+                                              "Pricing tier added successfully.",
+                                          });
+                                        }}
+                                        className="bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
+                                      >
+                                        Create
+                                      </Button>
+                                      <Button
+                                        variant="outline"
+                                        onClick={() => {
+                                          setShowTierForm(false);
+                                          setTierForm({
+                                            name: "",
+                                            price: "",
+                                            description: "",
+                                            available_until: "",
+                                            max_quantity: "",
+                                            stripe_price_id: "",
+                                          });
+                                        }}
+                                        className="border border-[rgba(0,0,0,0.15)] bg-white"
+                                      >
+                                        Cancel
+                                      </Button>
+                                    </div>
+                                  </div>
+                                )}
+                                {!showTierForm && (
+                                  <Button
+                                    onClick={() => setShowTierForm(true)}
+                                    variant="outline"
+                                    className="w-full border border-[rgba(0,0,0,0.15)] bg-white"
+                                  >
+                                    <Plus className="w-4 h-4 mr-2" />
+                                    Add new tier
+                                  </Button>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </TabsContent>
+
+                        {/* Coupon Tab */}
+                        <TabsContent value="coupon" className="mt-0">
+                          <div className="space-y-4">
+                            {coupons.length === 0 && !showCouponForm ? (
+                              <div className="bg-white border-2 border-dashed border-[rgba(0,0,0,0.15)] rounded-[12px] p-12 text-center">
+                                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
+                                  <FileText className="w-8 h-8 text-gray-400" />
+                                </div>
+                                <h3 className="text-[18px] font-semibold text-black mb-2">
+                                  No coupon created yet
+                                </h3>
+                                <p className="text-[16px] text-gray-500 mb-6">
+                                  Add your first coupon and create a promo code
+                                </p>
+                                <Button
+                                  onClick={() => setShowCouponForm(true)}
+                                  className="bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
+                                >
+                                  Add coupon
+                                </Button>
+                              </div>
+                            ) : (
+                              <>
+                                {coupons.map((coupon) => (
+                                  <div
+                                    key={coupon.id}
+                                    className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4"
+                                  >
+                                    <div className="flex items-center justify-between">
+                                      <div>
+                                        <h3 className="text-[18px] font-semibold text-black">
+                                          {coupon.couponName}
+                                        </h3>
+                                        <span className="inline-block px-2 py-1 bg-green-100 text-green-800 text-sm rounded mt-2">
+                                          Active
+                                        </span>
+                                      </div>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => {
+                                          setCoupons(
+                                            coupons.filter(
+                                              (c) => c.id !== coupon.id
+                                            )
+                                          );
+                                        }}
+                                        className="text-red-600 hover:text-red-700"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </Button>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4 text-sm">
+                                      <div>
+                                        <span className="text-gray-500">
+                                          Percentage Off (%):
+                                        </span>{" "}
+                                        <span className="font-medium">
+                                          {coupon.percent_off
+                                            ? `${coupon.percent_off}% off`
+                                            : "N/A"}
+                                        </span>
+                                      </div>
+                                      <div>
+                                        <span className="text-gray-500">
+                                          Max Uses:
+                                        </span>{" "}
+                                        <span className="font-medium">
+                                          {coupon.max_uses || "Unlimited"}
+                                        </span>
+                                      </div>
+                                      <div>
+                                        <span className="text-gray-500">
+                                          Valid Until:
+                                        </span>{" "}
+                                        <span className="font-medium">
+                                          {coupon.valid_until
+                                            ? new Date(
+                                                coupon.valid_until
+                                              ).toLocaleDateString()
+                                            : "No expiration"}
+                                        </span>
+                                      </div>
+                                      <div>
+                                        <span className="text-gray-500">
+                                          Duration:
+                                        </span>{" "}
+                                        <span className="font-medium">
+                                          {coupon.duration === "once"
+                                            ? "Once"
+                                            : coupon.duration === "forever"
+                                              ? "Forever"
+                                              : "Repeating"}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                                {showCouponForm && (
+                                  <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4">
+                                    <h3 className="text-[18px] font-semibold text-black">
+                                      New Coupon
+                                    </h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                      <div className="space-y-2">
+                                        <label className="text-[16px] font-normal text-black">
+                                          Coupon Name
+                                        </label>
+                                        <div className="relative">
+                                          <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                          <Input
+                                            value={couponForm.couponName}
+                                            onChange={(e) =>
+                                              setCouponForm({
+                                                ...couponForm,
+                                                couponName: e.target.value,
+                                              })
+                                            }
+                                            placeholder="e.g. Early Bird Special"
+                                            className="pl-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px]"
+                                          />
+                                        </div>
+                                      </div>
+                                      <div className="space-y-2">
+                                        <label className="text-[16px] font-normal text-black">
+                                          Duration
+                                        </label>
+                                        <select
+                                          value={couponForm.duration}
+                                          onChange={(e) =>
+                                            setCouponForm({
+                                              ...couponForm,
+                                              duration: e.target.value,
+                                            })
+                                          }
+                                          className="w-full bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px] px-3"
+                                        >
+                                          <option value="once">
+                                            One-time use
+                                          </option>
+                                          <option value="forever">
+                                            Forever
+                                          </option>
+                                          <option value="repeating">
+                                            Repeating
+                                          </option>
+                                        </select>
+                                      </div>
+                                      <div className="space-y-2">
+                                        <label className="text-[16px] font-normal text-black">
+                                          Percentage Off (%)
+                                        </label>
+                                        <div className="relative">
+                                          <FileText className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                          <Input
+                                            type="number"
+                                            value={couponForm.percent_off}
+                                            onChange={(e) =>
+                                              setCouponForm({
+                                                ...couponForm,
+                                                percent_off: e.target.value,
+                                              })
+                                            }
+                                            placeholder="e.g. 9"
+                                            className="pl-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px]"
+                                          />
+                                        </div>
+                                      </div>
+                                      <div className="space-y-2">
+                                        <label className="text-[16px] font-normal text-black">
+                                          Fixed Amount Off
+                                        </label>
+                                        <div className="relative">
+                                          <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                          <div className="flex gap-2">
+                                            <Input
+                                              type="number"
+                                              step="0.01"
+                                              value={couponForm.amount_off}
+                                              onChange={(e) =>
+                                                setCouponForm({
+                                                  ...couponForm,
+                                                  amount_off: e.target.value,
+                                                })
+                                              }
+                                              placeholder="e.g. 10.00"
+                                              className="flex-1 pl-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px]"
+                                            />
+                                            <select
+                                              value={couponForm.currency}
+                                              onChange={(e) =>
+                                                setCouponForm({
+                                                  ...couponForm,
+                                                  currency: e.target.value,
+                                                })
+                                              }
+                                              className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px] px-3"
+                                            >
+                                              <option value="USD">USD</option>
+                                            </select>
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <div className="space-y-2">
+                                        <label className="text-[16px] font-normal text-black">
+                                          Max Uses
+                                        </label>
+                                        <div className="relative">
+                                          <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                          <Input
+                                            type="number"
+                                            value={couponForm.max_uses}
+                                            onChange={(e) =>
+                                              setCouponForm({
+                                                ...couponForm,
+                                                max_uses: e.target.value,
+                                              })
+                                            }
+                                            placeholder="Leave blank for unlimited use."
+                                            className="pl-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px]"
+                                          />
+                                        </div>
+                                      </div>
+                                      <div className="space-y-2">
+                                        <label className="text-[16px] font-normal text-black">
+                                          Valid Until
+                                        </label>
+                                        <div className="relative">
+                                          <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                          <Input
+                                            type="date"
+                                            value={couponForm.valid_until}
+                                            onChange={(e) =>
+                                              setCouponForm({
+                                                ...couponForm,
+                                                valid_until: e.target.value,
+                                              })
+                                            }
+                                            placeholder="mm/dd/yyyy"
+                                            className="pl-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px]"
+                                          />
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="flex gap-3">
+                                      <Button
+                                        onClick={() => {
+                                          if (!couponForm.couponName) {
+                                            toast({
+                                              title: "Missing fields",
+                                              description:
+                                                "Please fill in coupon name.",
+                                              variant: "destructive",
+                                            });
+                                            return;
+                                          }
+                                          const newCoupon = {
+                                            id: `coupon-${Date.now()}`,
+                                            couponName: couponForm.couponName,
+                                            duration: couponForm.duration,
+                                            percent_off: couponForm.percent_off
+                                              ? parseInt(
+                                                  couponForm.percent_off,
+                                                  10
+                                                )
+                                              : undefined,
+                                            amount_off: couponForm.amount_off
+                                              ? Math.round(
+                                                  parseFloat(
+                                                    couponForm.amount_off
+                                                  ) * 100
+                                                )
+                                              : undefined,
+                                            currency: couponForm.currency,
+                                            max_uses: couponForm.max_uses
+                                              ? parseInt(
+                                                  couponForm.max_uses,
+                                                  10
+                                                )
+                                              : undefined,
+                                            valid_until: couponForm.valid_until
+                                              ? new Date(
+                                                  couponForm.valid_until
+                                                ).toISOString()
+                                              : undefined,
+                                          };
+                                          setCoupons([...coupons, newCoupon]);
+                                          setCouponForm({
+                                            couponName: "",
+                                            duration: "once",
+                                            percent_off: "",
+                                            amount_off: "",
+                                            currency: "USD",
+                                            max_uses: "",
+                                            valid_until: "",
+                                          });
+                                          setShowCouponForm(false);
+                                          toast({
+                                            title: "Coupon added",
+                                            description:
+                                              "Coupon added successfully.",
+                                          });
+                                        }}
+                                        className="bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
+                                      >
+                                        Create
+                                      </Button>
+                                      <Button
+                                        variant="outline"
+                                        onClick={() => {
+                                          setShowCouponForm(false);
+                                          setCouponForm({
+                                            couponName: "",
+                                            duration: "once",
+                                            percent_off: "",
+                                            amount_off: "",
+                                            currency: "USD",
+                                            max_uses: "",
+                                            valid_until: "",
+                                          });
+                                        }}
+                                        className="border border-[rgba(0,0,0,0.15)] bg-white"
+                                      >
+                                        Cancel
+                                      </Button>
+                                    </div>
+                                  </div>
+                                )}
+                                {!showCouponForm && (
+                                  <Button
+                                    onClick={() => setShowCouponForm(true)}
+                                    variant="outline"
+                                    className="w-full border border-[rgba(0,0,0,0.15)] bg-white"
+                                  >
+                                    <Plus className="w-4 h-4 mr-2" />
+                                    Add new coupon
+                                  </Button>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </TabsContent>
+
+                        {/* Promo Code Tab */}
+                        <TabsContent value="promo" className="mt-0">
+                          <div className="space-y-4">
+                            {promoCodes.length === 0 && !showPromoCodeForm ? (
+                              <div className="bg-white border-2 border-dashed border-[rgba(0,0,0,0.15)] rounded-[12px] p-12 text-center">
+                                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
+                                  <FileText className="w-8 h-8 text-gray-400" />
+                                </div>
+                                <h3 className="text-[18px] font-semibold text-black mb-2">
+                                  No code created yet
+                                </h3>
+                                <p className="text-[16px] text-gray-500 mb-6">
+                                  Create a coupon code
+                                </p>
+                                <Button
+                                  onClick={() => setShowPromoCodeForm(true)}
+                                  className="bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
+                                >
+                                  Add coupon code
+                                </Button>
+                              </div>
+                            ) : (
+                              <>
+                                {promoCodes.map((promo) => (
+                                  <div
+                                    key={promo.id}
+                                    className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4"
+                                  >
+                                    <div className="flex items-center justify-between">
+                                      <div>
+                                        <h3 className="text-[18px] font-semibold text-black">
+                                          {promo.promoCode}
+                                        </h3>
+                                        {promo.couponName && (
+                                          <p className="text-[14px] text-gray-500">
+                                            Coupon: {promo.couponName}
+                                          </p>
+                                        )}
+                                      </div>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => {
+                                          setPromoCodes(
+                                            promoCodes.filter(
+                                              (p) => p.id !== promo.id
+                                            )
+                                          );
+                                        }}
+                                        className="text-red-600 hover:text-red-700"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                ))}
+                                {showPromoCodeForm && (
+                                  <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4">
+                                    <h3 className="text-[18px] font-semibold text-black">
+                                      New Promo Code
+                                    </h3>
+                                    <div className="space-y-4">
+                                      <div className="space-y-2">
+                                        <label className="text-[16px] font-normal text-black">
+                                          Select Coupon
+                                        </label>
+                                        <select
+                                          value={promoCodeForm.couponId}
+                                          onChange={(e) =>
+                                            setPromoCodeForm({
+                                              ...promoCodeForm,
+                                              couponId: e.target.value,
+                                            })
+                                          }
+                                          className="w-full bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px] px-3"
+                                        >
+                                          <option value="">
+                                            Select a coupon
+                                          </option>
+                                          {coupons.map((coupon) => (
+                                            <option
+                                              key={coupon.id}
+                                              value={coupon.id}
+                                            >
+                                              {coupon.couponName}
+                                            </option>
+                                          ))}
+                                        </select>
+                                      </div>
+                                      <div className="space-y-2">
+                                        <label className="text-[16px] font-normal text-black">
+                                          Promo Code
+                                        </label>
+                                        <div className="flex gap-2">
+                                          <div className="relative flex-1">
+                                            <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                            <Input
+                                              value={promoCodeForm.promoCode}
+                                              onChange={(e) =>
+                                                setPromoCodeForm({
+                                                  ...promoCodeForm,
+                                                  promoCode:
+                                                    e.target.value.toUpperCase(),
+                                                })
+                                              }
+                                              placeholder="e.g. EARLYBIRD2024"
+                                              className="pl-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px]"
+                                            />
+                                          </div>
+                                          <Button
+                                            onClick={() => {
+                                              const characters =
+                                                "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+                                              let result = "";
+                                              for (let i = 0; i < 8; i++) {
+                                                result += characters.charAt(
+                                                  Math.floor(
+                                                    Math.random() *
+                                                      characters.length
+                                                  )
+                                                );
+                                              }
+                                              setPromoCodeForm({
+                                                ...promoCodeForm,
+                                                promoCode: result,
+                                              });
+                                            }}
+                                            variant="outline"
+                                            className="border border-[rgba(0,0,0,0.15)] bg-white"
+                                          >
+                                            Randomize
+                                          </Button>
+                                        </div>
+                                        <p className="text-[14px] text-gray-500">
+                                          *Use letters and numbers only. Code
+                                          will be converted to uppercase.
+                                        </p>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <input
+                                          type="checkbox"
+                                          id="overwrite"
+                                          checked={promoCodeForm.overwrite}
+                                          onChange={(e) =>
+                                            setPromoCodeForm({
+                                              ...promoCodeForm,
+                                              overwrite: e.target.checked,
+                                            })
+                                          }
+                                          className="w-4 h-4"
+                                        />
+                                        <label
+                                          htmlFor="overwrite"
+                                          className="text-[16px] font-normal text-black"
+                                        >
+                                          Overwrite existing promo code if it
+                                          exists
+                                        </label>
+                                      </div>
+                                    </div>
+                                    <div className="flex gap-3">
+                                      <Button
+                                        onClick={() => {
+                                          if (!promoCodeForm.promoCode) {
+                                            toast({
+                                              title: "Missing fields",
+                                              description:
+                                                "Please enter a promo code.",
+                                              variant: "destructive",
+                                            });
+                                            return;
+                                          }
+                                          if (!promoCodeForm.couponId) {
+                                            toast({
+                                              title: "Missing fields",
+                                              description:
+                                                "Please select a coupon.",
+                                              variant: "destructive",
+                                            });
+                                            return;
+                                          }
+                                          const selectedCoupon = coupons.find(
+                                            (c) =>
+                                              c.id === promoCodeForm.couponId
+                                          );
+                                          const newPromoCode = {
+                                            id: `promo-${Date.now()}`,
+                                            promoCode:
+                                              promoCodeForm.promoCode.toUpperCase(),
+                                            couponId: promoCodeForm.couponId,
+                                            couponName:
+                                              selectedCoupon?.couponName,
+                                          };
+                                          setPromoCodes([
+                                            ...promoCodes,
+                                            newPromoCode,
+                                          ]);
+                                          setPromoCodeForm({
+                                            promoCode: "",
+                                            couponId: "",
+                                            overwrite: false,
+                                          });
+                                          setShowPromoCodeForm(false);
+                                          toast({
+                                            title: "Promo code added",
+                                            description:
+                                              "Promo code added successfully.",
+                                          });
+                                        }}
+                                        className="bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
+                                      >
+                                        Create
+                                      </Button>
+                                      <Button
+                                        variant="outline"
+                                        onClick={() => {
+                                          setShowPromoCodeForm(false);
+                                          setPromoCodeForm({
+                                            promoCode: "",
+                                            couponId: "",
+                                            overwrite: false,
+                                          });
+                                        }}
+                                        className="border border-[rgba(0,0,0,0.15)] bg-white"
+                                      >
+                                        Cancel
+                                      </Button>
+                                    </div>
+                                  </div>
+                                )}
+                                {!showPromoCodeForm && (
+                                  <Button
+                                    onClick={() => setShowPromoCodeForm(true)}
+                                    variant="outline"
+                                    className="w-full border border-[rgba(0,0,0,0.15)] bg-white"
+                                  >
+                                    <Plus className="w-4 h-4 mr-2" />
+                                    Add new code
+                                  </Button>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </TabsContent>
+                      </Tabs>
+                    )}
+                  </div>
                 </TabsContent>
 
-                <TabsContent
-                  value="notify"
-                  className="mt-0 overflow-x-hidden"
-                >
+                <TabsContent value="notify" className="mt-0 overflow-x-hidden">
                   <div className="space-y-4">
                     {/* Message Type Selection */}
                     <div className="flex flex-col sm:flex-row gap-2">
@@ -2898,88 +4031,90 @@ export default function NewEventPage() {
                 </TabsContent>
               </div>
 
-              {/* Preview Card */}
-              <div className="flex-shrink-0 w-full lg:w-[335px] order-first lg:order-last overflow-x-hidden">
-                <div className="w-full lg:w-[335px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] overflow-hidden">
-                  {/* Image */}
-                  <div className="relative w-full aspect-[335/223] overflow-hidden">
-                    {form.cover_image_url ? (
-                      <img
-                        src={form.cover_image_url}
-                        alt="Event cover"
-                        className="w-full h-full object-cover block"
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-orange-400 via-red-500 to-purple-600" />
-                    )}
+              {/* Preview Card - Only show on Overview tab */}
+              {activeTab === "overview" && (
+                <div className="flex-shrink-0 w-full lg:w-[335px] order-first lg:order-last overflow-x-hidden">
+                  <div className="w-full lg:w-[335px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] overflow-hidden">
+                    {/* Image */}
+                    <div className="relative w-full aspect-[335/223] overflow-hidden">
+                      {form.cover_image_url ? (
+                        <img
+                          src={form.cover_image_url}
+                          alt="Event cover"
+                          className="w-full h-full object-cover block"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-orange-400 via-red-500 to-purple-600" />
+                      )}
 
-                    {/* Date Badge */}
-                    <div className="absolute top-4 right-4 bg-white border border-[#aaaaaa] rounded-[6px] w-[112px] py-3 px-1 text-center">
-                      <p className="text-[14px] font-normal text-black">
-                        {previewDate.weekday}
-                      </p>
-                      <p
-                        className="text-[36px] font-semibold leading-[1.3] tracking-[-2.16px] text-black"
+                      {/* Date Badge */}
+                      <div className="absolute top-4 right-4 bg-white border border-[#aaaaaa] rounded-[6px] w-[112px] py-3 px-1 text-center">
+                        <p className="text-[14px] font-normal text-black">
+                          {previewDate.weekday}
+                        </p>
+                        <p
+                          className="text-[36px] font-semibold leading-[1.3] tracking-[-2.16px] text-black"
+                          style={{ fontFamily: "Geist, sans-serif" }}
+                        >
+                          {previewDate.day}
+                        </p>
+                        <p className="text-[14px] font-normal text-black">
+                          {previewDate.month} {previewDate.year}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Content */}
+                    <div className="p-6">
+                      <div className="flex flex-wrap gap-1 mb-3">
+                        <span className="px-[10px] py-1 border border-[rgba(0,0,0,0.15)] rounded-full text-[14px] font-semibold text-black">
+                          {ticketType === "free" ? "Free" : "Paid"}
+                        </span>
+                      </div>
+
+                      <h2
+                        className="text-[28px] font-semibold leading-[1.4] tracking-[-1.68px] text-black mb-1"
                         style={{ fontFamily: "Geist, sans-serif" }}
                       >
-                        {previewDate.day}
-                      </p>
-                      <p className="text-[14px] font-normal text-black">
-                        {previewDate.month} {previewDate.year}
+                        {form.event_name || "Innovate Together"}
+                      </h2>
+
+                      <div className="flex items-center gap-1 mb-2">
+                        <MapPin className="w-6 h-6" />
+                        <span className="text-[14px] font-normal text-black">
+                          {form.location || "Online"}
+                        </span>
+                      </div>
+
+                      <p className="text-[16px] font-normal text-black leading-[1.5]">
+                        {form.event_blurb ||
+                          "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse varius enim in eros."}
                       </p>
                     </div>
                   </div>
 
-                  {/* Content */}
-                  <div className="p-6">
-                    <div className="flex flex-wrap gap-1 mb-3">
-                      <span className="px-[10px] py-1 border border-[rgba(0,0,0,0.15)] rounded-full text-[14px] font-semibold text-black">
-                        {ticketType === "free" ? "Free" : "Paid"}
-                      </span>
-                    </div>
-
-                    <h2
-                      className="text-[28px] font-semibold leading-[1.4] tracking-[-1.68px] text-black mb-1"
-                      style={{ fontFamily: "Geist, sans-serif" }}
-                    >
-                      {form.event_name || "Innovate Together"}
-                    </h2>
-
-                    <div className="flex items-center gap-1 mb-2">
-                      <MapPin className="w-6 h-6" />
-                      <span className="text-[14px] font-normal text-black">
-                        {form.location || "Online"}
-                      </span>
-                    </div>
-
-                    <p className="text-[16px] font-normal text-black leading-[1.5]">
-                      {form.event_blurb ||
-                        "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse varius enim in eros."}
-                    </p>
-                  </div>
+                  <button
+                    onClick={() => {
+                      const previewSlug = getPreviewSlug();
+                      if (previewSlug) {
+                        window.open(`/events/${previewSlug}`, "_blank");
+                      } else {
+                        toast({
+                          title: "Event name required",
+                          description:
+                            "Please enter an event name to preview the event page.",
+                          variant: "destructive",
+                        });
+                      }
+                    }}
+                    disabled={!form.event_name}
+                    className="flex items-center gap-2 text-[16px] text-[#7f7f7f] hover:text-[#4b89ef] transition-colors mt-3 mx-auto disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Preview event page
+                    <ArrowUpRight className="w-4 h-4" />
+                  </button>
                 </div>
-
-                <button
-                  onClick={() => {
-                    const previewSlug = getPreviewSlug();
-                    if (previewSlug) {
-                      window.open(`/events/${previewSlug}`, "_blank");
-                    } else {
-                      toast({
-                        title: "Event name required",
-                        description:
-                          "Please enter an event name to preview the event page.",
-                        variant: "destructive",
-                      });
-                    }
-                  }}
-                  disabled={!form.event_name}
-                  className="flex items-center gap-2 text-[16px] text-[#7f7f7f] hover:text-[#4b89ef] transition-colors mt-3 mx-auto disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Preview event page
-                  <ArrowUpRight className="w-4 h-4" />
-                </button>
-              </div>
+              )}
             </div>
           </Tabs>
         </div>
