@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
-import { createClient } from "@supabase/supabase-js";
 
 export async function GET(
   request: NextRequest,
@@ -52,31 +51,7 @@ export async function GET(
       );
     }
 
-    // If avatar_url is not in user_profiles, try to get it from auth metadata
-    // This is useful for Google OAuth users who have a profile picture
-    let avatarUrl = profile?.avatar_url || null;
-
-    // Try to fetch avatar from auth user metadata using admin client
-    // Only if we don't already have an avatar URL
-    if (!avatarUrl && process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      try {
-        const adminClient = createClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          process.env.SUPABASE_SERVICE_ROLE_KEY
-        );
-        const { data: authUser } =
-          await adminClient.auth.admin.getUserById(userId);
-        if (authUser?.user?.user_metadata?.avatar_url) {
-          avatarUrl = authUser.user.user_metadata.avatar_url;
-        } else if (authUser?.user?.user_metadata?.picture) {
-          // Google OAuth sometimes uses 'picture' instead of 'avatar_url'
-          avatarUrl = authUser.user.user_metadata.picture;
-        }
-      } catch (authError) {
-        console.error("Error fetching auth user metadata:", authError);
-        // Continue without avatar if this fails
-      }
-    }
+    const avatarUrl = profile?.avatar_url || null;
 
     // Fetch projects where user is lead
     const { data: leadProjects, error: leadError } = await supabase
