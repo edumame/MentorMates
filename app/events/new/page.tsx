@@ -42,6 +42,8 @@ import {
   User,
   Trophy,
   GripVertical,
+  Download,
+  Percent,
 } from "lucide-react";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -251,6 +253,7 @@ export default function NewEventPage() {
   });
   const [organizerEmails, setOrganizerEmails] = useState<string[]>([]);
   const [organizerEmailInput, setOrganizerEmailInput] = useState("");
+  const [activeProjectSubTab, setActiveProjectSubTab] = useState("submission");
 
   const [form, setForm] = useState({
     event_name: "",
@@ -664,7 +667,8 @@ export default function NewEventPage() {
                   activeTab === "pricing" ||
                   activeTab === "notify" ||
                   activeTab === "tracks" ||
-                  activeTab === "access"
+                  activeTab === "access" ||
+                  activeTab === "project"
                     ? "lg:flex-1 lg:min-w-0"
                     : "lg:flex-[2] lg:min-w-0 lg:max-w-[800px]"
                 }`}
@@ -2609,10 +2613,81 @@ export default function NewEventPage() {
                   </p>
                 </TabsContent>
 
-                <TabsContent value="project" className="mt-0 overflow-x-hidden">
-                  <p className="text-gray-500">
-                    Project settings - coming soon
-                  </p>
+                <TabsContent
+                  value="project"
+                  className="mt-0 overflow-x-hidden w-full"
+                >
+                  <div className="w-full min-w-0 space-y-6">
+                    <Tabs
+                      value={activeProjectSubTab}
+                      onValueChange={setActiveProjectSubTab}
+                      className="w-full"
+                    >
+                      <div className="flex items-center justify-between mb-6">
+                        <div className="w-full overflow-x-auto">
+                          <TabsList className="inline-flex h-auto gap-2 bg-transparent p-0 rounded-full">
+                            <TabsTrigger
+                              value="submission"
+                              className="px-4 py-2 rounded-full text-sm font-normal text-black border border-transparent data-[state=active]:bg-white data-[state=active]:border-[rgba(0,0,0,0.15)] data-[state=active]:shadow-sm flex-shrink-0"
+                            >
+                              Submission
+                            </TabsTrigger>
+                            <TabsTrigger
+                              value="live-scores"
+                              className="px-4 py-2 rounded-full text-sm font-normal text-black border border-transparent data-[state=active]:bg-white data-[state=active]:border-[rgba(0,0,0,0.15)] data-[state=active]:shadow-sm flex-shrink-0"
+                            >
+                              Live Scores
+                            </TabsTrigger>
+                          </TabsList>
+                        </div>
+                        {activeProjectSubTab === "submission" && (
+                          <Button
+                            variant="outline"
+                            className="border border-[rgba(0,0,0,0.15)] bg-white ml-4 flex-shrink-0"
+                          >
+                            <Download className="w-4 h-4 mr-2" />
+                            Export CSV
+                          </Button>
+                        )}
+                      </div>
+
+                      {/* Submission Tab */}
+                      <TabsContent value="submission" className="mt-0">
+                        <div className="space-y-4">
+                          <div className="bg-white border-2 border-dashed border-[rgba(0,0,0,0.15)] rounded-[12px] p-12 text-center">
+                            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
+                              <FolderKanban className="w-8 h-8 text-gray-400" />
+                            </div>
+                            <h3 className="text-[18px] font-semibold text-black mb-2">
+                              No submission yet
+                            </h3>
+                            <p className="text-[16px] text-gray-500">
+                              Submissions will appear here once participants
+                              start submitting their projects.
+                            </p>
+                          </div>
+                        </div>
+                      </TabsContent>
+
+                      {/* Live Scores Tab */}
+                      <TabsContent value="live-scores" className="mt-0">
+                        <div className="space-y-4">
+                          <div className="bg-white border-2 border-dashed border-[rgba(0,0,0,0.15)] rounded-[12px] p-12 text-center">
+                            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
+                              <Percent className="w-8 h-8 text-gray-400" />
+                            </div>
+                            <h3 className="text-[18px] font-semibold text-black mb-2">
+                              No score yet
+                            </h3>
+                            <p className="text-[16px] text-gray-500">
+                              Scores will appear here once judges start scoring
+                              projects.
+                            </p>
+                          </div>
+                        </div>
+                      </TabsContent>
+                    </Tabs>
+                  </div>
                 </TabsContent>
 
                 <TabsContent
