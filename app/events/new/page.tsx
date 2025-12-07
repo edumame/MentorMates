@@ -536,7 +536,7 @@ export default function NewEventPage() {
             </div>
 
             {/* Content Area - Scrollable */}
-            <div className="flex flex-col lg:flex-row gap-6 items-start w-full lg:flex-1 lg:min-h-0 lg:overflow-auto no-scrollbar">
+            <div className="flex flex-col lg:flex-row gap-6 lg:gap-12 items-start w-full lg:flex-1 lg:min-h-0 lg:overflow-auto no-scrollbar">
               {/* Form Section */}
               <div className="w-full lg:flex-[2] lg:min-w-0 lg:max-w-[800px] flex flex-col items-start order-last lg:order-first">
                 <TabsContent value="overview" className="mt-0">
@@ -665,7 +665,10 @@ export default function NewEventPage() {
                               type="number"
                               value={form.participant_capacity}
                               onChange={(e) =>
-                                onChange("participant_capacity", e.target.value)
+                                onChange(
+                                  "participant_capacity",
+                                  e.target.value
+                                )
                               }
                               placeholder="Leave blank for unlimited participants"
                               className="w-full min-w-0 h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
@@ -825,7 +828,10 @@ export default function NewEventPage() {
                               <Textarea
                                 value={form.event_description}
                                 onChange={(e) =>
-                                  onChange("event_description", e.target.value)
+                                  onChange(
+                                    "event_description",
+                                    e.target.value
+                                  )
                                 }
                                 placeholder="Add long description (markdown supported)"
                                 className="min-h-[300px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] p-3 focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none resize-y"
@@ -2479,27 +2485,42 @@ export default function NewEventPage() {
                   </p>
                 </TabsContent>
 
-                <TabsContent value="project" className="mt-0 overflow-x-hidden">
+                <TabsContent
+                  value="project"
+                  className="mt-0 overflow-x-hidden"
+                >
                   <p className="text-gray-500">
                     Project settings - coming soon
                   </p>
                 </TabsContent>
 
-                <TabsContent value="access" className="mt-0 overflow-x-hidden">
+                <TabsContent
+                  value="access"
+                  className="mt-0 overflow-x-hidden"
+                >
                   <p className="text-gray-500">Access settings - coming soon</p>
                 </TabsContent>
 
-                <TabsContent value="tracks" className="mt-0 overflow-x-hidden">
+                <TabsContent
+                  value="tracks"
+                  className="mt-0 overflow-x-hidden"
+                >
                   <p className="text-gray-500">Tracks settings - coming soon</p>
                 </TabsContent>
 
-                <TabsContent value="pricing" className="mt-0 overflow-x-hidden">
+                <TabsContent
+                  value="pricing"
+                  className="mt-0 overflow-x-hidden"
+                >
                   <p className="text-gray-500">
                     Pricing settings - coming soon
                   </p>
                 </TabsContent>
 
-                <TabsContent value="notify" className="mt-0 overflow-x-hidden">
+                <TabsContent
+                  value="notify"
+                  className="mt-0 overflow-x-hidden"
+                >
                   <div className="space-y-4">
                     {/* Message Type Selection */}
                     <div className="flex flex-col sm:flex-row gap-2">
@@ -2597,7 +2618,9 @@ export default function NewEventPage() {
                           }
                           toast({
                             title: "Email sent",
-                            description: `Email sent to ${selectedRecipients.length || 0} participant(s).`,
+                            description: `Email sent to ${
+                              selectedRecipients.length || 0
+                            } participant(s).`,
                           });
                         }}
                       >

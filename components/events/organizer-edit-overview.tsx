@@ -12,13 +12,6 @@ import {
   EventVisibility,
   ScoringCriterion,
 } from "@/lib/types";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 // Import existing tab components
 import { ParticipantsTab } from "@/features/user/dashboards/dashboard/organizer/participants";
@@ -42,6 +35,7 @@ import { FAQTab } from "@/features/user/dashboards/dashboard/organizer/details/F
 
 import { Button } from "@/components/ui/button";
 import { EventCard } from "@/components/events/event-card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   AlertDialog,
   AlertDialogTrigger,
@@ -71,6 +65,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
   );
   const [deleting, setDeleting] = useState(false);
   const [archiving, setArchiving] = useState(false);
+  
   // Get tab state from URL or use defaults
   const tabFromUrl = searchParams.get("tab") || "overview";
   const subTabFromUrl = searchParams.get("subtab") || "basics";
@@ -266,7 +261,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
     const previewUrl = `/events/${event.slug || event.event_id}/overview?view=participant`;
 
     return (
-      <div className="flex-shrink-0 space-y-3 w-full lg:w-[335px]">
+      <div className="flex-shrink-0 space-y-3 w-full lg:w-[335px] overflow-x-hidden order-first lg:order-last">
         <div className="w-full lg:w-[335px]">
           <EventCard event={event} />
         </div>
@@ -275,7 +270,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
           href={previewUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center justify-center gap-1 text-[#7f7f7f] hover:text-[#4b89ef] transition-colors cursor-pointer"
+          className="flex items-center justify-center gap-1 text-[#7f7f7f] hover:text-[#4b89ef] transition-colors cursor-pointer mt-3"
         >
           <span className="text-[16px]">Preview event page</span>
           <ArrowUpRight className="w-[18px] h-[18px]" />
@@ -360,7 +355,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
+      <div className="flex items-center justify-center py-12 h-screen">
         <p className="text-lg">Loading...</p>
       </div>
     );
@@ -368,365 +363,342 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
 
   if (!event) {
     return (
-      <div className="flex items-center justify-center py-12">
+      <div className="flex items-center justify-center py-12 h-screen">
         <p className="text-lg text-red-600">Event not found</p>
       </div>
     );
   }
 
   return (
-    <div
-      className="w-full min-h-screen"
-      style={{
-        background:
-          "linear-gradient(209.28deg, rgba(219, 234, 254, 0.25) 13.188%, rgba(255, 255, 255, 0) 65.83%), linear-gradient(90deg, rgb(255, 255, 255) 0%, rgb(255, 255, 255) 100%)",
-      }}
-    >
-      <div className="px-4 md:px-8 py-6 space-y-6">
-        {/* Header with title and action buttons */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <h1
-            className="font-semibold text-[28px] leading-[1.4] tracking-[-1.68px] text-black"
-            style={{ fontFamily: "Geist, sans-serif" }}
-          >
-            Manage Event
-          </h1>
-
-          <div className="flex gap-1 w-full sm:w-auto">
-            {/* Archive Event Dialog */}
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  variant="defaultGray"
-                  className="gap-[6px] px-4 sm:px-6 py-[10px] text-[14px] sm:text-[16px] font-medium flex-1 sm:flex-none"
-                  disabled={
-                    archiving || event.visibility === EventVisibility.Archived
-                  }
-                >
-                  <Archive className="w-5 h-5 sm:w-6 sm:h-6" />
-                  <span className="hidden sm:inline">{archiving ? "Archiving..." : "Archive"}</span>
-                  <span className="sm:hidden">{archiving ? "..." : "Archive"}</span>
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>
-                    {event.visibility === EventVisibility.Archived
-                      ? "Unarchive this event?"
-                      : "Archive this event?"}
-                  </AlertDialogTitle>
-                  <AlertDialogDescription>
-                    {event.visibility === EventVisibility.Archived
-                      ? "This will make the event editable again and change its visibility to private. You can change the visibility afterwards if needed."
-                      : "Archived events are hidden from non-organizers and the public, and cannot be edited by organizers. You can unarchive it later if needed."}
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleArchiveToggle}>
-                    {event.visibility === EventVisibility.Archived
-                      ? "Confirm Unarchive"
-                      : "Confirm Archive"}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-
-            {/* Delete Event Dialog */}
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  variant="destructive"
-                  disabled={deleting}
-                  className="gap-[6px] px-4 sm:px-6 py-[10px] text-[14px] sm:text-[16px] font-medium flex-1 sm:flex-none"
-                >
-                  <Trash2 className="w-5 h-5 sm:w-6 sm:h-6" />
-                  <span className="hidden sm:inline">Delete</span>
-                  <span className="sm:hidden">Delete</span>
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Delete this event?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This will permanently remove the event and related data
-                    (tickets, payments, tracks, feedback). This cannot be
-                    undone.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction className="bg-red-600 hover:bg-red-700 text-white"onClick={handleDelete}>
-                    Confirm Delete
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
-        </div>
-
-        {/* Main tabs - Desktop */}
-        <div className="hidden md:flex gap-6 items-center border-b border-[#d2d7e7]">
-          {mainTabs.map((tab) => (
-            <button
-              key={tab.value}
-              onClick={() => setActiveTab(tab.value)}
-              className={`flex items-center gap-2 px-0 py-2 text-[16px] ${
-                activeTab === tab.value
-                  ? "font-medium border-b-2 border-[#4b89ef] text-black"
-                  : "font-normal text-black"
-              }`}
+    <div className="w-full overflow-x-hidden">
+      <div className="w-full flex flex-col lg:min-h-[calc(100vh-88px)] lg:h-[calc(100vh-88px)] lg:overflow-hidden lg:rounded-tl-2xl lg:border-t lg:border-l lg:border-[#D8D8D8] bg-white">
+        <div className="px-4 sm:px-6 lg:px-10 py-4 sm:py-6 lg:py-8 w-full flex flex-col pb-20 lg:pb-4 lg:flex-1 lg:min-h-0 overflow-x-hidden">
+          {/* Header with title and action buttons */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 flex-shrink-0">
+            <h1
+              className="text-xl sm:text-2xl font-semibold text-gray-900"
+              style={{ fontFamily: "Geist, sans-serif" }}
             >
-              {tab.label}
-              {tab.badge !== undefined && tab.badge > 0 && (
-                <span className="bg-white border border-[rgba(0,0,0,0.15)] px-2 py-0 rounded-full text-[14px] font-normal">
-                  {tab.badge}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
+              Manage Event
+            </h1>
 
-        {/* Main tabs - Mobile Dropdown */}
-        <div className="md:hidden">
-          <Select value={activeTab} onValueChange={setActiveTab}>
-            <SelectTrigger className="w-full h-12 text-[16px] font-medium">
-              <SelectValue>
-                {mainTabs.find((tab) => tab.value === activeTab)?.label}
-                {mainTabs.find((tab) => tab.value === activeTab)?.badge !== undefined &&
-                  mainTabs.find((tab) => tab.value === activeTab)!.badge! > 0 && (
-                    <span className="ml-2 bg-white border border-[rgba(0,0,0,0.15)] px-2 py-0 rounded-full text-[14px] font-normal">
-                      {mainTabs.find((tab) => tab.value === activeTab)!.badge}
+            <div className="flex gap-2 w-full sm:w-auto">
+              {/* Archive Event Dialog */}
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="defaultGray"
+                    className="gap-[6px] px-4 sm:px-6 py-[10px] text-[14px] sm:text-[16px] font-medium flex-1 sm:flex-none"
+                    disabled={
+                      archiving || event.visibility === EventVisibility.Archived
+                    }
+                  >
+                    <Archive className="w-5 h-5 sm:w-5 sm:h-5" />
+                    <span className="hidden sm:inline">
+                      {archiving ? "Archiving..." : "Archive"}
                     </span>
-                  )}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {mainTabs.map((tab) => (
-                <SelectItem key={tab.value} value={tab.value}>
-                  <span className="flex items-center gap-2">
+                    <span className="sm:hidden">
+                      {archiving ? "..." : "Archive"}
+                    </span>
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>
+                      {event.visibility === EventVisibility.Archived
+                        ? "Unarchive this event?"
+                        : "Archive this event?"}
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {event.visibility === EventVisibility.Archived
+                        ? "This will make the event editable again and change its visibility to private. You can change the visibility afterwards if needed."
+                        : "Archived events are hidden from non-organizers and the public, and cannot be edited by organizers. You can unarchive it later if needed."}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleArchiveToggle}>
+                      {event.visibility === EventVisibility.Archived
+                        ? "Confirm Unarchive"
+                        : "Confirm Archive"}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+
+              {/* Delete Event Dialog */}
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="destructive"
+                    disabled={deleting}
+                    className="gap-[6px] px-4 sm:px-6 py-[10px] text-[14px] sm:text-[16px] font-medium flex-1 sm:flex-none"
+                  >
+                    <Trash2 className="w-5 h-5 sm:w-5 sm:h-5" />
+                    <span className="hidden sm:inline">Delete</span>
+                    <span className="sm:hidden">Delete</span>
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete this event?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will permanently remove the event and related data
+                      (tickets, payments, tracks, feedback). This cannot be
+                      undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      className="bg-red-600 hover:bg-red-700 text-white"
+                      onClick={handleDelete}
+                    >
+                      Confirm Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          </div>
+
+          {/* Main Tabs */}
+          <Tabs
+            value={activeTab}
+            onValueChange={setActiveTab}
+            className="flex flex-col lg:flex-1 lg:min-h-0"
+          >
+            <div
+              className="w-full overflow-x-auto -mx-4 sm:-mx-6 lg:-mx-10 px-4 sm:px-6 lg:px-10 mb-6 flex-shrink-0"
+              style={{ WebkitOverflowScrolling: "touch" }}
+            >
+              <TabsList className="flex h-auto gap-4 sm:gap-6 items-center border-b border-[#d2d7e7] p-0 justify-start bg-transparent rounded-none flex-nowrap min-w-max">
+                {mainTabs.map((tab) => (
+                  <TabsTrigger
+                    key={tab.value}
+                    value={tab.value}
+                    className="px-0 py-2 text-[16px] font-normal text-black border-b-2 border-transparent data-[state=active]:font-medium data-[state=active]:border-[#4b89ef] data-[state=active]:shadow-none data-[state=active]:bg-transparent rounded-none bg-transparent shadow-none outline-none ring-0 border-x-0 border-t-0 whitespace-nowrap flex-shrink-0 flex items-center gap-2"
+                  >
                     {tab.label}
                     {tab.badge !== undefined && tab.badge > 0 && (
                       <span className="bg-white border border-[rgba(0,0,0,0.15)] px-2 py-0 rounded-full text-[12px] font-normal">
                         {tab.badge}
                       </span>
                     )}
-                  </span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Sub-tabs for Overview - Desktop */}
-        {activeTab === "overview" && (
-          <div className="hidden md:inline-flex justify-start items-center">
-            {overviewSubTabs.map((subTab) => (
-              <button
-                key={subTab.value}
-                onClick={() => setActiveSubTab(subTab.value)}
-                className={`px-4 py-2.5 rounded-[100px] text-base leading-normal ${
-                  activeSubTab === subTab.value
-                    ? "font-medium bg-white outline outline-1 outline-offset-[-1px] outline-[rgba(0,0,0,0.15)] text-black"
-                    : "font-normal text-black"
-                }`}
-                style={{ fontFamily: "Inter, sans-serif" }}
-              >
-                {subTab.label}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Sub-tabs for Overview - Mobile Dropdown */}
-        {activeTab === "overview" && (
-          <div className="md:hidden">
-            <Select value={activeSubTab} onValueChange={setActiveSubTab}>
-              <SelectTrigger className="w-full h-12 text-[14px] font-medium bg-blue-300">
-                <SelectValue>
-                  {overviewSubTabs.find((tab) => tab.value === activeSubTab)?.label}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {overviewSubTabs.map((subTab) => (
-                  <SelectItem key={subTab.value} value={subTab.value}>
-                    {subTab.label}
-                  </SelectItem>
+                  </TabsTrigger>
                 ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
+              </TabsList>
+            </div>
 
-        {/* Content Area */}
-        <div className="w-full">
-          {/* Overview Tab Content with Two-Column Layout */}
-          {activeTab === "overview" && (
-            <div className="flex flex-col lg:flex-row gap-6 lg:gap-12 items-start">
+            {/* Content Area - Scrollable on Desktop */}
+            <div className="flex flex-col lg:flex-row gap-6 lg:gap-12 items-start w-full lg:flex-1 lg:min-h-0 lg:overflow-auto no-scrollbar">
               {/* Left Column - Form Content */}
-              <div className="flex-1 w-full">
-                {activeSubTab === "basics" && event && (
-                  <BasicInfoTab
-                    event={event}
-                    setEvent={setEvent}
-                    saving={saving}
-                    setSaving={setSaving}
-                    toast={toast}
-                    router={router}
-                  />
-                )}
-                {activeSubTab === "content" && event && (
-                  <ContentTab
-                    event={event}
-                    setEvent={setEvent}
-                    isArchived={event.visibility === "archived"}
-                  />
-                )}
-                {activeSubTab === "schedule" && event && (
-                  <ScheduleTab
-                    event={event}
-                    setEvent={setEvent}
-                    saving={saving}
-                    setSaving={setSaving}
-                    toast={toast}
-                  />
-                )}
-                {activeSubTab === "resources" && event && (
-                  <ResourcesTab
-                    event={event}
-                    setEvent={setEvent}
-                    saving={saving}
-                    setSaving={setSaving}
-                    toast={toast}
-                  />
-                )}
-                {activeSubTab === "rules" && event && (
-                  <RulesTab
-                    event={event}
-                    setEvent={setEvent}
-                    saving={saving}
-                    setSaving={setSaving}
-                    toast={toast}
-                  />
-                )}
-                {activeSubTab === "faqs" && event && (
-                  <FAQTab
-                    event={event}
-                    setEvent={setEvent}
-                    saving={saving}
-                    setSaving={setSaving}
-                    toast={toast}
-                  />
-                )}
-                {activeSubTab === "gallery" && (
-                  <div className="text-center py-12">
-                    <p className="text-lg text-gray-500">
-                      Gallery section coming soon
-                    </p>
+              <div className="w-full lg:flex-[2] lg:min-w-0 flex flex-col items-start">
+                
+                {/* Overview Tab Content */}
+                <TabsContent value="overview" className="mt-0 w-full">
+                  <Tabs value={activeSubTab} onValueChange={setActiveSubTab}>
+                    <div
+                      className="w-screen -mx-4 sm:-mx-6 lg:w-full lg:mx-0 overflow-x-auto overflow-y-visible px-4 sm:px-6 lg:px-0 mb-6"
+                      style={{
+                        WebkitOverflowScrolling: "touch",
+                        scrollbarWidth: "thin",
+                        msOverflowStyle: "-ms-autohiding-scrollbar",
+                      }}
+                    >
+                      <TabsList className="inline-flex h-auto gap-2 bg-transparent p-0 justify-start pb-1 items-center flex-nowrap">
+                        {overviewSubTabs.map((subTab) => (
+                          <TabsTrigger
+                            key={subTab.value}
+                            value={subTab.value}
+                            className="px-4 py-2.5 rounded-[100px] text-sm leading-normal font-normal text-black border border-transparent data-[state=active]:font-medium data-[state=active]:bg-white data-[state=active]:border-[rgba(0,0,0,0.15)] flex-shrink-0"
+                            style={{ fontFamily: "Inter, sans-serif" }}
+                          >
+                            {subTab.label}
+                          </TabsTrigger>
+                        ))}
+                      </TabsList>
+                    </div>
+
+                    <div className="w-full min-w-0">
+                      <TabsContent value="basics" className="mt-0">
+                        {event && (
+                          <BasicInfoTab
+                            event={event}
+                            setEvent={setEvent}
+                            saving={saving}
+                            setSaving={setSaving}
+                            toast={toast}
+                            router={router}
+                          />
+                        )}
+                      </TabsContent>
+                      <TabsContent value="content" className="mt-0">
+                        {event && (
+                          <ContentTab
+                            event={event}
+                            setEvent={setEvent}
+                            isArchived={event.visibility === "archived"}
+                          />
+                        )}
+                      </TabsContent>
+                      <TabsContent value="schedule" className="mt-0">
+                        {event && (
+                          <ScheduleTab
+                            event={event}
+                            setEvent={setEvent}
+                            saving={saving}
+                            setSaving={setSaving}
+                            toast={toast}
+                          />
+                        )}
+                      </TabsContent>
+                      <TabsContent value="resources" className="mt-0">
+                        {event && (
+                          <ResourcesTab
+                            event={event}
+                            setEvent={setEvent}
+                            saving={saving}
+                            setSaving={setSaving}
+                            toast={toast}
+                          />
+                        )}
+                      </TabsContent>
+                      <TabsContent value="rules" className="mt-0">
+                        {event && (
+                          <RulesTab
+                            event={event}
+                            setEvent={setEvent}
+                            saving={saving}
+                            setSaving={setSaving}
+                            toast={toast}
+                          />
+                        )}
+                      </TabsContent>
+                      <TabsContent value="faqs" className="mt-0">
+                        {event && (
+                          <FAQTab
+                            event={event}
+                            setEvent={setEvent}
+                            saving={saving}
+                            setSaving={setSaving}
+                            toast={toast}
+                          />
+                        )}
+                      </TabsContent>
+                      <TabsContent value="gallery" className="mt-0">
+                        <div className="text-center py-12">
+                          <p className="text-lg text-gray-500">
+                            Gallery section coming soon
+                          </p>
+                        </div>
+                      </TabsContent>
+                    </div>
+                  </Tabs>
+                </TabsContent>
+
+                {/* Other Main Tabs */}
+                <TabsContent value="participants" className="mt-0 w-full">
+                  <ParticipantsTab eventId={eventId} />
+                </TabsContent>
+
+                <TabsContent value="access" className="mt-0 w-full">
+                  {event && (
+                    <AccessTab
+                      eventId={eventId}
+                      event={event}
+                      setEvent={setEvent}
+                      saving={saving}
+                      setSaving={setSaving}
+                    />
+                  )}
+                </TabsContent>
+
+                <TabsContent value="tracks" className="mt-0 w-full">
+                  {event && (
+                    <EventTracksContainer
+                      eventId={eventId}
+                      event={event}
+                      setEvent={setEvent}
+                      scoringConfig={scoringConfig}
+                      setScoringConfig={setScoringConfig}
+                      saving={saving}
+                      setSaving={setSaving}
+                      toast={toast}
+                    />
+                  )}
+                </TabsContent>
+
+                <TabsContent value="assign" className="mt-0 w-full">
+                  <AssignTab eventId={eventId} />
+                </TabsContent>
+
+                <TabsContent value="project-submission" className="mt-0 w-full">
+                  <div className="space-y-6">
+                    <SubmissionsTab eventId={eventId} />
+                    <div className="border-t border-[rgba(0,0,0,0.15)] pt-6">
+                      <h2 className="text-xl font-semibold mb-4 text-black">
+                        Import Projects
+                      </h2>
+                      <ProjectImport eventId={eventId} />
+                    </div>
                   </div>
-                )}
+                </TabsContent>
+
+                <TabsContent value="live-scores" className="mt-0 w-full">
+                  <ScoresTab
+                    eventId={eventId}
+                    scoringConfig={
+                      scoringConfig || {
+                        tracks: {},
+                        defaultMin: 1,
+                        defaultMax: 10,
+                        defaultWeight: 1,
+                      }
+                    }
+                  />
+                </TabsContent>
+
+                <TabsContent value="ticketing" className="mt-0 w-full">
+                  {isAdmin ? (
+                    <PricingTab
+                      event={event!}
+                      setEvent={setEvent}
+                      saving={saving}
+                      setSaving={setSaving}
+                    />
+                  ) : (
+                    <div className="text-center py-12">
+                      <p className="text-lg text-gray-500">
+                        Only admins can access ticketing settings
+                      </p>
+                    </div>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="notify" className="mt-0 w-full">
+                  {event && (
+                    <div className="space-y-6">
+                      <EmailDashboard
+                        eventId={eventId}
+                        eventName={event.event_name}
+                      />
+                      <div className="border-t border-[rgba(0,0,0,0.15)] pt-6">
+                        <h2 className="text-xl font-semibold mb-4 text-black">
+                          Email Project Participants
+                        </h2>
+                        <EmailTab eventId={eventId} />
+                      </div>
+                    </div>
+                  )}
+                </TabsContent>
               </div>
 
               {/* Right Column - Preview Card */}
-              {renderPreviewCard()}
+              {/* Only show on Overview tab to allow more space for other tabs like Participants/Tracks */}
+              {activeTab === "overview" && renderPreviewCard()}
             </div>
-          )}
-
-          {/* Participants Tab */}
-          {activeTab === "participants" && (
-            <ParticipantsTab eventId={eventId} />
-          )}
-
-          {/* Access Tab */}
-          {activeTab === "access" && event && (
-            <AccessTab
-              eventId={eventId}
-              event={event}
-              setEvent={setEvent}
-              saving={saving}
-              setSaving={setSaving}
-            />
-          )}
-
-          {/* Tracks Tab */}
-          {activeTab === "tracks" && event && (
-            <EventTracksContainer
-              eventId={eventId}
-              event={event}
-              setEvent={setEvent}
-              scoringConfig={scoringConfig}
-              setScoringConfig={setScoringConfig}
-              saving={saving}
-              setSaving={setSaving}
-              toast={toast}
-            />
-          )}
-
-          {/* Assign Tab */}
-          {activeTab === "assign" && <AssignTab eventId={eventId} />}
-
-          {/* Project Submission Tab */}
-          {activeTab === "project-submission" && (
-            <div className="space-y-6">
-              <SubmissionsTab eventId={eventId} />
-
-              {/* Project Import Section */}
-              <div className="border-t pt-6">
-                <h2 className="text-xl font-semibold mb-4">Import Projects</h2>
-                <ProjectImport eventId={eventId} />
-              </div>
-            </div>
-          )}
-
-          {/* Live Scores Tab */}
-          {activeTab === "live-scores" && (
-            <ScoresTab
-              eventId={eventId}
-              scoringConfig={
-                scoringConfig || {
-                  tracks: {},
-                  defaultMin: 1,
-                  defaultMax: 10,
-                  defaultWeight: 1,
-                }
-              }
-            />
-          )}
-
-          {/* Ticketing Tab */}
-          {activeTab === "ticketing" && (
-            <>
-              {isAdmin ? (
-                <PricingTab
-                  event={event!}
-                  setEvent={setEvent}
-                  saving={saving}
-                  setSaving={setSaving}
-                />
-              ) : (
-                <div className="text-center py-12">
-                  <p className="text-lg text-gray-500">
-                    Only admins can access ticketing settings
-                  </p>
-                </div>
-              )}
-            </>
-          )}
-
-          {/* Notify Tab */}
-          {activeTab === "notify" && event && (
-            <div className="space-y-6">
-              <EmailDashboard eventId={eventId} eventName={event.event_name} />
-
-              {/* Email Section */}
-              <div className="border-t pt-6">
-                <h2 className="text-xl font-semibold mb-4">
-                  Email Project Participants
-                </h2>
-                <EmailTab eventId={eventId} />
-              </div>
-            </div>
-          )}
+          </Tabs>
         </div>
       </div>
     </div>

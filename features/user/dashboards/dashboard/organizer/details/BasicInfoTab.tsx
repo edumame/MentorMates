@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { DatePicker } from "@/components/ui/date-picker";
 import { EventDetails, EventVisibility } from "@/lib/types";
 import { useRouter } from "next/navigation";
 import { toast as ToastType } from "@/lib/hooks/use-toast";
@@ -33,6 +34,16 @@ import {
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { customMarkdownComponents } from "@/components/markdown/custom-components";
 import { markdownRehypePlugins } from "@/components/markdown/plugins";
+import {
+  Users,
+  Building2,
+  Video,
+  MapPin,
+  Image as ImageIcon,
+  Type,
+  Mail,
+  Upload,
+} from "lucide-react";
 
 interface BasicInfoTabProps {
   event: EventDetails;
@@ -93,6 +104,14 @@ export function BasicInfoTab({
   const [archiving, setArchiving] = useState(false);
   const [devpostUrl, setDevpostUrl] = useState("");
   const [importing, setImporting] = useState(false);
+  const [locationType, setLocationType] = useState<"in-person" | "virtual">(
+    event.location?.toLowerCase().includes("online") || 
+    event.location?.toLowerCase().includes("virtual") ||
+    !event.location
+      ? "virtual"
+      : "in-person"
+  );
+  const [descriptionMode, setDescriptionMode] = useState<"edit" | "preview">("edit");
   const PRESET_EVENT_TYPES = ["Hackathon", "Workshop", "Conference"] as const;
   const isPresetType = (val?: string | null) =>
     !!val && PRESET_EVENT_TYPES.includes(val as (typeof PRESET_EVENT_TYPES)[number]);
@@ -243,7 +262,7 @@ export function BasicInfoTab({
   const isArchived = event.visibility === EventVisibility.Archived;
 
   return (
-    <div className="flex space-y-4 w-full flex-col">
+    <div className="space-y-4 w-full min-w-0">
       {/* Archived Event Warning */}
       {isArchived && (
         <Alert className="border-orange-200 bg-orange-50">
@@ -254,22 +273,296 @@ export function BasicInfoTab({
         </Alert>
       )}
 
-      {/* Compact top rows */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="event_name">Event Name</Label>
-          <Input
-            id="event_name"
-            value={event.event_name || ""}
-            disabled={isArchived}
-            onChange={(e) =>
-              setEvent({ ...event, event_name: e.target.value })
+      {/* Large Event Title Input */}
+      <input
+        type="text"
+        value={event.event_name || ""}
+        onChange={(e) =>
+          setEvent({ ...event, event_name: e.target.value })
+        }
+        disabled={isArchived}
+        placeholder="Event Title"
+        className="font-semibold text-[36px] leading-[1.3] tracking-[-2.16px] mb-6 w-full min-w-0 bg-transparent border-none outline-none focus:ring-0 p-0 disabled:opacity-50"
+        style={{
+          color: event.event_name ? "#000000" : "#d8d8d8",
+          fontFamily: "Geist, sans-serif",
+        }}
+      />
+
+      <div className="space-y-4 w-full min-w-0">
+        {/* Date */}
+        <div className="space-y-2 w-full min-w-0">
+          <label className="text-[16px] font-normal text-black">
+            Date
+          </label>
+          <DatePicker
+            value={event.event_date || ""}
+            onChange={(value) =>
+              setEvent({ ...event, event_date: value })
             }
+            placeholder="mm/dd/yyyy"
+            disabled={isArchived}
           />
         </div>
 
+        {/* Project submission window */}
         <div className="space-y-2">
-          <Label htmlFor="event_type">Event Type</Label>
+          <label className="text-[16px] font-normal text-black">
+            Project submission window (UTC)
+          </label>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            <DatePicker
+              value={event.submission_time_start || ""}
+              onChange={(value) =>
+                setEvent({ ...event, submission_time_start: value })
+              }
+              placeholder="mm/dd/yyyy"
+              disabled={isArchived}
+            />
+            <span className="text-gray-500 text-center sm:text-left">
+              to
+            </span>
+            <DatePicker
+              value={event.submission_time_cutoff || ""}
+              onChange={(value) =>
+                setEvent({ ...event, submission_time_cutoff: value })
+              }
+              placeholder="mm/dd/yyyy"
+              disabled={isArchived}
+            />
+          </div>
+        </div>
+
+        {/* Seat Cap */}
+        <div className="space-y-2">
+          <label className="text-[16px] font-normal text-black">
+            Seat Cap
+          </label>
+          <div className="relative w-full min-w-0">
+            <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+            <Input
+              type="number"
+              value={
+                typeof event.participant_capacity === "number"
+                  ? String(event.participant_capacity)
+                  : ""
+              }
+              disabled={isArchived}
+              onChange={(e) => {
+                const value = e.target.value;
+                setEvent({
+                  ...event,
+                  participant_capacity:
+                    value === "" ? null : Math.max(0, parseInt(value, 10) || 0),
+                });
+              }}
+              placeholder="Leave blank for unlimited participants"
+              className="w-full min-w-0 h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+            />
+          </div>
+          <p className="text-xs text-gray-500">
+            Leave blank for unlimited participants.
+          </p>
+        </div>
+
+        {/* Location */}
+        <div className="space-y-2 w-full">
+          <label className="text-[16px] font-normal text-black">
+            Location
+          </label>
+          <div className="flex items-center gap-2 sm:gap-4 mb-2 w-full">
+            <button
+              type="button"
+              onClick={() => {
+                setLocationType("in-person");
+                if (!event.location || event.location.toLowerCase().includes("online") || event.location.toLowerCase().includes("virtual")) {
+                  setEvent({ ...event, location: "" });
+                }
+              }}
+              disabled={isArchived}
+              className={`flex items-center justify-center gap-2 px-4 py-2 rounded-[12px] text-[16px] font-normal transition-colors flex-1 sm:w-[180px] disabled:opacity-50 ${
+                locationType === "in-person"
+                  ? "bg-[#4b89ef] text-white"
+                  : "bg-transparent border border-[rgba(0,0,0,0.15)] text-black"
+              }`}
+            >
+              <Building2 className="w-5 h-5" />
+              In-person
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setLocationType("virtual");
+                if (!event.location || (!event.location.toLowerCase().includes("online") && !event.location.toLowerCase().includes("virtual"))) {
+                  setEvent({ ...event, location: "Online" });
+                }
+              }}
+              disabled={isArchived}
+              className={`flex items-center justify-center gap-2 px-4 py-2 rounded-[12px] text-[16px] font-normal transition-colors flex-1 sm:w-[180px] disabled:opacity-50 ${
+                locationType === "virtual"
+                  ? "bg-[#4b89ef] text-white"
+                  : "bg-transparent border border-[rgba(0,0,0,0.15)] text-black"
+              }`}
+            >
+              <Video className="w-5 h-5" />
+              Virtual event
+            </button>
+          </div>
+          <div className="relative w-full min-w-0">
+            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+            <Input
+              value={event.location || ""}
+              disabled={isArchived}
+              onChange={(e) =>
+                setEvent({ ...event, location: e.target.value })
+              }
+              placeholder={locationType === "in-person" ? "Add offline location" : "Online"}
+              className="w-full min-w-0 h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+            />
+          </div>
+        </div>
+
+        {/* Cover image url */}
+        <div className="space-y-2">
+          <label className="text-[16px] font-normal text-black">
+            Cover image url
+          </label>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            <div className="relative flex-1 min-w-0">
+              <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+              <Input
+                value={event.cover_image_url || ""}
+                disabled={isArchived}
+                onChange={(e) => {
+                  setEvent({
+                    ...event,
+                    cover_image_url: e.target.value,
+                  });
+                  setPreviewUrl(e.target.value);
+                }}
+                placeholder="https://..."
+                className="w-full min-w-0 h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+              />
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isArchived}
+              onClick={() => {
+                const input = document.createElement("input");
+                input.type = "file";
+                input.accept = "image/*";
+                input.onchange = (e) => {
+                  const file = (e.target as HTMLInputElement).files?.[0];
+                  if (file) {
+                    setSelectedCoverImage(file);
+                    const preview = URL.createObjectURL(file);
+                    setPreviewUrl(preview);
+                  }
+                };
+                input.click();
+              }}
+              className="h-[44px] px-4 border border-[rgba(0,0,0,0.15)] rounded-[12px] w-full sm:w-auto"
+            >
+              <Upload className="w-4 h-4 mr-2" />
+              Upload
+            </Button>
+          </div>
+          <p className="text-xs text-gray-500">
+            *Upload an image to showcase your project (Max 10MB).
+          </p>
+        </div>
+
+        {/* Blurb */}
+        <div className="space-y-2">
+          <label className="text-[16px] font-normal text-black">
+            Blurb
+          </label>
+          <div className="relative w-full min-w-0">
+            <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+            <Input
+              value={event.event_blurb || ""}
+              disabled={isArchived}
+              onChange={(e) =>
+                setEvent({ ...event, event_blurb: e.target.value })
+              }
+              placeholder="Short description shown in the preview card"
+              className="w-full min-w-0 h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+            />
+          </div>
+          <p className="text-xs text-gray-500">
+            A short description that appears in the event preview card.
+          </p>
+        </div>
+
+
+        {/* Description */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <label className="text-[16px] font-normal text-black">
+              Description
+            </label>
+            <div className="inline-flex items-center border border-[rgba(0,0,0,0.15)] rounded-[12px] p-1 bg-white">
+              <button
+                type="button"
+                onClick={() => setDescriptionMode("edit")}
+                disabled={isArchived}
+                className={`px-4 py-2 rounded-[8px] text-sm font-normal transition-colors disabled:opacity-50 ${
+                  descriptionMode === "edit"
+                    ? "bg-white border border-[rgba(0,0,0,0.15)] text-black shadow-sm"
+                    : "bg-transparent text-black hover:bg-gray-50"
+                }`}
+              >
+                Edit
+              </button>
+              <button
+                type="button"
+                onClick={() => setDescriptionMode("preview")}
+                disabled={isArchived}
+                className={`px-4 py-2 rounded-[8px] text-sm font-normal transition-colors disabled:opacity-50 ${
+                  descriptionMode === "preview"
+                    ? "bg-white border border-[rgba(0,0,0,0.15)] text-black shadow-sm"
+                    : "bg-transparent text-black hover:bg-gray-50"
+                }`}
+              >
+                Preview
+              </button>
+            </div>
+          </div>
+          {descriptionMode === "edit" ? (
+            <>
+              <Textarea
+                value={event.event_description || ""}
+                disabled={isArchived}
+                onChange={(e) =>
+                  setEvent({
+                    ...event,
+                    event_description: e.target.value,
+                  })
+                }
+                placeholder="Add long description (markdown supported)"
+                className="min-h-[300px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] p-3 focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none resize-y"
+              />
+              <p className="text-xs text-gray-500 italic">
+                *Full event description. Markdown formatting is supported.
+              </p>
+            </>
+          ) : (
+            <div className="min-h-[300px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] p-3 overflow-auto prose prose-sm max-w-full">
+              {event.event_description ? (
+                <ReactMarkdown>{event.event_description}</ReactMarkdown>
+              ) : (
+                <em>No description added yet.</em>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Event Type */}
+        <div className="space-y-2">
+          <label className="text-[16px] font-normal text-black">
+            Event Type
+          </label>
           <Select
             value={eventTypeSelection}
             onValueChange={(val) => {
@@ -283,7 +576,7 @@ export function BasicInfoTab({
             }}
             disabled={isArchived}
           >
-            <SelectTrigger className="w-full">
+            <SelectTrigger className="w-full h-[44px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px]">
               <SelectValue placeholder="Select type" />
             </SelectTrigger>
             <SelectContent>
@@ -307,44 +600,21 @@ export function BasicInfoTab({
                   setCustomEventType(val);
                   setEvent({ ...event, event_type: val });
                 }}
+                className="h-[44px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)]"
               />
               <p className="text-xs text-gray-500">
-                Use a custom label like “Demo Day” or “Pitch Night”.
+                Use a custom label like "Demo Day" or "Pitch Night".
               </p>
             </div>
           )}
         </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="participant_capacity">Participant Seat Cap</Label>
-        <Input
-          id="participant_capacity"
-          type="number"
-          min={0}
-          placeholder="Unlimited"
-          disabled={isArchived}
-          value={
-            typeof event.participant_capacity === "number"
-              ? String(event.participant_capacity)
-              : ""
-          }
-          onChange={(e) => {
-            const value = e.target.value;
-            setEvent({
-              ...event,
-              participant_capacity:
-                value === "" ? null : Math.max(0, parseInt(value, 10) || 0),
-            });
-          }}
-        />
-        <p className="text-xs text-gray-500">
-          Leave blank for unlimited participants.
-        </p>
-      </div>
+        {/* URL Slug */}
         <div className="space-y-2">
-          <Label htmlFor="slug">URL Slug</Label>
+          <label className="text-[16px] font-normal text-black">
+            URL Slug
+          </label>
           <Input
-            id="slug"
             value={event.slug || ""}
             disabled={isArchived}
             onChange={(e) => {
@@ -352,7 +622,7 @@ export function BasicInfoTab({
               setUpdateSlug(true);
             }}
             placeholder="url-friendly-event-name"
-            className="font-mono text-sm"
+            className="h-[44px] font-mono text-sm bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)]"
           />
           <p className="text-xs text-gray-500">
             URL-friendly identifier for your event (lowercase, hyphens only)
@@ -361,371 +631,137 @@ export function BasicInfoTab({
 
         {/* Finalist Recommendation Toggle */}
         <div className="space-y-2">
-          <Label htmlFor="finalist_recommendation_enabled">Enable finalist recommendation</Label>
+          <label className="text-[16px] font-normal text-black">
+            Enable finalist recommendation
+          </label>
           <div className="flex items-center gap-3">
             <Switch
-              id="finalist_recommendation_enabled"
               checked={!!event.finalist_recommendation_enabled}
               disabled={isArchived}
               onCheckedChange={(checked) =>
                 setEvent({ ...event, finalist_recommendation_enabled: checked })
               }
             />
-            <span className="text-sm text-muted-foreground">
+            <span className="text-sm text-gray-500">
               Judges can mark projects as recommended for finals
             </span>
           </div>
         </div>
-      </div>
 
-      {/* Import from Devpost */}
-      <div className="space-y-2">
-        <Label htmlFor="devpost_url">Import from Devpost</Label>
-        <div className="flex flex-col sm:flex-row gap-2">
-          <Input
-            id="devpost_url"
-            type="url"
-            placeholder="https://<event>.devpost.com/"
-            value={devpostUrl}
-            disabled={isArchived || importing}
-            onChange={(e) => setDevpostUrl(e.target.value)}
-            className="flex-1 min-w-0"
-          />
-          <Button
-            type="button"
-            disabled={isArchived || importing || !devpostUrl}
-            className="shrink-0 whitespace-nowrap"
-            onClick={async () => {
-              if (!event?.event_id) return;
-              try {
-                setImporting(true);
-                const res = await fetch("/api/devpost/import", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ eventId: event.event_id, url: devpostUrl }),
-                });
-                if (!res.ok) {
-                  const body = await res.json().catch(() => ({}));
-                  throw new Error(body?.error || "Failed to import Devpost data");
-                }
-                const data = await res.json();
-                const imported = data?.import || {};
-                const merged = {
-                  ...event,
-                  slug: imported.slug ?? event.slug,
-                  event_name: imported.event_name ?? event.event_name,
-                  event_date: imported.event_date ?? event.event_date,
-                  location: imported.location ?? event.location,
-                  event_blurb: imported.event_blurb ?? event.event_blurb,
-                  event_description: imported.event_description ?? event.event_description,
-                  submission_time_start: imported.submission_time_start ?? event.submission_time_start,
-                  submission_time_cutoff: imported.submission_time_cutoff ?? event.submission_time_cutoff,
-                  event_schedule: imported.event_schedule ?? event.event_schedule,
-                  rules: imported.rules ?? event.rules,
-                  event_resources: imported.event_resources ?? event.event_resources,
-                  faq: imported.faq ?? event.faq,
-                } as typeof event;
-                // If tracks are provided, prefill into event.event_tracks with minimal structure
-                if (Array.isArray(imported.tracks) && imported.tracks.length > 0) {
-                  const newTracks = imported.tracks.map((t: ImportedTrack) => {
-                    const trackId = crypto.randomUUID();
-                    const prizes = Array.isArray(t?.prizes)
-                      ? t.prizes.map((p: ImportedPrize) => ({
-                          id: `local-${crypto.randomUUID()}`,
-                          track_id: trackId,
-                          prize_amount: String(p?.prize_amount || ""),
-                          prize_description: String(p?.prize_description || ""),
-                        }))
-                      : [];
-                    return {
-                      track_id: trackId,
-                      event_id: event.event_id,
-                      name: String(t?.name || ""),
-                      description: String(t?.description || t?.name || ""),
-                      label: t?.label ? String(t.label) : undefined,
-                      prizes,
-                      scoring_criteria: t?.criteria
-                        ? {
-                            name: String(t.name || "Track"),
-                            criteria: t.criteria,
-                          }
-                        : { name: String(t.name || "Track"), criteria: [] },
-                      created_at: new Date().toISOString(),
-                      updated_at: new Date().toISOString(),
-                    };
-                  });
-                  (merged as EventDetails).event_tracks = newTracks;
-                }
-                setEvent(merged);
-                toast({
-                  title: "Imported",
-                  description: "Devpost details imported. Review and save your changes.",
-                });
-              } catch (err) {
-                console.error(err);
-                toast({
-                  title: "Import failed",
-                  description: (err as Error).message,
-                  variant: "destructive",
-                });
-              } finally {
-                setImporting(false);
-              }
-            }}
-          >
-            {importing ? "Importing..." : "Import"}
-          </Button>
-        </div>
-        <p className="text-xs text-gray-500">
-          Paste your Devpost event page URL. We&apos;ll fetch details and prefill this form using AI.
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Import from Devpost */}
         <div className="space-y-2">
-          <Label htmlFor="event_date">Event Date</Label>
-          <Input
-            id="event_date"
-            type="date"
-            value={event.event_date || ""}
-            disabled={isArchived}
-            onChange={(e) =>
-              setEvent({ ...event, event_date: e.target.value })
-            }
-            className="w-full"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="location">Location</Label>
-          <Input
-            id="location"
-            value={event.location || ""}
-            disabled={isArchived}
-            onChange={(e) =>
-              setEvent({ ...event, location: e.target.value })
-            }
-            className="w-full"
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="submission_time_start">
-            Submission Window Start (UTC)
-          </Label>
-          <Input
-            id="submission_time_start"
-            type="datetime-local"
-            value={event.submission_time_start?.slice(0, 16) || ""}
-            disabled={isArchived}
-            onChange={(e) =>
-              setEvent({ ...event, submission_time_start: e.target.value })
-            }
-            className="w-full"
-          />
-          <p className="text-xs text-gray-500 break-words overflow-hidden">
-            {new Date(event.submission_time_start || "").toString()}
-          </p>
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="submission_time_cutoff">
-            Submission Window End (UTC)
-          </Label>
-          <Input
-            id="submission_time_cutoff"
-            type="datetime-local"
-            value={event.submission_time_cutoff?.slice(0, 16) || ""}
-            disabled={isArchived}
-            onChange={(e) =>
-              setEvent({ ...event, submission_time_cutoff: e.target.value })
-            }
-            className="w-full"
-          />
-          <p className="text-xs text-gray-500 break-words overflow-hidden">
-            {new Date(event.submission_time_cutoff || "").toString()}
-          </p>
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="event_blurb">Event Blurb</Label>
-        <Textarea
-          id="event_blurb"
-          value={event.event_blurb || ""}
-          disabled={isArchived}
-          onChange={(e) =>
-            setEvent({ ...event, event_blurb: e.target.value })
-          }
-          rows={2}
-          placeholder="A short, catchy description of your event"
-          className="resize-none overflow-auto"
-        />
-      </div>
-
-      {/* Description moved directly under the blurb, inside a navy callout */}
-      <div className="space-y-2">
-        <Alert className="border-blue-200 bg-blue-50">
-          <AlertTitle className="text-blue-900">Important</AlertTitle>
-          <AlertDescription>
-            This section is really important. Please click the Preview tab to
-            confirm formatting and content before saving.
-          </AlertDescription>
-          <div className="mt-3 space-y-2">
-            <Label htmlFor="event_description">Description (Markdown Supported)</Label>
-            <Tabs defaultValue="edit" className="w-full">
-              <TabsList>
-                <TabsTrigger value="edit">Edit</TabsTrigger>
-                <TabsTrigger value="preview">Preview</TabsTrigger>
-              </TabsList>
-              <TabsContent value="edit" className="mt-0">
-                <Textarea
-                  id="event_description"
-                  value={event.event_description || ""}
-                  disabled={isArchived}
-                  onChange={(e) =>
-                    setEvent({
-                      ...event,
-                      event_description: e.target.value,
-                    })
-                  }
-                  rows={4}
-                  className="resize-none overflow-auto"
-                />
-              </TabsContent>
-              <TabsContent value="preview" className="mt-0">
-                <div className="prose prose-sm dark:prose-invert max-w-none rounded-md border bg-white p-3 overflow-auto max-h-[400px]">
-                  <ReactMarkdown>{event.event_description || ""}</ReactMarkdown>
-                </div>
-              </TabsContent>
-            </Tabs>
-          </div>
-        </Alert>
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="cover_image">Cover Image</Label>
-        <div className="flex items-center gap-2 mb-2">
-          <Button
-            type="button"
-            variant={!useImageUrl ? "default" : "outline"}
-            size="sm"
-            disabled={isArchived}
-            onClick={() => setUseImageUrl(false)}
-          >
-            Upload File
-          </Button>
-          <Button
-            type="button"
-            variant={useImageUrl ? "default" : "outline"}
-            size="sm"
-            disabled={isArchived}
-            onClick={() => setUseImageUrl(true)}
-          >
-            Use URL
-          </Button>
-        </div>
-
-        {!useImageUrl ? (
-          <div className="space-y-3">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-              <input
-                type="file"
-                id="cover_image"
-                accept="image/*"
-                disabled={isArchived}
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) {
-                    setSelectedCoverImage(file);
-                    // Create preview URL
-                    const preview = URL.createObjectURL(file);
-                    setPreviewUrl(preview);
-                  }
-                }}
-                className="flex-1 w-full text-base file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
-              />
-              {(selectedCoverImage || event.cover_image_url) && (
-                <Button
-                  type="button"
-                  variant="destructive"
-                  size="sm"
-                  disabled={isArchived}
-                  onClick={() => {
-                    setSelectedCoverImage(null);
-                    setPreviewUrl(null);
-                    setEvent({ ...event, cover_image_url: "" });
-                    const fileInput = document.getElementById(
-                      "cover_image"
-                    ) as HTMLInputElement;
-                    if (fileInput) {
-                      fileInput.value = "";
-                    }
-                  }}
-                  className="px-2 py-1 hidden md:block shrink-0 whitespace-nowrap"
-                >
-                  Remove Cover Image
-                </Button>
-              )}
-            </div>
-            {(previewUrl || event.cover_image_url) && (
-              <div className="space-y-2">
-                <img
-                  src={previewUrl || event.cover_image_url || ""}
-                  alt="Cover preview"
-                  className="rounded-md object-cover max-w-full w-[400px] h-[200px]"
-                />
-                {(selectedCoverImage || event.cover_image_url) && (
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="sm"
-                    disabled={isArchived}
-                    onClick={() => {
-                      setSelectedCoverImage(null);
-                      setPreviewUrl(null);
-                      setEvent({ ...event, cover_image_url: "" });
-                      const fileInput = document.getElementById(
-                        "cover_image"
-                      ) as HTMLInputElement;
-                      if (fileInput) {
-                        fileInput.value = "";
-                      }
-                    }}
-                    className="px-2 py-1 md:hidden w-full sm:w-auto whitespace-nowrap"
-                  >
-                    Remove Cover Image
-                  </Button>
-                )}
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="space-y-2">
+          <label className="text-[16px] font-normal text-black">
+            Import from Devpost
+          </label>
+          <div className="flex flex-col sm:flex-row gap-2">
             <Input
               type="url"
-              value={event.cover_image_url || ""}
-              disabled={isArchived}
-              onChange={(e) => {
-                setEvent({
-                  ...event,
-                  cover_image_url: e.target.value,
-                });
-                setPreviewUrl(e.target.value);
-              }}
-              placeholder="https://example.com/image.jpg"
-              className="min-w-0"
+              placeholder="https://<event>.devpost.com/"
+              value={devpostUrl}
+              disabled={isArchived || importing}
+              onChange={(e) => setDevpostUrl(e.target.value)}
+              className="flex-1 min-w-0 h-[44px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)]"
             />
-            {previewUrl && (
-              <img
-                src={previewUrl}
-                alt="Cover preview"
-                className="rounded-md object-cover max-w-full w-[400px] h-[200px]"
-              />
-            )}
+            <Button
+              type="button"
+              disabled={isArchived || importing || !devpostUrl}
+              className="shrink-0 whitespace-nowrap h-[44px]"
+              onClick={async () => {
+                if (!event?.event_id) return;
+                try {
+                  setImporting(true);
+                  const res = await fetch("/api/devpost/import", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ eventId: event.event_id, url: devpostUrl }),
+                  });
+                  if (!res.ok) {
+                    const body = await res.json().catch(() => ({}));
+                    throw new Error(body?.error || "Failed to import Devpost data");
+                  }
+                  const data = await res.json();
+                  const imported = data?.import || {};
+                  const merged = {
+                    ...event,
+                    slug: imported.slug ?? event.slug,
+                    event_name: imported.event_name ?? event.event_name,
+                    event_date: imported.event_date ?? event.event_date,
+                    location: imported.location ?? event.location,
+                    event_blurb: imported.event_blurb ?? event.event_blurb,
+                    event_description: imported.event_description ?? event.event_description,
+                    submission_time_start: imported.submission_time_start ?? event.submission_time_start,
+                    submission_time_cutoff: imported.submission_time_cutoff ?? event.submission_time_cutoff,
+                    event_schedule: imported.event_schedule ?? event.event_schedule,
+                    rules: imported.rules ?? event.rules,
+                    event_resources: imported.event_resources ?? event.event_resources,
+                    faq: imported.faq ?? event.faq,
+                  } as typeof event;
+                  if (Array.isArray(imported.tracks) && imported.tracks.length > 0) {
+                    const newTracks = imported.tracks.map((t: ImportedTrack) => {
+                      const trackId = crypto.randomUUID();
+                      const prizes = Array.isArray(t?.prizes)
+                        ? t.prizes.map((p: ImportedPrize) => ({
+                            id: `local-${crypto.randomUUID()}`,
+                            track_id: trackId,
+                            prize_amount: String(p?.prize_amount || ""),
+                            prize_description: String(p?.prize_description || ""),
+                          }))
+                        : [];
+                      return {
+                        track_id: trackId,
+                        event_id: event.event_id,
+                        name: String(t?.name || ""),
+                        description: String(t?.description || t?.name || ""),
+                        label: t?.label ? String(t.label) : undefined,
+                        prizes,
+                        scoring_criteria: t?.criteria
+                          ? {
+                              name: String(t.name || "Track"),
+                              criteria: t.criteria,
+                            }
+                          : { name: String(t.name || "Track"), criteria: [] },
+                        created_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString(),
+                      };
+                    });
+                    (merged as EventDetails).event_tracks = newTracks;
+                  }
+                  setEvent(merged);
+                  toast({
+                    title: "Imported",
+                    description: "Devpost details imported. Review and save your changes.",
+                  });
+                } catch (err) {
+                  console.error(err);
+                  toast({
+                    title: "Import failed",
+                    description: (err as Error).message,
+                    variant: "destructive",
+                  });
+                } finally {
+                  setImporting(false);
+                }
+              }}
+            >
+              {importing ? "Importing..." : "Import"}
+            </Button>
           </div>
-        )}
+          <p className="text-xs text-gray-500">
+            Paste your Devpost event page URL. We&apos;ll fetch details and prefill this form using AI.
+          </p>
+        </div>
       </div>
+
+      {/* Cover Image Preview */}
+      {(previewUrl || event.cover_image_url) && (
+        <div className="space-y-2">
+          <img
+            src={previewUrl || event.cover_image_url || ""}
+            alt="Cover preview"
+            className="rounded-md object-cover max-w-full w-[400px] h-[200px]"
+          />
+        </div>
+      )}
 
       {/* Description moved above; removed from bottom */}
 
