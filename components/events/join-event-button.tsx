@@ -328,6 +328,21 @@ export function JoinEventButton({
     }
   };
 
+  const getDefaultLabel = () => {
+    if (!event?.paid || !isAuthenticated) {
+      return "Join Event";
+    }
+
+    if (pricingTiers.length > 0) {
+      const cheapestTier = getCheapestPricingTier(pricingTiers);
+      return cheapestTier
+        ? `Join Event - From ${formatPrice(cheapestTier.price)}`
+        : "Join Event - Multiple Tiers Available";
+    }
+
+    return "Join Event - Paid Event";
+  };
+
   if (hasJoined) {
     return null;
   }
@@ -345,23 +360,7 @@ export function JoinEventButton({
           className="rounded-full px-6 py-5 gap-2 w-full min-w-0 overflow-hidden"
         >
           <Ticket className="h-6 w-6 flex-shrink-0" />
-          <span className="truncate">
-            {label
-              ? label
-              : event?.paid
-                ? !isAuthenticated
-                  ? `Join ${eventName}`
-                  : pricingTiers.length > 0
-                    ? (() => {
-                        const cheapestTier =
-                          getCheapestPricingTier(pricingTiers);
-                        return cheapestTier
-                          ? `Join ${eventName} - From ${formatPrice(cheapestTier.price)}`
-                          : `Join ${eventName} - Multiple Tiers Available`;
-                      })()
-                    : `Join ${eventName} - Paid Event`
-                : `Join ${eventName}`}
-          </span>
+          <span className="truncate">{label ?? getDefaultLabel()}</span>
         </Button>
       </DialogTrigger>
       <DialogContent
