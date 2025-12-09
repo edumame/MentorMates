@@ -190,7 +190,7 @@ export default function NewEventPage() {
       const filePath = `event-covers/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
-        .from("project-materials")
+        .from("event-materials")
         .upload(filePath, file);
 
       if (uploadError) {
@@ -204,7 +204,7 @@ export default function NewEventPage() {
 
       const {
         data: { publicUrl },
-      } = supabase.storage.from("project-materials").getPublicUrl(filePath);
+      } = supabase.storage.from("event-materials").getPublicUrl(filePath);
 
       onChange("cover_image_url", publicUrl);
       setCoverImageFile(null);
