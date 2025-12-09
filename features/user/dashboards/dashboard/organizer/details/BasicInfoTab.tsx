@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { 
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -95,7 +95,8 @@ export function BasicInfoTab({
   const [importing, setImporting] = useState(false);
   const PRESET_EVENT_TYPES = ["Hackathon", "Workshop", "Conference"] as const;
   const isPresetType = (val?: string | null) =>
-    !!val && PRESET_EVENT_TYPES.includes(val as (typeof PRESET_EVENT_TYPES)[number]);
+    !!val &&
+    PRESET_EVENT_TYPES.includes(val as (typeof PRESET_EVENT_TYPES)[number]);
   const [eventTypeSelection, setEventTypeSelection] = useState<string>(
     isPresetType(event?.event_type) ? event!.event_type : "Other"
   );
@@ -161,7 +162,8 @@ export function BasicInfoTab({
           submission_time_start: event.submission_time_start,
           submission_time_cutoff: event.submission_time_cutoff,
           participant_capacity: event.participant_capacity ?? null,
-          finalist_recommendation_enabled: event.finalist_recommendation_enabled ?? false,
+          finalist_recommendation_enabled:
+            event.finalist_recommendation_enabled ?? false,
         })
         .eq("event_id", event.event_id);
 
@@ -201,8 +203,9 @@ export function BasicInfoTab({
 
     try {
       setArchiving(true);
-      const action = event.visibility === EventVisibility.Archived ? "unarchive" : "archive";
-      
+      const action =
+        event.visibility === EventVisibility.Archived ? "unarchive" : "archive";
+
       const res = await fetch(`/api/events/${event.event_id}`, {
         method: "PATCH",
         headers: {
@@ -217,10 +220,10 @@ export function BasicInfoTab({
       }
 
       const result = await res.json();
-      
+
       // Update local state
       setEvent({ ...event, visibility: result.newVisibility });
-      
+
       toast({
         title: "Success",
         description: `Event ${action}d successfully`,
@@ -229,7 +232,10 @@ export function BasicInfoTab({
       // Refresh the page to update any cached data
       router.refresh();
     } catch (error) {
-      console.error(`Error ${event.visibility === EventVisibility.Archived ? "unarchiving" : "archiving"} event:`, error);
+      console.error(
+        `Error ${event.visibility === EventVisibility.Archived ? "unarchiving" : "archiving"} event:`,
+        error
+      );
       toast({
         title: "Error",
         description: (error as Error).message,
@@ -247,9 +253,12 @@ export function BasicInfoTab({
       {/* Archived Event Warning */}
       {isArchived && (
         <Alert className="border-orange-200 bg-orange-50">
-          <AlertTitle className="text-orange-900">⚠️ Event is Archived</AlertTitle>
+          <AlertTitle className="text-orange-900">
+            ⚠️ Event is Archived
+          </AlertTitle>
           <AlertDescription>
-            This event is archived and cannot be edited. To make changes, you must first unarchive the event using the controls below.
+            This event is archived and cannot be edited. To make changes, you
+            must first unarchive the event using the controls below.
           </AlertDescription>
         </Alert>
       )}
@@ -262,9 +271,7 @@ export function BasicInfoTab({
             id="event_name"
             value={event.event_name || ""}
             disabled={isArchived}
-            onChange={(e) =>
-              setEvent({ ...event, event_name: e.target.value })
-            }
+            onChange={(e) => setEvent({ ...event, event_name: e.target.value })}
           />
         </div>
 
@@ -315,32 +322,32 @@ export function BasicInfoTab({
           )}
         </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="participant_capacity">Participant Seat Cap</Label>
-        <Input
-          id="participant_capacity"
-          type="number"
-          min={0}
-          placeholder="Unlimited"
-          disabled={isArchived}
-          value={
-            typeof event.participant_capacity === "number"
-              ? String(event.participant_capacity)
-              : ""
-          }
-          onChange={(e) => {
-            const value = e.target.value;
-            setEvent({
-              ...event,
-              participant_capacity:
-                value === "" ? null : Math.max(0, parseInt(value, 10) || 0),
-            });
-          }}
-        />
-        <p className="text-xs text-gray-500">
-          Leave blank for unlimited participants.
-        </p>
-      </div>
+        <div className="space-y-2">
+          <Label htmlFor="participant_capacity">Participant Seat Cap</Label>
+          <Input
+            id="participant_capacity"
+            type="number"
+            min={0}
+            placeholder="Unlimited"
+            disabled={isArchived}
+            value={
+              typeof event.participant_capacity === "number"
+                ? String(event.participant_capacity)
+                : ""
+            }
+            onChange={(e) => {
+              const value = e.target.value;
+              setEvent({
+                ...event,
+                participant_capacity:
+                  value === "" ? null : Math.max(0, parseInt(value, 10) || 0),
+              });
+            }}
+          />
+          <p className="text-xs text-gray-500">
+            Leave blank for unlimited participants.
+          </p>
+        </div>
         <div className="space-y-2">
           <Label htmlFor="slug">URL Slug</Label>
           <Input
@@ -361,7 +368,9 @@ export function BasicInfoTab({
 
         {/* Finalist Recommendation Toggle */}
         <div className="space-y-2">
-          <Label htmlFor="finalist_recommendation_enabled">Enable finalist recommendation</Label>
+          <Label htmlFor="finalist_recommendation_enabled">
+            Enable finalist recommendation
+          </Label>
           <div className="flex items-center gap-3">
             <Switch
               id="finalist_recommendation_enabled"
@@ -402,11 +411,16 @@ export function BasicInfoTab({
                 const res = await fetch("/api/devpost/import", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ eventId: event.event_id, url: devpostUrl }),
+                  body: JSON.stringify({
+                    eventId: event.event_id,
+                    url: devpostUrl,
+                  }),
                 });
                 if (!res.ok) {
                   const body = await res.json().catch(() => ({}));
-                  throw new Error(body?.error || "Failed to import Devpost data");
+                  throw new Error(
+                    body?.error || "Failed to import Devpost data"
+                  );
                 }
                 const data = await res.json();
                 const imported = data?.import || {};
@@ -417,16 +431,26 @@ export function BasicInfoTab({
                   event_date: imported.event_date ?? event.event_date,
                   location: imported.location ?? event.location,
                   event_blurb: imported.event_blurb ?? event.event_blurb,
-                  event_description: imported.event_description ?? event.event_description,
-                  submission_time_start: imported.submission_time_start ?? event.submission_time_start,
-                  submission_time_cutoff: imported.submission_time_cutoff ?? event.submission_time_cutoff,
-                  event_schedule: imported.event_schedule ?? event.event_schedule,
+                  event_description:
+                    imported.event_description ?? event.event_description,
+                  submission_time_start:
+                    imported.submission_time_start ??
+                    event.submission_time_start,
+                  submission_time_cutoff:
+                    imported.submission_time_cutoff ??
+                    event.submission_time_cutoff,
+                  event_schedule:
+                    imported.event_schedule ?? event.event_schedule,
                   rules: imported.rules ?? event.rules,
-                  event_resources: imported.event_resources ?? event.event_resources,
+                  event_resources:
+                    imported.event_resources ?? event.event_resources,
                   faq: imported.faq ?? event.faq,
                 } as typeof event;
                 // If tracks are provided, prefill into event.event_tracks with minimal structure
-                if (Array.isArray(imported.tracks) && imported.tracks.length > 0) {
+                if (
+                  Array.isArray(imported.tracks) &&
+                  imported.tracks.length > 0
+                ) {
                   const newTracks = imported.tracks.map((t: ImportedTrack) => {
                     const trackId = crypto.randomUUID();
                     const prizes = Array.isArray(t?.prizes)
@@ -459,7 +483,8 @@ export function BasicInfoTab({
                 setEvent(merged);
                 toast({
                   title: "Imported",
-                  description: "Devpost details imported. Review and save your changes.",
+                  description:
+                    "Devpost details imported. Review and save your changes.",
                 });
               } catch (err) {
                 console.error(err);
@@ -477,7 +502,8 @@ export function BasicInfoTab({
           </Button>
         </div>
         <p className="text-xs text-gray-500">
-          Paste your Devpost event page URL. We&apos;ll fetch details and prefill this form using AI.
+          Paste your Devpost event page URL. We&apos;ll fetch details and
+          prefill this form using AI.
         </p>
       </div>
 
@@ -487,11 +513,13 @@ export function BasicInfoTab({
           <Input
             id="event_date"
             type="date"
-            value={event.event_date || ""}
-            disabled={isArchived}
-            onChange={(e) =>
-              setEvent({ ...event, event_date: e.target.value })
+            value={
+              event.event_date
+                ? new Date(event.event_date).toISOString().split("T")[0]
+                : ""
             }
+            disabled={isArchived}
+            onChange={(e) => setEvent({ ...event, event_date: e.target.value })}
             className="w-full"
           />
         </div>
@@ -501,9 +529,7 @@ export function BasicInfoTab({
             id="location"
             value={event.location || ""}
             disabled={isArchived}
-            onChange={(e) =>
-              setEvent({ ...event, location: e.target.value })
-            }
+            onChange={(e) => setEvent({ ...event, location: e.target.value })}
             className="w-full"
           />
         </div>
@@ -554,9 +580,7 @@ export function BasicInfoTab({
           id="event_blurb"
           value={event.event_blurb || ""}
           disabled={isArchived}
-          onChange={(e) =>
-            setEvent({ ...event, event_blurb: e.target.value })
-          }
+          onChange={(e) => setEvent({ ...event, event_blurb: e.target.value })}
           rows={2}
           placeholder="A short, catchy description of your event"
           className="resize-none overflow-auto"
@@ -572,7 +596,9 @@ export function BasicInfoTab({
             confirm formatting and content before saving.
           </AlertDescription>
           <div className="mt-3 space-y-2">
-            <Label htmlFor="event_description">Description (Markdown Supported)</Label>
+            <Label htmlFor="event_description">
+              Description (Markdown Supported)
+            </Label>
             <Tabs defaultValue="edit" className="w-full">
               <TabsList>
                 <TabsTrigger value="edit">Edit</TabsTrigger>
@@ -742,37 +768,51 @@ export function BasicInfoTab({
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex-1">
             <p className="font-semibold text-orange-600">
-              {event.visibility === EventVisibility.Archived ? "Unarchive Event" : "Archive Event"}
+              {event.visibility === EventVisibility.Archived
+                ? "Unarchive Event"
+                : "Archive Event"}
             </p>
             <p className="text-sm text-muted-foreground">
-              {event.visibility === EventVisibility.Archived 
+              {event.visibility === EventVisibility.Archived
                 ? "Make this event editable again and restore it to private visibility."
                 : "Archive this event to prevent further editing while keeping it visible."}
             </p>
           </div>
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button variant="destructive" disabled={archiving || isArchived} className="shrink-0 whitespace-nowrap w-full sm:w-auto">
-                {archiving 
-                  ? (event.visibility === EventVisibility.Archived ? "Unarchiving..." : "Archiving...") 
-                  : (event.visibility === EventVisibility.Archived ? "Unarchive" : "Archive")}
+              <Button
+                variant="destructive"
+                disabled={archiving || isArchived}
+                className="shrink-0 whitespace-nowrap w-full sm:w-auto"
+              >
+                {archiving
+                  ? event.visibility === EventVisibility.Archived
+                    ? "Unarchiving..."
+                    : "Archiving..."
+                  : event.visibility === EventVisibility.Archived
+                    ? "Unarchive"
+                    : "Archive"}
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>
-                  {event.visibility === EventVisibility.Archived ? "Unarchive this event?" : "Archive this event?"}
+                  {event.visibility === EventVisibility.Archived
+                    ? "Unarchive this event?"
+                    : "Archive this event?"}
                 </AlertDialogTitle>
                 <AlertDialogDescription>
-                  {event.visibility === EventVisibility.Archived 
+                  {event.visibility === EventVisibility.Archived
                     ? "This will make the event editable again and change its visibility to private. You can change the visibility afterwards if needed."
-                : "Archived events are hidden from non-organizers and the public, and cannot be edited by organizers. You can unarchive it later if needed."}
+                    : "Archived events are hidden from non-organizers and the public, and cannot be edited by organizers. You can unarchive it later if needed."}
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                 <AlertDialogAction onClick={handleArchiveToggle}>
-                  {event.visibility === EventVisibility.Archived ? "Confirm Unarchive" : "Confirm Archive"}
+                  {event.visibility === EventVisibility.Archived
+                    ? "Confirm Unarchive"
+                    : "Confirm Archive"}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
@@ -785,11 +825,17 @@ export function BasicInfoTab({
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex-1">
             <p className="font-semibold text-red-600">Delete Event</p>
-            <p className="text-sm text-muted-foreground">This action cannot be undone.</p>
+            <p className="text-sm text-muted-foreground">
+              This action cannot be undone.
+            </p>
           </div>
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button variant="destructive" disabled={deleting} className="shrink-0 whitespace-nowrap w-full sm:w-auto">
+              <Button
+                variant="destructive"
+                disabled={deleting}
+                className="shrink-0 whitespace-nowrap w-full sm:w-auto"
+              >
                 {deleting ? "Deleting..." : "Delete Event"}
               </Button>
             </AlertDialogTrigger>
@@ -797,7 +843,8 @@ export function BasicInfoTab({
               <AlertDialogHeader>
                 <AlertDialogTitle>Delete this event?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  This will permanently remove the event and related data (tickets, payments, tracks, feedback). This cannot be undone.
+                  This will permanently remove the event and related data
+                  (tickets, payments, tracks, feedback). This cannot be undone.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -811,7 +858,9 @@ export function BasicInfoTab({
                       });
                       if (!res.ok) {
                         const body = await res.json().catch(() => ({}));
-                        throw new Error(body?.error || "Failed to delete event");
+                        throw new Error(
+                          body?.error || "Failed to delete event"
+                        );
                       }
                       toast({ title: "Event deleted" });
                       // Navigate back to events list
@@ -837,4 +886,4 @@ export function BasicInfoTab({
       </div>
     </div>
   );
-} 
+}

@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/lib/hooks/use-toast";
 import { DatePicker } from "@/components/ui/date-picker";
-import { MapPin, Image, Type, Mail, Globe, Sparkles } from "lucide-react";
+import { MapPin, Image, Type, Mail, Globe, Sparkles, Upload, X } from "lucide-react";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 
 export default function NewEventPage() {
@@ -23,6 +23,8 @@ export default function NewEventPage() {
   const [showVisibilityDropdown, setShowVisibilityDropdown] = useState(false);
   const [aiInput, setAiInput] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
+  const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
+  const [coverImageUploading, setCoverImageUploading] = useState(false);
 
   const [form, setForm] = useState({
     event_name: "",
@@ -161,6 +163,67 @@ export default function NewEventPage() {
     }
   };
 
+  const handleCoverImageUpload = async (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      toast({
+        title: "Invalid file type",
+        description: "Please upload an image file (PNG, JPG, GIF, etc.)",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "File too large",
+        description: "Image size must be less than 5MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setCoverImageUploading(true);
+    try {
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = `event-covers/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("project-materials")
+        .upload(filePath, file);
+
+      if (uploadError) {
+        toast({
+          title: "Upload failed",
+          description: "Failed to upload image file",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("project-materials").getPublicUrl(filePath);
+
+      onChange("cover_image_url", publicUrl);
+      setCoverImageFile(null);
+
+      toast({
+        title: "Image uploaded",
+        description: "Cover image uploaded successfully",
+      });
+    } catch {
+      toast({
+        title: "Upload error",
+        description: "Failed to upload cover image",
+        variant: "destructive",
+      });
+    } finally {
+      setCoverImageUploading(false);
+    }
+  };
+
   if (loading) {
     return (
       <PageContainer>
@@ -247,9 +310,9 @@ export default function NewEventPage() {
             </div>
 
             {/* Content Area */}
-            <div className="flex gap-6 items-start">
+            <div className="flex flex-col lg:flex-row gap-6 items-start">
               {/* Form Section */}
-              <div className="flex-1 max-w-[640px]">
+              <div className="flex-1 w-full lg:max-w-[640px]">
                 {/* AI Assist Panel */}
                 <div className="mb-6 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-4">
                   <div className="flex items-center gap-2 mb-2">
@@ -309,18 +372,122 @@ export default function NewEventPage() {
                     </div>
                   </div>
 
-                  {/* Cover Image URL */}
+                  {/* Cover Image */}
                   <div className="space-y-2">
-                    <label className="text-[16px] font-normal text-black">Cover image url</label>
-                    <div className="relative">
-                      <Image className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
-                      <Input
-                        value={form.cover_image_url}
-                        onChange={(e) => onChange("cover_image_url", e.target.value)}
-                        placeholder="https://..."
-                        className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)]"
-                      />
-                    </div>
+                    <label className="text-[16px] font-normal text-black">Cover image</label>
+                    
+                    {/* File Upload Section */}
+                    {!coverImageFile && !form.cover_image_url && (
+                      <div className="space-y-3">
+                        <label
+                          htmlFor="cover-image-upload"
+                          className="flex items-center justify-center gap-2 h-[100px] bg-white border-2 border-dashed border-[rgba(0,0,0,0.15)] rounded-[12px] cursor-pointer hover:border-[#4b89ef] hover:bg-blue-50/30 transition-colors"
+                        >
+                          <Upload className="w-6 h-6 text-gray-500" />
+                          <span className="text-[16px] text-gray-500">Click to upload an image</span>
+                          <input
+                            id="cover-image-upload"
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) setCoverImageFile(file);
+                            }}
+                            className="hidden"
+                          />
+                        </label>
+                        <div className="flex items-center gap-3">
+                          <div className="flex-1 h-px bg-[rgba(0,0,0,0.15)]" />
+                          <span className="text-[14px] text-gray-500">or enter URL</span>
+                          <div className="flex-1 h-px bg-[rgba(0,0,0,0.15)]" />
+                        </div>
+                        <div className="relative">
+                          <Input
+                            value={form.cover_image_url}
+                            onChange={(e) => onChange("cover_image_url", e.target.value)}
+                            placeholder="https://..."
+                            className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)]"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* File Selected Preview */}
+                    {coverImageFile && (
+                      <div className="space-y-3">
+                        <div className="relative w-full h-[140px] rounded-[12px] overflow-hidden bg-gray-100">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={URL.createObjectURL(coverImageFile)}
+                            alt="Cover image preview"
+                            className="w-full h-full object-cover"
+                          />
+                          <button
+                            onClick={() => setCoverImageFile(null)}
+                            className="absolute top-2 right-2 p-1 bg-black/50 rounded-full hover:bg-black/70 transition-colors"
+                          >
+                            <X className="w-4 h-4 text-white" />
+                          </button>
+                        </div>
+                        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-[12px]">
+                          <div>
+                            <p className="text-[14px] font-medium text-black truncate max-w-[300px]">
+                              {coverImageFile.name}
+                            </p>
+                            <p className="text-[12px] text-gray-500">
+                              {(coverImageFile.size / 1024 / 1024).toFixed(2)} MB
+                            </p>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              onClick={() => handleCoverImageUpload(coverImageFile)}
+                              disabled={coverImageUploading}
+                            >
+                              {coverImageUploading ? "Uploading..." : "Upload"}
+                            </Button>
+                            <Button
+                              variant="defaultGray"
+                              size="sm"
+                              className="rounded-[12px] text-[16px]"
+                              onClick={() => setCoverImageFile(null)}
+                              disabled={coverImageUploading}
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Uploaded/URL Image Preview */}
+                    {form.cover_image_url && !coverImageFile && (
+                      <div className="space-y-3">
+                        <div className="relative w-full h-[140px] rounded-[12px] overflow-hidden bg-gray-100">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={form.cover_image_url}
+                            alt="Cover image"
+                            className="w-full h-full object-cover"
+                          />
+                          <button
+                            onClick={() => onChange("cover_image_url", "")}
+                            className="absolute top-2 right-2 p-1 bg-black/50 rounded-full hover:bg-black/70 transition-colors"
+                          >
+                            <X className="w-4 h-4 text-white" />
+                          </button>
+                        </div>
+                        <div className="relative">
+                          <Image className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                          <Input
+                            value={form.cover_image_url}
+                            onChange={(e) => onChange("cover_image_url", e.target.value)}
+                            placeholder="https://..."
+                            className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)]"
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Blurb */}
@@ -392,8 +559,8 @@ export default function NewEventPage() {
               </div>
 
               {/* Preview Card */}
-              <div className="flex-shrink-0">
-                <div className="w-[335px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] overflow-hidden">
+              <div className="flex-shrink-0 w-full lg:w-auto order-last lg:order-none mt-8 lg:mt-0">
+                <div className="w-full max-w-[335px] mx-auto lg:mx-0 lg:w-[335px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] overflow-hidden">
                   {/* Image */}
                   <div className="relative w-full aspect-[335/223]">
                     {form.cover_image_url ? (
