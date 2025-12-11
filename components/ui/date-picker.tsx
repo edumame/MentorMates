@@ -11,9 +11,10 @@ export type DatePickerProps = {
   onChange?: (value: string) => void;
   placeholder?: string;
   className?: string;
+  disabled?: boolean;
 };
 
-export function DatePicker({ value, onChange, placeholder = "mm/dd/yyyy", className }: DatePickerProps) {
+export function DatePicker({ value, onChange, placeholder = "mm/dd/yyyy", className, disabled }: DatePickerProps) {
   const [open, setOpen] = React.useState(false);
   const [selectedDate, setSelectedDate] = React.useState<Date | undefined>(
     value ? new Date(value) : undefined
@@ -45,8 +46,8 @@ export function DatePicker({ value, onChange, placeholder = "mm/dd/yyyy", classN
   };
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
+    <Popover open={disabled ? false : open} onOpenChange={disabled ? undefined : setOpen}>
+      <PopoverTrigger asChild disabled={disabled}>
         <div className="relative">
           <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600 pointer-events-none z-10" />
           <input
@@ -54,9 +55,11 @@ export function DatePicker({ value, onChange, placeholder = "mm/dd/yyyy", classN
             value={formatDisplayDate(selectedDate)}
             placeholder={placeholder}
             readOnly
+            disabled={disabled}
             className={cn(
               "h-[44px] pl-11 w-full bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
               !selectedDate && "text-[rgba(0,0,0,0.6)]",
+              disabled && "bg-gray-100 cursor-not-allowed opacity-60",
               className
             )}
           />
