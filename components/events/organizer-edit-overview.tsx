@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/lib/hooks/use-toast";
@@ -12,6 +12,14 @@ import {
   EventVisibility,
   ScoringCriterion,
 } from "@/lib/types";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 
 // Import existing tab components
 import { ParticipantsTab } from "@/features/user/dashboards/dashboard/organizer/participants";
@@ -65,12 +73,11 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
   );
   const [deleting, setDeleting] = useState(false);
   const [archiving, setArchiving] = useState(false);
-  
-  // Get tab state from URL or use defaults
-  const tabFromUrl = searchParams.get("tab") || "overview";
-  const subTabFromUrl = searchParams.get("subtab") || "basics";
-  const [activeTab, setActiveTabState] = useState<string>(tabFromUrl);
-  const [activeSubTab, setActiveSubTabState] = useState<string>(subTabFromUrl);
+  const [isPending, startTransition] = useTransition();
+
+  // Use URL as single source of truth for tab state
+  const activeTab = searchParams.get("tab") || "overview";
+  const activeSubTab = searchParams.get("subtab") || "basics";
 
   const [participantCount, setParticipantCount] = useState<number>(0);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -99,40 +106,28 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
     { value: "gallery", label: "Gallery" },
   ];
 
-  // Update URL when tabs change
+  // Update URL when tabs change with optimistic UI
   const setActiveTab = (tab: string) => {
-    setActiveTabState(tab);
-    const params = new URLSearchParams(searchParams);
-    params.set("tab", tab);
-    // Reset subtab to basics when changing main tabs
-    if (tab === "overview") {
-      params.set("subtab", "basics");
-      setActiveSubTabState("basics");
-    } else {
-      params.delete("subtab");
-    }
-    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    startTransition(() => {
+      const params = new URLSearchParams(searchParams);
+      params.set("tab", tab);
+      // Reset subtab to basics when changing main tabs
+      if (tab === "overview") {
+        params.set("subtab", "basics");
+      } else {
+        params.delete("subtab");
+      }
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    });
   };
 
   const setActiveSubTab = (subtab: string) => {
-    setActiveSubTabState(subtab);
-    const params = new URLSearchParams(searchParams);
-    params.set("subtab", subtab);
-    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    startTransition(() => {
+      const params = new URLSearchParams(searchParams);
+      params.set("subtab", subtab);
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    });
   };
-
-  // Sync state with URL changes
-  useEffect(() => {
-    const tabParam = searchParams.get("tab");
-    const subtabParam = searchParams.get("subtab");
-
-    if (tabParam && tabParam !== activeTab) {
-      setActiveTabState(tabParam);
-    }
-    if (subtabParam && subtabParam !== activeSubTab) {
-      setActiveSubTabState(subtabParam);
-    }
-  }, [searchParams, activeTab, activeSubTab]);
 
   useEffect(() => {
     fetchEvent();
@@ -491,7 +486,10 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
             </div>
 
             {/* Content Area - Scrollable on Desktop */}
-            <div className="flex flex-col lg:flex-row gap-6 lg:gap-12 items-start w-full lg:flex-1 lg:min-h-0 lg:overflow-auto no-scrollbar">
+            <div 
+              className="flex flex-col lg:flex-row gap-6 lg:gap-12 items-start w-full lg:flex-1 lg:min-h-0 lg:overflow-auto no-scrollbar"
+              style={{ opacity: isPending ? 0.4 : 1, transition: "opacity 150ms" }}
+            >
               {/* Left Column - Form Content */}
               <div className="w-full lg:flex-[2] lg:min-w-0 flex flex-col items-start">
                 

@@ -66,6 +66,8 @@ export default function NewEventPage() {
   const [aiLoading, setAiLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
   const [activeSubTab, setActiveSubTab] = useState("basics");
+  const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
+  const [coverImageUploading, setCoverImageUploading] = useState(false);
 
   // Content edit/preview toggling state
   const [paywallMode, setPaywallMode] = useState<"edit" | "preview">("edit");
@@ -128,73 +130,6 @@ export default function NewEventPage() {
   const [galleryImages, setGalleryImages] = useState<
     Array<{ id: string; url: string }>
   >([]);
-  const [messageType, setMessageType] = useState<"individual" | "group">(
-    "individual"
-  );
-  const [emailSubject, setEmailSubject] = useState("");
-  const [emailMessage, setEmailMessage] = useState("");
-  const [selectedRecipients, setSelectedRecipients] = useState<string[]>([]);
-  const [showRecipientModal, setShowRecipientModal] = useState(false);
-  const [showTemplateModal, setShowTemplateModal] = useState(false);
-  const [activePricingSubTab, setActivePricingSubTab] = useState("tiers");
-  const [pricingTiers, setPricingTiers] = useState<
-    Array<{
-      id: string;
-      name: string;
-      price: number;
-      description: string;
-      available_until?: string;
-      max_quantity?: number;
-      stripe_price_id: string;
-    }>
-  >([]);
-  const [showTierForm, setShowTierForm] = useState(false);
-  const [tierForm, setTierForm] = useState({
-    name: "",
-    price: "",
-    description: "",
-    available_until: "",
-    max_quantity: "",
-    stripe_price_id: "",
-  });
-  const [editingTierId, setEditingTierId] = useState<string | null>(null);
-  const [coupons, setCoupons] = useState<
-    Array<{
-      id: string;
-      couponName: string;
-      duration: string;
-      percent_off?: number;
-      amount_off?: number;
-      currency?: string;
-      max_uses?: number;
-      valid_until?: string;
-    }>
-  >([]);
-  const [showCouponForm, setShowCouponForm] = useState(false);
-  const [couponForm, setCouponForm] = useState({
-    couponName: "",
-    duration: "once",
-    percent_off: "",
-    amount_off: "",
-    currency: "USD",
-    max_uses: "",
-    valid_until: "",
-  });
-  const [editingCouponId, setEditingCouponId] = useState<string | null>(null);
-  const [promoCodes, setPromoCodes] = useState<
-    Array<{
-      id: string;
-      promoCode: string;
-      couponId: string;
-      couponName?: string;
-    }>
-  >([]);
-  const [showPromoCodeForm, setShowPromoCodeForm] = useState(false);
-  const [promoCodeForm, setPromoCodeForm] = useState({
-    promoCode: "",
-    couponId: "",
-    overwrite: false,
-  });
   const [activeTracksSubTab, setActiveTracksSubTab] = useState("tracks");
   const [tracks, setTracks] = useState<
     Array<{
@@ -255,11 +190,6 @@ export default function NewEventPage() {
   });
   const [organizerEmails, setOrganizerEmails] = useState<string[]>([]);
   const [organizerEmailInput, setOrganizerEmailInput] = useState("");
-  const [activeProjectSubTab, setActiveProjectSubTab] = useState("submission");
-  const [activeRegistrationSubTab, setActiveRegistrationSubTab] =
-    useState("registration");
-  const [judgesPerProject, setJudgesPerProject] = useState("3");
-  const [mentorsPerProject, setMentorsPerProject] = useState("3");
 
   const [form, setForm] = useState({
     event_name: "",
@@ -496,6 +426,67 @@ export default function NewEventPage() {
     }
   };
 
+  const handleCoverImageUpload = async (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      toast({
+        title: "Invalid file type",
+        description: "Please upload an image file (PNG, JPG, GIF, etc.)",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "File too large",
+        description: "Image size must be less than 5MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setCoverImageUploading(true);
+    try {
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = `event-covers/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("event-materials")
+        .upload(filePath, file);
+
+      if (uploadError) {
+        toast({
+          title: "Upload failed",
+          description: "Failed to upload image file",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("event-materials").getPublicUrl(filePath);
+
+      onChange("cover_image_url", publicUrl);
+      setCoverImageFile(null);
+
+      toast({
+        title: "Image uploaded",
+        description: "Cover image uploaded successfully",
+      });
+    } catch {
+      toast({
+        title: "Upload error",
+        description: "Failed to upload cover image",
+        variant: "destructive",
+      });
+    } finally {
+      setCoverImageUploading(false);
+    }
+  };
+
   if (loading) {
     return (
       <PageContainer>
@@ -627,18 +618,6 @@ export default function NewEventPage() {
                   Overview
                 </TabsTrigger>
                 <TabsTrigger
-                  value="registration"
-                  className="px-0 py-2 text-[16px] font-normal text-black border-b-2 border-transparent data-[state=active]:font-medium data-[state=active]:border-[#4b89ef] data-[state=active]:shadow-none data-[state=active]:bg-transparent rounded-none bg-transparent shadow-none outline-none ring-0 border-x-0 border-t-0 whitespace-nowrap flex-shrink-0"
-                >
-                  Registration
-                </TabsTrigger>
-                <TabsTrigger
-                  value="project"
-                  className="px-0 py-2 text-[16px] font-normal text-black border-b-2 border-transparent data-[state=active]:font-medium data-[state=active]:border-[#4b89ef] data-[state=active]:shadow-none data-[state=active]:bg-transparent rounded-none bg-transparent shadow-none outline-none ring-0 border-x-0 border-t-0 whitespace-nowrap flex-shrink-0"
-                >
-                  Project
-                </TabsTrigger>
-                <TabsTrigger
                   value="access"
                   className="px-0 py-2 text-[16px] font-normal text-black border-b-2 border-transparent data-[state=active]:font-medium data-[state=active]:border-[#4b89ef] data-[state=active]:shadow-none data-[state=active]:bg-transparent rounded-none bg-transparent shadow-none outline-none ring-0 border-x-0 border-t-0 whitespace-nowrap flex-shrink-0"
                 >
@@ -650,37 +629,14 @@ export default function NewEventPage() {
                 >
                   Tracks
                 </TabsTrigger>
-                <TabsTrigger
-                  value="pricing"
-                  className="px-0 py-2 text-[16px] font-normal text-black border-b-2 border-transparent data-[state=active]:font-medium data-[state=active]:border-[#4b89ef] data-[state=active]:shadow-none data-[state=active]:bg-transparent rounded-none bg-transparent shadow-none outline-none ring-0 border-x-0 border-t-0 whitespace-nowrap flex-shrink-0"
-                >
-                  Pricing
-                </TabsTrigger>
-                <TabsTrigger
-                  value="notify"
-                  className="px-0 py-2 text-[16px] font-normal text-black border-b-2 border-transparent data-[state=active]:font-medium data-[state=active]:border-[#4b89ef] data-[state=active]:shadow-none data-[state=active]:bg-transparent rounded-none bg-transparent shadow-none outline-none ring-0 border-x-0 border-t-0 whitespace-nowrap flex-shrink-0"
-                >
-                  Notify
-                </TabsTrigger>
               </TabsList>
             </div>
 
             {/* Content Area - Scrollable */}
-            <div className="flex flex-col lg:flex-row gap-6 lg:gap-12 items-start w-full lg:flex-1 lg:min-h-0 lg:overflow-auto no-scrollbar">
+            <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 items-start w-full lg:flex-1 lg:min-h-0 lg:overflow-auto no-scrollbar">
               {/* Form Section */}
-              <div
-                className={`w-full flex flex-col items-start order-last lg:order-first ${
-                  activeTab === "pricing" ||
-                  activeTab === "notify" ||
-                  activeTab === "tracks" ||
-                  activeTab === "access" ||
-                  activeTab === "project" ||
-                  activeTab === "registration"
-                    ? "lg:flex-1 lg:min-w-0"
-                    : "lg:flex-[2] lg:min-w-0 lg:max-w-[800px]"
-                }`}
-              >
-                <TabsContent value="overview" className="mt-0">
+              <div className="w-full flex flex-col items-start order-last lg:order-first">
+                <TabsContent value="overview" className="mt-0 w-full">
                   <Tabs value={activeSubTab} onValueChange={setActiveSubTab}>
                     <div
                       className="w-screen -mx-4 sm:-mx-6 lg:w-full lg:mx-0 overflow-x-auto overflow-y-visible px-4 sm:px-6 lg:px-0 mb-6"
@@ -743,2115 +699,2089 @@ export default function NewEventPage() {
                       </TabsList>
                     </div>
 
-                    <TabsContent
-                      value="basics"
-                      className="mt-0 space-y-4 overflow-x-hidden w-full min-w-0"
-                    >
-                      <input
-                        type="text"
-                        value={form.event_name}
-                        onChange={(e) => onChange("event_name", e.target.value)}
-                        placeholder="Event Title"
-                        className="font-semibold text-[36px] leading-[1.3] tracking-[-2.16px] mb-6 w-full min-w-0 bg-transparent border-none outline-none focus:ring-0 p-0"
-                        style={{
-                          color: form.event_name ? "#000000" : "#d8d8d8",
-                          fontFamily: "Geist, sans-serif",
-                        }}
-                      />
-
-                      <div className="space-y-4 w-full min-w-0">
-                        <div className="space-y-2 w-full min-w-0">
-                          <label className="text-[16px] font-normal text-black">
-                            Date
-                          </label>
-                          <DatePicker
-                            value={form.event_date}
-                            onChange={(value) => onChange("event_date", value)}
-                            placeholder="mm/dd/yyyy"
+                    <div className="flex flex-col md:flex-row gap-6 lg:gap-8 items-start w-full">
+                      <div className="w-full lg:flex-1 lg:min-w-0">
+                        <TabsContent
+                          value="basics"
+                          className="mt-0 space-y-4 overflow-x-hidden w-full min-w-0 pl-2"
+                        >
+                          <input
+                            type="text"
+                            value={form.event_name}
+                            onChange={(e) =>
+                              onChange("event_name", e.target.value)
+                            }
+                            placeholder="Event Title"
+                            className="font-semibold text-[36px] leading-[1.3] tracking-[-2.16px] mb-6 w-full min-w-0 bg-transparent border-none outline-none focus:ring-0 p-0"
+                            style={{
+                              color: form.event_name ? "#000000" : "#d8d8d8",
+                              fontFamily: "Geist, sans-serif",
+                            }}
                           />
-                        </div>
 
-                        <div className="space-y-2">
-                          <label className="text-[16px] font-normal text-black">
-                            Project submission window (UTC)
-                          </label>
-                          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                            <DatePicker
-                              value={form.submission_time_start}
-                              onChange={(value) =>
-                                onChange("submission_time_start", value)
-                              }
-                              placeholder="mm/dd/yyyy"
-                            />
-                            <span className="text-gray-500 text-center sm:text-left">
-                              to
-                            </span>
-                            <DatePicker
-                              value={form.submission_time_cutoff}
-                              onChange={(value) =>
-                                onChange("submission_time_cutoff", value)
-                              }
-                              placeholder="mm/dd/yyyy"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="space-y-2">
-                          <label className="text-[16px] font-normal text-black">
-                            Seat Cap
-                          </label>
-                          <div className="relative w-full min-w-0">
-                            <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
-                            <Input
-                              type="number"
-                              value={form.participant_capacity}
-                              onChange={(e) =>
-                                onChange("participant_capacity", e.target.value)
-                              }
-                              placeholder="Leave blank for unlimited participants"
-                              className="w-full min-w-0 h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="space-y-2 w-full">
-                          <label className="text-[16px] font-normal text-black">
-                            Location
-                          </label>
-                          <div className="flex items-center gap-2 sm:gap-4 mb-2 w-full">
-                            <button
-                              onClick={() =>
-                                setForm((p) => ({
-                                  ...p,
-                                  location_type: "in-person",
-                                }))
-                              }
-                              className={`flex items-center justify-center gap-2 px-4 py-2 rounded-[12px] text-[16px] font-normal transition-colors flex-1 sm:w-[180px] ${
-                                form.location_type === "in-person"
-                                  ? "bg-[#4b89ef] text-white"
-                                  : "bg-transparent border border-[rgba(0,0,0,0.15)] text-black"
-                              }`}
-                            >
-                              <Building2 className="w-5 h-5" />
-                              In-person
-                            </button>
-                            <button
-                              onClick={() =>
-                                setForm((p) => ({
-                                  ...p,
-                                  location_type: "virtual",
-                                }))
-                              }
-                              className={`flex items-center justify-center gap-2 px-4 py-2 rounded-[12px] text-[16px] font-normal transition-colors flex-1 sm:w-[180px] ${
-                                form.location_type === "virtual"
-                                  ? "bg-[#4b89ef] text-white"
-                                  : "bg-transparent border border-[rgba(0,0,0,0.15)] text-black"
-                              }`}
-                            >
-                              <Video className="w-5 h-5" />
-                              Virtual event
-                            </button>
-                          </div>
-                          <div className="relative w-full min-w-0">
-                            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
-                            <Input
-                              value={form.location}
-                              onChange={(e) =>
-                                onChange("location", e.target.value)
-                              }
-                              placeholder="Add offline location"
-                              className="w-full min-w-0 h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="space-y-2">
-                          <label className="text-[16px] font-normal text-black">
-                            Cover image url
-                          </label>
-                          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                            <div className="relative flex-1 min-w-0">
-                              <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
-                              <Input
-                                value={form.cover_image_url}
-                                onChange={(e) =>
-                                  onChange("cover_image_url", e.target.value)
+                          <div className="space-y-4 w-full min-w-0 px-2">
+                            <div className="space-y-2 w-full min-w-0">
+                              <label className="text-[16px] font-normal text-black">
+                                Date
+                              </label>
+                              <DatePicker
+                                value={form.event_date}
+                                onChange={(value) =>
+                                  onChange("event_date", value)
                                 }
-                                placeholder="https://..."
-                                className="w-full min-w-0 h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+                                placeholder="mm/dd/yyyy"
                               />
                             </div>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              onClick={() => {
-                                const input = document.createElement("input");
-                                input.type = "file";
-                                input.accept = "image/*";
-                                input.onchange = (e) => {
-                                  const file = (e.target as HTMLInputElement)
-                                    .files?.[0];
-                                  if (file) {
-                                    onChange(
-                                      "cover_image_url",
-                                      URL.createObjectURL(file)
-                                    );
+
+                            <div className="space-y-2">
+                              <label className="text-[16px] font-normal text-black">
+                                Project submission window (UTC)
+                              </label>
+                              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                                <DatePicker
+                                  value={form.submission_time_start}
+                                  onChange={(value) =>
+                                    onChange("submission_time_start", value)
                                   }
-                                };
-                                input.click();
-                              }}
-                              className="h-[44px] px-4 border border-[rgba(0,0,0,0.15)] rounded-[12px] w-full sm:w-auto"
-                            >
-                              <Upload className="w-4 h-4 mr-2" />
-                              Upload
-                            </Button>
-                          </div>
-                          <p className="text-xs text-gray-500">
-                            *Upload an image to showcase your project (Max
-                            10MB).
-                          </p>
-                        </div>
-
-                        <div className="space-y-2">
-                          <label className="text-[16px] font-normal text-black">
-                            Blurb
-                          </label>
-                          <div className="relative w-full min-w-0">
-                            <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
-                            <Input
-                              value={form.event_blurb}
-                              onChange={(e) =>
-                                onChange("event_blurb", e.target.value)
-                              }
-                              placeholder="Short description shown in the preview card"
-                              className="w-full min-w-0 h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
-                            />
-                          </div>
-                          <p className="text-xs text-gray-500">
-                            A short description that appears in the event
-                            preview card.
-                          </p>
-                        </div>
-
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <label className="text-[16px] font-normal text-black">
-                              Description
-                            </label>
-                            <div className="inline-flex items-center border border-[rgba(0,0,0,0.15)] rounded-[12px] p-1 bg-white">
-                              <button
-                                onClick={() => setDescriptionMode("edit")}
-                                className={`px-4 py-2 rounded-[8px] text-sm font-normal transition-colors ${
-                                  descriptionMode === "edit"
-                                    ? "bg-white border border-[rgba(0,0,0,0.15)] text-black shadow-sm"
-                                    : "bg-transparent text-black hover:bg-gray-50"
-                                }`}
-                              >
-                                Edit
-                              </button>
-                              <button
-                                onClick={() => setDescriptionMode("preview")}
-                                className={`px-4 py-2 rounded-[8px] text-sm font-normal transition-colors ${
-                                  descriptionMode === "preview"
-                                    ? "bg-white border border-[rgba(0,0,0,0.15)] text-black shadow-sm"
-                                    : "bg-transparent text-black hover:bg-gray-50"
-                                }`}
-                              >
-                                Preview
-                              </button>
+                                  placeholder="mm/dd/yyyy"
+                                />
+                                <span className="text-gray-500 text-center sm:text-left">
+                                  to
+                                </span>
+                                <DatePicker
+                                  value={form.submission_time_cutoff}
+                                  onChange={(value) =>
+                                    onChange("submission_time_cutoff", value)
+                                  }
+                                  placeholder="mm/dd/yyyy"
+                                />
+                              </div>
                             </div>
-                          </div>
-                          {descriptionMode === "edit" ? (
-                            <>
-                              <Textarea
-                                value={form.event_description}
-                                onChange={(e) =>
-                                  onChange("event_description", e.target.value)
-                                }
-                                placeholder="Add long description (markdown supported)"
-                                className="min-h-[300px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] p-3 focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none resize-y"
-                              />
-                              <p className="text-xs text-gray-500 italic">
-                                *Full event description. Markdown formatting is
-                                supported.
-                              </p>
-                            </>
-                          ) : (
-                            <div className="min-h-[300px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] p-3 overflow-auto prose prose-sm max-w-full">
-                              {form.event_description ? (
-                                <ReactMarkdown>
-                                  {form.event_description}
-                                </ReactMarkdown>
-                              ) : (
-                                <em>No description added yet.</em>
+
+                            <div className="space-y-2">
+                              <label className="text-[16px] font-normal text-black">
+                                Seat Cap
+                              </label>
+                              <div className="relative w-full min-w-0">
+                                <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  value={form.participant_capacity}
+                                  onChange={(e) =>
+                                    onChange(
+                                      "participant_capacity",
+                                      e.target.value
+                                    )
+                                  }
+                                  placeholder="Leave blank for unlimited participants"
+                                  className="w-full min-w-0 h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="space-y-2 w-full">
+                              <label className="text-[16px] font-normal text-black">
+                                Location
+                              </label>
+                              <div className="flex items-center gap-2 sm:gap-4 mb-2 w-full">
+                                <button
+                                  onClick={() =>
+                                    setForm((p) => ({
+                                      ...p,
+                                      location_type: "in-person",
+                                    }))
+                                  }
+                                  className={`flex items-center justify-center gap-2 px-4 py-2 rounded-[12px] text-[16px] font-normal transition-colors flex-1 sm:w-[180px] ${
+                                    form.location_type === "in-person"
+                                      ? "bg-[#4b89ef] text-white"
+                                      : "bg-transparent border border-[rgba(0,0,0,0.15)] text-black"
+                                  }`}
+                                >
+                                  <Building2 className="w-5 h-5" />
+                                  In-person
+                                </button>
+                                <button
+                                  onClick={() =>
+                                    setForm((p) => ({
+                                      ...p,
+                                      location_type: "virtual",
+                                    }))
+                                  }
+                                  className={`flex items-center justify-center gap-2 px-4 py-2 rounded-[12px] text-[16px] font-normal transition-colors flex-1 sm:w-[180px] ${
+                                    form.location_type === "virtual"
+                                      ? "bg-[#4b89ef] text-white"
+                                      : "bg-transparent border border-[rgba(0,0,0,0.15)] text-black"
+                                  }`}
+                                >
+                                  <Video className="w-5 h-5" />
+                                  Virtual event
+                                </button>
+                              </div>
+                              <div className="relative w-full min-w-0">
+                                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                                <Input
+                                  value={form.location}
+                                  onChange={(e) =>
+                                    onChange("location", e.target.value)
+                                  }
+                                  placeholder="Add location"
+                                  className="w-full min-w-0 h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+                                />
+                              </div>
+                            </div>
+
+                            {/* Cover Image */}
+                            <div className="space-y-2">
+                              <label className="text-[16px] font-normal text-black">
+                                Cover image
+                              </label>
+
+                              {/* File Upload Section */}
+                              {!coverImageFile && !form.cover_image_url && (
+                                <div className="space-y-3">
+                                  <label
+                                    htmlFor="cover-image-upload"
+                                    className="flex items-center justify-center gap-2 h-[100px] bg-white border-2 border-dashed border-[rgba(0,0,0,0.15)] rounded-[12px] cursor-pointer hover:border-[#4b89ef] hover:bg-blue-50/30 transition-colors"
+                                  >
+                                    <Upload className="w-6 h-6 text-gray-500" />
+                                    <span className="text-[16px] text-gray-500">
+                                      Click to upload an image
+                                    </span>
+                                    <input
+                                      id="cover-image-upload"
+                                      type="file"
+                                      accept="image/*"
+                                      onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) setCoverImageFile(file);
+                                      }}
+                                      className="hidden"
+                                    />
+                                  </label>
+                                  <div className="flex items-center gap-3">
+                                    <div className="flex-1 h-px bg-[rgba(0,0,0,0.15)]" />
+                                    <span className="text-[14px] text-gray-500">
+                                      or enter URL
+                                    </span>
+                                    <div className="flex-1 h-px bg-[rgba(0,0,0,0.15)]" />
+                                  </div>
+                                  <div className="relative">
+                                    <Input
+                                      value={form.cover_image_url}
+                                      onChange={(e) =>
+                                        onChange(
+                                          "cover_image_url",
+                                          e.target.value
+                                        )
+                                      }
+                                      placeholder="https://..."
+                                      className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)]"
+                                    />
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* File Selected Preview */}
+                              {coverImageFile && (
+                                <div className="space-y-3">
+                                  <div className="relative w-full h-[140px] rounded-[12px] overflow-hidden bg-gray-100">
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img
+                                      src={URL.createObjectURL(coverImageFile)}
+                                      alt="Cover image preview"
+                                      className="w-full h-full object-cover"
+                                    />
+                                    <button
+                                      onClick={() => setCoverImageFile(null)}
+                                      className="absolute top-2 right-2 p-1 bg-black/50 rounded-full hover:bg-black/70 transition-colors"
+                                    >
+                                      <X className="w-4 h-4 text-white" />
+                                    </button>
+                                  </div>
+                                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-[12px]">
+                                    <div>
+                                      <p className="text-[14px] font-medium text-black truncate max-w-[300px]">
+                                        {coverImageFile.name}
+                                      </p>
+                                      <p className="text-[12px] text-gray-500">
+                                        {(
+                                          coverImageFile.size /
+                                          1024 /
+                                          1024
+                                        ).toFixed(2)}{" "}
+                                        MB
+                                      </p>
+                                    </div>
+                                    <div className="flex gap-2">
+                                      <Button
+                                        size="sm"
+                                        onClick={() =>
+                                          handleCoverImageUpload(coverImageFile)
+                                        }
+                                        disabled={coverImageUploading}
+                                      >
+                                        {coverImageUploading
+                                          ? "Uploading..."
+                                          : "Upload"}
+                                      </Button>
+                                      <Button
+                                        variant="defaultGray"
+                                        size="sm"
+                                        className="rounded-[12px] text-[16px]"
+                                        onClick={() => setCoverImageFile(null)}
+                                        disabled={coverImageUploading}
+                                      >
+                                        Cancel
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Uploaded/URL Image Preview */}
+                              {form.cover_image_url && !coverImageFile && (
+                                <div className="space-y-3">
+                                  <div className="relative w-full h-[140px] rounded-[12px] overflow-hidden bg-gray-100">
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img
+                                      src={form.cover_image_url}
+                                      alt="Cover image"
+                                      className="w-full h-full object-cover"
+                                    />
+                                    <button
+                                      onClick={() =>
+                                        onChange("cover_image_url", "")
+                                      }
+                                      className="absolute top-2 right-2 p-1 bg-black/50 rounded-full hover:bg-black/70 transition-colors"
+                                    >
+                                      <X className="w-4 h-4 text-white" />
+                                    </button>
+                                  </div>
+                                  <div className="relative">
+                                    <Input
+                                      value={form.cover_image_url}
+                                      onChange={(e) =>
+                                        onChange(
+                                          "cover_image_url",
+                                          e.target.value
+                                        )
+                                      }
+                                      placeholder="https://..."
+                                      className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)]"
+                                    />
+                                  </div>
+                                </div>
                               )}
                             </div>
-                          )}
-                        </div>
 
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <label className="text-[16px] font-normal text-black">
-                              This is a paid event
-                            </label>
-                            <Switch
-                              checked={ticketType === "paid"}
-                              onCheckedChange={(checked) =>
-                                setTicketType(checked ? "paid" : "free")
-                              }
-                            />
-                          </div>
-                          <p className="text-xs text-gray-500">
-                            *Toggle this on to set up pricing tiers for your
-                            event. Participants will need to pay to join.
-                          </p>
-                        </div>
-
-                        <div className="space-y-2">
-                          <label className="text-[16px] font-normal text-black">
-                            Add organizer
-                          </label>
-                          <div className="relative w-full min-w-0">
-                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
-                            <Input
-                              value={form.organizer_emails}
-                              onChange={(e) =>
-                                onChange("organizer_emails", e.target.value)
-                              }
-                              placeholder="Separate emails with ,"
-                              className="w-full min-w-0 h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
-                            />
-                          </div>
-                          <p className="text-xs text-gray-500">
-                            *Invitee will receive an email notification with
-                            access instructions.
-                          </p>
-                        </div>
-                      </div>
-                    </TabsContent>
-
-                    <TabsContent
-                      value="content"
-                      className="mt-0 space-y-4 overflow-x-hidden"
-                    >
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <h3 className="text-[16px] font-semibold text-black">
-                            Exclusive Content for Participants
-                          </h3>
-                          <div className="inline-flex items-center border border-[rgba(0,0,0,0.15)] rounded-[12px] p-1 bg-white">
-                            <button
-                              onClick={() => setPaywallMode("edit")}
-                              className={`px-4 py-2 rounded-[8px] text-sm font-normal transition-colors ${
-                                paywallMode === "edit"
-                                  ? "bg-white border border-[rgba(0,0,0,0.15)] text-black shadow-sm"
-                                  : "bg-transparent text-black hover:bg-gray-50"
-                              }`}
-                              data-testid="paywall-edit"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              onClick={() => setPaywallMode("preview")}
-                              className={`px-4 py-2 rounded-[8px] text-sm font-normal transition-colors ${
-                                paywallMode === "preview"
-                                  ? "bg-white border border-[rgba(0,0,0,0.15)] text-black shadow-sm"
-                                  : "bg-transparent text-black hover:bg-gray-50"
-                              }`}
-                              data-testid="paywall-preview"
-                            >
-                              Preview
-                            </button>
-                          </div>
-                        </div>
-                        {paywallMode === "edit" ? (
-                          <>
-                            <Textarea
-                              value={form.paywall_content}
-                              onChange={(e) =>
-                                onChange("paywall_content", e.target.value)
-                              }
-                              placeholder="Add content (markdown supported)"
-                              className="min-h-[300px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] p-3"
-                            />
-                            <p className="text-xs text-gray-500 italic">
-                              *This content is visible only to participants who
-                              have joined the event.
-                            </p>
-                          </>
-                        ) : (
-                          <div className="min-h-[300px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] p-3 overflow-auto prose prose-sm max-w-full">
-                            {form.paywall_content ? (
-                              <ReactMarkdown>
-                                {form.paywall_content}
-                              </ReactMarkdown>
-                            ) : (
-                              <em>No exclusive content added yet.</em>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </TabsContent>
-
-                    <TabsContent
-                      value="schedule"
-                      className="mt-0 overflow-x-hidden"
-                    >
-                      {schedules.length === 0 && !showScheduleForm ? (
-                        <div className="border-2 border-dashed border-gray-300 rounded-[12px] p-12 flex flex-col items-center justify-center text-center min-h-[400px]">
-                          <div className="flex flex-col items-center gap-2">
-                            <div className="relative">
-                              <Image
-                                src="/img/cancel_schedule_send.png"
-                                alt="No schedule illustration"
-                                width={40}
-                                height={40}
-                                className="object-contain"
-                                priority
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <h3 className="text-[18px] font-semibold text-black">
-                                No schedule yet
-                              </h3>
-                              <p className="text-[14px] text-gray-500 max-w-md">
-                                Add day and events to display the event schedule
+                            <div className="space-y-2">
+                              <label className="text-[16px] font-normal text-black">
+                                Blurb
+                              </label>
+                              <div className="relative w-full min-w-0">
+                                <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                                <Input
+                                  value={form.event_blurb}
+                                  onChange={(e) =>
+                                    onChange("event_blurb", e.target.value)
+                                  }
+                                  placeholder="Short description shown in the preview card"
+                                  className="w-full min-w-0 h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+                                />
+                              </div>
+                              <p className="text-xs text-gray-500">
+                                A short description that appears in the event
+                                preview card.
                               </p>
                             </div>
-                            <Button
-                              type="button"
-                              onClick={() => setShowScheduleForm(true)}
-                              className="mt-2 bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
-                            >
-                              Add schedule
-                            </Button>
+
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <label className="text-[16px] font-normal text-black">
+                                  Description
+                                </label>
+                                <div className="inline-flex items-center border border-[rgba(0,0,0,0.15)] rounded-[12px] p-1 bg-white">
+                                  <button
+                                    onClick={() => setDescriptionMode("edit")}
+                                    className={`px-4 py-2 rounded-[8px] text-sm font-normal transition-colors ${
+                                      descriptionMode === "edit"
+                                        ? "bg-white border border-[rgba(0,0,0,0.15)] text-black shadow-sm"
+                                        : "bg-transparent text-black hover:bg-gray-50"
+                                    }`}
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    onClick={() =>
+                                      setDescriptionMode("preview")
+                                    }
+                                    className={`px-4 py-2 rounded-[8px] text-sm font-normal transition-colors ${
+                                      descriptionMode === "preview"
+                                        ? "bg-white border border-[rgba(0,0,0,0.15)] text-black shadow-sm"
+                                        : "bg-transparent text-black hover:bg-gray-50"
+                                    }`}
+                                  >
+                                    Preview
+                                  </button>
+                                </div>
+                              </div>
+                              {descriptionMode === "edit" ? (
+                                <>
+                                  <Textarea
+                                    value={form.event_description}
+                                    onChange={(e) =>
+                                      onChange(
+                                        "event_description",
+                                        e.target.value
+                                      )
+                                    }
+                                    placeholder="Add long description (markdown supported)"
+                                    className="min-h-[300px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] p-3 focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none resize-y"
+                                  />
+                                  <p className="text-xs text-gray-500 italic">
+                                    *Full event description. Markdown formatting
+                                    is supported.
+                                  </p>
+                                </>
+                              ) : (
+                                <div className="min-h-[300px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] p-3 overflow-auto prose prose-sm max-w-full">
+                                  {form.event_description ? (
+                                    <ReactMarkdown>
+                                      {form.event_description}
+                                    </ReactMarkdown>
+                                  ) : (
+                                    <em>No description added yet.</em>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <label className="text-[16px] font-normal text-black">
+                                  This is a paid event
+                                </label>
+                                <Switch
+                                  checked={ticketType === "paid"}
+                                  onCheckedChange={(checked) =>
+                                    setTicketType(checked ? "paid" : "free")
+                                  }
+                                />
+                              </div>
+                              <p className="text-xs text-gray-500">
+                                *Toggle this on to set up pricing tiers for your
+                                event. Participants will need to pay to join.
+                              </p>
+                            </div> */}
+
+                            <div className="space-y-2">
+                              <label className="text-[16px] font-normal text-black">
+                                Add organizer
+                              </label>
+                              <div className="relative w-full min-w-0">
+                                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                                <Input
+                                  value={form.organizer_emails}
+                                  onChange={(e) =>
+                                    onChange("organizer_emails", e.target.value)
+                                  }
+                                  placeholder="Separate emails with ,"
+                                  className="w-full min-w-0 h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+                                />
+                              </div>
+                              <p className="text-xs text-gray-500">
+                                *Invitee will receive an email notification with
+                                access instructions.
+                              </p>
+                            </div>
                           </div>
-                        </div>
-                      ) : schedules.length > 0 && !showScheduleForm ? (
-                        <div className="space-y-4">
-                          {schedules.map((schedule) => (
-                            <div
-                              key={schedule.id}
-                              className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-4"
-                            >
-                              <div className="flex items-start justify-between mb-2">
-                                <div className="flex-1">
-                                  <h4 className="text-[18px] font-semibold text-black">
-                                    {schedule.dayTitle}
-                                  </h4>
-                                  <div className="mt-2 space-y-1">
-                                    <p className="text-[16px] font-medium text-black">
-                                      {schedule.eventName}
-                                    </p>
-                                    {schedule.time && (
-                                      <p className="text-[14px] text-gray-600">
-                                        Time: {schedule.time}
-                                      </p>
-                                    )}
-                                    {schedule.guests && (
-                                      <p className="text-[14px] text-gray-600">
-                                        Guests: {schedule.guests}
-                                      </p>
-                                    )}
-                                    {schedule.description && (
-                                      <div className="mt-2 text-[14px] text-gray-600 prose prose-sm max-w-full">
-                                        <ReactMarkdown>
-                                          {schedule.description}
-                                        </ReactMarkdown>
-                                      </div>
-                                    )}
-                                  </div>
+                        </TabsContent>
+
+                        <TabsContent
+                          value="content"
+                          className="mt-0 space-y-4 overflow-x-hidden px-2"
+                        >
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <h3 className="text-[16px] font-semibold text-black">
+                                Exclusive Content for Participants
+                              </h3>
+                              <div className="inline-flex items-center border border-[rgba(0,0,0,0.15)] rounded-[12px] p-1 bg-white">
+                                <button
+                                  onClick={() => setPaywallMode("edit")}
+                                  className={`px-4 py-2 rounded-[8px] text-sm font-normal transition-colors ${
+                                    paywallMode === "edit"
+                                      ? "bg-white border border-[rgba(0,0,0,0.15)] text-black shadow-sm"
+                                      : "bg-transparent text-black hover:bg-gray-50"
+                                  }`}
+                                  data-testid="paywall-edit"
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={() => setPaywallMode("preview")}
+                                  className={`px-4 py-2 rounded-[8px] text-sm font-normal transition-colors ${
+                                    paywallMode === "preview"
+                                      ? "bg-white border border-[rgba(0,0,0,0.15)] text-black shadow-sm"
+                                      : "bg-transparent text-black hover:bg-gray-50"
+                                  }`}
+                                  data-testid="paywall-preview"
+                                >
+                                  Preview
+                                </button>
+                              </div>
+                            </div>
+                            {paywallMode === "edit" ? (
+                              <>
+                                <Textarea
+                                  value={form.paywall_content}
+                                  onChange={(e) =>
+                                    onChange("paywall_content", e.target.value)
+                                  }
+                                  placeholder="Add content (markdown supported)"
+                                  className="min-h-[300px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] p-3"
+                                />
+                                <p className="text-xs text-gray-500 italic">
+                                  *This content is visible only to participants
+                                  who have joined the event.
+                                </p>
+                              </>
+                            ) : (
+                              <div className="min-h-[300px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] p-3 overflow-auto prose prose-sm max-w-full">
+                                {form.paywall_content ? (
+                                  <ReactMarkdown>
+                                    {form.paywall_content}
+                                  </ReactMarkdown>
+                                ) : (
+                                  <em>No exclusive content added yet.</em>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </TabsContent>
+
+                        <TabsContent
+                          value="schedule"
+                          className="mt-0 overflow-x-hidden px-2"
+                        >
+                          {schedules.length === 0 && !showScheduleForm ? (
+                            <div className="border-2 border-dashed border-gray-300 rounded-[12px] p-12 flex flex-col items-center justify-center text-center min-h-[400px]">
+                              <div className="flex flex-col items-center gap-2">
+                                <div className="relative">
+                                  <Image
+                                    src="/img/cancel_schedule_send.png"
+                                    alt="No schedule illustration"
+                                    width={40}
+                                    height={40}
+                                    className="object-contain"
+                                    priority
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <h3 className="text-[18px] font-semibold text-black">
+                                    No schedule yet
+                                  </h3>
+                                  <p className="text-[14px] text-gray-500 max-w-full">
+                                    Add day and events to display the event
+                                    schedule
+                                  </p>
                                 </div>
                                 <Button
                                   type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => {
-                                    setSchedules(
-                                      schedules.filter(
-                                        (s) => s.id !== schedule.id
-                                      )
-                                    );
-                                    toast({
-                                      title: "Schedule deleted",
-                                      description:
-                                        "Schedule item removed successfully.",
-                                    });
-                                  }}
-                                  className="text-red-500 hover:text-red-700 hover:bg-red-50 ml-2"
+                                  onClick={() => setShowScheduleForm(true)}
+                                  className="mt-2 bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
                                 >
-                                  <Trash2 className="w-4 h-4" />
+                                  Add schedule
                                 </Button>
                               </div>
                             </div>
-                          ))}
-                          <Button
-                            type="button"
-                            onClick={() => setShowScheduleForm(true)}
-                            className="w-full bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
-                          >
-                            <Plus className="w-4 h-4 mr-2" />
-                            Add schedule
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4">
-                          <div className="space-y-2">
-                            <label className="text-[16px] font-normal text-black">
-                              Day Title
-                            </label>
-                            <div className="relative">
-                              <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
-                              <Input
-                                value={scheduleForm.dayTitle}
-                                onChange={(e) =>
-                                  setScheduleForm((prev) => ({
-                                    ...prev,
-                                    dayTitle: e.target.value,
-                                  }))
-                                }
-                                placeholder="Short description shown in the preview card"
-                                className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
-                              />
+                          ) : schedules.length > 0 && !showScheduleForm ? (
+                            <div className="space-y-4">
+                              {schedules.map((schedule) => (
+                                <div
+                                  key={schedule.id}
+                                  className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-4"
+                                >
+                                  <div className="flex items-start justify-between mb-2">
+                                    <div className="flex-1">
+                                      <h4 className="text-[18px] font-semibold text-black">
+                                        {schedule.dayTitle}
+                                      </h4>
+                                      <div className="mt-2 space-y-1">
+                                        <p className="text-[16px] font-medium text-black">
+                                          {schedule.eventName}
+                                        </p>
+                                        {schedule.time && (
+                                          <p className="text-[14px] text-gray-600">
+                                            Time: {schedule.time}
+                                          </p>
+                                        )}
+                                        {schedule.guests && (
+                                          <p className="text-[14px] text-gray-600">
+                                            Guests: {schedule.guests}
+                                          </p>
+                                        )}
+                                        {schedule.description && (
+                                          <div className="mt-2 text-[14px] text-gray-600 prose prose-sm max-w-full">
+                                            <ReactMarkdown>
+                                              {schedule.description}
+                                            </ReactMarkdown>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => {
+                                        setSchedules(
+                                          schedules.filter(
+                                            (s) => s.id !== schedule.id
+                                          )
+                                        );
+                                        toast({
+                                          title: "Schedule deleted",
+                                          description:
+                                            "Schedule item removed successfully.",
+                                        });
+                                      }}
+                                      className="text-red-500 hover:text-red-700 hover:bg-red-50 ml-2"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              ))}
+                              <Button
+                                type="button"
+                                onClick={() => setShowScheduleForm(true)}
+                                className="w-full bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
+                              >
+                                <Plus className="w-4 h-4 mr-2" />
+                                Add schedule
+                              </Button>
                             </div>
-                          </div>
-
-                          <div
-                            className="rounded-[12px] border border-[rgba(0,0,0,0.15)] bg-[#F7FAFE] p-4 flex flex-col items-start gap-6"
-                            style={{
-                              boxShadow:
-                                "0 0 0 1px rgba(0, 0, 0, 0.05) inset, 0 -2px 1px 0 rgba(0, 0, 0, 0.05) inset, 0 1px 2px 0 rgba(0, 0, 0, 0.05)",
-                            }}
-                          >
-                            <div className="space-y-2 w-full">
-                              <label className="text-[16px] font-normal text-black">
-                                Event Name
-                              </label>
-                              <div className="relative">
-                                <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
-                                <Input
-                                  value={scheduleForm.eventName}
-                                  onChange={(e) =>
-                                    setScheduleForm((prev) => ({
-                                      ...prev,
-                                      eventName: e.target.value,
-                                    }))
-                                  }
-                                  placeholder="Short description shown in the preview card"
-                                  className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
-                                />
-                              </div>
-                            </div>
-
-                            <div className="space-y-2 w-full">
-                              <label className="text-[16px] font-normal text-black">
-                                Time
-                              </label>
-                              <div className="relative">
-                                <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
-                                <Input
-                                  value={scheduleForm.time}
-                                  onChange={(e) =>
-                                    setScheduleForm((prev) => ({
-                                      ...prev,
-                                      time: e.target.value,
-                                    }))
-                                  }
-                                  placeholder="11-22-33"
-                                  className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
-                                />
-                              </div>
-                            </div>
-
-                            <div className="space-y-2 w-full">
-                              <label className="text-[16px] font-normal text-black">
-                                Add guests
-                              </label>
-                              <div className="relative">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
-                                <Input
-                                  value={scheduleForm.guests}
-                                  onChange={(e) =>
-                                    setScheduleForm((prev) => ({
-                                      ...prev,
-                                      guests: e.target.value,
-                                    }))
-                                  }
-                                  placeholder="Search guests"
-                                  className="h-[44px] pl-11 pr-32 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
-                                />
-                                <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                                  <button
-                                    type="button"
-                                    className="text-[14px] text-[#4b89ef] hover:underline whitespace-nowrap"
-                                  >
-                                    Invite guest
-                                  </button>
-                                  <svg
-                                    className="w-5 h-5 text-gray-400"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M19 9l-7 7-7-7"
-                                    />
-                                  </svg>
+                          ) : (
+                            <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4">
+                              <div className="space-y-2">
+                                <label className="text-[16px] font-normal text-black">
+                                  Day Title
+                                </label>
+                                <div className="relative">
+                                  <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                                  <Input
+                                    value={scheduleForm.dayTitle}
+                                    onChange={(e) =>
+                                      setScheduleForm((prev) => ({
+                                        ...prev,
+                                        dayTitle: e.target.value,
+                                      }))
+                                    }
+                                    placeholder="Short description shown in the preview card"
+                                    className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+                                  />
                                 </div>
                               </div>
-                            </div>
 
-                            <div className="space-y-2 w-full">
-                              <label className="text-[16px] font-normal text-black">
-                                Description
-                              </label>
-                              <Textarea
-                                value={scheduleForm.description}
-                                onChange={(e) =>
-                                  setScheduleForm((prev) => ({
-                                    ...prev,
-                                    description: e.target.value,
-                                  }))
-                                }
-                                placeholder="Add long description (markdown supported)"
-                                className="min-h-[200px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] p-3 focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none resize-y"
-                              />
-                            </div>
-                          </div>
+                              <div
+                                className="rounded-[12px] border border-[rgba(0,0,0,0.15)] bg-[#F7FAFE] p-4 flex flex-col items-start gap-6"
+                                style={{
+                                  boxShadow:
+                                    "0 0 0 1px rgba(0, 0, 0, 0.05) inset, 0 -2px 1px 0 rgba(0, 0, 0, 0.05) inset, 0 1px 2px 0 rgba(0, 0, 0, 0.05)",
+                                }}
+                              >
+                                <div className="space-y-2 w-full">
+                                  <label className="text-[16px] font-normal text-black">
+                                    Event Name
+                                  </label>
+                                  <div className="relative">
+                                    <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                                    <Input
+                                      value={scheduleForm.eventName}
+                                      onChange={(e) =>
+                                        setScheduleForm((prev) => ({
+                                          ...prev,
+                                          eventName: e.target.value,
+                                        }))
+                                      }
+                                      placeholder="Short description shown in the preview card"
+                                      className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+                                    />
+                                  </div>
+                                </div>
 
-                          <div className="flex items-center gap-2 pt-4">
-                            <Button
-                              type="button"
-                              className="bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
-                              onClick={() => {
-                                if (
-                                  !scheduleForm.dayTitle ||
-                                  !scheduleForm.eventName
-                                ) {
-                                  toast({
-                                    title: "Missing fields",
-                                    description:
-                                      "Please fill in day title and event name.",
-                                    variant: "destructive",
-                                  });
-                                  return;
-                                }
-                                setSchedules([
-                                  ...schedules,
-                                  {
-                                    id: Date.now().toString(),
-                                    dayTitle: scheduleForm.dayTitle,
-                                    eventName: scheduleForm.eventName,
-                                    time: scheduleForm.time,
-                                    guests: scheduleForm.guests,
-                                    description: scheduleForm.description,
-                                  },
-                                ]);
-                                toast({
-                                  title: "Schedule created",
-                                  description:
-                                    "Schedule item added successfully.",
-                                });
-                                setScheduleForm({
-                                  dayTitle: "",
-                                  eventName: "",
-                                  time: "",
-                                  guests: "",
-                                  description: "",
-                                });
-                                setShowScheduleForm(false);
-                              }}
-                            >
-                              Create
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              onClick={() => {
-                                setShowScheduleForm(false);
-                                setScheduleForm({
-                                  dayTitle: "",
-                                  eventName: "",
-                                  time: "",
-                                  guests: "",
-                                  description: "",
-                                });
-                              }}
-                              className="border border-[rgba(0,0,0,0.15)] bg-white"
-                            >
-                              Cancel
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              className="border border-[#4b89ef] text-[#4b89ef] bg-white hover:bg-[#4b89ef]/10"
-                              onClick={() => {
-                                toast({
-                                  title: "Event added",
-                                  description: "Event added to schedule.",
-                                });
-                                setScheduleForm({
-                                  dayTitle: "",
-                                  eventName: "",
-                                  time: "",
-                                  guests: "",
-                                  description: "",
-                                });
-                              }}
-                            >
-                              Add event
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                    </TabsContent>
+                                <div className="space-y-2 w-full">
+                                  <label className="text-[16px] font-normal text-black">
+                                    Time
+                                  </label>
+                                  <div className="relative">
+                                    <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                                    <Input
+                                      value={scheduleForm.time}
+                                      onChange={(e) =>
+                                        setScheduleForm((prev) => ({
+                                          ...prev,
+                                          time: e.target.value,
+                                        }))
+                                      }
+                                      placeholder="11-22-33"
+                                      className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+                                    />
+                                  </div>
+                                </div>
 
-                    {showScheduleForm && (
-                      <Button
-                        type="button"
-                        className="rounded-[12px] border-0 mt-4 text-black bg-gray-50 hover:bg-gray-100"
-                        onClick={() => setShowScheduleForm(true)}
-                      >
-                        <Plus className="w-4 h-4 mr-2" />
-                        Add new day
-                      </Button>
-                    )}
+                                <div className="space-y-2 w-full">
+                                  <label className="text-[16px] font-normal text-black">
+                                    Add guests
+                                  </label>
+                                  <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                                    <Input
+                                      value={scheduleForm.guests}
+                                      onChange={(e) =>
+                                        setScheduleForm((prev) => ({
+                                          ...prev,
+                                          guests: e.target.value,
+                                        }))
+                                      }
+                                      placeholder="Search guests"
+                                      className="h-[44px] pl-11 pr-32 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+                                    />
+                                    <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                                      <button
+                                        type="button"
+                                        className="text-[14px] text-[#4b89ef] hover:underline whitespace-nowrap"
+                                      >
+                                        Invite guest
+                                      </button>
+                                      <svg
+                                        className="w-5 h-5 text-gray-400"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth={2}
+                                          d="M19 9l-7 7-7-7"
+                                        />
+                                      </svg>
+                                    </div>
+                                  </div>
+                                </div>
 
-                    <TabsContent
-                      value="resources"
-                      className="mt-0 overflow-x-hidden"
-                    >
-                      {resources.length === 0 && !showResourcesForm ? (
-                        <div className="border-2 border-dashed border-gray-300 rounded-[12px] p-12 flex flex-col items-center justify-center text-center min-h-[400px]">
-                          <div className="flex flex-col items-center gap-2">
-                            <div className="relative">
-                              <Link2 className="w-16 h-16 text-gray-400" />
-                              <div className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
-                                <span className="text-white text-xs font-bold">
-                                  ×
-                                </span>
+                                <div className="space-y-2 w-full">
+                                  <label className="text-[16px] font-normal text-black">
+                                    Description
+                                  </label>
+                                  <Textarea
+                                    value={scheduleForm.description}
+                                    onChange={(e) =>
+                                      setScheduleForm((prev) => ({
+                                        ...prev,
+                                        description: e.target.value,
+                                      }))
+                                    }
+                                    placeholder="Add long description (markdown supported)"
+                                    className="min-h-[200px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] p-3 focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none resize-y"
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-2 pt-4">
+                                <Button
+                                  type="button"
+                                  className="bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
+                                  onClick={() => {
+                                    if (
+                                      !scheduleForm.dayTitle ||
+                                      !scheduleForm.eventName
+                                    ) {
+                                      toast({
+                                        title: "Missing fields",
+                                        description:
+                                          "Please fill in day title and event name.",
+                                        variant: "destructive",
+                                      });
+                                      return;
+                                    }
+                                    setSchedules([
+                                      ...schedules,
+                                      {
+                                        id: Date.now().toString(),
+                                        dayTitle: scheduleForm.dayTitle,
+                                        eventName: scheduleForm.eventName,
+                                        time: scheduleForm.time,
+                                        guests: scheduleForm.guests,
+                                        description: scheduleForm.description,
+                                      },
+                                    ]);
+                                    toast({
+                                      title: "Schedule created",
+                                      description:
+                                        "Schedule item added successfully.",
+                                    });
+                                    setScheduleForm({
+                                      dayTitle: "",
+                                      eventName: "",
+                                      time: "",
+                                      guests: "",
+                                      description: "",
+                                    });
+                                    setShowScheduleForm(false);
+                                  }}
+                                >
+                                  Create
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setShowScheduleForm(false);
+                                    setScheduleForm({
+                                      dayTitle: "",
+                                      eventName: "",
+                                      time: "",
+                                      guests: "",
+                                      description: "",
+                                    });
+                                  }}
+                                  className="border border-[rgba(0,0,0,0.15)] bg-white"
+                                >
+                                  Cancel
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  className="border border-[#4b89ef] text-[#4b89ef] bg-white hover:bg-[#4b89ef]/10"
+                                  onClick={() => {
+                                    toast({
+                                      title: "Event added",
+                                      description: "Event added to schedule.",
+                                    });
+                                    setScheduleForm({
+                                      dayTitle: "",
+                                      eventName: "",
+                                      time: "",
+                                      guests: "",
+                                      description: "",
+                                    });
+                                  }}
+                                >
+                                  Add event
+                                </Button>
                               </div>
                             </div>
-                            <div className="space-y-1">
-                              <h3 className="text-[18px] font-semibold text-black">
-                                No resource yet
-                              </h3>
-                              <p className="text-[14px] text-gray-500 max-w-md">
-                                Resources will be shown as individual links on
-                                the event page.
-                              </p>
-                            </div>
-                            <Button
-                              type="button"
-                              onClick={() => setShowResourcesForm(true)}
-                              className="mt-2 bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
-                            >
-                              Add resource
-                            </Button>
-                          </div>
-                        </div>
-                      ) : resources.length > 0 && !showResourcesForm ? (
-                        <div className="space-y-4">
-                          {resources.map((resource) => (
-                            <div
-                              key={resource.id}
-                              className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4 relative"
-                            >
-                              {editingResourceId === resource.id ? (
-                                <>
-                                  <div className="space-y-2">
-                                    <label className="text-[16px] font-normal text-black">
-                                      Resource name
-                                    </label>
-                                    <div className="relative">
-                                      <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
-                                      <Input
-                                        value={editingResourceForm.resourceName}
-                                        onChange={(e) =>
-                                          setEditingResourceForm((prev) => ({
-                                            ...prev,
-                                            resourceName: e.target.value,
-                                          }))
-                                        }
-                                        className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
-                                      />
-                                    </div>
-                                  </div>
+                          )}
+                        </TabsContent>
 
-                                  <div className="space-y-2">
-                                    <label className="text-[16px] font-normal text-black">
-                                      Resource link
-                                    </label>
-                                    <div className="relative">
-                                      <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
-                                      <Input
-                                        value={editingResourceForm.resourceLink}
-                                        onChange={(e) =>
-                                          setEditingResourceForm((prev) => ({
-                                            ...prev,
-                                            resourceLink: e.target.value,
-                                          }))
-                                        }
-                                        className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
-                                      />
-                                    </div>
-                                    {editingResourceForm.resourceLink && (
-                                      <div className="flex items-center gap-2 text-[14px] text-gray-600">
-                                        <Paperclip className="w-4 h-4" />
-                                        <span className="truncate">
-                                          {editingResourceForm.resourceLink}
-                                        </span>
-                                      </div>
-                                    )}
-                                  </div>
-
-                                  <div className="flex items-center gap-2 pt-2">
-                                    <Button
-                                      type="button"
-                                      className="bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
-                                      onClick={() => {
-                                        if (
-                                          !editingResourceForm.resourceName ||
-                                          !editingResourceForm.resourceLink
-                                        ) {
-                                          toast({
-                                            title: "Missing fields",
-                                            description:
-                                              "Please fill in both resource name and link.",
-                                            variant: "destructive",
-                                          });
-                                          return;
-                                        }
-                                        setResources(
-                                          resources.map((r) =>
-                                            r.id === resource.id
-                                              ? {
-                                                  ...r,
-                                                  name: editingResourceForm.resourceName,
-                                                  link: editingResourceForm.resourceLink,
-                                                }
-                                              : r
-                                          )
-                                        );
-                                        setEditingResourceId(null);
-                                        setEditingResourceForm({
-                                          resourceName: "",
-                                          resourceLink: "",
-                                        });
-                                        toast({
-                                          title: "Resource updated",
-                                          description:
-                                            "Resource saved successfully.",
-                                        });
-                                      }}
-                                    >
-                                      Save
-                                    </Button>
-                                    <Button
-                                      type="button"
-                                      className="text-white rounded-[12px] hover:bg-red-600"
-                                      style={{
-                                        background:
-                                          "var(--Component-colors-Utility-Error-utility-error-600, #D92D20)",
-                                        boxShadow:
-                                          "0 32px 24px 0 rgba(255, 255, 255, 0.05) inset, 0 2px 1px 0 rgba(255, 255, 255, 0.25) inset, 0 0 0 1px var(--Opacity-Neutral-Darkest-15, rgba(0, 0, 0, 0.15)) inset, 0 -2px 1px 0 rgba(0, 0, 0, 0.20) inset, 0 1px 2px 0 var(--Opacity-Neutral-Darkest-5, rgba(0, 0, 0, 0.05))",
-                                      }}
-                                      onClick={() => {
-                                        setResources(
-                                          resources.filter(
-                                            (r) => r.id !== resource.id
-                                          )
-                                        );
-                                        setEditingResourceId(null);
-                                        setEditingResourceForm({
-                                          resourceName: "",
-                                          resourceLink: "",
-                                        });
-                                        toast({
-                                          title: "Resource deleted",
-                                          description:
-                                            "Resource removed successfully.",
-                                        });
-                                      }}
-                                    >
-                                      Delete
-                                    </Button>
-                                  </div>
-                                </>
-                              ) : (
-                                <>
-                                  <div className="absolute top-4 right-4">
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setEditingResourceId(resource.id);
-                                        setEditingResourceForm({
-                                          resourceName: resource.name,
-                                          resourceLink: resource.link,
-                                        });
-                                      }}
-                                      className="p-2 hover:bg-gray-50 rounded-[8px] transition-colors"
-                                    >
-                                      <Pencil className="w-4 h-4 text-gray-600" />
-                                    </button>
-                                  </div>
-
-                                  <div className="space-y-2">
-                                    <label className="text-[16px] font-normal text-black">
-                                      Resource name
-                                    </label>
-                                    <div className="relative">
-                                      <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
-                                      <Input
-                                        value={resource.name}
-                                        readOnly
-                                        className="h-[44px] pl-11 bg-gray-50 border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] text-gray-600 cursor-not-allowed"
-                                      />
-                                    </div>
-                                  </div>
-
-                                  <div className="space-y-2">
-                                    <label className="text-[16px] font-normal text-black">
-                                      Resource link
-                                    </label>
-                                    <div className="relative">
-                                      <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
-                                      <Input
-                                        value={resource.link}
-                                        readOnly
-                                        className="h-[44px] pl-11 bg-gray-50 border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] text-gray-600 cursor-not-allowed"
-                                      />
-                                    </div>
-                                    {resource.link && (
-                                      <div className="flex items-center gap-2 text-[14px] text-gray-600">
-                                        <Paperclip className="w-4 h-4" />
-                                        <span className="truncate">
-                                          {resource.link}
-                                        </span>
-                                      </div>
-                                    )}
-                                  </div>
-                                </>
-                              )}
-                            </div>
-                          ))}
+                        {showScheduleForm && (
                           <Button
                             type="button"
-                            onClick={() => setShowResourcesForm(true)}
-                            className="w-full rounded-[12px] border-0 text-black bg-[rgba(0,0,0,0.05)] hover:bg-gray-50 shadow-[0_0_0_1px_rgba(0,0,0,0.05)_inset,0_-2px_1px_0_rgba(0,0,0,0.05)_inset,0_1px_2px_0_rgba(0,0,0,0.05)]"
+                            className="rounded-[12px] border-0 mt-4 text-black bg-gray-50 hover:bg-gray-100"
+                            onClick={() => setShowScheduleForm(true)}
                           >
                             <Plus className="w-4 h-4 mr-2" />
-                            Add new resource
+                            Add new day
                           </Button>
-                        </div>
-                      ) : (
-                        <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4">
-                          <div className="space-y-2">
-                            <label className="text-[16px] font-normal text-black">
-                              Resource name
-                            </label>
-                            <div className="relative">
-                              <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
-                              <Input
-                                value={resourcesForm.resourceName}
-                                onChange={(e) =>
-                                  setResourcesForm((prev) => ({
-                                    ...prev,
-                                    resourceName: e.target.value,
-                                  }))
-                                }
-                                placeholder="Short description shown in the preview card"
-                                className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
-                              />
-                            </div>
-                          </div>
+                        )}
 
-                          <div className="space-y-2">
-                            <label className="text-[16px] font-normal text-black">
-                              Resource link
-                            </label>
-                            <div className="relative">
-                              <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
-                              <Input
-                                value={resourcesForm.resourceLink}
-                                onChange={(e) =>
-                                  setResourcesForm((prev) => ({
-                                    ...prev,
-                                    resourceLink: e.target.value,
-                                  }))
-                                }
-                                placeholder="https://"
-                                className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
-                              />
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-2 pt-4">
-                            <Button
-                              type="button"
-                              className="bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
-                              onClick={() => {
-                                if (
-                                  !resourcesForm.resourceName ||
-                                  !resourcesForm.resourceLink
-                                ) {
-                                  toast({
-                                    title: "Missing fields",
-                                    description:
-                                      "Please fill in both resource name and link.",
-                                    variant: "destructive",
-                                  });
-                                  return;
-                                }
-                                setResources([
-                                  ...resources,
-                                  {
-                                    id: Date.now().toString(),
-                                    name: resourcesForm.resourceName,
-                                    link: resourcesForm.resourceLink,
-                                  },
-                                ]);
-                                toast({
-                                  title: "Resource created",
-                                  description: "Resource added successfully.",
-                                });
-                                setResourcesForm({
-                                  resourceName: "",
-                                  resourceLink: "",
-                                });
-                                setShowResourcesForm(false);
-                              }}
-                            >
-                              Create
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              onClick={() => {
-                                setShowResourcesForm(false);
-                                setResourcesForm({
-                                  resourceName: "",
-                                  resourceLink: "",
-                                });
-                              }}
-                              className="border border-[rgba(0,0,0,0.15)] bg-white"
-                            >
-                              Cancel
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                    </TabsContent>
-
-                    {showResourcesForm && (
-                      <Button
-                        type="button"
-                        className="rounded-[12px] border-0 mt-4 text-black bg-gray-50 hover:bg-gray-100"
-                        style={{
-                          background: "rgba(0, 0, 0, 0.05)",
-                          boxShadow:
-                            "0 0 0 1px rgba(0, 0, 0, 0.05) inset, 0 -2px 1px 0 rgba(0, 0, 0, 0.05) inset, 0 1px 2px 0 rgba(0, 0, 0, 0.05)",
-                        }}
-                        onClick={() => {
-                          setResourcesForm({
-                            resourceName: "",
-                            resourceLink: "",
-                          });
-                          toast({
-                            title: "New resource",
-                            description: "Ready to add a new resource.",
-                          });
-                        }}
-                      >
-                        <Plus className="w-4 h-4 mr-2" />
-                        Add new resource
-                      </Button>
-                    )}
-
-                    <TabsContent
-                      value="rules"
-                      className="mt-0 overflow-x-hidden"
-                    >
-                      {rules.length === 0 && !showRulesForm ? (
-                        <div className="border-2 border-dashed border-gray-300 rounded-[12px] p-12 flex flex-col items-center justify-center text-center min-h-[400px]">
-                          <div className="flex flex-col items-center gap-2">
-                            <div className="relative">
-                              <FileText className="w-16 h-16 text-gray-400" />
-                              <div className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
-                                <span className="text-white text-xs font-bold">
-                                  ×
-                                </span>
+                        <TabsContent
+                          value="resources"
+                          className="mt-0 overflow-x-hidden px-2"
+                        >
+                          {resources.length === 0 && !showResourcesForm ? (
+                            <div className="border-2 border-dashed border-gray-300 rounded-[12px] p-12 flex flex-col items-center justify-center text-center min-h-[400px]">
+                              <div className="flex flex-col items-center gap-2">
+                                <div className="relative">
+                                  <Link2 className="w-16 h-16 text-gray-400" />
+                                  <div className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
+                                    <span className="text-white text-xs font-bold">
+                                      ×
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="space-y-1">
+                                  <h3 className="text-[18px] font-semibold text-black">
+                                    No resource yet
+                                  </h3>
+                                  <p className="text-[14px] text-gray-500 max-w-full">
+                                    Resources will be shown as individual links
+                                    on the event page.
+                                  </p>
+                                </div>
+                                <Button
+                                  type="button"
+                                  onClick={() => setShowResourcesForm(true)}
+                                  className="mt-2 bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
+                                >
+                                  Add resource
+                                </Button>
                               </div>
                             </div>
-                            <div className="space-y-1">
-                              <h3 className="text-[18px] font-semibold text-black">
-                                No Rules yet
-                              </h3>
-                              <p className="text-[14px] text-gray-500 max-w-md">
-                                Rules will be shown under the overview tab on
-                                the event page.
-                              </p>
-                            </div>
-                            <Button
-                              type="button"
-                              onClick={() => setShowRulesForm(true)}
-                              className="mt-2 bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
-                            >
-                              Add rules
-                            </Button>
-                          </div>
-                        </div>
-                      ) : rules.length > 0 && !showRulesForm ? (
-                        <div className="space-y-4">
-                          {rules.map((rule, ruleIndex) => (
-                            <div
-                              key={ruleIndex}
-                              className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4 relative"
-                            >
-                              {editingRuleIndex === ruleIndex ? (
-                                <>
-                                  <div className="space-y-2">
-                                    <label className="text-[16px] font-normal text-black">
-                                      Section Title
-                                    </label>
-                                    <div className="relative">
-                                      <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
-                                      <Input
-                                        value={rulesForm.sectionTitle}
-                                        onChange={(e) =>
-                                          setRulesForm((prev) => ({
-                                            ...prev,
-                                            sectionTitle: e.target.value,
-                                          }))
-                                        }
-                                        placeholder="Short description shown in the preview card"
-                                        className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
-                                      />
-                                    </div>
-                                  </div>
-
-                                  {rulesForm.rules.map(
-                                    (ruleItem, itemIndex) => (
-                                      <div
-                                        key={itemIndex}
-                                        className="space-y-2"
-                                      >
+                          ) : resources.length > 0 && !showResourcesForm ? (
+                            <div className="space-y-4">
+                              {resources.map((resource) => (
+                                <div
+                                  key={resource.id}
+                                  className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4 relative"
+                                >
+                                  {editingResourceId === resource.id ? (
+                                    <>
+                                      <div className="space-y-2">
                                         <label className="text-[16px] font-normal text-black">
-                                          Rule {itemIndex + 1}
-                                        </label>
-                                        <div className="flex items-center gap-2">
-                                          <div className="relative flex-1">
-                                            <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
-                                            <Input
-                                              value={ruleItem}
-                                              onChange={(e) => {
-                                                const newRules = [
-                                                  ...rulesForm.rules,
-                                                ];
-                                                newRules[itemIndex] =
-                                                  e.target.value;
-                                                setRulesForm((prev) => ({
-                                                  ...prev,
-                                                  rules: newRules,
-                                                }));
-                                              }}
-                                              placeholder="Short description shown in the preview card"
-                                              className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
-                                            />
-                                          </div>
-                                          <Button
-                                            type="button"
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() => {
-                                              const newRules =
-                                                rulesForm.rules.filter(
-                                                  (_, i) => i !== itemIndex
-                                                );
-                                              setRulesForm((prev) => ({
-                                                ...prev,
-                                                rules: newRules,
-                                              }));
-                                            }}
-                                            className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                                          >
-                                            <Trash2 className="w-4 h-4" />
-                                          </Button>
-                                        </div>
-                                      </div>
-                                    )
-                                  )}
-
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={() => {
-                                      setRulesForm((prev) => ({
-                                        ...prev,
-                                        rules: [...prev.rules, ""],
-                                      }));
-                                    }}
-                                    className="border border-[#4b89ef] text-[#4b89ef] bg-white hover:bg-[#4b89ef]/10"
-                                  >
-                                    Add rule
-                                  </Button>
-
-                                  <div className="flex items-center gap-2 pt-2">
-                                    <Button
-                                      type="button"
-                                      className="bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
-                                      onClick={() => {
-                                        if (!rulesForm.sectionTitle.trim()) {
-                                          toast({
-                                            title: "Missing field",
-                                            description:
-                                              "Please enter a section title.",
-                                            variant: "destructive",
-                                          });
-                                          return;
-                                        }
-                                        const updatedRules = [...rules];
-                                        updatedRules[ruleIndex] = {
-                                          title: rulesForm.sectionTitle,
-                                          items: rulesForm.rules.filter(
-                                            (r) => r.trim() !== ""
-                                          ),
-                                        };
-                                        setRules(updatedRules);
-                                        setEditingRuleIndex(null);
-                                        setRulesForm({
-                                          sectionTitle: "",
-                                          rules: [""],
-                                        });
-                                        toast({
-                                          title: "Rule updated",
-                                          description:
-                                            "Rule section saved successfully.",
-                                        });
-                                      }}
-                                    >
-                                      Save
-                                    </Button>
-                                    <Button
-                                      type="button"
-                                      className="text-white rounded-[12px] hover:bg-red-600"
-                                      style={{
-                                        background:
-                                          "var(--Component-colors-Utility-Error-utility-error-600, #D92D20)",
-                                        boxShadow:
-                                          "0 32px 24px 0 rgba(255, 255, 255, 0.05) inset, 0 2px 1px 0 rgba(255, 255, 255, 0.25) inset, 0 0 0 1px var(--Opacity-Neutral-Darkest-15, rgba(0, 0, 0, 0.15)) inset, 0 -2px 1px 0 rgba(0, 0, 0, 0.20) inset, 0 1px 2px 0 var(--Opacity-Neutral-Darkest-5, rgba(0, 0, 0, 0.05))",
-                                      }}
-                                      onClick={() => {
-                                        setRules(
-                                          rules.filter(
-                                            (_, i) => i !== ruleIndex
-                                          )
-                                        );
-                                        setEditingRuleIndex(null);
-                                        setRulesForm({
-                                          sectionTitle: "",
-                                          rules: [""],
-                                        });
-                                        toast({
-                                          title: "Rule deleted",
-                                          description:
-                                            "Rule section removed successfully.",
-                                        });
-                                      }}
-                                    >
-                                      Delete
-                                    </Button>
-                                  </div>
-                                </>
-                              ) : (
-                                <div className="relative">
-                                  <div className="absolute top-4 right-4">
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setEditingRuleIndex(ruleIndex);
-                                        setRulesForm({
-                                          sectionTitle: rule.title,
-                                          rules:
-                                            rule.items.length > 0
-                                              ? rule.items
-                                              : [""],
-                                        });
-                                      }}
-                                      className="p-2 hover:bg-gray-50 rounded-[8px] transition-colors"
-                                    >
-                                      <Pencil className="w-4 h-4 text-gray-600" />
-                                    </button>
-                                  </div>
-                                  <div className="space-y-4 pr-10">
-                                    <div className="space-y-2">
-                                      <label className="text-[16px] font-normal text-black">
-                                        Section Title
-                                      </label>
-                                      <div className="relative">
-                                        <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
-                                        <Input
-                                          value={rule.title}
-                                          readOnly
-                                          className="h-[44px] pl-11 bg-gray-50 border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] text-gray-600 cursor-not-allowed"
-                                        />
-                                      </div>
-                                    </div>
-
-                                    {rule.items.map((item, itemIndex) => (
-                                      <div
-                                        key={itemIndex}
-                                        className="space-y-2"
-                                      >
-                                        <label className="text-[16px] font-normal text-black">
-                                          Rule {itemIndex + 1}
+                                          Resource name
                                         </label>
                                         <div className="relative">
                                           <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
                                           <Input
-                                            value={item}
+                                            value={
+                                              editingResourceForm.resourceName
+                                            }
+                                            onChange={(e) =>
+                                              setEditingResourceForm(
+                                                (prev) => ({
+                                                  ...prev,
+                                                  resourceName: e.target.value,
+                                                })
+                                              )
+                                            }
+                                            className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+                                          />
+                                        </div>
+                                      </div>
+
+                                      <div className="space-y-2">
+                                        <label className="text-[16px] font-normal text-black">
+                                          Resource link
+                                        </label>
+                                        <div className="relative">
+                                          <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                                          <Input
+                                            value={
+                                              editingResourceForm.resourceLink
+                                            }
+                                            onChange={(e) =>
+                                              setEditingResourceForm(
+                                                (prev) => ({
+                                                  ...prev,
+                                                  resourceLink: e.target.value,
+                                                })
+                                              )
+                                            }
+                                            className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+                                          />
+                                        </div>
+                                        {editingResourceForm.resourceLink && (
+                                          <div className="flex items-center gap-2 text-[14px] text-gray-600">
+                                            <Paperclip className="w-4 h-4" />
+                                            <span className="truncate">
+                                              {editingResourceForm.resourceLink}
+                                            </span>
+                                          </div>
+                                        )}
+                                      </div>
+
+                                      <div className="flex items-center gap-2 pt-2">
+                                        <Button
+                                          type="button"
+                                          className="bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
+                                          onClick={() => {
+                                            if (
+                                              !editingResourceForm.resourceName ||
+                                              !editingResourceForm.resourceLink
+                                            ) {
+                                              toast({
+                                                title: "Missing fields",
+                                                description:
+                                                  "Please fill in both resource name and link.",
+                                                variant: "destructive",
+                                              });
+                                              return;
+                                            }
+                                            setResources(
+                                              resources.map((r) =>
+                                                r.id === resource.id
+                                                  ? {
+                                                      ...r,
+                                                      name: editingResourceForm.resourceName,
+                                                      link: editingResourceForm.resourceLink,
+                                                    }
+                                                  : r
+                                              )
+                                            );
+                                            setEditingResourceId(null);
+                                            setEditingResourceForm({
+                                              resourceName: "",
+                                              resourceLink: "",
+                                            });
+                                            toast({
+                                              title: "Resource updated",
+                                              description:
+                                                "Resource saved successfully.",
+                                            });
+                                          }}
+                                        >
+                                          Save
+                                        </Button>
+                                        <Button
+                                          type="button"
+                                          className="text-white rounded-[12px] hover:bg-red-600"
+                                          style={{
+                                            background:
+                                              "var(--Component-colors-Utility-Error-utility-error-600, #D92D20)",
+                                            boxShadow:
+                                              "0 32px 24px 0 rgba(255, 255, 255, 0.05) inset, 0 2px 1px 0 rgba(255, 255, 255, 0.25) inset, 0 0 0 1px var(--Opacity-Neutral-Darkest-15, rgba(0, 0, 0, 0.15)) inset, 0 -2px 1px 0 rgba(0, 0, 0, 0.20) inset, 0 1px 2px 0 var(--Opacity-Neutral-Darkest-5, rgba(0, 0, 0, 0.05))",
+                                          }}
+                                          onClick={() => {
+                                            setResources(
+                                              resources.filter(
+                                                (r) => r.id !== resource.id
+                                              )
+                                            );
+                                            setEditingResourceId(null);
+                                            setEditingResourceForm({
+                                              resourceName: "",
+                                              resourceLink: "",
+                                            });
+                                            toast({
+                                              title: "Resource deleted",
+                                              description:
+                                                "Resource removed successfully.",
+                                            });
+                                          }}
+                                        >
+                                          Delete
+                                        </Button>
+                                      </div>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <div className="absolute top-4 right-4">
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setEditingResourceId(resource.id);
+                                            setEditingResourceForm({
+                                              resourceName: resource.name,
+                                              resourceLink: resource.link,
+                                            });
+                                          }}
+                                          className="p-2 hover:bg-gray-50 rounded-[8px] transition-colors"
+                                        >
+                                          <Pencil className="w-4 h-4 text-gray-600" />
+                                        </button>
+                                      </div>
+
+                                      <div className="space-y-2">
+                                        <label className="text-[16px] font-normal text-black">
+                                          Resource name
+                                        </label>
+                                        <div className="relative">
+                                          <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                                          <Input
+                                            value={resource.name}
                                             readOnly
                                             className="h-[44px] pl-11 bg-gray-50 border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] text-gray-600 cursor-not-allowed"
                                           />
                                         </div>
                                       </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                          <Button
-                            type="button"
-                            onClick={() => setShowRulesForm(true)}
-                            className="rounded-[12px] border-0 text-black bg-[rgba(0,0,0,0.05)] hover:bg-gray-50 shadow-[0_0_0_1px_rgba(0,0,0,0.05)_inset,0_-2px_1px_0_rgba(0,0,0,0.05)_inset,0_1px_2px_0_rgba(0,0,0,0.05)]"
-                          >
-                            <Plus className="w-4 h-4 mr-2" />
-                            Add new section
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4">
-                          <div className="space-y-2">
-                            <label className="text-[16px] font-normal text-black">
-                              Section Title
-                            </label>
-                            <div className="relative">
-                              <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
-                              <Input
-                                value={rulesForm.sectionTitle}
-                                onChange={(e) =>
-                                  setRulesForm((prev) => ({
-                                    ...prev,
-                                    sectionTitle: e.target.value,
-                                  }))
-                                }
-                                placeholder="Short description shown in the preview card"
-                                className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
-                              />
-                            </div>
-                          </div>
 
-                          {rulesForm.rules.map((ruleItem, itemIndex) => (
-                            <div key={itemIndex} className="space-y-2">
-                              <label className="text-[16px] font-normal text-black">
-                                Rule {itemIndex + 1}
-                              </label>
-                              <div className="flex items-center gap-2">
-                                <div className="relative flex-1">
+                                      <div className="space-y-2">
+                                        <label className="text-[16px] font-normal text-black">
+                                          Resource link
+                                        </label>
+                                        <div className="relative">
+                                          <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                                          <Input
+                                            value={resource.link}
+                                            readOnly
+                                            className="h-[44px] pl-11 bg-gray-50 border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] text-gray-600 cursor-not-allowed"
+                                          />
+                                        </div>
+                                        {resource.link && (
+                                          <div className="flex items-center gap-2 text-[14px] text-gray-600">
+                                            <Paperclip className="w-4 h-4" />
+                                            <span className="truncate">
+                                              {resource.link}
+                                            </span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </>
+                                  )}
+                                </div>
+                              ))}
+                              <Button
+                                type="button"
+                                onClick={() => setShowResourcesForm(true)}
+                                className="w-full rounded-[12px] border-0 text-black bg-[rgba(0,0,0,0.05)] hover:bg-gray-50 shadow-[0_0_0_1px_rgba(0,0,0,0.05)_inset,0_-2px_1px_0_rgba(0,0,0,0.05)_inset,0_1px_2px_0_rgba(0,0,0,0.05)]"
+                              >
+                                <Plus className="w-4 h-4 mr-2" />
+                                Add new resource
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4">
+                              <div className="space-y-2">
+                                <label className="text-[16px] font-normal text-black">
+                                  Resource name
+                                </label>
+                                <div className="relative">
                                   <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
                                   <Input
-                                    value={ruleItem}
-                                    onChange={(e) => {
-                                      const newRules = [...rulesForm.rules];
-                                      newRules[itemIndex] = e.target.value;
-                                      setRulesForm((prev) => ({
+                                    value={resourcesForm.resourceName}
+                                    onChange={(e) =>
+                                      setResourcesForm((prev) => ({
                                         ...prev,
-                                        rules: newRules,
-                                      }));
-                                    }}
+                                        resourceName: e.target.value,
+                                      }))
+                                    }
                                     placeholder="Short description shown in the preview card"
                                     className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
                                   />
                                 </div>
+                              </div>
+
+                              <div className="space-y-2">
+                                <label className="text-[16px] font-normal text-black">
+                                  Resource link
+                                </label>
+                                <div className="relative">
+                                  <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                                  <Input
+                                    value={resourcesForm.resourceLink}
+                                    onChange={(e) =>
+                                      setResourcesForm((prev) => ({
+                                        ...prev,
+                                        resourceLink: e.target.value,
+                                      }))
+                                    }
+                                    placeholder="https://"
+                                    className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-2 pt-4">
                                 <Button
                                   type="button"
-                                  variant="ghost"
-                                  size="sm"
+                                  className="bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
                                   onClick={() => {
-                                    const newRules = rulesForm.rules.filter(
-                                      (_, i) => i !== itemIndex
-                                    );
-                                    setRulesForm((prev) => ({
-                                      ...prev,
-                                      rules: newRules,
-                                    }));
+                                    if (
+                                      !resourcesForm.resourceName ||
+                                      !resourcesForm.resourceLink
+                                    ) {
+                                      toast({
+                                        title: "Missing fields",
+                                        description:
+                                          "Please fill in both resource name and link.",
+                                        variant: "destructive",
+                                      });
+                                      return;
+                                    }
+                                    setResources([
+                                      ...resources,
+                                      {
+                                        id: Date.now().toString(),
+                                        name: resourcesForm.resourceName,
+                                        link: resourcesForm.resourceLink,
+                                      },
+                                    ]);
+                                    toast({
+                                      title: "Resource created",
+                                      description:
+                                        "Resource added successfully.",
+                                    });
+                                    setResourcesForm({
+                                      resourceName: "",
+                                      resourceLink: "",
+                                    });
+                                    setShowResourcesForm(false);
                                   }}
-                                  className="text-red-500 hover:text-red-700 hover:bg-red-50"
                                 >
-                                  <Trash2 className="w-4 h-4" />
+                                  Create
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setShowResourcesForm(false);
+                                    setResourcesForm({
+                                      resourceName: "",
+                                      resourceLink: "",
+                                    });
+                                  }}
+                                  className="border border-[rgba(0,0,0,0.15)] bg-white"
+                                >
+                                  Cancel
                                 </Button>
                               </div>
                             </div>
-                          ))}
+                          )}
+                        </TabsContent>
 
+                        {showResourcesForm && (
                           <Button
                             type="button"
-                            variant="outline"
-                            onClick={() => {
-                              setRulesForm((prev) => ({
-                                ...prev,
-                                rules: [...prev.rules, ""],
-                              }));
+                            className="rounded-[12px] border-0 mt-4 text-black bg-gray-50 hover:bg-gray-100"
+                            style={{
+                              background: "rgba(0, 0, 0, 0.05)",
+                              boxShadow:
+                                "0 0 0 1px rgba(0, 0, 0, 0.05) inset, 0 -2px 1px 0 rgba(0, 0, 0, 0.05) inset, 0 1px 2px 0 rgba(0, 0, 0, 0.05)",
                             }}
-                            className="border border-[#4b89ef] text-[#4b89ef] bg-white hover:bg-[#4b89ef]/10"
+                            onClick={() => {
+                              setResourcesForm({
+                                resourceName: "",
+                                resourceLink: "",
+                              });
+                              toast({
+                                title: "New resource",
+                                description: "Ready to add a new resource.",
+                              });
+                            }}
                           >
-                            Add rule
+                            <Plus className="w-4 h-4 mr-2" />
+                            Add new resource
                           </Button>
+                        )}
 
-                          <div className="flex items-center gap-2 pt-4">
-                            <Button
-                              type="button"
-                              className="bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
-                              onClick={() => {
-                                if (!rulesForm.sectionTitle.trim()) {
-                                  toast({
-                                    title: "Missing field",
-                                    description:
-                                      "Please enter a section title.",
-                                    variant: "destructive",
-                                  });
-                                  return;
-                                }
-                                setRules([
-                                  ...rules,
-                                  {
-                                    title: rulesForm.sectionTitle,
-                                    items: rulesForm.rules.filter(
-                                      (r) => r.trim() !== ""
-                                    ),
-                                  },
-                                ]);
-                                toast({
-                                  title: "Rule created",
-                                  description:
-                                    "Rule section added successfully.",
-                                });
-                                setRulesForm({
-                                  sectionTitle: "",
-                                  rules: [""],
-                                });
-                                setShowRulesForm(false);
-                              }}
-                            >
-                              Create
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              onClick={() => {
-                                setShowRulesForm(false);
-                                setRulesForm({
-                                  sectionTitle: "",
-                                  rules: [""],
-                                });
-                              }}
-                              className="border border-[rgba(0,0,0,0.15)] bg-white"
-                            >
-                              Cancel
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                    </TabsContent>
-
-                    <TabsContent
-                      value="faqs"
-                      className="mt-0 overflow-x-hidden"
-                    >
-                      {faqs.length === 0 && !showFaqsForm ? (
-                        <div className="border-2 border-dashed border-gray-300 rounded-[12px] p-12 flex flex-col items-center justify-center text-center min-h-[400px]">
-                          <div className="flex flex-col items-center gap-2">
-                            <div className="relative">
-                              <FileText className="w-16 h-16 text-gray-400" />
-                              <div className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
-                                <span className="text-white text-xs font-bold">
-                                  ×
-                                </span>
+                        <TabsContent
+                          value="rules"
+                          className="mt-0 overflow-x-hidden px-2"
+                        >
+                          {rules.length === 0 && !showRulesForm ? (
+                            <div className="border-2 border-dashed border-gray-300 rounded-[12px] p-12 flex flex-col items-center justify-center text-center min-h-[400px]">
+                              <div className="flex flex-col items-center gap-2">
+                                <div className="relative">
+                                  <FileText className="w-16 h-16 text-gray-400" />
+                                  <div className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
+                                    <span className="text-white text-xs font-bold">
+                                      ×
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="space-y-1">
+                                  <h3 className="text-[18px] font-semibold text-black">
+                                    No Rules yet
+                                  </h3>
+                                  <p className="text-[14px] text-gray-500 max-w-full">
+                                    Rules will be shown under the overview tab
+                                    on the event page.
+                                  </p>
+                                </div>
+                                <Button
+                                  type="button"
+                                  onClick={() => setShowRulesForm(true)}
+                                  className="mt-2 bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
+                                >
+                                  Add rules
+                                </Button>
                               </div>
                             </div>
-                            <div className="space-y-1">
-                              <h3 className="text-[18px] font-semibold text-black">
-                                No FAQ yet
-                              </h3>
-                              <p className="text-[14px] text-gray-500 max-w-md">
-                                Add questions and answers to help participants
-                                understand your event better.
-                              </p>
-                            </div>
-                            <Button
-                              type="button"
-                              onClick={() => setShowFaqsForm(true)}
-                              className="mt-2 bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
-                            >
-                              Add question
-                            </Button>
-                          </div>
-                        </div>
-                      ) : faqs.length > 0 && !showFaqsForm ? (
-                        <div className="space-y-4">
-                          {faqs.map((faq) => (
-                            <div
-                              key={faq.id}
-                              className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4 relative"
-                            >
-                              {editingFaqId === faq.id ? (
-                                <>
-                                  <div className="space-y-2">
-                                    <label className="text-[16px] font-normal text-black">
-                                      Question
-                                    </label>
+                          ) : rules.length > 0 && !showRulesForm ? (
+                            <div className="space-y-4">
+                              {rules.map((rule, ruleIndex) => (
+                                <div
+                                  key={ruleIndex}
+                                  className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4 relative"
+                                >
+                                  {editingRuleIndex === ruleIndex ? (
+                                    <>
+                                      <div className="space-y-2">
+                                        <label className="text-[16px] font-normal text-black">
+                                          Section Title
+                                        </label>
+                                        <div className="relative">
+                                          <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                                          <Input
+                                            value={rulesForm.sectionTitle}
+                                            onChange={(e) =>
+                                              setRulesForm((prev) => ({
+                                                ...prev,
+                                                sectionTitle: e.target.value,
+                                              }))
+                                            }
+                                            placeholder="Short description shown in the preview card"
+                                            className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+                                          />
+                                        </div>
+                                      </div>
+
+                                      {rulesForm.rules.map(
+                                        (ruleItem, itemIndex) => (
+                                          <div
+                                            key={itemIndex}
+                                            className="space-y-2"
+                                          >
+                                            <label className="text-[16px] font-normal text-black">
+                                              Rule {itemIndex + 1}
+                                            </label>
+                                            <div className="flex items-center gap-2">
+                                              <div className="relative flex-1">
+                                                <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                                                <Input
+                                                  value={ruleItem}
+                                                  onChange={(e) => {
+                                                    const newRules = [
+                                                      ...rulesForm.rules,
+                                                    ];
+                                                    newRules[itemIndex] =
+                                                      e.target.value;
+                                                    setRulesForm((prev) => ({
+                                                      ...prev,
+                                                      rules: newRules,
+                                                    }));
+                                                  }}
+                                                  placeholder="Short description shown in the preview card"
+                                                  className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+                                                />
+                                              </div>
+                                              <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => {
+                                                  const newRules =
+                                                    rulesForm.rules.filter(
+                                                      (_, i) => i !== itemIndex
+                                                    );
+                                                  setRulesForm((prev) => ({
+                                                    ...prev,
+                                                    rules: newRules,
+                                                  }));
+                                                }}
+                                                className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                              >
+                                                <Trash2 className="w-4 h-4" />
+                                              </Button>
+                                            </div>
+                                          </div>
+                                        )
+                                      )}
+
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => {
+                                          setRulesForm((prev) => ({
+                                            ...prev,
+                                            rules: [...prev.rules, ""],
+                                          }));
+                                        }}
+                                        className="border border-[#4b89ef] text-[#4b89ef] bg-white hover:bg-[#4b89ef]/10"
+                                      >
+                                        Add rule
+                                      </Button>
+
+                                      <div className="flex items-center gap-2 pt-2">
+                                        <Button
+                                          type="button"
+                                          className="bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
+                                          onClick={() => {
+                                            if (
+                                              !rulesForm.sectionTitle.trim()
+                                            ) {
+                                              toast({
+                                                title: "Missing field",
+                                                description:
+                                                  "Please enter a section title.",
+                                                variant: "destructive",
+                                              });
+                                              return;
+                                            }
+                                            const updatedRules = [...rules];
+                                            updatedRules[ruleIndex] = {
+                                              title: rulesForm.sectionTitle,
+                                              items: rulesForm.rules.filter(
+                                                (r) => r.trim() !== ""
+                                              ),
+                                            };
+                                            setRules(updatedRules);
+                                            setEditingRuleIndex(null);
+                                            setRulesForm({
+                                              sectionTitle: "",
+                                              rules: [""],
+                                            });
+                                            toast({
+                                              title: "Rule updated",
+                                              description:
+                                                "Rule section saved successfully.",
+                                            });
+                                          }}
+                                        >
+                                          Save
+                                        </Button>
+                                        <Button
+                                          type="button"
+                                          className="text-white rounded-[12px] hover:bg-red-600"
+                                          style={{
+                                            background:
+                                              "var(--Component-colors-Utility-Error-utility-error-600, #D92D20)",
+                                            boxShadow:
+                                              "0 32px 24px 0 rgba(255, 255, 255, 0.05) inset, 0 2px 1px 0 rgba(255, 255, 255, 0.25) inset, 0 0 0 1px var(--Opacity-Neutral-Darkest-15, rgba(0, 0, 0, 0.15)) inset, 0 -2px 1px 0 rgba(0, 0, 0, 0.20) inset, 0 1px 2px 0 var(--Opacity-Neutral-Darkest-5, rgba(0, 0, 0, 0.05))",
+                                          }}
+                                          onClick={() => {
+                                            setRules(
+                                              rules.filter(
+                                                (_, i) => i !== ruleIndex
+                                              )
+                                            );
+                                            setEditingRuleIndex(null);
+                                            setRulesForm({
+                                              sectionTitle: "",
+                                              rules: [""],
+                                            });
+                                            toast({
+                                              title: "Rule deleted",
+                                              description:
+                                                "Rule section removed successfully.",
+                                            });
+                                          }}
+                                        >
+                                          Delete
+                                        </Button>
+                                      </div>
+                                    </>
+                                  ) : (
                                     <div className="relative">
+                                      <div className="absolute top-4 right-4">
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setEditingRuleIndex(ruleIndex);
+                                            setRulesForm({
+                                              sectionTitle: rule.title,
+                                              rules:
+                                                rule.items.length > 0
+                                                  ? rule.items
+                                                  : [""],
+                                            });
+                                          }}
+                                          className="p-2 hover:bg-gray-50 rounded-[8px] transition-colors"
+                                        >
+                                          <Pencil className="w-4 h-4 text-gray-600" />
+                                        </button>
+                                      </div>
+                                      <div className="space-y-4 pr-10">
+                                        <div className="space-y-2">
+                                          <label className="text-[16px] font-normal text-black">
+                                            Section Title
+                                          </label>
+                                          <div className="relative">
+                                            <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                                            <Input
+                                              value={rule.title}
+                                              readOnly
+                                              className="h-[44px] pl-11 bg-gray-50 border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] text-gray-600 cursor-not-allowed"
+                                            />
+                                          </div>
+                                        </div>
+
+                                        {rule.items.map((item, itemIndex) => (
+                                          <div
+                                            key={itemIndex}
+                                            className="space-y-2"
+                                          >
+                                            <label className="text-[16px] font-normal text-black">
+                                              Rule {itemIndex + 1}
+                                            </label>
+                                            <div className="relative">
+                                              <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                                              <Input
+                                                value={item}
+                                                readOnly
+                                                className="h-[44px] pl-11 bg-gray-50 border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] text-gray-600 cursor-not-allowed"
+                                              />
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                              <Button
+                                type="button"
+                                onClick={() => setShowRulesForm(true)}
+                                className="rounded-[12px] border-0 text-black bg-[rgba(0,0,0,0.05)] hover:bg-gray-50 shadow-[0_0_0_1px_rgba(0,0,0,0.05)_inset,0_-2px_1px_0_rgba(0,0,0,0.05)_inset,0_1px_2px_0_rgba(0,0,0,0.05)]"
+                              >
+                                <Plus className="w-4 h-4 mr-2" />
+                                Add new section
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4">
+                              <div className="space-y-2">
+                                <label className="text-[16px] font-normal text-black">
+                                  Section Title
+                                </label>
+                                <div className="relative">
+                                  <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                                  <Input
+                                    value={rulesForm.sectionTitle}
+                                    onChange={(e) =>
+                                      setRulesForm((prev) => ({
+                                        ...prev,
+                                        sectionTitle: e.target.value,
+                                      }))
+                                    }
+                                    placeholder="Short description shown in the preview card"
+                                    className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+                                  />
+                                </div>
+                              </div>
+
+                              {rulesForm.rules.map((ruleItem, itemIndex) => (
+                                <div key={itemIndex} className="space-y-2">
+                                  <label className="text-[16px] font-normal text-black">
+                                    Rule {itemIndex + 1}
+                                  </label>
+                                  <div className="flex items-center gap-2">
+                                    <div className="relative flex-1">
                                       <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
                                       <Input
-                                        value={editingFaqForm.question}
-                                        onChange={(e) =>
-                                          setEditingFaqForm((prev) => ({
+                                        value={ruleItem}
+                                        onChange={(e) => {
+                                          const newRules = [...rulesForm.rules];
+                                          newRules[itemIndex] = e.target.value;
+                                          setRulesForm((prev) => ({
                                             ...prev,
-                                            question: e.target.value,
-                                          }))
-                                        }
-                                        className="w-full min-w-0 h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+                                            rules: newRules,
+                                          }));
+                                        }}
+                                        placeholder="Short description shown in the preview card"
+                                        className="h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
                                       />
                                     </div>
-                                  </div>
-
-                                  <div className="space-y-2">
-                                    <label className="text-[16px] font-normal text-black">
-                                      Answer
-                                    </label>
-                                    <Textarea
-                                      value={editingFaqForm.answer}
-                                      onChange={(e) =>
-                                        setEditingFaqForm((prev) => ({
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => {
+                                        const newRules = rulesForm.rules.filter(
+                                          (_, i) => i !== itemIndex
+                                        );
+                                        setRulesForm((prev) => ({
                                           ...prev,
-                                          answer: e.target.value,
-                                        }))
-                                      }
-                                      placeholder="Add answer (markdown supported)"
-                                      className="min-h-[150px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] p-3 focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none resize-y"
-                                    />
+                                          rules: newRules,
+                                        }));
+                                      }}
+                                      className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </Button>
                                   </div>
+                                </div>
+                              ))}
 
-                                  <div className="flex items-center gap-2 pt-2">
-                                    <Button
-                                      type="button"
-                                      className="bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
-                                      onClick={() => {
-                                        if (
-                                          !editingFaqForm.question.trim() ||
-                                          !editingFaqForm.answer.trim()
-                                        ) {
-                                          toast({
-                                            title: "Missing fields",
-                                            description:
-                                              "Please fill in both question and answer.",
-                                            variant: "destructive",
-                                          });
-                                          return;
-                                        }
-                                        setFaqs(
-                                          faqs.map((f) =>
-                                            f.id === faq.id
-                                              ? {
-                                                  ...f,
-                                                  question:
-                                                    editingFaqForm.question,
-                                                  answer: editingFaqForm.answer,
-                                                }
-                                              : f
-                                          )
-                                        );
-                                        setEditingFaqId(null);
-                                        setEditingFaqForm({
-                                          question: "",
-                                          answer: "",
-                                        });
-                                        toast({
-                                          title: "FAQ updated",
-                                          description:
-                                            "FAQ saved successfully.",
-                                        });
-                                      }}
-                                    >
-                                      Save
-                                    </Button>
-                                    <Button
-                                      type="button"
-                                      className="text-white rounded-[12px] hover:bg-red-600"
-                                      style={{
-                                        background:
-                                          "var(--Component-colors-Utility-Error-utility-error-600, #D92D20)",
-                                        boxShadow:
-                                          "0 32px 24px 0 rgba(255, 255, 255, 0.05) inset, 0 2px 1px 0 rgba(255, 255, 255, 0.25) inset, 0 0 0 1px var(--Opacity-Neutral-Darkest-15, rgba(0, 0, 0, 0.15)) inset, 0 -2px 1px 0 rgba(0, 0, 0, 0.20) inset, 0 1px 2px 0 var(--Opacity-Neutral-Darkest-5, rgba(0, 0, 0, 0.05))",
-                                      }}
-                                      onClick={() => {
-                                        setFaqs(
-                                          faqs.filter((f) => f.id !== faq.id)
-                                        );
-                                        setEditingFaqId(null);
-                                        setEditingFaqForm({
-                                          question: "",
-                                          answer: "",
-                                        });
-                                        toast({
-                                          title: "FAQ deleted",
-                                          description:
-                                            "FAQ removed successfully.",
-                                        });
-                                      }}
-                                    >
-                                      Delete
-                                    </Button>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => {
+                                  setRulesForm((prev) => ({
+                                    ...prev,
+                                    rules: [...prev.rules, ""],
+                                  }));
+                                }}
+                                className="border border-[#4b89ef] text-[#4b89ef] bg-white hover:bg-[#4b89ef]/10"
+                              >
+                                Add rule
+                              </Button>
+
+                              <div className="flex items-center gap-2 pt-4">
+                                <Button
+                                  type="button"
+                                  className="bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
+                                  onClick={() => {
+                                    if (!rulesForm.sectionTitle.trim()) {
+                                      toast({
+                                        title: "Missing field",
+                                        description:
+                                          "Please enter a section title.",
+                                        variant: "destructive",
+                                      });
+                                      return;
+                                    }
+                                    setRules([
+                                      ...rules,
+                                      {
+                                        title: rulesForm.sectionTitle,
+                                        items: rulesForm.rules.filter(
+                                          (r) => r.trim() !== ""
+                                        ),
+                                      },
+                                    ]);
+                                    toast({
+                                      title: "Rule created",
+                                      description:
+                                        "Rule section added successfully.",
+                                    });
+                                    setRulesForm({
+                                      sectionTitle: "",
+                                      rules: [""],
+                                    });
+                                    setShowRulesForm(false);
+                                  }}
+                                >
+                                  Create
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setShowRulesForm(false);
+                                    setRulesForm({
+                                      sectionTitle: "",
+                                      rules: [""],
+                                    });
+                                  }}
+                                  className="border border-[rgba(0,0,0,0.15)] bg-white"
+                                >
+                                  Cancel
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                        </TabsContent>
+
+                        <TabsContent
+                          value="faqs"
+                          className="mt-0 overflow-x-hidden px-2"
+                        >
+                          {faqs.length === 0 && !showFaqsForm ? (
+                            <div className="border-2 border-dashed border-gray-300 rounded-[12px] p-12 flex flex-col items-center justify-center text-center min-h-[400px]">
+                              <div className="flex flex-col items-center gap-2">
+                                <div className="relative">
+                                  <FileText className="w-16 h-16 text-gray-400" />
+                                  <div className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
+                                    <span className="text-white text-xs font-bold">
+                                      ×
+                                    </span>
                                   </div>
-                                </>
-                              ) : (
-                                <>
-                                  <div className="absolute top-4 right-4">
+                                </div>
+                                <div className="space-y-1">
+                                  <h3 className="text-[18px] font-semibold text-black">
+                                    No FAQ yet
+                                  </h3>
+                                  <p className="text-[14px] text-gray-500 max-w-full">
+                                    Add questions and answers to help
+                                    participants understand your event better.
+                                  </p>
+                                </div>
+                                <Button
+                                  type="button"
+                                  onClick={() => setShowFaqsForm(true)}
+                                  className="mt-2 bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
+                                >
+                                  Add question
+                                </Button>
+                              </div>
+                            </div>
+                          ) : faqs.length > 0 && !showFaqsForm ? (
+                            <div className="space-y-4">
+                              {faqs.map((faq) => (
+                                <div
+                                  key={faq.id}
+                                  className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4 relative"
+                                >
+                                  {editingFaqId === faq.id ? (
+                                    <>
+                                      <div className="space-y-2">
+                                        <label className="text-[16px] font-normal text-black">
+                                          Question
+                                        </label>
+                                        <div className="relative">
+                                          <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                                          <Input
+                                            value={editingFaqForm.question}
+                                            onChange={(e) =>
+                                              setEditingFaqForm((prev) => ({
+                                                ...prev,
+                                                question: e.target.value,
+                                              }))
+                                            }
+                                            className="w-full min-w-0 h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+                                          />
+                                        </div>
+                                      </div>
+
+                                      <div className="space-y-2">
+                                        <label className="text-[16px] font-normal text-black">
+                                          Answer
+                                        </label>
+                                        <Textarea
+                                          value={editingFaqForm.answer}
+                                          onChange={(e) =>
+                                            setEditingFaqForm((prev) => ({
+                                              ...prev,
+                                              answer: e.target.value,
+                                            }))
+                                          }
+                                          placeholder="Add answer (markdown supported)"
+                                          className="min-h-[150px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] p-3 focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none resize-y"
+                                        />
+                                      </div>
+
+                                      <div className="flex items-center gap-2 pt-2">
+                                        <Button
+                                          type="button"
+                                          className="bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
+                                          onClick={() => {
+                                            if (
+                                              !editingFaqForm.question.trim() ||
+                                              !editingFaqForm.answer.trim()
+                                            ) {
+                                              toast({
+                                                title: "Missing fields",
+                                                description:
+                                                  "Please fill in both question and answer.",
+                                                variant: "destructive",
+                                              });
+                                              return;
+                                            }
+                                            setFaqs(
+                                              faqs.map((f) =>
+                                                f.id === faq.id
+                                                  ? {
+                                                      ...f,
+                                                      question:
+                                                        editingFaqForm.question,
+                                                      answer:
+                                                        editingFaqForm.answer,
+                                                    }
+                                                  : f
+                                              )
+                                            );
+                                            setEditingFaqId(null);
+                                            setEditingFaqForm({
+                                              question: "",
+                                              answer: "",
+                                            });
+                                            toast({
+                                              title: "FAQ updated",
+                                              description:
+                                                "FAQ saved successfully.",
+                                            });
+                                          }}
+                                        >
+                                          Save
+                                        </Button>
+                                        <Button
+                                          type="button"
+                                          className="text-white rounded-[12px] hover:bg-red-600"
+                                          style={{
+                                            background:
+                                              "var(--Component-colors-Utility-Error-utility-error-600, #D92D20)",
+                                            boxShadow:
+                                              "0 32px 24px 0 rgba(255, 255, 255, 0.05) inset, 0 2px 1px 0 rgba(255, 255, 255, 0.25) inset, 0 0 0 1px var(--Opacity-Neutral-Darkest-15, rgba(0, 0, 0, 0.15)) inset, 0 -2px 1px 0 rgba(0, 0, 0, 0.20) inset, 0 1px 2px 0 var(--Opacity-Neutral-Darkest-5, rgba(0, 0, 0, 0.05))",
+                                          }}
+                                          onClick={() => {
+                                            setFaqs(
+                                              faqs.filter(
+                                                (f) => f.id !== faq.id
+                                              )
+                                            );
+                                            setEditingFaqId(null);
+                                            setEditingFaqForm({
+                                              question: "",
+                                              answer: "",
+                                            });
+                                            toast({
+                                              title: "FAQ deleted",
+                                              description:
+                                                "FAQ removed successfully.",
+                                            });
+                                          }}
+                                        >
+                                          Delete
+                                        </Button>
+                                      </div>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <div className="absolute top-4 right-4">
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setEditingFaqId(faq.id);
+                                            setEditingFaqForm({
+                                              question: faq.question,
+                                              answer: faq.answer,
+                                            });
+                                          }}
+                                          className="p-2 hover:bg-gray-50 rounded-[8px] transition-colors"
+                                        >
+                                          <Pencil className="w-4 h-4 text-gray-600" />
+                                        </button>
+                                      </div>
+
+                                      <div className="space-y-2 pr-10">
+                                        <label className="text-[16px] font-normal text-black">
+                                          Question
+                                        </label>
+                                        <div className="relative">
+                                          <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                                          <Input
+                                            value={faq.question}
+                                            readOnly
+                                            className="w-full min-w-0 h-[44px] pl-11 bg-gray-50 border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] text-gray-600 cursor-not-allowed"
+                                          />
+                                        </div>
+                                      </div>
+
+                                      <div className="space-y-2 pr-10">
+                                        <label className="text-[16px] font-normal text-black">
+                                          Answer
+                                        </label>
+                                        <div className="min-h-[100px] bg-gray-50 border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] p-3 overflow-auto prose prose-sm max-w-full">
+                                          {faq.answer ? (
+                                            <ReactMarkdown>
+                                              {faq.answer}
+                                            </ReactMarkdown>
+                                          ) : (
+                                            <em className="text-gray-400">
+                                              No answer provided.
+                                            </em>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </>
+                                  )}
+                                </div>
+                              ))}
+                              <Button
+                                type="button"
+                                onClick={() => setShowFaqsForm(true)}
+                                className="rounded-[12px] border-0 text-black bg-[rgba(0,0,0,0.05)] hover:bg-gray-50 shadow-[0_0_0_1px_rgba(0,0,0,0.05)_inset,0_-2px_1px_0_rgba(0,0,0,0.05)_inset,0_1px_2px_0_rgba(0,0,0,0.05)]"
+                              >
+                                <Plus className="w-4 h-4 mr-2" />
+                                Add new question
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4">
+                              <div className="space-y-2">
+                                <label className="text-[16px] font-normal text-black">
+                                  Question
+                                </label>
+                                <div className="relative">
+                                  <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+                                  <Input
+                                    value={faqsForm.question}
+                                    onChange={(e) =>
+                                      setFaqsForm((prev) => ({
+                                        ...prev,
+                                        question: e.target.value,
+                                      }))
+                                    }
+                                    placeholder="Short description shown in the preview card"
+                                    className="w-full min-w-0 h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="space-y-2">
+                                <label className="text-[16px] font-normal text-black">
+                                  Answer
+                                </label>
+                                <Textarea
+                                  value={faqsForm.answer}
+                                  onChange={(e) =>
+                                    setFaqsForm((prev) => ({
+                                      ...prev,
+                                      answer: e.target.value,
+                                    }))
+                                  }
+                                  placeholder="Add answer (markdown supported)"
+                                  className="min-h-[200px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] p-3 focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none resize-y"
+                                />
+                              </div>
+
+                              <div className="flex items-center gap-2 pt-4">
+                                <Button
+                                  type="button"
+                                  className="bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
+                                  onClick={() => {
+                                    if (
+                                      !faqsForm.question.trim() ||
+                                      !faqsForm.answer.trim()
+                                    ) {
+                                      toast({
+                                        title: "Missing fields",
+                                        description:
+                                          "Please fill in both question and answer.",
+                                        variant: "destructive",
+                                      });
+                                      return;
+                                    }
+                                    setFaqs([
+                                      ...faqs,
+                                      {
+                                        id: Date.now().toString(),
+                                        question: faqsForm.question,
+                                        answer: faqsForm.answer,
+                                      },
+                                    ]);
+                                    toast({
+                                      title: "FAQ created",
+                                      description: "FAQ added successfully.",
+                                    });
+                                    setFaqsForm({
+                                      question: "",
+                                      answer: "",
+                                    });
+                                    setShowFaqsForm(false);
+                                  }}
+                                >
+                                  Create
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setShowFaqsForm(false);
+                                    setFaqsForm({
+                                      question: "",
+                                      answer: "",
+                                    });
+                                  }}
+                                  className="border border-[rgba(0,0,0,0.15)] bg-white"
+                                >
+                                  Cancel
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                        </TabsContent>
+
+                        <TabsContent
+                          value="gallery"
+                          className="mt-0 overflow-x-hidden px-2"
+                        >
+                          {galleryImages.length === 0 ? (
+                            <div className="border-2 border-dashed border-gray-300 rounded-[12px] p-12 flex flex-col items-center justify-center text-center min-h-[400px]">
+                              <div className="flex flex-col items-center gap-2">
+                                <div className="relative">
+                                  <ImageIcon className="w-16 h-16 text-gray-400" />
+                                  <div className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
+                                    <span className="text-white text-xs font-bold">
+                                      ×
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="space-y-1">
+                                  <h3 className="text-[18px] font-semibold text-black">
+                                    No images yet
+                                  </h3>
+                                  <p className="text-[14px] text-gray-500 max-w-full">
+                                    Drop event images here or upload
+                                  </p>
+                                </div>
+                                <Button
+                                  type="button"
+                                  onClick={() => {
+                                    const input =
+                                      document.createElement("input");
+                                    input.type = "file";
+                                    input.accept = "image/*";
+                                    input.multiple = true;
+                                    input.onchange = (e) => {
+                                      const files = (
+                                        e.target as HTMLInputElement
+                                      ).files;
+                                      if (files && files.length > 0) {
+                                        const newImages = Array.from(files).map(
+                                          (file) => ({
+                                            id:
+                                              Date.now().toString() +
+                                              Math.random(),
+                                            url: URL.createObjectURL(file),
+                                          })
+                                        );
+                                        setGalleryImages([
+                                          ...galleryImages,
+                                          ...newImages,
+                                        ]);
+                                        toast({
+                                          title: "Images uploaded",
+                                          description: `${newImages.length} image(s) added to gallery.`,
+                                        });
+                                      }
+                                    };
+                                    input.click();
+                                  }}
+                                  className="mt-2 bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
+                                >
+                                  <Upload className="w-4 h-4 mr-2" />
+                                  Upload Images
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="space-y-4">
+                              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                                {galleryImages.map((image) => (
+                                  <div
+                                    key={image.id}
+                                    className="relative aspect-square rounded-[12px] overflow-hidden border border-[rgba(0,0,0,0.15)] bg-gray-100 group"
+                                  >
+                                    <img
+                                      src={image.url}
+                                      alt="Gallery image"
+                                      className="w-full h-full object-cover"
+                                    />
                                     <button
                                       type="button"
                                       onClick={() => {
-                                        setEditingFaqId(faq.id);
-                                        setEditingFaqForm({
-                                          question: faq.question,
-                                          answer: faq.answer,
+                                        setGalleryImages(
+                                          galleryImages.filter(
+                                            (img) => img.id !== image.id
+                                          )
+                                        );
+                                        toast({
+                                          title: "Image deleted",
+                                          description:
+                                            "Image removed from gallery.",
                                         });
                                       }}
-                                      className="p-2 hover:bg-gray-50 rounded-[8px] transition-colors"
+                                      className="absolute top-2 right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                                     >
-                                      <Pencil className="w-4 h-4 text-gray-600" />
+                                      <span className="text-white text-xs font-bold">
+                                        ×
+                                      </span>
                                     </button>
                                   </div>
-
-                                  <div className="space-y-2 pr-10">
-                                    <label className="text-[16px] font-normal text-black">
-                                      Question
-                                    </label>
-                                    <div className="relative">
-                                      <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
-                                      <Input
-                                        value={faq.question}
-                                        readOnly
-                                        className="w-full min-w-0 h-[44px] pl-11 bg-gray-50 border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] text-gray-600 cursor-not-allowed"
-                                      />
-                                    </div>
-                                  </div>
-
-                                  <div className="space-y-2 pr-10">
-                                    <label className="text-[16px] font-normal text-black">
-                                      Answer
-                                    </label>
-                                    <div className="min-h-[100px] bg-gray-50 border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] p-3 overflow-auto prose prose-sm max-w-full">
-                                      {faq.answer ? (
-                                        <ReactMarkdown>
-                                          {faq.answer}
-                                        </ReactMarkdown>
-                                      ) : (
-                                        <em className="text-gray-400">
-                                          No answer provided.
-                                        </em>
-                                      )}
-                                    </div>
-                                  </div>
-                                </>
-                              )}
-                            </div>
-                          ))}
-                          <Button
-                            type="button"
-                            onClick={() => setShowFaqsForm(true)}
-                            className="rounded-[12px] border-0 text-black bg-[rgba(0,0,0,0.05)] hover:bg-gray-50 shadow-[0_0_0_1px_rgba(0,0,0,0.05)_inset,0_-2px_1px_0_rgba(0,0,0,0.05)_inset,0_1px_2px_0_rgba(0,0,0,0.05)]"
-                          >
-                            <Plus className="w-4 h-4 mr-2" />
-                            Add new question
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4">
-                          <div className="space-y-2">
-                            <label className="text-[16px] font-normal text-black">
-                              Question
-                            </label>
-                            <div className="relative">
-                              <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
-                              <Input
-                                value={faqsForm.question}
-                                onChange={(e) =>
-                                  setFaqsForm((prev) => ({
-                                    ...prev,
-                                    question: e.target.value,
-                                  }))
-                                }
-                                placeholder="Short description shown in the preview card"
-                                className="w-full min-w-0 h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
-                              />
-                            </div>
-                          </div>
-
-                          <div className="space-y-2">
-                            <label className="text-[16px] font-normal text-black">
-                              Answer
-                            </label>
-                            <Textarea
-                              value={faqsForm.answer}
-                              onChange={(e) =>
-                                setFaqsForm((prev) => ({
-                                  ...prev,
-                                  answer: e.target.value,
-                                }))
-                              }
-                              placeholder="Add answer (markdown supported)"
-                              className="min-h-[200px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] p-3 focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none resize-y"
-                            />
-                          </div>
-
-                          <div className="flex items-center gap-2 pt-4">
-                            <Button
-                              type="button"
-                              className="bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
-                              onClick={() => {
-                                if (
-                                  !faqsForm.question.trim() ||
-                                  !faqsForm.answer.trim()
-                                ) {
-                                  toast({
-                                    title: "Missing fields",
-                                    description:
-                                      "Please fill in both question and answer.",
-                                    variant: "destructive",
-                                  });
-                                  return;
-                                }
-                                setFaqs([
-                                  ...faqs,
-                                  {
-                                    id: Date.now().toString(),
-                                    question: faqsForm.question,
-                                    answer: faqsForm.answer,
-                                  },
-                                ]);
-                                toast({
-                                  title: "FAQ created",
-                                  description: "FAQ added successfully.",
-                                });
-                                setFaqsForm({
-                                  question: "",
-                                  answer: "",
-                                });
-                                setShowFaqsForm(false);
-                              }}
-                            >
-                              Create
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              onClick={() => {
-                                setShowFaqsForm(false);
-                                setFaqsForm({
-                                  question: "",
-                                  answer: "",
-                                });
-                              }}
-                              className="border border-[rgba(0,0,0,0.15)] bg-white"
-                            >
-                              Cancel
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                    </TabsContent>
-
-                    <TabsContent
-                      value="gallery"
-                      className="mt-0 overflow-x-hidden"
-                    >
-                      {galleryImages.length === 0 ? (
-                        <div className="border-2 border-dashed border-gray-300 rounded-[12px] p-12 flex flex-col items-center justify-center text-center min-h-[400px]">
-                          <div className="flex flex-col items-center gap-2">
-                            <div className="relative">
-                              <ImageIcon className="w-16 h-16 text-gray-400" />
-                              <div className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
-                                <span className="text-white text-xs font-bold">
-                                  ×
-                                </span>
+                                ))}
                               </div>
-                            </div>
-                            <div className="space-y-1">
-                              <h3 className="text-[18px] font-semibold text-black">
-                                No images yet
-                              </h3>
-                              <p className="text-[14px] text-gray-500 max-w-md">
-                                Drop event images here or upload
-                              </p>
-                            </div>
-                            <Button
-                              type="button"
-                              onClick={() => {
-                                const input = document.createElement("input");
-                                input.type = "file";
-                                input.accept = "image/*";
-                                input.multiple = true;
-                                input.onchange = (e) => {
-                                  const files = (e.target as HTMLInputElement)
-                                    .files;
-                                  if (files && files.length > 0) {
-                                    const newImages = Array.from(files).map(
-                                      (file) => ({
-                                        id:
-                                          Date.now().toString() + Math.random(),
-                                        url: URL.createObjectURL(file),
-                                      })
-                                    );
-                                    setGalleryImages([
-                                      ...galleryImages,
-                                      ...newImages,
-                                    ]);
-                                    toast({
-                                      title: "Images uploaded",
-                                      description: `${newImages.length} image(s) added to gallery.`,
-                                    });
-                                  }
-                                };
-                                input.click();
-                              }}
-                              className="mt-2 bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
-                            >
-                              <Upload className="w-4 h-4 mr-2" />
-                              Upload Images
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="space-y-4">
-                          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                            {galleryImages.map((image) => (
-                              <div
-                                key={image.id}
-                                className="relative aspect-square rounded-[12px] overflow-hidden border border-[rgba(0,0,0,0.15)] bg-gray-100 group"
+                              <Button
+                                type="button"
+                                onClick={() => {
+                                  const input = document.createElement("input");
+                                  input.type = "file";
+                                  input.accept = "image/*";
+                                  input.multiple = true;
+                                  input.onchange = (e) => {
+                                    const files = (e.target as HTMLInputElement)
+                                      .files;
+                                    if (files && files.length > 0) {
+                                      const newImages = Array.from(files).map(
+                                        (file) => ({
+                                          id:
+                                            Date.now().toString() +
+                                            Math.random(),
+                                          url: URL.createObjectURL(file),
+                                        })
+                                      );
+                                      setGalleryImages([
+                                        ...galleryImages,
+                                        ...newImages,
+                                      ]);
+                                      toast({
+                                        title: "Images uploaded",
+                                        description: `${newImages.length} image(s) added to gallery.`,
+                                      });
+                                    }
+                                  };
+                                  input.click();
+                                }}
+                                className="rounded-[12px] border-0 text-black bg-[rgba(0,0,0,0.05)] hover:bg-gray-50 shadow-[0_0_0_1px_rgba(0,0,0,0.05)_inset,0_-2px_1px_0_rgba(0,0,0,0.05)_inset,0_1px_2px_0_rgba(0,0,0,0.05)]"
                               >
-                                <img
-                                  src={image.url}
-                                  alt="Gallery image"
-                                  className="w-full h-full object-cover"
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setGalleryImages(
-                                      galleryImages.filter(
-                                        (img) => img.id !== image.id
-                                      )
-                                    );
-                                    toast({
-                                      title: "Image deleted",
-                                      description:
-                                        "Image removed from gallery.",
-                                    });
-                                  }}
-                                  className="absolute top-2 right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                                >
-                                  <span className="text-white text-xs font-bold">
-                                    ×
-                                  </span>
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                          <Button
-                            type="button"
-                            onClick={() => {
-                              const input = document.createElement("input");
-                              input.type = "file";
-                              input.accept = "image/*";
-                              input.multiple = true;
-                              input.onchange = (e) => {
-                                const files = (e.target as HTMLInputElement)
-                                  .files;
-                                if (files && files.length > 0) {
-                                  const newImages = Array.from(files).map(
-                                    (file) => ({
-                                      id: Date.now().toString() + Math.random(),
-                                      url: URL.createObjectURL(file),
-                                    })
-                                  );
-                                  setGalleryImages([
-                                    ...galleryImages,
-                                    ...newImages,
-                                  ]);
-                                  toast({
-                                    title: "Images uploaded",
-                                    description: `${newImages.length} image(s) added to gallery.`,
-                                  });
-                                }
-                              };
-                              input.click();
-                            }}
-                            className="rounded-[12px] border-0 text-black bg-[rgba(0,0,0,0.05)] hover:bg-gray-50 shadow-[0_0_0_1px_rgba(0,0,0,0.05)_inset,0_-2px_1px_0_rgba(0,0,0,0.05)_inset,0_1px_2px_0_rgba(0,0,0,0.05)]"
-                          >
-                            <Plus className="w-4 h-4 mr-2" />
-                            Add more images
-                          </Button>
-                        </div>
-                      )}
-                    </TabsContent>
-                  </Tabs>
-                </TabsContent>
-
-                <TabsContent
-                  value="registration"
-                  className="mt-0 overflow-x-hidden w-full"
-                >
-                  <div className="w-full min-w-0 space-y-6">
-                    <Tabs
-                      value={activeRegistrationSubTab}
-                      onValueChange={setActiveRegistrationSubTab}
-                      className="w-full"
-                    >
-                      <div className="flex items-center justify-between mb-6">
-                        <div className="w-full overflow-x-auto">
-                          <TabsList className="inline-flex h-auto gap-2 bg-transparent p-0 rounded-full">
-                            <TabsTrigger
-                              value="registration"
-                              className="px-4 py-2 rounded-full text-sm font-normal text-black border border-transparent data-[state=active]:bg-white data-[state=active]:border-[rgba(0,0,0,0.15)] data-[state=active]:shadow-sm flex-shrink-0"
-                            >
-                              Registration
-                            </TabsTrigger>
-                            <TabsTrigger
-                              value="assign-roles"
-                              className="px-4 py-2 rounded-full text-sm font-normal text-black border border-transparent data-[state=active]:bg-white data-[state=active]:border-[rgba(0,0,0,0.15)] data-[state=active]:shadow-sm flex-shrink-0"
-                            >
-                              Assign Roles
-                            </TabsTrigger>
-                          </TabsList>
-                        </div>
-                        {activeRegistrationSubTab === "registration" && (
-                          <Button
-                            variant="outline"
-                            className="border border-[rgba(0,0,0,0.15)] bg-white ml-4 flex-shrink-0"
-                          >
-                            <Download className="w-4 h-4 mr-2" />
-                            Export CSV
-                          </Button>
-                        )}
+                                <Plus className="w-4 h-4 mr-2" />
+                                Add more images
+                              </Button>
+                            </div>
+                          )}
+                        </TabsContent>
                       </div>
 
-                      {/* Registration Tab */}
-                      <TabsContent value="registration" className="mt-0">
-                        <div className="space-y-4">
-                          <div className="bg-white border-2 border-dashed border-[rgba(0,0,0,0.15)] rounded-[12px] p-12 text-center">
-                            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
-                              <UserPlus className="w-8 h-8 text-gray-400" />
-                            </div>
-                            <h3 className="text-[18px] font-semibold text-black mb-2">
-                              No registration yet
-                            </h3>
-                            <p className="text-[16px] text-gray-500">
-                              Registrations will appear here once participants
-                              start joining the event.
-                            </p>
-                          </div>
-                        </div>
-                      </TabsContent>
+                      {/* Preview Card */}
+                      <div className="flex-shrink-0 w-full md:w-[335px] md:max-w-[335px] overflow-x-hidden">
+                        <div className="w-full bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] overflow-hidden">
+                          {/* Image */}
+                          <div className="relative w-full aspect-[335/223] overflow-hidden">
+                            {form.cover_image_url ? (
+                              <img
+                                src={form.cover_image_url}
+                                alt="Event cover"
+                                className="w-full h-full object-cover block"
+                              />
+                            ) : (
+                              <div className="w-full h-full bg-gradient-to-br from-orange-400 via-red-500 to-purple-600" />
+                            )}
 
-                      {/* Assign Roles Tab */}
-                      <TabsContent value="assign-roles" className="mt-0">
-                        <div className="space-y-6">
-                          {/* Auto Assignment Section */}
-                          <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4">
-                            <h3 className="text-[18px] font-semibold text-black">
-                              Auto Assignment
-                            </h3>
-                            <p className="text-[16px] text-gray-500">
-                              Automatically assign judges and mentors to
-                              projects using a balanced distribution algorithm.
-                            </p>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <div className="space-y-2">
-                                <label className="text-[16px] font-normal text-black">
-                                  Judges per Project
-                                </label>
-                                <div className="flex items-center gap-2">
-                                  <div className="relative flex-1">
-                                    <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                    <Input
-                                      type="number"
-                                      value={judgesPerProject}
-                                      onChange={(e) =>
-                                        setJudgesPerProject(e.target.value)
-                                      }
-                                      className="pl-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px]"
-                                    />
-                                  </div>
-                                  <Button
-                                    onClick={() => {
-                                      toast({
-                                        title: "Auto-assignment",
-                                        description:
-                                          "Judges will be auto-assigned when projects are submitted.",
-                                      });
-                                    }}
-                                    className="bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
-                                  >
-                                    <Shuffle className="w-4 h-4 mr-2" />
-                                    Auto-assign
-                                  </Button>
-                                </div>
-                                <p className="text-[14px] text-gray-500">
-                                  *0 judges available
-                                </p>
-                              </div>
-
-                              <div className="space-y-2">
-                                <label className="text-[16px] font-normal text-black">
-                                  Mentors per Project
-                                </label>
-                                <div className="flex items-center gap-2">
-                                  <div className="relative flex-1">
-                                    <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                    <Input
-                                      type="number"
-                                      value={mentorsPerProject}
-                                      onChange={(e) =>
-                                        setMentorsPerProject(e.target.value)
-                                      }
-                                      className="pl-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px]"
-                                    />
-                                  </div>
-                                  <Button
-                                    onClick={() => {
-                                      toast({
-                                        title: "Auto-assignment",
-                                        description:
-                                          "Mentors will be auto-assigned when projects are submitted.",
-                                      });
-                                    }}
-                                    className="bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
-                                  >
-                                    <Shuffle className="w-4 h-4 mr-2" />
-                                    Auto-assign
-                                  </Button>
-                                </div>
-                                <p className="text-[14px] text-gray-500">
-                                  *0 mentors available
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Current Assignment Section */}
-                          <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4">
-                            <h3 className="text-[18px] font-semibold text-black">
-                              Current Assignment
-                            </h3>
-                            <div className="bg-white border-2 border-dashed border-[rgba(0,0,0,0.15)] rounded-[12px] p-12 text-center">
-                              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
-                                <Users className="w-8 h-8 text-gray-400" />
-                              </div>
-                              <h3 className="text-[18px] font-semibold text-black mb-2">
-                                No assignment yet
-                              </h3>
-                              <p className="text-[16px] text-gray-500">
-                                Assignments will appear here once projects are
-                                submitted and judges/mentors are assigned.
+                            {/* Date Badge */}
+                            <div className="absolute top-4 right-4 bg-white border border-[#aaaaaa] rounded-[6px] w-[112px] py-3 px-1 text-center">
+                              <p className="text-[14px] font-normal text-black">
+                                {previewDate.weekday}
+                              </p>
+                              <p
+                                className="text-[36px] font-semibold leading-[1.3] tracking-[-2.16px] text-black"
+                                style={{ fontFamily: "Geist, sans-serif" }}
+                              >
+                                {previewDate.day}
+                              </p>
+                              <p className="text-[14px] font-normal text-black">
+                                {previewDate.month} {previewDate.year}
                               </p>
                             </div>
                           </div>
-                        </div>
-                      </TabsContent>
-                    </Tabs>
-                  </div>
-                </TabsContent>
 
-                <TabsContent
-                  value="project"
-                  className="mt-0 overflow-x-hidden w-full"
-                >
-                  <div className="w-full min-w-0 space-y-6">
-                    <Tabs
-                      value={activeProjectSubTab}
-                      onValueChange={setActiveProjectSubTab}
-                      className="w-full"
-                    >
-                      <div className="flex items-center justify-between mb-6">
-                        <div className="w-full overflow-x-auto">
-                          <TabsList className="inline-flex h-auto gap-2 bg-transparent p-0 rounded-full">
-                            <TabsTrigger
-                              value="submission"
-                              className="px-4 py-2 rounded-full text-sm font-normal text-black border border-transparent data-[state=active]:bg-white data-[state=active]:border-[rgba(0,0,0,0.15)] data-[state=active]:shadow-sm flex-shrink-0"
+                          {/* Content */}
+                          <div className="p-6">
+                            <div className="flex flex-wrap gap-1 mb-3">
+                              <span className="px-[10px] py-1 border border-[rgba(0,0,0,0.15)] rounded-full text-[14px] font-semibold text-black">
+                                {ticketType === "free" ? "Free" : "Paid"}
+                              </span>
+                            </div>
+
+                            <h2
+                              className="text-[28px] font-semibold leading-[1.4] tracking-[-1.68px] text-black mb-1"
+                              style={{ fontFamily: "Geist, sans-serif" }}
                             >
-                              Submission
-                            </TabsTrigger>
-                            <TabsTrigger
-                              value="live-scores"
-                              className="px-4 py-2 rounded-full text-sm font-normal text-black border border-transparent data-[state=active]:bg-white data-[state=active]:border-[rgba(0,0,0,0.15)] data-[state=active]:shadow-sm flex-shrink-0"
-                            >
-                              Live Scores
-                            </TabsTrigger>
-                          </TabsList>
+                              {form.event_name || "Innovate Together"}
+                            </h2>
+
+                            <div className="flex items-center gap-1 mb-2">
+                              <MapPin className="w-6 h-6" />
+                              <span className="text-[14px] font-normal text-black">
+                                {form.location || "Online"}
+                              </span>
+                            </div>
+
+                            <p className="text-[16px] font-normal text-black leading-[1.5]">
+                              {form.event_blurb ||
+                                "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse varius enim in eros."}
+                            </p>
+                          </div>
                         </div>
-                        {activeProjectSubTab === "submission" && (
-                          <Button
-                            variant="outline"
-                            className="border border-[rgba(0,0,0,0.15)] bg-white ml-4 flex-shrink-0"
-                          >
-                            <Download className="w-4 h-4 mr-2" />
-                            Export CSV
-                          </Button>
-                        )}
+
+                        <button
+                          onClick={() => {
+                            const previewSlug = getPreviewSlug();
+                            if (previewSlug) {
+                              window.open(`/events/${previewSlug}`, "_blank");
+                            } else {
+                              toast({
+                                title: "Event name required",
+                                description:
+                                  "Please enter an event name to preview the event page.",
+                                variant: "destructive",
+                              });
+                            }
+                          }}
+                          disabled={!form.event_name}
+                          className="flex items-center gap-2 text-[16px] text-[#7f7f7f] hover:text-[#4b89ef] transition-colors mt-3 mx-auto disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Preview event page
+                          <ArrowUpRight className="w-4 h-4" />
+                        </button>
                       </div>
-
-                      {/* Submission Tab */}
-                      <TabsContent value="submission" className="mt-0">
-                        <div className="space-y-4">
-                          <div className="bg-white border-2 border-dashed border-[rgba(0,0,0,0.15)] rounded-[12px] p-12 text-center">
-                            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
-                              <FolderKanban className="w-8 h-8 text-gray-400" />
-                            </div>
-                            <h3 className="text-[18px] font-semibold text-black mb-2">
-                              No submission yet
-                            </h3>
-                            <p className="text-[16px] text-gray-500">
-                              Submissions will appear here once participants
-                              start submitting their projects.
-                            </p>
-                          </div>
-                        </div>
-                      </TabsContent>
-
-                      {/* Live Scores Tab */}
-                      <TabsContent value="live-scores" className="mt-0">
-                        <div className="space-y-4">
-                          <div className="bg-white border-2 border-dashed border-[rgba(0,0,0,0.15)] rounded-[12px] p-12 text-center">
-                            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
-                              <Percent className="w-8 h-8 text-gray-400" />
-                            </div>
-                            <h3 className="text-[18px] font-semibold text-black mb-2">
-                              No score yet
-                            </h3>
-                            <p className="text-[16px] text-gray-500">
-                              Scores will appear here once judges start scoring
-                              projects.
-                            </p>
-                          </div>
-                        </div>
-                      </TabsContent>
-                    </Tabs>
-                  </div>
+                    </div>
+                  </Tabs>
                 </TabsContent>
 
                 <TabsContent
@@ -3005,8 +2935,9 @@ export default function NewEventPage() {
                             </h3>
                             <p className="text-[16px] text-gray-500">
                               Customize how roles are labeled throughout the
-                              platform. For example, you can change &quot;Judge&quot; to
-                              &quot;Investor&quot; for a demo day event.
+                              platform. For example, you can change
+                              &quot;Judge&quot; to &quot;Investor&quot; for a
+                              demo day event.
                             </p>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -4160,1567 +4091,7 @@ export default function NewEventPage() {
                     </Tabs>
                   </div>
                 </TabsContent>
-
-                <TabsContent
-                  value="pricing"
-                  className="mt-0 overflow-x-hidden w-full"
-                >
-                  <div className="w-full min-w-0 space-y-6">
-                    {/* Pricing Sub-tabs */}
-                    {ticketType === "paid" ? (
-                      <Tabs
-                        value={activePricingSubTab}
-                        onValueChange={setActivePricingSubTab}
-                        className="w-full"
-                      >
-                        <div className="w-full overflow-x-auto mb-6">
-                          <TabsList className="inline-flex h-auto gap-2 bg-transparent p-0 rounded-full">
-                            <TabsTrigger
-                              value="tiers"
-                              className="px-4 py-2 rounded-full text-sm font-normal text-black border border-transparent data-[state=active]:bg-white data-[state=active]:border-[rgba(0,0,0,0.15)] data-[state=active]:shadow-sm flex-shrink-0"
-                            >
-                              Pricing Tiers
-                            </TabsTrigger>
-                            <TabsTrigger
-                              value="coupon"
-                              className="px-4 py-2 rounded-full text-sm font-normal text-black border border-transparent data-[state=active]:bg-white data-[state=active]:border-[rgba(0,0,0,0.15)] data-[state=active]:shadow-sm flex-shrink-0"
-                            >
-                              Coupon
-                            </TabsTrigger>
-                            <TabsTrigger
-                              value="promo"
-                              className="px-4 py-2 rounded-full text-sm font-normal text-black border border-transparent data-[state=active]:bg-white data-[state=active]:border-[rgba(0,0,0,0.15)] data-[state=active]:shadow-sm flex-shrink-0"
-                            >
-                              Promo Code
-                            </TabsTrigger>
-                          </TabsList>
-                        </div>
-
-                        {/* Pricing Tiers Tab */}
-                        <TabsContent value="tiers" className="mt-0">
-                          <div className="space-y-4">
-                            {pricingTiers.length === 0 && !showTierForm ? (
-                              <div className="bg-white border-2 border-dashed border-[rgba(0,0,0,0.15)] rounded-[12px] p-12 text-center">
-                                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
-                                  <DollarSign className="w-8 h-8 text-gray-400" />
-                                </div>
-                                <h3 className="text-[18px] font-semibold text-black mb-2">
-                                  No tier created yet
-                                </h3>
-                                <p className="text-[16px] text-gray-500 mb-6">
-                                  Add your first pricing tier to get started
-                                </p>
-                                <Button
-                                  onClick={() => setShowTierForm(true)}
-                                  className="bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
-                                >
-                                  Add pricing tier
-                                </Button>
-                              </div>
-                            ) : (
-                              <>
-                                {pricingTiers.map((tier, index) => (
-                                  <div
-                                    key={tier.id}
-                                    className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4"
-                                  >
-                                    <div className="flex items-center justify-between">
-                                      <h3 className="text-[18px] font-semibold text-black">
-                                        Tier {index + 1}
-                                      </h3>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => {
-                                          setPricingTiers(
-                                            pricingTiers.filter(
-                                              (t) => t.id !== tier.id
-                                            )
-                                          );
-                                        }}
-                                        className="text-red-600 hover:text-red-700"
-                                      >
-                                        <Trash2 className="w-4 h-4" />
-                                      </Button>
-                                    </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                      <div className="space-y-2">
-                                        <label className="text-[16px] font-normal text-black">
-                                          Tier Name
-                                        </label>
-                                        <div className="relative">
-                                          <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                          <Input
-                                            value={tier.name}
-                                            onChange={(e) => {
-                                              setPricingTiers(
-                                                pricingTiers.map((t) =>
-                                                  t.id === tier.id
-                                                    ? {
-                                                        ...t,
-                                                        name: e.target.value,
-                                                      }
-                                                    : t
-                                                )
-                                              );
-                                            }}
-                                            placeholder="Short description shown in the preview card."
-                                            className="pl-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px]"
-                                          />
-                                        </div>
-                                      </div>
-                                      <div className="space-y-2">
-                                        <label className="text-[16px] font-normal text-black">
-                                          Price (USD)
-                                        </label>
-                                        <div className="relative">
-                                          <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                          <Input
-                                            type="number"
-                                            step="0.01"
-                                            value={tier.price / 100}
-                                            onChange={(e) => {
-                                              setPricingTiers(
-                                                pricingTiers.map((t) =>
-                                                  t.id === tier.id
-                                                    ? {
-                                                        ...t,
-                                                        price: Math.round(
-                                                          parseFloat(
-                                                            e.target.value ||
-                                                              "0"
-                                                          ) * 100
-                                                        ),
-                                                      }
-                                                    : t
-                                                )
-                                              );
-                                            }}
-                                            placeholder="e.g. 9"
-                                            className="pl-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px]"
-                                          />
-                                        </div>
-                                      </div>
-                                    </div>
-                                    <div className="space-y-2">
-                                      <label className="text-[16px] font-normal text-black">
-                                        Description
-                                      </label>
-                                      <Textarea
-                                        value={tier.description}
-                                        onChange={(e) => {
-                                          setPricingTiers(
-                                            pricingTiers.map((t) =>
-                                              t.id === tier.id
-                                                ? {
-                                                    ...t,
-                                                    description: e.target.value,
-                                                  }
-                                                : t
-                                            )
-                                          );
-                                        }}
-                                        placeholder="Add long description (markdown supported)."
-                                        className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] min-h-[100px]"
-                                      />
-                                    </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                      <div className="space-y-2">
-                                        <label className="text-[16px] font-normal text-black">
-                                          Available Until
-                                        </label>
-                                        <div className="relative">
-                                          <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                          <Input
-                                            type="date"
-                                            value={
-                                              tier.available_until
-                                                ? tier.available_until.split(
-                                                    "T"
-                                                  )[0]
-                                                : ""
-                                            }
-                                            onChange={(e) => {
-                                              setPricingTiers(
-                                                pricingTiers.map((t) =>
-                                                  t.id === tier.id
-                                                    ? {
-                                                        ...t,
-                                                        available_until: e
-                                                          .target.value
-                                                          ? new Date(
-                                                              e.target.value
-                                                            ).toISOString()
-                                                          : undefined,
-                                                      }
-                                                    : t
-                                                )
-                                              );
-                                            }}
-                                            placeholder="mm/dd/yyyy"
-                                            className="pl-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px]"
-                                          />
-                                        </div>
-                                      </div>
-                                      <div className="space-y-2">
-                                        <label className="text-[16px] font-normal text-black">
-                                          Max Quantity
-                                        </label>
-                                        <div className="relative">
-                                          <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                          <Input
-                                            type="number"
-                                            value={tier.max_quantity || ""}
-                                            onChange={(e) => {
-                                              setPricingTiers(
-                                                pricingTiers.map((t) =>
-                                                  t.id === tier.id
-                                                    ? {
-                                                        ...t,
-                                                        max_quantity: e.target
-                                                          .value
-                                                          ? parseInt(
-                                                              e.target.value,
-                                                              10
-                                                            )
-                                                          : undefined,
-                                                      }
-                                                    : t
-                                                )
-                                              );
-                                            }}
-                                            placeholder="Leave blank for unlimited participants"
-                                            className="pl-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px]"
-                                          />
-                                        </div>
-                                      </div>
-                                    </div>
-                                    <div className="space-y-2">
-                                      <label className="text-[16px] font-normal text-black">
-                                        Stripe Price ID
-                                      </label>
-                                      <div className="relative">
-                                        <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                        <Input
-                                          value={tier.stripe_price_id}
-                                          onChange={(e) => {
-                                            setPricingTiers(
-                                              pricingTiers.map((t) =>
-                                                t.id === tier.id
-                                                  ? {
-                                                      ...t,
-                                                      stripe_price_id:
-                                                        e.target.value,
-                                                    }
-                                                  : t
-                                              )
-                                            );
-                                          }}
-                                          placeholder="price_"
-                                          className="pl-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px]"
-                                        />
-                                      </div>
-                                      <p className="text-[14px] text-gray-500">
-                                        *Create a Stripe price in your Stripe
-                                        dashboard and paste the ID here.
-                                      </p>
-                                    </div>
-                                  </div>
-                                ))}
-                                {showTierForm && (
-                                  <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4">
-                                    <h3 className="text-[18px] font-semibold text-black">
-                                      New Tier
-                                    </h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                      <div className="space-y-2">
-                                        <label className="text-[16px] font-normal text-black">
-                                          Tier Name
-                                        </label>
-                                        <div className="relative">
-                                          <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                          <Input
-                                            value={tierForm.name}
-                                            onChange={(e) =>
-                                              setTierForm({
-                                                ...tierForm,
-                                                name: e.target.value,
-                                              })
-                                            }
-                                            placeholder="Short description shown in the preview card."
-                                            className="pl-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px]"
-                                          />
-                                        </div>
-                                      </div>
-                                      <div className="space-y-2">
-                                        <label className="text-[16px] font-normal text-black">
-                                          Price (USD)
-                                        </label>
-                                        <div className="relative">
-                                          <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                          <Input
-                                            type="number"
-                                            step="0.01"
-                                            value={tierForm.price}
-                                            onChange={(e) =>
-                                              setTierForm({
-                                                ...tierForm,
-                                                price: e.target.value,
-                                              })
-                                            }
-                                            placeholder="e.g. 9"
-                                            className="pl-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px]"
-                                          />
-                                        </div>
-                                      </div>
-                                    </div>
-                                    <div className="space-y-2">
-                                      <label className="text-[16px] font-normal text-black">
-                                        Description
-                                      </label>
-                                      <Textarea
-                                        value={tierForm.description}
-                                        onChange={(e) =>
-                                          setTierForm({
-                                            ...tierForm,
-                                            description: e.target.value,
-                                          })
-                                        }
-                                        placeholder="Add long description (markdown supported)."
-                                        className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] min-h-[100px]"
-                                      />
-                                    </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                      <div className="space-y-2">
-                                        <label className="text-[16px] font-normal text-black">
-                                          Available Until
-                                        </label>
-                                        <div className="relative">
-                                          <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                          <Input
-                                            type="date"
-                                            value={tierForm.available_until}
-                                            onChange={(e) =>
-                                              setTierForm({
-                                                ...tierForm,
-                                                available_until: e.target.value,
-                                              })
-                                            }
-                                            placeholder="mm/dd/yyyy"
-                                            className="pl-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px]"
-                                          />
-                                        </div>
-                                      </div>
-                                      <div className="space-y-2">
-                                        <label className="text-[16px] font-normal text-black">
-                                          Max Quantity
-                                        </label>
-                                        <div className="relative">
-                                          <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                          <Input
-                                            type="number"
-                                            value={tierForm.max_quantity}
-                                            onChange={(e) =>
-                                              setTierForm({
-                                                ...tierForm,
-                                                max_quantity: e.target.value,
-                                              })
-                                            }
-                                            placeholder="Leave blank for unlimited participants"
-                                            className="pl-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px]"
-                                          />
-                                        </div>
-                                      </div>
-                                    </div>
-                                    <div className="space-y-2">
-                                      <label className="text-[16px] font-normal text-black">
-                                        Stripe Price ID
-                                      </label>
-                                      <div className="relative">
-                                        <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                        <Input
-                                          value={tierForm.stripe_price_id}
-                                          onChange={(e) =>
-                                            setTierForm({
-                                              ...tierForm,
-                                              stripe_price_id: e.target.value,
-                                            })
-                                          }
-                                          placeholder="price_"
-                                          className="pl-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px]"
-                                        />
-                                      </div>
-                                      <p className="text-[14px] text-gray-500">
-                                        *Create a Stripe price in your Stripe
-                                        dashboard and paste the ID here.
-                                      </p>
-                                    </div>
-                                    <div className="flex gap-3">
-                                      <Button
-                                        onClick={() => {
-                                          if (
-                                            !tierForm.name ||
-                                            !tierForm.price ||
-                                            !tierForm.stripe_price_id
-                                          ) {
-                                            toast({
-                                              title: "Missing fields",
-                                              description:
-                                                "Please fill in tier name, price, and Stripe Price ID.",
-                                              variant: "destructive",
-                                            });
-                                            return;
-                                          }
-                                          const newTier = {
-                                            id: `tier-${Date.now()}`,
-                                            name: tierForm.name,
-                                            price: Math.round(
-                                              parseFloat(tierForm.price) * 100
-                                            ),
-                                            description: tierForm.description,
-                                            available_until:
-                                              tierForm.available_until
-                                                ? new Date(
-                                                    tierForm.available_until
-                                                  ).toISOString()
-                                                : undefined,
-                                            max_quantity: tierForm.max_quantity
-                                              ? parseInt(
-                                                  tierForm.max_quantity,
-                                                  10
-                                                )
-                                              : undefined,
-                                            stripe_price_id:
-                                              tierForm.stripe_price_id,
-                                          };
-                                          setPricingTiers([
-                                            ...pricingTiers,
-                                            newTier,
-                                          ]);
-                                          setTierForm({
-                                            name: "",
-                                            price: "",
-                                            description: "",
-                                            available_until: "",
-                                            max_quantity: "",
-                                            stripe_price_id: "",
-                                          });
-                                          setShowTierForm(false);
-                                          toast({
-                                            title: "Tier added",
-                                            description:
-                                              "Pricing tier added successfully.",
-                                          });
-                                        }}
-                                        className="bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
-                                      >
-                                        Create
-                                      </Button>
-                                      <Button
-                                        variant="outline"
-                                        onClick={() => {
-                                          setShowTierForm(false);
-                                          setTierForm({
-                                            name: "",
-                                            price: "",
-                                            description: "",
-                                            available_until: "",
-                                            max_quantity: "",
-                                            stripe_price_id: "",
-                                          });
-                                        }}
-                                        className="border border-[rgba(0,0,0,0.15)] bg-white"
-                                      >
-                                        Cancel
-                                      </Button>
-                                    </div>
-                                  </div>
-                                )}
-                                {!showTierForm && (
-                                  <Button
-                                    onClick={() => setShowTierForm(true)}
-                                    variant="outline"
-                                    className="w-full border border-[rgba(0,0,0,0.15)] bg-white"
-                                  >
-                                    <Plus className="w-4 h-4 mr-2" />
-                                    Add new tier
-                                  </Button>
-                                )}
-                              </>
-                            )}
-                          </div>
-                        </TabsContent>
-
-                        {/* Coupon Tab */}
-                        <TabsContent value="coupon" className="mt-0">
-                          <div className="space-y-4">
-                            {coupons.length === 0 && !showCouponForm ? (
-                              <div className="bg-white border-2 border-dashed border-[rgba(0,0,0,0.15)] rounded-[12px] p-12 text-center">
-                                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
-                                  <FileText className="w-8 h-8 text-gray-400" />
-                                </div>
-                                <h3 className="text-[18px] font-semibold text-black mb-2">
-                                  No coupon created yet
-                                </h3>
-                                <p className="text-[16px] text-gray-500 mb-6">
-                                  Add your first coupon and create a promo code
-                                </p>
-                                <Button
-                                  onClick={() => setShowCouponForm(true)}
-                                  className="bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
-                                >
-                                  Add coupon
-                                </Button>
-                              </div>
-                            ) : (
-                              <>
-                                {coupons.map((coupon) => (
-                                  <div
-                                    key={coupon.id}
-                                    className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4"
-                                  >
-                                    <div className="flex items-center justify-between">
-                                      <div>
-                                        <h3 className="text-[18px] font-semibold text-black">
-                                          {coupon.couponName}
-                                        </h3>
-                                        <span className="inline-block px-2 py-1 bg-green-100 text-green-800 text-sm rounded mt-2">
-                                          Active
-                                        </span>
-                                      </div>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => {
-                                          setCoupons(
-                                            coupons.filter(
-                                              (c) => c.id !== coupon.id
-                                            )
-                                          );
-                                        }}
-                                        className="text-red-600 hover:text-red-700"
-                                      >
-                                        <Trash2 className="w-4 h-4" />
-                                      </Button>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-4 text-sm">
-                                      <div>
-                                        <span className="text-gray-500">
-                                          Percentage Off (%):
-                                        </span>{" "}
-                                        <span className="font-medium">
-                                          {coupon.percent_off
-                                            ? `${coupon.percent_off}% off`
-                                            : "N/A"}
-                                        </span>
-                                      </div>
-                                      <div>
-                                        <span className="text-gray-500">
-                                          Max Uses:
-                                        </span>{" "}
-                                        <span className="font-medium">
-                                          {coupon.max_uses || "Unlimited"}
-                                        </span>
-                                      </div>
-                                      <div>
-                                        <span className="text-gray-500">
-                                          Valid Until:
-                                        </span>{" "}
-                                        <span className="font-medium">
-                                          {coupon.valid_until
-                                            ? new Date(
-                                                coupon.valid_until
-                                              ).toLocaleDateString()
-                                            : "No expiration"}
-                                        </span>
-                                      </div>
-                                      <div>
-                                        <span className="text-gray-500">
-                                          Duration:
-                                        </span>{" "}
-                                        <span className="font-medium">
-                                          {coupon.duration === "once"
-                                            ? "Once"
-                                            : coupon.duration === "forever"
-                                              ? "Forever"
-                                              : "Repeating"}
-                                        </span>
-                                      </div>
-                                    </div>
-                                  </div>
-                                ))}
-                                {showCouponForm && (
-                                  <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4">
-                                    <h3 className="text-[18px] font-semibold text-black">
-                                      New Coupon
-                                    </h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                      <div className="space-y-2">
-                                        <label className="text-[16px] font-normal text-black">
-                                          Coupon Name
-                                        </label>
-                                        <div className="relative">
-                                          <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                          <Input
-                                            value={couponForm.couponName}
-                                            onChange={(e) =>
-                                              setCouponForm({
-                                                ...couponForm,
-                                                couponName: e.target.value,
-                                              })
-                                            }
-                                            placeholder="e.g. Early Bird Special"
-                                            className="pl-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px]"
-                                          />
-                                        </div>
-                                      </div>
-                                      <div className="space-y-2">
-                                        <label className="text-[16px] font-normal text-black">
-                                          Duration
-                                        </label>
-                                        <select
-                                          value={couponForm.duration}
-                                          onChange={(e) =>
-                                            setCouponForm({
-                                              ...couponForm,
-                                              duration: e.target.value,
-                                            })
-                                          }
-                                          className="w-full bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px] px-3"
-                                        >
-                                          <option value="once">
-                                            One-time use
-                                          </option>
-                                          <option value="forever">
-                                            Forever
-                                          </option>
-                                          <option value="repeating">
-                                            Repeating
-                                          </option>
-                                        </select>
-                                      </div>
-                                      <div className="space-y-2">
-                                        <label className="text-[16px] font-normal text-black">
-                                          Percentage Off (%)
-                                        </label>
-                                        <div className="relative">
-                                          <FileText className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                          <Input
-                                            type="number"
-                                            value={couponForm.percent_off}
-                                            onChange={(e) =>
-                                              setCouponForm({
-                                                ...couponForm,
-                                                percent_off: e.target.value,
-                                              })
-                                            }
-                                            placeholder="e.g. 9"
-                                            className="pl-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px]"
-                                          />
-                                        </div>
-                                      </div>
-                                      <div className="space-y-2">
-                                        <label className="text-[16px] font-normal text-black">
-                                          Fixed Amount Off
-                                        </label>
-                                        <div className="relative">
-                                          <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                          <div className="flex gap-2">
-                                            <Input
-                                              type="number"
-                                              step="0.01"
-                                              value={couponForm.amount_off}
-                                              onChange={(e) =>
-                                                setCouponForm({
-                                                  ...couponForm,
-                                                  amount_off: e.target.value,
-                                                })
-                                              }
-                                              placeholder="e.g. 10.00"
-                                              className="flex-1 pl-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px]"
-                                            />
-                                            <select
-                                              value={couponForm.currency}
-                                              onChange={(e) =>
-                                                setCouponForm({
-                                                  ...couponForm,
-                                                  currency: e.target.value,
-                                                })
-                                              }
-                                              className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px] px-3"
-                                            >
-                                              <option value="USD">USD</option>
-                                            </select>
-                                          </div>
-                                        </div>
-                                      </div>
-                                      <div className="space-y-2">
-                                        <label className="text-[16px] font-normal text-black">
-                                          Max Uses
-                                        </label>
-                                        <div className="relative">
-                                          <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                          <Input
-                                            type="number"
-                                            value={couponForm.max_uses}
-                                            onChange={(e) =>
-                                              setCouponForm({
-                                                ...couponForm,
-                                                max_uses: e.target.value,
-                                              })
-                                            }
-                                            placeholder="Leave blank for unlimited use."
-                                            className="pl-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px]"
-                                          />
-                                        </div>
-                                      </div>
-                                      <div className="space-y-2">
-                                        <label className="text-[16px] font-normal text-black">
-                                          Valid Until
-                                        </label>
-                                        <div className="relative">
-                                          <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                          <Input
-                                            type="date"
-                                            value={couponForm.valid_until}
-                                            onChange={(e) =>
-                                              setCouponForm({
-                                                ...couponForm,
-                                                valid_until: e.target.value,
-                                              })
-                                            }
-                                            placeholder="mm/dd/yyyy"
-                                            className="pl-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px]"
-                                          />
-                                        </div>
-                                      </div>
-                                    </div>
-                                    <div className="flex gap-3">
-                                      <Button
-                                        onClick={() => {
-                                          if (!couponForm.couponName) {
-                                            toast({
-                                              title: "Missing fields",
-                                              description:
-                                                "Please fill in coupon name.",
-                                              variant: "destructive",
-                                            });
-                                            return;
-                                          }
-                                          const newCoupon = {
-                                            id: `coupon-${Date.now()}`,
-                                            couponName: couponForm.couponName,
-                                            duration: couponForm.duration,
-                                            percent_off: couponForm.percent_off
-                                              ? parseInt(
-                                                  couponForm.percent_off,
-                                                  10
-                                                )
-                                              : undefined,
-                                            amount_off: couponForm.amount_off
-                                              ? Math.round(
-                                                  parseFloat(
-                                                    couponForm.amount_off
-                                                  ) * 100
-                                                )
-                                              : undefined,
-                                            currency: couponForm.currency,
-                                            max_uses: couponForm.max_uses
-                                              ? parseInt(
-                                                  couponForm.max_uses,
-                                                  10
-                                                )
-                                              : undefined,
-                                            valid_until: couponForm.valid_until
-                                              ? new Date(
-                                                  couponForm.valid_until
-                                                ).toISOString()
-                                              : undefined,
-                                          };
-                                          setCoupons([...coupons, newCoupon]);
-                                          setCouponForm({
-                                            couponName: "",
-                                            duration: "once",
-                                            percent_off: "",
-                                            amount_off: "",
-                                            currency: "USD",
-                                            max_uses: "",
-                                            valid_until: "",
-                                          });
-                                          setShowCouponForm(false);
-                                          toast({
-                                            title: "Coupon added",
-                                            description:
-                                              "Coupon added successfully.",
-                                          });
-                                        }}
-                                        className="bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
-                                      >
-                                        Create
-                                      </Button>
-                                      <Button
-                                        variant="outline"
-                                        onClick={() => {
-                                          setShowCouponForm(false);
-                                          setCouponForm({
-                                            couponName: "",
-                                            duration: "once",
-                                            percent_off: "",
-                                            amount_off: "",
-                                            currency: "USD",
-                                            max_uses: "",
-                                            valid_until: "",
-                                          });
-                                        }}
-                                        className="border border-[rgba(0,0,0,0.15)] bg-white"
-                                      >
-                                        Cancel
-                                      </Button>
-                                    </div>
-                                  </div>
-                                )}
-                                {!showCouponForm && (
-                                  <Button
-                                    onClick={() => setShowCouponForm(true)}
-                                    variant="outline"
-                                    className="w-full border border-[rgba(0,0,0,0.15)] bg-white"
-                                  >
-                                    <Plus className="w-4 h-4 mr-2" />
-                                    Add new coupon
-                                  </Button>
-                                )}
-                              </>
-                            )}
-                          </div>
-                        </TabsContent>
-
-                        {/* Promo Code Tab */}
-                        <TabsContent value="promo" className="mt-0">
-                          <div className="space-y-4">
-                            {promoCodes.length === 0 && !showPromoCodeForm ? (
-                              <div className="bg-white border-2 border-dashed border-[rgba(0,0,0,0.15)] rounded-[12px] p-12 text-center">
-                                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
-                                  <FileText className="w-8 h-8 text-gray-400" />
-                                </div>
-                                <h3 className="text-[18px] font-semibold text-black mb-2">
-                                  No code created yet
-                                </h3>
-                                <p className="text-[16px] text-gray-500 mb-6">
-                                  Create a coupon code
-                                </p>
-                                <Button
-                                  onClick={() => setShowPromoCodeForm(true)}
-                                  className="bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
-                                >
-                                  Add coupon code
-                                </Button>
-                              </div>
-                            ) : (
-                              <>
-                                {promoCodes.map((promo) => (
-                                  <div
-                                    key={promo.id}
-                                    className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4"
-                                  >
-                                    <div className="flex items-center justify-between">
-                                      <div>
-                                        <h3 className="text-[18px] font-semibold text-black">
-                                          {promo.promoCode}
-                                        </h3>
-                                        {promo.couponName && (
-                                          <p className="text-[14px] text-gray-500">
-                                            Coupon: {promo.couponName}
-                                          </p>
-                                        )}
-                                      </div>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => {
-                                          setPromoCodes(
-                                            promoCodes.filter(
-                                              (p) => p.id !== promo.id
-                                            )
-                                          );
-                                        }}
-                                        className="text-red-600 hover:text-red-700"
-                                      >
-                                        <Trash2 className="w-4 h-4" />
-                                      </Button>
-                                    </div>
-                                  </div>
-                                ))}
-                                {showPromoCodeForm && (
-                                  <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4">
-                                    <h3 className="text-[18px] font-semibold text-black">
-                                      New Promo Code
-                                    </h3>
-                                    <div className="space-y-4">
-                                      <div className="space-y-2">
-                                        <label className="text-[16px] font-normal text-black">
-                                          Select Coupon
-                                        </label>
-                                        <select
-                                          value={promoCodeForm.couponId}
-                                          onChange={(e) =>
-                                            setPromoCodeForm({
-                                              ...promoCodeForm,
-                                              couponId: e.target.value,
-                                            })
-                                          }
-                                          className="w-full bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px] px-3"
-                                        >
-                                          <option value="">
-                                            Select a coupon
-                                          </option>
-                                          {coupons.map((coupon) => (
-                                            <option
-                                              key={coupon.id}
-                                              value={coupon.id}
-                                            >
-                                              {coupon.couponName}
-                                            </option>
-                                          ))}
-                                        </select>
-                                      </div>
-                                      <div className="space-y-2">
-                                        <label className="text-[16px] font-normal text-black">
-                                          Promo Code
-                                        </label>
-                                        <div className="flex gap-2">
-                                          <div className="relative flex-1">
-                                            <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                            <Input
-                                              value={promoCodeForm.promoCode}
-                                              onChange={(e) =>
-                                                setPromoCodeForm({
-                                                  ...promoCodeForm,
-                                                  promoCode:
-                                                    e.target.value.toUpperCase(),
-                                                })
-                                              }
-                                              placeholder="e.g. EARLYBIRD2024"
-                                              className="pl-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px]"
-                                            />
-                                          </div>
-                                          <Button
-                                            onClick={() => {
-                                              const characters =
-                                                "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-                                              let result = "";
-                                              for (let i = 0; i < 8; i++) {
-                                                result += characters.charAt(
-                                                  Math.floor(
-                                                    Math.random() *
-                                                      characters.length
-                                                  )
-                                                );
-                                              }
-                                              setPromoCodeForm({
-                                                ...promoCodeForm,
-                                                promoCode: result,
-                                              });
-                                            }}
-                                            variant="outline"
-                                            className="border border-[rgba(0,0,0,0.15)] bg-white"
-                                          >
-                                            Randomize
-                                          </Button>
-                                        </div>
-                                        <p className="text-[14px] text-gray-500">
-                                          *Use letters and numbers only. Code
-                                          will be converted to uppercase.
-                                        </p>
-                                      </div>
-                                      <div className="flex items-center gap-2">
-                                        <input
-                                          type="checkbox"
-                                          id="overwrite"
-                                          checked={promoCodeForm.overwrite}
-                                          onChange={(e) =>
-                                            setPromoCodeForm({
-                                              ...promoCodeForm,
-                                              overwrite: e.target.checked,
-                                            })
-                                          }
-                                          className="w-4 h-4"
-                                        />
-                                        <label
-                                          htmlFor="overwrite"
-                                          className="text-[16px] font-normal text-black"
-                                        >
-                                          Overwrite existing promo code if it
-                                          exists
-                                        </label>
-                                      </div>
-                                    </div>
-                                    <div className="flex gap-3">
-                                      <Button
-                                        onClick={() => {
-                                          if (!promoCodeForm.promoCode) {
-                                            toast({
-                                              title: "Missing fields",
-                                              description:
-                                                "Please enter a promo code.",
-                                              variant: "destructive",
-                                            });
-                                            return;
-                                          }
-                                          if (!promoCodeForm.couponId) {
-                                            toast({
-                                              title: "Missing fields",
-                                              description:
-                                                "Please select a coupon.",
-                                              variant: "destructive",
-                                            });
-                                            return;
-                                          }
-                                          const selectedCoupon = coupons.find(
-                                            (c) =>
-                                              c.id === promoCodeForm.couponId
-                                          );
-                                          const newPromoCode = {
-                                            id: `promo-${Date.now()}`,
-                                            promoCode:
-                                              promoCodeForm.promoCode.toUpperCase(),
-                                            couponId: promoCodeForm.couponId,
-                                            couponName:
-                                              selectedCoupon?.couponName,
-                                          };
-                                          setPromoCodes([
-                                            ...promoCodes,
-                                            newPromoCode,
-                                          ]);
-                                          setPromoCodeForm({
-                                            promoCode: "",
-                                            couponId: "",
-                                            overwrite: false,
-                                          });
-                                          setShowPromoCodeForm(false);
-                                          toast({
-                                            title: "Promo code added",
-                                            description:
-                                              "Promo code added successfully.",
-                                          });
-                                        }}
-                                        className="bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
-                                      >
-                                        Create
-                                      </Button>
-                                      <Button
-                                        variant="outline"
-                                        onClick={() => {
-                                          setShowPromoCodeForm(false);
-                                          setPromoCodeForm({
-                                            promoCode: "",
-                                            couponId: "",
-                                            overwrite: false,
-                                          });
-                                        }}
-                                        className="border border-[rgba(0,0,0,0.15)] bg-white"
-                                      >
-                                        Cancel
-                                      </Button>
-                                    </div>
-                                  </div>
-                                )}
-                                {!showPromoCodeForm && (
-                                  <Button
-                                    onClick={() => setShowPromoCodeForm(true)}
-                                    variant="outline"
-                                    className="w-full border border-[rgba(0,0,0,0.15)] bg-white"
-                                  >
-                                    <Plus className="w-4 h-4 mr-2" />
-                                    Add new code
-                                  </Button>
-                                )}
-                              </>
-                            )}
-                          </div>
-                        </TabsContent>
-                      </Tabs>
-                    ) : (
-                      <div className="bg-white border-2 border-dashed border-[rgba(0,0,0,0.15)] rounded-[12px] p-12 text-center">
-                        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
-                          <DollarSign className="w-8 h-8 text-gray-400" />
-                        </div>
-                        <h3 className="text-[18px] font-semibold text-black mb-2">
-                          Paid event required
-                        </h3>
-                        <p className="text-[16px] text-gray-500">
-                          Please enable &quot;This is a paid event&quot; in the Overview
-                          tab to access pricing settings.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </TabsContent>
-
-                <TabsContent
-                  value="notify"
-                  className="mt-0 overflow-x-hidden w-full"
-                >
-                  <div className="w-full min-w-0 space-y-4">
-                    {/* Message Type Selection */}
-                    <div className="flex flex-col sm:flex-row gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setMessageType("individual")}
-                        className={`flex items-center justify-center gap-2 px-4 py-2 rounded-[12px] text-[16px] font-normal transition-colors ${
-                          messageType === "individual"
-                            ? "bg-[#4b89ef] text-white"
-                            : "bg-transparent border border-[rgba(0,0,0,0.15)] text-black"
-                        }`}
-                      >
-                        <Mail className="w-5 h-5" />
-                        Send individual message
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setMessageType("group")}
-                        className={`flex items-center justify-center gap-2 px-4 py-2 rounded-[12px] text-[16px] font-normal transition-colors ${
-                          messageType === "group"
-                            ? "bg-[#4b89ef] text-white"
-                            : "bg-transparent border border-[rgba(0,0,0,0.15)] text-black"
-                        }`}
-                      >
-                        <Users className="w-5 h-5" />
-                        Send group message
-                      </button>
-                    </div>
-
-                    {/* Email Form */}
-                    <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-3">
-                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                        <h3 className="text-[16px] font-semibold text-black">
-                          Send email to event participants
-                        </h3>
-                        <div className="flex items-center gap-3 sm:gap-4">
-                          <button
-                            type="button"
-                            onClick={() => setShowTemplateModal(true)}
-                            className="flex items-center gap-2 text-[14px] text-[#4b89ef] hover:underline"
-                          >
-                            <FileText className="w-4 h-4" />
-                            Use template
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setShowRecipientModal(true)}
-                            className="flex items-center gap-2 text-[14px] text-[#4b89ef] hover:underline"
-                          >
-                            <Users className="w-4 h-4" />
-                            Select recipient
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <label className="text-[16px] font-normal text-black">
-                          Email subject
-                        </label>
-                        <div className="relative">
-                          <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
-                          <Input
-                            value={emailSubject}
-                            onChange={(e) => setEmailSubject(e.target.value)}
-                            placeholder="Enter email subject"
-                            className="w-full min-w-0 h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <label className="text-[16px] font-normal text-black">
-                          Message
-                        </label>
-                        <Textarea
-                          value={emailMessage}
-                          onChange={(e) => setEmailMessage(e.target.value)}
-                          placeholder="Enter your message"
-                          className="min-h-[200px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] p-3 focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none resize-y"
-                        />
-                      </div>
-
-                      <Button
-                        type="button"
-                        className="bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
-                        onClick={() => {
-                          if (!emailSubject.trim() || !emailMessage.trim()) {
-                            toast({
-                              title: "Missing fields",
-                              description:
-                                "Please fill in both subject and message.",
-                              variant: "destructive",
-                            });
-                            return;
-                          }
-                          toast({
-                            title: "Email sent",
-                            description: `Email sent to ${
-                              selectedRecipients.length || 0
-                            } participant(s).`,
-                          });
-                        }}
-                      >
-                        <Send className="w-4 h-4 mr-2" />
-                        Send to {selectedRecipients.length || 0} participant
-                        {selectedRecipients.length !== 1 ? "s" : ""}
-                      </Button>
-                    </div>
-
-                    {/* Email Preview */}
-                    <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6">
-                      <h3 className="text-[16px] font-semibold text-black mb-3">
-                        Email preview
-                      </h3>
-                      {emailSubject || emailMessage ? (
-                        <div className="space-y-4">
-                          <div>
-                            <p className="text-sm text-gray-500 mb-1">
-                              Subject:
-                            </p>
-                            <p className="text-[16px] font-medium text-black">
-                              {emailSubject || "No subject"}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-gray-500 mb-1">
-                              Message:
-                            </p>
-                            <div className="prose prose-sm max-w-full">
-                              <ReactMarkdown>{emailMessage}</ReactMarkdown>
-                            </div>
-                          </div>
-                          <div className="pt-4 border-t border-[rgba(0,0,0,0.15)]">
-                            <p className="text-[14px] text-gray-600">
-                              Best Regards
-                            </p>
-                            <p className="text-[14px] text-gray-600">
-                              The Event Organizers
-                            </p>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex flex-col items-center justify-center py-8 text-center">
-                          <Mail className="w-12 h-12 text-gray-400 mb-3" />
-                          <p className="text-[14px] text-gray-500">
-                            No preview yet
-                          </p>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Recipient Selection Modal */}
-                    {showRecipientModal && (
-                      <>
-                        <div
-                          className="fixed inset-0 bg-black/50 z-[50]"
-                          onClick={() => setShowRecipientModal(false)}
-                        />
-                        <div className="fixed inset-0 flex items-center justify-center z-[60] p-4">
-                          <div className="bg-white rounded-[12px] shadow-lg w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
-                            <div className="flex items-center justify-between p-6 border-b border-[rgba(0,0,0,0.15)]">
-                              <h2 className="text-[20px] font-semibold text-black">
-                                Select recipient ({selectedRecipients.length}{" "}
-                                selected)
-                              </h2>
-                              <button
-                                type="button"
-                                onClick={() => setShowRecipientModal(false)}
-                                className="p-2 hover:bg-gray-50 rounded-[8px] transition-colors"
-                              >
-                                <X className="w-5 h-5 text-gray-600" />
-                              </button>
-                            </div>
-                            <div className="p-6 overflow-y-auto flex-1">
-                              <div className="flex items-center gap-4 mb-4">
-                                <select className="px-4 py-2 border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] bg-white">
-                                  <option>All roles</option>
-                                  <option>Organizer</option>
-                                  <option>Participant</option>
-                                  <option>Mentor</option>
-                                  <option>Judge</option>
-                                </select>
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  onClick={() => setSelectedRecipients([])}
-                                  className="border border-[rgba(0,0,0,0.15)] bg-white"
-                                >
-                                  Clear all
-                                </Button>
-                                <div className="flex items-center gap-2 ml-auto">
-                                  <input
-                                    type="checkbox"
-                                    id="select-all"
-                                    className="w-4 h-4"
-                                  />
-                                  <label
-                                    htmlFor="select-all"
-                                    className="text-[14px] text-black"
-                                  >
-                                    Select all
-                                  </label>
-                                </div>
-                              </div>
-                              <div className="space-y-2">
-                                {/* Placeholder recipients - in real app, fetch from API */}
-                                {[1, 2, 3, 4].map((i) => (
-                                  <div
-                                    key={i}
-                                    className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-[8px]"
-                                  >
-                                    <input
-                                      type="checkbox"
-                                      checked={selectedRecipients.includes(
-                                        `recipient-${i}`
-                                      )}
-                                      onChange={(e) => {
-                                        if (e.target.checked) {
-                                          setSelectedRecipients([
-                                            ...selectedRecipients,
-                                            `recipient-${i}`,
-                                          ]);
-                                        } else {
-                                          setSelectedRecipients(
-                                            selectedRecipients.filter(
-                                              (r) => r !== `recipient-${i}`
-                                            )
-                                          );
-                                        }
-                                      }}
-                                      className="w-4 h-4"
-                                    />
-                                    <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
-                                      <User className="w-5 h-5 text-gray-600" />
-                                    </div>
-                                    <div className="flex-1">
-                                      <p className="text-[16px] font-medium text-black">
-                                        Participant {i}
-                                      </p>
-                                      <p className="text-[14px] text-gray-500">
-                                        participant{i}@example.com
-                                      </p>
-                                    </div>
-                                    <span className="text-[14px] text-gray-600">
-                                      Participant
-                                    </span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                            <div className="p-6 border-t border-[rgba(0,0,0,0.15)]">
-                              <Button
-                                type="button"
-                                onClick={() => setShowRecipientModal(false)}
-                                className="w-full bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
-                              >
-                                Confirm
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      </>
-                    )}
-
-                    {/* Template Selection Modal */}
-                    {showTemplateModal && (
-                      <>
-                        <div
-                          className="fixed inset-0 bg-black/50 z-[50]"
-                          onClick={() => setShowTemplateModal(false)}
-                        />
-                        <div className="fixed inset-0 flex items-center justify-center z-[60] p-4">
-                          <div className="bg-white rounded-[12px] shadow-lg w-full max-w-3xl max-h-[80vh] overflow-hidden flex flex-col">
-                            <div className="flex items-center justify-between p-6 border-b border-[rgba(0,0,0,0.15)]">
-                              <div>
-                                <h2 className="text-[20px] font-semibold text-black">
-                                  Email template
-                                </h2>
-                                <p className="text-[14px] text-gray-500 mt-1">
-                                  Choose from predefined templates to get
-                                  started quickly. You can customize them as
-                                  needed.
-                                </p>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => setShowTemplateModal(false)}
-                                className="p-2 hover:bg-gray-50 rounded-[8px] transition-colors"
-                              >
-                                <X className="w-5 h-5 text-gray-600" />
-                              </button>
-                            </div>
-                            <div className="p-6 overflow-y-auto flex-1">
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {[
-                                  {
-                                    icon: Bell,
-                                    title: "Welcome message",
-                                    description:
-                                      "Welcome new participants to event",
-                                  },
-                                  {
-                                    icon: FileText,
-                                    title: "Feedback available",
-                                    description:
-                                      "Notify about available project feedback",
-                                  },
-                                  {
-                                    icon: Calendar,
-                                    title: "Event reminder",
-                                    description:
-                                      "Remind participants about upcoming deadlines",
-                                  },
-                                  {
-                                    icon: Clock,
-                                    title: "Submission reminder",
-                                    description:
-                                      "Remind teams about submission deadline",
-                                  },
-                                  {
-                                    icon: ArrowUpRight,
-                                    title: "Schedule update",
-                                    description:
-                                      "Notify about schedule or event change",
-                                  },
-                                  {
-                                    icon: Sparkles,
-                                    title: "Result announcement",
-                                    description:
-                                      "Announce event results and winners",
-                                  },
-                                ].map((template, index) => {
-                                  const IconComponent = template.icon;
-                                  return (
-                                    <button
-                                      key={index}
-                                      type="button"
-                                      onClick={() => {
-                                        setEmailSubject(template.title);
-                                        setEmailMessage(
-                                          `This is a ${template.title.toLowerCase()} template. Customize this message as needed.`
-                                        );
-                                        setShowTemplateModal(false);
-                                        toast({
-                                          title: "Template applied",
-                                          description: `${template.title} template loaded.`,
-                                        });
-                                      }}
-                                      className="text-left p-4 border border-[rgba(0,0,0,0.15)] rounded-[12px] hover:bg-gray-50 transition-colors"
-                                    >
-                                      <div className="flex items-start gap-4">
-                                        <div className="w-12 h-12 rounded-[8px] bg-[#4b89ef]/10 flex items-center justify-center flex-shrink-0">
-                                          <IconComponent className="w-6 h-6 text-[#4b89ef]" />
-                                        </div>
-                                        <div className="flex-1">
-                                          <h3 className="text-[16px] font-semibold text-black mb-1">
-                                            {template.title}
-                                          </h3>
-                                          <p className="text-[14px] text-gray-500">
-                                            {template.description}
-                                          </p>
-                                        </div>
-                                        <ArrowUpRight className="w-5 h-5 text-gray-400" />
-                                      </div>
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </TabsContent>
               </div>
-
-              {/* Preview Card - Only show on Overview tab */}
-              {activeTab === "overview" && (
-                <div className="flex-shrink-0 w-full lg:w-[335px] order-first lg:order-last overflow-x-hidden">
-                  <div className="w-full lg:w-[335px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] overflow-hidden">
-                    {/* Image */}
-                    <div className="relative w-full aspect-[335/223] overflow-hidden">
-                      {form.cover_image_url ? (
-                        <img
-                          src={form.cover_image_url}
-                          alt="Event cover"
-                          className="w-full h-full object-cover block"
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-orange-400 via-red-500 to-purple-600" />
-                      )}
-
-                      {/* Date Badge */}
-                      <div className="absolute top-4 right-4 bg-white border border-[#aaaaaa] rounded-[6px] w-[112px] py-3 px-1 text-center">
-                        <p className="text-[14px] font-normal text-black">
-                          {previewDate.weekday}
-                        </p>
-                        <p
-                          className="text-[36px] font-semibold leading-[1.3] tracking-[-2.16px] text-black"
-                          style={{ fontFamily: "Geist, sans-serif" }}
-                        >
-                          {previewDate.day}
-                        </p>
-                        <p className="text-[14px] font-normal text-black">
-                          {previewDate.month} {previewDate.year}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Content */}
-                    <div className="p-6">
-                      <div className="flex flex-wrap gap-1 mb-3">
-                        <span className="px-[10px] py-1 border border-[rgba(0,0,0,0.15)] rounded-full text-[14px] font-semibold text-black">
-                          {ticketType === "free" ? "Free" : "Paid"}
-                        </span>
-                      </div>
-
-                      <h2
-                        className="text-[28px] font-semibold leading-[1.4] tracking-[-1.68px] text-black mb-1"
-                        style={{ fontFamily: "Geist, sans-serif" }}
-                      >
-                        {form.event_name || "Innovate Together"}
-                      </h2>
-
-                      <div className="flex items-center gap-1 mb-2">
-                        <MapPin className="w-6 h-6" />
-                        <span className="text-[14px] font-normal text-black">
-                          {form.location || "Online"}
-                        </span>
-                      </div>
-
-                      <p className="text-[16px] font-normal text-black leading-[1.5]">
-                        {form.event_blurb ||
-                          "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse varius enim in eros."}
-                      </p>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => {
-                      const previewSlug = getPreviewSlug();
-                      if (previewSlug) {
-                        window.open(`/events/${previewSlug}`, "_blank");
-                      } else {
-                        toast({
-                          title: "Event name required",
-                          description:
-                            "Please enter an event name to preview the event page.",
-                          variant: "destructive",
-                        });
-                      }
-                    }}
-                    disabled={!form.event_name}
-                    className="flex items-center gap-2 text-[16px] text-[#7f7f7f] hover:text-[#4b89ef] transition-colors mt-3 mx-auto disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Preview event page
-                    <ArrowUpRight className="w-4 h-4" />
-                  </button>
-                </div>
-              )}
             </div>
           </Tabs>
         </div>

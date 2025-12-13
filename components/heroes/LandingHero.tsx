@@ -16,7 +16,7 @@ import { LogoCarousel } from "./components/LogoCarousel";
 export function LandingHero() {
   const [titleIndex, setTitleIndex] = useState(0);
   const titles = useMemo(
-    () => ["Hackathons", "Events", "Prototypes", "Builders"],
+    () => ["Hackathons", "AI Workshops", "Demo Days", "Pitch Days", "Prototypes", "Builders"],
     []
   );
 

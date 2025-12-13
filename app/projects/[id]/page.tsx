@@ -26,7 +26,6 @@ import {
   ArrowUpRight,
   Link as LinkIcon,
   Video,
-  Share2,
   Lightbulb,
   Download,
 } from "lucide-react";
@@ -52,6 +51,7 @@ import { updateProjectClient } from "@/features/projects/client-actions/client-u
 import { updateProjectTeamClient } from "@/features/projects/client-actions/client-update";
 import { deleteProjectClient } from "@/features/projects/client-actions/client-delete";
 import { TrackSelector } from "@/features/projects/components/tracks/TrackSelector";
+import { fetchEventTracks } from "@/features/projects/client-actions/client-track-update";
 import { ProjectQRCodeSection } from "@/features/projects/components/displays/project-dashboard/ProjectQRCodeSection";
 import { FileUpload } from "@/components/db/fileUpload";
 import { ImageUpload } from "@/components/db/imageUpload";
@@ -61,6 +61,7 @@ import { useAdmin } from "@/lib/hooks/use-admin";
 import { useProjectLike } from "@/features/projects/hooks/use-project-like";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 import UserSearchWithInvite from "@/components/utils/UserSearchWithInvite";
+import { EditNote, Favorite } from "@mui/icons-material";
 
 interface EventParticipant {
   user_id: string;
@@ -92,6 +93,7 @@ export default function ProjectPage() {
 
   // Loading state for updates
   const [isUpdating, setIsUpdating] = useState(false);
+  const [hasEventTracks, setHasEventTracks] = useState(true);
 
   // Participant search state
   const [participants, setParticipants] = useState<EventParticipant[]>([]);
@@ -99,6 +101,7 @@ export default function ProjectPage() {
 
   // Event details state
   const [eventDetails, setEventDetails] = useState<EventDetails | null>(null);
+  const [feedbackCount, setFeedbackCount] = useState(0);
 
   // Contextus ID state
   const [showContextusId, setShowContextusId] = useState(false);
@@ -108,6 +111,8 @@ export default function ProjectPage() {
 
   // Give Feedback Dialog state
   const [showFeedbackDialog, setShowFeedbackDialog] = useState(false);
+
+  const [fetchComplete, setFetchComplete] = useState(false);
 
   // QR Code functionality
   const { handleCopyQR, handleDownloadQR } = useQRCodeActions(
@@ -153,43 +158,97 @@ export default function ProjectPage() {
     }
   }, [session, projectId]);
 
-  // Fetch event details when project is loaded
+  // Fetch event details and feedback count when project is loaded
   useEffect(() => {
-    const fetchEventDetails = async () => {
-      if (!project?.event_id) return;
+    const fetchEventDetailsAndFeedback = async () => {
+      if (!project?.event_id || !project?.id) return;
 
       try {
-        const { data: eventData, error } = await supabase
-          .from("events")
-          .select("event_id, event_name, slug, event_date, location, cover_image_url")
-          .eq("event_id", project.event_id)
-          .single();
+        const [eventResult, feedbackResult] = await Promise.all([
+          supabase
+            .from("events")
+            .select(
+              "event_id, event_name, slug, event_date, location, cover_image_url"
+            )
+            .eq("event_id", project.event_id)
+            .single(),
+          supabase
+            .from("feedback")
+            .select("id", { count: "exact", head: true })
+            .eq("project_id", project.id),
+        ]);
 
-        if (error) {
-          return;
-        }
-
-        if (eventData) {
+        // Handle event data
+        if (!eventResult.error && eventResult.data) {
           setEventDetails({
-            event_id: eventData.event_id,
-            event_name: eventData.event_name,
-            slug: eventData.slug || "",
-            start_date: eventData.event_date,
-            end_date: eventData.event_date,
-            location: eventData.location || undefined,
+            event_id: eventResult.data.event_id,
+            event_name: eventResult.data.event_name,
+            slug: eventResult.data.slug || "",
+            start_date: eventResult.data.event_date,
+            end_date: eventResult.data.event_date,
+            location: eventResult.data.location || undefined,
             event_type: undefined,
-            cover_image_url: eventData.cover_image_url || undefined,
+            cover_image_url: eventResult.data.cover_image_url || undefined,
           });
         }
+
+        // Handle feedback count
+        if (!feedbackResult.error) {
+          setFeedbackCount(feedbackResult.count || 0);
+        }
       } catch (error) {
-        // Silently fail if event details cannot be fetched
+        // Silently fail if data cannot be fetched
+        console.error("Error fetching event details and feedback:", error);
       }
     };
 
-    fetchEventDetails();
+    fetchEventDetailsAndFeedback();
+  }, [project?.event_id, project?.id]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const checkEventTracks = async () => {
+      if (!project?.event_id) {
+        return;
+      }
+
+      try {
+        const { data, error } = await fetchEventTracks(project.event_id);
+        if (!isMounted) {
+          return;
+        }
+
+        if (error) {
+          console.error("Error checking event tracks:", error);
+          return;
+        }
+
+        setHasEventTracks(Boolean(data?.length));
+      } catch (error) {
+        if (isMounted) {
+          console.error("Error determining event tracks:", error);
+        }
+      }
+    };
+
+    void checkEventTracks();
+
+    return () => {
+      isMounted = false;
+    };
   }, [project?.event_id]);
 
+  useEffect(() => {
+    if (!hasEventTracks && activeTab === "tracks") {
+      setActiveTab("overview");
+    }
+  }, [hasEventTracks, activeTab]);
+
   const fetchProject = async () => {
+    setIsLoading(true);
+    setFetchComplete(false);
+    
     const { data, error } = await supabase
       .from("projects")
       .select(
@@ -215,6 +274,9 @@ export default function ProjectPage() {
       const canEditProject = isLead || isTeammate;
       setCanEdit(canEditProject);
     }
+    
+    setIsLoading(false);
+    setFetchComplete(true);
   };
 
   const handleUpdateTitle = async (newTitle: string): Promise<boolean> => {
@@ -896,11 +958,13 @@ export default function ProjectPage() {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || !fetchComplete) {
     return (
       <PageContainer>
         <div className="flex items-center justify-center flex-grow">
-          <div className="text-lg">Loading project...</div>
+          <div className="flex flex-col items-center gap-3">
+            <Loader className="h-10 w-10 animate-spin text-blue-500" />
+          </div>
         </div>
       </PageContainer>
     );
@@ -927,12 +991,45 @@ export default function ProjectPage() {
     typeof window !== "undefined" ? window.location.origin : ""
   }/projects/public/${project.id}`;
 
+  const handleShare = (platform: string) => {
+    switch (platform) {
+      case "copy":
+        navigator.clipboard.writeText(feedbackUrl);
+        alert("Link copied to clipboard!");
+        break;
+      case "linkedin":
+        window.open(
+          `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(feedbackUrl)}`,
+          "_blank"
+        );
+        break;
+      case "facebook":
+        window.open(
+          `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(feedbackUrl)}`,
+          "_blank"
+        );
+        break;
+      case "twitter":
+        window.open(
+          `https://twitter.com/intent/tweet?url=${encodeURIComponent(feedbackUrl)}`,
+          "_blank"
+        );
+        break;
+    }
+  };
+
   return (
     <PageContainer>
       <Toaster />
       <PageContent>
         {/* Header Section */}
-        <div className="bg-gradient-to-b from-blue-50/45 to-white border-b border-gray-200">
+        <div
+          className="border-gray-200"
+          style={{
+            background:
+              "linear-gradient(to bottom, rgba(219, 234, 254, 0.45), rgba(255, 255, 255, 0) 13%, #fff)",
+          }}
+        >
           <div className="container mx-auto px-5 sm:px-8 pt-6 sm:pt-8 pb-0">
             {/* Top Actions Bar */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 sm:mb-6 gap-3 sm:gap-0">
@@ -942,27 +1039,33 @@ export default function ProjectPage() {
                   variant="secondary"
                   className="bg-white border border-black/15 text-black px-3 py-1.5 rounded-full flex items-center gap-1 text-sm"
                 >
-                  <Loader className="h-[18px] w-[18px]" />
-                  {project.submitted ? "Submitted" : "Draft"}
+                  <div className="font-normal flex items-center gap-1">
+                    <Loader className="h-[18px] w-[18px]" />
+                    {project.submitted ? "Submitted" : "Draft"}
+                  </div>
                 </Badge>
                 <Badge
                   variant="secondary"
                   className="bg-white border border-black/15 text-black px-3 py-1.5 rounded-full flex items-center gap-1 text-sm"
                 >
-                  <Calendar className="h-[18px] w-[18px]" />
-                  Created:{" "}
-                  {new Date(project.created_at).toLocaleDateString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                  })}
+                  <div className="font-normal flex items-center gap-1">
+                    <Calendar className="h-[18px] w-[18px]" />
+                    Created:{" "}
+                    {new Date(project.created_at).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                  </div>
                 </Badge>
                 <Badge
                   variant="secondary"
                   className="bg-white border border-black/15 text-black px-3 py-1.5 rounded-full flex items-center gap-1 text-sm"
                 >
-                  <Users className="h-5 w-5" />
-                  {totalMembers} members
+                  <div className="font-normal flex items-center gap-1">
+                    <Users className="h-5 w-5" />
+                    <span className="text-sm">{totalMembers} members</span>
+                  </div>
                 </Badge>
               </div>
 
@@ -974,14 +1077,12 @@ export default function ProjectPage() {
                     className="rounded-xl px-5 py-2 text-base"
                     onClick={() => router.push(`/projects/${projectId}/edit`)}
                   >
-                    <Edit className="h-6 w-6 mr-1.5" />
+                    {/* <Edit className="h-6 w-6 mr-1.5" /> */}
+                    <EditNote className="h-6 w-6 mr-1.5" />
                     Edit
                   </Button>
                 )}
-                <Button
-                  variant="secondary"
-                  aria-pressed={liked}
-                  disabled={likeIsLoading}
+                <div
                   onClick={() => {
                     if (!session) {
                       toast({
@@ -993,23 +1094,25 @@ export default function ProjectPage() {
                     }
                     void toggleLike();
                   }}
-                  className={`rounded-xl px-5 py-2 shadow-sm text-base ${
-                    liked
-                      ? "bg-red-100 text-red-700 hover:bg-red-200"
-                      : "bg-black/5 hover:bg-black/10"
-                  }`}
+                  className={`cursor-pointer rounded-xl px-5 py-2 text-base flex items-center`}
                 >
                   {likeIsLoading ? (
                     <Loader className="h-6 w-6 mr-1.5" />
                   ) : (
-                    <Heart
-                      className="h-6 w-6 mr-1.5"
-                      fill={liked ? "currentColor" : "none"}
-                    />
+                    <>
+                      {liked ? (
+                        <Favorite
+                          className="h-6 w-6 mr-1.5"
+                          style={{ fill: "#4B89EF" }}
+                        />
+                      ) : (
+                        <Heart className="h-6 w-6 mr-1.5" fill="none" />
+                      )}
+                    </>
                   )}
                   {liked ? "Liked" : "Like"}
-                  <span className="ml-2 text-sm">{likesCount}</span>
-                </Button>
+                  {/* <span className="ml-2 text-sm">{likesCount}</span> */}
+                </div>
                 <Button
                   onClick={() => setShowFeedbackDialog(true)}
                   className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-5 py-2 shadow-sm text-base whitespace-nowrap"
@@ -1023,7 +1126,7 @@ export default function ProjectPage() {
             <div className="flex flex-col lg:flex-row gap-6 lg:gap-20 mb-6 sm:mb-12">
               {/* Left: Title and Description */}
               <div className="flex-1 space-y-4 sm:space-y-8 order-1">
-                <div className="space-y-6">
+                <div className="flex flex-col gap-4">
                   {canEdit ? (
                     <EditableField
                       value={project.project_name}
@@ -1140,10 +1243,7 @@ export default function ProjectPage() {
                   Edit
                 </Button>
               )}
-              <Button
-                variant="secondary"
-                aria-pressed={liked}
-                disabled={likeIsLoading}
+              <div
                 onClick={() => {
                   if (!session) {
                     toast({
@@ -1155,22 +1255,24 @@ export default function ProjectPage() {
                   }
                   void toggleLike();
                 }}
-                className={`rounded-xl px-3 py-2 shadow-sm text-base ${
-                  liked
-                    ? "bg-red-100 text-red-700 hover:bg-red-200"
-                    : "bg-black/5 hover:bg-black/10"
-                }`}
+                className={`cursor-pointer rounded-xl px-5 py-2 text-base flex items-center`}
               >
                 {likeIsLoading ? (
                   <Loader className="h-6 w-6" />
                 ) : (
-                  <Heart
-                    className="h-6 w-6"
-                    fill={liked ? "currentColor" : "none"}
-                  />
+                  <>
+                    {liked ? (
+                      <Favorite
+                        className="h-6 w-6 mr-1.5"
+                        style={{ fill: "#4B89EF" }}
+                      />
+                    ) : (
+                      <Heart className="h-6 w-6 mr-1.5" fill="none" />
+                    )}
+                  </>
                 )}
-                <span className="ml-2 text-sm">{likesCount}</span>
-              </Button>
+                {liked ? "Liked" : "Like"}
+              </div>
               <Button
                 onClick={() => setShowFeedbackDialog(true)}
                 className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-5 py-2 shadow-sm text-base whitespace-nowrap"
@@ -1188,19 +1290,21 @@ export default function ProjectPage() {
               <TabsList className="bg-transparent border-b border-gray-200 rounded-none h-auto p-0 w-full justify-start gap-3 sm:gap-6 overflow-x-auto scrollbar-hide flex-nowrap">
                 <TabsTrigger
                   value="overview"
-                  className="shadow-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2 font-medium"
+                  className="text-base shadow-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2 font-medium"
                 >
                   Overview
                 </TabsTrigger>
-                <TabsTrigger
-                  value="tracks"
-                  className="shadow-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2"
-                >
-                  Tracks
-                </TabsTrigger>
+                {hasEventTracks && (
+                  <TabsTrigger
+                    value="tracks"
+                    className="text-base shadow-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2"
+                  >
+                    Tracks
+                  </TabsTrigger>
+                )}
                 <TabsTrigger
                   value="team"
-                  className="shadow-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2 flex items-center gap-2"
+                  className="text-base shadow-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2 flex items-center gap-2"
                 >
                   Team
                   <Badge
@@ -1212,19 +1316,19 @@ export default function ProjectPage() {
                 </TabsTrigger>
                 <TabsTrigger
                   value="feedback"
-                  className="shadow-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2 flex items-center gap-2"
+                  className="text-base shadow-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2 flex items-center gap-2"
                 >
                   Feedback
                   <Badge
                     variant="secondary"
                     className="bg-white border border-black/15 text-black rounded-full text-xs"
                   >
-                    0
+                    {feedbackCount}
                   </Badge>
                 </TabsTrigger>
                 <TabsTrigger
                   value="sharing"
-                  className="shadow-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2"
+                  className="text-base shadow-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2"
                 >
                   Sharing
                 </TabsTrigger>
@@ -1232,11 +1336,7 @@ export default function ProjectPage() {
 
               {/* Main Content Area */}
               <div className="py-6 sm:py-12">
-                <div
-                  className={`flex flex-col gap-6 sm:gap-10 ${
-                    activeTab === "feedback" ? "" : "lg:flex-row"
-                  }`}
-                >
+                <div className="flex flex-col lg:flex-row gap-6 sm:gap-10">
                   {/* Left Column: Main Content */}
                   <div className="flex-1 min-w-0 space-y-12">
                     <TabsContent
@@ -1528,17 +1628,19 @@ export default function ProjectPage() {
                       </div>
                     </TabsContent>
 
-                    <TabsContent
-                      value="tracks"
-                      className="mt-0 overflow-hidden"
-                    >
-                      <TrackSelector
-                        projectId={project.id}
-                        eventId={project.event_id}
-                        canEdit={canEdit}
-                        isLoading={isUpdating}
-                      />
-                    </TabsContent>
+                    {hasEventTracks && (
+                      <TabsContent
+                        value="tracks"
+                        className="mt-0 overflow-hidden"
+                      >
+                        <TrackSelector
+                          projectId={project.id}
+                          eventId={project.event_id}
+                          canEdit={canEdit}
+                          isLoading={isUpdating}
+                        />
+                      </TabsContent>
+                    )}
 
                     <TabsContent value="team" className="mt-0 overflow-hidden">
                       <Card>
@@ -1689,59 +1791,14 @@ export default function ProjectPage() {
 
                     <TabsContent
                       value="feedback"
-                      className="mt-0 space-y-6 w-full"
+                      className="mt-0 overflow-hidden"
                     >
-                      {/* Public Feedback URL Section */}
-                      <Card className="w-full">
-                        <CardHeader>
-                          <CardTitle>Project Feedback</CardTitle>
-                          <p className="text-sm text-gray-600">
-                            View feedback received for this project. Share the
-                            public link below for others to provide feedback.
-                          </p>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="mb-6">
-                            <div className="flex items-center gap-2 mb-2">
-                              <label className="text-sm font-medium text-gray-700">
-                                Public Feedback URL:
-                              </label>
-                            </div>
-                            <div className="flex gap-2">
-                              <input
-                                type="text"
-                                value={feedbackUrl}
-                                readOnly
-                                className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-sm min-w-0"
-                              />
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  navigator.clipboard.writeText(feedbackUrl);
-                                  toast({
-                                    title: "Copied!",
-                                    description:
-                                      "Feedback URL copied to clipboard",
-                                  });
-                                }}
-                              >
-                                <Copy className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-
-                      {/* Feedback Display Section */}
-                      <Card className="w-full">
-                        <CardContent className="overflow-visible pt-6 w-full">
-                          <FeedbackDisplay
-                            projectId={project.id}
-                            showTitle={false}
-                          />
-                        </CardContent>
-                      </Card>
+                      <div>
+                        <FeedbackDisplay
+                          projectId={project.id}
+                          showTitle={false}
+                        />
+                      </div>
                     </TabsContent>
 
                     {/* Sharing Tab */}
@@ -1749,9 +1806,9 @@ export default function ProjectPage() {
                       value="sharing"
                       className="mt-0 overflow-hidden"
                     >
-                      <div className="grid grid-cols-1 lg:grid-cols-[1fr,500px] gap-6">
+                      <div className="grid grid-cols-1 lg:grid-cols-[1fr,500px] gap-6 border border-zinc-200 rounded-md">
                         {/* Left Column: Share Card */}
-                        <Card className="border border-zinc-200 min-w-0">
+                        <div>
                           <CardHeader>
                             <CardTitle className="text-[22px] font-semibold tracking-[-0.06em]">
                               Share & Get Feedback
@@ -1825,15 +1882,21 @@ export default function ProjectPage() {
                               </div>
                             </div>
                           </CardContent>
-                        </Card>
+                        </div>
 
                         {/* Right Column: Sharing Tips */}
-                        <div className="bg-gradient-to-b from-blue-100/45 to-blue-50/30 rounded-lg p-6 space-y-6">
+                        <div
+                          className="p-6 space-y-6"
+                          style={{
+                            background:
+                              "linear-gradient(180deg, #DBEAFE 0%, #F9F9FF 100%)",
+                          }}
+                        >
                           <div className="bg-white rounded-[13px] p-1.5 w-fit">
                             <Lightbulb className="h-6 w-6" />
                           </div>
 
-                          <div className="text-center">
+                          <div className="text-left">
                             <p className="font-medium text-base text-black">
                               Sharing Tips
                             </p>
@@ -1888,7 +1951,7 @@ export default function ProjectPage() {
                   </div>
 
                   {/* Right Column: Sidebar */}
-                  {activeTab !== "sharing" && (
+                  {activeTab === "overview" && (
                     <div className="w-full lg:w-[420px] lg:flex-shrink-0 space-y-6">
                       {/* Meet the team */}
                       {activeTab === "overview" && (
@@ -1952,75 +2015,79 @@ export default function ProjectPage() {
                           <h3 className="text-lg font-bold text-black tracking-tight">
                             Submitted to
                           </h3>
-                          <Card className="border border-black/15 rounded-xl overflow-hidden">
-                            <div className="relative">
-                              {eventDetails.cover_image_url ? (
-                                <img
-                                  src={eventDetails.cover_image_url}
-                                  alt={eventDetails.event_name}
-                                  className="w-full h-[180px] object-cover"
-                                />
-                              ) : (
-                                <div className="w-full h-[180px] bg-gradient-to-br from-orange-400 via-blue-500 to-purple-600"></div>
-                              )}
-                              {eventDetails.start_date && (
-                                <div className="absolute top-4 right-4 bg-white border border-gray-300 rounded-xl py-3 px-1 text-center w-28">
-                                  <p className="text-sm text-black">
-                                    {new Date(
-                                      eventDetails.start_date
-                                    ).toLocaleDateString("en-US", {
-                                      weekday: "short",
-                                    })}
-                                  </p>
-                                  <p className="text-4xl font-semibold text-black tracking-tight leading-none">
-                                    {new Date(
-                                      eventDetails.start_date
-                                    ).getDate()}
-                                  </p>
-                                  <p className="text-sm text-black">
-                                    {new Date(
-                                      eventDetails.start_date
-                                    ).toLocaleDateString("en-US", {
-                                      month: "short",
-                                      year: "numeric",
-                                    })}
-                                  </p>
-                                </div>
-                              )}
-                            </div>
-                            <CardContent className="p-6 space-y-4">
-                              <div className="flex gap-1 flex-wrap">
-                                <Badge
-                                  variant="secondary"
-                                  className="bg-transparent border border-black/15 text-black rounded-full font-semibold"
-                                >
-                                  {eventDetails.event_type || "Hackathon"}
-                                </Badge>
-                                <Badge
-                                  variant="secondary"
-                                  className="bg-transparent border border-black/15 text-black rounded-full font-semibold"
-                                >
-                                  Paid event
-                                </Badge>
+                          <Link
+                            href={`/events/${eventDetails.event_id}/overview`}
+                          >
+                            <Card className="border border-black/15 rounded-xl overflow-hidden hover:shadow-lg">
+                              <div className="relative">
+                                {eventDetails.cover_image_url ? (
+                                  <img
+                                    src={eventDetails.cover_image_url}
+                                    alt={eventDetails.event_name}
+                                    className="w-full h-[180px] object-cover"
+                                  />
+                                ) : (
+                                  <div className="w-full h-[180px] bg-gradient-to-br from-orange-400 via-blue-500 to-purple-600"></div>
+                                )}
+                                {eventDetails.start_date && (
+                                  <div className="absolute top-4 right-4 bg-white border border-gray-300 rounded-xl py-3 px-1 text-center w-28">
+                                    <p className="text-sm text-black">
+                                      {new Date(
+                                        eventDetails.start_date
+                                      ).toLocaleDateString("en-US", {
+                                        weekday: "short",
+                                      })}
+                                    </p>
+                                    <p className="text-4xl font-semibold text-black tracking-tight leading-none">
+                                      {new Date(
+                                        eventDetails.start_date
+                                      ).getDate()}
+                                    </p>
+                                    <p className="text-sm text-black">
+                                      {new Date(
+                                        eventDetails.start_date
+                                      ).toLocaleDateString("en-US", {
+                                        month: "short",
+                                        year: "numeric",
+                                      })}
+                                    </p>
+                                  </div>
+                                )}
                               </div>
-                              <div className="space-y-2">
-                                <h4 className="text-2xl font-semibold text-black tracking-tight">
-                                  {eventDetails.event_name}
-                                </h4>
-                                <div className="flex items-center gap-1 text-sm">
-                                  <MapPin className="h-4 w-4 text-black" />
-                                  <span className="text-black text-center">
-                                    {eventDetails.location || "Online"}
-                                  </span>
+                              <CardContent className="p-6 space-y-4">
+                                <div className="flex gap-1 flex-wrap">
+                                  <Badge
+                                    variant="secondary"
+                                    className="bg-transparent border border-black/15 text-black rounded-full font-semibold"
+                                  >
+                                    {eventDetails.event_type || "Hackathon"}
+                                  </Badge>
+                                  <Badge
+                                    variant="secondary"
+                                    className="bg-transparent border border-black/15 text-black rounded-full font-semibold"
+                                  >
+                                    Paid event
+                                  </Badge>
                                 </div>
-                              </div>
-                              <p className="text-base text-black leading-relaxed">
-                                Lorem ipsum dolor sit amet, consectetur
-                                adipiscing elit. Suspendisse varius enim in
-                                eros.
-                              </p>
-                            </CardContent>
-                          </Card>
+                                <div className="space-y-2">
+                                  <h4 className="text-2xl font-semibold text-black tracking-tight">
+                                    {eventDetails.event_name}
+                                  </h4>
+                                  <div className="flex items-center gap-1 text-sm">
+                                    <MapPin className="h-4 w-4 text-black" />
+                                    <span className="text-black text-center">
+                                      {eventDetails.location || "Online"}
+                                    </span>
+                                  </div>
+                                </div>
+                                <p className="text-base text-black leading-relaxed">
+                                  Lorem ipsum dolor sit amet, consectetur
+                                  adipiscing elit. Suspendisse varius enim in
+                                  eros.
+                                </p>
+                              </CardContent>
+                            </Card>
+                          </Link>
                         </div>
                       )}
 
@@ -2032,7 +2099,7 @@ export default function ProjectPage() {
                       {/* Additional materials */}
                       {activeTab === "overview" && (
                         <div className="space-y-4">
-                          <h3 className="text-lg font-semibold text-black tracking-tight">
+                          <h3 className="text-lg font-semibold text-black tracking-tight mb-4">
                             Additional materials
                           </h3>
                           {project.additional_materials_url ? (
@@ -2089,35 +2156,66 @@ export default function ProjectPage() {
                             >
                               <LinkIcon className="h-5 w-5" />
                             </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="rounded-lg"
-                              onClick={handleCopyQR}
+                            {/* QR Code */}
+                            <button className="flex flex-col items-center justify-center overflow-hidden p-1 rounded-lg">
+                              <QrCode className="w-6 h-6 text-black" />
+                            </button>
+
+                            {/* LinkedIn */}
+                            <button
+                              onClick={() => handleShare("linkedin")}
+                              className="bg-white flex flex-col items-center justify-center overflow-hidden p-1 rounded-full"
                             >
-                              <QrCode className="h-5 w-5" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="bg-white rounded-full"
+                              {/* <Linkedin className="w-6 h-6 text-black" /> */}
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="24"
+                                height="24"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                              >
+                                <path
+                                  fillRule="evenodd"
+                                  clipRule="evenodd"
+                                  d="M4.5 3.24219C3.67157 3.24219 3 3.91376 3 4.74219V19.7422C3 20.5706 3.67157 21.2422 4.5 21.2422H19.5C20.3284 21.2422 21 20.5706 21 19.7422V4.74219C21 3.91376 20.3284 3.24219 19.5 3.24219H4.5ZM8.52076 7.24491C8.52639 8.20116 7.81061 8.79038 6.96123 8.78616C6.16107 8.78194 5.46357 8.14491 5.46779 7.24632C5.47201 6.40116 6.13998 5.72194 7.00764 5.74163C7.88795 5.76132 8.52639 6.40679 8.52076 7.24491ZM12.2797 10.0039H9.75971H9.7583V18.5638H12.4217V18.3641C12.4217 17.9842 12.4214 17.6042 12.4211 17.2241C12.4203 16.2103 12.4194 15.1954 12.4246 14.1819C12.426 13.9358 12.4372 13.6799 12.5005 13.445C12.7381 12.5675 13.5271 12.0008 14.4074 12.1401C14.9727 12.2286 15.3467 12.5563 15.5042 13.0893C15.6013 13.4225 15.6449 13.7811 15.6491 14.1285C15.6605 15.1761 15.6589 16.2237 15.6573 17.2714C15.6567 17.6412 15.6561 18.0112 15.6561 18.381V18.5624H18.328V18.3571C18.328 17.9051 18.3278 17.4532 18.3275 17.0013C18.327 15.8718 18.3264 14.7423 18.3294 13.6124C18.3308 13.1019 18.276 12.5985 18.1508 12.1049C17.9638 11.3708 17.5771 10.7633 16.9485 10.3246C16.5027 10.0124 16.0133 9.81129 15.4663 9.78879C15.404 9.7862 15.3412 9.78281 15.2781 9.7794C14.9984 9.76428 14.7141 9.74892 14.4467 9.80285C13.6817 9.95613 13.0096 10.3063 12.5019 10.9236C12.4429 10.9944 12.3852 11.0663 12.2991 11.1736L12.2797 11.1979V10.0039ZM5.68164 18.5666H8.33242V10.0095H5.68164V18.5666Z"
+                                  fill="black"
+                                />
+                              </svg>
+                            </button>
+
+                            {/* Twitter/X */}
+                            <button
+                              onClick={() => handleShare("twitter")}
+                              className="bg-white flex flex-col items-center justify-center overflow-hidden p-1 rounded-full"
                             >
-                              <Share2 className="h-5 w-5" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="bg-white rounded-full"
+                              <svg
+                                className="w-6 h-6"
+                                viewBox="0 0 24 24"
+                                fill="currentColor"
+                              >
+                                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                              </svg>
+                            </button>
+
+                            {/* Facebook */}
+                            <button
+                              onClick={() => handleShare("facebook")}
+                              className="bg-white flex flex-col items-center justify-center overflow-hidden p-1 rounded-full"
                             >
-                              <Share2 className="h-5 w-5" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="bg-white rounded-full"
-                            >
-                              <Share2 className="h-5 w-5" />
-                            </Button>
+                              {/* <Facebook className="w-6 h-6 text-black" /> */}
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="24"
+                                height="24"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                              >
+                                <path
+                                  d="M22 12.3033C22 6.7467 17.5229 2.24219 12 2.24219C6.47715 2.24219 2 6.7467 2 12.3033C2 17.325 5.65684 21.4874 10.4375 22.2422V15.2116H7.89844V12.3033H10.4375V10.0867C10.4375 7.56515 11.9305 6.17231 14.2146 6.17231C15.3088 6.17231 16.4531 6.36882 16.4531 6.36882V8.8448H15.1922C13.95 8.8448 13.5625 9.62041 13.5625 10.4161V12.3033H16.3359L15.8926 15.2116H13.5625V22.2422C18.3432 21.4874 22 17.3252 22 12.3033Z"
+                                  fill="black"
+                                />
+                              </svg>
+                            </button>
                           </div>
                         </div>
                       )}
