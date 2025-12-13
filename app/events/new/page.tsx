@@ -44,8 +44,6 @@ import {
   GripVertical,
   Download,
   Percent,
-  Shuffle,
-  UserPlus,
 } from "lucide-react";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -256,10 +254,6 @@ export default function NewEventPage() {
   const [organizerEmails, setOrganizerEmails] = useState<string[]>([]);
   const [organizerEmailInput, setOrganizerEmailInput] = useState("");
   const [activeProjectSubTab, setActiveProjectSubTab] = useState("submission");
-  const [activeRegistrationSubTab, setActiveRegistrationSubTab] =
-    useState("registration");
-  const [judgesPerProject, setJudgesPerProject] = useState("3");
-  const [mentorsPerProject, setMentorsPerProject] = useState("3");
 
   const [form, setForm] = useState({
     event_name: "",
@@ -674,8 +668,7 @@ export default function NewEventPage() {
                   activeTab === "notify" ||
                   activeTab === "tracks" ||
                   activeTab === "access" ||
-                  activeTab === "project" ||
-                  activeTab === "registration"
+                  activeTab === "project"
                     ? "lg:flex-1 lg:min-w-0"
                     : "lg:flex-[2] lg:min-w-0 lg:max-w-[800px]"
                 }`}
@@ -2613,168 +2606,11 @@ export default function NewEventPage() {
 
                 <TabsContent
                   value="registration"
-                  className="mt-0 overflow-x-hidden w-full"
+                  className="mt-0 overflow-x-hidden"
                 >
-                  <div className="w-full min-w-0 space-y-6">
-                    <Tabs
-                      value={activeRegistrationSubTab}
-                      onValueChange={setActiveRegistrationSubTab}
-                      className="w-full"
-                    >
-                      <div className="flex items-center justify-between mb-6">
-                        <div className="w-full overflow-x-auto">
-                          <TabsList className="inline-flex h-auto gap-2 bg-transparent p-0 rounded-full">
-                            <TabsTrigger
-                              value="registration"
-                              className="px-4 py-2 rounded-full text-sm font-normal text-black border border-transparent data-[state=active]:bg-white data-[state=active]:border-[rgba(0,0,0,0.15)] data-[state=active]:shadow-sm flex-shrink-0"
-                            >
-                              Registration
-                            </TabsTrigger>
-                            <TabsTrigger
-                              value="assign-roles"
-                              className="px-4 py-2 rounded-full text-sm font-normal text-black border border-transparent data-[state=active]:bg-white data-[state=active]:border-[rgba(0,0,0,0.15)] data-[state=active]:shadow-sm flex-shrink-0"
-                            >
-                              Assign Roles
-                            </TabsTrigger>
-                          </TabsList>
-                        </div>
-                        {activeRegistrationSubTab === "registration" && (
-                          <Button
-                            variant="outline"
-                            className="border border-[rgba(0,0,0,0.15)] bg-white ml-4 flex-shrink-0"
-                          >
-                            <Download className="w-4 h-4 mr-2" />
-                            Export CSV
-                          </Button>
-                        )}
-                      </div>
-
-                      {/* Registration Tab */}
-                      <TabsContent value="registration" className="mt-0">
-                        <div className="space-y-4">
-                          <div className="bg-white border-2 border-dashed border-[rgba(0,0,0,0.15)] rounded-[12px] p-12 text-center">
-                            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
-                              <UserPlus className="w-8 h-8 text-gray-400" />
-                            </div>
-                            <h3 className="text-[18px] font-semibold text-black mb-2">
-                              No registration yet
-                            </h3>
-                            <p className="text-[16px] text-gray-500">
-                              Registrations will appear here once participants
-                              start joining the event.
-                            </p>
-                          </div>
-                        </div>
-                      </TabsContent>
-
-                      {/* Assign Roles Tab */}
-                      <TabsContent value="assign-roles" className="mt-0">
-                        <div className="space-y-6">
-                          {/* Auto Assignment Section */}
-                          <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4">
-                            <h3 className="text-[18px] font-semibold text-black">
-                              Auto Assignment
-                            </h3>
-                            <p className="text-[16px] text-gray-500">
-                              Automatically assign judges and mentors to
-                              projects using a balanced distribution algorithm.
-                            </p>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <div className="space-y-2">
-                                <label className="text-[16px] font-normal text-black">
-                                  Judges per Project
-                                </label>
-                                <div className="flex items-center gap-2">
-                                  <div className="relative flex-1">
-                                    <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                    <Input
-                                      type="number"
-                                      value={judgesPerProject}
-                                      onChange={(e) =>
-                                        setJudgesPerProject(e.target.value)
-                                      }
-                                      className="pl-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px]"
-                                    />
-                                  </div>
-                                  <Button
-                                    onClick={() => {
-                                      toast({
-                                        title: "Auto-assignment",
-                                        description:
-                                          "Judges will be auto-assigned when projects are submitted.",
-                                      });
-                                    }}
-                                    className="bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
-                                  >
-                                    <Shuffle className="w-4 h-4 mr-2" />
-                                    Auto-assign
-                                  </Button>
-                                </div>
-                                <p className="text-[14px] text-gray-500">
-                                  *0 judges available
-                                </p>
-                              </div>
-
-                              <div className="space-y-2">
-                                <label className="text-[16px] font-normal text-black">
-                                  Mentors per Project
-                                </label>
-                                <div className="flex items-center gap-2">
-                                  <div className="relative flex-1">
-                                    <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                    <Input
-                                      type="number"
-                                      value={mentorsPerProject}
-                                      onChange={(e) =>
-                                        setMentorsPerProject(e.target.value)
-                                      }
-                                      className="pl-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px]"
-                                    />
-                                  </div>
-                                  <Button
-                                    onClick={() => {
-                                      toast({
-                                        title: "Auto-assignment",
-                                        description:
-                                          "Mentors will be auto-assigned when projects are submitted.",
-                                      });
-                                    }}
-                                    className="bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
-                                  >
-                                    <Shuffle className="w-4 h-4 mr-2" />
-                                    Auto-assign
-                                  </Button>
-                                </div>
-                                <p className="text-[14px] text-gray-500">
-                                  *0 mentors available
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Current Assignment Section */}
-                          <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4">
-                            <h3 className="text-[18px] font-semibold text-black">
-                              Current Assignment
-                            </h3>
-                            <div className="bg-white border-2 border-dashed border-[rgba(0,0,0,0.15)] rounded-[12px] p-12 text-center">
-                              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
-                                <Users className="w-8 h-8 text-gray-400" />
-                              </div>
-                              <h3 className="text-[18px] font-semibold text-black mb-2">
-                                No assignment yet
-                              </h3>
-                              <p className="text-[16px] text-gray-500">
-                                Assignments will appear here once projects are
-                                submitted and judges/mentors are assigned.
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      </TabsContent>
-                    </Tabs>
-                  </div>
+                  <p className="text-gray-500">
+                    Registration settings - coming soon
+                  </p>
                 </TabsContent>
 
                 <TabsContent
