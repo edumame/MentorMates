@@ -123,7 +123,7 @@ export function MyEvents() {
           You are not registered for any events yet.
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="flex flex-col sm:grid sm:grid-cols-2 lg:grid-cols-3 min-[1064px]:grid-cols-[repeat(auto-fit,minmax(320px,1fr))] gap-5 sm:auto-rows-fr">
           {events.map((e) => (
             <div key={e.id} className="relative w-full max-w-[420px] mx-auto">
               <EventCard event={toEventItem(e)} />

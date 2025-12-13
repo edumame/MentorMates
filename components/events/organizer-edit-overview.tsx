@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/lib/hooks/use-toast";
@@ -106,40 +106,28 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
     { value: "gallery", label: "Gallery" },
   ];
 
-  // Update URL when tabs change
+  // Update URL when tabs change with optimistic UI
   const setActiveTab = (tab: string) => {
-    setActiveTabState(tab);
-    const params = new URLSearchParams(searchParams);
-    params.set("tab", tab);
-    // Reset subtab to basics when changing main tabs
-    if (tab === "overview") {
-      params.set("subtab", "basics");
-      setActiveSubTabState("basics");
-    } else {
-      params.delete("subtab");
-    }
-    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    startTransition(() => {
+      const params = new URLSearchParams(searchParams);
+      params.set("tab", tab);
+      // Reset subtab to basics when changing main tabs
+      if (tab === "overview") {
+        params.set("subtab", "basics");
+      } else {
+        params.delete("subtab");
+      }
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    });
   };
 
   const setActiveSubTab = (subtab: string) => {
-    setActiveSubTabState(subtab);
-    const params = new URLSearchParams(searchParams);
-    params.set("subtab", subtab);
-    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    startTransition(() => {
+      const params = new URLSearchParams(searchParams);
+      params.set("subtab", subtab);
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    });
   };
-
-  // Sync state with URL changes
-  useEffect(() => {
-    const tabParam = searchParams.get("tab");
-    const subtabParam = searchParams.get("subtab");
-
-    if (tabParam && tabParam !== activeTab) {
-      setActiveTabState(tabParam);
-    }
-    if (subtabParam && subtabParam !== activeSubTab) {
-      setActiveSubTabState(subtabParam);
-    }
-  }, [searchParams, activeTab, activeSubTab]);
 
   useEffect(() => {
     fetchEvent();

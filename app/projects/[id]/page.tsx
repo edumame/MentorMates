@@ -26,7 +26,6 @@ import {
   ArrowUpRight,
   Link as LinkIcon,
   Video,
-  Share2,
   Lightbulb,
   Download,
 } from "lucide-react";
@@ -52,6 +51,7 @@ import { updateProjectClient } from "@/features/projects/client-actions/client-u
 import { updateProjectTeamClient } from "@/features/projects/client-actions/client-update";
 import { deleteProjectClient } from "@/features/projects/client-actions/client-delete";
 import { TrackSelector } from "@/features/projects/components/tracks/TrackSelector";
+import { fetchEventTracks } from "@/features/projects/client-actions/client-track-update";
 import { ProjectQRCodeSection } from "@/features/projects/components/displays/project-dashboard/ProjectQRCodeSection";
 import { FileUpload } from "@/components/db/fileUpload";
 import { ImageUpload } from "@/components/db/imageUpload";
@@ -61,6 +61,7 @@ import { useAdmin } from "@/lib/hooks/use-admin";
 import { useProjectLike } from "@/features/projects/hooks/use-project-like";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 import UserSearchWithInvite from "@/components/utils/UserSearchWithInvite";
+import { EditNote, Favorite } from "@mui/icons-material";
 
 interface EventParticipant {
   user_id: string;
@@ -92,6 +93,7 @@ export default function ProjectPage() {
 
   // Loading state for updates
   const [isUpdating, setIsUpdating] = useState(false);
+  const [hasEventTracks, setHasEventTracks] = useState(true);
 
   // Participant search state
   const [participants, setParticipants] = useState<EventParticipant[]>([]);
@@ -99,6 +101,7 @@ export default function ProjectPage() {
 
   // Event details state
   const [eventDetails, setEventDetails] = useState<EventDetails | null>(null);
+  const [feedbackCount, setFeedbackCount] = useState(0);
 
   // Contextus ID state
   const [showContextusId, setShowContextusId] = useState(false);
@@ -108,6 +111,8 @@ export default function ProjectPage() {
 
   // Give Feedback Dialog state
   const [showFeedbackDialog, setShowFeedbackDialog] = useState(false);
+
+  const [fetchComplete, setFetchComplete] = useState(false);
 
   // QR Code functionality
   const { handleCopyQR, handleDownloadQR } = useQRCodeActions(
@@ -153,43 +158,97 @@ export default function ProjectPage() {
     }
   }, [session, projectId]);
 
-  // Fetch event details when project is loaded
+  // Fetch event details and feedback count when project is loaded
   useEffect(() => {
-    const fetchEventDetails = async () => {
-      if (!project?.event_id) return;
+    const fetchEventDetailsAndFeedback = async () => {
+      if (!project?.event_id || !project?.id) return;
 
       try {
-        const { data: eventData, error } = await supabase
-          .from("events")
-          .select("event_id, event_name, slug, event_date, location, cover_image_url")
-          .eq("event_id", project.event_id)
-          .single();
+        const [eventResult, feedbackResult] = await Promise.all([
+          supabase
+            .from("events")
+            .select(
+              "event_id, event_name, slug, event_date, location, cover_image_url"
+            )
+            .eq("event_id", project.event_id)
+            .single(),
+          supabase
+            .from("feedback")
+            .select("id", { count: "exact", head: true })
+            .eq("project_id", project.id),
+        ]);
 
-        if (error) {
-          return;
-        }
-
-        if (eventData) {
+        // Handle event data
+        if (!eventResult.error && eventResult.data) {
           setEventDetails({
-            event_id: eventData.event_id,
-            event_name: eventData.event_name,
-            slug: eventData.slug || "",
-            start_date: eventData.event_date,
-            end_date: eventData.event_date,
-            location: eventData.location || undefined,
+            event_id: eventResult.data.event_id,
+            event_name: eventResult.data.event_name,
+            slug: eventResult.data.slug || "",
+            start_date: eventResult.data.event_date,
+            end_date: eventResult.data.event_date,
+            location: eventResult.data.location || undefined,
             event_type: undefined,
-            cover_image_url: eventData.cover_image_url || undefined,
+            cover_image_url: eventResult.data.cover_image_url || undefined,
           });
         }
+
+        // Handle feedback count
+        if (!feedbackResult.error) {
+          setFeedbackCount(feedbackResult.count || 0);
+        }
       } catch (error) {
-        // Silently fail if event details cannot be fetched
+        // Silently fail if data cannot be fetched
+        console.error("Error fetching event details and feedback:", error);
       }
     };
 
-    fetchEventDetails();
+    fetchEventDetailsAndFeedback();
+  }, [project?.event_id, project?.id]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const checkEventTracks = async () => {
+      if (!project?.event_id) {
+        return;
+      }
+
+      try {
+        const { data, error } = await fetchEventTracks(project.event_id);
+        if (!isMounted) {
+          return;
+        }
+
+        if (error) {
+          console.error("Error checking event tracks:", error);
+          return;
+        }
+
+        setHasEventTracks(Boolean(data?.length));
+      } catch (error) {
+        if (isMounted) {
+          console.error("Error determining event tracks:", error);
+        }
+      }
+    };
+
+    void checkEventTracks();
+
+    return () => {
+      isMounted = false;
+    };
   }, [project?.event_id]);
 
+  useEffect(() => {
+    if (!hasEventTracks && activeTab === "tracks") {
+      setActiveTab("overview");
+    }
+  }, [hasEventTracks, activeTab]);
+
   const fetchProject = async () => {
+    setIsLoading(true);
+    setFetchComplete(false);
+    
     const { data, error } = await supabase
       .from("projects")
       .select(
@@ -215,6 +274,9 @@ export default function ProjectPage() {
       const canEditProject = isLead || isTeammate;
       setCanEdit(canEditProject);
     }
+    
+    setIsLoading(false);
+    setFetchComplete(true);
   };
 
   const handleUpdateTitle = async (newTitle: string): Promise<boolean> => {
@@ -896,11 +958,13 @@ export default function ProjectPage() {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || !fetchComplete) {
     return (
       <PageContainer>
         <div className="flex items-center justify-center flex-grow">
-          <div className="text-lg">Loading project...</div>
+          <div className="flex flex-col items-center gap-3">
+            <Loader className="h-10 w-10 animate-spin text-blue-500" />
+          </div>
         </div>
       </PageContainer>
     );
@@ -927,12 +991,45 @@ export default function ProjectPage() {
     typeof window !== "undefined" ? window.location.origin : ""
   }/projects/public/${project.id}`;
 
+  const handleShare = (platform: string) => {
+    switch (platform) {
+      case "copy":
+        navigator.clipboard.writeText(feedbackUrl);
+        alert("Link copied to clipboard!");
+        break;
+      case "linkedin":
+        window.open(
+          `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(feedbackUrl)}`,
+          "_blank"
+        );
+        break;
+      case "facebook":
+        window.open(
+          `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(feedbackUrl)}`,
+          "_blank"
+        );
+        break;
+      case "twitter":
+        window.open(
+          `https://twitter.com/intent/tweet?url=${encodeURIComponent(feedbackUrl)}`,
+          "_blank"
+        );
+        break;
+    }
+  };
+
   return (
     <PageContainer>
       <Toaster />
       <PageContent>
         {/* Header Section */}
-        <div className="bg-gradient-to-b from-blue-50/45 to-white border-b border-gray-200">
+        <div
+          className="border-gray-200"
+          style={{
+            background:
+              "linear-gradient(to bottom, rgba(219, 234, 254, 0.45), rgba(255, 255, 255, 0) 13%, #fff)",
+          }}
+        >
           <div className="container mx-auto px-5 sm:px-8 pt-6 sm:pt-8 pb-0">
             {/* Top Actions Bar */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 sm:mb-6 gap-3 sm:gap-0">
@@ -1146,10 +1243,7 @@ export default function ProjectPage() {
                   Edit
                 </Button>
               )}
-              <Button
-                variant="secondary"
-                aria-pressed={liked}
-                disabled={likeIsLoading}
+              <div
                 onClick={() => {
                   if (!session) {
                     toast({

@@ -117,6 +117,27 @@ export default function OnboardingPage() {
     form.handleSubmit(handleSubmit)();
   }
 
+  // Watch form values to determine if current step is valid
+  const watchedValues = form.watch();
+  
+  function isCurrentStepValid(): boolean {
+    switch (currentStep) {
+      case 1:
+        return !!watchedValues.familiarity;
+      case 2:
+        return Array.isArray(watchedValues.mainGoals) && watchedValues.mainGoals.length > 0;
+      case 3:
+        return !!watchedValues.role;
+      case 4:
+        return Array.isArray(watchedValues.industries) && watchedValues.industries.length > 0;
+      case 5:
+        // Step 5 is optional, so always allow proceeding
+        return true;
+      default:
+        return false;
+    }
+  }
+
   function StepHeader() {
     return (
       <div className="mb-6">
@@ -463,8 +484,14 @@ export default function OnboardingPage() {
                     onClick={
                       currentStep === totalSteps ? handleComplete : handleNext
                     }
-                    disabled={isSubmitting || !(currentStep === totalSteps)}
-                    className="flex-1"
+                    disabled={isSubmitting || (currentStep !== totalSteps && !isCurrentStepValid())}
+                    className={`flex-1 ${
+                      isCurrentStepValid() && currentStep !== totalSteps
+                        ? "bg-[#4B89EF] hover:bg-[#3F77D3] text-white"
+                        : currentStep === totalSteps
+                        ? "bg-[#4B89EF] hover:bg-[#3F77D3] text-white"
+                        : ""
+                    }`}
                   >
                     {isSubmitting
                       ? "Saving..."
