@@ -603,7 +603,7 @@ export function BasicInfoTab({
                 className="h-[44px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)]"
               />
               <p className="text-xs text-gray-500">
-                Use a custom label like "Demo Day" or "Pitch Night".
+                Use a custom label like &quot;Demo Day&quot; or &quot;Pitch Night&quot;.
               </p>
             </div>
           )}
