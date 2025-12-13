@@ -1,17 +1,3 @@
-import {
-  RefreshCcw,
-  Hammer,
-  Medal,
-  BarChart,
-  Activity,
-  Users,
-  Presentation,
-  ChartArea,
-  School,
-  Share,
-  Award,
-  Network,
-} from "lucide-react";
 
 export type Bullet = {
   icon?: { name: string };

@@ -115,6 +115,14 @@ const eventSchema = z.object({
   submission_time_cutoff: z.string().optional(),
   paid: z.boolean().optional(),
   stripe_price_id: z.string().optional(),
+  rules: z
+    .array(
+      z.object({
+        title: z.string(),
+        items: z.array(z.string()),
+      })
+    )
+    .optional(),
 });
 
 const payloadSchema = z.object({
@@ -162,7 +170,9 @@ export async function POST(req: Request) {
       event_name: event.event_name,
       event_date: event.event_date,
       location: event.location,
-      rules: defaultRules as unknown as Json,
+      rules: (event.rules && event.rules.length > 0
+        ? event.rules
+        : defaultRules) as unknown as Json,
       visibility: (event.visibility ??
         EventVisibility.Draft) as Database["public"]["Enums"]["event_visibility"],
       slug: event.slug ?? null,

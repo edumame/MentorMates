@@ -54,17 +54,17 @@ export function FAQTab({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 w-full min-w-0">
+      {isArchived && (
+        <Alert className="border-orange-200 bg-orange-50">
+          <AlertTitle className="text-orange-900">⚠️ Event is Archived</AlertTitle>
+          <AlertDescription>This event is archived and cannot be edited. To make changes, you must first unarchive the event using the controls below.</AlertDescription>
+        </Alert>
+      )}
       <div className="space-y-2">
-        {isArchived && (
-          <div className="mt-2 py-4">
-            <Alert className="border-orange-200 bg-orange-50">
-              <AlertTitle className="text-orange-900">⚠️ Event is Archived</AlertTitle>
-              <AlertDescription>This event is archived and cannot be edited. To make changes, you must first unarchive the event using the controls below.</AlertDescription>
-            </Alert>
-          </div>
-        )}
-        <Label>Frequently Asked Questions (Markdown Supported)</Label>
+        <label className="text-[16px] font-normal text-black">
+          Frequently Asked Questions (Markdown Supported)
+        </label>
         <Textarea
           value={event.faq || ""}
           onChange={(e) => {
@@ -85,13 +85,12 @@ Simply click the "Join Event" button and follow the instructions.
 
 ## When does registration close?
 Registration closes 24 hours before the event starts.`}
-          rows={15}
-          className="font-mono text-sm"
+          className="min-h-[300px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] p-3 font-mono text-sm focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none resize-y"
           disabled={isArchived}
         />
       </div>
 
-      <div className="bg-blue-50 p-4 rounded-lg">
+      <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
         <h4 className="font-semibold text-blue-900 mb-2">Markdown Tips:</h4>
         <ul className="text-sm text-blue-800 space-y-1">
           <li><code>## Question</code> - Creates a section heading</li>
