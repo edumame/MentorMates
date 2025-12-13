@@ -11,16 +11,12 @@ import { Footer } from "@/components/layout/Footer";
 import { useAuth } from "@/features/user/authentication/auth/AuthContext";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 import { Search } from "lucide-react";
-import { Book } from "@mui/icons-material";
-
-type FilterType = "all" | "public" | "mine";
 
 export default function ProjectsPage() {
   const { session, isAuthenticated } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterType, setFilterType] = useState<FilterType>("all");
 
   useEffect(() => {
     const getSession = async () => {
@@ -48,28 +44,12 @@ export default function ProjectsPage() {
   };
 
   const filteredProjects = useMemo(() => {
-    let filtered = projects;
-
-    // Apply filter type
-    if (filterType === "public") {
-      filtered = filtered.filter((p) => p.submitted === true);
-    } else if (filterType === "mine") {
-      filtered = filtered.filter(
-        (p) => p.lead_email === session?.user?.email
-      );
-    }
-    // "all" shows all projects, no additional filtering needed
-
-    // Apply search term
     const term = searchTerm.trim().toLowerCase();
-    if (term) {
-      filtered = filtered.filter((p) =>
-        (p.project_name || "").toLowerCase().includes(term)
-      );
-    }
-
-    return filtered;
-  }, [projects, searchTerm, filterType, session?.user?.email]);
+    if (!term) return projects;
+    return projects.filter((p) =>
+      (p.project_name || "").toLowerCase().includes(term)
+    );
+  }, [projects, searchTerm]);
 
   // All deletion and QR actions are handled inside the ProjectBoard component menu.
 
@@ -78,7 +58,7 @@ export default function ProjectsPage() {
       <Toaster />
       <PageContent className="pt-[24px] pb-8">
         <div className="flex flex-col gap-[24px] px-[32px]">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-end justify-between">
             <div className="flex items-center gap-[8px]">
               <h1 className="text-[20px] sm:text-[28px] font-semibold leading-[1.4] tracking-[-0.06em] text-black">
                 Projects
@@ -91,16 +71,10 @@ export default function ProjectsPage() {
                 </div>
               )}
             </div>
-            {isAuthenticated && (
-              <Button asChild className="h-10">
-                <Link href="/projects/submit">Create a project</Link>
-              </Button>
-            )}
           </div>
 
           {/* Search Section - mirrors events page styling */}
-          {/** hide search section for now */}
-          {false && session && !isLoading && (
+          {session && !isLoading && (
             <div className="flex flex-col mb-5 gap-4">
               <div className="flex items-end justify-between gap-4">
                 {/* Search Input */}
@@ -131,39 +105,6 @@ export default function ProjectsPage() {
                   <Link href="/projects/submit">Create a project</Link>
                 </Button>
               )}
-            </div>
-          )}
-
-          {/* Project Filter */}
-          {session && !isLoading && projects.length > 0 && (
-            <div className="flex items-center bg-white border border-[rgba(0,0,0,0.15)] rounded-xl p-1 w-full sm:w-fit">
-              <button
-                onClick={() => setFilterType("all")}
-                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all border border-transparent ${filterType === "all"
-                  ? "bg-white border !border-[rgba(0,0,0,0.15)] text-black font-semibold"
-                  : "text-black hover:text-black/80"
-                  }`}
-              >
-                All
-              </button>
-              <button
-                onClick={() => setFilterType("public")}
-                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all border border-transparent ${filterType === "public"
-                  ? "bg-white border !border-[rgba(0,0,0,0.15)] text-black font-semibold"
-                  : "text-black hover:text-black/80"
-                  }`}
-              >
-                Public
-              </button>
-              <button
-                onClick={() => setFilterType("mine")}
-                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all border border-transparent ${filterType === "mine"
-                  ? "bg-white border !border-[rgba(0,0,0,0.15)] text-black font-semibold"
-                  : "text-black hover:text-black/80"
-                  }`}
-              >
-                Mine
-              </button>
             </div>
           )}
 
@@ -199,19 +140,28 @@ export default function ProjectsPage() {
                   projectBoardContext={ProjectBoardContext.MyProjects}
                 />
               ) : (
-                <div className="flex flex-col items-center justify-center py-24 text-center border border-dashed border-[rgba(0,0,0,0.15)] rounded-[20px] p-8">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="M11 3V11L14 8L17 11V3M5 3H19C20.1046 3 21 3.89543 21 5V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V5C3 3.89543 3.89543 3 5 3Z" stroke="#09090B"></path></svg>
-                  <h3 className="text-2xl font-medium text-gray-900 mb-2 mt-4">
-                    No project yet
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <svg
+                    className="h-16 w-16 text-gray-400 mb-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    No projects found
                   </h3>
                   <p className="text-gray-500 max-w-sm">
                     {searchTerm
                       ? `No projects match your search "${searchTerm}". Try adjusting your search terms.`
-                      : "Join the event to submit a project or create a project directly."}
+                      : "No projects to display."}
                   </p>
-                  <Button className="mt-4">
-                    <Link href="/projects/submit">Create a project</Link>
-                  </Button>
                 </div>
               )}
 

@@ -9,6 +9,14 @@ export async function GET(
     const supabase = await createSupabaseClient();
     const { userId } = await params;
 
+    // build query to fetch draft projects if the user is the logged in user
+    let fetchDraftProjects = 'submitted.eq.true';
+
+    const { data: loggedInUser } = await supabase.auth.getUser();
+    if (loggedInUser.user?.id === userId) {
+      fetchDraftProjects = 'submitted.eq.false,submitted.eq.true';
+    }
+
     if (!userId) {
       return NextResponse.json(
         { error: "User ID is required" },
@@ -16,42 +24,20 @@ export async function GET(
       );
     }
 
-    // build query to fetch draft projects if the user is the logged in user
-    let fetchDraftProjects = "submitted.eq.true";
-
-    const { data: loggedInUser } = await supabase.auth.getUser();
-    if (loggedInUser.user?.id === userId) {
-      fetchDraftProjects = "submitted.eq.false,submitted.eq.true";
-    }
-
-    // Fetch user profile including all social media and profile fields
-    // Using * to select all columns for resilience if some columns don't exist yet
+    // Fetch user profile
     const { data: profile, error: profileError } = await supabase
       .from("user_profiles")
-      .select("*")
+      .select("display_name, email, links")
       .eq("uid", userId)
       .single();
 
     if (profileError) {
       console.error("Error fetching user profile:", profileError);
       return NextResponse.json(
-        {
-          error: "Failed to fetch user profile",
-          details: profileError.message,
-          code: profileError.code,
-        },
+        { error: "Failed to fetch user profile" },
         { status: 500 }
       );
     }
-
-    if (!profile) {
-      return NextResponse.json(
-        { error: "User profile not found" },
-        { status: 404 }
-      );
-    }
-
-    const avatarUrl = profile?.avatar_url || null;
 
     // Fetch projects where user is lead
     const { data: leadProjects, error: leadError } = await supabase
@@ -78,7 +64,7 @@ export async function GET(
       `
       )
       .eq("lead_email", profile.email)
-      .or(fetchDraftProjects);
+      .or(fetchDraftProjects);  
 
     if (leadError) {
       console.error("Error fetching lead projects:", leadError);
@@ -233,23 +219,15 @@ export async function GET(
       });
     }
 
-    // Return profile with avatar_url included
-    const profileWithAvatar = {
-      ...profile,
-      avatar_url: avatarUrl,
-    };
-
     return NextResponse.json({
-      profile: profileWithAvatar,
+      profile,
       projects: allProjects,
       events: events || [],
     });
   } catch (error) {
     console.error("API Error:", error);
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
-      { error: "Internal server error", details: errorMessage },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }

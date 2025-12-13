@@ -18,49 +18,6 @@ export async function PATCH(
     const { projectId } = await params;
     const body = await request.json();
 
-    // Validate event_id change if provided
-    if (body.event_id !== undefined) {
-      const { data: eventData, error: eventError } = await supabase
-        .from("events")
-        .select("event_id, event_name, submission_time_start, submission_time_cutoff")
-        .eq("event_id", body.event_id)
-        .single();
-
-      if (eventError || !eventData) {
-        return NextResponse.json(
-          { error: "Event not found" },
-          { status: 404 }
-        );
-      }
-
-      // Check submission time window
-      const now = new Date();
-      const submissionStart = new Date(eventData.submission_time_start);
-      const submissionCutoff = new Date(eventData.submission_time_cutoff);
-
-      if (now < submissionStart) {
-        return NextResponse.json(
-          { 
-            error: "Project submission has not started yet",
-            event_name: eventData.event_name,
-            submission_start: eventData.submission_time_start
-          },
-          { status: 400 }
-        );
-      }
-
-      if (now > submissionCutoff) {
-        return NextResponse.json(
-          { 
-            error: "Project submission deadline has passed",
-            event_name: eventData.event_name,
-            submission_cutoff: eventData.submission_time_cutoff
-          },
-          { status: 400 }
-        );
-      }
-    }
-
     const allowedFields: string[] = [
       "project_name",
       "project_description",
@@ -70,8 +27,8 @@ export async function PATCH(
       "lead_name",
       "lead_email",
       "teammates",
+      // video_url may or may not exist in schema; ignore TS here
       "video_url",
-      "event_id",
     ];
 
     const updateData: Record<string, unknown> = {};

@@ -8,7 +8,6 @@ interface EventPageTabsProps {
   participantCount?: number;
   projectCount?: number;
   showTicketsTab?: boolean;
-  showParticipantsTab?: boolean;
 }
 
 export function EventPageTabs({
@@ -16,36 +15,26 @@ export function EventPageTabs({
   participantCount,
   projectCount,
   showTicketsTab,
-  showParticipantsTab = true,
 }: EventPageTabsProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const tabs: Array<{
-    name: string;
-    path: string;
-    badge?: number | null;
-  }> = [
+  const tabs = [
     { name: "Overview", path: `/events/${eventId}/overview` },
     { name: "Schedule", path: `/events/${eventId}/schedule`, badge: null },
-  ];
-
-  if (showParticipantsTab) {
-    tabs.push({
+    {
       name: "Participants",
       path: `/events/${eventId}/participants`,
       badge: participantCount,
-    });
-  }
-
-  tabs.push({
-    name: "Projects",
-    path: `/events/${eventId}/gallery`,
-    badge: projectCount,
-  });
-
-  tabs.push({ name: "FAQs", path: `/events/${eventId}/faqs` });
-  // { name: "Gallery", path: `/events/${eventId}/gallery` }, // TODO: Add back when image upload functionality is ready
+    },
+    {
+      name: "Projects",
+      path: `/events/${eventId}/gallery`,
+      badge: projectCount,
+    },
+    { name: "FAQs", path: `/events/${eventId}/faqs` },
+    // { name: "Gallery", path: `/events/${eventId}/gallery` }, // TODO: Add back when image upload functionality is ready
+  ];
 
   if (showTicketsTab) {
     tabs.push({ name: "Tickets", path: `/events/${eventId}/tickets` });
@@ -73,8 +62,9 @@ export function EventPageTabs({
               }`}
             >
               <p
-                className={`${isActive ? "font-medium" : "font-normal"
-                  } text-base text-black`}
+                className={`${
+                  isActive ? "font-medium" : "font-normal"
+                } text-sm md:text-base text-black`}
               >
                 {tab.name}
               </p>

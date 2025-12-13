@@ -3005,8 +3005,8 @@ export default function NewEventPage() {
                             </h3>
                             <p className="text-[16px] text-gray-500">
                               Customize how roles are labeled throughout the
-                              platform. For example, you can change &quot;Judge&quot; to
-                              &quot;Investor&quot; for a demo day event.
+                              platform. For example, you can change "Judge" to
+                              "Investor" for a demo day event.
                             </p>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -5248,7 +5248,7 @@ export default function NewEventPage() {
                           Paid event required
                         </h3>
                         <p className="text-[16px] text-gray-500">
-                          Please enable &quot;This is a paid event&quot; in the Overview
+                          Please enable "This is a paid event" in the Overview
                           tab to access pricing settings.
                         </p>
                       </div>
