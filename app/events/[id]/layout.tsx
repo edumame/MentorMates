@@ -43,7 +43,7 @@ export default async function Layout({
     query = query.eq("slug", id);
   }
 
-  const { data: event } = await query.maybeSingle();
+  const { data: event } = await query.single();
 
   if (!event) {
     notFound();

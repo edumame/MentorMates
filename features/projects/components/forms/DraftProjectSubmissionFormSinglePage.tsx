@@ -14,6 +14,7 @@ import {
   Github,
   Youtube,
   Trash2,
+  Shield,
   ExternalLink,
   ThumbsUp,
   MessageSquarePlus,
@@ -22,7 +23,7 @@ import {
 } from "lucide-react";
 import { Session } from "@supabase/supabase-js";
 import { toast } from "@/lib/hooks/use-toast";
-import { Project, EventVisibility } from "@/lib/types";
+import { Project } from "@/lib/types";
 import { updateProjectClient } from "@/features/projects/client-actions/client-update";
 import { updateProjectTeamClient } from "@/features/projects/client-actions/client-update";
 import { deleteProjectClient } from "@/features/projects/client-actions/client-delete";
@@ -37,33 +38,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { TextFields } from "@mui/icons-material";
 
 interface EventParticipant {
   user_id: string;
   display_name: string;
   email: string;
-}
-
-interface EventOption {
-  event_id: string;
-  event_name: string;
-  submission_time_start: string;
-  submission_time_cutoff: string;
-  event_date: string;
-}
-
-interface EventTrack {
-  track_id: string;
-  name: string;
-  description?: string;
 }
 
 interface DraftProjectSubmissionFormProps {
@@ -102,95 +81,18 @@ export default function DraftProjectSubmissionFormSinglePage({
   // Team management
   const [participants, setParticipants] = useState<EventParticipant[]>([]);
 
-  // Event selection
-  const [availableEvents, setAvailableEvents] = useState<EventOption[]>([]);
-  const [selectedEventId, setSelectedEventId] = useState<string>(
-    initialProject.event_id
-  );
-  const [isLoadingEvents, setIsLoadingEvents] = useState(false);
-
-  // Track selection
-  const [availableTracks, setAvailableTracks] = useState<EventTrack[]>([]);
-  const [selectedTrackIds, setSelectedTrackIds] = useState<string[]>([]);
-  const [isLoadingTracks, setIsLoadingTracks] = useState(false);
-
-  const fetchAvailableEvents = useCallback(async () => {
-    setIsLoadingEvents(true);
-    try {
-      if (!session?.user?.id) {
-        setAvailableEvents([]);
-        return;
-      }
-
-      // Fetch events where the user has a role
-      const { data, error } = await supabase
-        .from("user_event_roles")
-        .select(
-          `
-          event_id,
-          events:event_id (
-            event_id,
-            event_name,
-            submission_time_start,
-            submission_time_cutoff,
-            event_date,
-            visibility
-          )
-        `
-        )
-        .eq("user_id", session.user.id);
-
-      if (error) {
-        console.error("Error fetching events:", error);
-        return;
-      }
-
-      // Filter and map events
-      const events: EventOption[] = (data || [])
-        .filter((role) => {
-          const event = role.events as unknown as {
-            event_id: string;
-            event_name: string;
-            submission_time_start: string | null;
-            submission_time_cutoff: string | null;
-            event_date: string;
-            visibility: string;
-          } | null;
-
-          // Only include public and private events
-          return (
-            event
-          );
-        })
-        .map((role) => {
-          const event = role.events as unknown as {
-            event_id: string;
-            event_name: string;
-            submission_time_start: string | null;
-            submission_time_cutoff: string | null;
-            event_date: string;
-          };
-
-          return {
-            event_id: event.event_id,
-            event_name: event.event_name,
-            submission_time_start: event.submission_time_start || "",
-            submission_time_cutoff: event.submission_time_cutoff || "",
-            event_date: event.event_date,
-          };
-        })
-        .sort(
-          (a, b) =>
-            new Date(b.event_date).getTime() - new Date(a.event_date).getTime()
-        );
-
-      setAvailableEvents(events);
-    } catch (error) {
-      console.error("Error fetching events:", error);
-    } finally {
-      setIsLoadingEvents(false);
+  useEffect(() => {
+    if (project?.event_id) {
+      fetchEventParticipants();
     }
-  }, [session?.user?.id]);
+  }, [project?.event_id]);
+
+  useEffect(() => {
+    // Update parent component when project changes
+    if (onProjectUpdate) {
+      onProjectUpdate(project);
+    }
+  }, [project, onProjectUpdate]);
 
   const fetchEventParticipants = useCallback(async () => {
     if (!project?.event_id) return;
@@ -233,77 +135,6 @@ export default function DraftProjectSubmissionFormSinglePage({
     }
   }, [project?.event_id]);
 
-  const fetchEventTracks = useCallback(async (eventId: string) => {
-    setIsLoadingTracks(true);
-    try {
-      const { data, error } = await supabase
-        .from("event_tracks")
-        .select("track_id, name, description")
-        .eq("event_id", eventId);
-
-      if (error) {
-        console.error("Error fetching event tracks:", error);
-        setAvailableTracks([]);
-        return;
-      }
-
-      const tracks: EventTrack[] = (data || []).map((track) => ({
-        track_id: track.track_id,
-        name: track.name,
-        description: track.description || undefined,
-      }));
-
-      setAvailableTracks(tracks);
-    } catch (error) {
-      console.error("Error fetching event tracks:", error);
-      setAvailableTracks([]);
-    } finally {
-      setIsLoadingTracks(false);
-    }
-  }, []);
-
-  const fetchProjectTracks = useCallback(async () => {
-    if (!projectId) return;
-
-    try {
-      const { data, error } = await supabase
-        .from("project_tracks")
-        .select("track_id")
-        .eq("project_id", projectId);
-
-      if (error) {
-        console.error("Error fetching project tracks:", error);
-        return;
-      }
-
-      const trackIds = (data || []).map((pt) => pt.track_id);
-      setSelectedTrackIds(trackIds);
-    } catch (error) {
-      console.error("Error fetching project tracks:", error);
-    }
-  }, [projectId]);
-
-  // Effects
-  useEffect(() => {
-    if (project?.event_id) {
-      fetchEventParticipants();
-      setSelectedEventId(project.event_id);
-      fetchEventTracks(project.event_id);
-      fetchProjectTracks();
-    }
-  }, [project?.event_id, fetchEventParticipants, fetchEventTracks, fetchProjectTracks]);
-
-  useEffect(() => {
-    fetchAvailableEvents();
-  }, [fetchAvailableEvents]);
-
-  useEffect(() => {
-    // Update parent component when project changes
-    if (onProjectUpdate) {
-      onProjectUpdate(project);
-    }
-  }, [project, onProjectUpdate]);
-
   // Auto-save functionality with debounce
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -311,7 +142,6 @@ export default function DraftProjectSubmissionFormSinglePage({
     }, 2000);
 
     return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formData]);
 
   const handleAutoSave = async () => {
@@ -486,134 +316,6 @@ export default function DraftProjectSubmissionFormSinglePage({
     }
   };
 
-  const handleEventChange = async (newEventId: string) => {
-    if (newEventId === project.event_id) return;
-
-    // Validate submission time before updating
-    const selectedEvent = availableEvents.find(
-      (e) => e.event_id === newEventId
-    );
-
-    if (!selectedEvent) {
-      toast({
-        title: "Error",
-        description: "Selected event not found",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const now = new Date();
-    const submissionStart = new Date(selectedEvent.submission_time_start);
-    const submissionCutoff = new Date(selectedEvent.submission_time_cutoff);
-
-    if (now < submissionStart) {
-      toast({
-        title: "Submission Not Open",
-        description: `Submissions for "${selectedEvent.event_name}" haven't started yet. Opens on ${submissionStart.toLocaleDateString()}`,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (now > submissionCutoff) {
-      toast({
-        title: "Submission Closed",
-        description: `Submissions for "${selectedEvent.event_name}" closed on ${submissionCutoff.toLocaleDateString()}`,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Update via API
-    try {
-      const response = await fetch(`/api/projects/${projectId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ event_id: newEventId }),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        toast({
-          title: "Error",
-          description: result.error || "Failed to update event",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      setSelectedEventId(newEventId);
-      setProject({ ...project, event_id: newEventId });
-
-      toast({
-        title: "Event Updated",
-        description: `Project moved to "${selectedEvent.event_name}"`,
-      });
-
-      // Refresh participants and tracks for new event
-      fetchEventParticipants();
-      fetchEventTracks(newEventId);
-      
-      // Clear selected tracks when event changes
-      setSelectedTrackIds([]);
-    } catch {
-      toast({
-        title: "Error",
-        description: "Failed to update event",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleTrackToggle = async (trackId: string, checked: boolean) => {
-    const newTrackIds = checked
-      ? [...selectedTrackIds, trackId]
-      : selectedTrackIds.filter((id) => id !== trackId);
-
-    setSelectedTrackIds(newTrackIds);
-
-    // Update tracks in database
-    try {
-      // Delete existing tracks
-      await supabase
-        .from("project_tracks")
-        .delete()
-        .eq("project_id", projectId);
-
-      // Insert new tracks
-      if (newTrackIds.length > 0) {
-        const trackInserts = newTrackIds.map((tid) => ({
-          project_id: projectId,
-          track_id: tid,
-        }));
-
-        const { error } = await supabase
-          .from("project_tracks")
-          .insert(trackInserts);
-
-        if (error) {
-          throw error;
-        }
-      }
-
-      toast({
-        title: "Tracks Updated",
-        description: "Project tracks have been updated successfully",
-      });
-    } catch (error) {
-      console.error("Error updating tracks:", error);
-      toast({
-        title: "Error",
-        description: "Failed to update project tracks",
-        variant: "destructive",
-      });
-      // Revert the state on error
-      fetchProjectTracks();
-    }
-  };
-
   const handleDeleteProject = async () => {
     setIsDeleting(true);
     try {
@@ -685,26 +387,15 @@ export default function DraftProjectSubmissionFormSinglePage({
     <>
       {/* Sticky Auto-save Banner */}
       <div className="sticky top-0 z-40 bg-sky-50 border-b border-[#d8d8d8]">
-        <div className="mx-auto px-6 py-3.5 flex items-center justify-between flex-wrap">
+        <div className="max-w-[1280px] mx-auto px-6 py-3.5 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              height="24px"
-              viewBox="0 0 24 24"
-              width="24px"
-              fill="#1f1f1f"
-            >
-              <g>
-                <rect fill="none" height="24" width="24" />
-                <path d="M12,3.19l7,3.11V11c0,4.52-2.98,8.69-7,9.93C7.98,19.69,5,15.52,5,11V6.3L12,3.19 M12,1L3,5v6c0,5.55,3.84,10.74,9,12 c5.16-1.26,9-6.45,9-12V5L12,1L12,1z M11,7h2v2h-2V7z M11,11h2v6h-2V11z" />
-              </g>
-            </svg>
-            <p className="text-[#4c4c4c] text-base font-medium tracking-[-0.06em]">
+            <Shield className="h-6 w-6 text-[#4c4c4c]" />
+            <p className="text-[#4c4c4c] text-lg font-medium tracking-[-0.06em]">
               Your project is automatically saved as you edit
             </p>
           </div>
           {lastSaved && (
-            <div className="bg-transparent px-2.5 py-1 ml-6 sm:m-0">
+            <div className="bg-transparent border border-[rgba(0,0,0,0.15)] rounded-full px-2.5 py-1">
               <p className="text-[#7f7f7f] text-sm font-medium">
                 Saved at{" "}
                 {lastSaved.toLocaleDateString("en-US", {
@@ -725,10 +416,10 @@ export default function DraftProjectSubmissionFormSinglePage({
 
       {/* Main Content */}
       <div className="bg-gradient-to-br from-blue-100/45 via-transparent to-transparent">
-        <div className="mx-auto px-8 py-6 min-h-[800px]">
-          <div className="flex gap-[50px] sm:gap-[85px] items-start justify-between flex-wrap-reverse sm:flex-nowrap">
+        <div className="max-w-[1280px] mx-auto px-8 py-6 min-h-[800px]">
+          <div className="flex gap-12 items-start justify-between">
             {/* Left Side - Form */}
-            <div className="flex-1 space-y-6">
+            <div className="flex-1 max-w-[640px] space-y-6">
               <div className="space-y-1">
                 <h1 className="text-[28px] font-semibold text-black tracking-[-0.06em] leading-[1.4]">
                   Edit your project
@@ -742,7 +433,6 @@ export default function DraftProjectSubmissionFormSinglePage({
                     Project name
                   </label>
                   <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-3 py-2 flex items-center gap-3 h-11">
-                    <TextFields className="h-6 w-6 shrink-0" />
                     <Input
                       value={formData.project_name}
                       onChange={(e) =>
@@ -756,122 +446,6 @@ export default function DraftProjectSubmissionFormSinglePage({
                     />
                   </div>
                 </div>
-
-                {/* Event Selection */}
-                <div className="space-y-2">
-                  <label className="text-base text-black font-normal">
-                    Submit to Event
-                  </label>
-                  <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl">
-                    <Select
-                      value={selectedEventId}
-                      onValueChange={handleEventChange}
-                      disabled={isLoadingEvents}
-                    >
-                      <SelectTrigger className="border-0 h-11 focus:ring-0 focus:ring-offset-0">
-                        <SelectValue placeholder="Select an event" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableEvents.map((event) => {
-                          const now = new Date();
-                          const submissionStart = new Date(
-                            event.submission_time_start
-                          );
-                          const submissionCutoff = new Date(
-                            event.submission_time_cutoff
-                          );
-                          const isOpen =
-                            now >= submissionStart && now <= submissionCutoff;
-                          const isPast = now > submissionCutoff;
-                          const isFuture = now < submissionStart;
-                          const noSubmissionWindow =
-                            !event.submission_time_start ||
-                            !event.submission_time_cutoff;
-
-                          return (
-                            <SelectItem
-                              key={event.event_id}
-                              value={event.event_id}
-                              disabled={!isOpen}
-                            >
-                              <div className="flex items-center gap-2">
-                                <span>{event.event_name}</span>
-                                {isOpen && (
-                                  <Badge className="bg-green-100 text-green-800 text-xs">
-                                    Open
-                                  </Badge>
-                                )}
-                                {isPast && (
-                                  <Badge className="bg-red-100 text-red-600 text-xs">
-                                    Closed
-                                  </Badge>
-                                )}
-                                {isFuture && (
-                                  <Badge className="bg-blue-100 text-blue-800 text-xs">
-                                    Opens {submissionStart.toLocaleDateString()}
-                                  </Badge>
-                                )}
-                                {noSubmissionWindow && (
-                                  <Badge className="bg-gray-100 text-gray-600 text-xs">
-                                    Submissions not open
-                                  </Badge>
-                                )}
-                              </div>
-                            </SelectItem>
-                          );
-                        })}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <p className="text-base text-[#7f7f7f]">
-                    *You can only submit to events with open submission windows
-                  </p>
-                </div>
-
-                {/* Track Selection */}
-                {availableTracks.length > 0 && (
-                  <div className="space-y-2">
-                    <label className="text-base text-black font-normal">
-                      Select tracks (Optional)
-                    </label>
-                    <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl p-4 space-y-3">
-                      {isLoadingTracks ? (
-                        <div className="flex items-center justify-center py-4">
-                          <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
-                        </div>
-                      ) : (
-                        availableTracks.map((track) => (
-                          <label
-                            key={track.track_id}
-                            className="flex items-start gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={selectedTrackIds.includes(track.track_id)}
-                              onChange={(e) =>
-                                handleTrackToggle(track.track_id, e.target.checked)
-                              }
-                              className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                            />
-                            <div className="flex-1">
-                              <span className="text-base text-black font-medium">
-                                {track.name}
-                              </span>
-                              {track.description && (
-                                <p className="text-sm text-[#7f7f7f] mt-0.5">
-                                  {track.description}
-                                </p>
-                              )}
-                            </div>
-                          </label>
-                        ))
-                      )}
-                    </div>
-                    <p className="text-base text-[#7f7f7f]">
-                      *Choose the tracks your project should compete in
-                    </p>
-                  </div>
-                )}
 
                 {/* Project Description */}
                 <div className="space-y-2">
@@ -896,7 +470,7 @@ export default function DraftProjectSubmissionFormSinglePage({
                 </div>
 
                 {/* Divider */}
-                <div className="border-t border-dashed border-gray-200" />
+                <div className="border-t border-gray-200" />
 
                 {/* Cover Image */}
                 <div className="space-y-2">
@@ -1010,81 +584,70 @@ export default function DraftProjectSubmissionFormSinglePage({
                 </div>
 
                 {/* Divider */}
-                <div className="border-t border-dashed border-gray-200" />
+                <div className="border-t border-gray-200" />
 
                 {/* Add Teammates */}
                 <div className="space-y-2">
-                  <label className="text-base text-black font-normal mb-2">
+                  <label className="text-base text-black font-normal">
                     Add teammates (Optional)
                   </label>
-                  <div className="border border-gray-200 rounded-xl">
-                    <div className="pt-2 px-3 border-b border-gray-200">
-                      <UserSearchWithInvite
-                        allTags={participants.map((p) => p.email)}
-                        onTagsChange={handleTeammatesChange}
-                        initialTags={project.teammates || []}
-                        projectId={projectId}
-                        enableInvite={true}
-                        enableMailIcon={true}
-                        inputStyle="pure"
-                        placeholder="Enter your teammates' emails. Press Enter or comma to add each."
-                      />
-                    </div>
-                    {/* Team Members List */}
-                    <div className="border-b last:border-b-0 border-gray-200 space-y-4 mt-3 p-3">
-                      {/* Lead */}
-                      <div className="flex items-center gap-4">
-                        <div className="w-14 h-14 rounded-full bg-gray-300 shrink-0" />
-                        <div className="space-y-0">
-                          <div className="flex items-center gap-1">
-                            <p className="text-base font-semibold text-black">
-                              {project.lead_name}
-                            </p>
-                            <Badge
-                              variant="secondary"
-                              className="bg-transparent border border-[rgba(0,0,0,0.15)] text-black rounded-full text-sm font-semibold"
-                            >
-                              Lead
-                            </Badge>
-                          </div>
-                          <p className="text-base text-black">
-                            {project.lead_email}
-                          </p>
-                        </div>
-                      </div>
+                  <UserSearchWithInvite
+                    allTags={participants.map((p) => p.email)}
+                    onTagsChange={handleTeammatesChange}
+                    initialTags={project.teammates || []}
+                    projectId={projectId}
+                    enableInvite={true}
+                  />
 
-                      {project.teammates && project.teammates.length > 0 && (
-                        <>
-                          <div className="border-t border-dashed border-gray-200" />
-                          {project.teammates.map((teammate, index) => (
-                            <div
-                              key={index}
-                              className="flex items-center gap-4 border-b last:border-b-0 border-gray-200 py-4 !m-0"
-                            >
-                              <div className="w-14 h-14 rounded-full bg-gray-300 shrink-0" />
-                              <div className="flex-1">
-                                <p className="text-base font-semibold text-black">
-                                  {teammate}
-                                </p>
-                                <p className="text-base text-black">
-                                  {teammate}
-                                </p>
-                              </div>
-                              {isLead && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleRemoveTeammate(teammate)}
-                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                >
-                                  Remove
-                                </Button>
-                              )}
-                            </div>
-                          ))}
-                        </>
-                      )}
+                  {/* Team Members List */}
+                  <div className="border border-gray-200 rounded-xl p-3 space-y-4 mt-4">
+                    {/* Lead */}
+                    <div className="flex items-center gap-4">
+                      <div className="w-14 h-14 rounded-full bg-gray-300 shrink-0" />
+                      <div className="space-y-0">
+                        <div className="flex items-center gap-1">
+                          <p className="text-base font-semibold text-black">
+                            {project.lead_name}
+                          </p>
+                          <Badge
+                            variant="secondary"
+                            className="bg-transparent border border-[rgba(0,0,0,0.15)] text-black rounded-full text-sm font-semibold"
+                          >
+                            Lead
+                          </Badge>
+                        </div>
+                        <p className="text-base text-black">
+                          {project.lead_email}
+                        </p>
+                      </div>
                     </div>
+
+                    {project.teammates && project.teammates.length > 0 && (
+                      <>
+                        <div className="border-t border-gray-200" />
+                        {project.teammates.map((teammate, index) => (
+                          <div key={index} className="flex items-center gap-4">
+                            <div className="w-14 h-14 rounded-full bg-gray-300 shrink-0" />
+                            <div className="flex-1">
+                              <p className="text-base font-semibold text-black">
+                                {teammate}
+                              </p>
+                              <p className="text-base text-black">{teammate}</p>
+                            </div>
+                            {isLead && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleRemoveTeammate(teammate)}
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                              >
+                                Remove
+                              </Button>
+                            )}
+                          </div>
+                        ))}
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1112,8 +675,8 @@ export default function DraftProjectSubmissionFormSinglePage({
               </div>
 
               {/* Preview Card */}
-              <div className="space-y-3 flex flex-col justify-center">
-                <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl overflow-hidden w-full sm:w-[339px]">
+              <div className="space-y-3">
+                <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl overflow-hidden w-[339px]">
                   {/* Cover Image */}
                   <div className="aspect-[339/220] relative">
                     {formData.cover_image_url ? (
@@ -1191,11 +754,7 @@ export default function DraftProjectSubmissionFormSinglePage({
 
                 <button
                   onClick={() =>
-                    window.open(
-                      `/projects/${projectId}`,
-                      "_blank",
-                      "noopener,noreferrer"
-                    )
+                    window.open(`/projects/${projectId}`, "_blank", "noopener,noreferrer")
                   }
                   className="flex items-center gap-1 justify-center text-[#7f7f7f] hover:text-black transition-colors"
                 >

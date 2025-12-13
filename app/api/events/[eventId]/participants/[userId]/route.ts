@@ -41,13 +41,13 @@ async function authorizeAndGetContext(
     .eq("user_id", user.id)
     .maybeSingle();
 
-  const { data: isAdminRpc } = await supabase.rpc("is_admin_user", { user_id: user.id });
-  const isAdmin = Boolean(isAdminRpc)
-
+  let isAdmin = false;
   let isAllowed = false;
   if (roleRow && canAccessRole(roleRow.role as EventRole, EventRole.Organizer)) {
     isAllowed = true;
   } else {
+    const { data: isAdminRpc } = await supabase.rpc("is_admin_user", { user_id: user.id });
+    isAdmin = Boolean(isAdminRpc);
     isAllowed = isAdmin;
   }
 

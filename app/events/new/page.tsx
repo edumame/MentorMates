@@ -426,67 +426,6 @@ export default function NewEventPage() {
     }
   };
 
-  const handleCoverImageUpload = async (file: File) => {
-    if (!file.type.startsWith("image/")) {
-      toast({
-        title: "Invalid file type",
-        description: "Please upload an image file (PNG, JPG, GIF, etc.)",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Check file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      toast({
-        title: "File too large",
-        description: "Image size must be less than 5MB",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setCoverImageUploading(true);
-    try {
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
-      const filePath = `event-covers/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("event-materials")
-        .upload(filePath, file);
-
-      if (uploadError) {
-        toast({
-          title: "Upload failed",
-          description: "Failed to upload image file",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from("event-materials").getPublicUrl(filePath);
-
-      onChange("cover_image_url", publicUrl);
-      setCoverImageFile(null);
-
-      toast({
-        title: "Image uploaded",
-        description: "Cover image uploaded successfully",
-      });
-    } catch {
-      toast({
-        title: "Upload error",
-        description: "Failed to upload cover image",
-        variant: "destructive",
-      });
-    } finally {
-      setCoverImageUploading(false);
-    }
-  };
-
   if (loading) {
     return (
       <PageContainer>
@@ -697,6 +636,7 @@ export default function NewEventPage() {
                           Gallery
                         </TabsTrigger>
                       </TabsList>
+                    </div>
                     </div>
 
                     <div className="flex flex-col md:flex-row gap-6 lg:gap-8 items-start w-full">

@@ -8,10 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DefaultScoring } from "@/components/project-scoring/default-scoring";
 import { ChevronDown, ChevronUp } from "lucide-react";
-import Link from "next/link";
 import { JudgeChecklist } from "./checklist";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
-import { LoadingScreen } from "@/components/ui/loading-screen";
 
 interface JudgeDashboardProps {
   eventId: string;
@@ -96,9 +94,7 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
           .select("finalist_recommendation_enabled")
           .eq("event_id", eventId)
           .maybeSingle();
-        setFinalistFeatureEnabled(
-          !!eventSettings?.finalist_recommendation_enabled
-        );
+        setFinalistFeatureEnabled(!!eventSettings?.finalist_recommendation_enabled);
 
         //Fetch projects assigned to the judge
         const { data: assignedProjects, error: assignedProjectsError } =
@@ -157,8 +153,7 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
             event_id: string;
             project_tracks: Array<{ track_id: string }> | null;
           }) => {
-            const trackIds =
-              project.project_tracks?.map((pt) => pt.track_id) || [];
+            const trackIds = project.project_tracks?.map((pt) => pt.track_id) || [];
             projectMap.set(project.id, {
               id: project.id,
               project_name: project.project_name,
@@ -252,7 +247,7 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
   };
 
   if (isLoading) {
-    return <LoadingScreen message="Loading projects..." />;
+    return <div>Loading...</div>;
   }
 
   if (projects.length === 0) {
@@ -260,9 +255,7 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
       <PageContainer>
         <PageContent className="px-[32px] pt-[24px]">
           <div className="flex flex-col gap-[48px] max-w-[1064px] mx-auto">
-            <h2 className="text-[28px] font-semibold leading-[1.4] tracking-[-0.06em] text-black text-center">
-              No projects assigned to you.
-            </h2>
+      <h2 className="text-[28px] font-semibold leading-[1.4] tracking-[-0.06em] text-black text-center">No projects assigned to you.</h2>
           </div>
         </PageContent>
       </PageContainer>
@@ -273,99 +266,106 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
     <PageContainer>
       <PageContent className="px-[32px] pt-[24px]">
         <div className="flex flex-col gap-[48px] max-w-[1064px] mx-auto">
-          <Card className="w-full">
-            <CardHeader>
-              <CardTitle>Projects</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4 mb-4">
-                <Input
-                  placeholder="Search projects..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
-              {filteredProjects.length === 0 ? (
-                <p>No projects match your search.</p>
-              ) : (
-                <div className="space-y-4">
-                  {filteredProjects.map((project) => (
-                    <div key={project.id} className="border rounded-lg p-4">
-                      <div className="flex justify-between items-center mb-4">
-                        <h3 className="text-lg font-semibold">
-                          <Link href={`/projects/public/${project.id}`} className="text-blue-500 hover:text-blue-600">
-                            {project.project_name}
-                          </Link>
-                        </h3>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() =>
-                              project.track_ids.forEach((trackId) =>
-                                setShowScoringComponents((prev) => {
-                                  const newMap = new Map(prev);
-                                  newMap.set(
-                                    getTrackKey(project.id, trackId),
-                                    !prev.get(getTrackKey(project.id, trackId))
-                                  );
-                                  return newMap;
-                                })
-                              )
-                            }
-                          >
-                            {showScoringComponents.get(
-                              getTrackKey(project.id, project.track_ids[0])
-                            ) ? (
-                              <>
-                                <ChevronUp className="h-4 w-4 mr-1" />
-                                Hide Scoring
-                              </>
-                            ) : (
-                              <>
-                                <ChevronDown className="h-4 w-4 mr-1" />
-                                Show Scoring
-                              </>
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                      {project.track_ids.map((trackId) => {
-                        const trackInfo = eventTracks.find(
-                          (t) => t.track_id === trackId
-                        );
-                        const isScored = scoredProjects
-                          .get(project.id)
-                          ?.has(trackId);
-
-                        return (
-                          <div key={trackId} className="mb-4">
-                            <div className="flex items-center gap-2 mb-2">
-                              <h4 className="font-medium">
-                                {trackInfo?.name || "Unknown Track"}
-                              </h4>
-                              <span
-                                className={`px-2 py-1 text-xs rounded-full ${
-                                  isScored
-                                    ? "bg-green-100 text-green-800"
-                                    : "bg-yellow-100 text-yellow-800"
-                                }`}
-                              >
-                                {isScored ? "Scored" : "Not Scored"}
-                              </span>
-                            </div>
-                            {showScoringComponents.get(
-                              getTrackKey(project.id, trackId)
-                            ) && getScoringComponent(project.id, trackId)}
-                          </div>
-                        );
-                      })}
+    <div className="flex gap-6 relative w-full">
+      <div className="w-[300px]">
+        <div className="sticky top-4">
+          <JudgeChecklist eventId={eventId} />
+        </div>
+      </div>
+      <div className="flex-1">
+        <Card className="w-full">
+          <CardHeader>
+            <CardTitle>Project Scoring</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4 mb-4">
+              <Input
+                placeholder="Search projects..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            {filteredProjects.length === 0 ? (
+              <p>No projects match your search.</p>
+            ) : (
+              <div className="space-y-4">
+                {filteredProjects.map((project) => (
+                <div key={project.id} className="border rounded-lg p-4">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold">
+                      {project.project_name}
+                    </h3>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          project.track_ids.forEach((trackId) =>
+                            setShowScoringComponents((prev) => {
+                              const newMap = new Map(prev);
+                              newMap.set(
+                                getTrackKey(project.id, trackId),
+                                !prev.get(getTrackKey(project.id, trackId))
+                              );
+                              return newMap;
+                            })
+                          )
+                        }
+                      >
+                        {showScoringComponents.get(
+                          getTrackKey(project.id, project.track_ids[0])
+                        ) ? (
+                          <>
+                            <ChevronUp className="h-4 w-4 mr-1" />
+                            Hide Scoring
+                          </>
+                        ) : (
+                          <>
+                            <ChevronDown className="h-4 w-4 mr-1" />
+                            Show Scoring
+                          </>
+                        )}
+                      </Button>
                     </div>
-                  ))}
+                  </div>
+                  {project.track_ids.map((trackId) => {
+                    const trackInfo = eventTracks.find(
+                      (t) => t.track_id === trackId
+                    );
+                    const isScored = scoredProjects
+                      .get(project.id)
+                      ?.has(trackId);
+
+                    return (
+                      <div key={trackId} className="mb-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <h4 className="font-medium">
+                            {trackInfo?.name || "Unknown Track"}
+                          </h4>
+                          <span
+                            className={`px-2 py-1 text-xs rounded-full ${
+                              isScored
+                                ? "bg-green-100 text-green-800"
+                                : "bg-yellow-100 text-yellow-800"
+                            }`}
+                          >
+                            {isScored ? "Scored" : "Not Scored"}
+                          </span>
+                        </div>
+                        {showScoringComponents.get(
+                          getTrackKey(project.id, trackId)
+                        ) && getScoringComponent(project.id, trackId)}
+                      </div>
+                    );
+                  })}
                 </div>
-              )}
-            </CardContent>
-          </Card>
+              ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
         </div>
       </PageContent>
     </PageContainer>

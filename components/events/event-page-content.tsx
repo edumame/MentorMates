@@ -44,7 +44,7 @@ export function EventPageContent({
 
   // Show default event overview for participants, mentors, organizers, and non-authenticated users
   return (
-    <div className="flex flex-col flex-1 px-2 md:px-4 w-full">
+    <div className="flex flex-col flex-1 px-2 md:px-4">
       {/* Introduction */}
       <div className="flex flex-col pb-4 pt-0 px-0 w-full min-w-0 max-w-full">
         <h2 className="font-semibold text-[24px] leading-[32px] text-black tracking-[-0.6px] break-words">
@@ -142,26 +142,28 @@ export function EventPageContent({
             </h2>
           </div>
 
-          <div className="flex w-full  px-4 py-5 rounded-xl border border-[rgba(0,0,0,0.15)] relative">
-            <div className="flex flex-wrap sm:flex-nowrap relative w-full">
-              {event.rules.map((rule, idx) => (
-                <div key={idx} className="flex flex-grow flex-col first:pb-8 sm:pb-0 pt-0 px-0 w-full sm:first:pr-6 sm:last:pl-6 sm:last:border-l sm:border-[rgba(0,0,0,0.15)]">
-                  <div className="font-normal text-black">
-                    <p className="font-bold tracking-[-0.06em] text-[22px] leading-[1.4] mb-2">
-                      {rule.title}
-                    </p>
-                    <ul className="list-disc pl-6">
-                      {rule.items.map((item, i) => (
-                        <li key={i} className="mb-0 text-base leading-[1.5]">
-                          {item}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              ))}
+          {event.rules.map((rule, idx) => (
+            <div
+              key={idx}
+              className="flex flex-col pb-4 pt-0 px-0 w-full min-w-0 max-w-full"
+            >
+              <div className="font-normal text-black">
+                <p className="font-medium text-base leading-[1.5] mb-0 break-words">
+                  {rule.title}
+                </p>
+                <ul className="list-disc pl-6">
+                  {rule.items.map((item, i) => (
+                    <li
+                      key={i}
+                      className="mb-0 text-base leading-[1.5] break-words"
+                    >
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </div>
-          </div>
+          ))}
         </>
       )}
 

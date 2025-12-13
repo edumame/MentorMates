@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import {
+import { 
   Select,
   SelectContent,
   SelectItem,
@@ -114,8 +114,7 @@ export function BasicInfoTab({
   const [descriptionMode, setDescriptionMode] = useState<"edit" | "preview">("edit");
   const PRESET_EVENT_TYPES = ["Hackathon", "Workshop", "Conference"] as const;
   const isPresetType = (val?: string | null) =>
-    !!val &&
-    PRESET_EVENT_TYPES.includes(val as (typeof PRESET_EVENT_TYPES)[number]);
+    !!val && PRESET_EVENT_TYPES.includes(val as (typeof PRESET_EVENT_TYPES)[number]);
   const [eventTypeSelection, setEventTypeSelection] = useState<string>(
     isPresetType(event?.event_type) ? event!.event_type : "Other"
   );
@@ -181,8 +180,7 @@ export function BasicInfoTab({
           submission_time_start: event.submission_time_start,
           submission_time_cutoff: event.submission_time_cutoff,
           participant_capacity: event.participant_capacity ?? null,
-          finalist_recommendation_enabled:
-            event.finalist_recommendation_enabled ?? false,
+          finalist_recommendation_enabled: event.finalist_recommendation_enabled ?? false,
         })
         .eq("event_id", event.event_id);
 
@@ -222,9 +220,8 @@ export function BasicInfoTab({
 
     try {
       setArchiving(true);
-      const action =
-        event.visibility === EventVisibility.Archived ? "unarchive" : "archive";
-
+      const action = event.visibility === EventVisibility.Archived ? "unarchive" : "archive";
+      
       const res = await fetch(`/api/events/${event.event_id}`, {
         method: "PATCH",
         headers: {
@@ -239,10 +236,10 @@ export function BasicInfoTab({
       }
 
       const result = await res.json();
-
+      
       // Update local state
       setEvent({ ...event, visibility: result.newVisibility });
-
+      
       toast({
         title: "Success",
         description: `Event ${action}d successfully`,
@@ -251,10 +248,7 @@ export function BasicInfoTab({
       // Refresh the page to update any cached data
       router.refresh();
     } catch (error) {
-      console.error(
-        `Error ${event.visibility === EventVisibility.Archived ? "unarchiving" : "archiving"} event:`,
-        error
-      );
+      console.error(`Error ${event.visibility === EventVisibility.Archived ? "unarchiving" : "archiving"} event:`, error);
       toast({
         title: "Error",
         description: (error as Error).message,
@@ -272,12 +266,9 @@ export function BasicInfoTab({
       {/* Archived Event Warning */}
       {isArchived && (
         <Alert className="border-orange-200 bg-orange-50">
-          <AlertTitle className="text-orange-900">
-            ⚠️ Event is Archived
-          </AlertTitle>
+          <AlertTitle className="text-orange-900">⚠️ Event is Archived</AlertTitle>
           <AlertDescription>
-            This event is archived and cannot be edited. To make changes, you
-            must first unarchive the event using the controls below.
+            This event is archived and cannot be edited. To make changes, you must first unarchive the event using the controls below.
           </AlertDescription>
         </Alert>
       )}
@@ -787,51 +778,37 @@ export function BasicInfoTab({
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex-1">
             <p className="font-semibold text-orange-600">
-              {event.visibility === EventVisibility.Archived
-                ? "Unarchive Event"
-                : "Archive Event"}
+              {event.visibility === EventVisibility.Archived ? "Unarchive Event" : "Archive Event"}
             </p>
             <p className="text-sm text-muted-foreground">
-              {event.visibility === EventVisibility.Archived
+              {event.visibility === EventVisibility.Archived 
                 ? "Make this event editable again and restore it to private visibility."
                 : "Archive this event to prevent further editing while keeping it visible."}
             </p>
           </div>
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button
-                variant="destructive"
-                disabled={archiving || isArchived}
-                className="shrink-0 whitespace-nowrap w-full sm:w-auto"
-              >
-                {archiving
-                  ? event.visibility === EventVisibility.Archived
-                    ? "Unarchiving..."
-                    : "Archiving..."
-                  : event.visibility === EventVisibility.Archived
-                    ? "Unarchive"
-                    : "Archive"}
+              <Button variant="destructive" disabled={archiving || isArchived} className="shrink-0 whitespace-nowrap w-full sm:w-auto">
+                {archiving 
+                  ? (event.visibility === EventVisibility.Archived ? "Unarchiving..." : "Archiving...") 
+                  : (event.visibility === EventVisibility.Archived ? "Unarchive" : "Archive")}
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>
-                  {event.visibility === EventVisibility.Archived
-                    ? "Unarchive this event?"
-                    : "Archive this event?"}
+                  {event.visibility === EventVisibility.Archived ? "Unarchive this event?" : "Archive this event?"}
                 </AlertDialogTitle>
                 <AlertDialogDescription>
-                  {event.visibility === EventVisibility.Archived
+                  {event.visibility === EventVisibility.Archived 
                     ? "This will make the event editable again and change its visibility to private. You can change the visibility afterwards if needed."
-                    : "Archived events are hidden from non-organizers and the public, and cannot be edited by organizers. You can unarchive it later if needed."}
+                : "Archived events are hidden from non-organizers and the public, and cannot be edited by organizers. You can unarchive it later if needed."}
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                 <AlertDialogAction onClick={handleArchiveToggle}>
-                  {event.visibility === EventVisibility.Archived
-                    ? "Confirm Unarchive"
-                    : "Confirm Archive"}
+                  {event.visibility === EventVisibility.Archived ? "Confirm Unarchive" : "Confirm Archive"}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
@@ -844,17 +821,11 @@ export function BasicInfoTab({
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex-1">
             <p className="font-semibold text-red-600">Delete Event</p>
-            <p className="text-sm text-muted-foreground">
-              This action cannot be undone.
-            </p>
+            <p className="text-sm text-muted-foreground">This action cannot be undone.</p>
           </div>
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button
-                variant="destructive"
-                disabled={deleting}
-                className="shrink-0 whitespace-nowrap w-full sm:w-auto"
-              >
+              <Button variant="destructive" disabled={deleting} className="shrink-0 whitespace-nowrap w-full sm:w-auto">
                 {deleting ? "Deleting..." : "Delete Event"}
               </Button>
             </AlertDialogTrigger>
@@ -862,8 +833,7 @@ export function BasicInfoTab({
               <AlertDialogHeader>
                 <AlertDialogTitle>Delete this event?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  This will permanently remove the event and related data
-                  (tickets, payments, tracks, feedback). This cannot be undone.
+                  This will permanently remove the event and related data (tickets, payments, tracks, feedback). This cannot be undone.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -877,9 +847,7 @@ export function BasicInfoTab({
                       });
                       if (!res.ok) {
                         const body = await res.json().catch(() => ({}));
-                        throw new Error(
-                          body?.error || "Failed to delete event"
-                        );
+                        throw new Error(body?.error || "Failed to delete event");
                       }
                       toast({ title: "Event deleted" });
                       // Navigate back to events list
@@ -905,4 +873,4 @@ export function BasicInfoTab({
       </div>
     </div>
   );
-}
+} 

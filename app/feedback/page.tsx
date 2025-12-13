@@ -12,7 +12,6 @@ import {
   MessageSquare,
   Lightbulb,
   Sparkles,
-  ArrowDown,
 } from "lucide-react";
 import {
   Dialog,
@@ -94,7 +93,9 @@ export default function FeedbackPage() {
       });
       if (res.ok) {
         setFeedbackList((prev) =>
-          prev.map((it) => (it.id === id ? { ...it, isRead: true } : it))
+          prev.map((it) =>
+            it.id === id ? { ...it, isRead: true } : it
+          )
         );
       }
     } catch (e) {
@@ -110,7 +111,9 @@ export default function FeedbackPage() {
         body: JSON.stringify({ markAll: true }),
       });
       if (res.ok)
-        setFeedbackList((prev) => prev.map((it) => ({ ...it, isRead: true })));
+        setFeedbackList((prev) =>
+          prev.map((it) => ({ ...it, isRead: true }))
+        );
     } catch (e) {
       console.error("Error marking all as read:", e);
     }
@@ -128,16 +131,14 @@ export default function FeedbackPage() {
       <PageContent className="pt-[24px] pb-8">
         <div className="flex flex-col gap-[24px] px-[32px]">
           {/* Header */}
-          <div className="flex items-center justify-between">
+          <div className="flex items-end justify-between">
             <div className="flex items-center gap-[8px]">
               <h1 className="text-[20px] sm:text-[28px] font-semibold leading-[1.4] tracking-[-0.06em] text-black">
                 Feedback
               </h1>
               {unreadCount > 0 && (
                 <div className="flex items-center rounded-[50px] border border-[rgba(0,0,0,0.15)] bg-white px-[8px] py-0">
-                  <span className="text-sm leading-[1.5] text-black">
-                    {unreadCount}
-                  </span>
+                  <span className="text-sm leading-[1.5] text-black">{unreadCount}</span>
                 </div>
               )}
             </div>
@@ -161,27 +162,19 @@ export default function FeedbackPage() {
 
           {/* Empty state */}
           {!isLoading && feedbackList.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-20 sm:py-40 px-4 border border-dashed border-[rgba(0,0,0,0.15)] rounded-[20px]">
+            <div className="flex flex-col items-center justify-center py-16 px-4">
               <div className="max-w-md text-center">
                 <div className="mx-auto w-24 h-24 bg-gradient-to-br from-blue-50 to-blue-100 rounded-full flex items-center justify-center mb-6">
                   <MessageSquare className="h-12 w-12 text-blue-600" />
                 </div>
-
-                {/* Heading */}
-                <h2 className="text-2xl font-semibold text-gray-900 mb-2">
+                <h2 className="text-2xl font-semibold text-gray-900 mb-3">
                   No feedback received yet
                 </h2>
-
-                {/* Description */}
-                <p className="text-gray-600 mb-4 leading-relaxed">
-                  Go join an event, submit a project and collect feedback from
-                  mentors and peers to improve your work!
+                <p className="text-gray-600 mb-6 leading-relaxed">
+                  Go join an event, submit a project and collect feedback from mentors and peers to improve your work!
                 </p>
-                <Button
-                  asChild
-                  className="bg-blue-400 hover:bg-blue-600 text-white px-6 py-3 h-auto"
-                >
-                  <Link href="/events">Explore event</Link>
+                <Button asChild className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 h-auto">
+                  <Link href="/events">Explore Events</Link>
                 </Button>
               </div>
             </div>
@@ -214,7 +207,7 @@ export default function FeedbackPage() {
                         <p className="text-[16px] font-medium text-black tracking-[-0.04em]">
                           Date
                         </p>
-                        <ArrowDown className="h-[24px] w-[24px] ml-1" />
+                        <ArrowDownUp className="h-[24px] w-[24px] ml-1" />
                       </div>
                       <div className="w-[208px] flex-shrink-0 border-b border-[rgba(0,0,0,0.15)] px-[24px] py-[16px]">
                         <p className="text-[16px] font-medium text-black tracking-[-0.04em]">
@@ -227,20 +220,21 @@ export default function FeedbackPage() {
                     {feedbackList.map((item, index) => (
                       <div
                         key={item.id}
-                        className={`flex w-full ${index !== feedbackList.length - 1
-                          ? "border-b border-[rgba(0,0,0,0.15)]"
-                          : ""
-                          }`}
+                        className={`flex w-full ${
+                          index !== feedbackList.length - 1
+                            ? "border-b border-[rgba(0,0,0,0.15)]"
+                            : ""
+                        }`}
                       >
-                        {/* Send from Column */}
-                        <div className="flex items-center gap-[6px] px-[24px] py-[28px] w-[264px] flex-shrink-0">
+                        {/* From */}
+                        <div className="flex items-center gap-[8px] px-[24px] py-[24px] w-[264px] flex-shrink-0">
                           <Avatar className="h-[40px] w-[40px]">
                             <AvatarImage
                               src={item.sender.avatar}
                               alt={item.sender.name}
                             />
-                            <AvatarFallback className="bg-gray-200 text-black font-semibold text-base">
-                              {item.sender.name.charAt(0).toUpperCase()}
+                            <AvatarFallback>
+                              {item.sender.name.charAt(0)}
                             </AvatarFallback>
                           </Avatar>
                           <p className="text-[16px] text-black truncate">
@@ -253,16 +247,16 @@ export default function FeedbackPage() {
                           )}
                         </div>
 
-                        {/* Project Name Column */}
-                        <div className="flex items-center px-[24px] py-[28px] w-[196px] flex-shrink-0">
+                        {/* Project */}
+                        <div className="flex items-center px-[24px] py-[24px] w-[196px] flex-shrink-0">
                           <p className="text-[16px] text-black tracking-[-0.04em] truncate">
                             {item.projectName}
                           </p>
                         </div>
 
-                        {/* Message Column */}
-                        <div className="flex items-center px-[24px] py-[28px] min-w-[215px] flex-1">
-                          <p className="text-[16px] text-black tracking-[-0.04em] line-clamp-2 break-all">
+                        {/* Message */}
+                        <div className="flex items-center px-[24px] py-[24px] min-w-[215px] flex-1">
+                          <p className="text-[16px] text-black tracking-[-0.04em] line-clamp-2">
                             {item.message}
                           </p>
                         </div>
@@ -274,8 +268,8 @@ export default function FeedbackPage() {
                           </p>
                         </div>
 
-                        {/* Action Column */}
-                        <div className="flex items-center gap-[12px] px-[24px] py-[28px] w-[208px] flex-shrink-0">
+                        {/* Actions */}
+                        <div className="flex items-center gap-[12px] px-[24px] py-[24px] w-[208px] flex-shrink-0">
                           <button
                             onClick={() => handleViewFeedback(item)}
                             className="text-[16px] font-medium text-[#4B89EF] tracking-[-0.04em]"
@@ -314,10 +308,11 @@ export default function FeedbackPage() {
                       <button
                         key={page}
                         onClick={() => setCurrentPage(page)}
-                        className={`w-[40px] h-[40px] flex items-center justify-center rounded-[6px] text-[16px] ${currentPage === page
-                          ? "border border-[rgba(0,0,0,0.15)]"
-                          : ""
-                          }`}
+                        className={`w-[40px] h-[40px] flex items-center justify-center rounded-[6px] text-[16px] ${
+                          currentPage === page
+                            ? "border border-[rgba(0,0,0,0.15)]"
+                            : ""
+                        }`}
                       >
                         {page}
                       </button>
@@ -376,8 +371,7 @@ export default function FeedbackPage() {
                         </button>
                       </h2>
                       <p className="mt-1 text-[12px] leading-[1.45] text-muted-foreground/80">
-                        Help this project improve by sharing your thoughts,
-                        suggestions, and ideas.
+                        Help this project improve by sharing your thoughts, suggestions, and ideas.
                       </p>
                     </div>
 
@@ -415,10 +409,6 @@ export default function FeedbackPage() {
                       "linear-gradient(180deg, #DBEAFE 0%, #F9F9FF 100%)",
                   }}
                 >
-                  <DialogClose className="absolute right-4 top-4 z-10 inline-flex h-8 w-8 items-center justify-center rounded-md text-gray-600 hover:bg-gray-200/50 transition-colors">
-                    <X className="h-4 w-4" />
-                    <span className="sr-only">Close</span>
-                  </DialogClose>
                   <div className="flex h-full flex-col">
                     <div className="mb-6 flex items-center justify-between">
                       <div className="flex items-center gap-3">
@@ -434,9 +424,7 @@ export default function FeedbackPage() {
                       <div>
                         <div className="mb-1 flex items-center gap-3">
                           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#E9F0FF]">
-                            <span className="text-[12px] font-semibold text-[#4B89EF]">
-                              01
-                            </span>
+                            <span className="text-[12px] font-semibold text-[#4B89EF]">01</span>
                           </div>
                           <p className="text-[14px] font-medium text-foreground">
                             What should they do next to improve the project?
@@ -450,9 +438,7 @@ export default function FeedbackPage() {
                       <div>
                         <div className="mb-1 flex items-center gap-3">
                           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#E9F0FF]">
-                            <span className="text-[12px] font-semibold text-[#4B89EF]">
-                              02
-                            </span>
+                            <span className="text-[12px] font-semibold text-[#4B89EF]">02</span>
                           </div>
                           <p className="text-[14px] font-medium text-foreground">
                             What could be better or work differently?
@@ -466,18 +452,14 @@ export default function FeedbackPage() {
                       <div>
                         <div className="mb-1 flex items-center gap-3">
                           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#E9F0FF]">
-                            <span className="text-[12px] font-semibold text-[#4B89EF]">
-                              03
-                            </span>
+                            <span className="text-[12px] font-semibold text-[#4B89EF]">03</span>
                           </div>
                           <p className="text-[14px] font-medium text-foreground">
-                            What works well, and are there similar projects to
-                            learn from?
+                            What works well, and are there similar projects to learn from?
                           </p>
                         </div>
                         <p className="pl-11 text-[12px] leading-[1.55] text-muted-foreground">
-                          Call out strengths and link references for
-                          inspiration.
+                          Call out strengths and link references for inspiration.
                         </p>
                       </div>
                     </div>
@@ -524,9 +506,7 @@ export default function FeedbackPage() {
                 >
                   <div className="w-full max-w-2xl">
                     <div className="mb-4 text-xs text-gray-600 sm:text-sm">
-                      {selectedFeedback
-                        ? formatDisplayDate(selectedFeedback.date)
-                        : ""}
+                      {selectedFeedback ? formatDisplayDate(selectedFeedback.date) : ""}
                     </div>
 
                     <div className="mb-6 text-[16px] sm:text-[18px] lg:text-[20px] leading-7 text-slate-900 break-words whitespace-pre-wrap">

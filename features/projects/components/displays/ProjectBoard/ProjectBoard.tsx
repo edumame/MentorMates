@@ -9,6 +9,8 @@ import {
   User,
   MoreHorizontal,
   MessageSquare,
+  QrCode,
+  ExternalLink,
   Trash2,
   Sparkles,
 } from "lucide-react";
@@ -17,7 +19,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -63,10 +64,10 @@ const ProjectBoard = ({
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="mx-auto w-full"
+          className="mx-auto"
         >
           {projectList.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 md:gap-6 lg:gap-[24px]">
               {projectList.map((project) => {
                 const projectUrl =
                   projectBoardContext === ProjectBoardContext.MyProjects
@@ -78,10 +79,11 @@ const ProjectBoard = ({
                 return (
                   <Link href={projectUrl} key={project.id} className="block">
                     <Card
-                      className={`bg-white rounded-xl overflow-hidden relative flex flex-col h-full hover:shadow-lg transition-shadow ${project.prizes_won && project.prizes_won.length > 0
-                        ? "ring-2 ring-yellow-400"
-                        : ""
-                        }`}
+                      className={`bg-white rounded-xl overflow-hidden relative flex flex-col h-full hover:shadow-lg transition-shadow ${
+                        project.prizes_won && project.prizes_won.length > 0
+                          ? "ring-2 ring-yellow-400"
+                          : ""
+                      }`}
                     >
                       {/* Winner Banner */}
                       {project.prizes_won && project.prizes_won.length > 0 && (
@@ -119,10 +121,10 @@ const ProjectBoard = ({
                       </div>
 
                       {/* Lower content */}
-                      <div className="py-4 px-6 flex-1 flex flex-col">
+                      <div className="p-6 flex-1 flex flex-col">
                         {/* Project name + status chips */}
-                        <div className="flex items-start justify-between mb-2 gap-2">
-                          <h3 className="font-bold text-black flex-1 min-w-0 text-[1.375rem] leading-[1.4] tracking-[-0.06em] truncate">
+                        <div className="flex items-start justify-between mb-4 gap-2">
+                          <h3 className="font-bold text-black flex-1 min-w-0 truncate">
                             {project.project_name || "Project"}
                           </h3>
                           <div className="flex items-center gap-1 flex-shrink-0">
@@ -153,12 +155,12 @@ const ProjectBoard = ({
                             <span>
                               {project.created_at
                                 ? new Date(
-                                  project.created_at
-                                ).toLocaleDateString("en-GB", {
-                                  day: "2-digit",
-                                  month: "short",
-                                  year: "numeric",
-                                })
+                                    project.created_at
+                                  ).toLocaleDateString("en-GB", {
+                                    day: "2-digit",
+                                    month: "short",
+                                    year: "numeric",
+                                  })
                                 : "N/A"}
                             </span>
                           </div>
@@ -210,55 +212,56 @@ const ProjectBoard = ({
                           {/* Three dots menu – only on My Projects */}
                           {projectBoardContext ===
                             ProjectBoardContext.MyProjects && (
-                              <DropdownMenu>
-                                <DropdownMenuTrigger
-                                  asChild
-                                  onClick={(e) => e.preventDefault()}
+                            <DropdownMenu>
+                              <DropdownMenuTrigger
+                                asChild
+                                onClick={(e) => e.preventDefault()}
+                              >
+                                <button className="p-1 hover:bg-gray-100 rounded-full">
+                                  <MoreHorizontal className="w-5 h-5 text-gray-400" />
+                                </button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent
+                                align="end"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <DropdownMenuItem
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setQrDialogOpen(project.id);
+                                  }}
                                 >
-                                  <button className="p-1 hover:bg-gray-100 rounded-full">
-                                    <MoreHorizontal className="w-5 h-5 text-gray-400" />
-                                  </button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent
-                                  align="end"
-                                  onClick={(e) => e.stopPropagation()}
+                                  <QrCode className="h-4 w-4 mr-2" />
+                                  Show QR Code
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    window.open(
+                                      `/projects/public/${project.id}`,
+                                      "_blank"
+                                    );
+                                  }}
                                 >
-                                  <DropdownMenuItem
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      window.open(
-                                        projectUrl,
-                                        "_blank"
-                                      );
-                                    }}
-                                  >
-                                    View details
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      setQrDialogOpen(project.id);
-                                    }}
-                                  >
-                                    Share
-                                  </DropdownMenuItem>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem
-                                    className="text-red-600 focus:text-red-600"
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      setDeleteDialogOpen(project.id);
-                                    }}
-                                  >
-                                    <Trash2 className="h-4 w-4 mr-2" />
-                                    Delete Project
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            )}
+                                  <ExternalLink className="h-4 w-4 mr-2" />
+                                  Feedback Page
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  className="text-red-600 focus:text-red-600"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setDeleteDialogOpen(project.id);
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Delete Project
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )}
                         </div>
                       </div>
                     </Card>
@@ -283,18 +286,15 @@ const ProjectBoard = ({
                     );
                   case ProjectBoardContext.EventGallery:
                     return (
-                      <div className="flex flex-col items-center justify-center py-20 border border-dashed border-[rgba(0,0,0,0.15)] rounded-[20px] p-8">
-                        <div className="text-center space-y-3 flex flex-col items-center justify-center">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="M11 3V11L14 8L17 11V3M5 3H19C20.1046 3 21 3.89543 21 5V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V5C3 3.89543 3.89543 3 5 3Z" stroke="#09090B"></path></svg>
+                      <div className="flex flex-col items-center justify-center space-y-4 mt-12">
+                        <div className="text-center space-y-3">
                           <h3 className="text-xl font-semibold text-gray-700">
-                            No project yet
+                            No Projects Found
                           </h3>
                           <p className="text-gray-500 max-w-sm">
-                            Join the event to submit a project or create a project directly.
+                            Try adjusting your search criteria or be the first
+                            to submit a project!
                           </p>
-                          <Button className="mt-4">
-                            <Link href="/projects/submit">Submit a project</Link>
-                          </Button>
                         </div>
                       </div>
                     );
@@ -316,10 +316,11 @@ const ProjectBoard = ({
               <>
                 <div className="bg-white p-4 rounded-lg border">
                   <QRCode
-                    value={`${typeof window !== "undefined"
-                      ? window.location.origin
-                      : ""
-                      }/projects/public/${qrDialogOpen}`}
+                    value={`${
+                      typeof window !== "undefined"
+                        ? window.location.origin
+                        : ""
+                    }/projects/public/${qrDialogOpen}`}
                     size={200}
                   />
                 </div>
