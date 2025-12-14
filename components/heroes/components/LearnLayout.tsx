@@ -4,6 +4,7 @@ import { data, LearnItem } from "@/lib/LearnData";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
+import { MentorCards } from "./MentorCards";
 import { supabase } from "@/lib/supabase";
 import { Lesson } from "@/lib/types";
 
@@ -137,6 +138,7 @@ export function LearnLayout() {
             </button>
           </div>
         </div>
+        <MentorCards />
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {(activeTab === "bookmark"
           ? allItems.filter((d) => bookmarkedIds.has(d.id))
