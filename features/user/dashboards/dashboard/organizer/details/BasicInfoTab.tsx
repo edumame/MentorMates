@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { DatePicker } from "@/components/ui/date-picker";
+import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { EventDetails, EventVisibility } from "@/lib/types";
 import { useRouter } from "next/navigation";
 import { toast as ToastType } from "@/lib/hooks/use-toast";
@@ -122,6 +123,17 @@ export function BasicInfoTab({
   const [customEventType, setCustomEventType] = useState<string>(
     isPresetType(event?.event_type) ? "" : event?.event_type || ""
   );
+  
+  // Get user's timezone as default
+  const getUserTimezone = (): string => {
+    try {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone;
+    } catch {
+      return "UTC";
+    }
+  };
+  
+  const [submissionTimezone, setSubmissionTimezone] = useState<string>(() => getUserTimezone());
 
   // Keep local event type controls in sync if parent event changes
   // (e.g., after import or external updates)
@@ -315,30 +327,103 @@ export function BasicInfoTab({
         </div>
 
         {/* Project submission window */}
-        <div className="space-y-2">
+        <div className="space-y-4">
           <label className="text-[16px] font-normal text-black">
-            Project submission window (UTC)
+            Project submission window
           </label>
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-            <DatePicker
-              value={event.submission_time_start || ""}
-              onChange={(value) =>
-                setEvent({ ...event, submission_time_start: value })
-              }
-              placeholder="mm/dd/yyyy"
+          
+          {/* Timezone Selector - Moved to top for better UX */}
+          <div className="space-y-1">
+            <label className="text-sm text-gray-600">Display timezone</label>
+            <Select
+              value={submissionTimezone}
+              onValueChange={setSubmissionTimezone}
               disabled={isArchived}
-            />
-            <span className="text-gray-500 text-center sm:text-left">
-              to
-            </span>
-            <DatePicker
-              value={event.submission_time_cutoff || ""}
-              onChange={(value) =>
-                setEvent({ ...event, submission_time_cutoff: value })
-              }
-              placeholder="mm/dd/yyyy"
-              disabled={isArchived}
-            />
+            >
+              <SelectTrigger className="h-[44px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px]">
+                <SelectValue placeholder="Select timezone" />
+              </SelectTrigger>
+              <SelectContent>
+                {/* Show user's timezone first if it's not in the standard list */}
+                {(() => {
+                  const userTz = getUserTimezone();
+                  const standardTimezones = [
+                    "UTC",
+                    "America/New_York",
+                    "America/Chicago",
+                    "America/Denver",
+                    "America/Los_Angeles",
+                    "America/Phoenix",
+                    "America/Anchorage",
+                    "Pacific/Honolulu",
+                    "Europe/London",
+                    "Europe/Paris",
+                    "Asia/Tokyo",
+                    "Asia/Shanghai",
+                    "Asia/Dubai",
+                    "Australia/Sydney",
+                  ];
+                  
+                  if (!standardTimezones.includes(userTz)) {
+                    return (
+                      <SelectItem value={userTz}>
+                        {userTz.replace(/_/g, " ")} (Your timezone)
+                      </SelectItem>
+                    );
+                  }
+                  return null;
+                })()}
+                <SelectItem value="UTC">UTC</SelectItem>
+                <SelectItem value="America/New_York">Eastern Time (ET)</SelectItem>
+                <SelectItem value="America/Chicago">Central Time (CT)</SelectItem>
+                <SelectItem value="America/Denver">Mountain Time (MT)</SelectItem>
+                <SelectItem value="America/Los_Angeles">Pacific Time (PT)</SelectItem>
+                <SelectItem value="America/Phoenix">Arizona Time (MST)</SelectItem>
+                <SelectItem value="America/Anchorage">Alaska Time (AKT)</SelectItem>
+                <SelectItem value="Pacific/Honolulu">Hawaii Time (HST)</SelectItem>
+                <SelectItem value="Europe/London">London (GMT/BST)</SelectItem>
+                <SelectItem value="Europe/Paris">Paris (CET/CEST)</SelectItem>
+                <SelectItem value="Asia/Tokyo">Tokyo (JST)</SelectItem>
+                <SelectItem value="Asia/Shanghai">Shanghai (CST)</SelectItem>
+                <SelectItem value="Asia/Dubai">Dubai (GST)</SelectItem>
+                <SelectItem value="Australia/Sydney">Sydney (AEDT/AEST)</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-gray-500">
+              Auto-detected: {getUserTimezone().replace(/_/g, " ")} • Times stored in UTC
+            </p>
+          </div>
+
+          {/* Date/Time Pickers */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm text-gray-600">Start</label>
+              <DateTimePicker
+                value={event.submission_time_start || ""}
+                onChange={(value) =>
+                  setEvent({ ...event, submission_time_start: value })
+                }
+                placeholder="Select start date & time"
+                disabled={isArchived}
+                timezone={submissionTimezone}
+                showTimezone={false}
+                onTimezoneChange={setSubmissionTimezone}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm text-gray-600">End</label>
+              <DateTimePicker
+                value={event.submission_time_cutoff || ""}
+                onChange={(value) =>
+                  setEvent({ ...event, submission_time_cutoff: value })
+                }
+                placeholder="Select end date & time"
+                disabled={isArchived}
+                timezone={submissionTimezone}
+                showTimezone={false}
+                onTimezoneChange={setSubmissionTimezone}
+              />
+            </div>
           </div>
         </div>
 
@@ -440,7 +525,7 @@ export function BasicInfoTab({
             <div className="relative flex-1 min-w-0">
               <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
               <Input
-                value={event.cover_image_url || ""}
+                value=""
                 disabled={isArchived}
                 onChange={(e) => {
                   setEvent({
@@ -480,6 +565,17 @@ export function BasicInfoTab({
           <p className="text-xs text-gray-500">
             *Upload an image to showcase your project (Max 10MB).
           </p>
+          
+          {/* Cover Image Preview - URL obfuscated, show actual image */}
+          {(previewUrl || event.cover_image_url) && (
+            <div className="mt-3">
+              <img
+                src={previewUrl || event.cover_image_url || ""}
+                alt="Cover preview"
+                className="rounded-[12px] object-cover w-full max-w-[600px] h-[300px] border border-[rgba(0,0,0,0.15)]"
+              />
+            </div>
+          )}
         </div>
 
         {/* Blurb */}
@@ -760,19 +856,6 @@ export function BasicInfoTab({
           </p>
         </div>
       </div>
-
-      {/* Cover Image Preview */}
-      {(previewUrl || event.cover_image_url) && (
-        <div className="space-y-2">
-          <img
-            src={previewUrl || event.cover_image_url || ""}
-            alt="Cover preview"
-            className="rounded-md object-cover max-w-full w-[400px] h-[200px]"
-          />
-        </div>
-      )}
-
-      {/* Description moved above; removed from bottom */}
 
       <Button
         onClick={handleBasicInfoUpdate}

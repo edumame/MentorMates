@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect, useTransition } from "react";
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/lib/hooks/use-toast";
 import { Archive, Trash2, ArrowUpRight } from "lucide-react";
@@ -12,13 +14,6 @@ import {
   EventVisibility,
   ScoringCriterion,
 } from "@/lib/types";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 
 // Import existing tab components
@@ -475,7 +470,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
           {/* Main Tabs */}
           <Tabs
             value={activeTab}
-            onValueChange={setActiveTab}
+            onValueChange={(value) => setActiveTab(value)}
             className="flex flex-col lg:flex-1 lg:min-h-0"
           >
             <div
@@ -510,7 +505,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                 
                 {/* Overview Tab Content */}
                 <TabsContent value="overview" className="mt-0 w-full">
-                  <Tabs value={activeSubTab} onValueChange={setActiveSubTab}>
+                  <Tabs value={activeSubTab} onValueChange={(value) => setActiveSubTab(value)}>
                     <div
                       className="w-screen -mx-4 sm:-mx-6 lg:w-full lg:mx-0 overflow-x-auto overflow-y-visible px-4 sm:px-6 lg:px-0 mb-6"
                       style={{
@@ -534,7 +529,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                     </div>
 
                     <div className="w-full min-w-0">
-                      <TabsContent value="basics" className="mt-0">
+                      <TabsContent value="basics" className="mt-0 ml-2">
                         {event && (
                           <BasicInfoTab
                             event={event}
@@ -546,7 +541,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                           />
                         )}
                       </TabsContent>
-                      <TabsContent value="content" className="mt-0">
+                      <TabsContent value="content" className="mt-0 ml-2">
                         {event && (
                           <ContentTab
                             event={event}
@@ -555,7 +550,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                           />
                         )}
                       </TabsContent>
-                      <TabsContent value="schedule" className="mt-0">
+                      <TabsContent value="schedule" className="mt-0 ml-2">
                         {event && (
                           <ScheduleTab
                             event={event}
@@ -566,7 +561,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                           />
                         )}
                       </TabsContent>
-                      <TabsContent value="resources" className="mt-0">
+                      <TabsContent value="resources" className="mt-0 ml-2">
                         {event && (
                           <ResourcesTab
                             event={event}
@@ -577,7 +572,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                           />
                         )}
                       </TabsContent>
-                      <TabsContent value="rules" className="mt-0">
+                      <TabsContent value="rules" className="mt-0 ml-2">
                         {event && (
                           <RulesTab
                             event={event}
@@ -588,7 +583,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                           />
                         )}
                       </TabsContent>
-                      <TabsContent value="faqs" className="mt-0">
+                      <TabsContent value="faqs" className="mt-0 ml-2">
                         {event && (
                           <FAQTab
                             event={event}
@@ -599,7 +594,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                           />
                         )}
                       </TabsContent>
-                      <TabsContent value="gallery" className="mt-0">
+                      <TabsContent value="gallery" className="mt-0 ml-2">
                         <div className="text-center py-12">
                           <p className="text-lg text-gray-500">
                             Gallery section coming soon

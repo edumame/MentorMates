@@ -11,6 +11,14 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/lib/hooks/use-toast";
 import { DatePicker } from "@/components/ui/date-picker";
+import { DateTimePicker } from "@/components/ui/date-time-picker";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   MapPin,
   Image as ImageIcon,
@@ -68,6 +76,17 @@ export default function NewEventPage() {
   const [activeSubTab, setActiveSubTab] = useState("basics");
   const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
   const [coverImageUploading, setCoverImageUploading] = useState(false);
+
+  // Get user's timezone as default
+  const getUserTimezone = (): string => {
+    try {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone;
+    } catch {
+      return "UTC";
+    }
+  };
+  
+  const [submissionTimezone, setSubmissionTimezone] = useState<string>(() => getUserTimezone());
 
   // Content edit/preview toggling state
   const [paywallMode, setPaywallMode] = useState<"edit" | "preview">("edit");
@@ -733,28 +752,101 @@ export default function NewEventPage() {
                               />
                             </div>
 
-                            <div className="space-y-2">
+                            {/* Project submission window */}
+                            <div className="space-y-4">
                               <label className="text-[16px] font-normal text-black">
-                                Project submission window (UTC)
+                                Project submission window
                               </label>
-                              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                                <DatePicker
-                                  value={form.submission_time_start}
-                                  onChange={(value) =>
-                                    onChange("submission_time_start", value)
-                                  }
-                                  placeholder="mm/dd/yyyy"
-                                />
-                                <span className="text-gray-500 text-center sm:text-left">
-                                  to
-                                </span>
-                                <DatePicker
-                                  value={form.submission_time_cutoff}
-                                  onChange={(value) =>
-                                    onChange("submission_time_cutoff", value)
-                                  }
-                                  placeholder="mm/dd/yyyy"
-                                />
+                              
+                              {/* Timezone Selector - Moved to top for better UX */}
+                              <div className="space-y-1">
+                                <label className="text-sm text-gray-600">Display timezone</label>
+                                <Select
+                                  value={submissionTimezone}
+                                  onValueChange={setSubmissionTimezone}
+                                >
+                                  <SelectTrigger className="h-[44px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px]">
+                                    <SelectValue placeholder="Select timezone" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {/* Show user's timezone first if it's not in the standard list */}
+                                    {(() => {
+                                      const userTz = getUserTimezone();
+                                      const standardTimezones = [
+                                        "UTC",
+                                        "America/New_York",
+                                        "America/Chicago",
+                                        "America/Denver",
+                                        "America/Los_Angeles",
+                                        "America/Phoenix",
+                                        "America/Anchorage",
+                                        "Pacific/Honolulu",
+                                        "Europe/London",
+                                        "Europe/Paris",
+                                        "Asia/Tokyo",
+                                        "Asia/Shanghai",
+                                        "Asia/Dubai",
+                                        "Australia/Sydney",
+                                      ];
+                                      
+                                      if (!standardTimezones.includes(userTz)) {
+                                        return (
+                                          <SelectItem value={userTz}>
+                                            {userTz.replace(/_/g, " ")} (Your timezone)
+                                          </SelectItem>
+                                        );
+                                      }
+                                      return null;
+                                    })()}
+                                    <SelectItem value="UTC">UTC</SelectItem>
+                                    <SelectItem value="America/New_York">Eastern Time (ET)</SelectItem>
+                                    <SelectItem value="America/Chicago">Central Time (CT)</SelectItem>
+                                    <SelectItem value="America/Denver">Mountain Time (MT)</SelectItem>
+                                    <SelectItem value="America/Los_Angeles">Pacific Time (PT)</SelectItem>
+                                    <SelectItem value="America/Phoenix">Arizona Time (MST)</SelectItem>
+                                    <SelectItem value="America/Anchorage">Alaska Time (AKT)</SelectItem>
+                                    <SelectItem value="Pacific/Honolulu">Hawaii Time (HST)</SelectItem>
+                                    <SelectItem value="Europe/London">London (GMT/BST)</SelectItem>
+                                    <SelectItem value="Europe/Paris">Paris (CET/CEST)</SelectItem>
+                                    <SelectItem value="Asia/Tokyo">Tokyo (JST)</SelectItem>
+                                    <SelectItem value="Asia/Shanghai">Shanghai (CST)</SelectItem>
+                                    <SelectItem value="Asia/Dubai">Dubai (GST)</SelectItem>
+                                    <SelectItem value="Australia/Sydney">Sydney (AEDT/AEST)</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <p className="text-xs text-gray-500">
+                                  Auto-detected: {getUserTimezone().replace(/_/g, " ")} • Times stored in UTC
+                                </p>
+                              </div>
+
+                              {/* Date/Time Pickers */}
+                              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                  <label className="text-sm text-gray-600">Start</label>
+                                  <DateTimePicker
+                                    value={form.submission_time_start}
+                                    onChange={(value) =>
+                                      onChange("submission_time_start", value)
+                                    }
+                                    placeholder="Select start date & time"
+                                    timezone={submissionTimezone}
+                                    showTimezone={false}
+                                    onTimezoneChange={setSubmissionTimezone}
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <label className="text-sm text-gray-600">End</label>
+                                  <DateTimePicker
+                                    value={form.submission_time_cutoff}
+                                    onChange={(value) =>
+                                      onChange("submission_time_cutoff", value)
+                                    }
+                                    placeholder="Select end date & time"
+                                    timezone={submissionTimezone}
+                                    showTimezone={false}
+                                    onTimezoneChange={setSubmissionTimezone}
+                                  />
+                                </div>
                               </div>
                             </div>
 
@@ -868,7 +960,7 @@ export default function NewEventPage() {
                                   </div>
                                   <div className="relative">
                                     <Input
-                                      value={form.cover_image_url}
+                                      value=""
                                       onChange={(e) =>
                                         onChange(
                                           "cover_image_url",
@@ -960,7 +1052,7 @@ export default function NewEventPage() {
                                   </div>
                                   <div className="relative">
                                     <Input
-                                      value={form.cover_image_url}
+                                      value=""
                                       onChange={(e) =>
                                         onChange(
                                           "cover_image_url",
@@ -2704,10 +2796,12 @@ export default function NewEventPage() {
                           {/* Image */}
                           <div className="relative w-full aspect-[335/223] overflow-hidden">
                             {form.cover_image_url ? (
-                              <img
+                              <Image
                                 src={form.cover_image_url}
                                 alt="Event cover"
-                                className="w-full h-full object-cover block"
+                                fill
+                                className="object-cover"
+                                unoptimized={form.cover_image_url.startsWith("http")}
                               />
                             ) : (
                               <div className="w-full h-full bg-gradient-to-br from-orange-400 via-red-500 to-purple-600" />
