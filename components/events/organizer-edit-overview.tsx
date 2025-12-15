@@ -260,16 +260,6 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
         <div className="w-full lg:w-[335px]">
           <EventCard event={event} />
         </div>
-
-        <a
-          href={previewUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center justify-center gap-1 text-[#7f7f7f] hover:text-[#4b89ef] transition-colors cursor-pointer mt-3"
-        >
-          <span className="text-[16px]">Preview event page</span>
-          <ArrowUpRight className="w-[18px] h-[18px]" />
-        </a>
       </div>
     );
   };
