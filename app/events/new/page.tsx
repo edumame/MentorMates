@@ -2759,26 +2759,6 @@ export default function NewEventPage() {
                           </div>
                         </div>
 
-                        <button
-                          onClick={() => {
-                            const previewSlug = getPreviewSlug();
-                            if (previewSlug) {
-                              window.open(`/events/${previewSlug}`, "_blank");
-                            } else {
-                              toast({
-                                title: "Event name required",
-                                description:
-                                  "Please enter an event name to preview the event page.",
-                                variant: "destructive",
-                              });
-                            }
-                          }}
-                          disabled={!form.event_name}
-                          className="flex items-center gap-2 text-[16px] text-[#7f7f7f] hover:text-[#4b89ef] transition-colors mt-3 mx-auto disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          Preview event page
-                          <ArrowUpRight className="w-4 h-4" />
-                        </button>
                       </div>
                     </div>
                   </Tabs>
