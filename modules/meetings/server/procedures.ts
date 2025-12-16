@@ -60,22 +60,29 @@ export const meetingsRouter = createTRPCRouter({
     }),
     getOne: protectedProcedure.input(z.object({ id: z.string() })).query(async ({ input, ctx }) => {
         const supabase = ctx.supabase;
-        const { data: meetingRows, error: meetingError } = await supabase.from('meetings').select('*');
+        const { data: meetingRows, error: meetingError } = await supabase
+            .from('meetings')
+            .select('*')
+            .eq('id', input.id)
+            .eq('user_id', ctx.auth.user.id)
+            .limit(1);
+
         if (meetingError) throw meetingError;
         const existingMeeting = meetingRows?.[0];
-        if (!existingMeeting) throw new TRPCError({ code: 'NOT_FOUND', message: 'Meeting not found' });
+        if (!existingMeeting) {
+            throw new TRPCError({ code: "NOT_FOUND", message: "Meeting not found" });
+        }
 
-        const { data: agentRows, error: agentError } = await supabase.from('agents').select('*').eq('id', existingMeeting.agent_id).limit(1);
-        if (agentError) throw agentError;
-        const agent = agentRows?.[0] ?? null;
-
-        // compute duration in seconds if timestamps exist
         let duration: number | null = null;
         if (existingMeeting.started_at && existingMeeting.ended_at) {
             const s = new Date(existingMeeting.started_at).getTime();
             const e = new Date(existingMeeting.ended_at).getTime();
             if (!Number.isNaN(s) && !Number.isNaN(e)) duration = Math.max(0, Math.floor((e - s) / 1000));
         }
+
+        const { data: agentRows, error: agentError } = await supabase.from('agents').select('*').eq('id', existingMeeting.agent_id).limit(1);
+        if (agentError) throw agentError;
+        const agent = agentRows?.[0] ?? null;
 
         return { ...existingMeeting, agent, duration };
     }),
