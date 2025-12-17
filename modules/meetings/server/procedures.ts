@@ -138,7 +138,12 @@ export const meetingsRouter = createTRPCRouter({
     }),
     update: protectedProcedure.input(meetingsUpdateSchema).mutation(async ({ ctx, input }) => {
         const supabase = ctx.supabase;
-        const { data, error } = await supabase.from('meetings').update(input).match({ id: input.id, user_id: ctx.auth.user.id }).select();
+        const { agentId, ...rest } = input;
+        const updatePayload: Record<string, string> = {
+            ...rest,
+            agent_id: agentId
+        };
+        const { data, error } = await supabase.from('meetings').update(updatePayload).match({ id: input.id, user_id: ctx.auth.user.id }).select();
         if (error) throw error;
         const updatedMeeting = data?.[0];
         if (!updatedMeeting) throw new TRPCError({ code: 'NOT_FOUND', message: 'Meeting not found' });

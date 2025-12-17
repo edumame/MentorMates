@@ -64,7 +64,7 @@ export const MeetingForm = ({ onSuccess, onCancel, initialValues } : MeetingForm
         resolver: zodResolver(meetingsInsertSchema),
         defaultValues: {
             name: initialValues?.name ?? "",
-            agentId: initialValues?.agentId ?? "",
+            agentId: initialValues?.agent_id ?? "",
         },
     });
 
