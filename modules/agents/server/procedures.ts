@@ -33,7 +33,9 @@ export const agentsRouter = createTRPCRouter({
     })).query(async ({ ctx, input }) => {
         const { search, page, pageSize } = input;
 
-        const query = supabase.from('agents').select('*', { count: 'exact' }).eq('user_id', ctx.auth.user.id);
+        // const query = supabase.from('agents').select('*', { count: 'exact' }).eq('user_id', ctx.auth.user.id);
+        // Allow all users to use the same agent for now until they can create their own agents
+        const query = supabase.from('agents').select('*', { count: 'exact' });
         if (search) query.ilike('name', `%${search}%`);
         const start = (page - 1) * pageSize;
         const end = start + pageSize - 1;
