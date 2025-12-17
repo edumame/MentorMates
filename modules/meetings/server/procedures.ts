@@ -52,7 +52,7 @@ export const meetingsRouter = createTRPCRouter({
                 id: existingAgent.id,
                 name: existingAgent.name,
                 role: "user",
-                image: ctx.auth.user.user_metadata?.avatar_url,
+                image: existingAgent.avatar_url,
             },
         ]);
     

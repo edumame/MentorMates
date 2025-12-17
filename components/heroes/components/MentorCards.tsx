@@ -76,7 +76,7 @@ export function MentorCards() {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 alt={meeting.agent.name}
-                src={meeting.agent.imageUrl || 'https://images.unsplash.com/photo-1603793303277-ed67787545e5?q=80&w=1170&auto=format&fit=facearea&facepad=4&w=256&h=256&q=60&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'}
+                src={meeting.agent?.avatar_url}
                 className="mx-auto size-32 shrink-0 rounded-full bg-gray-300 outline outline-1 -outline-offset-1 outline-black/5"
               />
               <h3 className="mt-6 text-sm font-medium text-gray-900">{meeting.agent.name}</h3>
