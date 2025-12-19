@@ -100,41 +100,77 @@ export const meetingsRouter = createTRPCRouter({
         ]).nullish(),
     })).query(async ({ ctx, input }) => {
         const { search, page, pageSize, status, agentId } = input;
-
         const supabase = ctx.supabase;
-        // build base query
-        let query = supabase.from('meetings').select('*', { count: 'exact' }).eq('user_id', ctx.auth.user.id);
-        if (search) query = query.ilike('name', `%${search}%`);
-        if (status) query = query.eq('status', status);
-        if (agentId) query = query.eq('agent_id', agentId);
 
-        const start = (page - 1) * pageSize;
-        const end = start + pageSize - 1;
-        const { data: items, error: listError, count } = await query.range(start, end);
-        if (listError) throw listError;
+        // Build the base filters
+        const offset = (page - 1) * pageSize;
 
-        // fetch agent details in bulk
-        const agentIds = Array.from(new Set((items || []).map((it: any) => it.agent_id).filter(Boolean)));
-        let agentsById: Record<string, any> = {};
-        if (agentIds.length) {
-            const { data: agentRows } = await supabase.from('agents').select('*').in('id', agentIds);
-            agentsById = (agentRows || []).reduce((acc: any, a: any) => { acc[a.id] = a; return acc; }, {} as any);
-        }
+        // Fetch paginated meetings
+        let meetingsQuery = supabase
+            .from("meetings")
+            .select("*")
+            .eq("user_id", ctx.auth.user.id);
 
-        const itemsWithExtras = (items || []).map((it: any) => {
-            let duration: number | null = null;
-            if (it.started_at && it.ended_at) {
-                const s = new Date(it.started_at).getTime();
-                const e = new Date(it.ended_at).getTime();
-                if (!Number.isNaN(s) && !Number.isNaN(e)) duration = Math.max(0, Math.floor((e - s) / 1000));
-            }
-            return { ...it, agent: agentsById[it.agent_id] ?? null, duration };
-        });
+        if (search) meetingsQuery = meetingsQuery.ilike("name", `%${search}%`);
+        if (status) meetingsQuery = meetingsQuery.eq("status", status);
+        if (agentId) meetingsQuery = meetingsQuery.eq("agent_id", agentId);
+
+        const { data: items = [], error: itemsError } = await meetingsQuery
+            .order("created_at", { ascending: false })
+            .order("id", { ascending: false })
+            .range(offset, offset + pageSize - 1);
+
+        if (itemsError) throw itemsError;
+
+        // Fetch total count (exact)
+        let countQuery = supabase
+            .from("meetings")
+            .select("id", { count: "exact", head: false })
+            .eq("user_id", ctx.auth.user.id);
+
+        if (search) countQuery = countQuery.ilike("name", `%${search}%`);
+        if (status) countQuery = countQuery.eq("status", status);
+        if (agentId) countQuery = countQuery.eq("agent_id", agentId);
+
+        const { count, error: countError } = await countQuery;
+        if (countError) throw countError;
 
         const total = count ?? 0;
         const totalPages = Math.ceil(total / pageSize);
 
-        return { items: itemsWithExtras, total, totalPages };
+        // Hydrate agents for the fetched items
+        const agentIds = Array.from(new Set((items || []).map((m: any) => m.agent_id).filter(Boolean)));
+        let agentsMap: Record<string, any> = {};
+        if (agentIds.length > 0) {
+            const { data: agentRows = [], error: agentErr } = await supabase.from("agents").select("*").in("id", agentIds);
+            if (agentErr) throw agentErr;
+            agentsMap = (agentRows || []).reduce((acc: Record<string, any>, a: any) => {
+                acc[a.id] = a;
+                return acc;
+            }, {});
+        }
+
+        // Compute duration and attach agent
+        const hydrated = (items || []).map((m: any) => {
+            let duration: number | null = null;
+            if (m.started_at && m.ended_at) {
+                const s = new Date(m.started_at).getTime();
+                const e = new Date(m.ended_at).getTime();
+                if (!Number.isNaN(s) && !Number.isNaN(e)) duration = Math.max(0, Math.floor((e - s) / 1000));
+            }
+
+            return {
+                ...m,
+                agent: agentsMap[m.agent_id] ?? null,
+                duration,
+            };
+        });
+
+        return {
+            items: hydrated,
+            total,
+            totalPages,
+        };
     }),
     update: protectedProcedure.input(meetingsUpdateSchema).mutation(async ({ ctx, input }) => {
         const supabase = ctx.supabase;
