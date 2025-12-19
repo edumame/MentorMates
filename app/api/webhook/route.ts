@@ -11,7 +11,7 @@ import {
 } from "@stream-io/node-sdk";
 import { createSupabaseServiceClient } from "@/app/utils/supabase/server";
 import { streamVideo } from "@/lib/stream-video";
-// import { inngest } from "@/inngest/client";
+import { inngest } from "@/lib/inngest/client";
 // import { generateAvatarUri } from "@/lib/avatar";
 // import { streamChat } from "@/lib/stream-chat";
 
@@ -131,13 +131,13 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Meeting not found" }, { status: 404 });
         }
 
-        // await inngest.send({
-        //     name: "meetings/processing",
-        //     data: {
-        //         meetingId: updatedMeeting.id,
-        //         transcriptUrl: updatedMeeting.transcript_url,
-        //     },
-        // });
+        await inngest.send({
+            name: "meetings/processing",
+            data: {
+                meetingId: updatedMeeting.id,
+                transcriptUrl: updatedMeeting.transcript_url,
+            },
+        });
     } else if (eventType === "call.recording_ready") {
         const event = payload as CallRecordingReadyEvent;
         const meetingId = event.call_cid.split(":")[1];
