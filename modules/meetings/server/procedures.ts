@@ -216,16 +216,24 @@ export const meetingsRouter = createTRPCRouter({
     }),
     getTranscript: protectedProcedure.input(z.object({ id: z.string()} )).query(async ({ input, ctx }) => {
         const supabase = ctx.supabase;
-        const { data: meetingRows, error: meetingError } = await supabase.from('meetings').select('*').eq('id', input.id).eq('user_id', ctx.auth.user.id).limit(1);
-        if (meetingError) throw meetingError;
-        const existingMeeting = meetingRows?.[0];
-        if (!existingMeeting) throw new TRPCError({ code: 'NOT_FOUND', message: 'meeting not found' });
 
-        if (!existingMeeting.transcriptUrl) {
+        const { data: existingMeeting, error: meetingError } = await supabase
+            .from('meetings')
+            .select('*')
+            .eq('id', input.id)
+            .eq('user_id', ctx.auth.user.id)
+            .maybeSingle();
+
+        if (meetingError) throw meetingError;
+        if (!existingMeeting) {
+            throw new TRPCError({ code: "NOT_FOUND", message: "meeting not found" });
+        }
+
+        if (!existingMeeting.transcript_url) {
             return [];
         }
 
-        const transcript = await fetch(existingMeeting.transcriptUrl)
+        const transcript = await fetch(existingMeeting.transcript_url)
             .then((res) => res.text())
             .then((text) => JSONL.parse<StreamTranscriptItem>(text))
             .catch(() => {
@@ -234,11 +242,11 @@ export const meetingsRouter = createTRPCRouter({
 
         const speakerIds = [...new Set(transcript.map((item) => item.speaker_id))];
 
-        const { data: userSpeakersRows } = await supabase.from('user').select('*').in('id', speakerIds);
-        const userSpeakers = (userSpeakersRows || []).map((u: any) => ({ ...u, image: u.image }));
+        const { data: userSpeakersRows = [] } = await supabase.from('user_profiles').select('*').in('uid', speakerIds);
+        const userSpeakers = (userSpeakersRows || []).map((u: any) => ({ ...u, image: u.image, id: u.uid }));
 
-        const { data: agentSpeakersRows } = await supabase.from('agents').select('*').in('id', speakerIds);
-        const agentSpeakers = (agentSpeakersRows || []).map((a: any) => ({ ...a, image: a.image }));
+        const { data: agentSpeakersRows = [] } = await supabase.from('agents').select('*').in('id', speakerIds);
+        const agentSpeakers = (agentSpeakersRows || []).map((a: any) => ({ ...a, image: a.avatar_url }));
 
         const speakers = [...userSpeakers, ...agentSpeakers];
 
@@ -250,7 +258,7 @@ export const meetingsRouter = createTRPCRouter({
                     ...item,
                     user: {
                         name: "Unknown",
-                        image: "Unknown",
+                        image: "",
                     },
                 }
             }
@@ -258,8 +266,8 @@ export const meetingsRouter = createTRPCRouter({
             return {
                 ...item,
                 user: {
-                    name: speaker.name,
-                    image: speaker.image,
+                    name: speaker.name ?? speaker.display_name,
+                    image: speaker.image ?? ctx.auth.user.user_metadata?.avatar_url,
                 },
             };
         });
