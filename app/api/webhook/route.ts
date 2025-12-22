@@ -1,3 +1,6 @@
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 import OpenAI from "openai";
 import { NextRequest, NextResponse } from "next/server";
 import { ChatCompletionMessageParam } from "openai/resources/index.mjs";
