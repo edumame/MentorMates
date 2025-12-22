@@ -54,8 +54,6 @@ export const meetingsProcessing  = inngest.createFunction(
   { id: "meetings/processing" },
   { event: "meetings/processing" },
   async ({ event, step }) => {
-    console.log("step exists?", !!step);
-
     const supabase = await createSupabaseServiceClient();
     const response = await step.run("fetch-transcript", async () => {
       return fetch(event.data.transcriptUrl).then((res) => res.text());
@@ -103,12 +101,9 @@ export const meetingsProcessing  = inngest.createFunction(
       });
     });
 
-    const { output } = await step.run("summarize-transcript", async () => {
-      return summarizer.run(
-        "Summarize the following transcript: " +
-          JSON.stringify(transcriptWithSpeakers)
-      );
-    });
+    const { output } = await summarizer.run(
+      "Summarize the following transcript: " + JSON.stringify(transcriptWithSpeakers)
+    );
 
     const summary = output.find(
       (msg): msg is TextMessage => msg.type === "text"
