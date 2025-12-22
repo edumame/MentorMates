@@ -2,7 +2,7 @@ import JSONL from "jsonl-parse-stringify";
 import { inngest } from "@/lib/inngest/client";
 import { createAgent, openai, TextMessage } from "@inngest/agent-kit";
 import { StreamTranscriptItem } from "@/modules/meetings/types";
-import { createSupabaseServiceClient } from "@/app/utils/supabase/server";
+import { createSupabaseServiceClient } from "@/lib/supabase/service";
 
 const system = `
     You are an expert pitch feedback summarizer and mentor. You act as a supportive Pitch Judge who listens closely, reflects the student's thinking, and helps them improve through thoughtful, personalized feedback. Your role is to help students who think best out loud feel understood, encouraged, and guided.
