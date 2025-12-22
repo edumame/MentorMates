@@ -1,4 +1,5 @@
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 import { serve } from "inngest/next";
 import { inngest } from "@/lib/inngest/client";
