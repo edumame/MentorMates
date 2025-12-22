@@ -10,6 +10,11 @@
     "lint": "next lint",
     "setup-db": "env-cmd -f .env.local tsx setup-db.ts"
   },
+  "pnpm": {
+    "overrides": {
+      "inngest": "3.48.1"
+    }
+  },
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
