@@ -1,5 +1,3 @@
-export const runtime = "nodejs";
-
 import { serve } from "inngest/next";
 import { inngest } from "@/lib/inngest/client";
 import { meetingsProcessing } from "@/lib/inngest/functions";
