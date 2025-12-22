@@ -18,7 +18,7 @@ importers:
         specifier: ^5.2.2
         version: 5.2.2(react-hook-form@7.68.0(react@18.3.1))
       '@inngest/agent-kit':
-        specifier: ^0.8.0
+        specifier: ^0.8.4
         version: 0.8.4(hono@4.11.1)(next@15.5.9(@opentelemetry/api@1.9.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(typescript@5.9.3)
       '@mui/icons-material':
         specifier: ^7.3.6
@@ -186,7 +186,7 @@ importers:
         specifier: ^2.3.8
         version: 2.3.8
       inngest:
-        specifier: ^3.37.0
+        specifier: ^3.48.1
         version: 3.48.1(@opentelemetry/core@2.2.0(@opentelemetry/api@1.9.0))(express@4.22.1)(hono@4.11.1)(next@15.5.9(@opentelemetry/api@1.9.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(typescript@5.9.3)(zod@3.25.76)
       jose:
         specifier: ^6.1.3
