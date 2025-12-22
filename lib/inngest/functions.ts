@@ -50,12 +50,11 @@ const summarizer = createAgent({
   model: openai({ model: "gpt-4o", apiKey: process.env.OPENAI_API_KEY }),
 });
 
-export const meetingsProcessing = inngest.createFunction(
+export const meetingsProcessing  = inngest.createFunction(
   { id: "meetings/processing" },
   { event: "meetings/processing" },
   async ({ event, step }) => {
     const supabase = await createSupabaseServiceClient();
-
     const response = await step.run("fetch-transcript", async () => {
       return fetch(event.data.transcriptUrl).then((res) => res.text());
     });
@@ -65,7 +64,9 @@ export const meetingsProcessing = inngest.createFunction(
     });
 
     const transcriptWithSpeakers = await step.run("add-speakers", async () => {
-      const speakerIds = [...new Set(transcript.map((item) => item.speaker_id))];
+      const speakerIds = [
+        ...new Set(transcript.map((item) => item.speaker_id)),
+      ];
 
       const { data: userSpeakers } = await supabase
         .from("user_profiles")
@@ -80,20 +81,29 @@ export const meetingsProcessing = inngest.createFunction(
       const speakers = [...(userSpeakers ?? []), ...(agentSpeakers ?? [])];
 
       return transcript.map((item) => {
-        const speaker = speakers.find((s) => s.id === item.speaker_id);
+        const speaker = speakers.find((speaker) => speaker.id === item.speaker_id);
+
+        if (!speaker) {
+          return {
+            ...item,
+            user: {
+              name: "Unknown",
+            },
+          };
+        };
+
         return {
           ...item,
-          user: { name: speaker?.name ?? "Unknown" },
+          user: {
+            name: speaker.name,
+          },
         };
       });
     });
 
-    const { output } = await step.run("summarize", async () => {
-      return summarizer.run(
-        "Summarize the following transcript: " +
-          JSON.stringify(transcriptWithSpeakers)
-      );
-    });
+    const { output } = await summarizer.run(
+      "Summarize the following transcript: " + JSON.stringify(transcriptWithSpeakers)
+    );
 
     const summary = output.find(
       (msg): msg is TextMessage => msg.type === "text"
@@ -104,6 +114,8 @@ export const meetingsProcessing = inngest.createFunction(
     }
 
     await step.run("save-summary", async () => {
+      const summary = (output[0] as TextMessage).content as string;
+
       const { error } = await supabase
         .from("meetings")
         .update({
@@ -114,8 +126,5 @@ export const meetingsProcessing = inngest.createFunction(
 
       if (error) throw error;
     });
-
-    return { success: true };
-  }
+  },
 );
-
