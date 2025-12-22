@@ -49,9 +49,8 @@ export async function POST(req: NextRequest) {
     };
 
     const eventType = (payload as Record<string, unknown>)?.type;
-    console.log(`[Webhook]: event type - ${eventType}`);
+
     if (eventType === "call.session_started") {
-        console.log(`[Webhook]: call session started`);
         const event = payload as CallSessionStartedEvent;
         const meetingId = event.call.custom?.meetingId;
 
@@ -84,14 +83,14 @@ export async function POST(req: NextRequest) {
         if (agentError || !existingAgent) {
             return NextResponse.json({ error: "Agent not found" }, { status: 404 });
         }
-        console.log(`[Webhook]: connecting call`);
+
         const call = streamVideo.video.call("default", meetingId);
         const realtimeClient = await streamVideo.video.connectOpenAi({
             call,
             openAiApiKey: process.env.OPENAI_API_KEY!,
             agentUserId: existingAgent.id,
         });
-        console.log(`[Webhook]: call connected`);
+
         realtimeClient.updateSession({
             instructions: existingAgent.instructions,
             input_audio_transcription: {
@@ -99,7 +98,6 @@ export async function POST(req: NextRequest) {
             },
             turn_detection: { type: "server_vad" },
         });
-        console.log(`[Webhook]: session updated`);
     } else if (eventType === "call.session_participant_left") {
         const event = payload as CallSessionParticipantLeftEvent;
         const meetingId = event.call_cid.split(":")[1];
