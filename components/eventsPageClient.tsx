@@ -5,10 +5,10 @@ import { EventsList } from "@/components/events/events-list";
 import { EventItem } from "@/lib/types";
 import { UI_TEXT } from "@/lib/config/constants";
 import { Button } from "@/components/ui/button";
-import Link from "next/link";
 import { useAuth } from "@/features/user/authentication/auth/AuthContext";
 import { useAdmin } from "@/lib/hooks/use-admin";
 import { Search, ChevronDown } from "lucide-react";
+import { CreateEventModal } from "@/components/events/create-event-modal";
 
 type SortOption = "date" | "name" | "type";
 
@@ -18,6 +18,7 @@ export function EventsPageClient({ eventsList }: { eventsList: EventItem[] }) {
   const [showSortMenu, setShowSortMenu] = useState(false);
   const { isAuthenticated } = useAuth();
   const isAdmin = useAdmin();
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   const filteredAndSortedEvents = useMemo(() => {
     // First filter by search term
@@ -127,8 +128,11 @@ export function EventsPageClient({ eventsList }: { eventsList: EventItem[] }) {
 
               {/* Create Event Button - Desktop only */}
               {isAuthenticated && isAdmin && (
-                <Button asChild className="h-10 hidden sm:inline-flex">
-                  <Link href="/events/new">Create event</Link>
+                <Button
+                  className="h-10 hidden sm:inline-flex"
+                  onClick={() => setShowCreateModal(true)}
+                >
+                  Create an event
                 </Button>
               )}
             </div>
@@ -136,8 +140,11 @@ export function EventsPageClient({ eventsList }: { eventsList: EventItem[] }) {
 
           {/* Create Event Button - Mobile only */}
           {isAuthenticated && isAdmin && (
-            <Button asChild className="h-10 sm:hidden w-full">
-              <Link href="/events/new">Create event</Link>
+            <Button
+              className="h-10 sm:hidden w-full"
+              onClick={() => setShowCreateModal(true)}
+            >
+              Create an event
             </Button>
           )}
         </div>
@@ -170,6 +177,13 @@ export function EventsPageClient({ eventsList }: { eventsList: EventItem[] }) {
               : UI_TEXT.NO_EVENTS_FOUND}
           </p>
         </div>
+      )}
+
+      {isAuthenticated && isAdmin && (
+        <CreateEventModal
+          open={showCreateModal}
+          onOpenChange={setShowCreateModal}
+        />
       )}
     </div>
   );

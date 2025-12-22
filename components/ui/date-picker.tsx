@@ -2,7 +2,11 @@
 
 import * as React from "react";
 import { Calendar as CalendarIcon } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 
@@ -11,9 +15,16 @@ export type DatePickerProps = {
   onChange?: (value: string) => void;
   placeholder?: string;
   className?: string;
+  disabled?: boolean;
 };
 
-export function DatePicker({ value, onChange, placeholder = "mm/dd/yyyy", className }: DatePickerProps) {
+export function DatePicker({
+  value,
+  onChange,
+  placeholder = "mm/dd/yyyy",
+  className,
+  disabled = false,
+}: DatePickerProps) {
   const [open, setOpen] = React.useState(false);
   const [selectedDate, setSelectedDate] = React.useState<Date | undefined>(
     value ? new Date(value) : undefined
@@ -24,10 +35,10 @@ export function DatePicker({ value, onChange, placeholder = "mm/dd/yyyy", classN
 
     // Format as datetime-local string
     const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    const hours = String(date.getHours()).padStart(2, "0");
+    const minutes = String(date.getMinutes()).padStart(2, "0");
 
     const dateTimeString = `${year}-${month}-${day}T${hours}:${minutes}`;
     onChange?.(dateTimeString);
@@ -37,8 +48,8 @@ export function DatePicker({ value, onChange, placeholder = "mm/dd/yyyy", classN
   const formatDisplayDate = (date: Date | undefined) => {
     if (!date) return "";
 
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
     const year = date.getFullYear();
 
     return `${month}/${day}/${year}`;
@@ -47,7 +58,12 @@ export function DatePicker({ value, onChange, placeholder = "mm/dd/yyyy", classN
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <div className="relative">
+        <div
+          className={cn(
+            "relative",
+            disabled && "opacity-50 cursor-not-allowed"
+          )}
+        >
           <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600 pointer-events-none z-10" />
           <input
             type="text"

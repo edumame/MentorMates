@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { MapPin } from "lucide-react";
 import { EventItem } from "@/lib/types";
 import { parseEventDateLocal } from "@/lib/utils/date";
@@ -45,12 +46,14 @@ export function EventCard({ event }: EventCardProps) {
     >
       <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] overflow-hidden hover:shadow-lg transition-shadow duration-200 flex flex-col h-full">
         {/* Image Section */}
-        <div className="relative w-full h-48 sm:h-56 lg:h-60">
+        <div className="relative w-full aspect-[335/223] overflow-hidden">
           {event.cover_image_url ? (
-            <img
+            <Image
               src={event.cover_image_url}
               alt={event.event_name}
-              className="w-full h-full object-cover"
+              fill
+              className="object-cover"
+              unoptimized={event.cover_image_url.startsWith("http")}
             />
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-orange-400 via-red-500 to-purple-600" />
