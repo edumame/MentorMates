@@ -4,9 +4,7 @@ import { createAgent, openai, TextMessage } from "@inngest/agent-kit";
 import { StreamTranscriptItem } from "@/modules/meetings/types";
 import { createSupabaseServiceClient } from "@/app/utils/supabase/server";
 
-const summarizer = createAgent({
-  name: "summarizer",
-  system: `
+const system = `
     You are an expert pitch feedback summarizer and mentor. You act as a supportive Pitch Judge who listens closely, reflects the student's thinking, and helps them improve through thoughtful, personalized feedback. Your role is to help students who think best out loud feel understood, encouraged, and guided.
 
     You are given a transcript of a student pitching their idea. Your goal is to respond as if you were in the room with them: summarize their idea in your own words, assess how strong the pitch is right now, and give clear, practical advice they can immediately act on. The tone should be warm, encouraging, and specific—never generic or overly academic.
@@ -46,9 +44,7 @@ const summarizer = createAgent({
     ### Improvement Focus
     End with a short, encouraging section that highlights the **top 2-3 things** the student should focus on before their next pitch. Write this as friendly guidance from a mentor—clear, motivating, and easy to remember—so they can track progress and feel momentum over time.
 
-  `.trim(),
-  model: openai({ model: "gpt-4o", apiKey: process.env.OPENAI_API_KEY }),
-});
+  `.trim();
 
 export const meetingsProcessing  = inngest.createFunction(
   { id: "meetings/processing" },
@@ -103,11 +99,19 @@ export const meetingsProcessing  = inngest.createFunction(
       });
     });
 
-    const { output } = await step.run("summarize-transcript", async () => {
-      return summarizer.run(
+    const output = await step.run("summarize-transcript", async () => {
+      const summarizer = createAgent({
+        name: "summarizer",
+        system,
+        model: openai({ model: "gpt-4o", apiKey: process.env.OPENAI_API_KEY }),
+      });
+
+      const { output } = await summarizer.run(
         "Summarize the following transcript: " +
           JSON.stringify(transcriptWithSpeakers)
       );
+
+      return output;
     });
 
     const summary = output.find(
@@ -119,8 +123,6 @@ export const meetingsProcessing  = inngest.createFunction(
     }
 
     await step.run("save-summary", async () => {
-      const summary = (output[0] as TextMessage).content as string;
-
       const { error } = await supabase
         .from("meetings")
         .update({
