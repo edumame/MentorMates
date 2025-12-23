@@ -162,7 +162,7 @@ export const meetingsProcessing  = inngest.createFunction(
       const { data: userSpeakers } = await supabase
         .from("user_profiles")
         .select("*")
-        .in("id", speakerIds);
+        .in("uid", speakerIds);
 
       const { data: agentSpeakers } = await supabase
         .from("agents")
@@ -172,7 +172,7 @@ export const meetingsProcessing  = inngest.createFunction(
       const speakers = [...(userSpeakers ?? []), ...(agentSpeakers ?? [])];
 
       return transcript.map((item) => {
-        const speaker = speakers.find((speaker) => speaker.id === item.speaker_id);
+        const speaker = speakers.find((speaker) => speaker.id === item.speaker_id || speaker.uid === item.speaker_id);
 
         if (!speaker) {
           return {
