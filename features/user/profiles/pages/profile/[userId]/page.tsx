@@ -54,6 +54,13 @@ export default function ProfilePage() {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("projects");
 
+  // Keep the projects list synced after a deletion from the gallery UI
+  const handleProjectDeleted = (projectId: string) => {
+    setProjects((prevProjects) =>
+      prevProjects.filter((project) => project.id !== projectId)
+    );
+  };
+
   const tabs = [
     { key: "projects", label: "Projects" },
     { key: "events", label: "Events" },
@@ -255,6 +262,7 @@ export default function ProfilePage() {
                       ? ProjectBoardContext.MyProjects
                       : ProjectBoardContext.EventGallery
                   }
+                  onProjectDeleted={handleProjectDeleted}
                 />
               )}
             </div>

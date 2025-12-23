@@ -47,6 +47,15 @@ export default function ProjectsPage() {
     }
   };
 
+  // Remove the deleted project locally so the gallery updates immediately
+  const handleProjectDeleted = (projectId: string) => {
+    setProjects((prevProjects) =>
+      prevProjects.filter((project) => project.id !== projectId)
+    );
+    // Re-fetch from the API to stay in sync with the server state
+    fetchProjects();
+  };
+
   const filteredProjects = useMemo(() => {
     let filtered = projects;
 
@@ -197,6 +206,7 @@ export default function ProjectsPage() {
                   projectList={filteredProjects}
                   session={session}
                   projectBoardContext={ProjectBoardContext.MyProjects}
+                  onProjectDeleted={handleProjectDeleted}
                 />
               ) : (
                 <div className="flex flex-col items-center justify-center py-24 text-center border border-dashed border-[rgba(0,0,0,0.15)] rounded-[20px] p-8">
