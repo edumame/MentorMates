@@ -11,7 +11,6 @@ import { Footer } from "@/components/layout/Footer";
 import { useAuth } from "@/features/user/authentication/auth/AuthContext";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 import { Search } from "lucide-react";
-import { Book } from "@mui/icons-material";
 
 type FilterType = "all" | "public" | "mine";
 
@@ -45,6 +44,15 @@ export default function ProjectsPage() {
       console.error("Error fetching projects:", error);
       setProjects([]);
     }
+  };
+
+  // Keep local gallery state in sync after a deletion
+  const handleProjectDeleted = (projectId: string) => {
+    setProjects((prevProjects) =>
+      prevProjects.filter((project) => project.id !== projectId)
+    );
+    // Re-fetch to ensure server state (tracks, prizes) stay updated
+    fetchProjects();
   };
 
   const filteredProjects = useMemo(() => {
@@ -197,6 +205,7 @@ export default function ProjectsPage() {
                   projectList={filteredProjects}
                   session={session}
                   projectBoardContext={ProjectBoardContext.MyProjects}
+                  onProjectDeleted={handleProjectDeleted}
                 />
               ) : (
                 <div className="flex flex-col items-center justify-center py-24 text-center border border-dashed border-[rgba(0,0,0,0.15)] rounded-[20px] p-8">
