@@ -144,7 +144,7 @@ export function LearnLayout() {
             </button>
             <Button onClick={() => setIsDialogOpen(true)}>
                 <PlusIcon />
-                New Meeting
+                <div className="hidden sm:block">New Conversation</div>
             </Button>
           </div>
         </div>
