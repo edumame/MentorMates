@@ -88,6 +88,9 @@ export function VotingContent({
           <p className="text-gray-600 mt-1">
             Choose your favorite {maxVotes} projects to vote for
           </p>
+          <p className="text-sm text-gray-500 mt-2">
+            Individual vote totals stay hidden until organizers publish results.
+          </p>
         </div>
         {hasJoined && (
           <VoteCounter
@@ -147,8 +150,7 @@ export function VotingContent({
                   key={project.id}
                   project={project}
                   hasVoted={hasVoted(project.id)}
-                  voteCount={getVoteCount(project.id)}
-                  onToggleVote={() => toggleVote(project.id)}
+                  toggleVoteAction={() => toggleVote(project.id)}
                   canVote={canVote}
                   eventSlug={slug}
                 />

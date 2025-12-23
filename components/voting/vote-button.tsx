@@ -6,20 +6,22 @@ import { useState } from "react";
 
 interface VoteButtonProps {
   hasVoted: boolean;
-  voteCount: number;
-  onToggle: () => Promise<boolean>;
+  toggleAction: () => Promise<boolean>;
+  voteCount?: number;
   disabled?: boolean;
   canVote?: boolean;
   size?: "sm" | "default" | "lg";
+  showVoteCount?: boolean;
 }
 
 export function VoteButton({
   hasVoted,
-  voteCount,
-  onToggle,
+  toggleAction,
   disabled = false,
   canVote = true,
   size = "default",
+  voteCount,
+  showVoteCount = false,
 }: VoteButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
 
@@ -31,7 +33,7 @@ export function VoteButton({
     
     setIsLoading(true);
     try {
-      await onToggle();
+      await toggleAction();
     } finally {
       setIsLoading(false);
     }
@@ -62,9 +64,11 @@ export function VoteButton({
         <Vote className="w-4 h-4 mr-2" />
       )}
       <span>{hasVoted ? "Voted" : "Vote"}</span>
-      <span className="ml-2 px-1.5 py-0.5 bg-white/20 rounded text-xs font-medium">
-        {voteCount}
-      </span>
+      {showVoteCount && typeof voteCount === "number" && (
+        <span className="ml-2 px-1.5 py-0.5 bg-white/20 rounded text-xs font-medium">
+          {voteCount}
+        </span>
+      )}
     </Button>
   );
 }
