@@ -44,6 +44,11 @@ export function EventPageTabs({
     badge: projectCount,
   });
 
+  tabs.push({
+    name: "Voting",
+    path: `/events/${eventId}/voting`,
+  });
+
   tabs.push({ name: "FAQs", path: `/events/${eventId}/faqs` });
   // { name: "Gallery", path: `/events/${eventId}/gallery` }, // TODO: Add back when image upload functionality is ready
 
