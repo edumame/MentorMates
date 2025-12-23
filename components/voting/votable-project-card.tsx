@@ -9,8 +9,7 @@ import Link from "next/link";
 interface VotableProjectCardProps {
   project: Project;
   hasVoted: boolean;
-  voteCount: number;
-  onToggleVote: () => Promise<boolean>;
+  toggleVoteAction: () => Promise<boolean>;
   canVote: boolean;
   eventSlug: string;
 }
@@ -18,8 +17,7 @@ interface VotableProjectCardProps {
 export function VotableProjectCard({
   project,
   hasVoted,
-  voteCount,
-  onToggleVote,
+  toggleVoteAction,
   canVote,
   eventSlug,
 }: VotableProjectCardProps) {
@@ -116,8 +114,7 @@ export function VotableProjectCard({
           <div className="mt-auto pt-2">
             <VoteButton
               hasVoted={hasVoted}
-              voteCount={voteCount}
-              onToggle={onToggleVote}
+              toggleAction={toggleVoteAction}
               canVote={canVote}
               size="default"
             />
