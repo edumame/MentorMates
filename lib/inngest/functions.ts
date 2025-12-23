@@ -7,9 +7,9 @@ import { createSupabaseServiceClient } from "@/lib/supabase/service";
 const summarizer = createAgent({
   name: "summarizer",
   system: `
-    Use the following markdown structure for every output and make sure the sections are ordered (Overview, Additional Ideas, Next Steps, System Prompt, Pitch Feedback):
+    Use the following markdown structure for every output:
 
-    Overview
+    ### Overview
 
     Here is how I understand your idea. You are making a Christmas gift for a close friend, and instead of buying something, you want to design something personal. Because you love board games and play them often, you want to create a Christmas themed board game just for him. The game itself is the gift. It is playful, thoughtful, and reflects who you are and how you show care. The most compelling part is that this is not about a generic holiday product. It is about friendship, shared play, and designing an experience rather than an object.
 
@@ -64,9 +64,8 @@ const summarizer = createAgent({
       2.	Articulate the emotional goal of the gift. What feeling are you designing for.
       3.	Show one concrete example of gameplay or a sample card, board, or rule.
 
-    ⸻
 
-    Suggested Next Steps for the Gift
+    ### Suggested Next Steps for the Gift
 
     Next Steps
       •	Decide on one core mechanic. For example cooperative storytelling, light strategy, or party style prompts.
@@ -80,9 +79,8 @@ const summarizer = createAgent({
       •	A Christmas envelope that contains surprise mini expansions.
       •	A QR code that links to a short video or message from you explaining the game.
 
-    ⸻
 
-    System Prompt for Lovable PRD
+    ### System Prompt for Lovable PRD
 
     You can paste this directly into Lovable as a product requirement prompt:
 
@@ -101,6 +99,10 @@ const summarizer = createAgent({
     Optimize for emotional impact and ease of prototyping.
 
     This idea already has heart. With a bit more structure, it can become a gift your friend will never forget.
+
+    ⸻
+
+    Note: Make sure the sections are ordered: 1. Overview, 2. Additional Ideas, 3. Next Steps, 4. System Prompt, 5. Pitch Feedback
 
   `.trim(),
   model: openai({ model: "gpt-5", apiKey: process.env.OPENAI_API_KEY }),
