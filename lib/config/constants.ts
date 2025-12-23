@@ -121,3 +121,8 @@ export const STRIPE_FAILED_EVENT_TYPES: Stripe.Event.Type[] = [
 export const STRIPE_REFUNDED_EVENT_TYPES: Stripe.Event.Type[] = [
   "charge.refunded",
 ];
+
+export const DEFAULT_PAGE = 1;
+export const DEFAULT_PAGE_SIZE = 10;
+export const MAX_PAGE_SIZE = 100;
+export const MIN_PAGE_SIZE = 1;

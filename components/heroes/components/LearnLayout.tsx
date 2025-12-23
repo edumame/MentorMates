@@ -4,13 +4,19 @@ import { data, LearnItem } from "@/lib/LearnData";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
+import { MentorCards } from "./MentorCards";
 import { supabase } from "@/lib/supabase";
 import { Lesson } from "@/lib/types";
+import { NewMeetingDialog } from "@/modules/meetings/ui/components/new-meeting-dialog";
+import { Button } from "@/components/ui/button";
+import { PlusIcon } from "lucide-react";
 
 export function LearnLayout() {
   const [bookmarkedIds, setBookmarkedIds] = useState<Set<number>>(new Set());
   const [activeTab, setActiveTab] = useState<"all" | "bookmark">("all");
   const [exclusiveLessons, setExclusiveLessons] = useState<LearnItem[]>([]);
+
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   useEffect(() => {
     try {
@@ -108,6 +114,7 @@ export function LearnLayout() {
   };
   return (
     <PageContainer>
+      <NewMeetingDialog open={isDialogOpen} onOpenChange={setIsDialogOpen} />
       <PageContent className="pt-[24px] pb-8">
         <div className="flex flex-col gap-[24px] px-[32px]">
         <div className="flex items-center justify-between">
@@ -135,8 +142,13 @@ export function LearnLayout() {
             >
               Bookmark
             </button>
+            <Button onClick={() => setIsDialogOpen(true)}>
+                <PlusIcon />
+                New Meeting
+            </Button>
           </div>
         </div>
+        <MentorCards />
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {(activeTab === "bookmark"
           ? allItems.filter((d) => bookmarkedIds.has(d.id))
