@@ -89,6 +89,7 @@ export async function POST(req: NextRequest) {
             call,
             openAiApiKey: process.env.OPENAI_API_KEY!,
             agentUserId: existingAgent.id,
+            model: "gpt-5.2-realtime-preview",
         });
 
         realtimeClient.updateSession({
