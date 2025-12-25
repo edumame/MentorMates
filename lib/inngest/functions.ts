@@ -4,6 +4,22 @@ import { createAgent, openai, TextMessage } from "@inngest/agent-kit";
 import { StreamTranscriptItem } from "@/modules/meetings/types";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 
+function extractOverallScore(summary: string): number {
+  const match = summary.match(/\b(\d{1,3})\s*\/\s*100\b/);
+
+  if (!match) {
+    throw new Error("Could not extract Overall Score from summary");
+  }
+
+  const score = Number(match[1]);
+
+  if (Number.isNaN(score) || score < 0 || score > 100) {
+    throw new Error(`Invalid score extracted: ${match[1]}`);
+  }
+
+  return score;
+};
+
 const summarizer = createAgent({
   name: "summarizer",
   system: `
@@ -206,11 +222,13 @@ export const meetingsProcessing  = inngest.createFunction(
 
     await step.run("save-summary", async () => {
       const summary = (output[0] as TextMessage).content as string;
+      const score = extractOverallScore(summary);
 
       const { error } = await supabase
         .from("meetings")
         .update({
           summary,
+          score,
           status: "completed",
         })
         .eq("id", event.data.meetingId);
