@@ -14,8 +14,6 @@ const { data: systemPrompt } = await supabase
   .eq("agent_id", agentId)
   .maybeSingle();
 
-console.log(systemPrompt);
-
 function extractOverallScore(summary: string): number {
   const match = summary.match(/\b(\d{1,3})\s\/\s100\b/);
 
