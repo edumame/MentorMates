@@ -4,8 +4,20 @@ import { createAgent, openai, TextMessage } from "@inngest/agent-kit";
 import { StreamTranscriptItem } from "@/modules/meetings/types";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 
+//should be able to get this dynamically in the future
+const agentId = "summarizer";
+
+const supabase = await createSupabaseServiceClient();
+const { data: systemPrompt } = await supabase
+  .from("system_prompts")
+  .select("prompt_text")
+  .eq("agent_id", agentId)
+  .maybeSingle();
+
+console.log(systemPrompt);
+
 function extractOverallScore(summary: string): number {
-  const match = summary.match(/\b(\d{1,3})\s*\/\s*100\b/);
+  const match = summary.match(/\b(\d{1,3})\s\/\s100\b/);
 
   if (!match) {
     throw new Error("Could not extract Overall Score from summary");
@@ -18,11 +30,13 @@ function extractOverallScore(summary: string): number {
   }
 
   return score;
-};
+}
 
 const summarizer = createAgent({
-  name: "summarizer",
-  system: `
+  name: agentId,
+  system:
+    systemPrompt?.prompt_text ??
+    `
     You are a Pitch Judge and Socratic thought partner for business and product students.
 
     Your role is not to hype ideas or offer surface-level praise. Your role is to help students think more clearly, rigorously, and honestly about their ideas. You listen carefully, reflect their thinking back to them, and ask sharp questions that expose assumptions, test logic, and strengthen reasoning.
@@ -157,7 +171,7 @@ const summarizer = createAgent({
   model: openai({ model: "gpt-5", apiKey: process.env.OPENAI_API_KEY }),
 });
 
-export const meetingsProcessing  = inngest.createFunction(
+export const meetingsProcessing = inngest.createFunction(
   { id: "meetings/processing" },
   { event: "meetings/processing" },
   async ({ event, step }) => {
@@ -188,7 +202,10 @@ export const meetingsProcessing  = inngest.createFunction(
       const speakers = [...(userSpeakers ?? []), ...(agentSpeakers ?? [])];
 
       return transcript.map((item) => {
-        const speaker = speakers.find((speaker) => speaker.id === item.speaker_id || speaker.uid === item.speaker_id);
+        const speaker = speakers.find(
+          (speaker) =>
+            speaker.id === item.speaker_id || speaker.uid === item.speaker_id
+        );
 
         if (!speaker) {
           return {
@@ -197,7 +214,7 @@ export const meetingsProcessing  = inngest.createFunction(
               name: "Unknown",
             },
           };
-        };
+        }
 
         return {
           ...item,
@@ -209,7 +226,8 @@ export const meetingsProcessing  = inngest.createFunction(
     });
 
     const { output } = await summarizer.run(
-      "Summarize the following transcript: " + JSON.stringify(transcriptWithSpeakers)
+      "Summarize the following transcript: " +
+        JSON.stringify(transcriptWithSpeakers)
     );
 
     const summary = output.find(
@@ -222,18 +240,25 @@ export const meetingsProcessing  = inngest.createFunction(
 
     await step.run("save-summary", async () => {
       const summary = (output[0] as TextMessage).content as string;
-      const score = extractOverallScore(summary);
+      
+      let score: number | null = null;
+      try {
+        score = extractOverallScore(summary);
+      } catch (error) {
+        console.error("Failed to extract overall score:", error);
+        // Continue without score - job should still complete
+      }
 
       const { error } = await supabase
         .from("meetings")
         .update({
           summary,
-          score,
+          ...(score !== null && { score }),
           status: "completed",
         })
         .eq("id", event.data.meetingId);
 
       if (error) throw error;
     });
-  },
+  }
 );
