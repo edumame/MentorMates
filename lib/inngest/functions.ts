@@ -118,7 +118,15 @@ export const meetingsProcessing = inngest.createFunction(
       });
     });
 
-    const summarizer = await createSummarizerAgent(agentId);
+    const systemPrompt = await step.run("get-system-prompt", async () => {
+      return await getSystemPrompt(agentId);
+    });
+
+    const summarizer = createAgent({
+      name: agentId,
+      system: systemPrompt,
+      model: openai({ model: "gpt-5", apiKey: process.env.OPENAI_API_KEY }),
+    });
 
     const { output } = await summarizer.run(
       "Summarize the following transcript: " +
