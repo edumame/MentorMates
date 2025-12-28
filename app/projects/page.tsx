@@ -11,7 +11,6 @@ import { Footer } from "@/components/layout/Footer";
 import { useAuth } from "@/features/user/authentication/auth/AuthContext";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 import { Search } from "lucide-react";
-import { Book } from "@mui/icons-material";
 
 type FilterType = "all" | "public" | "mine";
 

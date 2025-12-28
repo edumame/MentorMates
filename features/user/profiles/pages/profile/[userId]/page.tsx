@@ -12,7 +12,6 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Edit, Language } from "@mui/icons-material";
 import { FaLinkedin, FaGithub, FaXTwitter } from "react-icons/fa6";
 import Link from "next/link";
 import ProjectBoard from "@/features/projects/components/displays/ProjectBoard/ProjectBoard";
@@ -21,7 +20,7 @@ import { useToast } from "@/lib/hooks/use-toast";
 import { Toaster } from "@/components/ui/toaster";
 import Image from "next/image";
 import { getRoleLabel } from "@/features/user/roles/roles";
-import { Loader2 } from "lucide-react";
+import { Languages, Loader2, PenSquare } from "lucide-react";
 
 interface EventWithRole extends EventItem {
   user_event_roles: {
@@ -213,7 +212,7 @@ export default function ProfilePage() {
                     }}
                     className="absolute -right-8 top-1/2 -translate-y-1/2 p-1 opacity-0 group-hover:opacity-100 hover:bg-gray-100 rounded-full transition-all"
                   >
-                    <Edit className="w-5 h-5 text-gray-600" />
+                    <PenSquare className="w-5 h-5 text-gray-600" />
                   </button>
                 )} */}
               </>
@@ -346,7 +345,7 @@ export default function ProfilePage() {
                         }}
                         className="p-2 hover:bg-gray-100 rounded-full transition-all"
                       >
-                        <Edit className="w-5 h-5 text-gray-600" />
+                        <PenSquare className="w-5 h-5 text-gray-600" />
                       </button>
                     )}
                   </CardTitle>
@@ -397,7 +396,7 @@ export default function ProfilePage() {
                         />
                       </div>
                       <div className="flex items-center gap-2">
-                        <Language className="w-5 h-5 text-gray-600" />
+                        <Languages className="w-5 h-5 text-gray-600" />
                         <Input
                           type="url"
                           placeholder="Portfolio Website URL"
@@ -467,7 +466,7 @@ export default function ProfilePage() {
                           rel="noopener noreferrer"
                           className="flex items-center gap-2 text-gray-600 hover:text-gray-800"
                         >
-                          <Language className="w-5 h-5" />
+                          <Languages className="w-5 h-5" />
                           <span>Portfolio Website</span>
                         </a>
                       )}
