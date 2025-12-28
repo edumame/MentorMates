@@ -53,7 +53,7 @@ export default function ProfilePage() {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("projects");
 
-  // Keep the local project list in sync with deletions
+  // Keep the projects list synced after a deletion from the gallery UI
   const handleProjectDeleted = (projectId: string) => {
     setProjects((prevProjects) =>
       prevProjects.filter((project) => project.id !== projectId)

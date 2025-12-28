@@ -41,7 +41,7 @@ export const CommandSelect = ({
                <div>{selectedOption?.children ?? placeholder}</div>
                 <ChevronsUpDownIcon />
             </Button>
-            <CommandDialog open={open} onOpenChange={handleOpenChange}>
+            <CommandDialog shouldFilter={!onSearch} open={open} onOpenChange={handleOpenChange}>
                 <CommandInput placeholder="Search..." onValueChange={onSearch} />
                 <CommandList>
                     <CommandEmpty>

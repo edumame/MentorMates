@@ -123,7 +123,7 @@ export default function ProfilePage() {
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
 
-  // Remove deleted projects locally so the gallery updates immediately
+  // Keep the profile's project list in sync after deletions from the gallery
   const handleProjectDeleted = (projectId: string) => {
     setProjects((prevProjects) =>
       prevProjects.filter((project) => project.id !== projectId)

@@ -3,10 +3,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EventScoringConfig, ScoringCriterion, EventTrack } from "@/lib/types";
 import Papa from "papaparse";
 import { supabase } from "@/lib/supabase";
 import { Download } from "@mui/icons-material";
+import { Vote, Gavel } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -15,6 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { VotingResultsPanel } from "@/components/voting/voting-results-panel";
 
 interface DashboardProjectScore {
   project_id: string;
@@ -453,182 +456,212 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
   }, [eventId, calculateTrackScores]);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Live Scoring Dashboard</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h3 className="text-lg font-medium">Live Scoring Dashboard</h3>
-            <div className="flex space-x-2">
-              <Button onClick={exportRawData} variant="outline" size="sm" disabled={loading}>
-                <Download className="w-4 h-4 mr-2" />
-                Export Raw Data
-              </Button>
-              <Button onClick={exportScores} variant="outline" size="sm" disabled={loading}>
-                <Download className="w-4 h-4 mr-2" />
-                Export Tables
-              </Button>
-            </div>
-          </div>
+    <div className="space-y-6">
+      <Tabs defaultValue="judge-scores" className="w-full">
+        <TabsList className="grid w-full grid-cols-2 max-w-md">
+          <TabsTrigger value="judge-scores" className="flex items-center gap-2">
+            <Gavel className="w-4 h-4" />
+            Judge Scores
+          </TabsTrigger>
+          <TabsTrigger value="peoples-choice" className="flex items-center gap-2">
+            <Vote className="w-4 h-4" />
+            People&apos;s Choice
+          </TabsTrigger>
+        </TabsList>
 
-          {loading ? (
-            <div className="text-center py-8">Loading scores...</div>
-          ) : (
-            <div className="space-y-6">
-              {Object.keys(trackScores).length === 0 ? (
-                <div className="text-center py-8">
-                  <p className="text-gray-600">No scores available yet.</p>
+        {/* Judge Scores Tab */}
+        <TabsContent value="judge-scores" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Judge Scoring Dashboard</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-lg font-medium">Live Judge Scores</h3>
+                  <div className="flex space-x-2">
+                    <Button onClick={exportRawData} variant="outline" size="sm" disabled={loading}>
+                      <Download className="w-4 h-4 mr-2" />
+                      Export Raw Data
+                    </Button>
+                    <Button onClick={exportScores} variant="outline" size="sm" disabled={loading}>
+                      <Download className="w-4 h-4 mr-2" />
+                      Export Tables
+                    </Button>
+                  </div>
                 </div>
-              ) : (
-                <>
-                  {Object.entries(trackScores).map(([trackId, scores]) => {
-                    // Find the corresponding track name
-                    const trackName =
-                      eventTracks.find((t) => t.track_id === trackId)?.name ||
-                      Object.values(scoringConfig.tracks).find((t) =>
-                        trackId.includes(t.name)
-                      )?.name ||
-                      trackId;
 
-                    const choiceCriteria =
-                      scoringConfig.tracks[trackId]?.criteria.filter(
-                        (c) => c.type === "multiplechoice"
-                      ) || [];
+                {loading ? (
+                  <div className="text-center py-8">Loading scores...</div>
+                ) : (
+                  <div className="space-y-6">
+                    {Object.keys(trackScores).length === 0 ? (
+                      <div className="text-center py-8">
+                        <p className="text-gray-600">No judge scores available yet.</p>
+                      </div>
+                    ) : (
+                      <>
+                        {Object.entries(trackScores).map(([trackId, scores]) => {
+                          // Find the corresponding track name
+                          const trackName =
+                            eventTracks.find((t) => t.track_id === trackId)?.name ||
+                            Object.values(scoringConfig.tracks).find((t) =>
+                              trackId.includes(t.name)
+                            )?.name ||
+                            trackId;
 
-                    const numericCriteria =
-                      scoringConfig.tracks[trackId]?.criteria.filter(
-                        (c) => c.type !== "multiplechoice"
-                      ) || [];
+                          const choiceCriteria =
+                            scoringConfig.tracks[trackId]?.criteria.filter(
+                              (c) => c.type === "multiplechoice"
+                            ) || [];
 
-                    return (
-                      <Card key={trackId} className="overflow-hidden">
-                        <div className="bg-primary text-primary-foreground p-4">
-                          <h3 className="text-lg font-medium">
-                            {trackName} Track
-                          </h3>
-                        </div>
-                        <CardContent className="p-0">
-                          <div className="overflow-x-auto">
-                            <Table>
-                              <TableHeader>
-                                <TableRow>
-                                  <TableHead className="w-16 text-center">
-                                    Rank
-                                  </TableHead>
-                                  <TableHead className="min-w-[150px] max-w-[200px]">
-                                    Project
-                                  </TableHead>
-                                  <TableHead className="min-w-[120px] max-w-[150px]">
-                                    Lead
-                                  </TableHead>
-                                  <TableHead className="text-right min-w-[100px] px-4">
-                                    Total Average
-                                  </TableHead>
-                                  {numericCriteria.map((c) => (
-                                    <TableHead
-                                      key={c.id}
-                                      className="text-right min-w-[100px] max-w-[120px] px-4"
-                                    >
-                                      <div className="break-words">
-                                        {c.name}
-                                        {c.weight && c.weight !== 1 && (
-                                          <span className="text-xs text-muted-foreground ml-1">
-                                            (×{c.weight})
-                                          </span>
-                                        )}
-                                      </div>
-                                    </TableHead>
-                                  ))}
-                                  {choiceCriteria.map((c) => (
-                                    <TableHead
-                                      key={c.id}
-                                      className="text-right min-w-[120px] max-w-[150px] px-4"
-                                    >
-                                      <div className="break-words">
-                                        {c.name}
-                                      </div>
-                                    </TableHead>
-                                  ))}
-                                  <TableHead className="text-center w-20 px-4">
-                                    Judges
-                                  </TableHead>
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                {scores.map((score, index) => (
-                                  <TableRow key={score.projectId}>
-                                    <TableCell className="font-medium w-16 text-center">
-                                      {index + 1}
-                                    </TableCell>
-                                    <TableCell className="min-w-[150px] max-w-[200px]">
-                                      <div className="break-words">
-                                        {score.projectName}
-                                      </div>
-                                    </TableCell>
-                                    <TableCell className="min-w-[120px] max-w-[150px]">
-                                      <div className="break-words">
-                                        {score.leadName}
-                                      </div>
-                                    </TableCell>
-                                    <TableCell className="text-right font-medium min-w-[100px] px-4 tabular-nums">
-                                      {score.averageScore.toFixed(2)}
-                                    </TableCell>
-                                    {numericCriteria.map((c) => {
-                                      const criterionScore =
-                                        score.criterionScores[c.id];
-                                      return (
-                                        <TableCell
-                                          key={c.id}
-                                          className="text-right min-w-[100px] max-w-[120px] px-4 tabular-nums"
-                                        >
-                                          {criterionScore
-                                            ? criterionScore.average.toFixed(2)
-                                            : "—"}
-                                        </TableCell>
-                                      );
-                                    })}
-                                    {choiceCriteria.map((c) => {
-                                      const counts =
-                                        score.choiceCounts?.[c.id] || {};
-                                      return (
-                                        <TableCell
-                                          key={c.id}
-                                          className="text-right min-w-[120px] max-w-[150px] px-4"
-                                        >
-                                          <div className="break-words text-sm tabular-nums">
-                                            {(c.options || []).map((opt, i) => (
-                                              <span key={opt}>
-                                                {i > 0 && ", "}
-                                                <span className="text-blue-500">
-                                                  {opt}
+                          const numericCriteria =
+                            scoringConfig.tracks[trackId]?.criteria.filter(
+                              (c) => c.type !== "multiplechoice"
+                            ) || [];
+
+                          return (
+                            <Card key={trackId} className="overflow-hidden">
+                              <div className="bg-primary text-primary-foreground p-4">
+                                <h3 className="text-lg font-medium">
+                                  {trackName} Track
+                                </h3>
+                              </div>
+                              <CardContent className="p-0">
+                                <div className="overflow-x-auto">
+                                  <Table>
+                                    <TableHeader>
+                                      <TableRow>
+                                        <TableHead className="w-16 text-center">
+                                          Rank
+                                        </TableHead>
+                                        <TableHead className="min-w-[150px] max-w-[200px]">
+                                          Project
+                                        </TableHead>
+                                        <TableHead className="min-w-[120px] max-w-[150px]">
+                                          Lead
+                                        </TableHead>
+                                        <TableHead className="text-right min-w-[100px] px-4">
+                                          Total Average
+                                        </TableHead>
+                                        {numericCriteria.map((c) => (
+                                          <TableHead
+                                            key={c.id}
+                                            className="text-right min-w-[100px] max-w-[120px] px-4"
+                                          >
+                                            <div className="break-words">
+                                              {c.name}
+                                              {c.weight && c.weight !== 1 && (
+                                                <span className="text-xs text-muted-foreground ml-1">
+                                                  (×{c.weight})
                                                 </span>
-                                                : {counts[opt] || 0}
-                                              </span>
-                                            ))}
-                                          </div>
-                                        </TableCell>
-                                      );
-                                    })}
-                                    <TableCell className="text-center w-20 px-4 tabular-nums">
-                                      {score.numberOfJudges}
-                                    </TableCell>
-                                  </TableRow>
-                                ))}
-                              </TableBody>
-                            </Table>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </>
-              )}
-            </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+                                              )}
+                                            </div>
+                                          </TableHead>
+                                        ))}
+                                        {choiceCriteria.map((c) => (
+                                          <TableHead
+                                            key={c.id}
+                                            className="text-right min-w-[120px] max-w-[150px] px-4"
+                                          >
+                                            <div className="break-words">
+                                              {c.name}
+                                            </div>
+                                          </TableHead>
+                                        ))}
+                                        <TableHead className="text-center w-20 px-4">
+                                          Judges
+                                        </TableHead>
+                                      </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                      {scores.map((score, index) => (
+                                        <TableRow key={score.projectId}>
+                                          <TableCell className="font-medium w-16 text-center">
+                                            {index + 1}
+                                          </TableCell>
+                                          <TableCell className="min-w-[150px] max-w-[200px]">
+                                            <div className="break-words">
+                                              {score.projectName}
+                                            </div>
+                                          </TableCell>
+                                          <TableCell className="min-w-[120px] max-w-[150px]">
+                                            <div className="break-words">
+                                              {score.leadName}
+                                            </div>
+                                          </TableCell>
+                                          <TableCell className="text-right font-medium min-w-[100px] px-4 tabular-nums">
+                                            {score.averageScore.toFixed(2)}
+                                          </TableCell>
+                                          {numericCriteria.map((c) => {
+                                            const criterionScore =
+                                              score.criterionScores[c.id];
+                                            return (
+                                              <TableCell
+                                                key={c.id}
+                                                className="text-right min-w-[100px] max-w-[120px] px-4 tabular-nums"
+                                              >
+                                                {criterionScore
+                                                  ? criterionScore.average.toFixed(2)
+                                                  : "—"}
+                                              </TableCell>
+                                            );
+                                          })}
+                                          {choiceCriteria.map((c) => {
+                                            const counts =
+                                              score.choiceCounts?.[c.id] || {};
+                                            return (
+                                              <TableCell
+                                                key={c.id}
+                                                className="text-right min-w-[120px] max-w-[150px] px-4"
+                                              >
+                                                <div className="break-words text-sm tabular-nums">
+                                                  {(c.options || []).map((opt, i) => (
+                                                    <span key={opt}>
+                                                      {i > 0 && ", "}
+                                                      <span className="text-blue-500">
+                                                        {opt}
+                                                      </span>
+                                                      : {counts[opt] || 0}
+                                                    </span>
+                                                  ))}
+                                                </div>
+                                              </TableCell>
+                                            );
+                                          })}
+                                          <TableCell className="text-center w-20 px-4 tabular-nums">
+                                            {score.numberOfJudges}
+                                          </TableCell>
+                                        </TableRow>
+                                      ))}
+                                    </TableBody>
+                                  </Table>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          );
+                        })}
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* People's Choice Voting Tab */}
+        <TabsContent value="peoples-choice" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>People&apos;s Choice Voting</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <VotingResultsPanel eventId={eventId} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 }

@@ -46,12 +46,12 @@ export default function ProjectsPage() {
     }
   };
 
-  // Keep local gallery state in sync after a deletion
+  // Remove the deleted project locally so the gallery updates immediately
   const handleProjectDeleted = (projectId: string) => {
     setProjects((prevProjects) =>
       prevProjects.filter((project) => project.id !== projectId)
     );
-    // Re-fetch to ensure server state (tracks, prizes) stay updated
+    // Re-fetch from the API to stay in sync with the server state
     fetchProjects();
   };
 

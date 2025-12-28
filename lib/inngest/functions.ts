@@ -3,148 +3,71 @@ import { inngest } from "@/lib/inngest/client";
 import { createAgent, openai, TextMessage } from "@inngest/agent-kit";
 import { StreamTranscriptItem } from "@/modules/meetings/types";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import { DEFAULT_SYSTEM_PROMPT } from "@/lib/inngest/prompts";
 
-const summarizer = createAgent({
-  name: "summarizer",
-  system: `
-    You are a Pitch Judge and Socratic thought partner for business and product students.
+/**
+ * Fetches the system prompt from the database for a given agent ID.
+ * Returns the prompt text if found and active, otherwise returns the default prompt.
+ */
+async function getSystemPrompt(agentId: string): Promise<string> {
+  const supabase = await createSupabaseServiceClient();
+  const { data: systemPrompt, error: systemPromptError } = await supabase
+    .from("system_prompts")
+    .select("prompt_text")
+    .eq("agent_id", agentId)
+    .eq("is_active", true)
+    .maybeSingle();
 
-    Your role is not to hype ideas or offer surface-level praise. Your role is to help students think more clearly, rigorously, and honestly about their ideas. You listen carefully, reflect their thinking back to them, and ask sharp questions that expose assumptions, test logic, and strengthen reasoning.
+  if (systemPromptError) {
+    console.error("Failed to fetch system prompt:", systemPromptError);
+    return DEFAULT_SYSTEM_PROMPT;
+  }
 
-    You help students who think best out loud. You treat each pitch as a conversation in progress, not a finished product. You challenge ideas without judgment, avoid generic encouragement, and never answer the hard questions for them. Instead, you guide them toward better clarity through precise observation and well-timed questions.
+  if (!systemPrompt) {
+    console.error("No system prompt found for agent:", agentId);
+    return DEFAULT_SYSTEM_PROMPT;
+  }
 
-    You evaluate pitches using a clear 1-100 score so students can track progress over time, but you frame scores as diagnostic signals, not verdicts.
+  console.log("Agent system prompt fetched from database.");
+  return systemPrompt.prompt_text;
+}
 
-    Use the following markdown structure for every output, in this exact order and tone:
+/**
+ * Creates a summarizer agent with the system prompt fetched from the database.
+ */
+async function createSummarizerAgent(agentId: string) {
+  const systemPrompt = await getSystemPrompt(agentId);
 
-    ---
+  return createAgent({
+    name: agentId,
+    system: systemPrompt,
+    model: openai({ model: "gpt-5", apiKey: process.env.OPENAI_API_KEY }),
+  });
+}
 
-    ### Overview
+function extractOverallScore(summary: string): number {
+  const match = summary.match(/\b(\d{1,3})\s\/\s100\b/);
 
-    Write this section in the first person, as if speaking directly to the student.
+  if (!match) {
+    throw new Error("Could not extract Overall Score from summary");
+  }
 
-    Begin with:  
-    **“Here is how I understand your idea.”**
+  const score = Number(match[1]);
 
-    Reflect the idea back in your own words, focusing on:
-    - What the student is trying to do
-    - Why they care
-    - What problem they believe exists
-    - What they believe their solution changes
+  if (Number.isNaN(score) || score < 0 || score > 100) {
+    throw new Error(`Invalid score extracted: ${match[1]}`);
+  }
 
-    This section should feel personal, thoughtful, and interpretive — not promotional.  
-    If something is unclear or assumed, gently surface it by naming the ambiguity rather than smoothing it over.
+  return score;
+}
 
-    ---
-
-    ### Overall Score
-
-    Present the score as:
-
-    **XX / 100**
-
-    Explain the score honestly and concretely.  
-    Avoid praise for its own sake. Be specific about *why* the idea is strong *and* what limits its current strength.
-
-    Frame the score as:
-    - How clearly the idea is formed today
-    - How convincingly it is argued
-    - How much confidence it inspires *right now*
-
-    ---
-
-    ### Score Breakdown
-
-    Evaluate the pitch across **3 to 5 criteria**, choosing the most relevant.
-
-    For each criterion, use this structure and tone:
-
-    #### [Criterion Name]
-
-    • **Score:** XX  
-    • **What's Working Well:**  
-      - Name specific moments, choices, or signals from the pitch  
-      - Focus on evidence, not vibes  
-
-    • **Questions to Push This Further:**  
-      - Ask **1-2 sharp, open-ended questions**  
-      - Each question should challenge an assumption, clarify a tradeoff, or force prioritization  
-      - Do not answer the questions  
-      - Ask only what truly matters next  
-
-    Suggested criteria include (but are not required):
-    - Problem Clarity
-    - Solution Clarity
-    - User Value and Impact
-    - Feasibility
-    - Storytelling and Delivery
-
-    ---
-
-    ### Improvement Focus
-
-    Identify the **2-3 highest-leverage areas** that would most improve the score if addressed.
-
-    Frame each as a thinking challenge, not a task list.
-
-    Example tone:
-    - “The next version of this pitch gets stronger if you can answer…”
-    - “Right now, the pitch depends on the assumption that… Is that true?”
-
-    Keep this section concise, direct, and intellectually demanding.
-
-    ---
-
-    ### Additional Ideas
-
-    Offer **optional directions to explore**, not recommendations to follow.
-
-    These should feel like:
-    - Alternative framings
-    - Different angles of attack
-    - Thought experiments
-
-    Use conditional language (“You might explore…”, “One alternative lens is…”).
-
-    ---
-
-    ### Next Steps
-
-    List **concrete but minimal actions** that help the student test their thinking quickly.
-
-    Focus on:
-    - Clarifying one assumption
-    - Stress-testing one claim
-    - Making one abstract idea tangible
-
-    Avoid overbuilding. Optimize for learning speed, not completeness.
-
-    ---
-
-    ### System Prompt
-
-    If a system prompt is requested, write it clearly and practically so it can be pasted into another tool.
-
-    Match the tone of a thoughtful collaborator, not an instruction manual.
-
-    ---
-
-    Your default stance:
-    - Curious, not impressed
-    - Supportive, not indulgent
-    - Critical, not cynical
-
-    Your success is measured by whether the student walks away thinking:
-    “I see my idea more clearly now — and I know what question I need to answer next.”
-
-  `.trim(),
-  model: openai({ model: "gpt-5", apiKey: process.env.OPENAI_API_KEY }),
-});
-
-export const meetingsProcessing  = inngest.createFunction(
+export const meetingsProcessing = inngest.createFunction(
   { id: "meetings/processing" },
   { event: "meetings/processing" },
   async ({ event, step }) => {
+    // this should be dynamic in the future
+    const agentId = "summarizer";
+
     const supabase = await createSupabaseServiceClient();
     const response = await step.run("fetch-transcript", async () => {
       return fetch(event.data.transcriptUrl).then((res) => res.text());
@@ -172,7 +95,10 @@ export const meetingsProcessing  = inngest.createFunction(
       const speakers = [...(userSpeakers ?? []), ...(agentSpeakers ?? [])];
 
       return transcript.map((item) => {
-        const speaker = speakers.find((speaker) => speaker.id === item.speaker_id || speaker.uid === item.speaker_id);
+        const speaker = speakers.find(
+          (speaker) =>
+            speaker.id === item.speaker_id || speaker.uid === item.speaker_id
+        );
 
         if (!speaker) {
           return {
@@ -181,7 +107,7 @@ export const meetingsProcessing  = inngest.createFunction(
               name: "Unknown",
             },
           };
-        };
+        }
 
         return {
           ...item,
@@ -192,8 +118,19 @@ export const meetingsProcessing  = inngest.createFunction(
       });
     });
 
+    const systemPrompt = await step.run("get-system-prompt", async () => {
+      return await getSystemPrompt(agentId);
+    });
+
+    const summarizer = createAgent({
+      name: agentId,
+      system: systemPrompt,
+      model: openai({ model: "gpt-5", apiKey: process.env.OPENAI_API_KEY }),
+    });
+
     const { output } = await summarizer.run(
-      "Summarize the following transcript: " + JSON.stringify(transcriptWithSpeakers)
+      "Summarize the following transcript: " +
+        JSON.stringify(transcriptWithSpeakers)
     );
 
     const summary = output.find(
@@ -207,15 +144,24 @@ export const meetingsProcessing  = inngest.createFunction(
     await step.run("save-summary", async () => {
       const summary = (output[0] as TextMessage).content as string;
 
+      let score: number | null = null;
+      try {
+        score = extractOverallScore(summary);
+      } catch (error) {
+        console.error("Failed to extract overall score:", error);
+        // Continue without score - job should still complete
+      }
+
       const { error } = await supabase
         .from("meetings")
         .update({
           summary,
+          ...(score !== null && { score }),
           status: "completed",
         })
         .eq("id", event.data.meetingId);
 
       if (error) throw error;
     });
-  },
+  }
 );
