@@ -248,7 +248,7 @@ export default function ProjectPage() {
   const fetchProject = async () => {
     setIsLoading(true);
     setFetchComplete(false);
-    
+
     const { data, error } = await supabase
       .from("projects")
       .select(
@@ -261,6 +261,9 @@ export default function ProjectPage() {
       .single();
 
     if (error) {
+      setProject(null);
+      setIsLoading(false);
+      setFetchComplete(true);
       return;
     }
 
@@ -274,7 +277,7 @@ export default function ProjectPage() {
       const canEditProject = isLead || isTeammate;
       setCanEdit(canEditProject);
     }
-    
+
     setIsLoading(false);
     setFetchComplete(true);
   };
@@ -976,6 +979,9 @@ export default function ProjectPage() {
         <div className="flex items-center justify-center flex-grow">
           <div className="text-center">
             <h1 className="text-2xl font-bold mb-4">Project not found</h1>
+            <p className="text-gray-500 mb-4">
+              The project you are looking for may have been deleted or is not available.
+            </p>
             <Link href="/projects">
               <Button>Back to Projects</Button>
             </Link>

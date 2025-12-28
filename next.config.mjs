@@ -11,12 +11,10 @@ const nextConfig = {
     ],
   },
   skipTrailingSlashRedirect: true,
-  experimental: {
-    serverComponentsExternalPackages: [
-      "@stream-io/node-sdk",
-      "ws",
-    ],
-  },
+  serverExternalPackages: [
+    "@stream-io/node-sdk",
+    "ws",
+  ],
 };
 
 export default nextConfig;
