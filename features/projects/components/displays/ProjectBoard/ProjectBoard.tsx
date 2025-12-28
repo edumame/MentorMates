@@ -39,6 +39,7 @@ export interface ProjectBoardProps {
   projectList: Project[];
   session?: import("@supabase/supabase-js").Session | null;
   projectBoardContext: ProjectBoardContext;
+  onProjectDeleted?: (projectId: string) => void;
 }
 
 const ProjectBoard = ({
@@ -46,6 +47,7 @@ const ProjectBoard = ({
   projectList,
   session,
   projectBoardContext,
+  onProjectDeleted,
 }: ProjectBoardProps) => {
   const [qrDialogOpen, setQrDialogOpen] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState<string | null>(null);
@@ -359,10 +361,11 @@ const ProjectBoard = ({
               variant="destructive"
               onClick={async () => {
                 if (!deleteDialogOpen) return;
+                const projectIdToDelete = deleteDialogOpen;
                 setIsDeleting(true);
                 try {
                   const response = await fetch(
-                    `/api/projects/${deleteDialogOpen}`,
+                    `/api/projects/${projectIdToDelete}`,
                     { method: "DELETE" }
                   );
                   if (!response.ok) throw new Error("Failed to delete project");
@@ -372,6 +375,7 @@ const ProjectBoard = ({
                     description: "Project deleted successfully",
                   });
                   setDeleteDialogOpen(null);
+                  onProjectDeleted?.(projectIdToDelete);
                   router.refresh();
                 } catch {
                   toast({

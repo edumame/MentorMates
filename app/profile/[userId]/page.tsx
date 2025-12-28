@@ -123,6 +123,13 @@ export default function ProfilePage() {
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
 
+  // Keep the profile's project list in sync after deletions from the gallery
+  const handleProjectDeleted = (projectId: string) => {
+    setProjects((prevProjects) =>
+      prevProjects.filter((project) => project.id !== projectId)
+    );
+  };
+
   // Check if the current user is viewing their own profile
   const isOwnProfile = session?.user?.id === userId;
 
@@ -870,6 +877,7 @@ export default function ProfilePage() {
                         ? ProjectBoardContext.MyProjects
                         : ProjectBoardContext.EventGallery
                     }
+                    onProjectDeleted={handleProjectDeleted}
                   />
                 )}
               </div>
