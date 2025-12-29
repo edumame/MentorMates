@@ -14,7 +14,9 @@ export const meetingsRouter = createTRPCRouter({
             .insert({
                 name: input.name,
                 agent_id: input.agentId,
-                user_id: ctx.auth.user.id
+                user_id: ctx.auth.user.id,
+                event_id: input.eventId || null,
+                project_id: input.projectId || null,
             }).select().limit(1);
 
         if (insertError) throw insertError;
@@ -174,12 +176,14 @@ export const meetingsRouter = createTRPCRouter({
     }),
     update: protectedProcedure.input(meetingsUpdateSchema).mutation(async ({ ctx, input }) => {
         const supabase = ctx.supabase;
-        const { agentId, ...rest } = input;
-        const updatePayload: Record<string, string> = {
+        const { agentId, eventId, projectId, id, ...rest } = input;
+        const updatePayload: Record<string, string | null> = {
             ...rest,
-            agent_id: agentId
+            agent_id: agentId,
+            event_id: eventId || null,
+            project_id: projectId || null,
         };
-        const { data, error } = await supabase.from('meetings').update(updatePayload).match({ id: input.id, user_id: ctx.auth.user.id }).select();
+        const { data, error } = await supabase.from('meetings').update(updatePayload).match({ id, user_id: ctx.auth.user.id }).select();
         if (error) throw error;
         const updatedMeeting = data?.[0];
         if (!updatedMeeting) throw new TRPCError({ code: 'NOT_FOUND', message: 'Meeting not found' });
