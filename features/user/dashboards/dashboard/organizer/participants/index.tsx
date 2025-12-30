@@ -16,7 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Download } from "@mui/icons-material";
+import { Download, ContentCopy } from "@mui/icons-material";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Trash2 } from "lucide-react";
 import { useToast } from "@/lib/hooks/use-toast";
@@ -169,6 +169,24 @@ export function ParticipantsTab({ eventId }: ParticipantsTabProps) {
     a.click();
   };
 
+  const handleCopyEmails = async () => {
+    const emails = participants
+      .map((participant) => participant.email)
+      .filter((email) => email) // Filter out empty emails
+      .join(", ");
+
+    try {
+      await navigator.clipboard.writeText(emails);
+      toast({ title: "Emails copied to clipboard" });
+    } catch {
+      toast({
+        title: "Failed to copy",
+        description: "Could not copy emails to clipboard",
+        variant: "destructive",
+      });
+    }
+  };
+
   const navigateToProfile = (userId: string) => {
     router.push(`/profile/${userId}`);
   };
@@ -235,10 +253,16 @@ export function ParticipantsTab({ eventId }: ParticipantsTabProps) {
                     Notify participant when saving changes
                   </Label>
                 </div>
-                <Button onClick={handleExportCSV} variant="outline" size="sm">
-                  <Download className="w-4 h-4 mr-2" />
-                  Export CSV
-                </Button>
+                <div className="flex gap-2">
+                  <Button onClick={handleCopyEmails} variant="outline" size="sm">
+                    <ContentCopy className="w-4 h-4 mr-2" />
+                    Copy Emails
+                  </Button>
+                  <Button onClick={handleExportCSV} variant="outline" size="sm">
+                    <Download className="w-4 h-4 mr-2" />
+                    Export CSV
+                  </Button>
+                </div>
               </div>
               <Table>
                 <TableHeader>
