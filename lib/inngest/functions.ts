@@ -4,6 +4,10 @@ import { createAgent, openai, TextMessage } from "@inngest/agent-kit";
 import { StreamTranscriptItem } from "@/modules/meetings/types";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { DEFAULT_SYSTEM_PROMPT } from "@/lib/inngest/prompts";
+import { Resend } from "resend";
+import { NOTIFICATIONS_EMAIL_FROM } from "@/lib/email_templates/constants";
+import { getLumaInvitationEmailTemplate } from "@/lib/email_templates/luma-invitation";
+import { InvitationStatus } from "@/features/invitations/types";
 
 /**
  * Fetches the system prompt from the database for a given agent ID.
@@ -163,5 +167,175 @@ export const meetingsProcessing = inngest.createFunction(
 
       if (error) throw error;
     });
+  }
+);
+
+/**
+ * Inngest function to send invitation emails in batches
+ * 
+ * Processes invitations in batches of 10 with rate limiting to avoid email provider issues
+ */
+export const sendInvitationEmails = inngest.createFunction(
+  { 
+    id: "invitation/send.batch",
+    throttle: {
+      limit: 50,  // Max 50 invocations
+      period: "1m",  // Per minute
+    },
+  },
+  { event: "invitation/send.batch" },
+  async ({ event, step }) => {
+    const { eventId, invitationIds } = event.data as {
+      eventId: string;
+      invitationIds: string[];
+    };
+
+    const supabase = await createSupabaseServiceClient();
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://mentormates.ai";
+
+    // Fetch event details
+    const eventData = await step.run("fetch-event", async () => {
+      const { data, error } = await supabase
+        .from("events")
+        .select("event_id, event_name, event_date, location, event_blurb, slug")
+        .eq("event_id", eventId)
+        .single();
+
+      if (error || !data) {
+        throw new Error(`Event not found: ${eventId}`);
+      }
+
+      return data;
+    });
+
+    // Fetch invitations to send
+    const invitations = await step.run("fetch-invitations", async () => {
+      const { data, error } = await supabase
+        .from("event_invitations")
+        .select("*")
+        .in("id", invitationIds)
+        .eq("event_id", eventId)
+        .eq("status", InvitationStatus.APPROVED);
+
+      if (error) {
+        throw new Error(`Failed to fetch invitations: ${error.message}`);
+      }
+
+      return data || [];
+    });
+
+    if (invitations.length === 0) {
+      return { sent: 0, message: "No approved invitations to send" };
+    }
+
+    // Get inviter's name for the first invitation (they all have the same inviter for batch imports)
+    const inviterName = await step.run("fetch-inviter", async () => {
+      const inviterId = invitations[0]?.invited_by;
+      if (!inviterId) return "The Event Organizers";
+
+      const { data } = await supabase
+        .from("user_profiles")
+        .select("display_name")
+        .eq("uid", inviterId)
+        .single();
+
+      return data?.display_name || "The Event Organizers";
+    });
+
+    // Process invitations in batches of 10
+    const batchSize = 10;
+    const results: Array<{ id: string; success: boolean; error?: string }> = [];
+
+    for (let i = 0; i < invitations.length; i += batchSize) {
+      const batch = invitations.slice(i, i + batchSize);
+      
+      const batchResults = await step.run(`send-batch-${i}`, async () => {
+        const batchResults: Array<{ id: string; success: boolean; error?: string }> = [];
+
+        for (const invitation of batch) {
+          try {
+            // Generate email content
+            const eventSlug = eventData.slug || eventData.event_id;
+            const acceptUrl = `${baseUrl}/api/invitations/accept/${invitation.invite_token}`;
+            const eventUrl = `${baseUrl}/events/${eventSlug}`;
+
+            const emailTemplate = getLumaInvitationEmailTemplate({
+              recipientName: invitation.name || invitation.first_name,
+              recipientEmail: invitation.email,
+              eventName: eventData.event_name,
+              eventDate: eventData.event_date,
+              eventLocation: eventData.location,
+              eventBlurb: eventData.event_blurb,
+              inviterName,
+              customMessage: invitation.custom_message,
+              acceptUrl,
+              eventUrl,
+              expiresAt: invitation.expires_at || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+            });
+
+            // Send email via Resend
+            const { error: emailError } = await resend.emails.send({
+              from: NOTIFICATIONS_EMAIL_FROM,
+              to: invitation.email,
+              subject: emailTemplate.subject,
+              html: emailTemplate.html,
+              text: emailTemplate.text,
+            });
+
+            if (emailError) {
+              console.error(`Failed to send email to ${invitation.email}:`, emailError);
+              
+              // Update invitation status to bounced
+              await supabase
+                .from("event_invitations")
+                .update({ status: InvitationStatus.BOUNCED })
+                .eq("id", invitation.id);
+
+              batchResults.push({
+                id: invitation.id,
+                success: false,
+                error: emailError.message || "Email send failed",
+              });
+            } else {
+              // Update invitation status to sent
+              await supabase
+                .from("event_invitations")
+                .update({
+                  status: InvitationStatus.SENT,
+                  sent_at: new Date().toISOString(),
+                })
+                .eq("id", invitation.id);
+
+              batchResults.push({ id: invitation.id, success: true });
+            }
+
+            // Rate limiting: 100ms delay between sends
+            await new Promise(resolve => setTimeout(resolve, 100));
+          } catch (error) {
+            console.error(`Error processing invitation ${invitation.id}:`, error);
+            batchResults.push({
+              id: invitation.id,
+              success: false,
+              error: error instanceof Error ? error.message : "Unknown error",
+            });
+          }
+        }
+
+        return batchResults;
+      });
+
+      results.push(...batchResults);
+    }
+
+    const successCount = results.filter(r => r.success).length;
+    const failureCount = results.filter(r => !r.success).length;
+
+    return {
+      sent: successCount,
+      failed: failureCount,
+      total: invitations.length,
+      results,
+    };
   }
 );

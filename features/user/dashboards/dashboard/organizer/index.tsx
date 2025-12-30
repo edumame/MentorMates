@@ -14,6 +14,7 @@ import {
   FolderKanban,
   DollarSign,
   Bell,
+  Mail,
 } from "lucide-react";
 
 import {
@@ -35,6 +36,7 @@ import { ProjectImport } from "./import/ProjectImportButton";
 import { EmailTab } from "./email";
 import { PricingTab } from "./pricing/PricingTab";
 import EmailDashboard from "./notifications/EmailDashboard";
+import { InvitationsTab } from "./invitations";
 // Overview sub-tab components
 import { BasicInfoTab } from "./details/BasicInfoTab";
 import { ContentTab } from "./details/ContentTab";
@@ -70,6 +72,7 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
   const primaryTabs = [
     { value: "overview", label: "Overview", icon: Sparkles },
     { value: "registration", label: "Registration", icon: Calendar },
+    { value: "invitations", label: "Invitations", icon: Mail },
     { value: "project", label: "Project", icon: FileText },
     { value: "access", label: "Access", icon: Shield },
     { value: "tracks", label: "Tracks", icon: FolderKanban },
@@ -376,6 +379,15 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
                   <p className="text-gray-500">
                     Registration configuration coming soon
                   </p>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="invitations" className="mt-0">
+                <div className="rounded-lg border bg-card p-6">
+                  <InvitationsTab
+                    eventId={eventId}
+                    eventName={event.event_name}
+                  />
                 </div>
               </TabsContent>
 

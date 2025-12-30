@@ -8,4 +8,5 @@ export enum EMAIL_TYPES {
   CHECKIN_QR_CODE = "checkin_qr_code",
   ORGANIZER_INVITATION = "organizer_invitation",
   CLAIM_TICKET = "claim_ticket",
+  LUMA_INVITATION = "luma_invitation",
 }
