@@ -13,6 +13,10 @@ interface SessionCaps {
     agent_caps: Record<string, number | null>;
 }
 
+type AgentRow = { id: string; name?: string | null; avatar_url?: string | null };
+type MeetingRow = Record<string, unknown>;
+type UserProfileRow = Record<string, unknown>;
+
 export const meetingsRouter = createTRPCRouter({
     create: protectedProcedure.input(meetingsInsertSchema).mutation(async ({ input, ctx }) => {
         const supabase = ctx.supabase;
@@ -226,29 +230,38 @@ export const meetingsRouter = createTRPCRouter({
         const totalPages = Math.ceil(total / pageSize);
 
         // Hydrate agents for the fetched items
-        const agentIds = Array.from(new Set((items || []).map((m: any) => m.agent_id).filter(Boolean)));
-        let agentsMap: Record<string, any> = {};
+        const agentIds = Array.from(new Set((items || []).map((m: MeetingRow) => (m.agent_id as string | undefined)).filter(Boolean)));
+        let agentsMap: Record<string, AgentRow> = {};
         if (agentIds.length > 0) {
             const { data: agentRows = [], error: agentErr } = await supabase.from("agents").select("*").in("id", agentIds);
             if (agentErr) throw agentErr;
-            agentsMap = (agentRows || []).reduce((acc: Record<string, any>, a: any) => {
-                acc[a.id] = a;
+            agentsMap = (agentRows || []).reduce((acc: Record<string, AgentRow>, a: Record<string, unknown>) => {
+                const id = String(a.id);
+                acc[id] = {
+                    id,
+                    name: (a.name as string | undefined) ?? null,
+                    avatar_url: (a.avatar_url as string | undefined) ?? null,
+                };
                 return acc;
             }, {});
         }
 
         // Compute duration and attach agent
-        const hydrated = (items || []).map((m: any) => {
+        const hydrated = (items || []).map((m: MeetingRow) => {
             let duration: number | null = null;
-            if (m.started_at && m.ended_at) {
-                const s = new Date(m.started_at).getTime();
-                const e = new Date(m.ended_at).getTime();
+            const startedAt = m.started_at as string | undefined;
+            const endedAt = m.ended_at as string | undefined;
+            if (startedAt && endedAt) {
+                const s = new Date(startedAt).getTime();
+                const e = new Date(endedAt).getTime();
                 if (!Number.isNaN(s) && !Number.isNaN(e)) duration = Math.max(0, Math.floor((e - s) / 1000));
             }
 
+            const agentId = m.agent_id as string | undefined;
+
             return {
-                ...m,
-                agent: agentsMap[m.agent_id] ?? null,
+                ...(m as Record<string, unknown>),
+                agent: agentId ? agentsMap[agentId] ?? null : null,
                 duration,
             };
         });
@@ -332,10 +345,10 @@ export const meetingsRouter = createTRPCRouter({
         const speakerIds = [...new Set(transcript.map((item) => item.speaker_id))];
 
         const { data: userSpeakersRows = [] } = await supabase.from('user_profiles').select('*').in('uid', speakerIds);
-        const userSpeakers = (userSpeakersRows || []).map((u: any) => ({ ...u, image: u.image, id: u.uid }));
+        const userSpeakers = (userSpeakersRows || []).map((u: UserProfileRow) => ({ ...(u as Record<string, unknown>), image: (u.image as string | undefined) ?? null, id: (u.uid as string | undefined) ?? null }));
 
         const { data: agentSpeakersRows = [] } = await supabase.from('agents').select('*').in('id', speakerIds);
-        const agentSpeakers = (agentSpeakersRows || []).map((a: any) => ({ ...a, image: a.avatar_url }));
+        const agentSpeakers = (agentSpeakersRows || []).map((a: Record<string, unknown>) => ({ ...(a as Record<string, unknown>), image: (a.avatar_url as string | undefined) ?? null, id: (a.id as string | undefined) ?? null }));
 
         const speakers = [...userSpeakers, ...agentSpeakers];
 
