@@ -10,7 +10,7 @@ import { CommandSelect } from "@/components/command-select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
+import { toast } from "@/lib/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/features/user/authentication/auth/AuthContext";
@@ -77,7 +77,7 @@ export const MeetingForm = ({ onSuccess, onCancel, initialValues } : MeetingForm
             setEvents(eventOptions);
         } catch (error) {
             console.error("Error fetching events:", error);
-            toast.error("Failed to load events");
+            toast({ title: "Error", description: "Failed to load events", variant: "destructive" });
         }
     }, [session]);
 
@@ -114,7 +114,7 @@ export const MeetingForm = ({ onSuccess, onCancel, initialValues } : MeetingForm
             setProjects(projectOptions);
         } catch (error) {
             console.error("Error fetching projects:", error);
-            toast.error("Failed to load projects");
+            toast({ title: "Error", description: "Failed to load projects", variant: "destructive" });
         }
     }, [session]);
 
@@ -165,11 +165,12 @@ export const MeetingForm = ({ onSuccess, onCancel, initialValues } : MeetingForm
             onSuccess?.(data.id);
         },
         onError: (error) => {
-            toast.error(error.message)
-
-            if (error.data?.code === "FORBIDDEN") {
-                router.push("/upgrade");
-            }
+            const title = error.data?.code === "FORBIDDEN"? "Max Sessions Reached": "Create Session Error";
+            toast({
+                title,
+                description: error.message,
+                variant: "destructive",
+            });
         },
     }));
 
@@ -183,7 +184,11 @@ export const MeetingForm = ({ onSuccess, onCancel, initialValues } : MeetingForm
             onSuccess?.();
         },
         onError: (error) => {
-            toast.error(error.message)
+            toast({
+                title: "Update Session Error",
+                description: error.message,
+                variant: "destructive",
+            });
         },
     }));
 
