@@ -159,7 +159,7 @@ export function SessionsTab({ eventId, event, setEvent }: SessionsTabProps) {
 
       <div className="flex gap-2">
         <Button onClick={handleSave} disabled={loading}>
-          {loading ? "Saving..." : "Save caps"}
+          {loading ? "Saving..." : "Save"}
         </Button>
         <Button
           variant="ghost"
