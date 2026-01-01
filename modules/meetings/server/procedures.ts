@@ -8,13 +8,35 @@ import JSONL from "jsonl-parse-stringify";
 import { MeetingStatus, StreamTranscriptItem } from "../types";
 import { streamVideo } from "@/lib/stream-video";
 
+interface MeetingRow {
+  id: string;
+  name?: string | null;
+  status?: MeetingStatus | null;
+  agent_id?: string | null;
+  event_id?: string | null;
+  project_id?: string | null;
+  started_at?: string | null;
+  ended_at?: string | null;
+  created_at?: string | null;
+  user_id?: string | null;
+  transcript_url?: string | null;
+  [key: string]: unknown;
+}
+
+interface Speaker {
+    id?: string | null;
+    name?: string | null;
+    display_name?: string | null;
+    image?: string | null;
+    [key: string]: unknown;
+}
+
 interface SessionCaps {
     default: number | null;
     agent_caps: Record<string, number | null>;
 }
 
 type AgentRow = { id: string; name?: string | null; avatar_url?: string | null };
-type MeetingRow = Record<string, unknown>;
 type UserProfileRow = Record<string, unknown>;
 
 export const meetingsRouter = createTRPCRouter({
@@ -260,7 +282,7 @@ export const meetingsRouter = createTRPCRouter({
             const agentId = m.agent_id as string | undefined;
 
             return {
-                ...(m as Record<string, unknown>),
+                ...(m as MeetingRow),
                 agent: agentId ? agentsMap[agentId] ?? null : null,
                 duration,
             };
@@ -345,12 +367,12 @@ export const meetingsRouter = createTRPCRouter({
         const speakerIds = [...new Set(transcript.map((item) => item.speaker_id))];
 
         const { data: userSpeakersRows = [] } = await supabase.from('user_profiles').select('*').in('uid', speakerIds);
-        const userSpeakers = (userSpeakersRows || []).map((u: UserProfileRow) => ({ ...(u as Record<string, unknown>), image: (u.image as string | undefined) ?? null, id: (u.uid as string | undefined) ?? null }));
+        const userSpeakers: Speaker[] = (userSpeakersRows || []).map((u: UserProfileRow) => ({ ...(u as Record<string, unknown>), image: (u.image as string | undefined) ?? null, id: (u.uid as string | undefined) ?? null }));
 
         const { data: agentSpeakersRows = [] } = await supabase.from('agents').select('*').in('id', speakerIds);
-        const agentSpeakers = (agentSpeakersRows || []).map((a: Record<string, unknown>) => ({ ...(a as Record<string, unknown>), image: (a.avatar_url as string | undefined) ?? null, id: (a.id as string | undefined) ?? null }));
+        const agentSpeakers: Speaker[] = (agentSpeakersRows || []).map((a: Record<string, unknown>) => ({ ...(a as Record<string, unknown>), image: (a.avatar_url as string | undefined) ?? null, id: (a.id as string | undefined) ?? null }));
 
-        const speakers = [...userSpeakers, ...agentSpeakers];
+        const speakers: Speaker[] = [...userSpeakers, ...agentSpeakers];
 
         const transcriptWithSpeakers = transcript.map((item) => {
             const speaker = speakers.find((speaker) => speaker.id === item.speaker_id);
