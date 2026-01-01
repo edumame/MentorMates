@@ -105,7 +105,7 @@ export function SessionsTab({ eventId, event, setEvent }: SessionsTabProps) {
 
   return (
     <div className="w-full">
-      <h2 className="text-xl font-semibold mb-4">Session Caps</h2>
+      <h2 className="text-xl font-semibold mb-4">Configure Session Caps</h2>
 
       <div className="mb-6 max-w-md">
         <label className="block text-sm font-medium text-gray-700 mb-2">Default cap per user (per event)</label>
