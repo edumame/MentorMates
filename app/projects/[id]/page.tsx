@@ -53,6 +53,7 @@ import { deleteProjectClient } from "@/features/projects/client-actions/client-d
 import { TrackSelector } from "@/features/projects/components/tracks/TrackSelector";
 import { fetchEventTracks } from "@/features/projects/client-actions/client-track-update";
 import { ProjectQRCodeSection } from "@/features/projects/components/displays/project-dashboard/ProjectQRCodeSection";
+import ProjectTimeline from "@/features/projects/components/displays/ProjectTimeline";
 import { FileUpload } from "@/components/db/fileUpload";
 import { ImageUpload } from "@/components/db/imageUpload";
 import { VideoEmbed, canEmbed } from "@/components/utils";
@@ -1398,6 +1399,11 @@ export default function ProjectPage() {
                             />
                           </div>
                         )}
+
+                        {/* Session timeline */}
+                        <div>
+                          <ProjectTimeline projectId={project.id} />
+                        </div>
 
                         {/* Settings Section - Only for editors */}
                         {canEdit && (

@@ -91,8 +91,31 @@ export async function POST(req: NextRequest) {
             agentUserId: existingAgent.id,
         });
 
+        // If the meeting is linked to a project, fetch project title and description
+        let projectContext = "";
+        try {
+            if (existingMeeting.project_id) {
+                const { data: projectRow, error: projectError } = await supabase
+                    .from("projects")
+                    .select("project_name, project_description")
+                    .eq("id", existingMeeting.project_id)
+                    .maybeSingle();
+
+                if (!projectError && projectRow) {
+                    const title = projectRow.project_name || "";
+                    const desc = projectRow.project_description || "";
+                    projectContext = `\n\nHere is the project context from the student:\nTitle: ${title}\nDescription: ${desc}`;
+                }
+            }
+        } catch {
+            projectContext = "";
+            return NextResponse.json({ error: "Project not found" }, { status: 400 });
+        }
+
+        const instructions = `${existingAgent.instructions || ""}${projectContext}`;
+
         realtimeClient.updateSession({
-            instructions: existingAgent.instructions,
+            instructions,
             input_audio_transcription: {
                 model: "whisper-1",
             },

@@ -14,7 +14,9 @@ export const meetingsRouter = createTRPCRouter({
             .insert({
                 name: input.name,
                 agent_id: input.agentId,
-                user_id: ctx.auth.user.id
+                user_id: ctx.auth.user.id,
+                event_id: input.eventId || null,
+                project_id: input.projectId || null,
             }).select().limit(1);
 
         if (insertError) throw insertError;
@@ -91,6 +93,8 @@ export const meetingsRouter = createTRPCRouter({
         pageSize: z.number().min(MIN_PAGE_SIZE).max(MAX_PAGE_SIZE).default(DEFAULT_PAGE_SIZE),
         search: z.string().nullish(),
         agentId: z.string().nullish(),
+        eventId: z.string().nullish(),
+        projectId: z.string().nullish(),
         status: z.enum([
             MeetingStatus.Upcoming,
             MeetingStatus.Active,
@@ -99,7 +103,7 @@ export const meetingsRouter = createTRPCRouter({
             MeetingStatus.Cancelled,
         ]).nullish(),
     })).query(async ({ ctx, input }) => {
-        const { search, page, pageSize, status, agentId } = input;
+        const { search, page, pageSize, status, agentId, eventId, projectId } = input;
         const supabase = ctx.supabase;
 
         // Build the base filters
@@ -114,6 +118,8 @@ export const meetingsRouter = createTRPCRouter({
         if (search) meetingsQuery = meetingsQuery.ilike("name", `%${search}%`);
         if (status) meetingsQuery = meetingsQuery.eq("status", status);
         if (agentId) meetingsQuery = meetingsQuery.eq("agent_id", agentId);
+        if (eventId) meetingsQuery = meetingsQuery.eq("event_id", eventId);
+        if (projectId) meetingsQuery = meetingsQuery.eq("project_id", projectId);
 
         const { data: items = [], error: itemsError } = await meetingsQuery
             .order("created_at", { ascending: false })
@@ -131,6 +137,8 @@ export const meetingsRouter = createTRPCRouter({
         if (search) countQuery = countQuery.ilike("name", `%${search}%`);
         if (status) countQuery = countQuery.eq("status", status);
         if (agentId) countQuery = countQuery.eq("agent_id", agentId);
+        if (eventId) countQuery = countQuery.eq("event_id", eventId);
+        if (projectId) countQuery = countQuery.eq("project_id", projectId);
 
         const { count, error: countError } = await countQuery;
         if (countError) throw countError;
@@ -174,12 +182,14 @@ export const meetingsRouter = createTRPCRouter({
     }),
     update: protectedProcedure.input(meetingsUpdateSchema).mutation(async ({ ctx, input }) => {
         const supabase = ctx.supabase;
-        const { agentId, ...rest } = input;
-        const updatePayload: Record<string, string> = {
+        const { agentId, eventId, projectId, id, ...rest } = input;
+        const updatePayload: Record<string, string | null> = {
             ...rest,
-            agent_id: agentId
+            agent_id: agentId,
+            event_id: eventId || null,
+            project_id: projectId || null,
         };
-        const { data, error } = await supabase.from('meetings').update(updatePayload).match({ id: input.id, user_id: ctx.auth.user.id }).select();
+        const { data, error } = await supabase.from('meetings').update(updatePayload).match({ id, user_id: ctx.auth.user.id }).select();
         if (error) throw error;
         const updatedMeeting = data?.[0];
         if (!updatedMeeting) throw new TRPCError({ code: 'NOT_FOUND', message: 'Meeting not found' });
