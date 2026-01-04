@@ -56,6 +56,51 @@ export type Database = {
           },
         ]
       }
+      event_approval_logs: {
+        Row: {
+          log_id: string
+          event_id: string
+          admin_user_id: string
+          previous_status: Database["public"]["Enums"]["approval_status"] | null
+          new_status: Database["public"]["Enums"]["approval_status"]
+          notes: string | null
+          created_at: string
+        }
+        Insert: {
+          log_id?: string
+          event_id: string
+          admin_user_id: string
+          previous_status?: Database["public"]["Enums"]["approval_status"] | null
+          new_status: Database["public"]["Enums"]["approval_status"]
+          notes?: string | null
+          created_at?: string
+        }
+        Update: {
+          log_id?: string
+          event_id?: string
+          admin_user_id?: string
+          previous_status?: Database["public"]["Enums"]["approval_status"] | null
+          new_status?: Database["public"]["Enums"]["approval_status"]
+          notes?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_approval_logs_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["event_id"]
+          },
+          {
+            foreignKeyName: "event_approval_logs_admin_user_id_fkey"
+            columns: ["admin_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       coupons: {
         Row: {
           amount_off: number | null
@@ -159,6 +204,8 @@ export type Database = {
           submission_time_cutoff: string | null
           submission_time_start: string | null
           visibility: Database["public"]["Enums"]["event_visibility"]
+          featured: boolean | null
+          approval_status: Database["public"]["Enums"]["approval_status"] | null
         }
         Insert: {
           cover_image_url?: string | null
@@ -186,6 +233,8 @@ export type Database = {
           submission_time_cutoff?: string | null
           submission_time_start?: string | null
           visibility?: Database["public"]["Enums"]["event_visibility"]
+          featured?: boolean | null
+          approval_status?: Database["public"]["Enums"]["approval_status"] | null
         }
         Update: {
           cover_image_url?: string | null
@@ -212,6 +261,8 @@ export type Database = {
           stripe_price_id?: string | null
           submission_time_cutoff?: string | null
           submission_time_start?: string | null
+          featured?: boolean | null
+          approval_status?: Database["public"]["Enums"]["approval_status"] | null
           visibility?: Database["public"]["Enums"]["event_visibility"]
         }
         Relationships: [
@@ -1000,6 +1051,7 @@ export type Database = {
       }
     }
     Enums: {
+      approval_status: "not_submitted" | "submitted" | "approved" | "rejected"
       coupon_status_enum: "active" | "inactive" | "expired"
       event_role:
         | "participant"
@@ -1126,6 +1178,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      approval_status: ["not_submitted", "submitted", "approved", "rejected"],
       event_role: [
         "participant",
         "mentor",
