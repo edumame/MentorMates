@@ -27,6 +27,7 @@ import { PricingTab } from "@/features/user/dashboards/dashboard/organizer/prici
 import EmailDashboard from "@/features/user/dashboards/dashboard/organizer/notifications/EmailDashboard";
 import { EmailTab } from "@/features/user/dashboards/dashboard/organizer/email";
 import { ProjectImport } from "@/features/user/dashboards/dashboard/organizer/import/ProjectImportButton";
+import { SessionsTab } from "@/features/user/dashboards/dashboard/organizer/sessions/SessionsTab";
 
 // Import sub-tab components for Overview
 import { BasicInfoTab } from "@/features/user/dashboards/dashboard/organizer/details/BasicInfoTab";
@@ -88,6 +89,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
     { value: "live-scores", label: "Live Scores" },
     { value: "ticketing", label: "Ticketing" },
     { value: "notify", label: "Notify" },
+    { value: "sessions", label: "Sessions" },
   ];
 
   // Sub-tabs under Overview matching Figma design
@@ -699,6 +701,10 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                       </div>
                     </div>
                   )}
+                </TabsContent>
+
+                <TabsContent value="sessions" className="mt-0 w-full">
+                  <SessionsTab eventId={eventId} event={event} setEvent={setEvent} />
                 </TabsContent>
               </div>
 

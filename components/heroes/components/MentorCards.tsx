@@ -18,6 +18,7 @@ import { supabase } from "@/lib/supabase";
 import { useConfirm } from "@/lib/hooks/use-confirm";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { MeetingStatus } from "@/modules/meetings/types";
 
 const statusIconMap = {
   upcoming: ClockArrowUpIcon,
@@ -117,7 +118,7 @@ export function MentorCards() {
     await removeMeeting.mutateAsync({ id });
   };
 
-  const meetingStatus = (status: string) => {
+  const meetingStatus = (status?: MeetingStatus | null) => {
     const Icon = statusIconMap[status as keyof typeof statusIconMap];
     return (
       <Badge
@@ -207,11 +208,11 @@ export function MentorCards() {
             <div className="flex flex-1 flex-col p-8">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                alt={meeting.agent.name}
-                src={meeting.agent?.avatar_url}
+                alt={meeting.agent?.name || ""}
+                src={meeting.agent?.avatar_url || ""}
                 className="mx-auto size-32 shrink-0 rounded-full bg-gray-300 outline outline-1 -outline-offset-1 outline-black/5"
               />
-              <h3 className="mt-6 text-sm font-medium text-gray-900 capitalize">{meeting.agent.name}</h3>
+              <h3 className="mt-6 text-sm font-medium text-gray-900 capitalize">{meeting.agent?.name}</h3>
               <dl className="mt-1 flex grow flex-col justify-between">
                 <dt className="sr-only">Title</dt>
                 <dd className="text-sm text-gray-500 capitalize">{meeting.name}</dd>

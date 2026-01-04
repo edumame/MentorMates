@@ -1,15 +1,120 @@
 import { meetingsInsertSchema, meetingsUpdateSchema } from "../schemas";
 import { DEFAULT_PAGE, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, MIN_PAGE_SIZE } from "@/lib/config/constants";
 import { createTRPCRouter, protectedProcedure } from "@/trpc/init";
+import { MAX_SESSIONS } from "@/trpc/constants";
 import { TRPCError } from "@trpc/server";
 import z from "zod";
 import JSONL from "jsonl-parse-stringify";
 import { MeetingStatus, StreamTranscriptItem } from "../types";
 import { streamVideo } from "@/lib/stream-video";
 
+interface MeetingRow {
+  id: string;
+  name?: string | null;
+  status?: MeetingStatus | null;
+  agent_id?: string | null;
+  event_id?: string | null;
+  project_id?: string | null;
+  started_at?: string | null;
+  ended_at?: string | null;
+  created_at?: string | null;
+  user_id?: string | null;
+  transcript_url?: string | null;
+  [key: string]: unknown;
+}
+
+interface Speaker {
+    id?: string | null;
+    name?: string | null;
+    display_name?: string | null;
+    image?: string | null;
+    [key: string]: unknown;
+}
+
+interface SessionCaps {
+    default: number | null;
+    agent_caps: Record<string, number | null>;
+}
+
+type AgentRow = { id: string; name?: string | null; avatar_url?: string | null };
+type UserProfileRow = Record<string, unknown>;
+
 export const meetingsRouter = createTRPCRouter({
     create: protectedProcedure.input(meetingsInsertSchema).mutation(async ({ input, ctx }) => {
         const supabase = ctx.supabase;
+        try {
+            const agentId = input.agentId || null;
+            const eventId = input.eventId || null;
+
+            if (eventId) {
+                const { data: eventRow, error: eventErr } = await supabase
+                    .from('events')
+                    .select('session_caps')
+                    .eq('event_id', eventId)
+                    .limit(1)
+                    .maybeSingle();
+
+                if (eventErr) {
+                    throw eventErr;
+                }
+
+                const sessionCaps = (eventRow as { session_caps?: SessionCaps | null } | null)?.session_caps ?? null;
+
+                if (sessionCaps) {
+                    const agentCaps = (sessionCaps.agent_caps || {}) as Record<string, number | null>;
+                    const configuredAgentCap = agentId ? agentCaps[agentId] ?? null : null;
+
+                    if (configuredAgentCap !== null && configuredAgentCap !== undefined) {
+                        const { count, error } = await supabase
+                            .from('meetings')
+                            .select('id', { count: 'exact', head: true })
+                            .eq('user_id', ctx.auth.user.id)
+                            .eq('event_id', eventId)
+                            .eq('agent_id', agentId);
+
+                        if (error) throw error;
+
+                        const userMeetingsCount = typeof count === 'number' ? count : 0;
+                        if (userMeetingsCount >= configuredAgentCap) {
+                            throw new TRPCError({ code: 'FORBIDDEN', message: 'You have reached the maximum number of sessions for this agent' });
+                        }
+                    } else {
+                        const defaultCap = sessionCaps.default;
+                        if (defaultCap !== null && defaultCap !== undefined) {
+                            const { count, error } = await supabase
+                                .from('meetings')
+                                .select('id', { count: 'exact', head: true })
+                                .eq('user_id', ctx.auth.user.id)
+                                .eq('event_id', eventId);
+
+                            if (error) throw error;
+
+                            const userMeetingsCountForEvent = typeof count === 'number' ? count : 0;
+                            if (userMeetingsCountForEvent >= Number(defaultCap)) {
+                                throw new TRPCError({ code: 'FORBIDDEN', message: 'You have reached the maximum number of sessions for this event' });
+                            }
+                        }
+                    }
+                }
+            } else {
+                // No event provided — use default global MAX_SESSIONS
+                const { data: rows, count, error } = await supabase
+                    .from('meetings')
+                    .select('id', { count: 'exact' })
+                    .eq('user_id', ctx.auth.user.id);
+
+                if (error) throw error;
+
+                const userMeetingsCount = typeof count === 'number' ? count : (rows?.length ?? 0);
+                if (userMeetingsCount >= MAX_SESSIONS) {
+                    throw new TRPCError({ code: 'FORBIDDEN', message: 'You have reached the maximum number of sessions' });
+                }
+            }
+        } catch (err) {
+            if (err instanceof TRPCError) throw err;
+            throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: (err as Error).message || 'Failed to enforce session caps' });
+        }
+
         const { data: createdRows, error: insertError } = await supabase.from('meetings')
             .insert({
                 name: input.name,
@@ -147,29 +252,38 @@ export const meetingsRouter = createTRPCRouter({
         const totalPages = Math.ceil(total / pageSize);
 
         // Hydrate agents for the fetched items
-        const agentIds = Array.from(new Set((items || []).map((m: any) => m.agent_id).filter(Boolean)));
-        let agentsMap: Record<string, any> = {};
+        const agentIds = Array.from(new Set((items || []).map((m: MeetingRow) => (m.agent_id as string | undefined)).filter(Boolean)));
+        let agentsMap: Record<string, AgentRow> = {};
         if (agentIds.length > 0) {
             const { data: agentRows = [], error: agentErr } = await supabase.from("agents").select("*").in("id", agentIds);
             if (agentErr) throw agentErr;
-            agentsMap = (agentRows || []).reduce((acc: Record<string, any>, a: any) => {
-                acc[a.id] = a;
+            agentsMap = (agentRows || []).reduce((acc: Record<string, AgentRow>, a: Record<string, unknown>) => {
+                const id = String(a.id);
+                acc[id] = {
+                    id,
+                    name: (a.name as string | undefined) ?? null,
+                    avatar_url: (a.avatar_url as string | undefined) ?? null,
+                };
                 return acc;
             }, {});
         }
 
         // Compute duration and attach agent
-        const hydrated = (items || []).map((m: any) => {
+        const hydrated = (items || []).map((m: MeetingRow) => {
             let duration: number | null = null;
-            if (m.started_at && m.ended_at) {
-                const s = new Date(m.started_at).getTime();
-                const e = new Date(m.ended_at).getTime();
+            const startedAt = m.started_at as string | undefined;
+            const endedAt = m.ended_at as string | undefined;
+            if (startedAt && endedAt) {
+                const s = new Date(startedAt).getTime();
+                const e = new Date(endedAt).getTime();
                 if (!Number.isNaN(s) && !Number.isNaN(e)) duration = Math.max(0, Math.floor((e - s) / 1000));
             }
 
+            const agentId = m.agent_id as string | undefined;
+
             return {
-                ...m,
-                agent: agentsMap[m.agent_id] ?? null,
+                ...(m as MeetingRow),
+                agent: agentId ? agentsMap[agentId] ?? null : null,
                 duration,
             };
         });
@@ -253,12 +367,12 @@ export const meetingsRouter = createTRPCRouter({
         const speakerIds = [...new Set(transcript.map((item) => item.speaker_id))];
 
         const { data: userSpeakersRows = [] } = await supabase.from('user_profiles').select('*').in('uid', speakerIds);
-        const userSpeakers = (userSpeakersRows || []).map((u: any) => ({ ...u, image: u.image, id: u.uid }));
+        const userSpeakers: Speaker[] = (userSpeakersRows || []).map((u: UserProfileRow) => ({ ...(u as Record<string, unknown>), image: (u.image as string | undefined) ?? null, id: (u.uid as string | undefined) ?? null }));
 
         const { data: agentSpeakersRows = [] } = await supabase.from('agents').select('*').in('id', speakerIds);
-        const agentSpeakers = (agentSpeakersRows || []).map((a: any) => ({ ...a, image: a.avatar_url }));
+        const agentSpeakers: Speaker[] = (agentSpeakersRows || []).map((a: Record<string, unknown>) => ({ ...(a as Record<string, unknown>), image: (a.avatar_url as string | undefined) ?? null, id: (a.id as string | undefined) ?? null }));
 
-        const speakers = [...userSpeakers, ...agentSpeakers];
+        const speakers: Speaker[] = [...userSpeakers, ...agentSpeakers];
 
         const transcriptWithSpeakers = transcript.map((item) => {
             const speaker = speakers.find((speaker) => speaker.id === item.speaker_id);
