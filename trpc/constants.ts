@@ -1,1 +1,1 @@
-export const MAX_SESSIONS = 2;
+export const MAX_SESSIONS = 3;
