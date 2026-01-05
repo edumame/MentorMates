@@ -46,68 +46,76 @@ export const meetingsRouter = createTRPCRouter({
             const agentId = input.agentId || null;
             const eventId = input.eventId || null;
 
-            if (eventId) {
-                const { data: eventRow, error: eventErr } = await supabase
-                    .from('events')
-                    .select('session_caps')
-                    .eq('event_id', eventId)
-                    .limit(1)
-                    .maybeSingle();
+            // Check if user is admin - admins bypass all session caps
+            const { data: isAdmin } = await supabase.rpc('is_admin_user', {
+                user_id: ctx.auth.user.id
+            });
 
-                if (eventErr) {
-                    throw eventErr;
-                }
+            // Admin users bypass all session caps
+            if (!isAdmin) {
+                if (eventId) {
+                    const { data: eventRow, error: eventErr } = await supabase
+                        .from('events')
+                        .select('session_caps')
+                        .eq('event_id', eventId)
+                        .limit(1)
+                        .maybeSingle();
 
-                const sessionCaps = (eventRow as { session_caps?: SessionCaps | null } | null)?.session_caps ?? null;
+                    if (eventErr) {
+                        throw eventErr;
+                    }
 
-                if (sessionCaps) {
-                    const agentCaps = (sessionCaps.agent_caps || {}) as Record<string, number | null>;
-                    const configuredAgentCap = agentId ? agentCaps[agentId] ?? null : null;
+                    const sessionCaps = (eventRow as { session_caps?: SessionCaps | null } | null)?.session_caps ?? null;
 
-                    if (configuredAgentCap !== null && configuredAgentCap !== undefined) {
-                        const { count, error } = await supabase
-                            .from('meetings')
-                            .select('id', { count: 'exact', head: true })
-                            .eq('user_id', ctx.auth.user.id)
-                            .eq('event_id', eventId)
-                            .eq('agent_id', agentId);
+                    if (sessionCaps) {
+                        const agentCaps = (sessionCaps.agent_caps || {}) as Record<string, number | null>;
+                        const configuredAgentCap = agentId ? agentCaps[agentId] ?? null : null;
 
-                        if (error) throw error;
-
-                        const userMeetingsCount = typeof count === 'number' ? count : 0;
-                        if (userMeetingsCount >= configuredAgentCap) {
-                            throw new TRPCError({ code: 'FORBIDDEN', message: 'You have reached the maximum number of sessions for this agent' });
-                        }
-                    } else {
-                        const defaultCap = sessionCaps.default;
-                        if (defaultCap !== null && defaultCap !== undefined) {
+                        if (configuredAgentCap !== null && configuredAgentCap !== undefined) {
                             const { count, error } = await supabase
                                 .from('meetings')
                                 .select('id', { count: 'exact', head: true })
                                 .eq('user_id', ctx.auth.user.id)
-                                .eq('event_id', eventId);
+                                .eq('event_id', eventId)
+                                .eq('agent_id', agentId);
 
                             if (error) throw error;
 
-                            const userMeetingsCountForEvent = typeof count === 'number' ? count : 0;
-                            if (userMeetingsCountForEvent >= Number(defaultCap)) {
-                                throw new TRPCError({ code: 'FORBIDDEN', message: 'You have reached the maximum number of sessions for this event' });
+                            const userMeetingsCount = typeof count === 'number' ? count : 0;
+                            if (userMeetingsCount >= configuredAgentCap) {
+                                throw new TRPCError({ code: 'FORBIDDEN', message: 'You have reached the maximum number of sessions for this agent' });
+                            }
+                        } else {
+                            const defaultCap = sessionCaps.default;
+                            if (defaultCap !== null && defaultCap !== undefined) {
+                                const { count, error } = await supabase
+                                    .from('meetings')
+                                    .select('id', { count: 'exact', head: true })
+                                    .eq('user_id', ctx.auth.user.id)
+                                    .eq('event_id', eventId);
+
+                                if (error) throw error;
+
+                                const userMeetingsCountForEvent = typeof count === 'number' ? count : 0;
+                                if (userMeetingsCountForEvent >= Number(defaultCap)) {
+                                    throw new TRPCError({ code: 'FORBIDDEN', message: 'You have reached the maximum number of sessions for this event' });
+                                }
                             }
                         }
                     }
-                }
-            } else {
-                // No event provided — use default global MAX_SESSIONS
-                const { data: rows, count, error } = await supabase
-                    .from('meetings')
-                    .select('id', { count: 'exact' })
-                    .eq('user_id', ctx.auth.user.id);
+                } else {
+                    // No event provided — use default global MAX_SESSIONS
+                    const { data: rows, count, error } = await supabase
+                        .from('meetings')
+                        .select('id', { count: 'exact' })
+                        .eq('user_id', ctx.auth.user.id);
 
-                if (error) throw error;
+                    if (error) throw error;
 
-                const userMeetingsCount = typeof count === 'number' ? count : (rows?.length ?? 0);
-                if (userMeetingsCount >= MAX_SESSIONS) {
-                    throw new TRPCError({ code: 'FORBIDDEN', message: 'You have reached the maximum number of sessions' });
+                    const userMeetingsCount = typeof count === 'number' ? count : (rows?.length ?? 0);
+                    if (userMeetingsCount >= MAX_SESSIONS) {
+                        throw new TRPCError({ code: 'FORBIDDEN', message: 'You have reached the maximum number of sessions' });
+                    }
                 }
             }
         } catch (err) {
