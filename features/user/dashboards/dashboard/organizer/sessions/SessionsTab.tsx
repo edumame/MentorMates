@@ -62,7 +62,7 @@ export function SessionsTab({ eventId, event, setEvent }: SessionsTabProps) {
 
   const loadAgents = async () => {
     try {
-      const { data, error } = await supabase.from("agents").select("id,name").order("name", { ascending: true });
+      const { data, error } = await supabase.from("agents").select("id,name").eq("event_id", eventId).order("name", { ascending: true });
       if (error) throw error;
       setAgents(data || []);
     } catch (err) {
