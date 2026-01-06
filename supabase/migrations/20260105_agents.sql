@@ -3,6 +3,14 @@
 -- ===============================
 DO $$
 BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_type t
+    JOIN pg_namespace n ON n.oid = t.typnamespace
+    WHERE t.typname = 'agent_type' AND n.nspname = 'public'
+  ) THEN
+    CREATE TYPE public.agent_type AS ENUM ('brainstorm','product','tech','judge','custom');
+  END IF;
+
   IF to_regclass('public.agents') IS NULL THEN
     CREATE TABLE public.agents (
       id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -14,6 +22,12 @@ BEGIN
       avatar_url text DEFAULT 'https://images.unsplash.com/photo-1511367461989-f85a21fda167?q=80&w=1331&auto=format&fit=facearea&facepad=4&w=256&h=256'::text,
       event_id uuid,
       enabled boolean DEFAULT true,
+      type public.agent_type NOT NULL DEFAULT 'brainstorm'::public.agent_type,
+      custom_type text,
+      CONSTRAINT agents_custom_type_check CHECK (
+        (type = 'custom' AND custom_type IS NOT NULL)
+        OR (type <> 'custom' AND custom_type IS NULL)
+      ),
       CONSTRAINT agents_pkey PRIMARY KEY (id)
     );
   END IF;

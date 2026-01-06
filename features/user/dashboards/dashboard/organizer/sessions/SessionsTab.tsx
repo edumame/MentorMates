@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import AgentTypeLabel from "@/components/ui/agent-type-label";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/lib/hooks/use-toast";
@@ -21,7 +22,7 @@ interface SessionsTabProps {
 export function SessionsTab({ eventId, event, setEvent }: SessionsTabProps) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  type Agent = { id: string; name?: string | null };
+  type Agent = { id: string; name?: string | null; type?: string | null; custom_type?: string | null };
   const [agents, setAgents] = useState<Array<Agent>>([]);
   const [agentsLoaded, setAgentsLoaded] = useState(false);
   const [defaultCap, setDefaultCap] = useState<number | null>(null);
@@ -63,7 +64,7 @@ export function SessionsTab({ eventId, event, setEvent }: SessionsTabProps) {
 
   const loadAgents = async () => {
     try {
-      const { data, error } = await supabase.from("agents").select("id,name").eq("event_id", eventId).order("name", { ascending: true });
+      const { data, error } = await supabase.from("agents").select("id,name,type,custom_type").eq("event_id", eventId).order("name", { ascending: true });
       if (error) throw error;
       setAgents(data || []);
     } catch (err) {
@@ -152,7 +153,10 @@ export function SessionsTab({ eventId, event, setEvent }: SessionsTabProps) {
           <div className="space-y-3">
             {agents.map((a) => (
               <div key={a.id} className="flex items-center gap-3">
-                <div className="flex-1">{a.name || a.id}</div>
+                <div className="flex-1 flex items-center gap-2">
+                  <span>{a.name || a.id}</span>
+                  <AgentTypeLabel type={a.type ?? ""} customType={a.custom_type} />
+                </div>
                 <div className="w-32">
                   <Input
                     type="number"

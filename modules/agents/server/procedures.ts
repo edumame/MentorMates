@@ -41,7 +41,7 @@ export const agentsRouter = createTRPCRouter({
 
             const offset = (page - 1) * pageSize;
 
-            let agentsQuery: any = supabase.from("agents").select("*").eq("user_id", ctx.auth.user.id);
+            let agentsQuery = supabase.from("agents").select("*").eq("user_id", ctx.auth.user.id);
             if (search) agentsQuery = agentsQuery.ilike("name", `%${search}%`);
 
             const { data: items = [], error: itemsError } = await agentsQuery
@@ -52,7 +52,7 @@ export const agentsRouter = createTRPCRouter({
             if (itemsError) throw itemsError;
 
             // total count
-            let countQuery: any = supabase.from("agents").select("id", { count: "exact", head: false }).eq("user_id", ctx.auth.user.id);
+            let countQuery = supabase.from("agents").select("id", { count: "exact", head: false }).eq("user_id", ctx.auth.user.id);
             if (search) countQuery = countQuery.ilike("name", `%${search}%`);
             const { count, error: countError } = await countQuery;
             if (countError) throw countError;
@@ -60,7 +60,7 @@ export const agentsRouter = createTRPCRouter({
             const totalPages = Math.ceil(total / pageSize);
 
             // meeting counts per agent
-            const agentIds = Array.from(new Set((items || []).map((a: any) => a.id).filter(Boolean)));
+            const agentIds = Array.from(new Set((items || []).map((a: unknown) => (a as { id?: string }).id).filter(Boolean)));
             let meetingCountsMap: Record<string, number> = {};
             if (agentIds.length > 0) {
                 const { data: meetingsRows = [], error: meetingsErr } = await supabase
@@ -68,13 +68,17 @@ export const agentsRouter = createTRPCRouter({
                     .select("agent_id")
                     .in("agent_id", agentIds);
                 if (meetingsErr) throw meetingsErr;
-                meetingCountsMap = (meetingsRows || []).reduce((acc: Record<string, number>, r: any) => {
-                    acc[r.agent_id] = (acc[r.agent_id] || 0) + 1;
+                meetingCountsMap = (meetingsRows || []).reduce((acc: Record<string, number>, r: unknown) => {
+                    const agentId = (r as { agent_id?: string }).agent_id;
+                    if (agentId) acc[agentId] = (acc[agentId] || 0) + 1;
                     return acc;
                 }, {});
             }
 
-            const itemsWithCounts = (items || []).map((a: any) => ({ ...a, meetingCount: meetingCountsMap[a.id] ?? 0 }));
+            const itemsWithCounts = (items || []).map((a: unknown) => {
+                const id = (a as { id?: string }).id;
+                return { ...(a as Record<string, unknown>), meetingCount: meetingCountsMap[id ?? ""] ?? 0 };
+            });
 
             return {
                 items: itemsWithCounts,
@@ -85,9 +89,14 @@ export const agentsRouter = createTRPCRouter({
 
     create: protectedProcedure.input(agentsInsertSchema).mutation(async ({ input, ctx }) => {
         const supabase = ctx.supabase;
-        const payload = { ...input, user_id: ctx.auth.user.id } as any;
+        const payloadBase = { ...input, user_id: ctx.auth.user.id };
+        const dbPayload: Record<string, unknown> = { ...payloadBase };
+        // normalize custom_type for non-custom types
+        if ((dbPayload.type as string) !== "custom") dbPayload.custom_type = null;
+        // strip undefined fields to avoid accidental updates
+        Object.keys(dbPayload).forEach((k) => (dbPayload[k] === undefined ? delete dbPayload[k] : null));
 
-        const { data: createdRows, error } = await supabase.from("agents").insert(payload).select().limit(1);
+        const { data: createdRows, error } = await supabase.from("agents").insert(dbPayload).select().limit(1);
         if (error) throw error;
         const createdAgent = createdRows?.[0];
 
@@ -105,7 +114,14 @@ export const agentsRouter = createTRPCRouter({
 
     update: protectedProcedure.input(agentsUpdateSchema).mutation(async ({ ctx, input }) => {
         const supabase = ctx.supabase;
-        const { data, error } = await supabase.from("agents").update(input).match({ id: input.id, user_id: ctx.auth.user.id }).select();
+        const updateBase = { ...input } as Record<string, unknown>;
+        // remove id from payload and normalize custom_type for non-custom types
+        delete updateBase.id;
+        if ((updateBase.type as string) !== "custom") updateBase.custom_type = null;
+        // remove undefined fields so we don't overwrite columns unintentionally
+        Object.keys(updateBase).forEach((k) => (updateBase[k] === undefined ? delete updateBase[k] : null));
+
+        const { data, error } = await supabase.from("agents").update(updateBase).match({ id: input.id, user_id: ctx.auth.user.id }).select();
         if (error) throw error;
         const updatedAgent = data?.[0];
         if (!updatedAgent) throw new TRPCError({ code: "NOT_FOUND", message: "Agent not found" });

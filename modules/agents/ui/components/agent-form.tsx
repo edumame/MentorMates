@@ -8,6 +8,13 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import {
+    Select,
+    SelectTrigger,
+    SelectValue,
+    SelectContent,
+    SelectItem,
+} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -56,25 +63,29 @@ export const AgentForm = ({ onSuccess, onCancel, initialValues, eventId } : Agen
         },
     }));
 
-    const form = useForm<z.infer<typeof agentsInsertSchema>>({
+    type AgentFormValues = z.infer<typeof agentsInsertSchema>;
+
+    const form = useForm<AgentFormValues>({
         resolver: zodResolver(agentsInsertSchema),
         defaultValues: {
             name: initialValues?.name ?? "",
             instructions: initialValues?.instructions ?? "",
+            type: (initialValues?.type as AgentFormValues["type"]) ?? "brainstorm",
+            custom_type: initialValues?.custom_type ?? "",
         },
     });
 
     const isEdit = !!initialValues?.id;
     const isPending = createAgent.isPending || updateAgent.isPending;
 
-    const onSubmit = async (values: z.infer<typeof agentsInsertSchema>) => {
+    const onSubmit = async (values: AgentFormValues) => {
         if (isEdit) {
             updateAgent.mutate({ ...values, id: initialValues.id });
         } else {
             try {
                 const payload = eventId ? { ...values, event_id: eventId } : values;
                 await createAgent.mutateAsync(payload);
-            } catch (err) {
+            } catch {
                 // createAgent handles toast/router on error
             }
         }
@@ -96,6 +107,53 @@ export const AgentForm = ({ onSuccess, onCancel, initialValues, eventId } : Agen
                         </FormItem>
                     )}
                 />
+                <FormField
+                    name="type"
+                    control={form.control}
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Type</FormLabel>
+                            <FormControl>
+                                <Select
+                                    value={field.value ?? "brainstorm"}
+                                    onValueChange={(val) => {
+                                        field.onChange(val);
+                                        // clear custom_type when switching away from custom
+                                        if (val !== "custom") form.setValue("custom_type", "");
+                                    }}
+                                >
+                                    <SelectTrigger className="w-full">
+                                        <SelectValue placeholder="Select type" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="brainstorm">Brainstorm</SelectItem>
+                                        <SelectItem value="product">Product</SelectItem>
+                                        <SelectItem value="tech">Tech</SelectItem>
+                                        <SelectItem value="judge">Judge</SelectItem>
+                                        <SelectItem value="custom">Custom</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+
+                {form.watch("type") === "custom" && (
+                    <FormField
+                        name="custom_type"
+                        control={form.control}
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Custom type</FormLabel>
+                                <FormControl>
+                                    <Input {...field} placeholder="Enter custom type" />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                )}
                 <FormField
                     name="instructions"
                     control={form.control}

@@ -10,6 +10,7 @@ import { CommandSelect } from "@/components/command-select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import AgentTypeLabel from "@/components/ui/agent-type-label";
 import { toast } from "@/lib/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -306,7 +307,10 @@ export const MeetingForm = ({ onSuccess, onCancel, initialValues } : MeetingForm
                                             value: agent.id,
                                             children: (
                                                 <div className="flex items-center gap-x-2">
-                                                    <span>{agent.name}</span>
+                                                    <span className="flex items-center gap-2">
+                                                        <span>{agent.name}</span>
+                                                        <AgentTypeLabel type={agent.type} customType={agent.custom_type} />
+                                                    </span>
                                                 </div>
                                             )
                                         }))}

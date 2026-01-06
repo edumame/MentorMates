@@ -5,6 +5,7 @@ import { useTRPC } from "@/trpc/client";
 import type { AgentsGetMany, AgentGetOne } from "@/modules/agents/types";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
+import AgentTypeLabel from "@/components/ui/agent-type-label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/lib/hooks/use-toast";
 import { NewAgentDialog } from "@/modules/agents/ui/components/new-agent-dialog";
@@ -97,10 +98,14 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
         {((agentsQuery.data?.items || []) as AgentsGetMany)
           .filter((agent: AgentGetOne) => String(agent.event_id ?? "") === String(eventId))
           .map((agent: AgentGetOne) => {
-          return (
+            
+            return (
             <div key={agent.id} className="flex items-center justify-between border p-3 rounded">
               <div>
-                <div className="font-medium">{agent.name}</div>
+                <div className="font-medium flex items-center gap-2">
+                  <span>{agent.name}</span>
+                  <AgentTypeLabel type={agent.type} customType={agent.custom_type} />
+                </div>
                 <div className="text-sm text-gray-600">{agent.instructions}</div>
               </div>
               <div className="flex items-center gap-3">
