@@ -1041,7 +1041,7 @@ export default function ProjectPage() {
             {/* Top Actions Bar */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 sm:mb-6 gap-3 sm:gap-0">
               {/* Metadata Badges */}
-              <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-2 flex-wrap overflow-x-auto pb-2">
                 <Badge
                   variant="secondary"
                   className="bg-white border border-black/15 text-black px-3 py-1.5 rounded-full flex items-center gap-1 text-sm"
@@ -1077,15 +1077,15 @@ export default function ProjectPage() {
               </div>
 
               {/* Action Buttons - Desktop Only */}
-              <div className="hidden sm:flex items-center gap-3">
+              <div className="hidden sm:flex items-center gap-2 sm:gap-3 flex-wrap">
                 {canEdit && (
                   <Button
                     variant="ghost"
-                    className="rounded-xl px-5 py-2 text-base"
+                    className="rounded-xl px-4 sm:px-5 py-2 text-sm sm:text-base"
                     onClick={() => router.push(`/projects/${projectId}/edit`)}
                   >
                     {/* <Edit className="h-6 w-6 mr-1.5" /> */}
-                    <EditNote className="h-6 w-6 mr-1.5" />
+                    <EditNote className="h-5 w-5 sm:h-6 sm:w-6 mr-1.5" />
                     Edit
                   </Button>
                 )}
@@ -1101,28 +1101,28 @@ export default function ProjectPage() {
                     }
                     void toggleLike();
                   }}
-                  className={`cursor-pointer rounded-xl px-5 py-2 text-base flex items-center`}
+                  className={`cursor-pointer rounded-xl px-4 sm:px-5 py-2 text-sm sm:text-base flex items-center`}
                 >
                   {likeIsLoading ? (
-                    <Loader className="h-6 w-6 mr-1.5" />
+                    <Loader className="h-5 w-5 sm:h-6 sm:w-6 mr-1.5" />
                   ) : (
                     <>
                       {liked ? (
                         <Favorite
-                          className="h-6 w-6 mr-1.5"
+                          className="h-5 w-5 sm:h-6 sm:w-6 mr-1.5"
                           style={{ fill: "#4B89EF" }}
                         />
                       ) : (
-                        <Heart className="h-6 w-6 mr-1.5" fill="none" />
+                        <Heart className="h-5 w-5 sm:h-6 sm:w-6 mr-1.5" fill="none" />
                       )}
                     </>
                   )}
-                  {liked ? "Liked" : "Like"}
+                  <span className="whitespace-nowrap">{liked ? "Liked" : "Like"}</span>
                   {/* <span className="ml-2 text-sm">{likesCount}</span> */}
                 </div>
                 <Button
                   onClick={() => setShowFeedbackDialog(true)}
-                  className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-5 py-2 shadow-sm text-base whitespace-nowrap"
+                  className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-4 sm:px-5 py-2 shadow-sm text-sm sm:text-base whitespace-nowrap"
                 >
                   Give feedback
                 </Button>
@@ -1176,16 +1176,16 @@ export default function ProjectPage() {
                 </div>
 
                 {/* Action Buttons for Project */}
-                <div className="flex gap-3">
+                <div className="flex flex-wrap gap-3">
                   {project.project_url && (
                     <a
                       href={project.project_url}
                       target="_blank"
                       rel="noopener noreferrer"
                     >
-                      <Button className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-6 py-2.5 shadow-sm">
-                        <ArrowUpRight className="h-5 w-5 mr-1.5" />
-                        View Live Project
+                      <Button className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-4 sm:px-6 py-2.5 shadow-sm text-sm sm:text-base">
+                        <ArrowUpRight className="h-4 w-4 sm:h-5 sm:w-5 mr-1.5" />
+                        <span className="whitespace-nowrap">View Live Project</span>
                       </Button>
                     </a>
                   )}
@@ -1197,10 +1197,10 @@ export default function ProjectPage() {
                     >
                       <Button
                         variant="secondary"
-                        className="bg-black/5 hover:bg-black/10 rounded-xl px-6 py-2.5 shadow-sm"
+                        className="bg-black/5 hover:bg-black/10 rounded-xl px-4 sm:px-6 py-2.5 shadow-sm text-sm sm:text-base"
                       >
-                        <Video className="h-5 w-5 mr-1.5" />
-                        Watch Video
+                        <Video className="h-4 w-4 sm:h-5 sm:w-5 mr-1.5" />
+                        <span className="whitespace-nowrap">Watch Video</span>
                       </Button>
                     </a>
                   )}
@@ -1239,14 +1239,14 @@ export default function ProjectPage() {
             </div>
 
             {/* Action Buttons - Mobile Only */}
-            <div className="flex sm:hidden items-center gap-2 mb-6 overflow-x-auto">
+            <div className="flex sm:hidden items-center gap-2 mb-6 overflow-x-auto pb-2 -mx-4 px-4">
               {canEdit && (
                 <Button
                   variant="ghost"
-                  className="rounded-xl px-5 py-2 text-base"
+                  className="rounded-xl px-4 py-2 text-sm flex-shrink-0"
                   onClick={() => router.push(`/projects/${projectId}/edit`)}
                 >
-                  <Edit className="h-6 w-6 mr-1.5" />
+                  <Edit className="h-5 w-5 mr-1.5" />
                   Edit
                 </Button>
               )}
@@ -1262,27 +1262,27 @@ export default function ProjectPage() {
                   }
                   void toggleLike();
                 }}
-                className={`cursor-pointer rounded-xl px-5 py-2 text-base flex items-center`}
+                className={`cursor-pointer rounded-xl px-4 py-2 text-sm flex items-center flex-shrink-0`}
               >
                 {likeIsLoading ? (
-                  <Loader className="h-6 w-6" />
+                  <Loader className="h-5 w-5" />
                 ) : (
                   <>
                     {liked ? (
                       <Favorite
-                        className="h-6 w-6 mr-1.5"
+                        className="h-5 w-5 mr-1.5"
                         style={{ fill: "#4B89EF" }}
                       />
                     ) : (
-                      <Heart className="h-6 w-6 mr-1.5" fill="none" />
+                      <Heart className="h-5 w-5 mr-1.5" fill="none" />
                     )}
                   </>
                 )}
-                {liked ? "Liked" : "Like"}
+                <span className="whitespace-nowrap">{liked ? "Liked" : "Like"}</span>
               </div>
               <Button
                 onClick={() => setShowFeedbackDialog(true)}
-                className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-5 py-2 shadow-sm text-base whitespace-nowrap"
+                className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-4 py-2 shadow-sm text-sm whitespace-nowrap flex-shrink-0"
               >
                 Give feedback
               </Button>
@@ -1818,7 +1818,7 @@ export default function ProjectPage() {
                       value="sharing"
                       className="mt-0 overflow-hidden"
                     >
-                      <div className="grid grid-cols-1 lg:grid-cols-[1fr,500px] gap-6 border border-zinc-200 rounded-md">
+                      <div className="grid grid-cols-1 lg:grid-cols-[1fr,minmax(300px,500px)] gap-6 border border-zinc-200 rounded-md p-4 sm:p-6">
                         {/* Left Column: Share Card */}
                         <div>
                           <CardHeader>
@@ -1833,15 +1833,15 @@ export default function ProjectPage() {
                           <CardContent className="space-y-6">
                             {/* Copy Link Section */}
                             <div className="space-y-2">
-                              <div className="flex gap-2">
+                              <div className="flex flex-col sm:flex-row gap-2">
                                 <Input
                                   value={feedbackUrl}
                                   readOnly
-                                  className="flex-1 bg-white min-w-0"
+                                  className="flex-1 bg-white min-w-0 text-sm"
                                 />
                                 <Button
                                   variant="secondary"
-                                  className="bg-zinc-100 hover:bg-zinc-200"
+                                  className="bg-zinc-100 hover:bg-zinc-200 whitespace-nowrap"
                                   onClick={() => {
                                     navigator.clipboard.writeText(feedbackUrl);
                                     toast({
@@ -1860,13 +1860,14 @@ export default function ProjectPage() {
 
                             {/* QR Code Section */}
                             <div className="space-y-4">
-                              <div className="w-[206px] h-[201px] bg-white">
+                              <div className="w-full max-w-[206px] h-auto bg-white flex justify-center">
                                 <QRCodeSVG
                                   id="project-qr-code"
                                   value={feedbackUrl}
                                   size={200}
                                   level="H"
                                   includeMargin={false}
+                                  className="w-full h-auto"
                                 />
                               </div>
 
@@ -1898,7 +1899,7 @@ export default function ProjectPage() {
 
                         {/* Right Column: Sharing Tips */}
                         <div
-                          className="p-6 space-y-6"
+                          className="p-4 sm:p-6 space-y-4 sm:space-y-6"
                           style={{
                             background:
                               "linear-gradient(180deg, #DBEAFE 0%, #F9F9FF 100%)",
@@ -1964,7 +1965,7 @@ export default function ProjectPage() {
 
                   {/* Right Column: Sidebar */}
                   {activeTab === "overview" && (
-                    <div className="w-full lg:w-[420px] lg:flex-shrink-0 space-y-6">
+                    <div className="w-full lg:w-[420px] xl:w-[480px] lg:flex-shrink-0 space-y-6">
                       {/* Meet the team */}
                       {activeTab === "overview" && (
                         <div className="space-y-6">
