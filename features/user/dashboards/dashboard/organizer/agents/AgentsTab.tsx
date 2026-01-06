@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useTRPC } from "@/trpc/client";
+import type { AgentsGetMany, AgentGetOne } from "@/modules/agents/types";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -19,7 +20,7 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
-  const [selectedAgent, setSelectedAgent] = useState<any | null>(null);
+  const [selectedAgent, setSelectedAgent] = useState<AgentGetOne | null>(null);
   const [search, setSearch] = useState("");
 
   const agentsQuery = useQuery(trpc.agents.getMany.queryOptions({ pageSize: 100, search }));
@@ -56,9 +57,9 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
 
   useEffect(() => {}, [eventId]);
 
-  const enableAgent = (agent: any, enabled: boolean) => {
+  const enableAgent = (agent: AgentGetOne, enabled: boolean) => {
     void (async () => {
-      const t = toast({ title: enabled ? "Enabling agent..." : "Disabling agent...", description: agent.name, duration: 3000 });
+      const t = toast({ title: enabled ? "Enabling agent..." : "Disabling agent...", description: String(agent.name), duration: 3000 });
       await updateAgent.mutateAsync({ id: agent.id, enabled });
       t.dismiss();
     })();
@@ -93,7 +94,9 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
       <RemoveConfirmation />
 
       <div className="space-y-3">
-        {(agentsQuery.data?.items || []).map((agent: any) => {
+        {((agentsQuery.data?.items || []) as AgentsGetMany)
+          .filter((agent) => String(agent.event_id ?? "") === String(eventId))
+          .map((agent: AgentGetOne) => {
           return (
             <div key={agent.id} className="flex items-center justify-between border p-3 rounded">
               <div>
@@ -101,7 +104,7 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
                 <div className="text-sm text-gray-600">{agent.instructions}</div>
               </div>
               <div className="flex items-center gap-3">
-                <Switch checked={agent.enabled} onCheckedChange={(e) => enableAgent(agent, e)} />
+                <Switch checked={Boolean(agent.enabled)} onCheckedChange={(e) => enableAgent(agent, e as boolean)} />
                     <Button onClick={() => {
                   setSelectedAgent(agent);
                   setUpdateDialogOpen(true);
