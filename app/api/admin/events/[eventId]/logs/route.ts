@@ -70,7 +70,7 @@ export async function GET(
         const { data: profile } = await supabase
           .from("user_profiles")
           .select("display_name, email")
-          .eq("user_id", log.admin_user_id)
+          .eq("uid", log.admin_user_id)
           .single();
 
         return {

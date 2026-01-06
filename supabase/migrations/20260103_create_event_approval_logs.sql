@@ -2,7 +2,7 @@
 CREATE TABLE IF NOT EXISTS public.event_approval_logs (
   log_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   event_id UUID NOT NULL REFERENCES public.events(event_id) ON DELETE CASCADE,
-  admin_user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  admin_user_id UUID NOT NULL REFERENCES public.user_profiles(uid) ON DELETE CASCADE,
   previous_status public.approval_status,
   new_status public.approval_status NOT NULL,
   notes TEXT,

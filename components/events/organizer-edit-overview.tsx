@@ -8,6 +8,7 @@ import { supabase } from "@/lib/supabase";
 import { useToast } from "@/lib/hooks/use-toast";
 import { Archive, Trash2, ArrowUpRight } from "lucide-react";
 import {
+  ApprovalStatus,
   EventDetails,
   EventScoringConfig,
   EventTrack,
@@ -385,6 +386,21 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                   {event.visibility.toUpperCase()}
                 </Badge>
               )}
+
+              <Badge
+                variant="secondary"
+                className={`${
+                  event.approval_status === ApprovalStatus.Submitted
+                    ? "bg-blue-500/20 text-black border-none text-xs sm:text-sm"
+                    : event.approval_status === ApprovalStatus.Approved
+                      ? "bg-green-500/20 text-black border-none text-xs sm:text-sm"
+                      : event.approval_status === ApprovalStatus.Rejected
+                        ? "bg-red-500/20 text-black border-none text-xs sm:text-sm"
+                        : "bg-gray-500/20 text-black border-none text-xs sm:text-sm"
+                }`}
+              >
+                {event.approval_status?.toUpperCase() || "NOT SUBMITTED"}
+              </Badge>
             </div>
 
             <div className="flex gap-2 w-full sm:w-auto">
@@ -496,16 +512,21 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
             </div>
 
             {/* Content Area - Scrollable on Desktop */}
-            <div 
+            <div
               className="flex flex-col lg:flex-row gap-6 lg:gap-12 items-start w-full lg:flex-1 lg:min-h-0 lg:overflow-auto no-scrollbar"
-              style={{ opacity: isPending ? 0.4 : 1, transition: "opacity 150ms" }}
+              style={{
+                opacity: isPending ? 0.4 : 1,
+                transition: "opacity 150ms",
+              }}
             >
               {/* Left Column - Form Content */}
               <div className="w-full lg:flex-[2] lg:min-w-0 flex flex-col items-start">
-                
                 {/* Overview Tab Content */}
                 <TabsContent value="overview" className="mt-0 w-full">
-                  <Tabs value={activeSubTab} onValueChange={(value) => setActiveSubTab(value)}>
+                  <Tabs
+                    value={activeSubTab}
+                    onValueChange={(value) => setActiveSubTab(value)}
+                  >
                     <div
                       className="w-screen -mx-4 sm:-mx-6 lg:w-full lg:mx-0 overflow-x-auto overflow-y-visible px-4 sm:px-6 lg:px-0 mb-6"
                       style={{

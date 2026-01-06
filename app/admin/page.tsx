@@ -8,7 +8,19 @@ import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/lib/hooks/use-toast";
-import { Loader2, Star, CheckCircle, ChevronDown, ChevronRight, Clock, Send, XCircle, Sparkles, Eye, Calendar } from "lucide-react";
+import {
+  Loader2,
+  Star,
+  CheckCircle,
+  ChevronDown,
+  ChevronRight,
+  Clock,
+  Send,
+  XCircle,
+  Sparkles,
+  Eye,
+  Calendar,
+} from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -24,8 +36,12 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [events, setEvents] = useState<EventItem[]>([]);
   const [updatingEventId, setUpdatingEventId] = useState<string | null>(null);
-  const [expandedEventIds, setExpandedEventIds] = useState<Set<string>>(new Set());
-  const [activeTab, setActiveTab] = useState<"featured" | "approval">("featured");
+  const [expandedEventIds, setExpandedEventIds] = useState<Set<string>>(
+    new Set()
+  );
+  const [activeTab, setActiveTab] = useState<"featured" | "approval">(
+    "featured"
+  );
 
   useEffect(() => {
     checkAdminAndLoadEvents();
@@ -158,7 +174,9 @@ export default function AdminPage() {
       toast({
         title: "Error",
         description:
-          error instanceof Error ? error.message : `Failed to update event ${field} status.`,
+          error instanceof Error
+            ? error.message
+            : `Failed to update event ${field} status.`,
         variant: "destructive",
       });
     } finally {
@@ -180,7 +198,9 @@ export default function AdminPage() {
 
   // Separate events into four queues based on approval status
   const notSubmittedEvents = events.filter(
-    (event) => event.approval_status === ApprovalStatus.NotSubmitted || !event.approval_status
+    (event) =>
+      event.approval_status === ApprovalStatus.NotSubmitted ||
+      !event.approval_status
   );
   const submittedEvents = events.filter(
     (event) => event.approval_status === ApprovalStatus.Submitted
@@ -315,65 +335,104 @@ export default function AdminPage() {
                           </h4>
                           <div className="space-y-3 text-sm">
                             <div>
-                              <label className="text-gray-600 font-medium">Event Name</label>
-                              <p className="text-gray-900 mt-0.5">{event.event_name}</p>
-                            </div>
-                            
-                            <div>
-                              <label className="text-gray-600 font-medium">Date</label>
+                              <label className="text-gray-600 font-medium">
+                                Event Name
+                              </label>
                               <p className="text-gray-900 mt-0.5">
-                                {new Date(event.event_date).toLocaleDateString("en-US", {
-                                  weekday: "long",
-                                  year: "numeric",
-                                  month: "long",
-                                  day: "numeric",
-                                })}
+                                {event.event_name}
                               </p>
                             </div>
-                            
+
                             <div>
-                              <label className="text-gray-600 font-medium">Location</label>
-                              <p className="text-gray-900 mt-0.5">{event.location}</p>
+                              <label className="text-gray-600 font-medium">
+                                Date
+                              </label>
+                              <p className="text-gray-900 mt-0.5">
+                                {new Date(event.event_date).toLocaleDateString(
+                                  "en-US",
+                                  {
+                                    weekday: "long",
+                                    year: "numeric",
+                                    month: "long",
+                                    day: "numeric",
+                                  }
+                                )}
+                              </p>
                             </div>
-                            
+
+                            <div>
+                              <label className="text-gray-600 font-medium">
+                                Location
+                              </label>
+                              <p className="text-gray-900 mt-0.5">
+                                {event.location}
+                              </p>
+                            </div>
+
                             {event.event_blurb && (
                               <div>
-                                <label className="text-gray-600 font-medium">Description</label>
-                                <p className="text-gray-900 mt-0.5 line-clamp-3">{event.event_blurb}</p>
+                                <label className="text-gray-600 font-medium">
+                                  Description
+                                </label>
+                                <p className="text-gray-900 mt-0.5 line-clamp-3">
+                                  {event.event_blurb}
+                                </p>
                               </div>
                             )}
-                            
+
                             <div>
-                              <label className="text-gray-600 font-medium">Event Type</label>
-                              <p className="text-gray-900 mt-0.5">{event.event_type || "Not specified"}</p>
-                            </div>
-                            
-                            <div>
-                              <label className="text-gray-600 font-medium">Visibility</label>
-                              <p className="text-gray-900 mt-0.5 capitalize">{event.visibility || "draft"}</p>
-                            </div>
-                            
-                            {event.paid && (
-                              <div>
-                                <label className="text-gray-600 font-medium">Pricing</label>
-                                <p className="text-gray-900 mt-0.5">Paid Event</p>
-                              </div>
-                            )}
-                            
-                            {event.slug && (
-                              <div>
-                                <label className="text-gray-600 font-medium">Slug</label>
-                                <p className="text-gray-900 mt-0.5 font-mono text-xs">{event.slug}</p>
-                              </div>
-                            )}
-                            
-                            <div>
-                              <label className="text-gray-600 font-medium">Created</label>
+                              <label className="text-gray-600 font-medium">
+                                Event Type
+                              </label>
                               <p className="text-gray-900 mt-0.5">
-                                {event.created_at ? new Date(event.created_at).toLocaleDateString() : "N/A"}
+                                {event.event_type || "Not specified"}
                               </p>
                             </div>
-                            
+
+                            <div>
+                              <label className="text-gray-600 font-medium">
+                                Visibility
+                              </label>
+                              <p className="text-gray-900 mt-0.5 capitalize">
+                                {event.visibility || "draft"}
+                              </p>
+                            </div>
+
+                            {event.paid && (
+                              <div>
+                                <label className="text-gray-600 font-medium">
+                                  Pricing
+                                </label>
+                                <p className="text-gray-900 mt-0.5">
+                                  Paid Event
+                                </p>
+                              </div>
+                            )}
+
+                            {event.slug && (
+                              <div>
+                                <label className="text-gray-600 font-medium">
+                                  Slug
+                                </label>
+                                <p className="text-gray-900 mt-0.5 font-mono text-xs">
+                                  {event.slug}
+                                </p>
+                              </div>
+                            )}
+
+                            <div>
+                              <label className="text-gray-600 font-medium">
+                                Created
+                              </label>
+                              <p className="text-gray-900 mt-0.5">
+                                {event.created_at
+                                  ? new Date(
+                                      event.created_at
+                                    ).toLocaleDateString()
+                                  : "N/A"}
+                              </p>
+                            </div>
+
                             <div className="pt-2 border-t border-gray-200">
                               <Button
                                 variant="outline"
@@ -412,7 +471,9 @@ export default function AdminPage() {
                                         checked as boolean
                                       )
                                     }
-                                    disabled={updatingEventId === event.event_id}
+                                    disabled={
+                                      updatingEventId === event.event_id
+                                    }
                                   />
                                   <label
                                     htmlFor={`featured-${event.event_id}`}
@@ -436,7 +497,10 @@ export default function AdminPage() {
                                   Approval Status
                                 </label>
                                 <Select
-                                  value={event.approval_status || ApprovalStatus.NotSubmitted}
+                                  value={
+                                    event.approval_status ||
+                                    ApprovalStatus.NotSubmitted
+                                  }
                                   onValueChange={(value) =>
                                     updateEventStatus(
                                       event.event_id,
@@ -450,13 +514,17 @@ export default function AdminPage() {
                                     <SelectValue />
                                   </SelectTrigger>
                                   <SelectContent>
-                                    <SelectItem value={ApprovalStatus.NotSubmitted}>
+                                    <SelectItem
+                                      value={ApprovalStatus.NotSubmitted}
+                                    >
                                       <div className="flex items-center gap-2">
                                         <Clock className="w-4 h-4 text-gray-500" />
                                         Not Submitted
                                       </div>
                                     </SelectItem>
-                                    <SelectItem value={ApprovalStatus.Submitted}>
+                                    <SelectItem
+                                      value={ApprovalStatus.Submitted}
+                                    >
                                       <div className="flex items-center gap-2">
                                         <Send className="w-4 h-4 text-blue-500" />
                                         Submitted
@@ -613,9 +681,16 @@ export default function AdminPage() {
                         <CheckCircle className="w-5 h-5 text-green-600" />
                       </div>
                       <div>
-                        <p className="text-sm text-gray-600">Approved & Featured</p>
+                        <p className="text-sm text-gray-600">
+                          Approved & Featured
+                        </p>
                         <p className="text-2xl font-bold text-gray-900">
-                          {featuredEvents.filter(e => e.approval_status === ApprovalStatus.Approved).length}
+                          {
+                            featuredEvents.filter(
+                              (e) =>
+                                e.approval_status === ApprovalStatus.Approved
+                            ).length
+                          }
                         </p>
                       </div>
                     </div>
@@ -629,7 +704,13 @@ export default function AdminPage() {
                       <div>
                         <p className="text-sm text-gray-600">Public Featured</p>
                         <p className="text-2xl font-bold text-gray-900">
-                          {featuredEvents.filter(e => e.visibility === "public" && e.approval_status === ApprovalStatus.Approved).length}
+                          {
+                            featuredEvents.filter(
+                              (e) =>
+                                e.visibility === "public" &&
+                                e.approval_status === ApprovalStatus.Approved
+                            ).length
+                          }
                         </p>
                       </div>
                     </div>
@@ -644,14 +725,17 @@ export default function AdminPage() {
                       Featured Events Management
                     </h2>
                     <p className="text-sm text-gray-600 mt-1">
-                      Events marked as featured will appear on the homepage. Manage their visibility and approval status below.
+                      Events marked as featured will appear on the homepage.
+                      Manage their visibility and approval status below.
                     </p>
                   </div>
 
                   {featuredEvents.length === 0 ? (
                     <div className="text-center py-12">
                       <Star className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                      <p className="text-gray-500 text-sm">No featured events yet.</p>
+                      <p className="text-gray-500 text-sm">
+                        No featured events yet.
+                      </p>
                       <p className="text-gray-400 text-xs mt-1">
                         Mark events as featured in the approval queue below.
                       </p>
@@ -661,14 +745,21 @@ export default function AdminPage() {
                       {featuredEvents.map((event) => {
                         const isExpanded = expandedEventIds.has(event.event_id);
                         return (
-                          <div key={event.event_id} className="hover:bg-gray-50 transition-colors">
+                          <div
+                            key={event.event_id}
+                            className="hover:bg-gray-50 transition-colors"
+                          >
                             {/* Featured Event Row */}
                             <div className="p-4 flex items-center justify-between">
                               <div className="flex items-center gap-4 flex-1 min-w-0">
                                 <button
-                                  onClick={() => toggleEventExpanded(event.event_id)}
+                                  onClick={() =>
+                                    toggleEventExpanded(event.event_id)
+                                  }
                                   className="flex-shrink-0 p-1 hover:bg-gray-100 rounded transition-colors"
-                                  aria-label={isExpanded ? "Collapse" : "Expand"}
+                                  aria-label={
+                                    isExpanded ? "Collapse" : "Expand"
+                                  }
                                 >
                                   {isExpanded ? (
                                     <ChevronDown className="w-5 h-5 text-gray-600" />
@@ -689,7 +780,9 @@ export default function AdminPage() {
                                   <div className="flex items-center gap-3 text-sm text-gray-500">
                                     <span className="flex items-center gap-1">
                                       <Calendar className="w-3.5 h-3.5" />
-                                      {new Date(event.event_date).toLocaleDateString()}
+                                      {new Date(
+                                        event.event_date
+                                      ).toLocaleDateString()}
                                     </span>
                                     <span>•</span>
                                     <span>{event.location}</span>
@@ -697,7 +790,9 @@ export default function AdminPage() {
                                 </div>
 
                                 <div className="flex items-center gap-2 flex-shrink-0">
-                                  {getApprovalStatusBadge(event.approval_status)}
+                                  {getApprovalStatusBadge(
+                                    event.approval_status
+                                  )}
                                   <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded">
                                     {event.visibility || "draft"}
                                   </span>
@@ -731,14 +826,22 @@ export default function AdminPage() {
                                       </h4>
                                       <div className="space-y-3 text-sm">
                                         <div>
-                                          <label className="text-gray-600 font-medium">Event Name</label>
-                                          <p className="text-gray-900 mt-0.5">{event.event_name}</p>
-                                        </div>
-                                        
-                                        <div>
-                                          <label className="text-gray-600 font-medium">Date</label>
+                                          <label className="text-gray-600 font-medium">
+                                            Event Name
+                                          </label>
                                           <p className="text-gray-900 mt-0.5">
-                                            {new Date(event.event_date).toLocaleDateString("en-US", {
+                                            {event.event_name}
+                                          </p>
+                                        </div>
+
+                                        <div>
+                                          <label className="text-gray-600 font-medium">
+                                            Date
+                                          </label>
+                                          <p className="text-gray-900 mt-0.5">
+                                            {new Date(
+                                              event.event_date
+                                            ).toLocaleDateString("en-US", {
                                               weekday: "long",
                                               year: "numeric",
                                               month: "long",
@@ -746,50 +849,81 @@ export default function AdminPage() {
                                             })}
                                           </p>
                                         </div>
-                                        
+
                                         <div>
-                                          <label className="text-gray-600 font-medium">Location</label>
-                                          <p className="text-gray-900 mt-0.5">{event.location}</p>
-                                        </div>
-                                        
-                                        {event.event_blurb && (
-                                          <div>
-                                            <label className="text-gray-600 font-medium">Description</label>
-                                            <p className="text-gray-900 mt-0.5 line-clamp-3">{event.event_blurb}</p>
-                                          </div>
-                                        )}
-                                        
-                                        <div>
-                                          <label className="text-gray-600 font-medium">Event Type</label>
-                                          <p className="text-gray-900 mt-0.5">{event.event_type || "Not specified"}</p>
-                                        </div>
-                                        
-                                        <div>
-                                          <label className="text-gray-600 font-medium">Visibility</label>
-                                          <p className="text-gray-900 mt-0.5 capitalize">{event.visibility || "draft"}</p>
-                                        </div>
-                                        
-                                        {event.paid && (
-                                          <div>
-                                            <label className="text-gray-600 font-medium">Pricing</label>
-                                            <p className="text-gray-900 mt-0.5">Paid Event</p>
-                                          </div>
-                                        )}
-                                        
-                                        {event.slug && (
-                                          <div>
-                                            <label className="text-gray-600 font-medium">Slug</label>
-                                            <p className="text-gray-900 mt-0.5 font-mono text-xs">{event.slug}</p>
-                                          </div>
-                                        )}
-                                        
-                                        <div>
-                                          <label className="text-gray-600 font-medium">Created</label>
+                                          <label className="text-gray-600 font-medium">
+                                            Location
+                                          </label>
                                           <p className="text-gray-900 mt-0.5">
-                                            {event.created_at ? new Date(event.created_at).toLocaleDateString() : "N/A"}
+                                            {event.location}
                                           </p>
                                         </div>
-                                        
+
+                                        {event.event_blurb && (
+                                          <div>
+                                            <label className="text-gray-600 font-medium">
+                                              Description
+                                            </label>
+                                            <p className="text-gray-900 mt-0.5 line-clamp-3">
+                                              {event.event_blurb}
+                                            </p>
+                                          </div>
+                                        )}
+
+                                        <div>
+                                          <label className="text-gray-600 font-medium">
+                                            Event Type
+                                          </label>
+                                          <p className="text-gray-900 mt-0.5">
+                                            {event.event_type ||
+                                              "Not specified"}
+                                          </p>
+                                        </div>
+
+                                        <div>
+                                          <label className="text-gray-600 font-medium">
+                                            Visibility
+                                          </label>
+                                          <p className="text-gray-900 mt-0.5 capitalize">
+                                            {event.visibility || "draft"}
+                                          </p>
+                                        </div>
+
+                                        {event.paid && (
+                                          <div>
+                                            <label className="text-gray-600 font-medium">
+                                              Pricing
+                                            </label>
+                                            <p className="text-gray-900 mt-0.5">
+                                              Paid Event
+                                            </p>
+                                          </div>
+                                        )}
+
+                                        {event.slug && (
+                                          <div>
+                                            <label className="text-gray-600 font-medium">
+                                              Slug
+                                            </label>
+                                            <p className="text-gray-900 mt-0.5 font-mono text-xs">
+                                              {event.slug}
+                                            </p>
+                                          </div>
+                                        )}
+
+                                        <div>
+                                          <label className="text-gray-600 font-medium">
+                                            Created
+                                          </label>
+                                          <p className="text-gray-900 mt-0.5">
+                                            {event.created_at
+                                              ? new Date(
+                                                  event.created_at
+                                                ).toLocaleDateString()
+                                              : "N/A"}
+                                          </p>
+                                        </div>
+
                                         <div className="pt-2 border-t border-gray-200">
                                           <Button
                                             variant="outline"
@@ -820,7 +954,9 @@ export default function AdminPage() {
                                             <div className="flex items-center space-x-2">
                                               <Checkbox
                                                 id={`featured-${event.event_id}`}
-                                                checked={event.featured || false}
+                                                checked={
+                                                  event.featured || false
+                                                }
                                                 onCheckedChange={(checked) =>
                                                   updateEventStatus(
                                                     event.event_id,
@@ -828,7 +964,10 @@ export default function AdminPage() {
                                                     checked as boolean
                                                   )
                                                 }
-                                                disabled={updatingEventId === event.event_id}
+                                                disabled={
+                                                  updatingEventId ===
+                                                  event.event_id
+                                                }
                                               />
                                               <label
                                                 htmlFor={`featured-${event.event_id}`}
@@ -852,7 +991,10 @@ export default function AdminPage() {
                                               Approval Status
                                             </label>
                                             <Select
-                                              value={event.approval_status || ApprovalStatus.NotSubmitted}
+                                              value={
+                                                event.approval_status ||
+                                                ApprovalStatus.NotSubmitted
+                                              }
                                               onValueChange={(value) =>
                                                 updateEventStatus(
                                                   event.event_id,
@@ -860,31 +1002,50 @@ export default function AdminPage() {
                                                   value as ApprovalStatus
                                                 )
                                               }
-                                              disabled={updatingEventId === event.event_id}
+                                              disabled={
+                                                updatingEventId ===
+                                                event.event_id
+                                              }
                                             >
                                               <SelectTrigger className="w-full">
                                                 <SelectValue />
                                               </SelectTrigger>
                                               <SelectContent>
-                                                <SelectItem value={ApprovalStatus.NotSubmitted}>
+                                                <SelectItem
+                                                  value={
+                                                    ApprovalStatus.NotSubmitted
+                                                  }
+                                                >
                                                   <div className="flex items-center gap-2">
                                                     <Clock className="w-4 h-4 text-gray-500" />
                                                     Not Submitted
                                                   </div>
                                                 </SelectItem>
-                                                <SelectItem value={ApprovalStatus.Submitted}>
+                                                <SelectItem
+                                                  value={
+                                                    ApprovalStatus.Submitted
+                                                  }
+                                                >
                                                   <div className="flex items-center gap-2">
                                                     <Send className="w-4 h-4 text-blue-500" />
                                                     Submitted
                                                   </div>
                                                 </SelectItem>
-                                                <SelectItem value={ApprovalStatus.Approved}>
+                                                <SelectItem
+                                                  value={
+                                                    ApprovalStatus.Approved
+                                                  }
+                                                >
                                                   <div className="flex items-center gap-2">
                                                     <CheckCircle className="w-4 h-4 text-green-500" />
                                                     Approved
                                                   </div>
                                                 </SelectItem>
-                                                <SelectItem value={ApprovalStatus.Rejected}>
+                                                <SelectItem
+                                                  value={
+                                                    ApprovalStatus.Rejected
+                                                  }
+                                                >
                                                   <div className="flex items-center gap-2">
                                                     <XCircle className="w-4 h-4 text-red-500" />
                                                     Rejected
@@ -898,10 +1059,14 @@ export default function AdminPage() {
                                           <div className="pt-2 border-t border-gray-200">
                                             <div className="flex items-center justify-between text-xs text-gray-500">
                                               <span>
-                                                Visibility: {event.visibility || "draft"}
+                                                Visibility:{" "}
+                                                {event.visibility || "draft"}
                                               </span>
                                               <span>
-                                                Created: {new Date(event.created_at || "").toLocaleDateString()}
+                                                Created:{" "}
+                                                {new Date(
+                                                  event.created_at || ""
+                                                ).toLocaleDateString()}
                                               </span>
                                             </div>
                                           </div>

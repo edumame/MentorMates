@@ -54,6 +54,7 @@ import {
   Percent,
   Shuffle,
   UserPlus,
+  ChevronDown,
 } from "lucide-react";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -70,6 +71,7 @@ export default function NewEventPage() {
     EventVisibility.Draft
   );
   const [showVisibilityDropdown, setShowVisibilityDropdown] = useState(false);
+  const [showCreateDropdown, setShowCreateDropdown] = useState(false);
   const [aiInput, setAiInput] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
@@ -253,15 +255,29 @@ export default function NewEventPage() {
       const { data: adminData } = await supabase.rpc("is_admin_user", {
         user_id: userId,
       });
-      if (!adminData) {
-        router.push("/events");
-        return;
-      }
-      setIsAdmin(true);
+      setIsAdmin(adminData || false);
       setLoading(false);
     };
     checkAccess();
   }, [router]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (showCreateDropdown && !target.closest('.create-dropdown-container')) {
+        setShowCreateDropdown(false);
+      }
+    };
+
+    if (showCreateDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showCreateDropdown]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -304,7 +320,7 @@ export default function NewEventPage() {
     }
   }, [toast]);
 
-  const handleCreate = async () => {
+  const handleCreate = async (requestApproval = false) => {
     if (!form.event_name || !form.event_date || !form.location) {
       toast({
         title: "Missing fields",
@@ -327,7 +343,8 @@ export default function NewEventPage() {
         organizerEmails.unshift(currentUserEmail);
       }
 
-      const res = await fetch("/api/events", {
+      const endpoint = requestApproval ? "/api/events/request-approval" : "/api/events";
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -362,15 +379,17 @@ export default function NewEventPage() {
       const data = await res.json();
       if (!res.ok) {
         toast({
-          title: "Create failed",
-          description: data.error || "Error creating event.",
+          title: requestApproval ? "Request failed" : "Create failed",
+          description: data.error || `Error ${requestApproval ? "requesting approval for" : "creating"} event.`,
           variant: "destructive",
         });
         return;
       }
       toast({
-        title: "Event created",
-        description: `${data.event.event_name} created successfully.`,
+        title: requestApproval ? "Approval requested" : "Event created",
+        description: requestApproval 
+          ? `${data.event.event_name} has been submitted for approval.`
+          : `${data.event.event_name} created successfully.`,
       });
       router.push(`/events/${data.event.slug || data.event.event_id}/overview`);
     } catch {
@@ -516,7 +535,6 @@ export default function NewEventPage() {
     );
   }
 
-  if (!isAdmin) return null;
 
   const formatDateForPreview = (dateStr: string) => {
     if (!dateStr)
@@ -608,13 +626,57 @@ export default function NewEventPage() {
                 >
                   Cancel
                 </Button>
-                <Button
-                  onClick={handleCreate}
-                  disabled={creating}
-                  className="text-[16px] font-medium flex-1 sm:flex-none"
-                >
-                  {creating ? "Creating..." : "Create event"}
-                </Button>
+                {isAdmin ? (
+                  <div className="relative flex-1 sm:flex-none create-dropdown-container">
+                    <Button
+                      onClick={() => setShowCreateDropdown(!showCreateDropdown)}
+                      disabled={creating}
+                      className="text-[16px] font-medium w-full flex items-center justify-between gap-2"
+                    >
+                      <span>{creating ? "Processing..." : "Create event"}</span>
+                      <ChevronDown className="h-4 w-4" />
+                    </Button>
+                    {showCreateDropdown && (
+                      <div className="absolute top-full mt-2 right-0 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] shadow-lg z-[10] w-full min-w-[200px] overflow-hidden">
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setShowCreateDropdown(false);
+                            handleCreate(false);
+                          }}
+                          disabled={creating}
+                          className="w-full text-left px-4 py-3 hover:bg-gray-50 text-[16px] font-normal border-b border-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <div className="font-medium">Create event</div>
+                          <div className="text-sm text-gray-500">Publish immediately</div>
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setShowCreateDropdown(false);
+                            handleCreate(true);
+                          }}
+                          disabled={creating}
+                          className="w-full text-left px-4 py-3 hover:bg-gray-50 text-[16px] font-normal disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <div className="font-medium">Request approval</div>
+                          <div className="text-sm text-gray-500">Submit for review</div>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <Button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleCreate(true);
+                    }}
+                    disabled={creating}
+                    className="text-[16px] font-medium flex-1 sm:flex-none"
+                  >
+                    {creating ? "Requesting..." : "Request approval"}
+                  </Button>
+                )}
               </div>
             </div>
           </div>

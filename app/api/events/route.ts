@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { EventRole, EventVisibility } from "@/lib/types";
+import { ApprovalStatus, EventRole, EventVisibility } from "@/lib/types";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { defaultRules } from "@/lib/config/constants";
 import { z } from "zod";
@@ -15,7 +15,7 @@ export async function GET() {
     } = await supabase.auth.getUser();
 
     if (!user) {
-      // If not authenticated, only return public and private events (exclude archived)
+      // If not authenticated, only return public and private events (exclude archived) that are approved
       const { data: visibleEvents, error: visibleError } = await supabase
         .from("events")
         .select(
@@ -25,9 +25,12 @@ export async function GET() {
           event_blurb, 
           cover_image_url,
           event_date,
-          visibility`
+          visibility,
+          featured,
+          approval_status`
         )
-        .in("visibility", [EventVisibility.Public, EventVisibility.Private]);
+        .in("visibility", [EventVisibility.Public, EventVisibility.Private])
+        .eq("approval_status", ApprovalStatus.Approved);
 
       if (visibleError) throw visibleError;
       return NextResponse.json({ events: visibleEvents });
@@ -71,11 +74,11 @@ export async function GET() {
           `and(visibility.eq.${EventVisibility.Archived},event_id.in.(${organizerEventIds.join(",")}))`
       );
     } else {
-      // Regular users only see public and private events (exclude archived)
+      // Regular users only see public and private events (exclude archived) that are approved
       query = query.in("visibility", [
         EventVisibility.Public,
         EventVisibility.Private,
-      ]);
+      ]).eq("approval_status", ApprovalStatus.Approved);
     }
 
     const { data: events, error: eventsError } = await query;
@@ -184,6 +187,7 @@ export async function POST(req: Request) {
       paid: event.paid ?? null,
       stripe_price_id: event.stripe_price_id ?? null,
       owner_id: user.id, // Set the creator as the owner
+      approval_status: ApprovalStatus.Approved, // Admin-created events are auto-approved
     };
 
     const { data: createdEvent, error: insertError } = await supabase
