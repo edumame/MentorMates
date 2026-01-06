@@ -17,14 +17,14 @@ const BLUE_PRIMARY = "#3B82F6";
 const svgIcons = {
   calendar: (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="25" viewBox="0 0 24 25" fill="none">
-      <path d="M16 2.5V6.5M8 2.5V6.5M3 10.5H21M5 4.5H19C20.1046 4.5 21 5.39543 21 6.5V20.5C21 21.6046 20.1046 22.5 19 22.5H5C3.89543 22.5 3 21.6046 3 20.5V6.5C3 5.39543 3.89543 4.5 5 4.5Z" stroke="#09090B" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M16 2.5V6.5M8 2.5V6.5M3 10.5H21M5 4.5H19C20.1046 4.5 21 5.39543 21 6.5V20.5C21 21.6046 20.1046 22.5 19 22.5H5C3.89543 22.5 3 21.6046 3 20.5V6.5C3 5.39543 3.89543 4.5 5 4.5Z" stroke={BLUE_PRIMARY} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   ),
   createProject: (
     <svg xmlns="http://www.w3.org/2000/svg" height="40px" viewBox="0 0 24 24" width="40px" fill="#528EF0" style={{ width: 34, height: 34 }}><path d="M0 0h24v24H0V0z" fill="none" /><path d="M22.61 18.99l-9.08-9.08c.93-2.34.45-5.1-1.44-7C9.79.61 6.21.4 3.66 2.26L7.5 6.11 6.08 7.52 2.25 3.69C.39 6.23.6 9.82 2.9 12.11c1.86 1.86 4.57 2.35 6.89 1.48l9.11 9.11c.39.39 1.02.39 1.41 0l2.3-2.3c.4-.38.4-1.01 0-1.41zm-3 1.6l-9.46-9.46c-.61.45-1.29.72-2 .82-1.36.2-2.79-.21-3.83-1.25C3.37 9.76 2.93 8.5 3 7.26l3.09 3.09 4.24-4.24-3.09-3.09c1.24-.07 2.49.37 3.44 1.31 1.08 1.08 1.49 2.57 1.24 3.96-.12.71-.42 1.37-.88 1.96l9.45 9.45-.88.89z" /></svg>
   ),
   project: (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M11 3V11L14 8L17 11V3M5 3H19C20.1046 3 21 3.89543 21 5V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V5C3 3.89543 3.89543 3 5 3Z" stroke="#09090B"></path></svg>
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M11 3V11L14 8L17 11V3M5 3H19C20.1046 3 21 3.89543 21 5V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V5C3 3.89543 3.89543 3 5 3Z" stroke={BLUE_PRIMARY} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"></path></svg>
   ),
   event: (
     <svg xmlns="http://www.w3.org/2000/svg" width="35" height="34" viewBox="0 0 35 34" fill="none">
@@ -212,7 +212,7 @@ export function DashBoardStats() {
             >
               <CardContent className="px-4 py-4">
                 <div className="flex flex-col items-left gap-2 text-gray-800">
-                  <span className="w-fit p-2 rounded-xl items-center justify-center inline-block bg-[rgba(0,0,0,0.05)]">
+                  <span className="w-fit p-2 rounded-xl items-center justify-center inline-block bg-blue-50 ring-1 ring-blue-100">
                     {stat.icon}
                   </span>
                   <span className="text-md">{stat.label}</span>
