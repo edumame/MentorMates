@@ -95,7 +95,7 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
 
       <div className="space-y-3">
         {((agentsQuery.data?.items || []) as AgentsGetMany)
-          .filter((agent) => String(agent.event_id ?? "") === String(eventId))
+          .filter((agent: AgentGetOne) => String(agent.event_id ?? "") === String(eventId))
           .map((agent: AgentGetOne) => {
           return (
             <div key={agent.id} className="flex items-center justify-between border p-3 rounded">

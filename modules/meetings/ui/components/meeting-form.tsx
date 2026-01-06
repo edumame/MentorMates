@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/lib/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import type { AgentsGetMany, AgentGetOne } from "@/modules/agents/types";
 import { useAuth } from "@/features/user/authentication/auth/AuthContext";
 
 interface MeetingFormProps {
@@ -142,6 +143,17 @@ export const MeetingForm = ({ onSuccess, onCancel, initialValues } : MeetingForm
             fetchProjects();
         }
     }, [selectedEventId, fetchProjects, form]);
+
+    const filteredAgents = useMemo(() => {
+        const items = (agents.data?.items ?? []) as AgentsGetMany;
+        // always exclude disabled agents
+        const enabledItems = items.filter((a: AgentGetOne) => a.enabled !== false);
+        if (!selectedEventId) {
+            // no event selected -> show only global agents (event_id null/undefined)
+            return enabledItems.filter((a: AgentGetOne) => a.event_id == null);
+        }
+        return enabledItems.filter((a: AgentGetOne) => String(a.event_id ?? "") === String(selectedEventId));
+    }, [agents.data, selectedEventId]);
 
     const filteredEvents = useMemo(() => {
         const q = eventSearch.trim().toLowerCase();
@@ -289,12 +301,11 @@ export const MeetingForm = ({ onSuccess, onCancel, initialValues } : MeetingForm
                                 <FormLabel>Agent</FormLabel>
                                 <FormControl>
                                     <CommandSelect
-                                        options={(agents.data?.items ?? []).map((agent) => ({
+                                        options={filteredAgents.map((agent: AgentGetOne) => ({
                                             id: agent.id,
                                             value: agent.id,
                                             children: (
                                                 <div className="flex items-center gap-x-2">
-                                                    {/* <GeneratedAvatar className="border size-6" variant="botttsNeutral" seed={agent.name} /> */}
                                                     <span>{agent.name}</span>
                                                 </div>
                                             )
