@@ -8,7 +8,7 @@ BEGIN
       id uuid DEFAULT gen_random_uuid() NOT NULL,
       name text,
       user_id uuid DEFAULT auth.uid(),
-      agent_id text,
+      agent_id uuid,
       status meeting_status DEFAULT 'upcoming'::meeting_status,
       started_at timestamp with time zone,
       ended_at timestamp with time zone,
@@ -20,7 +20,8 @@ BEGIN
       score integer,
       project_id uuid,
       event_id uuid,
-      CONSTRAINT meetings_pkey PRIMARY KEY (id)
+      CONSTRAINT meetings_pkey PRIMARY KEY (id),
+      CONSTRAINT meetings_agent_id_fkey FOREIGN KEY (agent_id) REFERENCES public.agents(id) ON DELETE CASCADE
     );
   END IF;
 END $$;
