@@ -24,6 +24,13 @@ export enum EventVisibility {
   Archived = "archived",
 }
 
+export enum ApprovalStatus {
+  NotSubmitted = "not_submitted",
+  Submitted = "submitted",
+  Approved = "approved",
+  Rejected = "rejected",
+}
+
 // Pricing Types
 export interface PricingTier {
   id: string;
@@ -115,7 +122,22 @@ export type EventItem = {
   participant_capacity?: number | null; // Max participants; null = unlimited
   finalist_recommendation_enabled?: boolean | null;
   event_type?: string;
+  featured?: boolean; // Whether this event is featured on homepage
+  approval_status?: ApprovalStatus; // Approval status: not_submitted, submitted, or approved
+  created_at?: string; // Timestamp when event was created
 };
+
+export interface EventApprovalLog {
+  log_id: string;
+  event_id: string;
+  admin_user_id: string;
+  previous_status: ApprovalStatus | null;
+  new_status: ApprovalStatus;
+  notes: string | null;
+  created_at: string;
+  admin_name?: string; // Joined from user_profiles
+  admin_email?: string; // Joined from auth.users
+}
 
 // Event Overview Types
 export interface ScheduleParticipant {

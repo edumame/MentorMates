@@ -1,7 +1,7 @@
 import { Footer } from "@/components/layout/Footer";
 import { EventsPageClient } from "@/components/eventsPageClient";
 import { createSupabaseClient } from "../utils/supabase/server";
-import { EventRole, EventVisibility } from "@/lib/types";
+import { EventRole, EventVisibility, ApprovalStatus } from "@/lib/types";
 import { DiscordCTA } from "@/components/ui/discord-cta";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 
@@ -45,9 +45,10 @@ export default async function EventsPage() {
       let query = supabase.from("events").select("*");
 
       if (isAdmin) {
-        // Admins can see all events (public, private, draft, demo, test)
+        // Admins can see all events regardless of approval status
         // No additional filter needed
       } else if (organizerEventIds.length > 0) {
+        // Organizers can see their own events regardless of approval status
         // For organizers:
         // - Public and private events (visible to everyone)
         // - Draft events where user is an organizer
@@ -66,11 +67,13 @@ export default async function EventsPage() {
             },event_id.in.(${organizerEventIds.join(",")}))`
         );
       } else {
-        // Regular users only see public and private events
-        query = query.in("visibility", [
-          EventVisibility.Public,
-          EventVisibility.Private,
-        ]);
+        // Regular users only see public and private events that are approved
+        query = query
+          .in("visibility", [
+            EventVisibility.Public,
+            EventVisibility.Private,
+          ])
+          .eq("approval_status", ApprovalStatus.Approved);
       }
 
       const { data: events, error: eventsError } = await query;
@@ -99,11 +102,12 @@ export default async function EventsPage() {
 
   async function fetchPublicEvents() {
     try {
-      // Fetch only public and private events
+      // Fetch only public and private events that are approved
       const { data: events, error } = await supabase
         .from("events")
         .select("*")
         .in("visibility", [EventVisibility.Public, EventVisibility.Private])
+        .eq("approval_status", ApprovalStatus.Approved)
         .order("event_date", { ascending: false });
 
       if (error) throw error;
