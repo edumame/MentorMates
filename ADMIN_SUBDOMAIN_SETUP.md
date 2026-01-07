@@ -2,7 +2,7 @@
 
 ## ✅ What's Already Done
 
-I've updated `next.config.mjs` to support subdomain routing for `admin.mentormates.ai`.
+I've updated `next.config.mjs` to support subdomain routing for `admin.mentormates.ai`. (Commented out for now)
 
 ## 🚀 Next Steps to Deploy
 
