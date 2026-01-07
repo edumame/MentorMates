@@ -17,23 +17,23 @@ const nextConfig = {
   ],
   
   // Subdomain routing for admin panel
-  async rewrites() {
-    return {
-      beforeFiles: [
-        // Rewrite admin subdomain to /admin path
-        {
-          source: '/:path*',
-          has: [
-            {
-              type: 'host',
-              value: 'admin.mentormates.ai',
-            },
-          ],
-          destination: '/admin/:path*',
-        },
-      ],
-    };
-  },
+  // async rewrites() {
+  //   return {
+  //     beforeFiles: [
+  //       // Rewrite admin subdomain to /admin path
+  //       {
+  //         source: '/:path*',
+  //         has: [
+  //           {
+  //             type: 'host',
+  //             value: 'admin.mentormates.ai',
+  //           },
+  //         ],
+  //         destination: '/admin/:path*',
+  //       },
+  //     ],
+  //   };
+  // },
 
   // // Redirect /admin on main domain to home (admin only via subdomain)
   // async redirects() {
