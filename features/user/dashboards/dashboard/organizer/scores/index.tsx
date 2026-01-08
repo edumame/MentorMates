@@ -7,8 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EventScoringConfig, ScoringCriterion, EventTrack } from "@/lib/types";
 import Papa from "papaparse";
 import { supabase } from "@/lib/supabase";
-import { Download } from "@mui/icons-material";
-import { Vote, Gavel } from "lucide-react";
+import { Vote, Gavel, Bot, Download } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -49,6 +48,31 @@ interface TrackScores {
   [trackId: string]: TrackScore[];
 }
 
+type MeetingScoreQueryRow = {
+  project_id: string | null;
+  score: number | null;
+  agent_id: string | null;
+};
+
+type ProjectScoreQueryRow = {
+  project_id: string;
+  track_id: string;
+  scores: unknown;
+  comments: string | null;
+  projects: unknown;
+  event_tracks: unknown;
+};
+
+interface AgentProjectScore {
+  projectId: string;
+  projectName: string;
+  leadName: string;
+  averageScore: number;
+  totalScore: number;
+  numberOfSessions: number;
+  numberOfAgents: number;
+}
+
 interface ScoresTabProps {
   eventId: string;
   scoringConfig: EventScoringConfig;
@@ -69,6 +93,7 @@ interface RawScoreData {
 export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
   const [trackScores, setTrackScores] = useState<TrackScores>({});
   const [rawScoreData, setRawScoreData] = useState<RawScoreData[]>([]);
+  const [agentScores, setAgentScores] = useState<AgentProjectScore[]>([]);
   const [eventTracks, setEventTracks] = useState<EventTrack[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -337,6 +362,125 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
 
         setEventTracks(trackData || []);
 
+        // Fetch agent "scores" from meetings (one meeting can have one score, tied to an agent + project)
+        // If this fails for any reason, we don't want to break the judge scoring dashboard.
+        try {
+          const { data: meetingData, error: meetingError } = await supabase
+            .from("meetings")
+            .select("project_id, score, agent_id")
+            .eq("event_id", eventId)
+            .not("project_id", "is", null)
+            .not("agent_id", "is", null)
+            .not("score", "is", null);
+
+          if (meetingError) throw meetingError;
+
+          const meetingRows = (meetingData || []) as MeetingScoreQueryRow[];
+
+          // Fetch project details for agent-scored projects (meetings does not guarantee FK joins)
+          const agentProjectIds = Array.from(
+            new Set(
+              meetingRows
+                .map((m) => (m.project_id ? String(m.project_id) : ""))
+                .filter(Boolean)
+            )
+          );
+
+          const agentProjectsById = new Map<
+            string,
+            { project_name: string | null; lead_name: string | null }
+          >();
+
+          if (agentProjectIds.length > 0) {
+            const { data: agentProjects, error: agentProjectsError } =
+              await supabase
+                .from("projects")
+                .select("id, project_name, lead_name")
+                .eq("event_id", eventId)
+                .in("id", agentProjectIds);
+
+            if (agentProjectsError) throw agentProjectsError;
+
+            (agentProjects || []).forEach((p) => {
+              agentProjectsById.set(String(p.id), {
+                project_name: p.project_name ?? null,
+                lead_name: p.lead_name ?? null,
+              });
+            });
+          }
+
+          // Aggregate agent scores per project (average across all agents/sessions for that project)
+          const agentScoreMap = new Map<
+            string,
+            {
+              projectName: string;
+              leadName: string;
+              total: number;
+              count: number;
+              agentIds: Set<string>;
+            }
+          >();
+
+          meetingRows.forEach((m: MeetingScoreQueryRow) => {
+            const projectId = String(m.project_id || "");
+            if (!projectId) return;
+
+            const numericScore =
+              typeof m.score === "number" ? m.score : Number(m.score);
+            if (!Number.isFinite(numericScore)) return;
+
+            const agentId = String(m.agent_id || "");
+
+            const project = agentProjectsById.get(projectId);
+            const projectName = project?.project_name || "";
+            const leadName = project?.lead_name || "";
+
+            const existing =
+              agentScoreMap.get(projectId) ||
+              ({
+                projectName,
+                leadName,
+                total: 0,
+                count: 0,
+                agentIds: new Set<string>(),
+              } as const);
+
+            // If this project name/lead name wasn't present in the first row we saw, backfill it.
+            // (This helps when some rows are missing joined project data.)
+            const projectNameFinal = existing.projectName || projectName;
+            const leadNameFinal = existing.leadName || leadName;
+
+            const next = {
+              projectName: projectNameFinal,
+              leadName: leadNameFinal,
+              total: existing.total + numericScore,
+              count: existing.count + 1,
+              agentIds: existing.agentIds,
+            };
+            if (agentId) next.agentIds.add(agentId);
+
+            agentScoreMap.set(projectId, next);
+          });
+
+          const agentScoreRows: AgentProjectScore[] = Array.from(
+            agentScoreMap.entries()
+          ).map(([projectId, agg]) => ({
+            projectId,
+            projectName: agg.projectName,
+            leadName: agg.leadName,
+            totalScore: agg.total,
+            numberOfSessions: agg.count,
+            numberOfAgents: agg.agentIds.size,
+            averageScore: agg.count > 0 ? agg.total / agg.count : 0,
+          }));
+
+          agentScoreRows.sort((a, b) => b.averageScore - a.averageScore);
+          setAgentScores(agentScoreRows);
+        } catch (err) {
+          console.error("Error fetching agent scores (meetings):", err);
+          setAgentScores([]);
+        }
+
         // Fetch complete raw scores data with all needed fields
         const { data, error } = await supabase
           .from("project_scores")
@@ -372,8 +516,10 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
           return;
         }
 
+        const scoreRows = (data || []) as ProjectScoreQueryRow[];
+
         // Transform data for display (existing logic)
-        const displayData = (data || []).map((item) => {
+        const displayData = scoreRows.map((item: ProjectScoreQueryRow) => {
           const projectData = item.projects as unknown as {
             project_name: string;
             lead_name: string;
@@ -400,7 +546,7 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
         }) as DashboardProjectScore[];
 
         // Store raw data for exports
-        const rawData: RawScoreData[] = data.map((item) => {
+        const rawData: RawScoreData[] = scoreRows.map((item: ProjectScoreQueryRow) => {
           const projects = Array.isArray(item.projects)
             ? item.projects[0]
             : item.projects;
@@ -433,7 +579,7 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
     fetchData();
 
     // Subscribe to real-time score updates
-    const subscription = supabase
+    const judgeScoresSubscription = supabase
       .channel(`project_scores_${eventId}`)
       .on(
         "postgres_changes",
@@ -450,18 +596,41 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
       )
       .subscribe();
 
+    // Subscribe to real-time agent score updates (meetings table)
+    const agentScoresSubscription = supabase
+      .channel(`meeting_scores_${eventId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "meetings",
+          filter: `event_id=eq.${eventId}`,
+        },
+        () => {
+          // Just reload all the data on any change
+          fetchData();
+        }
+      )
+      .subscribe();
+
     return () => {
-      subscription.unsubscribe();
+      judgeScoresSubscription.unsubscribe();
+      agentScoresSubscription.unsubscribe();
     };
   }, [eventId, calculateTrackScores]);
 
   return (
     <div className="space-y-6">
       <Tabs defaultValue="judge-scores" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 max-w-md">
+        <TabsList className="grid w-full grid-cols-3 max-w-lg">
           <TabsTrigger value="judge-scores" className="flex items-center gap-2">
             <Gavel className="w-4 h-4" />
             Judge Scores
+          </TabsTrigger>
+          <TabsTrigger value="agent-scores" className="flex items-center gap-2">
+            <Bot className="w-4 h-4" />
+            Agent Scores
           </TabsTrigger>
           <TabsTrigger value="peoples-choice" className="flex items-center gap-2">
             <Vote className="w-4 h-4" />
@@ -646,6 +815,73 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
                   </div>
                 )}
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Agent Scores Tab */}
+        <TabsContent value="agent-scores" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Agent Scoring Dashboard</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="text-center py-8">Loading scores...</div>
+              ) : agentScores.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-600">
+                    No agent scores available yet.
+                  </p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-16 text-center">Rank</TableHead>
+                        <TableHead className="min-w-[200px]">
+                          Project
+                        </TableHead>
+                        <TableHead className="min-w-[160px]">Lead</TableHead>
+                        <TableHead className="text-right min-w-[120px] px-4">
+                          Agent Average
+                        </TableHead>
+                        <TableHead className="text-center w-24 px-4">
+                          Sessions
+                        </TableHead>
+                        <TableHead className="text-center w-24 px-4">
+                          Agents
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {agentScores.map((row, index) => (
+                        <TableRow key={row.projectId}>
+                          <TableCell className="font-medium w-16 text-center">
+                            {index + 1}
+                          </TableCell>
+                          <TableCell className="min-w-[200px]">
+                            <div className="break-words">{row.projectName}</div>
+                          </TableCell>
+                          <TableCell className="min-w-[160px]">
+                            <div className="break-words">{row.leadName}</div>
+                          </TableCell>
+                          <TableCell className="text-right font-medium min-w-[120px] px-4 tabular-nums">
+                            {row.averageScore.toFixed(2)}
+                          </TableCell>
+                          <TableCell className="text-center w-24 px-4 tabular-nums">
+                            {row.numberOfSessions}
+                          </TableCell>
+                          <TableCell className="text-center w-24 px-4 tabular-nums">
+                            {row.numberOfAgents}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
