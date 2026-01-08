@@ -176,23 +176,23 @@ export async function POST(
 
     if (sourceTracksRows.length > 0) {
       const trackInserts: Database["public"]["Tables"]["event_tracks"]["Insert"][] =
-        sourceTracksRows.map(
-          (t: Database["public"]["Tables"]["event_tracks"]["Row"]) => {
-            const newTrackId = randomUUID();
-            oldToNewTrackId.set(t.track_id, newTrackId);
-            return {
-              event_id: createdEvent.event_id,
-              track_id: newTrackId,
-              name: t.name,
-              description: t.description ?? null,
-              label: t.label ?? null,
-              prize_amount: t.prize_amount ?? null,
-              prize_description: t.prize_description ?? null,
-              scoring_criteria: (t.scoring_criteria as Json) ?? null,
-              updated_at: new Date().toISOString(),
-            };
-          }
-        );
+        [];
+
+      for (const t of sourceTracksRows) {
+        const newTrackId = randomUUID();
+        oldToNewTrackId.set(t.track_id, newTrackId);
+        trackInserts.push({
+          event_id: createdEvent.event_id,
+          track_id: newTrackId,
+          name: t.name,
+          description: t.description ?? null,
+          label: t.label ?? null,
+          prize_amount: t.prize_amount ?? null,
+          prize_description: t.prize_description ?? null,
+          scoring_criteria: (t.scoring_criteria as Json) ?? null,
+          updated_at: new Date().toISOString(),
+        });
+      }
 
       const { error: insertTracksError } = await supabase
         .from("event_tracks")
@@ -209,9 +209,8 @@ export async function POST(
       }
 
       // Copy prizes that belong to those tracks
-      const oldTrackIds = sourceTracksRows.map(
-        (t: Database["public"]["Tables"]["event_tracks"]["Row"]) => t.track_id
-      );
+      const oldTrackIds: string[] = [];
+      for (const t of sourceTracksRows) oldTrackIds.push(t.track_id);
       const { data: sourcePrizes } = await supabase
         .from("prizes")
         .select("track_id, prize_amount, prize_description")
@@ -251,6 +250,101 @@ export async function POST(
         if (prizeInserts.length > 0) {
           await supabase.from("prizes").insert(prizeInserts);
         }
+      }
+    }
+
+    // 7) Duplicate event agents (only the current user's agents for this event)
+    // Notes:
+    // - Agents are user-owned (user_id). We can't copy other users' agents without
+    //   violating RLS. So we only copy agents created by the current user.
+    // - Meetings or run history are NOT copied.
+    // - We generate new agent ids so that event settings can remap safely.
+    const oldToNewAgentId = new Map<string, string>();
+    const { data: sourceAgents, error: sourceAgentsError } = await supabase
+      .from("agents")
+      .select("id,name,instructions,enabled,type,custom_type,avatar_url")
+      .eq("event_id", eventId)
+      .eq("user_id", user.id);
+
+    if (!sourceAgentsError && sourceAgents && sourceAgents.length > 0) {
+      const agentInserts: Array<Record<string, unknown>> = [];
+
+      for (const a of sourceAgents as Array<Record<string, unknown>>) {
+        const oldId = typeof a.id === "string" ? a.id : null;
+        const newId = randomUUID();
+        if (oldId) oldToNewAgentId.set(oldId, newId);
+
+        const type = String(a.type ?? "brainstorm");
+        const customType =
+          type === "custom" ? String(a.custom_type ?? "Custom") : null;
+
+        agentInserts.push({
+          id: newId,
+          name: a.name ?? "Agent",
+          instructions: a.instructions ?? "",
+          enabled: a.enabled ?? true,
+          type,
+          custom_type: customType,
+          avatar_url: a.avatar_url ?? null,
+          event_id: createdEvent.event_id,
+          user_id: user.id,
+          updated_at: new Date().toISOString(),
+        });
+      }
+
+      if (agentInserts.length > 0) {
+        await supabase.from("agents").insert(agentInserts);
+      }
+    }
+
+    // 8) Copy event session caps (and remap per-agent overrides to new agent ids)
+    // session_caps shape:
+    // {
+    //   default: number | null,
+    //   agent_caps: Record<agentId, number | null>
+    // }
+    const { data: sourceCapsRow, error: sourceCapsError } = await supabase
+      .from("events")
+      .select("session_caps")
+      .eq("event_id", eventId)
+      .maybeSingle();
+
+    if (!sourceCapsError && sourceCapsRow) {
+      const caps = (sourceCapsRow as unknown as { session_caps?: unknown })
+        .session_caps;
+
+      if (caps && typeof caps === "object") {
+        const capsObj = caps as {
+          default?: unknown;
+          agent_caps?: unknown;
+        };
+
+        const nextCaps: Record<string, unknown> = {
+          default: capsObj.default ?? null,
+          agent_caps: {},
+        };
+
+        const agentCaps =
+          capsObj.agent_caps && typeof capsObj.agent_caps === "object"
+            ? (capsObj.agent_caps as Record<string, unknown>)
+            : {};
+
+        const remapped: Record<string, unknown> = {};
+        for (const [oldAgentId, cap] of Object.entries(agentCaps)) {
+          const newAgentId = oldToNewAgentId.get(oldAgentId);
+          if (!newAgentId) continue;
+          remapped[newAgentId] = cap;
+        }
+
+        nextCaps.agent_caps = remapped;
+
+        await supabase
+          .from("events")
+          .update({ session_caps: nextCaps } as unknown as Record<
+            string,
+            unknown
+          >)
+          .eq("event_id", createdEvent.event_id);
       }
     }
 
