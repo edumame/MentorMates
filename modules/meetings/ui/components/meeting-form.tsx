@@ -280,7 +280,10 @@ export const MeetingForm = ({ onSuccess, onCancel, initialValues } : MeetingForm
                                         ]}
                                         onSelect={(value) => {
                                             if (value === "create-new") {
-                                                router.push("/projects/submit");
+                                                const query = selectedEventId
+                                                    ? `?eventId=${encodeURIComponent(selectedEventId)}`
+                                                    : "";
+                                                router.push(`/projects/submit${query}`);
                                             } else {
                                                 field.onChange(value);
                                             }
