@@ -19,6 +19,16 @@ import { useConfirm } from "@/lib/hooks/use-confirm";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { MeetingStatus } from "@/modules/meetings/types";
+import { useAdmin } from "@/lib/hooks/use-admin";
+
+type MeetingListItem = {
+  id: string;
+  name?: string | null;
+  status?: MeetingStatus | null;
+  event_id?: string | null;
+  project_id?: string | null;
+  agent?: { name?: string | null; avatar_url?: string | null } | null;
+};
 
 const statusIconMap = {
   upcoming: ClockArrowUpIcon,
@@ -37,6 +47,7 @@ const statusColorMap = {
 export function MentorCards() {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
+  const isAdmin = useAdmin();
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
 
@@ -163,7 +174,7 @@ export function MentorCards() {
         </select>
       </div>
       <ul role="list" className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-        {data.items.map((meeting) => (
+        {(data.items as unknown as MeetingListItem[]).map((meeting: MeetingListItem) => (
           <li
             key={meeting.id}
             className="col-span-1 flex flex-col divide-y divide-gray-200 rounded-xl bg-white text-center border border-gray-200 shadow-sm hover:shadow-md hover:border-gray-300 transition-all duration-200 group"
@@ -196,16 +207,16 @@ export function MentorCards() {
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem
                     className="gap-2"
-                    onClick={() => meeting.status === "upcoming" && onEdit(meeting)}
-                    disabled={meeting.status !== "upcoming"}
+                    onClick={() => (isAdmin || meeting.status === "upcoming") && onEdit(meeting)}
+                    disabled={!isAdmin && meeting.status !== "upcoming"}
                   >
                     <PencilIcon className="size-4 text-black" />
                     Edit
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     className="gap-2"
-                    onClick={() => meeting.status === "upcoming" && handleRemoveMeeting(meeting.id)}
-                    disabled={meeting.status !== "upcoming"}
+                    onClick={() => (isAdmin || meeting.status === "upcoming") && handleRemoveMeeting(meeting.id)}
+                    disabled={!isAdmin && meeting.status !== "upcoming"}
                   >
                     <TrashIcon className="size-4 text-black" />
                     Delete

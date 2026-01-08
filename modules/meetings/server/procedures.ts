@@ -304,6 +304,23 @@ export const meetingsRouter = createTRPCRouter({
     }),
     update: protectedProcedure.input(meetingsUpdateSchema).mutation(async ({ ctx, input }) => {
         const supabase = ctx.supabase;
+        const { data: isAdmin } = await supabase.rpc("is_admin_user", { user_id: ctx.auth.user.id });
+        const admin = Boolean(isAdmin);
+
+        // Non-admins are only allowed to edit upcoming conversations (UI hides this too, but enforce server-side)
+        let meetingLookup = supabase
+            .from("meetings")
+            .select("id,status,user_id")
+            .eq("id", input.id);
+        if (!admin) meetingLookup = meetingLookup.eq("user_id", ctx.auth.user.id);
+
+        const { data: existingMeeting, error: meetingErr } = await meetingLookup.maybeSingle();
+        if (meetingErr) throw meetingErr;
+        if (!existingMeeting) throw new TRPCError({ code: "NOT_FOUND", message: "Meeting not found" });
+        if (!admin && existingMeeting.status !== MeetingStatus.Upcoming) {
+            throw new TRPCError({ code: "FORBIDDEN", message: "Only admins can edit non-upcoming conversations" });
+        }
+
         const { agentId, eventId, projectId, id, ...rest } = input;
         const updatePayload: Record<string, string | null> = {
             ...rest,
@@ -311,7 +328,8 @@ export const meetingsRouter = createTRPCRouter({
             event_id: eventId || null,
             project_id: projectId || null,
         };
-        const { data, error } = await supabase.from('meetings').update(updatePayload).match({ id, user_id: ctx.auth.user.id }).select();
+        const match = admin ? { id } : { id, user_id: ctx.auth.user.id };
+        const { data, error } = await supabase.from('meetings').update(updatePayload).match(match).select();
         if (error) throw error;
         const updatedMeeting = data?.[0];
         if (!updatedMeeting) throw new TRPCError({ code: 'NOT_FOUND', message: 'Meeting not found' });
@@ -319,7 +337,25 @@ export const meetingsRouter = createTRPCRouter({
     }),
     remove: protectedProcedure.input(z.object({ id: z.string() })).mutation(async ({ ctx, input }) => {
         const supabase = ctx.supabase;
-        const { data, error } = await supabase.from('meetings').delete().match({ id: input.id, user_id: ctx.auth.user.id }).select();
+        const { data: isAdmin } = await supabase.rpc("is_admin_user", { user_id: ctx.auth.user.id });
+        const admin = Boolean(isAdmin);
+
+        // Non-admins are only allowed to delete upcoming conversations (UI hides this too, but enforce server-side)
+        let meetingLookup = supabase
+            .from("meetings")
+            .select("id,status,user_id")
+            .eq("id", input.id);
+        if (!admin) meetingLookup = meetingLookup.eq("user_id", ctx.auth.user.id);
+
+        const { data: existingMeeting, error: meetingErr } = await meetingLookup.maybeSingle();
+        if (meetingErr) throw meetingErr;
+        if (!existingMeeting) throw new TRPCError({ code: "NOT_FOUND", message: "Meeting not found" });
+        if (!admin && existingMeeting.status !== MeetingStatus.Upcoming) {
+            throw new TRPCError({ code: "FORBIDDEN", message: "Only admins can delete non-upcoming conversations" });
+        }
+
+        const match = admin ? { id: input.id } : { id: input.id, user_id: ctx.auth.user.id };
+        const { data, error } = await supabase.from('meetings').delete().match(match).select();
         if (error) throw error;
         const removedMeeting = data?.[0];
         if (!removedMeeting) throw new TRPCError({ code: 'NOT_FOUND', message: 'Meeting not found' });
