@@ -40,6 +40,12 @@ export interface ProjectBoardProps {
   session?: import("@supabase/supabase-js").Session | null;
   projectBoardContext: ProjectBoardContext;
   onProjectDeleted?: (projectId: string) => void;
+  /**
+   * Optional override for the "Create/Submit project" link shown in the empty
+   * state. Useful when this board is rendered inside an event context and we
+   * need to preserve `?eventId=...` in the URL.
+   */
+  createProjectHref?: string;
 }
 
 const ProjectBoard = ({
@@ -48,6 +54,7 @@ const ProjectBoard = ({
   session,
   projectBoardContext,
   onProjectDeleted,
+  createProjectHref,
 }: ProjectBoardProps) => {
   const [qrDialogOpen, setQrDialogOpen] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState<string | null>(null);
@@ -295,7 +302,9 @@ const ProjectBoard = ({
                             Join the event to submit a project or create a project directly.
                           </p>
                           <Button className="mt-4">
-                            <Link href="/projects/submit">Submit a project</Link>
+                            <Link href={createProjectHref || "/projects/submit"}>
+                              Submit a project
+                            </Link>
                           </Button>
                         </div>
                       </div>

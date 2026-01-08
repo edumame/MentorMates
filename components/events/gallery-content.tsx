@@ -7,9 +7,13 @@ import { Plus, Search } from "lucide-react";
 import ProjectBoard from "@/features/projects/components/displays/ProjectBoard/ProjectBoard";
 import { ProjectBoardContext, Project, EventRole } from "@/lib/types";
 
-interface GalleryContentProps {
+interface EventGalleryContentProps {
   eventId: string;
-  slug: string;
+  /**
+   * Backwards-compatible: older call sites used to pass the route param (slug or id).
+   * We no longer need it for project creation because we use the canonical UUID `eventId`.
+   */
+  slug?: string;
   hasJoined: boolean;
   userRole?: string | null;
   currentRole?: EventRole | null;
@@ -17,11 +21,10 @@ interface GalleryContentProps {
 
 export function GalleryContent({
   eventId,
-  slug,
   hasJoined,
   userRole,
   currentRole,
-}: GalleryContentProps) {
+}: EventGalleryContentProps) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -76,7 +79,7 @@ export function GalleryContent({
         (userRole === EventRole.Organizer ||
           userRole === EventRole.Participant) && (
           <div className="mb-6">
-            <Link href={`/projects/submit?eventId=${slug}`}>
+            <Link href={`/projects/submit?eventId=${eventId}`}>
               <Button className="button-gradient text-white font-semibold rounded-full shadow-lg hover:shadow-xl transition-all duration-300 flex items-center gap-2">
                 <Plus className="h-5 w-5" />
                 Create Project
@@ -90,6 +93,7 @@ export function GalleryContent({
         isLoading={isLoading}
         projectList={filteredProjects}
         projectBoardContext={ProjectBoardContext.EventGallery}
+        createProjectHref={`/projects/submit?eventId=${eventId}`}
       />
     </div>
   );
