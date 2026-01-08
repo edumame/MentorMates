@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/lib/hooks/use-toast";
-import { Archive, Trash2, ArrowUpRight } from "lucide-react";
+import { Archive, Trash2, ArrowUpRight, Copy } from "lucide-react";
 import {
   ApprovalStatus,
   EventDetails,
@@ -71,6 +71,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
   );
   const [deleting, setDeleting] = useState(false);
   const [archiving, setArchiving] = useState(false);
+  const [duplicating, setDuplicating] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   // Use URL as single source of truth for tab state
@@ -348,6 +349,43 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
     }
   };
 
+  const handleDuplicate = async () => {
+    if (!event) return;
+    try {
+      setDuplicating(true);
+      const response = await fetch(`/api/events/${event.event_id}/duplicate`, {
+        method: "POST",
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(body?.error || "Failed to duplicate event");
+      }
+
+      const destination = body.slug || body.eventId || event.event_id;
+
+      toast({
+        title: "Event duplicated",
+        description: "Opening the copied draft...",
+      });
+
+      if (destination) {
+        router.push(`/events/${destination}/overview?tab=overview`);
+      } else {
+        router.refresh();
+      }
+    } catch (error) {
+      console.error("Error duplicating event:", error);
+      toast({
+        title: "Error",
+        description:
+          error instanceof Error ? error.message : "Failed to duplicate event",
+        variant: "destructive",
+      });
+    } finally {
+      setDuplicating(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12 h-screen">
@@ -446,6 +484,44 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                       {event.visibility === EventVisibility.Archived
                         ? "Confirm Unarchive"
                         : "Confirm Archive"}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+
+              {/* Duplicate Event Dialog */}
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    disabled={duplicating}
+                    className="gap-[6px] px-4 sm:px-6 py-[10px] text-[14px] sm:text-[16px] font-medium flex-1 sm:flex-none"
+                  >
+                    <Copy className="w-5 h-5 sm:w-5 sm:h-5" />
+                    <span className="hidden sm:inline">
+                      {duplicating ? "Duplicating..." : "Duplicate"}
+                    </span>
+                    <span className="sm:hidden">
+                      {duplicating ? "..." : "Duplicate"}
+                    </span>
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Duplicate this event?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      We&apos;ll create a draft copy of your event, including tracks,
+                      resources, pricing, and organizer settings. You can update the
+                      details before publishing.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel disabled={duplicating}>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => handleDuplicate()}
+                      disabled={duplicating}
+                    >
+                      {duplicating ? "Duplicating..." : "Create Copy"}
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
