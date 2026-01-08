@@ -122,8 +122,6 @@ export const agentsRouter = createTRPCRouter({
         const supabase = ctx.supabase;
         const payloadBase = { ...input, user_id: ctx.auth.user.id };
         const dbPayload: Record<string, unknown> = { ...payloadBase };
-        // normalize custom_type for non-custom types
-        if ((dbPayload.type as string) !== "custom") dbPayload.custom_type = null;
         // strip undefined fields to avoid accidental updates
         Object.keys(dbPayload).forEach((k) => (dbPayload[k] === undefined ? delete dbPayload[k] : null));
 
@@ -146,9 +144,8 @@ export const agentsRouter = createTRPCRouter({
     update: protectedProcedure.input(agentsUpdateSchema).mutation(async ({ ctx, input }) => {
         const supabase = ctx.supabase;
         const updateBase = { ...input } as Record<string, unknown>;
-        // remove id from payload and normalize custom_type for non-custom types
+        // remove id from payload
         delete updateBase.id;
-        if ((updateBase.type as string) !== "custom") updateBase.custom_type = null;
         // remove undefined fields so we don't overwrite columns unintentionally
         Object.keys(updateBase).forEach((k) => (updateBase[k] === undefined ? delete updateBase[k] : null));
 

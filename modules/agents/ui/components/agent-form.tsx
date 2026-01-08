@@ -66,15 +66,21 @@ export const AgentForm = ({ onSuccess, onCancel, initialValues, eventId } : Agen
         },
     }));
 
-    type AgentFormValues = z.infer<typeof agentsInsertSchema>;
+    type AgentFormValues = z.infer<typeof agentsInsertSchema> & { custom_type_tmp?: string };
+
+    const STANDARD = ["brainstorm", "product", "tech", "judge"];
 
     const form = useForm<AgentFormValues>({
         resolver: zodResolver(agentsInsertSchema),
         defaultValues: {
             name: initialValues?.name ?? "",
             instructions: initialValues?.instructions ?? "",
-            type: (initialValues?.type as AgentFormValues["type"]) ?? "brainstorm",
-            custom_type: initialValues?.custom_type ?? "",
+            // If initial type is one of the standard options, select it.
+            // Otherwise select the special "custom" option and store the original value in `custom_type_tmp`.
+            type: (initialValues?.type && STANDARD.includes(String(initialValues.type).toLowerCase()))
+                ? String(initialValues?.type).toLowerCase()
+                : (initialValues?.type ? "custom" : "brainstorm"),
+            custom_type_tmp: (initialValues?.type && !STANDARD.includes(String(initialValues.type).toLowerCase())) ? String(initialValues.type) : "",
             avatar_url: (initialValues as AgentGetOne | undefined)?.avatar_url ?? "",
         },
     });
@@ -83,12 +89,22 @@ export const AgentForm = ({ onSuccess, onCancel, initialValues, eventId } : Agen
     const isPending = createAgent.isPending || updateAgent.isPending;
 
     const onSubmit = async (values: AgentFormValues) => {
+        // If custom selected, read the custom input directly from the form
+        // to avoid any potential stale/controlled-value issues.
+        const payloadBase: Record<string, unknown> = { ...values };
+        if (values.type === "custom") {
+            const custom = (form.getValues("custom_type_tmp") || "").toString().trim();
+            payloadBase.type = custom.length > 0 ? custom : "Custom";
+        }
+        // Remove helper field
+        delete payloadBase.custom_type_tmp;
+
         if (isEdit) {
-            updateAgent.mutate({ ...values, id: initialValues.id });
+            updateAgent.mutate({ ...payloadBase, id: initialValues.id });
         } else {
             try {
-                const payload = eventId ? { ...values, event_id: eventId } : values;
-                await createAgent.mutateAsync(payload);
+                const payload = eventId ? { ...payloadBase, event_id: eventId } : payloadBase;
+                await createAgent.mutateAsync(payload as any);
             } catch {
                 // createAgent handles toast/router on error
             }
@@ -140,8 +156,7 @@ export const AgentForm = ({ onSuccess, onCancel, initialValues, eventId } : Agen
                                     value={field.value ?? "brainstorm"}
                                     onValueChange={(val) => {
                                         field.onChange(val);
-                                        // clear custom_type when switching away from custom
-                                        if (val !== "custom") form.setValue("custom_type", "");
+                                        if (val !== "custom") form.setValue("custom_type_tmp", "");
                                     }}
                                 >
                                     <SelectTrigger className="w-full">
@@ -163,7 +178,7 @@ export const AgentForm = ({ onSuccess, onCancel, initialValues, eventId } : Agen
 
                 {form.watch("type") === "custom" && (
                     <FormField
-                        name="custom_type"
+                        name="custom_type_tmp"
                         control={form.control}
                         render={({ field }) => (
                             <FormItem>

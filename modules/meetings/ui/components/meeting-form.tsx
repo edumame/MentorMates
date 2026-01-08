@@ -376,10 +376,7 @@ export const MeetingForm = ({
                         <div className="flex items-center gap-x-2">
                           <span className="flex items-center gap-2">
                             <span>{agent.name}</span>
-                            <AgentTypeLabel
-                              type={agent.type}
-                              customType={agent.custom_type}
-                            />
+                            <AgentTypeLabel type={agent.type} />
                           </span>
                         </div>
                       ),
