@@ -110,7 +110,6 @@ export async function POST(
       // Important: do NOT copy payment config / Stripe ids
       paid: false,
       stripe_price_id: null,
-      pricing_tiers: null,
 
       // Make the duplicator the owner & organizer
       owner_id: user.id,
@@ -169,8 +168,8 @@ export async function POST(
       );
     }
 
-    const sourceTracksRows =
-      (sourceTracks ?? []) as unknown as Database["public"]["Tables"]["event_tracks"]["Row"][];
+    const sourceTracksRows: Database["public"]["Tables"]["event_tracks"]["Row"][] =
+      (sourceTracks ?? []) as Database["public"]["Tables"]["event_tracks"]["Row"][];
 
     const oldToNewTrackId = new Map<string, string>();
 
@@ -216,8 +215,13 @@ export async function POST(
         .select("track_id, prize_amount, prize_description")
         .in("track_id", oldTrackIds);
 
-      const sourcePrizesRows =
-        (sourcePrizes ?? []) as unknown as Array<
+      const sourcePrizesRows: Array<
+        Pick<
+          Database["public"]["Tables"]["prizes"]["Row"],
+          "track_id" | "prize_amount" | "prize_description"
+        >
+      > =
+        (sourcePrizes ?? []) as Array<
           Pick<
             Database["public"]["Tables"]["prizes"]["Row"],
             "track_id" | "prize_amount" | "prize_description"
