@@ -184,11 +184,13 @@ export const MeetingForm = ({
     // always exclude disabled agents
     const enabledItems = items.filter((a: AgentGetOne) => a.enabled !== false);
     if (!selectedEventId) {
-      // no event selected -> show only global agents (event_id null/undefined)
+      // no event selected -> show only general agents (event_id null/undefined)
       return enabledItems.filter((a: AgentGetOne) => a.event_id == null);
     }
     return enabledItems.filter(
-      (a: AgentGetOne) => String(a.event_id ?? "") === String(selectedEventId)
+      (a: AgentGetOne) =>
+        // include general agents (no event_id) as well as agents for the selected event
+        a.event_id == null || String(a.event_id ?? "") === String(selectedEventId)
     );
   }, [agents.data, selectedEventId]);
 
