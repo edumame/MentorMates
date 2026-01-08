@@ -1,20 +1,25 @@
 import { z } from "zod";
 
-const optionalUrl = z.preprocess(
-    (value: unknown) => {
-        if (typeof value !== "string") return value;
+// We accept either:
+// - a valid URL string
+// - an empty string (user cleared the input)
+// - undefined (field not provided)
+//
+// Then we transform empty string -> undefined, so we don't overwrite DB defaults.
+const optionalUrl = z
+    .union([z.string().trim().url({ message: "Image URL must be a valid URL" }), z.literal("")])
+    .optional()
+    .transform((value) => {
+        if (value === undefined) return undefined;
         const trimmed = value.trim();
-        // Treat empty input as "not provided" so we don't overwrite DB defaults.
         return trimmed.length === 0 ? undefined : trimmed;
-    },
-    z.string().url({ message: "Image URL must be a valid URL" }).optional()
-);
+    });
 
 const agentsBaseSchema = z.object({
     name: z.string().min(1, { message: "Name is required" }),
     instructions: z.string().min(1, { message: "Instructions are required" }),
     // Optional avatar image for the agent (stored in `agents.avatar_url`)
-    avatar_url: optionalUrl.optional(),
+    avatar_url: optionalUrl,
     event_id: z.string().optional(),
     enabled: z.boolean().optional(),
     type: z.enum(["brainstorm", "product", "tech", "judge", "custom"]),
