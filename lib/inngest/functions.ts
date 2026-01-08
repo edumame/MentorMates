@@ -112,7 +112,7 @@ export const meetingsProcessing = inngest.createFunction(
     const summarizer = createAgent({
       name: agentId,
       system: systemPrompt,
-      model: openai({ model: "gpt-5", apiKey: process.env.OPENAI_API_KEY }),
+      model: openai({ model: "gpt-5.2", apiKey: process.env.OPENAI_API_KEY }),
     });
 
     const { output } = await summarizer.run(
