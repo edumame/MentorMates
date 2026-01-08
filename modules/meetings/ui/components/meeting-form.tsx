@@ -136,6 +136,15 @@ export const MeetingForm = ({ onSuccess, onCancel, initialValues } : MeetingForm
 
     const selectedEventId = form.watch("eventId");
 
+    // If the user is only in a single event, auto-select it so:
+    // - the agent list can include event-specific agents
+    // - the "create new project" flow can keep the event context
+    useEffect(() => {
+        if (events.length === 1 && !form.getValues("eventId")) {
+            form.setValue("eventId", events[0].event_id);
+        }
+    }, [events, form]);
+
     useEffect(() => {
         if (selectedEventId) {
             form.setValue("projectId", "");
@@ -280,7 +289,12 @@ export const MeetingForm = ({ onSuccess, onCancel, initialValues } : MeetingForm
                                         ]}
                                         onSelect={(value) => {
                                             if (value === "create-new") {
-                                                router.push("/projects/submit");
+                                                // If the user selected an event for this conversation, preserve it
+                                                // so the project draft gets created under the correct event.
+                                                const qs = selectedEventId
+                                                    ? `?eventId=${encodeURIComponent(selectedEventId)}`
+                                                    : "";
+                                                router.push(`/projects/submit${qs}`);
                                             } else {
                                                 field.onChange(value);
                                             }

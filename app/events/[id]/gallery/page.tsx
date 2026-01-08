@@ -4,7 +4,6 @@ import { notFound } from "next/navigation";
 import { EventPageLayout } from "@/components/events/event-page-layout";
 import { GalleryContent } from "@/components/events/gallery-content";
 import { EventRole } from "@/lib/types";
-import type { ComponentProps } from "react";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -74,17 +73,13 @@ export default async function GalleryPage({ params, searchParams }: PageProps) {
       dbEventId={eventData.event_id}
       paid={eventData.paid}
     >
-      {(() => {
-        const galleryContentProps = {
-          eventId: eventData.event_id,
-          slug: id,
-          hasJoined,
-          userRole,
-          currentRole: (currentRole || userRole || null) as EventRole | null,
-        } satisfies ComponentProps<typeof GalleryContent>;
-
-        return <GalleryContent {...galleryContentProps} />;
-      })()}
+      <GalleryContent
+        eventId={eventData.event_id}
+        slug={id}
+        hasJoined={hasJoined}
+        userRole={userRole}
+        currentRole={(currentRole || userRole || null) as EventRole | null}
+      />
     </EventPageLayout>
   );
 }
