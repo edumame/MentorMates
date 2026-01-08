@@ -33,15 +33,39 @@ export const agentsRouter = createTRPCRouter({
                 page: z.number().default(DEFAULT_PAGE),
                 pageSize: z.number().min(MIN_PAGE_SIZE).max(MAX_PAGE_SIZE).default(DEFAULT_PAGE_SIZE),
                 search: z.string().nullish(),
+                eventId: z.string().nullish(),
             })
         )
         .query(async ({ ctx, input }) => {
-            const { search, page, pageSize } = input;
+            const { search, page, pageSize, eventId } = input;
             const supabase = ctx.supabase;
 
             const offset = (page - 1) * pageSize;
 
-            let agentsQuery = supabase.from("agents").select("*").eq("user_id", ctx.auth.user.id);
+            // Get event IDs where user has a role (for accessing event-specific agents)
+            const { data: userEventRoles } = await supabase
+                .from("user_event_roles")
+                .select("event_id")
+                .eq("user_id", ctx.auth.user.id);
+
+            const userEventIds = (userEventRoles || []).map((r) => r.event_id).filter(Boolean);
+
+            // Build query to get:
+            // 1. Agents owned by the user (user_id = current user)
+            // 2. Agents for events the user has access to (event_id in user's events)
+            let agentsQuery = supabase.from("agents").select("*");
+
+            if (eventId) {
+                // If specific event requested, only show agents for that event
+                agentsQuery = agentsQuery.eq("event_id", eventId);
+            } else if (userEventIds.length > 0) {
+                // Show user's own agents OR agents from events they have access to
+                agentsQuery = agentsQuery.or(`user_id.eq.${ctx.auth.user.id},event_id.in.(${userEventIds.join(",")})`);
+            } else {
+                // No event access, only show user's own agents
+                agentsQuery = agentsQuery.eq("user_id", ctx.auth.user.id);
+            }
+
             if (search) agentsQuery = agentsQuery.ilike("name", `%${search}%`);
 
             const { data: items = [], error: itemsError } = await agentsQuery
@@ -51,8 +75,15 @@ export const agentsRouter = createTRPCRouter({
 
             if (itemsError) throw itemsError;
 
-            // total count
-            let countQuery = supabase.from("agents").select("id", { count: "exact", head: false }).eq("user_id", ctx.auth.user.id);
+            // total count - use same filter logic as main query
+            let countQuery = supabase.from("agents").select("id", { count: "exact", head: false });
+            if (eventId) {
+                countQuery = countQuery.eq("event_id", eventId);
+            } else if (userEventIds.length > 0) {
+                countQuery = countQuery.or(`user_id.eq.${ctx.auth.user.id},event_id.in.(${userEventIds.join(",")})`);
+            } else {
+                countQuery = countQuery.eq("user_id", ctx.auth.user.id);
+            }
             if (search) countQuery = countQuery.ilike("name", `%${search}%`);
             const { count, error: countError } = await countQuery;
             if (countError) throw countError;
