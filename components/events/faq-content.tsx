@@ -9,6 +9,10 @@ interface FAQItem {
   answer: string;
 }
 
+interface FAQContentProps {
+  contactEmail?: string | null;
+}
+
 const faqs: FAQItem[] = [
   {
     question: "How do I register?",
@@ -44,8 +48,13 @@ const faqs: FAQItem[] = [
   },
 ];
 
-export function FAQContent() {
+export function FAQContent({ contactEmail }: FAQContentProps) {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
+  const normalizedEmail =
+    contactEmail?.trim() && contactEmail.includes("@")
+      ? contactEmail.trim()
+      : "admin@mentormates.ai";
+  const mailtoHref = `mailto:${normalizedEmail}`;
 
   const toggleAccordion = (index: number) => {
     setOpenIndex(openIndex === index ? null : index);
@@ -97,8 +106,11 @@ export function FAQContent() {
         <p className="font-normal text-[16px] leading-[1.5] text-black">
           Can&apos;t find the answer you&apos;re looking for? Please reach out to our team and we&apos;ll get back to you as soon as possible.
         </p>
-        <Button className="bg-[#4b89ef] text-white font-semibold text-[16px] leading-[1.5] px-6 py-3 rounded-xl shadow-sm hover:bg-[#3d75d9] transition-colors">
-          Contact
+        <Button
+          asChild
+          className="bg-[#4b89ef] text-white font-semibold text-[16px] leading-[1.5] px-6 py-3 rounded-xl shadow-sm hover:bg-[#3d75d9] transition-colors"
+        >
+          <a href={mailtoHref}>Contact</a>
         </Button>
       </div>
     </div>
