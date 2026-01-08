@@ -22,7 +22,8 @@ export default async function FAQPage({ params }: PageProps) {
     location,
     cover_image_url,
     slug,
-    paid
+    paid,
+    owner_id
   `);
 
   if (isUUID) {
@@ -35,6 +36,20 @@ export default async function FAQPage({ params }: PageProps) {
 
   if (eventError || !eventData) {
     notFound();
+  }
+
+  let organizerEmail: string | null = null;
+
+  if (eventData.owner_id) {
+    const { data: ownerProfile, error: ownerProfileError } = await supabase
+      .from("user_profiles")
+      .select("email")
+      .eq("uid", eventData.owner_id)
+      .maybeSingle();
+
+    if (!ownerProfileError) {
+      organizerEmail = ownerProfile?.email ?? null;
+    }
   }
 
   // Check if user has joined
@@ -67,7 +82,7 @@ export default async function FAQPage({ params }: PageProps) {
       dbEventId={eventData.event_id}
       paid={eventData.paid}
     >
-      <FAQContent />
+      <FAQContent contactEmail={organizerEmail} />
     </EventPageLayout>
   );
 }
