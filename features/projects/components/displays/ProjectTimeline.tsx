@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { Loader, Video, Clock, MessageSquare } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 
 type MeetingRow = {
   id: string;
@@ -12,6 +13,7 @@ type MeetingRow = {
   started_at?: string | null;
   ended_at?: string | null;
   user_id?: string | null;
+  score?: number | null;
 };
 
 export default function ProjectTimeline({ projectId }: { projectId: string }) {
@@ -25,7 +27,7 @@ export default function ProjectTimeline({ projectId }: { projectId: string }) {
       try {
         const { data, error } = await supabase
           .from("meetings")
-          .select("id, name, status, started_at, ended_at, created_at")
+          .select("id, name, status, started_at, ended_at, created_at, score")
           .eq("project_id", projectId)
           .order("started_at", { ascending: false, nullsFirst: true })
           .order("created_at", { ascending: false });
@@ -70,8 +72,8 @@ export default function ProjectTimeline({ projectId }: { projectId: string }) {
                     <Clock className="h-4 w-4 text-gray-500" />
                   </span>
                   <div className="flex-1">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex-1 min-w-0">
                         <h3 className="text-sm font-medium text-gray-900">
                           {m.name || "Session"}
                         </h3>
@@ -82,6 +84,17 @@ export default function ProjectTimeline({ projectId }: { projectId: string }) {
                           {m.ended_at ? ` — ${new Date(m.ended_at).toLocaleString()}` : ""}
                         </div>
                       </div>
+                      {typeof m.score === "number" && (
+                        <div className="flex flex-col items-center w-48">
+                          <div className="flex items-center justify-between w-full">
+                            <div className="text-xs text-gray-500">Score</div>
+                            <div className="text-sm font-medium text-gray-900">{m.score}</div>
+                          </div>
+                          <div className="w-full mt-1">
+                            <Progress value={Math.max(0, Math.min(100, m.score))} />
+                          </div>
+                        </div>
+                      )}
                       <div className="flex items-center gap-2">
                         <Badge variant="secondary" className="text-xs">
                           {m.status || "unknown"}
