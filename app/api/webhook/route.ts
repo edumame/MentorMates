@@ -74,53 +74,9 @@ export async function POST(req: NextRequest) {
             started_at: new Date().toISOString(),
         }).eq("id", existingMeeting.id);
 
-        const { data: existingAgent, error: agentError } = await supabase
-            .from("agents")
-            .select("*")
-            .eq("id", existingMeeting.agent_id)
-            .maybeSingle();
-
-        if (agentError || !existingAgent) {
-            return NextResponse.json({ error: "Agent not found" }, { status: 404 });
-        }
-
-        const call = streamVideo.video.call("default", meetingId);
-        const realtimeClient = await streamVideo.video.connectOpenAi({
-            call,
-            openAiApiKey: process.env.OPENAI_API_KEY!,
-            agentUserId: existingAgent.id,
-        });
-
-        // If the meeting is linked to a project, fetch project title and description
-        let projectContext = "";
-        try {
-            if (existingMeeting.project_id) {
-                const { data: projectRow, error: projectError } = await supabase
-                    .from("projects")
-                    .select("project_name, project_description")
-                    .eq("id", existingMeeting.project_id)
-                    .maybeSingle();
-
-                if (!projectError && projectRow) {
-                    const title = projectRow.project_name || "";
-                    const desc = projectRow.project_description || "";
-                    projectContext = `\n\nHere is the project context from the student:\nTitle: ${title}\nDescription: ${desc}`;
-                }
-            }
-        } catch {
-            projectContext = "";
-            return NextResponse.json({ error: "Project not found" }, { status: 400 });
-        }
-
-        const instructions = `${existingAgent.instructions || ""}${projectContext}`;
-
-        realtimeClient.updateSession({
-            instructions,
-            input_audio_transcription: {
-                model: "whisper-1",
-            },
-            turn_detection: { type: "server_vad" },
-        });
+        // Agent connection is now deferred until user clicks "Start Q&A"
+        // This allows users to present/share without agent interruption
+        // See /api/meetings/[meetingId]/start-qa for agent connection logic
     } else if (eventType === "call.session_participant_left") {
         const event = payload as CallSessionParticipantLeftEvent;
         const meetingId = event.call_cid.split(":")[1];
