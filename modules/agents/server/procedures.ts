@@ -8,15 +8,24 @@ export const agentsRouter = createTRPCRouter({
     getOne: protectedProcedure.input(z.object({ id: z.string() })).query(async ({ input, ctx }) => {
         const supabase = ctx.supabase;
 
-        const { data: agent, error: agentError } = await supabase
-            .from("agents")
-            .select("*")
-            .eq("id", input.id)
-            .eq("user_id", ctx.auth.user.id)
-            .maybeSingle();
-
+        const { data: agent, error: agentError } = await supabase.from("agents").select("*").eq("id", input.id).maybeSingle();
         if (agentError) throw agentError;
         if (!agent) throw new TRPCError({ code: "NOT_FOUND", message: "Agent not found" });
+
+        // Allow access when any of the following is true:
+        // - owner of the agent
+        // - agent is global (no event_id)
+        // - user has a role on the agent's event
+        if (agent.user_id !== ctx.auth.user.id && agent.event_id != null) {
+            const { data: roleRows = [], error: roleErr } = await supabase
+                .from("user_event_roles")
+                .select("event_id")
+                .eq("user_id", ctx.auth.user.id)
+                .eq("event_id", agent.event_id)
+                .limit(1);
+            if (roleErr) throw roleErr;
+            if (!roleRows || roleRows.length === 0) throw new TRPCError({ code: "FORBIDDEN", message: "Not authorized to view this agent" });
+        }
 
         const { count: meetingCount } = await supabase
             .from("meetings")
@@ -59,11 +68,13 @@ export const agentsRouter = createTRPCRouter({
                 // If specific event requested, only show agents for that event
                 agentsQuery = agentsQuery.eq("event_id", eventId);
             } else if (userEventIds.length > 0) {
-                // Show user's own agents OR agents from events they have access to
-                agentsQuery = agentsQuery.or(`user_id.eq.${ctx.auth.user.id},event_id.in.(${userEventIds.join(",")})`);
+                // Show user's own agents OR agents from events they have access to OR global agents (no event_id)
+                agentsQuery = agentsQuery.or(
+                    `user_id.eq.${ctx.auth.user.id},event_id.in.(${userEventIds.join(",")}),event_id.is.null`
+                );
             } else {
-                // No event access, only show user's own agents
-                agentsQuery = agentsQuery.eq("user_id", ctx.auth.user.id);
+                // No event access, show user's own agents or global agents
+                agentsQuery = agentsQuery.or(`user_id.eq.${ctx.auth.user.id},event_id.is.null`);
             }
 
             if (search) agentsQuery = agentsQuery.ilike("name", `%${search}%`);
@@ -80,9 +91,11 @@ export const agentsRouter = createTRPCRouter({
             if (eventId) {
                 countQuery = countQuery.eq("event_id", eventId);
             } else if (userEventIds.length > 0) {
-                countQuery = countQuery.or(`user_id.eq.${ctx.auth.user.id},event_id.in.(${userEventIds.join(",")})`);
+                countQuery = countQuery.or(
+                    `user_id.eq.${ctx.auth.user.id},event_id.in.(${userEventIds.join(",")}),event_id.is.null`
+                );
             } else {
-                countQuery = countQuery.eq("user_id", ctx.auth.user.id);
+                countQuery = countQuery.or(`user_id.eq.${ctx.auth.user.id},event_id.is.null`);
             }
             if (search) countQuery = countQuery.ilike("name", `%${search}%`);
             const { count, error: countError } = await countQuery;
