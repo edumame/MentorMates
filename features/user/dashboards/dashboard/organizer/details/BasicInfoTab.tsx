@@ -103,6 +103,7 @@ export function BasicInfoTab({
   const [updateSlug, setUpdateSlug] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [archiving, setArchiving] = useState(false);
+  const [duplicating, setDuplicating] = useState(false);
   const [devpostUrl, setDevpostUrl] = useState("");
   const [importing, setImporting] = useState(false);
   const [locationType, setLocationType] = useState<"in-person" | "virtual">(
@@ -931,59 +932,125 @@ export function BasicInfoTab({
               This action cannot be undone.
             </p>
           </div>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                variant="destructive"
-                disabled={deleting}
-                className="shrink-0 whitespace-nowrap w-full sm:w-auto"
-              >
-                {deleting ? "Deleting..." : "Delete Event"}
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete this event?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This will permanently remove the event and related data
-                  (tickets, payments, tracks, feedback). This cannot be undone.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={async () => {
-                    try {
-                      setDeleting(true);
-                      const res = await fetch(`/api/events/${event.event_id}`, {
-                        method: "DELETE",
-                      });
-                      if (!res.ok) {
-                        const body = await res.json().catch(() => ({}));
-                        throw new Error(
-                          body?.error || "Failed to delete event"
-                        );
-                      }
-                      toast({ title: "Event deleted" });
-                      // Navigate back to events list
-                      router.push("/events");
-                    } catch (err) {
-                      console.error(err);
-                      toast({
-                        title: "Error",
-                        description: (err as Error).message,
-                        variant: "destructive",
-                      });
-                    } finally {
-                      setDeleting(false);
-                    }
-                  }}
+          <div className="w-full sm:w-auto flex flex-col gap-2">
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="destructive"
+                  disabled={deleting}
+                  className="shrink-0 whitespace-nowrap w-full sm:w-auto"
                 >
-                  Confirm Delete
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+                  {deleting ? "Deleting..." : "Delete Event"}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete this event?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently remove the event and related data
+                    (tickets, payments, tracks, feedback). This cannot be
+                    undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={async () => {
+                      try {
+                        setDeleting(true);
+                        const res = await fetch(`/api/events/${event.event_id}`, {
+                          method: "DELETE",
+                        });
+                        if (!res.ok) {
+                          const body = await res.json().catch(() => ({}));
+                          throw new Error(
+                            body?.error || "Failed to delete event"
+                          );
+                        }
+                        toast({ title: "Event deleted" });
+                        // Navigate back to events list
+                        router.push("/events");
+                      } catch (err) {
+                        console.error(err);
+                        toast({
+                          title: "Error",
+                          description: (err as Error).message,
+                          variant: "destructive",
+                        });
+                      } finally {
+                        setDeleting(false);
+                      }
+                    }}
+                  >
+                    Confirm Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Duplicate Event (shown under Delete Event button) */}
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  disabled={duplicating}
+                  className="shrink-0 whitespace-nowrap w-full sm:w-auto"
+                >
+                  {duplicating ? "Duplicating..." : "Duplicate Event"}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Duplicate this event?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will create a new draft copy of this event with the
+                    same overview settings (and tracks/prizes). Participants,
+                    projects, tickets, and payments will not be copied.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={async () => {
+                      try {
+                        setDuplicating(true);
+                        const res = await fetch(
+                          `/api/events/${event.event_id}/duplicate`,
+                          { method: "POST" }
+                        );
+                        const body = await res.json().catch(() => ({}));
+                        if (!res.ok) {
+                          throw new Error(body?.error || "Failed to duplicate event");
+                        }
+                        const created = body?.event;
+                        if (!created?.event_id) {
+                          throw new Error("Event duplicated but response was missing the new event id");
+                        }
+                        toast({
+                          title: "Event duplicated",
+                          description: "Redirecting to your new draft event.",
+                        });
+                        router.push(
+                          `/events/${created?.slug || created?.event_id}/overview`
+                        );
+                      } catch (err) {
+                        console.error(err);
+                        toast({
+                          title: "Error",
+                          description: (err as Error).message,
+                          variant: "destructive",
+                        });
+                      } finally {
+                        setDuplicating(false);
+                      }
+                    }}
+                  >
+                    Confirm Duplicate
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
         </div>
       </div>
     </div>
