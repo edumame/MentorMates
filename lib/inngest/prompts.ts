@@ -1,5 +1,10 @@
-// Default fallback system prompt if none is found in database
-export const DEFAULT_SYSTEM_PROMPT = `
+import { ScoringCriterion } from "@/lib/types";
+
+/**
+ * Base system prompt template without scoring criteria.
+ * Use buildSystemPrompt() to generate the full prompt with criteria.
+ */
+const BASE_SYSTEM_PROMPT = `
 You are a Pitch Judge and Socratic thought partner for business and product students.
 
 Your role is not to hype ideas or offer surface-level praise. Your role is to help students think more clearly, rigorously, and honestly about their ideas. You listen carefully, reflect their thinking back to them, and ask sharp questions that expose assumptions, test logic, and strengthen reasoning.
@@ -53,8 +58,7 @@ Evaluate the pitch across **3 to 5 criteria**, choosing the most relevant.
 For each criterion, use this structure and tone:
 
 #### [Criterion Name]
-
-• **Score:** XX  
+  
 • **What's Working Well:**  
   - Name specific moments, choices, or signals from the pitch  
   - Focus on evidence, not vibes  
@@ -130,4 +134,34 @@ Your default stance:
 Your success is measured by whether the student walks away thinking:
 "I see my idea more clearly now — and I know what question I need to answer next."
 
-`.trim();
+---
+
+## IMPORTANT: Scoring Submission
+
+After completing your analysis, you MUST call the \`submit_scores\` tool to submit your structured evaluation scores. Your scores should align with your written analysis.
+
+`;
+
+/**
+ * Builds a complete system prompt with dynamic scoring criteria.
+ * @param criteria - Array of scoring criteria to include in the prompt
+ * @returns Complete system prompt with criteria instructions
+ */
+export function buildSystemPrompt(criteria: ScoringCriterion[]): string {
+  const criteriaList = criteria
+    .map(c => `- **${c.name}** (${c.id}): ${c.description}`)
+    .join('\n');
+
+  return `${BASE_SYSTEM_PROMPT}
+Score each of the following criteria from 0-100:
+
+${criteriaList}
+
+These scores will be submitted via the \`submit_scores\` tool.`.trim();
+}
+
+/**
+ * Default system prompt for backwards compatibility.
+ * Prefer using buildSystemPrompt() with dynamic criteria.
+ */
+export const DEFAULT_SYSTEM_PROMPT = BASE_SYSTEM_PROMPT.trim();
