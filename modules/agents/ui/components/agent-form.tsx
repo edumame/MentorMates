@@ -16,6 +16,7 @@ import {
     SelectItem,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
@@ -40,10 +41,11 @@ export const AgentForm = ({ onSuccess, onCancel, initialValues, eventId } : Agen
             }
             onSuccess?.();
         },
-        onError: (error) => {
-            toast.error(error.message)
+        onError: (error: unknown) => {
+            const err = error as { message?: string; data?: { code?: string } } | null;
+            toast.error(err?.message ?? "Failed to create agent")
 
-            if (error.data?.code === "FORBIDDEN") {
+            if (err?.data?.code === "FORBIDDEN") {
                 router.push("/upgrade");
             }
         },
@@ -58,8 +60,9 @@ export const AgentForm = ({ onSuccess, onCancel, initialValues, eventId } : Agen
             }
             onSuccess?.();
         },
-        onError: (error) => {
-            toast.error(error.message)
+        onError: (error: unknown) => {
+            const err = error as { message?: string } | null;
+            toast.error(err?.message ?? "Failed to update agent")
         },
     }));
 
@@ -72,6 +75,7 @@ export const AgentForm = ({ onSuccess, onCancel, initialValues, eventId } : Agen
             instructions: initialValues?.instructions ?? "",
             type: (initialValues?.type as AgentFormValues["type"]) ?? "brainstorm",
             custom_type: initialValues?.custom_type ?? "",
+            avatar_url: (initialValues as AgentGetOne | undefined)?.avatar_url ?? "",
         },
     });
 
@@ -103,6 +107,24 @@ export const AgentForm = ({ onSuccess, onCancel, initialValues, eventId } : Agen
                             <FormControl>
                                 <Input {...field} placeholder="e.g. Santa Klaus" />
                             </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    name="avatar_url"
+                    control={form.control}
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Image URL (optional)</FormLabel>
+                            <div className="flex items-center gap-3">
+                                <Avatar className="h-9 w-9">
+                                    <AvatarImage src={String(form.watch("avatar_url") || "")} />
+                                </Avatar>
+                                <FormControl>
+                                    <Input {...field} placeholder="https://example.com/image.png" />
+                                </FormControl>
+                            </div>
                             <FormMessage />
                         </FormItem>
                     )}
