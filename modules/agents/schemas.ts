@@ -22,21 +22,32 @@ const agentsBaseSchema = z.object({
     avatar_url: optionalUrl,
     event_id: z.string().optional(),
     enabled: z.boolean().optional(),
-    type: z.enum(["brainstorm", "product", "tech", "judge", "custom"]),
-    custom_type: z.string().optional(),
+    type: z.string().min(1, { message: "Type is required" }),
+    // Temporary helper used by the UI when the user chooses the "custom" dropdown option.
+    // The form sets `custom_type_tmp` and the submit handler maps it into `type`.
+    custom_type_tmp: z.string().optional(),
 });
-
 export const agentsInsertSchema = agentsBaseSchema.refine((data) => {
     if (data.type === "custom") {
-        return typeof data.custom_type === "string" && data.custom_type.trim().length > 0;
+        return typeof data.custom_type_tmp === "string" && data.custom_type_tmp.trim().length > 0;
     }
-    return data.custom_type === undefined || data.custom_type === "";
+    return true;
 }, {
     message: "Custom type is required",
-    path: ["custom_type"],
+    path: ["custom_type_tmp"],
 });
 
-export const agentsUpdateSchema = agentsBaseSchema.partial().extend({
-    id: z.string().min(1, { message: "Id is required" }),
-});
+export const agentsUpdateSchema = agentsBaseSchema
+    .partial()
+    .extend({ id: z.string().min(1, { message: "Id is required" }) })
+    .refine((data) => {
+        // For updates, only enforce custom_type_tmp when the client includes type === 'custom'
+        if ((data.type as string) === "custom") {
+            return typeof data.custom_type_tmp === "string" && data.custom_type_tmp.trim().length > 0;
+        }
+        return true;
+    }, {
+        message: "Custom type is required",
+        path: ["custom_type_tmp"],
+    });
 

@@ -266,7 +266,7 @@ export async function POST(
     const oldToNewAgentId = new Map<string, string>();
     const { data: sourceAgents, error: sourceAgentsError } = await supabase
       .from("agents")
-      .select("id,name,instructions,enabled,type,custom_type,avatar_url")
+      .select("id,name,instructions,enabled,type,avatar_url")
       .eq("event_id", eventId)
       .eq("user_id", user.id);
 
@@ -278,9 +278,9 @@ export async function POST(
         const newId = randomUUID();
         if (oldId) oldToNewAgentId.set(oldId, newId);
 
-        const type = String(a.type ?? "brainstorm");
-        const customType =
-          type === "custom" ? String(a.custom_type ?? "Custom") : null;
+        let type = String(a.type ?? "brainstorm");
+        // If this agent used to be a 'custom' enum value, map it to a sensible label.
+        if (type === "custom") type = "Custom";
 
         agentInserts.push({
           id: newId,
@@ -288,7 +288,6 @@ export async function POST(
           instructions: a.instructions ?? "",
           enabled: a.enabled ?? true,
           type,
-          custom_type: customType,
           avatar_url: a.avatar_url ?? null,
           event_id: createdEvent.event_id,
           user_id: user.id,
