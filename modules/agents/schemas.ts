@@ -45,6 +45,8 @@ const agentsBaseSchema = z.object({
     feedback_prompt: optionalText,
     event_id: z.string().optional(),
     enabled: z.boolean().optional(),
+    // Whether this agent provides an evaluative score (true) or only feedback (false)
+    scoring: z.boolean().optional(),
     type: z.string().min(1, { message: "Type is required" }),
     // Temporary helper used by the UI when the user chooses the "custom" dropdown option.
     // The form sets `custom_type_tmp` and the submit handler maps it into `type`.
