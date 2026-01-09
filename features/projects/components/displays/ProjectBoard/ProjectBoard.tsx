@@ -78,9 +78,13 @@ const ProjectBoard = ({
                 const isOwner = project.lead_email === session?.user?.email;
 
                 return (
-                  <Link href={projectUrl} key={project.id} className="block">
+                  <Link
+                    href={projectUrl}
+                    key={project.id}
+                    className="block group"
+                  >
                     <Card
-                      className={`bg-white rounded-xl overflow-hidden relative flex flex-col h-full hover:shadow-lg transition-shadow ${
+                      className={`bg-white rounded-xl overflow-hidden relative flex flex-col h-full hover:shadow-xl transition-all duration-300 border border-gray-100 ${
                         project.prizes_won && project.prizes_won.length > 0
                           ? "ring-2 ring-yellow-400"
                           : ""
@@ -89,7 +93,7 @@ const ProjectBoard = ({
                       {/* Winner Banner */}
                       {project.prizes_won && project.prizes_won.length > 0 && (
                         <div className="absolute top-4 left-4 right-4 z-20">
-                          <div className="bg-white border-2 border-yellow-400 text-yellow-700 py-2 px-4 flex items-center justify-center shadow-lg rounded-lg">
+                          <div className="bg-white/95 backdrop-blur-sm border-2 border-yellow-400 text-yellow-700 py-2 px-4 flex items-center justify-center shadow-lg rounded-lg">
                             <Trophy className="h-4 w-4 mr-2 text-yellow-600" />
                             <span className="font-semibold text-sm">
                               {project.prizes_won.length === 1
@@ -100,60 +104,59 @@ const ProjectBoard = ({
                         </div>
                       )}
 
-                      {/* Thumbnail (top half) – using <img>, no next/image */}
-                      <div className="relative w-full aspect-[16/9] md:aspect-[4/3] bg-slate-100">
+                      {/* Image Section */}
+                      <div className="relative w-full aspect-[16/9] md:aspect-[4/3] bg-gradient-to-br from-slate-100 to-slate-200 overflow-hidden">
                         <img
                           src={
                             project.cover_image_url || "/img/placeholder.png"
                           }
                           alt={`${project.project_name || "Project"} thumbnail`}
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                           loading="lazy"
                           decoding="async"
                         />
                         {!project.cover_image_url && (
-                          <div className="absolute inset-0 flex items-center justify-center p-4 bg-gradient-to-br from-gray-500/60 to-gray-700/60">
-                            <h3 className="text-white text-xl font-semibold text-center break-words">
+                          <div className="absolute inset-0 flex items-center justify-center p-4">
+                            <h3 className="text-white text-xl font-semibold text-center break-words drop-shadow-lg">
                               {project.project_name || "Project"}
                             </h3>
                           </div>
                         )}
-                        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/20 to-transparent" />
+
+                        {/* Status Badges - Overlay on Image */}
+                        <div className="absolute top-3 left-3 flex items-center gap-2 z-10">
+                          <div className="bg-white/95 backdrop-blur-sm border border-gray-200 text-gray-700 px-2.5 py-1 text-xs font-medium rounded-full flex items-center gap-1.5 shadow-sm">
+                            <Sparkles className="w-3 h-3" />
+                            {project.submitted ? "Submitted" : "Draft"}
+                          </div>
+                          {isOwner && (
+                            <div className="bg-white/95 backdrop-blur-sm border border-gray-200 text-gray-700 px-2.5 py-1 text-xs font-medium rounded-full flex items-center gap-1.5 shadow-sm">
+                              <User className="w-3 h-3" />
+                              Owner
+                            </div>
+                          )}
+                        </div>
                       </div>
 
-                      {/* Lower content */}
-                      <div className="py-4 px-6 flex-1 flex flex-col">
-                        {/* Project name + status chips */}
-                        <div className="flex items-start justify-between mb-2 gap-2">
-                          <h3 className="font-bold text-black flex-1 min-w-0 text-[1.375rem] leading-[1.4] tracking-[-0.06em] truncate">
-                            {project.project_name || "Project"}
-                          </h3>
-                          <div className="flex items-center gap-1 flex-shrink-0">
-                            <div className="bg-transparent border border-gray-300 text-gray-700 px-2 py-1 text-xs font-medium rounded-full flex items-center gap-1 whitespace-nowrap">
-                              <Sparkles className="w-3 h-3" />
-                              {project.submitted ? "Submitted" : "Draft"}
-                            </div>
-                            {isOwner && (
-                              <div className="bg-transparent border border-gray-300 text-gray-700 px-2 py-1 text-xs font-medium rounded-full flex items-center gap-1 whitespace-nowrap">
-                                <User className="w-3 h-3" />
-                                Owner
-                              </div>
-                            )}
-                          </div>
-                        </div>
+                      {/* Content Section */}
+                      <div className="p-5 flex-1 flex flex-col bg-white">
+                        {/* Project Title */}
+                        <h3 className="font-bold text-gray-900 text-xl leading-tight mb-2 line-clamp-2">
+                          {project.project_name || "Project"}
+                        </h3>
 
                         {/* Description */}
                         {project.project_description && (
-                          <p className="text-gray-800 text-sm leading-relaxed mb-4 line-clamp-2">
+                          <p className="text-gray-600 text-sm leading-relaxed mb-4 line-clamp-2 flex-1">
                             {project.project_description}
                           </p>
                         )}
 
-                        {/* Meta row */}
-                        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mb-4 text-sm text-gray-600">
-                          <div className="flex items-center gap-2">
-                            <CalendarClock className="w-4 h-4" />
-                            <span>
+                        {/* Metadata Row */}
+                        <div className="flex items-center gap-4 mb-4 text-sm text-gray-500">
+                          <div className="flex items-center gap-1.5">
+                            <CalendarClock className="w-4 h-4 text-gray-400" />
+                            <span className="font-medium">
                               {project.created_at
                                 ? new Date(
                                     project.created_at
@@ -165,19 +168,19 @@ const ProjectBoard = ({
                                 : "N/A"}
                             </span>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <ThumbsUp className="w-4 h-4" />
-                            <span>0</span>
+                          <div className="flex items-center gap-1.5">
+                            <ThumbsUp className="w-4 h-4 text-gray-400" />
+                            <span className="font-medium">0</span>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <MessageSquare className="w-4 h-4" />
-                            <span>0</span>
+                          <div className="flex items-center gap-1.5">
+                            <MessageSquare className="w-4 h-4 text-gray-400" />
+                            <span className="font-medium">0</span>
                           </div>
                         </div>
 
-                        {/* Avatars + menu */}
-                        <div className="flex items-center justify-between mt-auto">
-                          <div className="flex items-center gap-2">
+                        {/* Footer: QR Button, Avatars, Menu */}
+                        <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                          <div className="flex items-center gap-3">
                             {/* QR Code Button */}
                             <button
                               onClick={(e) => {
@@ -185,14 +188,16 @@ const ProjectBoard = ({
                                 e.stopPropagation();
                                 setQrDialogOpen(project.id);
                               }}
-                              className="w-8 h-8 rounded-full bg-[#4b89ef] hover:bg-[#3a6fd8] flex items-center justify-center text-white font-semibold text-sm transition-colors"
+                              className="w-9 h-9 rounded-full bg-[#4b89ef] hover:bg-[#3a6fd8] flex items-center justify-center text-white font-semibold text-sm transition-all duration-200 hover:scale-110 shadow-sm"
                               title="Share QR Code"
                             >
                               Q
                             </button>
+
+                            {/* Avatar Stack */}
                             <div className="flex items-center -space-x-2">
                               <div
-                                className="w-8 h-8 rounded-full border-2 border-white overflow-hidden bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-semibold text-xs"
+                                className="w-9 h-9 rounded-full border-2 border-white overflow-hidden bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-semibold text-xs shadow-sm"
                                 title={project.lead_name || "Lead"}
                               >
                                 {project.lead_name?.charAt(0).toUpperCase() ||
@@ -208,7 +213,7 @@ const ProjectBoard = ({
                                   return (
                                     <div
                                       key={i}
-                                      className={`w-8 h-8 rounded-full border-2 border-white overflow-hidden bg-gradient-to-br ${colors[i % colors.length]} flex items-center justify-center text-white font-semibold text-xs`}
+                                      className={`w-9 h-9 rounded-full border-2 border-white overflow-hidden bg-gradient-to-br ${colors[i % colors.length]} flex items-center justify-center text-white font-semibold text-xs shadow-sm`}
                                       title={t}
                                     >
                                       {t.charAt(0).toUpperCase()}
@@ -217,7 +222,7 @@ const ProjectBoard = ({
                                 })}
                               {project.teammates &&
                                 project.teammates.length > 3 && (
-                                  <div className="w-8 h-8 rounded-full border-2 border-white bg-gray-100 flex items-center justify-center text-xs text-gray-600 font-medium">
+                                  <div className="w-9 h-9 rounded-full border-2 border-white bg-gray-100 flex items-center justify-center text-xs text-gray-600 font-medium shadow-sm">
                                     +{project.teammates.length - 3}
                                   </div>
                                 )}
@@ -232,13 +237,14 @@ const ProjectBoard = ({
                                 asChild
                                 onClick={(e) => e.preventDefault()}
                               >
-                                <button className="p-1 hover:bg-gray-100 rounded-full">
+                                <button className="p-1.5 hover:bg-gray-100 rounded-full transition-colors">
                                   <MoreHorizontal className="w-5 h-5 text-gray-400" />
                                 </button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent
                                 align="end"
                                 onClick={(e) => e.stopPropagation()}
+                                className="w-40"
                               >
                                 <DropdownMenuItem
                                   onClick={(e) => {
@@ -260,7 +266,7 @@ const ProjectBoard = ({
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
-                                  className="text-red-600 focus:text-red-600"
+                                  className="text-red-600 focus:text-red-600 focus:bg-red-50"
                                   onClick={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
