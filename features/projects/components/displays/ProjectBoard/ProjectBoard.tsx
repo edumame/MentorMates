@@ -80,10 +80,11 @@ const ProjectBoard = ({
                 return (
                   <Link href={projectUrl} key={project.id} className="block">
                     <Card
-                      className={`bg-white rounded-xl overflow-hidden relative flex flex-col h-full hover:shadow-lg transition-shadow ${project.prizes_won && project.prizes_won.length > 0
-                        ? "ring-2 ring-yellow-400"
-                        : ""
-                        }`}
+                      className={`bg-white rounded-xl overflow-hidden relative flex flex-col h-full hover:shadow-lg transition-shadow ${
+                        project.prizes_won && project.prizes_won.length > 0
+                          ? "ring-2 ring-yellow-400"
+                          : ""
+                      }`}
                     >
                       {/* Winner Banner */}
                       {project.prizes_won && project.prizes_won.length > 0 && (
@@ -155,12 +156,12 @@ const ProjectBoard = ({
                             <span>
                               {project.created_at
                                 ? new Date(
-                                  project.created_at
-                                ).toLocaleDateString("en-GB", {
-                                  day: "2-digit",
-                                  month: "short",
-                                  year: "numeric",
-                                })
+                                    project.created_at
+                                  ).toLocaleDateString("en-GB", {
+                                    day: "2-digit",
+                                    month: "short",
+                                    year: "numeric",
+                                  })
                                 : "N/A"}
                             </span>
                           </div>
@@ -176,91 +177,102 @@ const ProjectBoard = ({
 
                         {/* Avatars + menu */}
                         <div className="flex items-center justify-between mt-auto">
-                          <div className="flex items-center -space-x-2">
-                            <div
-                              className="w-8 h-8 rounded-full border-2 border-white overflow-hidden bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-semibold text-xs"
-                              title={project.lead_name || "Lead"}
+                          <div className="flex items-center gap-2">
+                            {/* QR Code Button */}
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setQrDialogOpen(project.id);
+                              }}
+                              className="w-8 h-8 rounded-full bg-[#4b89ef] hover:bg-[#3a6fd8] flex items-center justify-center text-white font-semibold text-sm transition-colors"
+                              title="Share QR Code"
                             >
-                              {project.lead_name?.charAt(0).toUpperCase() ||
-                                "L"}
-                            </div>
-                            {project.teammates &&
-                              project.teammates.slice(0, 3).map((t, i) => {
-                                const colors = [
-                                  "from-purple-400 to-purple-600",
-                                  "from-pink-400 to-pink-600",
-                                  "from-orange-400 to-orange-600",
-                                ];
-                                return (
-                                  <div
-                                    key={i}
-                                    className={`w-8 h-8 rounded-full border-2 border-white overflow-hidden bg-gradient-to-br ${colors[i % colors.length]} flex items-center justify-center text-white font-semibold text-xs`}
-                                    title={t}
-                                  >
-                                    {t.charAt(0).toUpperCase()}
+                              Q
+                            </button>
+                            <div className="flex items-center -space-x-2">
+                              <div
+                                className="w-8 h-8 rounded-full border-2 border-white overflow-hidden bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-semibold text-xs"
+                                title={project.lead_name || "Lead"}
+                              >
+                                {project.lead_name?.charAt(0).toUpperCase() ||
+                                  "L"}
+                              </div>
+                              {project.teammates &&
+                                project.teammates.slice(0, 3).map((t, i) => {
+                                  const colors = [
+                                    "from-purple-400 to-purple-600",
+                                    "from-pink-400 to-pink-600",
+                                    "from-orange-400 to-orange-600",
+                                  ];
+                                  return (
+                                    <div
+                                      key={i}
+                                      className={`w-8 h-8 rounded-full border-2 border-white overflow-hidden bg-gradient-to-br ${colors[i % colors.length]} flex items-center justify-center text-white font-semibold text-xs`}
+                                      title={t}
+                                    >
+                                      {t.charAt(0).toUpperCase()}
+                                    </div>
+                                  );
+                                })}
+                              {project.teammates &&
+                                project.teammates.length > 3 && (
+                                  <div className="w-8 h-8 rounded-full border-2 border-white bg-gray-100 flex items-center justify-center text-xs text-gray-600 font-medium">
+                                    +{project.teammates.length - 3}
                                   </div>
-                                );
-                              })}
-                            {project.teammates &&
-                              project.teammates.length > 3 && (
-                                <div className="w-8 h-8 rounded-full border-2 border-white bg-gray-100 flex items-center justify-center text-xs text-gray-600 font-medium">
-                                  +{project.teammates.length - 3}
-                                </div>
-                              )}
+                                )}
+                            </div>
                           </div>
 
                           {/* Three dots menu – only on My Projects */}
                           {projectBoardContext ===
                             ProjectBoardContext.MyProjects && (
-                              <DropdownMenu>
-                                <DropdownMenuTrigger
-                                  asChild
-                                  onClick={(e) => e.preventDefault()}
+                            <DropdownMenu>
+                              <DropdownMenuTrigger
+                                asChild
+                                onClick={(e) => e.preventDefault()}
+                              >
+                                <button className="p-1 hover:bg-gray-100 rounded-full">
+                                  <MoreHorizontal className="w-5 h-5 text-gray-400" />
+                                </button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent
+                                align="end"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <DropdownMenuItem
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    window.open(projectUrl, "_blank");
+                                  }}
                                 >
-                                  <button className="p-1 hover:bg-gray-100 rounded-full">
-                                    <MoreHorizontal className="w-5 h-5 text-gray-400" />
-                                  </button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent
-                                  align="end"
-                                  onClick={(e) => e.stopPropagation()}
+                                  View details
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setQrDialogOpen(project.id);
+                                  }}
                                 >
-                                  <DropdownMenuItem
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      window.open(
-                                        projectUrl,
-                                        "_blank"
-                                      );
-                                    }}
-                                  >
-                                    View details
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      setQrDialogOpen(project.id);
-                                    }}
-                                  >
-                                    Share
-                                  </DropdownMenuItem>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem
-                                    className="text-red-600 focus:text-red-600"
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      setDeleteDialogOpen(project.id);
-                                    }}
-                                  >
-                                    <Trash2 className="h-4 w-4 mr-2" />
-                                    Delete Project
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            )}
+                                  Share
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  className="text-red-600 focus:text-red-600"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setDeleteDialogOpen(project.id);
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Delete Project
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )}
                         </div>
                       </div>
                     </Card>
@@ -287,15 +299,29 @@ const ProjectBoard = ({
                     return (
                       <div className="flex flex-col items-center justify-center py-20 border border-dashed border-[rgba(0,0,0,0.15)] rounded-[20px] p-8">
                         <div className="text-center space-y-3 flex flex-col items-center justify-center">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="M11 3V11L14 8L17 11V3M5 3H19C20.1046 3 21 3.89543 21 5V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V5C3 3.89543 3.89543 3 5 3Z" stroke="#09090B"></path></svg>
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="30"
+                            height="30"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                          >
+                            <path
+                              d="M11 3V11L14 8L17 11V3M5 3H19C20.1046 3 21 3.89543 21 5V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V5C3 3.89543 3.89543 3 5 3Z"
+                              stroke="#09090B"
+                            ></path>
+                          </svg>
                           <h3 className="text-xl font-semibold text-gray-700">
                             No project yet
                           </h3>
                           <p className="text-gray-500 max-w-sm">
-                            Join the event to submit a project or create a project directly.
+                            Join the event to submit a project or create a
+                            project directly.
                           </p>
                           <Button className="mt-4">
-                            <Link href="/projects/submit">Submit a project</Link>
+                            <Link href="/projects/submit">
+                              Submit a project
+                            </Link>
                           </Button>
                         </div>
                       </div>
@@ -318,10 +344,11 @@ const ProjectBoard = ({
               <>
                 <div className="bg-white p-4 rounded-lg border">
                   <QRCode
-                    value={`${typeof window !== "undefined"
-                      ? window.location.origin
-                      : ""
-                      }/projects/public/${qrDialogOpen}`}
+                    value={`${
+                      typeof window !== "undefined"
+                        ? window.location.origin
+                        : ""
+                    }/projects/public/${qrDialogOpen}`}
                     size={200}
                   />
                 </div>
