@@ -39,27 +39,9 @@ const agentsBaseSchema = z.object({
     // The form sets `custom_type_tmp` and the submit handler maps it into `type`.
     custom_type_tmp: z.string().optional(),
 });
-export const agentsInsertSchema = agentsBaseSchema.refine((data) => {
-    if (data.type === "custom") {
-        return typeof data.custom_type_tmp === "string" && data.custom_type_tmp.trim().length > 0;
-    }
-    return true;
-}, {
-    message: "Custom type is required",
-    path: ["custom_type_tmp"],
-});
+export const agentsInsertSchema = agentsBaseSchema;
 
 export const agentsUpdateSchema = agentsBaseSchema
     .partial()
-    .extend({ id: z.string().min(1, { message: "Id is required" }) })
-    .refine((data) => {
-        // For updates, only enforce custom_type_tmp when the client includes type === 'custom'
-        if ((data.type as string) === "custom") {
-            return typeof data.custom_type_tmp === "string" && data.custom_type_tmp.trim().length > 0;
-        }
-        return true;
-    }, {
-        message: "Custom type is required",
-        path: ["custom_type_tmp"],
-    });
+    .extend({ id: z.string().min(1, { message: "Id is required" }) });
 
