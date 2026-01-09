@@ -2,6 +2,7 @@ import { AgentGetOne } from "@/modules/agents/types";
 import { useTRPC } from "@/trpc/client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
+import type { Resolver } from "react-hook-form";
 import { z } from "zod";
 import { agentsInsertSchema, agentsUpdateSchema } from "@/modules/agents/schemas";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -73,7 +74,10 @@ export const AgentForm = ({ onSuccess, onCancel, initialValues, eventId } : Agen
     const isEdit = !!initialValues?.id;
 
     const form = useForm<AgentFormValues & { id?: string }>({
-        resolver: zodResolver(isEdit ? agentsUpdateSchema : agentsInsertSchema),
+        // zodResolver types can be incompatible across resolver versions; cast the schema to z.ZodTypeAny and the result to the correct Resolver type
+        resolver: zodResolver(
+            isEdit ? (agentsUpdateSchema as unknown as z.ZodTypeAny) : (agentsInsertSchema as unknown as z.ZodTypeAny)
+        ) as unknown as Resolver<AgentFormValues & { id?: string }>,
         defaultValues: {
             id: initialValues?.id,
             name: initialValues?.name ?? "",
@@ -112,7 +116,7 @@ export const AgentForm = ({ onSuccess, onCancel, initialValues, eventId } : Agen
         } else {
             try {
                 const payload = eventId ? { ...payloadBase, event_id: eventId } : payloadBase;
-                await createAgent.mutateAsync(payload as any);
+                await createAgent.mutateAsync(payload as unknown as AgentFormValues & { event_id?: string });
             } catch {
                 // createAgent handles toast/router on error
             }
