@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import AgentTypeLabel from "@/components/ui/agent-type-label";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/lib/hooks/use-toast";
@@ -21,8 +22,9 @@ interface SessionsTabProps {
 export function SessionsTab({ eventId, event, setEvent }: SessionsTabProps) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  type Agent = { id: string; name?: string | null };
+  type Agent = { id: string; name?: string | null; type?: string | null };
   const [agents, setAgents] = useState<Array<Agent>>([]);
+  const [agentsLoaded, setAgentsLoaded] = useState(false);
   const [defaultCap, setDefaultCap] = useState<number | null>(null);
   const [defaultUnlimited, setDefaultUnlimited] = useState(true);
   const [agentCaps, setAgentCaps] = useState<Record<string, number | null>>({});
@@ -62,11 +64,14 @@ export function SessionsTab({ eventId, event, setEvent }: SessionsTabProps) {
 
   const loadAgents = async () => {
     try {
-      const { data, error } = await supabase.from("agents").select("id,name").order("name", { ascending: true });
+      const { data, error } = await supabase.from("agents").select("id,name,type").eq("event_id", eventId).order("name", { ascending: true });
       if (error) throw error;
       setAgents(data || []);
     } catch (err) {
       console.error("Failed to load agents", err);
+    }
+    finally {
+      setAgentsLoaded(true);
     }
   };
 
@@ -140,21 +145,30 @@ export function SessionsTab({ eventId, event, setEvent }: SessionsTabProps) {
         <h3 className="font-medium mb-2">Per-agent caps</h3>
         <p className="text-sm text-muted-foreground mb-4">Set overrides for specific agents (leave blank for default).</p>
 
-        <div className="space-y-3">
-          {agents.map((a) => (
-            <div key={a.id} className="flex items-center gap-3">
-              <div className="flex-1">{a.name || a.id}</div>
-              <div className="w-32">
-                <Input
-                  type="number"
-                  value={agentCaps[a.id] ?? ""}
-                  onChange={(e) => updateAgentCap(a.id, e.target.value)}
-                  placeholder="e.g. 2"
-                />
+        {agentsLoaded && agents.length === 0 ? (
+          <div className="p-4 rounded border bg-yellow-50">
+            <p className="text-sm text-muted-foreground">No agents found for this event. Create agents in the Agents tab to configure per-agent caps.</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {agents.map((a) => (
+              <div key={a.id} className="flex items-center gap-3">
+                <div className="flex-1 flex items-center gap-2">
+                  <span>{a.name || a.id}</span>
+                  <AgentTypeLabel type={a.type ?? ""} />
+                </div>
+                <div className="w-32">
+                  <Input
+                    type="number"
+                    value={agentCaps[a.id] ?? ""}
+                    onChange={(e) => updateAgentCap(a.id, e.target.value)}
+                    placeholder="e.g. 2"
+                  />
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="flex gap-2">

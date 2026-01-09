@@ -194,11 +194,19 @@ export function MentorCards() {
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem className="gap-2" onClick={() => onEdit(meeting)}>
+                  <DropdownMenuItem
+                    className="gap-2"
+                    onClick={() => meeting.status === "upcoming" && onEdit(meeting)}
+                    disabled={meeting.status !== "upcoming"}
+                  >
                     <PencilIcon className="size-4 text-black" />
                     Edit
                   </DropdownMenuItem>
-                  <DropdownMenuItem className="gap-2" onClick={() => handleRemoveMeeting(meeting.id)}>
+                  <DropdownMenuItem
+                    className="gap-2"
+                    onClick={() => meeting.status === "upcoming" && handleRemoveMeeting(meeting.id)}
+                    disabled={meeting.status !== "upcoming"}
+                  >
                     <TrashIcon className="size-4 text-black" />
                     Delete
                   </DropdownMenuItem>

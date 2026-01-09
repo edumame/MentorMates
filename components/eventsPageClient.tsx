@@ -127,7 +127,7 @@ export function EventsPageClient({ eventsList }: { eventsList: EventItem[] }) {
               </div>
 
               {/* Create Event Button - Desktop only */}
-              {isAuthenticated && isAdmin && (
+              {isAuthenticated && (
                 <Button
                   className="h-10 hidden sm:inline-flex"
                   onClick={() => setShowCreateModal(true)}
@@ -139,7 +139,7 @@ export function EventsPageClient({ eventsList }: { eventsList: EventItem[] }) {
           </div>
 
           {/* Create Event Button - Mobile only */}
-          {isAuthenticated && isAdmin && (
+          {isAuthenticated && (
             <Button
               className="h-10 sm:hidden w-full"
               onClick={() => setShowCreateModal(true)}
@@ -179,7 +179,7 @@ export function EventsPageClient({ eventsList }: { eventsList: EventItem[] }) {
         </div>
       )}
 
-      {isAuthenticated && isAdmin && (
+      {isAuthenticated && (
         <CreateEventModal
           open={showCreateModal}
           onOpenChange={setShowCreateModal}

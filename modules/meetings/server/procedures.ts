@@ -83,7 +83,7 @@ export const meetingsRouter = createTRPCRouter({
 
                             const userMeetingsCount = typeof count === 'number' ? count : 0;
                             if (userMeetingsCount >= configuredAgentCap) {
-                                throw new TRPCError({ code: 'FORBIDDEN', message: 'You have reached the maximum number of sessions for this agent' });
+                                throw new TRPCError({ code: 'FORBIDDEN', message: `You have reached the maximum number of sessions for this agent (${userMeetingsCount}/${configuredAgentCap})` });
                             }
                         } else {
                             const defaultCap = sessionCaps.default;
@@ -98,7 +98,7 @@ export const meetingsRouter = createTRPCRouter({
 
                                 const userMeetingsCountForEvent = typeof count === 'number' ? count : 0;
                                 if (userMeetingsCountForEvent >= Number(defaultCap)) {
-                                    throw new TRPCError({ code: 'FORBIDDEN', message: 'You have reached the maximum number of sessions for this event' });
+                                    throw new TRPCError({ code: 'FORBIDDEN', message: `You have reached the maximum number of sessions for this event (${userMeetingsCountForEvent}/${Number(defaultCap)})` });
                                 }
                             }
                         }
@@ -114,7 +114,7 @@ export const meetingsRouter = createTRPCRouter({
 
                     const userMeetingsCount = typeof count === 'number' ? count : (rows?.length ?? 0);
                     if (userMeetingsCount >= MAX_SESSIONS) {
-                        throw new TRPCError({ code: 'FORBIDDEN', message: 'You have reached the maximum number of sessions' });
+                        throw new TRPCError({ code: 'FORBIDDEN', message: `You have reached the maximum number of sessions (${userMeetingsCount}/${MAX_SESSIONS})` });
                     }
                 }
             }

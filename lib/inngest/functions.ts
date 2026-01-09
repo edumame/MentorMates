@@ -32,19 +32,6 @@ async function getSystemPrompt(agentId: string): Promise<string> {
   return systemPrompt.prompt_text;
 }
 
-/**
- * Creates a summarizer agent with the system prompt fetched from the database.
- */
-async function createSummarizerAgent(agentId: string) {
-  const systemPrompt = await getSystemPrompt(agentId);
-
-  return createAgent({
-    name: agentId,
-    system: systemPrompt,
-    model: openai({ model: "gpt-5", apiKey: process.env.OPENAI_API_KEY }),
-  });
-}
-
 function extractOverallScore(summary: string): number {
   const match = summary.match(/\b(\d{1,3})\s\/\s100\b/);
 
@@ -125,7 +112,7 @@ export const meetingsProcessing = inngest.createFunction(
     const summarizer = createAgent({
       name: agentId,
       system: systemPrompt,
-      model: openai({ model: "gpt-5", apiKey: process.env.OPENAI_API_KEY }),
+      model: openai({ model: "gpt-5.2", apiKey: process.env.OPENAI_API_KEY }),
     });
 
     const { output } = await summarizer.run(
