@@ -66,7 +66,7 @@ export const AgentForm = ({ onSuccess, onCancel, initialValues, eventId } : Agen
         },
     }));
 
-    type AgentFormValues = z.infer<typeof agentsInsertSchema> & { custom_type_tmp?: string };
+    type AgentFormValues = z.infer<typeof agentsInsertSchema> & { custom_type_tmp?: string; feedback_prompt?: string };
 
     const STANDARD = ["brainstorm", "product", "tech", "judge"];
 
@@ -75,6 +75,7 @@ export const AgentForm = ({ onSuccess, onCancel, initialValues, eventId } : Agen
         defaultValues: {
             name: initialValues?.name ?? "",
             instructions: initialValues?.instructions ?? "",
+            feedback_prompt: (initialValues as AgentGetOne | undefined)?.feedback_prompt ?? "",
             // If initial type is one of the standard options, select it.
             // Otherwise select the special "custom" option and store the original value in `custom_type_tmp`.
             type: (initialValues?.type && STANDARD.includes(String(initialValues.type).toLowerCase()))
@@ -96,7 +97,7 @@ export const AgentForm = ({ onSuccess, onCancel, initialValues, eventId } : Agen
             const custom = (form.getValues("custom_type_tmp") || "").toString().trim();
             payloadBase.type = custom.length > 0 ? custom : "Custom";
         }
-        // Remove helper field
+        // Remove helper / UI-only fields
         delete payloadBase.custom_type_tmp;
 
         if (isEdit) {
@@ -201,6 +202,22 @@ export const AgentForm = ({ onSuccess, onCancel, initialValues, eventId } : Agen
                                 <Textarea
                                     {...field}
                                     placeholder="You are a helpful assistant with creative gift ideas."
+                                />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    name="feedback_prompt"
+                    control={form.control}
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Feedback prompt (optional)</FormLabel>
+                            <FormControl>
+                                <Textarea
+                                    {...field}
+                                    placeholder="Optional system-level instructions for the agent feedback evaluation."
                                 />
                             </FormControl>
                             <FormMessage />

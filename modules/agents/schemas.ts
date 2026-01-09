@@ -15,11 +15,23 @@ const optionalUrl = z
         return trimmed.length === 0 ? undefined : trimmed;
     });
 
+// Optional text helper: accept string, empty string, or undefined; empty -> undefined
+const optionalText = z
+    .union([z.string().trim(), z.literal("")])
+    .optional()
+    .transform((value) => {
+        if (value === undefined) return undefined;
+        const trimmed = (value as string).trim();
+        return trimmed.length === 0 ? undefined : trimmed;
+    });
+
 const agentsBaseSchema = z.object({
     name: z.string().min(1, { message: "Name is required" }),
     instructions: z.string().min(1, { message: "Instructions are required" }),
     // Optional avatar image for the agent (stored in `agents.avatar_url`)
     avatar_url: optionalUrl,
+    // Optional prompt used when generating feedback/evaluations for this agent
+    feedback_prompt: optionalText,
     event_id: z.string().optional(),
     enabled: z.boolean().optional(),
     type: z.string().min(1, { message: "Type is required" }),
