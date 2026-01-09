@@ -11,25 +11,45 @@ import { DEFAULT_SYSTEM_PROMPT } from "@/lib/inngest/prompts";
  */
 async function getSystemPrompt(agentId: string): Promise<string> {
   const supabase = await createSupabaseServiceClient();
-  const { data: systemPrompt, error: systemPromptError } = await supabase
-    .from("system_prompts")
-    .select("prompt_text")
-    .eq("agent_id", agentId)
-    .eq("is_active", true)
-    .maybeSingle();
+  try {
+    // Prefer agent-specific feedback_prompt column if present
+    const { data: agentRow, error: agentErr } = await supabase
+      .from("agents")
+      .select("feedback_prompt")
+      .eq("id", agentId)
+      .maybeSingle();
 
-  if (systemPromptError) {
-    console.error("Failed to fetch system prompt:", systemPromptError);
+    if (agentErr) {
+      console.error("Failed to fetch agent row for system prompt fallback:", agentErr);
+    } else if (agentRow && agentRow.feedback_prompt) {
+      console.log("Using feedback_prompt from agents table for agent:", agentId);
+      return agentRow.feedback_prompt as string;
+    }
+
+    // Fallback to system_prompts table (existing behavior)
+    const { data: systemPrompt, error: systemPromptError } = await supabase
+      .from("system_prompts")
+      .select("prompt_text")
+      .eq("agent_id", agentId)
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (systemPromptError) {
+      console.error("Failed to fetch system prompt:", systemPromptError);
+      return DEFAULT_SYSTEM_PROMPT;
+    }
+
+    if (!systemPrompt) {
+      console.error("No system prompt found for agent:", agentId);
+      return DEFAULT_SYSTEM_PROMPT;
+    }
+
+    console.log("Agent system prompt fetched from database.");
+    return systemPrompt.prompt_text;
+  } catch (err) {
+    console.error("Unexpected error fetching system prompt:", err);
     return DEFAULT_SYSTEM_PROMPT;
   }
-
-  if (!systemPrompt) {
-    console.error("No system prompt found for agent:", agentId);
-    return DEFAULT_SYSTEM_PROMPT;
-  }
-
-  console.log("Agent system prompt fetched from database.");
-  return systemPrompt.prompt_text;
 }
 
 function extractOverallScore(summary: string): number {
