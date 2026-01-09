@@ -25,6 +25,17 @@ const optionalText = z
         return trimmed.length === 0 ? undefined : trimmed;
     });
 
+// For updates we want to allow an explicit empty string so the UI can clear the value.
+// This keeps empty string instead of converting it to `undefined` which would skip the
+// field during partial updates.
+const optionalTextAllowEmpty = z
+    .union([z.string(), z.literal("")])
+    .optional()
+    .transform((value) => {
+        if (value === undefined) return undefined;
+        return (value as string).trim();
+    });
+
 const agentsBaseSchema = z.object({
     name: z.string().min(1, { message: "Name is required" }),
     instructions: z.string().min(1, { message: "Instructions are required" }),
@@ -42,6 +53,7 @@ const agentsBaseSchema = z.object({
 export const agentsInsertSchema = agentsBaseSchema;
 
 export const agentsUpdateSchema = agentsBaseSchema
+    .extend({ feedback_prompt: optionalTextAllowEmpty })
     .partial()
     .extend({ id: z.string().min(1, { message: "Id is required" }) });
 
