@@ -72,8 +72,8 @@ export const meetingsProcessing = inngest.createFunction(
   { id: "meetings/processing" },
   { event: "meetings/processing" },
   async ({ event, step }) => {
-    // this should be dynamic in the future
-    const agentId = "summarizer";
+    // agentId should be provided on the event; fall back to "summarizer"
+    const agentId = event.data && event.data.agentId || "summarizer";
 
     const supabase = await createSupabaseServiceClient();
     const response = await step.run("fetch-transcript", async () => {
