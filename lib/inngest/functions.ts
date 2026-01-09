@@ -9,21 +9,31 @@ import { DEFAULT_SYSTEM_PROMPT } from "@/lib/inngest/prompts";
  * Fetches the system prompt from the database for a given agent ID.
  * Returns the prompt text if found and active, otherwise returns the default prompt.
  */
-async function getSystemPrompt(agentId: string): Promise<string> {
+async function getSystemPrompt(agentId: string): Promise<{
+  promptText: string;
+  scoringEnabled: boolean;
+}> {
   const supabase = await createSupabaseServiceClient();
   try {
-    // Prefer agent-specific feedback_prompt column if present
+    // Prefer agent-specific fields if present: feedback_prompt, scoring
     const { data: agentRow, error: agentErr } = await supabase
       .from("agents")
-      .select("feedback_prompt")
+      .select("feedback_prompt, scoring")
       .eq("id", agentId)
       .maybeSingle();
 
+    let agentScoring = true;
     if (agentErr) {
       console.error("Failed to fetch agent row for system prompt fallback:", agentErr);
-    } else if (agentRow && agentRow.feedback_prompt) {
-      console.log("Using feedback_prompt from agents table for agent:", agentId);
-      return agentRow.feedback_prompt as string;
+    } else {
+      agentScoring = agentRow?.scoring ?? agentScoring;
+      if (agentRow && agentRow.feedback_prompt) {
+        console.log("Using feedback_prompt from agents table for agent:", agentId);
+        return {
+          promptText: agentRow.feedback_prompt as string,
+          scoringEnabled: agentRow.scoring ?? true,
+        };
+      }
     }
 
     // Fallback to system_prompts table (existing behavior)
@@ -36,19 +46,19 @@ async function getSystemPrompt(agentId: string): Promise<string> {
 
     if (systemPromptError) {
       console.error("Failed to fetch system prompt:", systemPromptError);
-      return DEFAULT_SYSTEM_PROMPT;
+      return { promptText: DEFAULT_SYSTEM_PROMPT, scoringEnabled: agentScoring };
     }
 
     if (!systemPrompt) {
       console.error("No system prompt found for agent:", agentId);
-      return DEFAULT_SYSTEM_PROMPT;
+      return { promptText: DEFAULT_SYSTEM_PROMPT, scoringEnabled: agentScoring };
     }
 
     console.log("Agent system prompt fetched from database.");
-    return systemPrompt.prompt_text;
+    return { promptText: systemPrompt.prompt_text, scoringEnabled: agentScoring };
   } catch (err) {
     console.error("Unexpected error fetching system prompt:", err);
-    return DEFAULT_SYSTEM_PROMPT;
+    return { promptText: DEFAULT_SYSTEM_PROMPT, scoringEnabled: true };
   }
 }
 
@@ -125,13 +135,25 @@ export const meetingsProcessing = inngest.createFunction(
       });
     });
 
-    const systemPrompt = await step.run("get-system-prompt", async () => {
+    const systemPromptRes = await step.run("get-system-prompt", async () => {
       return await getSystemPrompt(agentId);
     });
 
+    const { promptText, scoringEnabled } = systemPromptRes as {
+      promptText: string;
+      scoringEnabled: boolean;
+    };
+
+    let finalSystemPrompt = promptText;
+    if (!scoringEnabled) {
+      // Prepend a clear prohibition to override any scoring instructions
+      finalSystemPrompt =
+        "Important: Do NOT include any numeric scores, ratings, or 'Overall Score' lines in your output. Only provide the textual summary.\n\n" +
+        promptText;
+    }
     const summarizer = createAgent({
       name: agentId,
-      system: systemPrompt,
+      system: finalSystemPrompt,
       model: openai({ model: "gpt-5.2", apiKey: process.env.OPENAI_API_KEY }),
     });
 
@@ -153,7 +175,9 @@ export const meetingsProcessing = inngest.createFunction(
 
       let score: number | null = null;
       try {
-        score = extractOverallScore(summary);
+        if (scoringEnabled) {
+          score = extractOverallScore(summary);
+        }
       } catch (error) {
         console.error("Failed to extract overall score:", error);
         // Continue without score - job should still complete
