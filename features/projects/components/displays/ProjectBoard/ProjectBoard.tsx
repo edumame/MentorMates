@@ -140,7 +140,7 @@ const ProjectBoard = ({
                       {/* Content Section */}
                       <div className="p-5 flex-1 flex flex-col bg-white">
                         {/* Project Title */}
-                        <h3 className="font-bold text-gray-900 text-xl leading-tight mb-2 line-clamp-2 min-h-[3rem]">
+                        <h3 className="font-bold text-gray-900 text-xl leading-tight mb-2">
                           {project.project_name || "Project"}
                         </h3>
 
