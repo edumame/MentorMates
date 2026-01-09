@@ -176,37 +176,51 @@ const ProjectBoard = ({
 
                         {/* Avatars + menu */}
                         <div className="flex items-center justify-between mt-auto">
-                          <div className="flex items-center -space-x-2">
-                            <div
-                              className="w-8 h-8 rounded-full border-2 border-white overflow-hidden bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-semibold text-xs"
-                              title={project.lead_name || "Lead"}
+                          <div className="flex items-center gap-2">
+                            {/* QR Code Button */}
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setQrDialogOpen(project.id);
+                              }}
+                              className="w-8 h-8 rounded-full bg-[#4b89ef] hover:bg-[#3a6fd8] flex items-center justify-center text-white font-semibold text-sm transition-colors"
+                              title="Share QR Code"
                             >
-                              {project.lead_name?.charAt(0).toUpperCase() ||
-                                "L"}
-                            </div>
-                            {project.teammates &&
-                              project.teammates.slice(0, 3).map((t, i) => {
-                                const colors = [
-                                  "from-purple-400 to-purple-600",
-                                  "from-pink-400 to-pink-600",
-                                  "from-orange-400 to-orange-600",
-                                ];
-                                return (
-                                  <div
-                                    key={i}
-                                    className={`w-8 h-8 rounded-full border-2 border-white overflow-hidden bg-gradient-to-br ${colors[i % colors.length]} flex items-center justify-center text-white font-semibold text-xs`}
-                                    title={t}
-                                  >
-                                    {t.charAt(0).toUpperCase()}
+                              Q
+                            </button>
+                            <div className="flex items-center -space-x-2">
+                              <div
+                                className="w-8 h-8 rounded-full border-2 border-white overflow-hidden bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-semibold text-xs"
+                                title={project.lead_name || "Lead"}
+                              >
+                                {project.lead_name?.charAt(0).toUpperCase() ||
+                                  "L"}
+                              </div>
+                              {project.teammates &&
+                                project.teammates.slice(0, 3).map((t, i) => {
+                                  const colors = [
+                                    "from-purple-400 to-purple-600",
+                                    "from-pink-400 to-pink-600",
+                                    "from-orange-400 to-orange-600",
+                                  ];
+                                  return (
+                                    <div
+                                      key={i}
+                                      className={`w-8 h-8 rounded-full border-2 border-white overflow-hidden bg-gradient-to-br ${colors[i % colors.length]} flex items-center justify-center text-white font-semibold text-xs`}
+                                      title={t}
+                                    >
+                                      {t.charAt(0).toUpperCase()}
+                                    </div>
+                                  );
+                                })}
+                              {project.teammates &&
+                                project.teammates.length > 3 && (
+                                  <div className="w-8 h-8 rounded-full border-2 border-white bg-gray-100 flex items-center justify-center text-xs text-gray-600 font-medium">
+                                    +{project.teammates.length - 3}
                                   </div>
-                                );
-                              })}
-                            {project.teammates &&
-                              project.teammates.length > 3 && (
-                                <div className="w-8 h-8 rounded-full border-2 border-white bg-gray-100 flex items-center justify-center text-xs text-gray-600 font-medium">
-                                  +{project.teammates.length - 3}
-                                </div>
-                              )}
+                                )}
+                            </div>
                           </div>
 
                           {/* Three dots menu – only on My Projects */}
