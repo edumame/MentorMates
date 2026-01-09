@@ -1,27 +1,12 @@
-"use client";
-
-import { useState } from "react";
 import { data } from "@/lib/NavigateMMData";
 import { Close } from "@mui/icons-material";
 
 export function NavigateMM() {
-    const [isVisible, setIsVisible] = useState(true);
-
-    if (!isVisible) {
-        return null;
-    }
-
     return (
         <div className=" w-full rounded-[16px] p-4 border border-solid border-[rgba(0,0,0,0.15)] bg-white">
             <div className="flex justify-between items-center">
                 <h1 className="text-2xl font-semibold">Navigate roles in MentorMates</h1>
-                <button
-                    onClick={() => setIsVisible(false)}
-                    className="cursor-pointer hover:text-red-500 transition-opacity p-1 rounded-sm "
-                    aria-label="Close"
-                >
-                    <Close className="h-4 w-4" />
-                </button>
+                <Close className="h-4 w-4" />
             </div>
             <p className="text-sm text-gray-900 pt-2"> Quick guides for Participants, Mentors, Judges, and Organizers. Learn what each role can do and how to get started.</p>
             <div className="flex flex-row gap-2 mt-4">
