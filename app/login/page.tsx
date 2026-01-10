@@ -262,7 +262,21 @@ function LoginContent({
         return;
       }
 
-      const { error } = await supabase.auth.signUp({
+      // Check if we already have a profile row for this email.
+      // This helps us show a friendly "already in use" error before attempting signup.
+      const { data: existingProfile } = await supabase
+        .from("user_profiles")
+        .select("uid")
+        .eq("email", email)
+        .maybeSingle();
+
+      if (existingProfile) {
+        setError("Email already in use. Please sign in instead.");
+        setLoading(false);
+        return;
+      }
+
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -277,16 +291,33 @@ function LoginContent({
         return;
       }
 
-      const { data: existingProfile } = await supabase
-        .from("user_profiles")
-        .select("*")
-        .eq("email", email)
-        .single();
+      // Best-effort: create the matching `user_profiles` row immediately
+      // so the user can open their profile page right away.
+      if (data?.user) {
+        const profileError = await syncUserProfile(data.user);
+        if (profileError) {
+          console.error("Error creating user profile:", profileError);
+        }
 
-      if (existingProfile) {
-        setError("Email already in use. Please sign in instead.");
-        setLoading(false);
-        return;
+        // Best-effort: send a welcome email asking them to complete their profile.
+        // We do not block signup if email sending fails.
+        try {
+          const profileUrl = `${cleanBaseUrl}/profile/${data.user.id}`;
+          await fetch("/api/email", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              type: "welcome_profile",
+              to: email,
+              displayName:
+                (data.user.user_metadata?.full_name as string | undefined) ||
+                email.split("@")[0],
+              profileUrl,
+            }),
+          });
+        } catch (emailError) {
+          console.error("Error sending welcome email:", emailError);
+        }
       }
 
       setLoading(false);
@@ -535,12 +566,6 @@ function LoginContent({
 
 // login page
 export default function LoginPage() {
-  const router = useRouter();
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    params.get("mode") === "signup";
-  }, [router]);
-
   return (
     <div className="min-h-screen bg-white">
       <Suspense fallback={<div className="p-6">Loading…</div>}>

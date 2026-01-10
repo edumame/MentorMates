@@ -61,6 +61,24 @@ export async function GET(request: Request) {
     if (profileError) {
       return NextResponse.redirect(`${cleanBaseUrl}/auth/auth-code-error`);
     }
+
+    // Best-effort: send a welcome email asking them to complete their profile.
+    // This is done only the first time we create their profile record.
+    try {
+      const profileUrl = `${cleanBaseUrl}/profile/${user.id}`;
+      await fetch(`${cleanBaseUrl}/api/email`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "welcome_profile",
+          to: user.email,
+          displayName: profileData.display_name,
+          profileUrl,
+        }),
+      });
+    } catch (emailError) {
+      console.error("Error sending welcome email:", emailError);
+    }
   }
 
   // Default redirect for non-mentor users

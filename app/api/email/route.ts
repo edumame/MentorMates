@@ -4,6 +4,7 @@ import { getProjectSubmissionEmailTemplate } from '@/lib/email_templates/project
 import { getProjectTeammateEmailTemplate } from '@/lib/email_templates/project-teammate';
 import { getFeedbackNotificationEmailTemplate } from '@/lib/email_templates/feedback-notification';
 import { getOrganizerCustomEmailTemplate } from '@/lib/email_templates/organizer-custom';
+import { getWelcomeProfileEmailTemplate } from '@/lib/email_templates/welcome-profile';
 import { createSupabaseClient } from '@/app/utils/supabase/server';
 
 const transporter = nodemailer.createTransport({
@@ -187,6 +188,22 @@ export async function POST(request: Request) {
         sent: successCount,
         failed: failureCount 
       });
+    } else if (type === 'welcome_profile') {
+      const { to, displayName, profileUrl } = data;
+
+      if (!to || !profileUrl) {
+        return NextResponse.json(
+          { error: 'Missing required fields for welcome email' },
+          { status: 400 }
+        );
+      }
+
+      const welcomeTemplate = getWelcomeProfileEmailTemplate(
+        displayName || (to as string).split("@")[0],
+        profileUrl
+      );
+
+      await sendEmail(to, welcomeTemplate.subject, welcomeTemplate.html);
     } else {
       return NextResponse.json(
         { error: 'Invalid email type' },
