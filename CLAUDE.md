@@ -134,6 +134,13 @@ app/
 - Development includes Stagewise toolbar for debugging
 - Database setup via `npm run setup-db` command
 
+## Branching and Pull Requests
+
+- **Always use Pull Requests (PRs).** Do not push directly to main.
+- **Branch names must be meaningful.** Use your name, AI agent, or feature name.
+  - Examples: `chinat/fix-feedback-modal`, `cursor/mentor-agent-scoring`
+  - Avoid generic names like `frontend`, `dev`, `fix`
+
 ## Pre-PR Checklist
 
 Before creating a pull request, always:
