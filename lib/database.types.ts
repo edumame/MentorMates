@@ -812,7 +812,7 @@ export type Database = {
           onboarding_metadata: Json | null
           phone_number: string | null
           pulse: number
-          school: string | null
+          affiliation: string | null
           stripe_customer_id: string | null
           uid: string
         }
@@ -826,7 +826,7 @@ export type Database = {
           onboarding_metadata?: Json | null
           phone_number?: string | null
           pulse?: number
-          school?: string | null
+          affiliation?: string | null
           stripe_customer_id?: string | null
           uid: string
         }
@@ -840,7 +840,7 @@ export type Database = {
           onboarding_metadata?: Json | null
           phone_number?: string | null
           pulse?: number
-          school?: string | null
+          affiliation?: string | null
           stripe_customer_id?: string | null
           uid?: string
         }
