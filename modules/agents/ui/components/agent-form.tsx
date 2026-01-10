@@ -2,8 +2,9 @@ import { AgentGetOne } from "@/modules/agents/types";
 import { useTRPC } from "@/trpc/client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
+import type { Resolver } from "react-hook-form";
 import { z } from "zod";
-import { agentsInsertSchema } from "@/modules/agents/schemas";
+import { agentsInsertSchema, agentsUpdateSchema } from "@/modules/agents/schemas";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -66,15 +67,22 @@ export const AgentForm = ({ onSuccess, onCancel, initialValues, eventId } : Agen
         },
     }));
 
-    type AgentFormValues = z.infer<typeof agentsInsertSchema> & { custom_type_tmp?: string };
+    type AgentFormValues = z.infer<typeof agentsInsertSchema> & { custom_type_tmp?: string; feedback_prompt?: string };
 
     const STANDARD = ["brainstorm", "product", "tech", "judge"];
 
-    const form = useForm<AgentFormValues>({
-        resolver: zodResolver(agentsInsertSchema),
+    const isEdit = !!initialValues?.id;
+
+    const form = useForm<AgentFormValues & { id?: string }>({
+        // zodResolver types can be incompatible across resolver versions; cast the schema to z.ZodTypeAny and the result to the correct Resolver type
+        resolver: zodResolver(
+            isEdit ? (agentsUpdateSchema as unknown as z.ZodTypeAny) : (agentsInsertSchema as unknown as z.ZodTypeAny)
+        ) as unknown as Resolver<AgentFormValues & { id?: string }>,
         defaultValues: {
+            id: initialValues?.id,
             name: initialValues?.name ?? "",
             instructions: initialValues?.instructions ?? "",
+            feedback_prompt: (initialValues as AgentGetOne | undefined)?.feedback_prompt ?? "",
             // If initial type is one of the standard options, select it.
             // Otherwise select the special "custom" option and store the original value in `custom_type_tmp`.
             type: (initialValues?.type && STANDARD.includes(String(initialValues.type).toLowerCase()))
@@ -85,18 +93,22 @@ export const AgentForm = ({ onSuccess, onCancel, initialValues, eventId } : Agen
         },
     });
 
-    const isEdit = !!initialValues?.id;
     const isPending = createAgent.isPending || updateAgent.isPending;
 
     const onSubmit = async (values: AgentFormValues) => {
-        // If custom selected, read the custom input directly from the form
-        // to avoid any potential stale/controlled-value issues.
-        const payloadBase: Record<string, unknown> = { ...values };
+        // If custom selected, require the custom input and read it directly
+        // from the form to avoid stale/controlled-value issues.
         if (values.type === "custom") {
             const custom = (form.getValues("custom_type_tmp") || "").toString().trim();
-            payloadBase.type = custom.length > 0 ? custom : "Custom";
+            if (custom.length === 0) {
+                form.setError("custom_type_tmp", { type: "required", message: "Custom type is required" });
+                return;
+            }
+            values.type = custom;
         }
-        // Remove helper field
+
+        const payloadBase: Record<string, unknown> = { ...values };
+        // Remove helper / UI-only fields
         delete payloadBase.custom_type_tmp;
 
         if (isEdit) {
@@ -104,7 +116,7 @@ export const AgentForm = ({ onSuccess, onCancel, initialValues, eventId } : Agen
         } else {
             try {
                 const payload = eventId ? { ...payloadBase, event_id: eventId } : payloadBase;
-                await createAgent.mutateAsync(payload as any);
+                await createAgent.mutateAsync(payload as unknown as AgentFormValues & { event_id?: string });
             } catch {
                 // createAgent handles toast/router on error
             }
@@ -201,6 +213,22 @@ export const AgentForm = ({ onSuccess, onCancel, initialValues, eventId } : Agen
                                 <Textarea
                                     {...field}
                                     placeholder="You are a helpful assistant with creative gift ideas."
+                                />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    name="feedback_prompt"
+                    control={form.control}
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Feedback prompt (optional)</FormLabel>
+                            <FormControl>
+                                <Textarea
+                                    {...field}
+                                    placeholder="Optional system-level instructions for the agent feedback evaluation."
                                 />
                             </FormControl>
                             <FormMessage />

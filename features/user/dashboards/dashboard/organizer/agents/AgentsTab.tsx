@@ -56,6 +56,14 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
     await removeAgent.mutateAsync({ id });
   };
 
+  const toggleScoring = (agent: AgentGetOne, scoring: boolean) => {
+    void (async () => {
+      const t = toast({ title: scoring ? "Enabling scoring..." : "Disabling scoring...", description: String(agent.name), duration: 3000 });
+      await updateAgent.mutateAsync({ id: agent.id, scoring });
+      t.dismiss();
+    })();
+  };
+
   useEffect(() => {}, [eventId]);
 
   const enableAgent = (agent: AgentGetOne, enabled: boolean) => {
@@ -109,8 +117,25 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
                 <div className="text-sm text-gray-600">{agent.instructions}</div>
               </div>
               <div className="flex items-center gap-3">
-                <Switch checked={Boolean(agent.enabled)} onCheckedChange={(e) => enableAgent(agent, e as boolean)} />
-                    <Button onClick={() => {
+                <div className="flex flex-col items-center gap-1">
+                  <span className="text-sm">Enable</span>
+                  <Switch
+                    aria-label={agent.enabled ? "Disable agent" : "Enable agent"}
+                    checked={Boolean(agent.enabled)}
+                    onCheckedChange={(e) => enableAgent(agent, e as boolean)}
+                  />
+                </div>
+
+                <div className="flex flex-col items-center gap-1">
+                  <span className="text-sm">Scoring</span>
+                  <Switch
+                    aria-label={agent.scoring === false ? "Enable scoring" : "Disable scoring"}
+                    checked={Boolean(agent.scoring ?? true)}
+                    onCheckedChange={(e) => toggleScoring(agent, e as boolean)}
+                  />
+                </div>
+
+                <Button onClick={() => {
                   setSelectedAgent(agent);
                   setUpdateDialogOpen(true);
                 }}>Edit</Button>

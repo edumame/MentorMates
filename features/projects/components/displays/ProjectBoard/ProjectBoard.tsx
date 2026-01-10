@@ -9,8 +9,7 @@ import {
   User,
   MoreHorizontal,
   MessageSquare,
-  Trash2,
-  Sparkles,
+  Trash2
 } from "lucide-react";
 import { motion } from "framer-motion";
 import {
@@ -84,7 +83,7 @@ const ProjectBoard = ({
                     className="block group"
                   >
                     <Card
-                      className={`bg-white rounded-xl overflow-hidden relative flex flex-col h-full hover:shadow-xl transition-all duration-300 border border-gray-100 ${
+                      className={`bg-white rounded-2xl overflow-hidden relative flex flex-col h-full hover:shadow-xl transition-all duration-300 border border-gray-100 ${
                         project.prizes_won && project.prizes_won.length > 0
                           ? "ring-2 ring-yellow-400"
                           : ""
@@ -104,8 +103,8 @@ const ProjectBoard = ({
                         </div>
                       )}
 
-                      {/* Image Section */}
-                      <div className="relative w-full aspect-[16/9] md:aspect-[4/3] bg-gradient-to-br from-slate-100 to-slate-200 overflow-hidden">
+                      {/* Thumbnail Section */}
+                      <div className="relative w-full aspect-[16/9] md:aspect-[4/3] bg-gradient-to-br from-blue-100 via-purple-50 to-pink-100 overflow-hidden">
                         <img
                           src={
                             project.cover_image_url || "/img/placeholder.png"
@@ -116,7 +115,7 @@ const ProjectBoard = ({
                           decoding="async"
                         />
                         {!project.cover_image_url && (
-                          <div className="absolute inset-0 flex items-center justify-center p-4">
+                          <div className="absolute inset-0 flex items-center justify-center p-4 bg-gradient-to-br from-blue-400/80 via-purple-400/80 to-pink-400/80">
                             <h3 className="text-white text-xl font-semibold text-center break-words drop-shadow-lg">
                               {project.project_name || "Project"}
                             </h3>

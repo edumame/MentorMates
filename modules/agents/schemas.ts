@@ -15,39 +15,47 @@ const optionalUrl = z
         return trimmed.length === 0 ? undefined : trimmed;
     });
 
+// Optional text helper: accept string, empty string, or undefined; empty -> undefined
+const optionalText = z
+    .union([z.string().trim(), z.literal("")])
+    .optional()
+    .transform((value) => {
+        if (value === undefined) return undefined;
+        const trimmed = (value as string).trim();
+        return trimmed.length === 0 ? undefined : trimmed;
+    });
+
+// For updates we want to allow an explicit empty string so the UI can clear the value.
+// This keeps empty string instead of converting it to `undefined` which would skip the
+// field during partial updates.
+const optionalTextAllowEmpty = z
+    .union([z.string(), z.literal("")])
+    .optional()
+    .transform((value) => {
+        if (value === undefined) return undefined;
+        return (value as string).trim();
+    });
+
 const agentsBaseSchema = z.object({
     name: z.string().min(1, { message: "Name is required" }),
     instructions: z.string().min(1, { message: "Instructions are required" }),
     // Optional avatar image for the agent (stored in `agents.avatar_url`)
     avatar_url: optionalUrl,
+    // Optional prompt used when generating feedback/evaluations for this agent
+    feedback_prompt: optionalText,
     event_id: z.string().optional(),
     enabled: z.boolean().optional(),
+    // Whether this agent provides an evaluative score (true) or only feedback (false)
+    scoring: z.boolean().optional(),
     type: z.string().min(1, { message: "Type is required" }),
     // Temporary helper used by the UI when the user chooses the "custom" dropdown option.
     // The form sets `custom_type_tmp` and the submit handler maps it into `type`.
     custom_type_tmp: z.string().optional(),
 });
-export const agentsInsertSchema = agentsBaseSchema.refine((data) => {
-    if (data.type === "custom") {
-        return typeof data.custom_type_tmp === "string" && data.custom_type_tmp.trim().length > 0;
-    }
-    return true;
-}, {
-    message: "Custom type is required",
-    path: ["custom_type_tmp"],
-});
+export const agentsInsertSchema = agentsBaseSchema;
 
 export const agentsUpdateSchema = agentsBaseSchema
+    .extend({ feedback_prompt: optionalTextAllowEmpty })
     .partial()
-    .extend({ id: z.string().min(1, { message: "Id is required" }) })
-    .refine((data) => {
-        // For updates, only enforce custom_type_tmp when the client includes type === 'custom'
-        if ((data.type as string) === "custom") {
-            return typeof data.custom_type_tmp === "string" && data.custom_type_tmp.trim().length > 0;
-        }
-        return true;
-    }, {
-        message: "Custom type is required",
-        path: ["custom_type_tmp"],
-    });
+    .extend({ id: z.string().min(1, { message: "Id is required" }) });
 

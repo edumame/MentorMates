@@ -159,6 +159,7 @@ export async function POST(req: NextRequest) {
             data: {
                 meetingId: updatedMeeting.id,
                 transcriptUrl: updatedMeeting.transcript_url,
+                agentId: updatedMeeting.agent_id,
             },
         });
     } else if (eventType === "call.recording_ready") {
