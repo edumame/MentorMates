@@ -89,7 +89,10 @@ export function MyEvents() {
             title: e.event_name ?? "Untitled Event",
             dateISO,
             location: e.location ?? "Online",
-            image: e.cover_image_url ?? "/img/placeholder.png",
+            // IMPORTANT: keep this empty when the event has no cover image.
+            // `EventCard` already has a default gradient background for "no image",
+            // and we want Home + Events dashboard cards to look the same.
+            image: e.cover_image_url ?? "",
             href: e.slug ? `/events/${e.slug}` : `/events/${id}`,
             slug: e.slug ?? undefined,
             blurb: e.event_blurb ?? undefined,
@@ -100,7 +103,7 @@ export function MyEvents() {
         });
 
         setEvents(uiEvents);
-      } catch (err) {
+      } catch {
         setError("Failed to load your events");
         setEvents([]);
       } finally {
