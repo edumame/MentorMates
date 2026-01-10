@@ -20,7 +20,7 @@ import { useToast } from "@/lib/hooks/use-toast";
 import { Toaster } from "@/components/ui/toaster";
 import Image from "next/image";
 import { getRoleLabel } from "@/features/user/roles/roles";
-import { Languages, Loader2, PenSquare } from "lucide-react";
+import { GraduationCap, Languages, Loader2, PenSquare } from "lucide-react";
 
 interface EventWithRole extends EventItem {
   user_event_roles: {
@@ -44,12 +44,15 @@ export default function ProfilePage() {
     display_name: string | null;
     email: string | null;
     links: SocialLinks | null;
+    school: string | null;
   } | null>(null);
   const [events, setEvents] = useState<EventWithRole[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [newDisplayName, setNewDisplayName] = useState("");
   const [isEditingLinks, setIsEditingLinks] = useState(false);
   const [newSocialLinks, setNewSocialLinks] = useState<SocialLinks>({});
+  const [isEditingSchool, setIsEditingSchool] = useState(false);
+  const [newSchool, setNewSchool] = useState("");
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("projects");
 
@@ -161,6 +164,38 @@ export default function ProfilePage() {
         variant: "destructive",
       });
       console.error("Error updating social links:", error);
+    }
+  };
+
+  const handleUpdateSchool = async () => {
+    try {
+      const response = await fetch(`/api/users/${userId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ school: newSchool || null }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to update school");
+      }
+
+      toast({
+        title: "School updated",
+        description: "Your school has been updated successfully",
+      });
+      setUserProfile((prev) =>
+        prev ? { ...prev, school: newSchool || null } : null
+      );
+      setIsEditingSchool(false);
+    } catch (error) {
+      toast({
+        title: "Error updating school",
+        description:
+          error instanceof Error ? error.message : "Please try again later",
+        variant: "destructive",
+      });
+      console.error("Error updating school:", error);
     }
   };
 
@@ -478,6 +513,74 @@ export default function ProfilePage() {
                             No social links added yet
                           </p>
                         )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* School/University Card */}
+              <Card className="mt-6">
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <span>Education</span>
+                    {session?.user?.id === userId && !isEditingSchool && (
+                      <button
+                        onClick={() => {
+                          setIsEditingSchool(true);
+                          setNewSchool(userProfile?.school || "");
+                        }}
+                        className="p-2 hover:bg-gray-100 rounded-full transition-all"
+                      >
+                        <PenSquare className="w-5 h-5 text-gray-600" />
+                      </button>
+                    )}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {isEditingSchool ? (
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2">
+                        <GraduationCap className="w-5 h-5 text-gray-600" />
+                        <Input
+                          type="text"
+                          placeholder="Enter your school or university"
+                          value={newSchool}
+                          onChange={(e) => setNewSchool(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              handleUpdateSchool();
+                            } else if (e.key === "Escape") {
+                              setIsEditingSchool(false);
+                            }
+                          }}
+                          autoFocus
+                        />
+                      </div>
+                      <div className="flex justify-end gap-2 mt-4">
+                        <button
+                          onClick={() => setIsEditingSchool(false)}
+                          className="px-4 py-2 text-sm bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={handleUpdateSchool}
+                          className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                        >
+                          Save
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <GraduationCap className="w-5 h-5 text-gray-600" />
+                      {userProfile?.school ? (
+                        <span className="text-gray-900">{userProfile.school}</span>
+                      ) : (
+                        <span className="text-gray-500 italic">
+                          No school added yet
+                        </span>
+                      )}
                     </div>
                   )}
                 </CardContent>
