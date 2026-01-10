@@ -9,7 +9,8 @@ import {
   User,
   MoreHorizontal,
   MessageSquare,
-  Trash2
+  Trash2,
+  Sparkles,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import {
