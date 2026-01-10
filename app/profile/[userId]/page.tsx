@@ -64,7 +64,7 @@ const ProfileUpdateSchema = z.object({
     .max(500, "Bio must be less than 500 characters")
     .optional()
     .or(z.literal("")),
-  // Stored in DB as `user_profiles.school` (shown in UI as "Education")
+  // Stored in DB as `user_profiles.school` (shown in UI as "School / Company")
   school: z
     .string()
     .max(200, "School must be less than 200 characters")
@@ -694,13 +694,13 @@ export default function ProfilePage() {
                   <p className="text-base text-gray-600">
                     {userProfile?.bio || userProfile?.email || ""}
                   </p>
-                  {/* Education (school/university) */}
+                  {/* School / Company (stored as `user_profiles.school`) */}
                   {(userProfile?.school || isOwnProfile) && (
                     <p className="text-sm text-gray-500 flex items-center gap-2">
                       <GraduationCap className="w-4 h-4" />
                       {userProfile?.school
                         ? userProfile.school
-                        : "Add your school (click Edit)"}
+                        : "Add your school or company (click Edit)"}
                     </p>
                   )}
                   {/* Phone number (private: only visible to the profile owner) */}
@@ -1220,9 +1220,9 @@ export default function ProfilePage() {
                   )}
                 </div>
 
-                {/* Education */}
+                {/* School / Company */}
                 <div className="space-y-2">
-                  <label className="text-base text-black">Education</label>
+                  <label className="text-base text-black">School / Company</label>
                   <div
                     className={`h-11 bg-white border rounded-xl flex items-center px-3 gap-3 ${
                       validationErrors.school ? "border-red-500" : "border-black/15"
@@ -1231,7 +1231,7 @@ export default function ProfilePage() {
                     <GraduationCap className="w-6 h-6 text-black" />
                     <input
                       type="text"
-                      placeholder="School or university"
+                      placeholder="School, university, or company"
                       value={newSchool}
                       onChange={(e) => {
                         setNewSchool(e.target.value);
