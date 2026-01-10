@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Loader2, Camera } from "lucide-react";
+import { Loader2, Camera, GraduationCap, Phone } from "lucide-react";
 import {
   FaLinkedin,
   FaGithub,
@@ -64,6 +64,18 @@ const ProfileUpdateSchema = z.object({
     .max(500, "Bio must be less than 500 characters")
     .optional()
     .or(z.literal("")),
+  // Stored in DB as `user_profiles.school` (shown in UI as "Education")
+  school: z
+    .string()
+    .max(200, "School must be less than 200 characters")
+    .optional()
+    .or(z.literal("")),
+  // Stored in DB as `user_profiles.phone_number` (should not be shown publicly)
+  phone_number: z
+    .string()
+    .max(50, "Phone number must be less than 50 characters")
+    .optional()
+    .or(z.literal("")),
   links: SocialLinksSchema.optional(),
 });
 
@@ -108,6 +120,8 @@ export default function ProfilePage() {
     bio?: string | null;
     avatar_url?: string | null;
     cover_image_url?: string | null;
+    school?: string | null;
+    phone_number?: string | null;
   } | null>(null);
   const [events, setEvents] = useState<EventWithRole[]>([]);
   const [isEditing, setIsEditing] = useState(false);
@@ -115,6 +129,8 @@ export default function ProfilePage() {
   const [isEditingLinks, setIsEditingLinks] = useState(false);
   const [newSocialLinks, setNewSocialLinks] = useState<SocialLinks>({});
   const [newBio, setNewBio] = useState("");
+  const [newSchool, setNewSchool] = useState("");
+  const [newPhoneNumber, setNewPhoneNumber] = useState("");
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<ProfileTab>(PROFILE_TABS.PROJECTS);
   const [isProfileAdmin, setIsProfileAdmin] = useState(false);
@@ -160,6 +176,8 @@ export default function ProfilePage() {
         // Set profile data
         setUserProfile(profileData.profile);
         setNewSocialLinks(profileData.profile.links || {});
+        setNewSchool(profileData.profile.school || "");
+        setNewPhoneNumber(profileData.profile.phone_number || "");
 
         const projectsData: { projects: ProjectWithTracks[] } = {
           projects: profileData.projects,
@@ -263,6 +281,8 @@ export default function ProfilePage() {
     const updateData = {
       display_name: newDisplayName || undefined,
       bio: newBio || undefined,
+      school: newSchool || undefined,
+      phone_number: newPhoneNumber || undefined,
       links: Object.fromEntries(
         Object.entries(newSocialLinks).filter(([, value]) => value && value.trim() !== "")
       ),
@@ -297,6 +317,10 @@ export default function ProfilePage() {
           display_name: newDisplayName || undefined,
           links: newSocialLinks,
           bio: newBio || null,
+          // Empty string should clear the DB field, so send null.
+          school: newSchool || null,
+          // Empty string should clear the DB field, so send null.
+          phone_number: newPhoneNumber || null,
         }),
       });
 
@@ -327,6 +351,8 @@ export default function ProfilePage() {
               display_name: newDisplayName,
               links: newSocialLinks,
               bio: newBio,
+              school: newSchool || null,
+              phone_number: newPhoneNumber || null,
             }
           : null
       );
@@ -668,6 +694,22 @@ export default function ProfilePage() {
                   <p className="text-base text-gray-600">
                     {userProfile?.bio || userProfile?.email || ""}
                   </p>
+                  {/* Education (school/university) */}
+                  {(userProfile?.school || isOwnProfile) && (
+                    <p className="text-sm text-gray-500 flex items-center gap-2">
+                      <GraduationCap className="w-4 h-4" />
+                      {userProfile?.school
+                        ? userProfile.school
+                        : "Add your school (click Edit)"}
+                    </p>
+                  )}
+                  {/* Phone number (private: only visible to the profile owner) */}
+                  {isOwnProfile && userProfile?.phone_number && (
+                    <p className="text-sm text-gray-500 flex items-center gap-2">
+                      <Phone className="w-4 h-4" />
+                      {userProfile.phone_number}
+                    </p>
+                  )}
                 </div>
 
                 {/* Social Links and Action Buttons */}
@@ -746,6 +788,8 @@ export default function ProfilePage() {
                           setIsEditingLinks(true);
                           setNewSocialLinks(userProfile?.links || {});
                           setNewBio(userProfile?.bio || "");
+                          setNewSchool(userProfile?.school || "");
+                          setNewPhoneNumber(userProfile?.phone_number || "");
                           setNewDisplayName(userProfile?.display_name || "");
                           setValidationErrors({});
                         }}
@@ -1176,6 +1220,72 @@ export default function ProfilePage() {
                   )}
                 </div>
 
+                {/* Education */}
+                <div className="space-y-2">
+                  <label className="text-base text-black">Education</label>
+                  <div
+                    className={`h-11 bg-white border rounded-xl flex items-center px-3 gap-3 ${
+                      validationErrors.school ? "border-red-500" : "border-black/15"
+                    }`}
+                  >
+                    <GraduationCap className="w-6 h-6 text-black" />
+                    <input
+                      type="text"
+                      placeholder="School or university"
+                      value={newSchool}
+                      onChange={(e) => {
+                        setNewSchool(e.target.value);
+                        // Clear error on change
+                        if (validationErrors.school) {
+                          setValidationErrors((prev) => {
+                            const newErrors = { ...prev };
+                            delete newErrors.school;
+                            return newErrors;
+                          });
+                        }
+                      }}
+                      maxLength={200}
+                      className="flex-1 text-base bg-transparent outline-none placeholder:text-black/60"
+                    />
+                  </div>
+                  {validationErrors.school && (
+                    <p className="text-sm text-red-500">{validationErrors.school}</p>
+                  )}
+                </div>
+
+                {/* Phone (private) */}
+                <div className="space-y-2">
+                  <label className="text-base text-black">Phone number (private)</label>
+                  <div
+                    className={`h-11 bg-white border rounded-xl flex items-center px-3 gap-3 ${
+                      validationErrors.phone_number ? "border-red-500" : "border-black/15"
+                    }`}
+                  >
+                    <Phone className="w-6 h-6 text-black" />
+                    <input
+                      type="tel"
+                      placeholder="+1 555 555 5555"
+                      value={newPhoneNumber}
+                      onChange={(e) => {
+                        setNewPhoneNumber(e.target.value);
+                        // Clear error on change
+                        if (validationErrors.phone_number) {
+                          setValidationErrors((prev) => {
+                            const newErrors = { ...prev };
+                            delete newErrors.phone_number;
+                            return newErrors;
+                          });
+                        }
+                      }}
+                      maxLength={50}
+                      className="flex-1 text-base bg-transparent outline-none placeholder:text-black/60"
+                    />
+                  </div>
+                  {validationErrors.phone_number && (
+                    <p className="text-sm text-red-500">{validationErrors.phone_number}</p>
+                  )}
+                </div>
+
                 {/* Socials */}
                 <div className="space-y-2">
                   <label className="text-base text-black">Socials</label>
@@ -1268,6 +1378,36 @@ export default function ProfilePage() {
                       </div>
                       {validationErrors["links.twitter"] && (
                         <p className="text-sm text-red-500 mt-1">{validationErrors["links.twitter"]}</p>
+                      )}
+                    </div>
+                    <div>
+                      <div className={`h-11 bg-white border rounded-xl flex items-center px-3 gap-3 ${
+                        validationErrors["links.instagram"] ? "border-red-500" : "border-black/15"
+                      }`}>
+                        <FaInstagram className="w-6 h-6 text-black" />
+                        <input
+                          type="url"
+                          placeholder="Instagram Profile URL"
+                          value={newSocialLinks.instagram || ""}
+                          onChange={(e) => {
+                            setNewSocialLinks((prev) => ({
+                              ...prev,
+                              instagram: e.target.value || undefined,
+                            }));
+                            // Clear error on change
+                            if (validationErrors["links.instagram"]) {
+                              setValidationErrors((prev) => {
+                                const newErrors = { ...prev };
+                                delete newErrors["links.instagram"];
+                                return newErrors;
+                              });
+                            }
+                          }}
+                          className="flex-1 text-base bg-transparent outline-none placeholder:text-black/60"
+                        />
+                      </div>
+                      {validationErrors["links.instagram"] && (
+                        <p className="text-sm text-red-500 mt-1">{validationErrors["links.instagram"]}</p>
                       )}
                     </div>
                     <div>

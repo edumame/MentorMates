@@ -22,6 +22,7 @@ const ProfileUpdateSchema = z.object({
   bio: z.string().max(500).optional().nullable(),
   links: SocialLinksSchema.optional(),
   school: z.string().max(200).optional().nullable(),
+  phone_number: z.string().max(50).optional().nullable(),
 });
 
 export type SocialLinks = z.infer<typeof SocialLinksSchema>;
@@ -70,7 +71,8 @@ export async function PATCH(
       );
     }
 
-    const { display_name, avatar_url, bio, links, school } = validationResult.data;
+    const { display_name, avatar_url, bio, links, school, phone_number } =
+      validationResult.data;
 
     const updateData: Record<string, unknown> = {};
     if (display_name !== undefined) updateData.display_name = display_name;
@@ -78,6 +80,7 @@ export async function PATCH(
     if (bio !== undefined) updateData.bio = bio;
     if (links !== undefined) updateData.links = links;
     if (school !== undefined) updateData.school = school;
+    if (phone_number !== undefined) updateData.phone_number = phone_number;
 
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json(
