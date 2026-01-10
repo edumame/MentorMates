@@ -9,7 +9,8 @@ import {
   User,
   MoreHorizontal,
   MessageSquare,
-  Trash2
+  Trash2,
+  Sparkles,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import {
@@ -122,10 +123,10 @@ const ProjectBoard = ({
                           </div>
                         )}
 
-                        {/* Status Badges - Top Left */}
+                        {/* Status Badges - Overlay on Image */}
                         <div className="absolute top-3 left-3 flex items-center gap-2 z-10">
                           <div className="bg-white/95 backdrop-blur-sm border border-gray-200 text-gray-700 px-2.5 py-1 text-xs font-medium rounded-full flex items-center gap-1.5 shadow-sm">
-                            <Loader className="w-3 h-3" />
+                            <Sparkles className="w-3 h-3" />
                             {project.submitted ? "Submitted" : "Draft"}
                           </div>
                           {isOwner && (
@@ -140,7 +141,7 @@ const ProjectBoard = ({
                       {/* Content Section */}
                       <div className="p-5 flex-1 flex flex-col bg-white">
                         {/* Project Title */}
-                        <h3 className="font-bold text-gray-900 text-xl leading-tight mb-2">
+                        <h3 className="font-bold text-gray-900 text-xl leading-tight mb-2 line-clamp-2">
                           {project.project_name || "Project"}
                         </h3>
 
