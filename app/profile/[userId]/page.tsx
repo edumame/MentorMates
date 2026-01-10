@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Loader2, Camera } from "lucide-react";
+import { Loader2, Camera, GraduationCap, Phone } from "lucide-react";
 import {
   FaLinkedin,
   FaGithub,
@@ -43,13 +43,29 @@ interface EventWithRole extends EventDetails {
 // Validation schemas (matching server-side validation)
 const SocialLinksSchema = z
   .object({
-    linkedin: z.string().url("Invalid LinkedIn URL").optional().or(z.literal("")),
+    linkedin: z
+      .string()
+      .url("Invalid LinkedIn URL")
+      .optional()
+      .or(z.literal("")),
     github: z.string().url("Invalid GitHub URL").optional().or(z.literal("")),
     twitter: z.string().url("Invalid Twitter URL").optional().or(z.literal("")),
-    facebook: z.string().url("Invalid Facebook URL").optional().or(z.literal("")),
-    instagram: z.string().url("Invalid Instagram URL").optional().or(z.literal("")),
+    facebook: z
+      .string()
+      .url("Invalid Facebook URL")
+      .optional()
+      .or(z.literal("")),
+    instagram: z
+      .string()
+      .url("Invalid Instagram URL")
+      .optional()
+      .or(z.literal("")),
     youtube: z.string().url("Invalid YouTube URL").optional().or(z.literal("")),
-    portfolio: z.string().url("Invalid Portfolio URL").optional().or(z.literal("")),
+    portfolio: z
+      .string()
+      .url("Invalid Portfolio URL")
+      .optional()
+      .or(z.literal("")),
   })
   .partial();
 
@@ -62,6 +78,18 @@ const ProfileUpdateSchema = z.object({
   bio: z
     .string()
     .max(500, "Bio must be less than 500 characters")
+    .optional()
+    .or(z.literal("")),
+  // Stored in DB as `user_profiles.affiliation` (shown in UI as "School / Company")
+  affiliation: z
+    .string()
+    .max(200, "Affiliation must be less than 200 characters")
+    .optional()
+    .or(z.literal("")),
+  // Stored in DB as `user_profiles.phone_number` (should not be shown publicly)
+  phone_number: z
+    .string()
+    .max(50, "Phone number must be less than 50 characters")
     .optional()
     .or(z.literal("")),
   links: SocialLinksSchema.optional(),
@@ -108,6 +136,8 @@ export default function ProfilePage() {
     bio?: string | null;
     avatar_url?: string | null;
     cover_image_url?: string | null;
+    affiliation?: string | null;
+    phone_number?: string | null;
   } | null>(null);
   const [events, setEvents] = useState<EventWithRole[]>([]);
   const [isEditing, setIsEditing] = useState(false);
@@ -115,12 +145,16 @@ export default function ProfilePage() {
   const [isEditingLinks, setIsEditingLinks] = useState(false);
   const [newSocialLinks, setNewSocialLinks] = useState<SocialLinks>({});
   const [newBio, setNewBio] = useState("");
+  const [newAffiliation, setNewAffiliation] = useState("");
+  const [newPhoneNumber, setNewPhoneNumber] = useState("");
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<ProfileTab>(PROFILE_TABS.PROJECTS);
   const [isProfileAdmin, setIsProfileAdmin] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
-  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [validationErrors, setValidationErrors] = useState<
+    Record<string, string>
+  >({});
   const [isSaving, setIsSaving] = useState(false);
 
   // Keep the profile's project list in sync after deletions from the gallery
@@ -160,6 +194,8 @@ export default function ProfilePage() {
         // Set profile data
         setUserProfile(profileData.profile);
         setNewSocialLinks(profileData.profile.links || {});
+        setNewAffiliation(profileData.profile.affiliation || "");
+        setNewPhoneNumber(profileData.profile.phone_number || "");
 
         const projectsData: { projects: ProjectWithTracks[] } = {
           projects: profileData.projects,
@@ -263,8 +299,12 @@ export default function ProfilePage() {
     const updateData = {
       display_name: newDisplayName || undefined,
       bio: newBio || undefined,
+      affiliation: newAffiliation || undefined,
+      phone_number: newPhoneNumber || undefined,
       links: Object.fromEntries(
-        Object.entries(newSocialLinks).filter(([, value]) => value && value.trim() !== "")
+        Object.entries(newSocialLinks).filter(
+          ([, value]) => value && value.trim() !== ""
+        )
       ),
     };
 
@@ -297,22 +337,28 @@ export default function ProfilePage() {
           display_name: newDisplayName || undefined,
           links: newSocialLinks,
           bio: newBio || null,
+          // Empty string should clear the DB field, so send null.
+          affiliation: newAffiliation || null,
+          // Empty string should clear the DB field, so send null.
+          phone_number: newPhoneNumber || null,
         }),
       });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        
+
         // Handle server-side validation errors
         if (errorData.details) {
           const errors: Record<string, string> = {};
-          errorData.details.forEach((err: { path: string[]; message: string }) => {
-            const path = err.path.join(".");
-            errors[path] = err.message;
-          });
+          errorData.details.forEach(
+            (err: { path: string[]; message: string }) => {
+              const path = err.path.join(".");
+              errors[path] = err.message;
+            }
+          );
           setValidationErrors(errors);
         }
-        
+
         throw new Error(errorData.error || "Failed to update profile");
       }
 
@@ -327,6 +373,8 @@ export default function ProfilePage() {
               display_name: newDisplayName,
               links: newSocialLinks,
               bio: newBio,
+              affiliation: newAffiliation || null,
+              phone_number: newPhoneNumber || null,
             }
           : null
       );
@@ -336,7 +384,8 @@ export default function ProfilePage() {
     } catch (error) {
       toast({
         title: "Error updating profile",
-        description: error instanceof Error ? error.message : "Please try again later",
+        description:
+          error instanceof Error ? error.message : "Please try again later",
         variant: "destructive",
       });
       console.error("Error updating profile:", error);
@@ -668,6 +717,22 @@ export default function ProfilePage() {
                   <p className="text-base text-gray-600">
                     {userProfile?.bio || userProfile?.email || ""}
                   </p>
+                  {/* School / Company (stored as `user_profiles.affiliation`) */}
+                  {(userProfile?.affiliation || isOwnProfile) && (
+                    <p className="text-sm text-gray-500 flex items-center gap-2">
+                      <GraduationCap className="w-4 h-4" />
+                      {userProfile?.affiliation
+                        ? userProfile.affiliation
+                        : "Add your school or company (click Edit)"}
+                    </p>
+                  )}
+                  {/* Phone number (private: only visible to the profile owner) */}
+                  {isOwnProfile && userProfile?.phone_number && (
+                    <p className="text-sm text-gray-500 flex items-center gap-2">
+                      <Phone className="w-4 h-4" />
+                      {userProfile.phone_number}
+                    </p>
+                  )}
                 </div>
 
                 {/* Social Links and Action Buttons */}
@@ -746,6 +811,8 @@ export default function ProfilePage() {
                           setIsEditingLinks(true);
                           setNewSocialLinks(userProfile?.links || {});
                           setNewBio(userProfile?.bio || "");
+                          setNewAffiliation(userProfile?.affiliation || "");
+                          setNewPhoneNumber(userProfile?.phone_number || "");
                           setNewDisplayName(userProfile?.display_name || "");
                           setValidationErrors({});
                         }}
@@ -1074,9 +1141,13 @@ export default function ProfilePage() {
                 {/* Name */}
                 <div className="space-y-2">
                   <label className="text-base text-black">Name</label>
-                  <div className={`h-11 bg-white border rounded-xl flex items-center px-3 gap-3 ${
-                    validationErrors.display_name ? "border-red-500" : "border-black/15"
-                  }`}>
+                  <div
+                    className={`h-11 bg-white border rounded-xl flex items-center px-3 gap-3 ${
+                      validationErrors.display_name
+                        ? "border-red-500"
+                        : "border-black/15"
+                    }`}
+                  >
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
                       <path
                         d="M4 7V4H20V7"
@@ -1119,16 +1190,22 @@ export default function ProfilePage() {
                     />
                   </div>
                   {validationErrors.display_name && (
-                    <p className="text-sm text-red-500">{validationErrors.display_name}</p>
+                    <p className="text-sm text-red-500">
+                      {validationErrors.display_name}
+                    </p>
                   )}
                 </div>
 
                 {/* Description */}
                 <div className="space-y-2">
                   <label className="text-base text-black">Description</label>
-                  <div className={`h-11 bg-white border rounded-xl flex items-center px-3 gap-3 ${
-                    validationErrors.bio ? "border-red-500" : "border-black/15"
-                  }`}>
+                  <div
+                    className={`h-11 bg-white border rounded-xl flex items-center px-3 gap-3 ${
+                      validationErrors.bio
+                        ? "border-red-500"
+                        : "border-black/15"
+                    }`}
+                  >
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
                       <path
                         d="M4 7V4H20V7"
@@ -1172,7 +1249,87 @@ export default function ProfilePage() {
                     />
                   </div>
                   {validationErrors.bio && (
-                    <p className="text-sm text-red-500">{validationErrors.bio}</p>
+                    <p className="text-sm text-red-500">
+                      {validationErrors.bio}
+                    </p>
+                  )}
+                </div>
+
+                {/* School / Company */}
+                <div className="space-y-2">
+                  <label className="text-base text-black">
+                    School / Company
+                  </label>
+                  <div
+                    className={`h-11 bg-white border rounded-xl flex items-center px-3 gap-3 ${
+                      validationErrors.affiliation
+                        ? "border-red-500"
+                        : "border-black/15"
+                    }`}
+                  >
+                    <GraduationCap className="w-6 h-6 text-black" />
+                    <input
+                      type="text"
+                      placeholder="School, university, or company"
+                      value={newAffiliation}
+                      onChange={(e) => {
+                        setNewAffiliation(e.target.value);
+                        // Clear error on change
+                        if (validationErrors.affiliation) {
+                          setValidationErrors((prev) => {
+                            const newErrors = { ...prev };
+                            delete newErrors.affiliation;
+                            return newErrors;
+                          });
+                        }
+                      }}
+                      maxLength={200}
+                      className="flex-1 text-base bg-transparent outline-none placeholder:text-black/60"
+                    />
+                  </div>
+                  {validationErrors.affiliation && (
+                    <p className="text-sm text-red-500">
+                      {validationErrors.affiliation}
+                    </p>
+                  )}
+                </div>
+
+                {/* Phone (private) */}
+                <div className="space-y-2">
+                  <label className="text-base text-black">
+                    Phone number (private)
+                  </label>
+                  <div
+                    className={`h-11 bg-white border rounded-xl flex items-center px-3 gap-3 ${
+                      validationErrors.phone_number
+                        ? "border-red-500"
+                        : "border-black/15"
+                    }`}
+                  >
+                    <Phone className="w-6 h-6 text-black" />
+                    <input
+                      type="tel"
+                      placeholder="+1 555 555 5555"
+                      value={newPhoneNumber}
+                      onChange={(e) => {
+                        setNewPhoneNumber(e.target.value);
+                        // Clear error on change
+                        if (validationErrors.phone_number) {
+                          setValidationErrors((prev) => {
+                            const newErrors = { ...prev };
+                            delete newErrors.phone_number;
+                            return newErrors;
+                          });
+                        }
+                      }}
+                      maxLength={50}
+                      className="flex-1 text-base bg-transparent outline-none placeholder:text-black/60"
+                    />
+                  </div>
+                  {validationErrors.phone_number && (
+                    <p className="text-sm text-red-500">
+                      {validationErrors.phone_number}
+                    </p>
                   )}
                 </div>
 
@@ -1181,9 +1338,13 @@ export default function ProfilePage() {
                   <label className="text-base text-black">Socials</label>
                   <div className="space-y-2">
                     <div>
-                      <div className={`h-11 bg-white border rounded-xl flex items-center px-3 gap-3 ${
-                        validationErrors["links.linkedin"] ? "border-red-500" : "border-black/15"
-                      }`}>
+                      <div
+                        className={`h-11 bg-white border rounded-xl flex items-center px-3 gap-3 ${
+                          validationErrors["links.linkedin"]
+                            ? "border-red-500"
+                            : "border-black/15"
+                        }`}
+                      >
                         <FaLinkedin className="w-6 h-6 text-black" />
                         <input
                           type="url"
@@ -1207,13 +1368,19 @@ export default function ProfilePage() {
                         />
                       </div>
                       {validationErrors["links.linkedin"] && (
-                        <p className="text-sm text-red-500 mt-1">{validationErrors["links.linkedin"]}</p>
+                        <p className="text-sm text-red-500 mt-1">
+                          {validationErrors["links.linkedin"]}
+                        </p>
                       )}
                     </div>
                     <div>
-                      <div className={`h-11 bg-white border rounded-xl flex items-center px-3 gap-3 ${
-                        validationErrors["links.github"] ? "border-red-500" : "border-black/15"
-                      }`}>
+                      <div
+                        className={`h-11 bg-white border rounded-xl flex items-center px-3 gap-3 ${
+                          validationErrors["links.github"]
+                            ? "border-red-500"
+                            : "border-black/15"
+                        }`}
+                      >
                         <FaGithub className="w-6 h-6 text-black" />
                         <input
                           type="url"
@@ -1237,13 +1404,19 @@ export default function ProfilePage() {
                         />
                       </div>
                       {validationErrors["links.github"] && (
-                        <p className="text-sm text-red-500 mt-1">{validationErrors["links.github"]}</p>
+                        <p className="text-sm text-red-500 mt-1">
+                          {validationErrors["links.github"]}
+                        </p>
                       )}
                     </div>
                     <div>
-                      <div className={`h-11 bg-white border rounded-xl flex items-center px-3 gap-3 ${
-                        validationErrors["links.twitter"] ? "border-red-500" : "border-black/15"
-                      }`}>
+                      <div
+                        className={`h-11 bg-white border rounded-xl flex items-center px-3 gap-3 ${
+                          validationErrors["links.twitter"]
+                            ? "border-red-500"
+                            : "border-black/15"
+                        }`}
+                      >
                         <FaXTwitter className="w-6 h-6 text-black" />
                         <input
                           type="url"
@@ -1267,13 +1440,55 @@ export default function ProfilePage() {
                         />
                       </div>
                       {validationErrors["links.twitter"] && (
-                        <p className="text-sm text-red-500 mt-1">{validationErrors["links.twitter"]}</p>
+                        <p className="text-sm text-red-500 mt-1">
+                          {validationErrors["links.twitter"]}
+                        </p>
                       )}
                     </div>
                     <div>
-                      <div className={`h-11 bg-white border rounded-xl flex items-center px-3 gap-3 ${
-                        validationErrors["links.portfolio"] ? "border-red-500" : "border-black/15"
-                      }`}>
+                      <div
+                        className={`h-11 bg-white border rounded-xl flex items-center px-3 gap-3 ${
+                          validationErrors["links.instagram"]
+                            ? "border-red-500"
+                            : "border-black/15"
+                        }`}
+                      >
+                        <FaInstagram className="w-6 h-6 text-black" />
+                        <input
+                          type="url"
+                          placeholder="Instagram Profile URL"
+                          value={newSocialLinks.instagram || ""}
+                          onChange={(e) => {
+                            setNewSocialLinks((prev) => ({
+                              ...prev,
+                              instagram: e.target.value || undefined,
+                            }));
+                            // Clear error on change
+                            if (validationErrors["links.instagram"]) {
+                              setValidationErrors((prev) => {
+                                const newErrors = { ...prev };
+                                delete newErrors["links.instagram"];
+                                return newErrors;
+                              });
+                            }
+                          }}
+                          className="flex-1 text-base bg-transparent outline-none placeholder:text-black/60"
+                        />
+                      </div>
+                      {validationErrors["links.instagram"] && (
+                        <p className="text-sm text-red-500 mt-1">
+                          {validationErrors["links.instagram"]}
+                        </p>
+                      )}
+                    </div>
+                    <div>
+                      <div
+                        className={`h-11 bg-white border rounded-xl flex items-center px-3 gap-3 ${
+                          validationErrors["links.portfolio"]
+                            ? "border-red-500"
+                            : "border-black/15"
+                        }`}
+                      >
                         <svg
                           width="24"
                           height="24"
@@ -1316,7 +1531,9 @@ export default function ProfilePage() {
                         />
                       </div>
                       {validationErrors["links.portfolio"] && (
-                        <p className="text-sm text-red-500 mt-1">{validationErrors["links.portfolio"]}</p>
+                        <p className="text-sm text-red-500 mt-1">
+                          {validationErrors["links.portfolio"]}
+                        </p>
                       )}
                     </div>
                   </div>

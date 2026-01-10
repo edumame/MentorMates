@@ -21,6 +21,11 @@ const ProfileUpdateSchema = z.object({
   avatar_url: z.string().url().optional().nullable(),
   bio: z.string().max(500).optional().nullable(),
   links: SocialLinksSchema.optional(),
+  // New name for the former `school` column (supports school/company/other)
+  affiliation: z.string().max(200).optional().nullable(),
+  // Backwards compat: accept `school` from older clients and map it to `affiliation`
+  school: z.string().max(200).optional().nullable(),
+  phone_number: z.string().max(50).optional().nullable(),
 });
 
 export type SocialLinks = z.infer<typeof SocialLinksSchema>;
@@ -69,13 +74,24 @@ export async function PATCH(
       );
     }
 
-    const { display_name, avatar_url, bio, links } = validationResult.data;
+    const {
+      display_name,
+      avatar_url,
+      bio,
+      links,
+      affiliation,
+      school,
+      phone_number,
+    } = validationResult.data;
 
     const updateData: Record<string, unknown> = {};
     if (display_name !== undefined) updateData.display_name = display_name;
     if (avatar_url !== undefined) updateData.avatar_url = avatar_url;
     if (bio !== undefined) updateData.bio = bio;
     if (links !== undefined) updateData.links = links;
+    const affiliationValue = affiliation ?? school;
+    if (affiliationValue !== undefined) updateData.affiliation = affiliationValue;
+    if (phone_number !== undefined) updateData.phone_number = phone_number;
 
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json(
