@@ -307,25 +307,20 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
   };
 
   const exportScores = async () => {
-    if (Object.keys(trackScores).length === 0) {
-      alert("No scores available to export.");
-      return;
-    }
-
-    // Determine which tracks to export
-    let tracksToExport = Object.keys(trackScores);
+    // Determine which tracks to export - always include tracks with projects
+    const tracksWithProjects = eventTracks
+      .filter((track) => {
+        const projectTracks = (track as unknown as { project_tracks?: Array<{ project_id: string }> }).project_tracks;
+        return projectTracks && projectTracks.length > 0;
+      })
+      .map((track) => track.track_id);
     
-    // If linking is enabled and main track is selected, include all tracks with projects
-    if (linkTracksEnabled && mainTrackId) {
-      const tracksWithProjects = eventTracks
-        .filter((track) => {
-          const projectTracks = (track as unknown as { project_tracks?: Array<{ project_id: string }> }).project_tracks;
-          return projectTracks && projectTracks.length > 0;
-        })
-        .map((track) => track.track_id);
-      
-      // Merge with existing scored tracks
-      tracksToExport = Array.from(new Set([...tracksToExport, ...tracksWithProjects]));
+      // Merge scored tracks with tracks that have projects
+    const tracksToExport = Array.from(new Set([...Object.keys(trackScores), ...tracksWithProjects]));
+    
+    if (tracksToExport.length === 0) {
+      alert("No tracks with projects available to export.");
+      return;
     }
 
     // Export each track separately
@@ -1027,30 +1022,31 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
                   <div className="text-center py-8">Loading scores...</div>
                 ) : (
                   <div className="space-y-6">
-                    {Object.keys(trackScores).length === 0 ? (
-                      <div className="text-center py-8">
-                        <p className="text-gray-600">No judge scores available yet.</p>
-                      </div>
-                    ) : (
-                      <>
-                        {(() => {
-                          // Determine which tracks to display
-                          let tracksToDisplay = Object.keys(trackScores);
-                          
-                          // If linking is enabled and main track is selected, include all tracks with projects
-                          if (linkTracksEnabled && mainTrackId) {
-                            const tracksWithProjects = eventTracks
-                              .filter((track) => {
-                                const projectTracks = (track as unknown as { project_tracks?: Array<{ project_id: string }> }).project_tracks;
-                                return projectTracks && projectTracks.length > 0;
-                              })
-                              .map((track) => track.track_id);
-                            
-                            // Merge with existing scored tracks
-                            tracksToDisplay = Array.from(new Set([...tracksToDisplay, ...tracksWithProjects]));
-                          }
-                          
-                          return tracksToDisplay.map((trackId) => {
+                    {(() => {
+                      // Determine which tracks to display
+                      // Always include tracks with projects, even if they don't have scores yet
+                      const tracksWithProjects = eventTracks
+                        .filter((track) => {
+                          const projectTracks = (track as unknown as { project_tracks?: Array<{ project_id: string }> }).project_tracks;
+                          return projectTracks && projectTracks.length > 0;
+                        })
+                        .map((track) => track.track_id);
+                      
+                      // Merge scored tracks with tracks that have projects
+                      const tracksToDisplay = Array.from(new Set([...Object.keys(trackScores), ...tracksWithProjects]));
+                      
+                      // If no tracks to display at all, show message
+                      if (tracksToDisplay.length === 0) {
+                        return (
+                          <div className="text-center py-8">
+                            <p className="text-gray-600">No tracks with projects available yet.</p>
+                          </div>
+                        );
+                      }
+                      
+                      return (
+                        <>
+                          {tracksToDisplay.map((trackId) => {
                             const scores = trackScores[trackId] || [];
                           // Find the corresponding track name
                           const trackName =
@@ -1301,10 +1297,10 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
                               </CardContent>
                             </Card>
                           );
-                        });
-                        })()}
+                        })}
                       </>
-                    )}
+                    );
+                  })()}
                   </div>
                 )}
               </div>
