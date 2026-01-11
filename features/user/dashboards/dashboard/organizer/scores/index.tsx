@@ -15,7 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EventScoringConfig, ScoringCriterion, EventTrack } from "@/lib/types";
 import Papa from "papaparse";
 import { supabase } from "@/lib/supabase";
-import { Vote, Gavel, Bot, Download, Link as LinkIcon } from "lucide-react";
+import { Vote, Gavel, Bot, Download, Link as LinkIcon, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -119,6 +119,13 @@ interface RawScoreData {
   };
 }
 
+type SortDirection = "asc" | "desc" | null;
+
+interface TrackSortState {
+  column: string;
+  direction: SortDirection;
+}
+
 export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
   const [trackScores, setTrackScores] = useState<TrackScores>({});
   const [rawScoreData, setRawScoreData] = useState<RawScoreData[]>([]);
@@ -131,6 +138,9 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
   // Link tracks to main track feature
   const [linkTracksEnabled, setLinkTracksEnabled] = useState(false);
   const [mainTrackId, setMainTrackId] = useState<string>("");
+
+  // Sorting state for each track
+  const [trackSortStates, setTrackSortStates] = useState<Record<string, TrackSortState>>({});
 
   // Agent scores filters (organizer view)
   const [agentSearch, setAgentSearch] = useState("");
@@ -147,6 +157,87 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
     const d = new Date(value);
     if (Number.isNaN(d.getTime())) return "—";
     return d.toLocaleString();
+  };
+
+  const handleSort = (trackId: string, column: string) => {
+    setTrackSortStates((prev) => {
+      const currentSort = prev[trackId];
+      let newDirection: SortDirection = "desc";
+      
+      if (currentSort?.column === column) {
+        if (currentSort.direction === "desc") {
+          newDirection = "asc";
+        } else if (currentSort.direction === "asc") {
+          newDirection = null;
+        }
+      }
+      
+      return {
+        ...prev,
+        [trackId]: {
+          column,
+          direction: newDirection,
+        },
+      };
+    });
+  };
+
+  const sortScores = (scores: TrackScore[], trackId: string, numericCriteria: ScoringCriterion[]): TrackScore[] => {
+    const sortState = trackSortStates[trackId];
+    if (!sortState?.direction) {
+      // Default sort by average score descending
+      return [...scores].sort((a, b) => b.averageScore - a.averageScore);
+    }
+
+    const sorted = [...scores];
+    const { column, direction } = sortState;
+    const multiplier = direction === "asc" ? 1 : -1;
+
+    sorted.sort((a, b) => {
+      let aVal: number | string;
+      let bVal: number | string;
+
+      switch (column) {
+        case "project":
+          aVal = a.projectName.toLowerCase();
+          bVal = b.projectName.toLowerCase();
+          return multiplier * aVal.localeCompare(bVal);
+        
+        case "lead":
+          aVal = a.leadName.toLowerCase();
+          bVal = b.leadName.toLowerCase();
+          return multiplier * aVal.localeCompare(bVal);
+        
+        case "totalAverage":
+          return multiplier * (a.averageScore - b.averageScore);
+        
+        case "judges":
+          return multiplier * (a.numberOfJudges - b.numberOfJudges);
+        
+        default:
+          // Check if it's a criterion column
+          const criterion = numericCriteria.find((c) => c.id === column);
+          if (criterion) {
+            const aScore = a.criterionScores[column]?.average || 0;
+            const bScore = b.criterionScores[column]?.average || 0;
+            return multiplier * (aScore - bScore);
+          }
+          return 0;
+      }
+    });
+
+    return sorted;
+  };
+
+  const getSortIcon = (trackId: string, column: string) => {
+    const sortState = trackSortStates[trackId];
+    if (sortState?.column !== column || !sortState?.direction) {
+      return <ArrowUpDown className="w-3 h-3 ml-1 opacity-50" />;
+    }
+    if (sortState.direction === "asc") {
+      return <ArrowUp className="w-3 h-3 ml-1" />;
+    }
+    return <ArrowDown className="w-3 h-3 ml-1" />;
   };
 
   const exportRawData = async () => {
@@ -216,13 +307,25 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
   };
 
   const exportScores = async () => {
-    if (Object.keys(trackScores).length === 0) {
-      alert("No scores available to export.");
+    // Determine which tracks to export - always include tracks with projects
+    const tracksWithProjects = eventTracks
+      .filter((track) => {
+        const projectTracks = (track as unknown as { project_tracks?: Array<{ project_id: string }> }).project_tracks;
+        return projectTracks && projectTracks.length > 0;
+      })
+      .map((track) => track.track_id);
+    
+      // Merge scored tracks with tracks that have projects
+    const tracksToExport = Array.from(new Set([...Object.keys(trackScores), ...tracksWithProjects]));
+    
+    if (tracksToExport.length === 0) {
+      alert("No tracks with projects available to export.");
       return;
     }
 
     // Export each track separately
-    Object.entries(trackScores).forEach(([trackId, scores]) => {
+    tracksToExport.forEach((trackId) => {
+      const scores = trackScores[trackId] || [];
       // Find the corresponding track name
       const trackName =
         eventTracks.find((t) => t.track_id === trackId)?.name ||
@@ -243,31 +346,21 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
       if (!trackConfig) return;
 
       // For subtracks, map subtrack projects to main track scores
-      const displayScores = isSubtrack && mainTrackId && trackScores[mainTrackId]
-        ? scores.map((subtrackScore) => {
-            // Try to find this project in the main track
-            const mainTrackScore = trackScores[mainTrackId].find(
-              (s) => s.projectId === subtrackScore.projectId
-            );
-            
-            // If found in main track, use those scores
-            if (mainTrackScore) {
-              return mainTrackScore;
-            }
-            
-            // If not found in main track, return a zero-score version
-            return {
-              projectId: subtrackScore.projectId,
-              projectName: subtrackScore.projectName,
-              leadName: subtrackScore.leadName,
-              averageScore: 0,
-              totalScore: 0,
-              numberOfJudges: 0,
-              criterionScores: {},
-              choiceCounts: {},
-            };
-          })
-        : scores;
+      let displayScores: TrackScore[];
+      
+      if (isSubtrack && mainTrackId && trackScores[mainTrackId]) {
+        // Get the projects that are in this subtrack
+        const track = eventTracks.find((t) => t.track_id === trackId);
+        const projectTracks = (track as unknown as { project_tracks?: Array<{ project_id: string; projects: { id: string; project_name: string; lead_name: string } }> })?.project_tracks || [];
+        const subtrackProjectIds = new Set(projectTracks.map((pt) => pt.project_id));
+        
+        // Filter main track scores to only include projects in this subtrack
+        displayScores = trackScores[mainTrackId]
+          .filter((mainScore) => subtrackProjectIds.has(mainScore.projectId))
+          .map((mainScore) => mainScore);
+      } else {
+        displayScores = scores;
+      }
 
       const numericCriteria = trackConfig.criteria.filter(
         (c) => c.type !== "multiplechoice"
@@ -434,10 +527,20 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
   useEffect(() => {
     async function fetchData() {
       try {
-        // Fetch event tracks first
+        // Fetch event tracks with their projects
         const { data: trackData, error: trackError } = await supabase
           .from("event_tracks")
-          .select("*")
+          .select(`
+            *,
+            project_tracks (
+              project_id,
+              projects (
+                id,
+                project_name,
+                lead_name
+              )
+            )
+          `)
           .eq("event_id", eventId);
 
         if (trackError) {
@@ -874,13 +977,32 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
                   <div className="text-center py-8">Loading scores...</div>
                 ) : (
                   <div className="space-y-6">
-                    {Object.keys(trackScores).length === 0 ? (
-                      <div className="text-center py-8">
-                        <p className="text-gray-600">No judge scores available yet.</p>
-                      </div>
-                    ) : (
-                      <>
-                        {Object.entries(trackScores).map(([trackId, scores]) => {
+                    {(() => {
+                      // Determine which tracks to display
+                      // Always include tracks with projects, even if they don't have scores yet
+                      const tracksWithProjects = eventTracks
+                        .filter((track) => {
+                          const projectTracks = (track as unknown as { project_tracks?: Array<{ project_id: string }> }).project_tracks;
+                          return projectTracks && projectTracks.length > 0;
+                        })
+                        .map((track) => track.track_id);
+                      
+                      // Merge scored tracks with tracks that have projects
+                      const tracksToDisplay = Array.from(new Set([...Object.keys(trackScores), ...tracksWithProjects]));
+                      
+                      // If no tracks to display at all, show message
+                      if (tracksToDisplay.length === 0) {
+                        return (
+                          <div className="text-center py-8">
+                            <p className="text-gray-600">No tracks with projects available yet.</p>
+                          </div>
+                        );
+                      }
+                      
+                      return (
+                        <>
+                          {tracksToDisplay.map((trackId) => {
+                            const scores = trackScores[trackId] || [];
                           // Find the corresponding track name
                           const trackName =
                             eventTracks.find((t) => t.track_id === trackId)?.name ||
@@ -910,31 +1032,24 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
                             ) || [];
 
                           // For subtracks, map subtrack projects to main track scores
-                          const displayScores = isSubtrack && mainTrackId && trackScores[mainTrackId]
-                            ? scores.map((subtrackScore) => {
-                                // Try to find this project in the main track
-                                const mainTrackScore = trackScores[mainTrackId].find(
-                                  (s) => s.projectId === subtrackScore.projectId
-                                );
-                                
-                                // If found in main track, use those scores
-                                if (mainTrackScore) {
-                                  return mainTrackScore;
-                                }
-                                
-                                // If not found in main track, return a zero-score version
-                                return {
-                                  projectId: subtrackScore.projectId,
-                                  projectName: subtrackScore.projectName,
-                                  leadName: subtrackScore.leadName,
-                                  averageScore: 0,
-                                  totalScore: 0,
-                                  numberOfJudges: 0,
-                                  criterionScores: {},
-                                  choiceCounts: {},
-                                };
-                              })
-                            : scores;
+                          let displayScores: TrackScore[];
+                          
+                          if (isSubtrack && mainTrackId && trackScores[mainTrackId]) {
+                            // Get the projects that are in this subtrack
+                            const track = eventTracks.find((t) => t.track_id === trackId);
+                            const projectTracks = (track as unknown as { project_tracks?: Array<{ project_id: string; projects: { id: string; project_name: string; lead_name: string } }> })?.project_tracks || [];
+                            const subtrackProjectIds = new Set(projectTracks.map((pt) => pt.project_id));
+                            
+                            // Filter main track scores to only include projects in this subtrack
+                            displayScores = trackScores[mainTrackId]
+                              .filter((mainScore) => subtrackProjectIds.has(mainScore.projectId))
+                              .map((mainScore) => mainScore);
+                          } else {
+                            displayScores = scores;
+                          }
+
+                          // Apply sorting
+                          const sortedScores = sortScores(displayScores, trackId, numericCriteria);
 
                           return (
                             <Card key={trackId} className="overflow-hidden">
@@ -959,27 +1074,49 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
                                         <TableHead className="w-16 text-center">
                                           Rank
                                         </TableHead>
-                                        <TableHead className="min-w-[150px] max-w-[200px]">
-                                          Project
+                                        <TableHead 
+                                          className="min-w-[150px] max-w-[200px] cursor-pointer hover:bg-muted/50"
+                                          onClick={() => handleSort(trackId, "project")}
+                                        >
+                                          <div className="flex items-center">
+                                            Project
+                                            {getSortIcon(trackId, "project")}
+                                          </div>
                                         </TableHead>
-                                        <TableHead className="min-w-[120px] max-w-[150px]">
-                                          Lead
+                                        <TableHead 
+                                          className="min-w-[120px] max-w-[150px] cursor-pointer hover:bg-muted/50"
+                                          onClick={() => handleSort(trackId, "lead")}
+                                        >
+                                          <div className="flex items-center">
+                                            Lead
+                                            {getSortIcon(trackId, "lead")}
+                                          </div>
                                         </TableHead>
-                                        <TableHead className="text-right min-w-[100px] px-4">
-                                          Total Average
+                                        <TableHead 
+                                          className="text-right min-w-[100px] px-4 cursor-pointer hover:bg-muted/50"
+                                          onClick={() => handleSort(trackId, "totalAverage")}
+                                        >
+                                          <div className="flex items-center justify-end">
+                                            Total Average
+                                            {getSortIcon(trackId, "totalAverage")}
+                                          </div>
                                         </TableHead>
                                         {numericCriteria.map((c) => (
                                           <TableHead
                                             key={c.id}
-                                            className="text-right min-w-[100px] max-w-[120px] px-4"
+                                            className="text-right min-w-[100px] max-w-[120px] px-4 cursor-pointer hover:bg-muted/50"
+                                            onClick={() => handleSort(trackId, c.id)}
                                           >
-                                            <div className="break-words">
-                                              {c.name}
-                                              {c.weight && c.weight !== 1 && (
-                                                <span className="text-xs text-muted-foreground ml-1">
-                                                  (×{c.weight})
-                                                </span>
-                                              )}
+                                            <div className="break-words flex items-center justify-end">
+                                              <span>
+                                                {c.name}
+                                                {c.weight && c.weight !== 1 && (
+                                                  <span className="text-xs text-muted-foreground ml-1">
+                                                    (×{c.weight})
+                                                  </span>
+                                                )}
+                                              </span>
+                                              {getSortIcon(trackId, c.id)}
                                             </div>
                                           </TableHead>
                                         ))}
@@ -993,13 +1130,19 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
                                             </div>
                                           </TableHead>
                                         ))}
-                                        <TableHead className="text-center w-20 px-4">
-                                          Judges
+                                        <TableHead 
+                                          className="text-center w-20 px-4 cursor-pointer hover:bg-muted/50"
+                                          onClick={() => handleSort(trackId, "judges")}
+                                        >
+                                          <div className="flex items-center justify-center">
+                                            Judges
+                                            {getSortIcon(trackId, "judges")}
+                                          </div>
                                         </TableHead>
                                       </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                      {displayScores.map((score, index) => (
+                                      {sortedScores.map((score, index) => (
                                         <TableRow key={score.projectId}>
                                           <TableCell className="font-medium w-16 text-center">
                                             {index + 1}
@@ -1066,7 +1209,8 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
                           );
                         })}
                       </>
-                    )}
+                    );
+                  })()}
                   </div>
                 )}
               </div>
