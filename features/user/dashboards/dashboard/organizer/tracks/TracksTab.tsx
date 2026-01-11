@@ -4,6 +4,26 @@ import { useState, useEffect, useCallback } from "react";
 import { ScoringConfigForm } from "@/features/user/dashboards/dashboard/organizer/tracks/scoring-config-form";
 import { EventDetails, EventScoringConfig, EventTrack } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog";
+import { ListChecks } from "lucide-react";
 
 interface TracksTabProps {
   eventId: string;
@@ -35,6 +55,8 @@ export function TracksTab({
   isArchived,
 }: TracksTabProps) {
   const [tracks, setTracks] = useState<EventTrack[]>([]);
+  const [selectedTrackId, setSelectedTrackId] = useState<string>("");
+  const [assigningAll, setAssigningAll] = useState(false);
 
   // Function to fetch tracks data
   const fetchTracks = useCallback(async () => {
@@ -133,12 +155,136 @@ export function TracksTab({
     }
   };
 
+  const handleAssignAllProjects = async () => {
+    if (!selectedTrackId) return;
+
+    try {
+      setAssigningAll(true);
+
+      // Get all submitted projects for this event
+      const { data: projects, error: projectsError } = await supabase
+        .from("projects")
+        .select("id")
+        .eq("event_id", eventId)
+        .eq("submitted", true);
+
+      if (projectsError) throw projectsError;
+
+      if (!projects || projects.length === 0) {
+        toast({
+          title: "No projects found",
+          description: "There are no submitted projects to assign to this track",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Delete existing track assignments for these projects
+      const projectIds = projects.map((p) => p.id);
+      const { error: deleteError } = await supabase
+        .from("project_tracks")
+        .delete()
+        .in("project_id", projectIds);
+
+      if (deleteError) throw deleteError;
+
+      // Create new track assignments
+      const trackAssignments = projectIds.map((projectId) => ({
+        project_id: projectId,
+        track_id: selectedTrackId,
+      }));
+
+      const { error: insertError } = await supabase
+        .from("project_tracks")
+        .insert(trackAssignments);
+
+      if (insertError) throw insertError;
+
+      toast({
+        title: "Success",
+        description: `Assigned ${projects.length} project(s) to the selected track`,
+      });
+
+      setSelectedTrackId("");
+    } catch (error) {
+      console.error("Error assigning projects to track:", error);
+      toast({
+        title: "Error",
+        description: "Failed to assign projects to track",
+        variant: "destructive",
+      });
+    } finally {
+      setAssigningAll(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <p className="text-sm text-muted-foreground mb-6">
         Configure your event tracks below. For each track, you can set up
         scoring criteria.
       </p>
+
+      {/* Bulk Track Assignment Section */}
+      {tracks.length > 0 && (
+        <div className="p-4 border rounded-lg bg-muted/50 space-y-4">
+          <h3 className="font-semibold flex items-center gap-2">
+            <ListChecks className="h-5 w-5" />
+            Bulk Track Assignment
+          </h3>
+          <p className="text-sm text-muted-foreground">
+            Assign all submitted projects to a specific track. This will replace
+            any existing track assignments.
+          </p>
+          <div className="flex items-end gap-4">
+            <div className="flex-1 space-y-2">
+              <label className="text-sm font-medium">Select Track</label>
+              <Select
+                value={selectedTrackId}
+                onValueChange={setSelectedTrackId}
+                disabled={isArchived}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a track..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {tracks.map((track) => (
+                    <SelectItem key={track.track_id} value={track.track_id}>
+                      {track.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  disabled={!selectedTrackId || assigningAll || isArchived}
+                  className="whitespace-nowrap"
+                >
+                  {assigningAll ? "Assigning..." : "Assign All Projects"}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Confirm bulk track assignment</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will assign all submitted projects to the selected track
+                    and remove any existing track assignments. This action cannot be
+                    undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleAssignAllProjects}>
+                    Confirm Assignment
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        </div>
+      )}
 
       <ScoringConfigForm
         initialConfig={scoringConfig}

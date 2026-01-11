@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +21,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { Trash2, Plus, Shuffle } from "lucide-react";
 import { useToast } from "@/lib/hooks/use-toast";
 import { EventRole } from "@/lib/types";
@@ -72,37 +73,10 @@ export function AssignTab({ eventId }: AssignTabProps) {
   const [autoAssigning, setAutoAssigning] = useState(false);
   const [judgesPerProject, setJudgesPerProject] = useState<number>(3);
   const [mentorsPerProject, setMentorsPerProject] = useState<number>(1);
+  const [includeOrganizers, setIncludeOrganizers] = useState<boolean>(false);
   const { toast } = useToast();
 
-  // Fetch all data
-  useEffect(() => {
-    fetchData();
-  }, [eventId]);
-
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      await Promise.all([fetchProjects(), fetchUsers(), fetchAssignments()]);
-    } catch (error) {
-      console.error("Error fetching data:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load assignment data",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchProjects = async () => {
-    const response = await fetch(`/api/projects?eventId=${eventId}&submitted=true`);
-    if (!response.ok) throw new Error("Failed to fetch projects");
-    const data = await response.json();
-    setProjects(data.projects || []);
-  };
-
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     // Using supabase directly since there's no API endpoint for users by role
     const { data: userRoles, error } = await supabase
       .from("user_event_roles")
@@ -117,7 +91,7 @@ export function AssignTab({ eventId }: AssignTabProps) {
       `
       )
       .eq("event_id", eventId)
-      .in("role", [EventRole.Judge, EventRole.Mentor]);
+      .in("role", [EventRole.Judge, EventRole.Mentor, EventRole.Organizer]);
 
     if (error) throw error;
 
@@ -132,12 +106,26 @@ export function AssignTab({ eventId }: AssignTabProps) {
         role: ur.role as EventRole,
       };
     });
+    
+    if (includeOrganizers) {
+      // Include organizers in both judges and mentors pools
+      setJudges(users.filter((u) => u.role === EventRole.Judge || u.role === EventRole.Organizer));
+      setMentors(users.filter((u) => u.role === EventRole.Mentor || u.role === EventRole.Organizer));
+    } else {
+      // Exclude organizers
+      setJudges(users.filter((u) => u.role === EventRole.Judge));
+      setMentors(users.filter((u) => u.role === EventRole.Mentor));
+    }
+  }, [eventId, includeOrganizers]);
 
-    setJudges(users.filter((u) => u.role === EventRole.Judge));
-    setMentors(users.filter((u) => u.role === EventRole.Mentor));
-  };
+  const fetchProjects = useCallback(async () => {
+    const response = await fetch(`/api/projects?eventId=${eventId}&submitted=true`);
+    if (!response.ok) throw new Error("Failed to fetch projects");
+    const data = await response.json();
+    setProjects(data.projects || []);
+  }, [eventId]);
 
-  const fetchAssignments = async () => {
+  const fetchAssignments = useCallback(async () => {
     // First get all project assignments for projects in this event
     const { data: projectsInEvent } = await supabase
       .from("projects")
@@ -199,7 +187,35 @@ export function AssignTab({ eventId }: AssignTabProps) {
     });
 
     setAssignments(assignments);
-  };
+  }, [eventId]);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      await Promise.all([fetchProjects(), fetchUsers(), fetchAssignments()]);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load assignment data",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchProjects, fetchUsers, fetchAssignments, toast]);
+
+  // Fetch all data
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // Refetch users when includeOrganizers changes
+  useEffect(() => {
+    if (!loading) {
+      fetchUsers();
+    }
+  }, [includeOrganizers, loading, fetchUsers]);
 
   const handleAutoAssign = async (role: EventRole) => {
     setAutoAssigning(true);
@@ -332,6 +348,18 @@ export function AssignTab({ eventId }: AssignTabProps) {
             Automatically assign judges and mentors to projects using a balanced
             distribution algorithm.
           </p>
+
+          {/* Include Organizers Toggle */}
+          <div className="flex items-center space-x-2 pb-2 border-b">
+            <Switch
+              id="include-organizers"
+              checked={includeOrganizers}
+              onCheckedChange={setIncludeOrganizers}
+            />
+            <Label htmlFor="include-organizers" className="cursor-pointer">
+              Include organizers in assignment pools
+            </Label>
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-3">
