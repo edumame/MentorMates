@@ -126,7 +126,7 @@ export async function DELETE(
     // First check if the user has permission to delete this project
     const { data: project, error: fetchError } = await supabase
       .from("projects")
-      .select("lead_email, submitted")
+      .select("lead_email, submitted, event_id")
       .eq("id", projectId)
       .single();
 
@@ -144,19 +144,45 @@ export async function DELETE(
       );
     }
 
-    if (project.lead_email !== user.email) {
+    const isProjectLead = project.lead_email === user.email;
+
+    // Check if user is an organizer for the event
+    let isOrganizer = false;
+    if (project.event_id) {
+      const { data: organizerRole } = await supabase
+        .from("user_event_roles")
+        .select("role")
+        .eq("event_id", project.event_id)
+        .eq("user_id", user.id)
+        .eq("role", "organizer")
+        .single();
+
+      isOrganizer = !!organizerRole;
+    }
+
+    // Project leads can only delete unsubmitted projects
+    if (isProjectLead && !isOrganizer) {
+      if (project.submitted) {
+        return NextResponse.json(
+          { error: "Cannot delete submitted projects from the dashboard." },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Must be either project lead or organizer to delete
+    if (!isProjectLead && !isOrganizer) {
       return NextResponse.json(
         { error: "Unauthorized to delete this project" },
         { status: 403 }
       );
     }
 
-    if (project.submitted) {
-      return NextResponse.json(
-        { error: "Cannot delete submitted projects from the dashboard." },
-        { status: 400 }
-      );
-    }
+    // Delete project_tracks first (foreign key constraint)
+    await supabase
+      .from("project_tracks")
+      .delete()
+      .eq("project_id", projectId);
 
     const { error: deleteError } = await supabase
       .from("projects")
