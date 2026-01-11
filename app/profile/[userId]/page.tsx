@@ -1,8 +1,8 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { Session } from "@supabase/supabase-js";
 import {
   Project,
@@ -15,7 +15,14 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Loader2, Camera, GraduationCap, Phone } from "lucide-react";
+import {
+  CheckCircle2,
+  Circle,
+  Loader2,
+  Camera,
+  GraduationCap,
+  Phone,
+} from "lucide-react";
 import {
   FaLinkedin,
   FaGithub,
@@ -126,6 +133,11 @@ type ProfileTab = (typeof PROFILE_TABS)[keyof typeof PROFILE_TABS];
 
 export default function ProfilePage() {
   const { userId } = useParams();
+  const searchParams = useSearchParams();
+  const editParam = searchParams.get("edit");
+
+  // We only want to auto-open the edit modal ONCE, even if state changes later.
+  const hasAutoOpenedEditModalRef = useRef(false);
   const [session, setSession] = useState<Session | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -166,6 +178,46 @@ export default function ProfilePage() {
 
   // Check if the current user is viewing their own profile
   const isOwnProfile = session?.user?.id === userId;
+
+  // "Minimum required" fields to consider the profile complete.
+  // These power the checklist UI inside the edit modal.
+  const requiredChecklist = [
+    {
+      key: "affiliation",
+      label: "School / Company",
+      isComplete: newAffiliation.trim().length > 0,
+    },
+    {
+      key: "phone_number",
+      label: "Phone number (private)",
+      isComplete: newPhoneNumber.trim().length > 0,
+    },
+    {
+      key: "linkedin",
+      label: "LinkedIn URL",
+      isComplete: (newSocialLinks.linkedin ?? "").trim().length > 0,
+    },
+  ] as const;
+
+  const missingRequiredCount = requiredChecklist.filter(
+    (item) => !item.isComplete
+  ).length;
+
+  // If we navigate to `/profile/:id?edit=1`, auto-open the edit modal.
+  // This is used by the navbar "Complete your profile" notification.
+  useEffect(() => {
+    const shouldAutoOpen = editParam === "1" || editParam === "true";
+
+    if (
+      !hasAutoOpenedEditModalRef.current &&
+      shouldAutoOpen &&
+      isOwnProfile &&
+      !isLoading
+    ) {
+      setIsEditingLinks(true);
+      hasAutoOpenedEditModalRef.current = true;
+    }
+  }, [editParam, isOwnProfile, isLoading]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -1059,6 +1111,47 @@ export default function ProfilePage() {
 
               {/* Content */}
               <div className="px-6 pb-6 space-y-6 max-h-[calc(90vh-180px)] overflow-y-auto">
+                {/* Minimum required checklist (so users know what to fill out) */}
+                <div className="rounded-xl border border-black/10 bg-amber-50 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-[14px] font-medium text-zinc-900">
+                      Minimum required to complete your profile
+                    </p>
+                    <span className="text-[12px] text-zinc-700 bg-white/70 border border-black/10 rounded-full px-2 py-0.5">
+                      {missingRequiredCount === 0
+                        ? "All set"
+                        : `${missingRequiredCount} missing`}
+                    </span>
+                  </div>
+                  <div className="mt-3 space-y-2">
+                    {requiredChecklist.map((item) => (
+                      <div
+                        key={item.key}
+                        className="flex items-center gap-2 text-[13px]"
+                      >
+                        {item.isComplete ? (
+                          <CheckCircle2 className="h-4 w-4 text-green-600" />
+                        ) : (
+                          <Circle className="h-4 w-4 text-zinc-400" />
+                        )}
+                        <span
+                          className={
+                            item.isComplete
+                              ? "text-zinc-900"
+                              : "text-zinc-700"
+                          }
+                        >
+                          {item.label}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="mt-3 text-[12px] text-zinc-600">
+                    These are the fields we use for the profile completion
+                    notification.
+                  </p>
+                </div>
+
                 {/* Profile Image */}
                 <div className="space-y-2">
                   <label className="text-base text-black">Profile image</label>
@@ -1258,7 +1351,8 @@ export default function ProfilePage() {
                 {/* School / Company */}
                 <div className="space-y-2">
                   <label className="text-base text-black">
-                    School / Company
+                    School / Company{" "}
+                    <span className="text-[12px] text-zinc-600">(required)</span>
                   </label>
                   <div
                     className={`h-11 bg-white border rounded-xl flex items-center px-3 gap-3 ${
@@ -1297,7 +1391,8 @@ export default function ProfilePage() {
                 {/* Phone (private) */}
                 <div className="space-y-2">
                   <label className="text-base text-black">
-                    Phone number (private)
+                    Phone number (private){" "}
+                    <span className="text-[12px] text-zinc-600">(required)</span>
                   </label>
                   <div
                     className={`h-11 bg-white border rounded-xl flex items-center px-3 gap-3 ${
@@ -1338,6 +1433,12 @@ export default function ProfilePage() {
                   <label className="text-base text-black">Socials</label>
                   <div className="space-y-2">
                     <div>
+                      <p className="text-[12px] text-zinc-600 mb-1">
+                        LinkedIn{" "}
+                        <span className="text-[12px] text-zinc-600">
+                          (required)
+                        </span>
+                      </p>
                       <div
                         className={`h-11 bg-white border rounded-xl flex items-center px-3 gap-3 ${
                           validationErrors["links.linkedin"]
