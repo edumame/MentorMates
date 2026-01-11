@@ -27,8 +27,20 @@ import { UserProfile } from "@/lib/types";
 import { GraduationCap } from "lucide-react";
 
 interface ExtendedUserProfile extends UserProfile {
-  onboarding_metadata: object;
+  // Onboarding data is stored as JSON in the database.
+  // We keep it flexible here because different onboarding versions can add fields over time.
+  onboarding_metadata: Record<string, unknown> | null;
+
+  // The user's school/university/company.
   affiliation: string | null;
+
+  // Stored as text because phone numbers vary by country/format.
+  // We do NOT display it here (sensitive), only use it to decide if the profile is complete.
+  phone_number?: string | null;
+
+  // Social links are stored as JSON on `user_profiles.links`.
+  // Example: { linkedin: "https://www.linkedin.com/in/..." }
+  links?: Record<string, string> | null;
 }
 
 export function AuthNavbar() {
@@ -66,6 +78,23 @@ export function AuthNavbar() {
       fetchUserProfile();
     }
   }, [session]);
+
+  // Helper checks for "profile completion" notification.
+  const hasAffiliation = Boolean(userProfile?.affiliation?.trim());
+  const hasPhoneNumber = Boolean(userProfile?.phone_number?.trim());
+  const hasLinkedIn = Boolean(userProfile?.links?.linkedin?.trim());
+
+  // If we are logged in but have no `user_profiles` row yet, we still consider the profile incomplete.
+  const needsProfileCompletion =
+    Boolean(session) &&
+    (!userProfile || !hasAffiliation || !hasPhoneNumber || !hasLinkedIn);
+
+  const missingProfileFields: string[] = [];
+  if (session) {
+    if (!hasAffiliation) missingProfileFields.push("affiliation");
+    if (!hasPhoneNumber) missingProfileFields.push("phone number");
+    if (!hasLinkedIn) missingProfileFields.push("LinkedIn");
+  }
 
   const handleLogin = () => {
     if (typeof window !== "undefined") {
@@ -109,7 +138,7 @@ export function AuthNavbar() {
                 >
                   <NotificationsNone className="h-6 w-6" />
                   {/* Show badge if profile incomplete */}
-                  {userProfile && !userProfile.affiliation && (
+                  {needsProfileCompletion && (
                     <span className="absolute top-1 right-1 h-2.5 w-2.5 bg-red-500 rounded-full" />
                   )}
                 </button>
@@ -126,17 +155,17 @@ export function AuthNavbar() {
                     </h3>
                     <div className="border border-[rgba(0,0,0,0.15)] border-solid rounded-[50px] px-2 py-0">
                       <p className="text-[14px] font-normal leading-[1.5] text-black">
-                        {userProfile && !userProfile.affiliation ? "1" : "0"}
+                        {needsProfileCompletion ? "1" : "0"}
                       </p>
                     </div>
                   </div>
                 </div>
 
                 {/* Profile Completion Notification */}
-                {userProfile && !userProfile.affiliation ? (
+                {needsProfileCompletion ? (
                   <div className="px-4 pb-4">
                     <Link
-                      href={`/profile/${session?.user?.id}`}
+                      href={`/profile/${session?.user?.id}?edit=1`}
                       className="flex items-start gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
                     >
                       <div className="flex-shrink-0 w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
@@ -147,7 +176,11 @@ export function AuthNavbar() {
                           Complete your profile
                         </p>
                         <p className="text-[14px] text-zinc-500 mt-0.5">
-                          Add your school or company to help others connect with you.
+                          Add your{" "}
+                          {missingProfileFields.length > 0
+                            ? missingProfileFields.join(", ")
+                            : "details"}{" "}
+                          to help others connect with you.
                         </p>
                       </div>
                     </Link>
@@ -171,70 +204,68 @@ export function AuthNavbar() {
 
             {session ? (
               <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button aria-label="Account menu" className="rounded-full">
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage
-                        src={session.user.user_metadata?.avatar_url}
-                      />
-                      <AvatarFallback>
-                        {session.user.email?.charAt(0).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                  </button>
+                <DropdownMenuTrigger aria-label="Account menu">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={session.user.user_metadata?.avatar_url} />
+                    <AvatarFallback>
+                      {session.user.email?.charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="p-3">
-                  <div className="px-2 pb-3">
-                    <div className="flex items-center gap-2">
-                      <p className="text-xl font-bold leading-tight">
-                        {session.user.user_metadata?.full_name ||
-                          session.user.user_metadata?.name ||
-                          session.user.email?.split("@")[0]}
+                <DropdownMenuContent align="end">
+                  <div className="p-3">
+                    <div className="px-2 pb-3">
+                      <div className="flex items-center gap-2">
+                        <p className="text-xl font-bold leading-tight">
+                          {session.user.user_metadata?.full_name ||
+                            session.user.user_metadata?.name ||
+                            session.user.email?.split("@")[0]}
+                        </p>
+                        {isAdmin && (
+                          <span className="text-sm rounded-full bg-blue-100 text-blue-700 px-3 py-0.5">
+                            Admin
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-base text-gray-700 mt-1">
+                        {session.user.email}
                       </p>
-                      {isAdmin && (
-                        <span className="text-sm rounded-full bg-blue-100 text-blue-700 px-3 py-0.5">
-                          Admin
-                        </span>
+
+                      {!userProfile?.onboarding_metadata ? (
+                        <Button
+                          variant="defaultGray"
+                          onClick={() => router.push("/onboarding")}
+                          className="mt-4 w-full text-base"
+                        >
+                          Set up profile
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="defaultGray"
+                          onClick={() =>
+                            router.push(`/profile/${session?.user?.id}`)
+                          }
+                          className="mt-4 w-full text-base"
+                        >
+                          View profile
+                        </Button>
                       )}
                     </div>
-                    <p className="text-base text-gray-700 mt-1">
-                      {session.user.email}
-                    </p>
-
-                    {!userProfile?.onboarding_metadata ? (
-                      <Button
-                        variant="defaultGray"
-                        onClick={() => router.push("/onboarding")}
-                        className="mt-4 w-full text-base"
+                    <DropdownMenuSeparator />
+                    <div className="py-1">
+                      <DropdownMenuItem onSelect={() => router.push("/help")}>
+                        Support
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => router.push("/blog")}>
+                        Blog
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onSelect={() => void handleSignOut()}
+                        className="text-red-600 hover:bg-red-50"
                       >
-                        Set up profile
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="defaultGray"
-                        onClick={() =>
-                          router.push(`/profile/${session?.user?.id}`)
-                        }
-                        className="mt-4 w-full text-base"
-                      >
-                        View profile
-                      </Button>
-                    )}
-                  </div>
-                  <DropdownMenuSeparator />
-                  <div className="py-1">
-                    <DropdownMenuItem onClick={() => router.push("/help")}>
-                      Support
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => router.push("/blog")}>
-                      Blog
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={handleSignOut}
-                      className="text-red-600 hover:bg-red-50"
-                    >
-                      Log out
-                    </DropdownMenuItem>
+                        Log out
+                      </DropdownMenuItem>
+                    </div>
                   </div>
                 </DropdownMenuContent>
               </DropdownMenu>
