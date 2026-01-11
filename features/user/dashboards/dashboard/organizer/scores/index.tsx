@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +24,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { SortableTableHeader } from "@/components/ui/sortable-table-header";
+import { useTableSort } from "@/lib/hooks/use-table-sort";
 import { VotingResultsPanel } from "@/components/voting/voting-results-panel";
 import Link from "next/link";
 import { Switch } from "@/components/ui/switch";
@@ -84,6 +86,7 @@ type ProjectScoreQueryRow = {
 };
 
 type TranscriptFilter = "all" | "with" | "without";
+type AgentScoreSortField = "score" | "meetingName" | "projectName" | "participantName" | "agentName" | "createdAt" | "status";
 
 interface AgentMeetingScoreRow {
   meetingId: string;
@@ -139,7 +142,108 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
   const [maxAgentScore, setMaxAgentScore] = useState<string>("");
   const [transcriptFilter, setTranscriptFilter] =
     useState<TranscriptFilter>("all");
-  const [agentSort, setAgentSort] = useState<"score_desc" | "score_asc" | "newest" | "oldest">("score_desc");
+
+  // Agent scores sorting
+  const agentScoreSortFn = useCallback(
+    (a: AgentMeetingScoreRow, b: AgentMeetingScoreRow, field: AgentScoreSortField) => {
+      switch (field) {
+        case "score":
+          return a.score - b.score;
+        case "meetingName":
+          return (a.meetingName || "").localeCompare(b.meetingName || "");
+        case "projectName":
+          return (a.projectName || "").localeCompare(b.projectName || "");
+        case "participantName":
+          return (a.participantName || "").localeCompare(b.participantName || "");
+        case "agentName":
+          return (a.agentName || "").localeCompare(b.agentName || "");
+        case "createdAt":
+          return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+        case "status":
+          return (a.status || "").localeCompare(b.status || "");
+        default:
+          return 0;
+      }
+    },
+    []
+  );
+
+  // Agent scores filtered data (computed before sorting)
+  const filteredAgentScores = useMemo(() => {
+    const min = minAgentScore.trim() === "" ? null : Number(minAgentScore);
+    const max = maxAgentScore.trim() === "" ? null : Number(maxAgentScore);
+
+    return agentMeetingScores.filter((r) => {
+      if (selectedAgentId !== "all" && r.agentId !== selectedAgentId) {
+        return false;
+      }
+      if (selectedProjectId !== "all" && String(r.projectId || "") !== selectedProjectId) {
+        return false;
+      }
+      if (transcriptFilter === "with" && !r.hasTranscript) return false;
+      if (transcriptFilter === "without" && r.hasTranscript) return false;
+      if (min !== null && Number.isFinite(min) && r.score < min) return false;
+      if (max !== null && Number.isFinite(max) && r.score > max) return false;
+
+      const q = agentSearch.trim().toLowerCase();
+      if (!q) return true;
+      const haystack = [
+        r.meetingName,
+        r.projectName,
+        r.agentName,
+        r.participantName,
+        r.status || "",
+      ]
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [agentMeetingScores, selectedAgentId, selectedProjectId, transcriptFilter, minAgentScore, maxAgentScore, agentSearch]);
+
+  // Use sorting hook on filtered data
+  const {
+    sortedData: sortedAgentScores,
+    handleSort: handleAgentSort,
+    getSortDirection: getAgentSortDirection,
+  } = useTableSort(
+    filteredAgentScores,
+    { defaultField: "score" as AgentScoreSortField, defaultDirection: "desc" },
+    agentScoreSortFn
+  );
+
+  // Agent/project options for filters
+  const agentOptions = useMemo(() => {
+    return Array.from(
+      new Map(
+        agentMeetingScores
+          .filter((r) => r.agentId)
+          .map((r) => [r.agentId, r.agentName] as const)
+      ).entries()
+    )
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => (a.name || a.id).localeCompare(b.name || b.id));
+  }, [agentMeetingScores]);
+
+  const projectOptions = useMemo(() => {
+    return Array.from(
+      new Map(
+        agentMeetingScores
+          .filter((r) => r.projectId)
+          .map((r) => [r.projectId as string, r.projectName] as const)
+      ).entries()
+    )
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => (a.name || a.id).localeCompare(b.name || b.id));
+  }, [agentMeetingScores]);
+
+  const clearAgentFilters = useCallback(() => {
+    setAgentSearch("");
+    setSelectedAgentId("all");
+    setSelectedProjectId("all");
+    setMinAgentScore("");
+    setMaxAgentScore("");
+    setTranscriptFilter("all");
+  }, []);
 
   const formatDateTime = (value: string | null) => {
     if (!value) return "—";
@@ -1089,321 +1193,233 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
                   </p>
                 </div>
               ) : (
-                (() => {
-                  const min =
-                    minAgentScore.trim() === ""
-                      ? null
-                      : Number(minAgentScore);
-                  const max =
-                    maxAgentScore.trim() === ""
-                      ? null
-                      : Number(maxAgentScore);
-
-                  const agentOptions = Array.from(
-                    new Map(
-                      agentMeetingScores
-                        .filter((r) => r.agentId)
-                        .map((r) => [r.agentId, r.agentName] as const)
-                    ).entries()
-                  )
-                    .map(([id, name]) => ({ id, name }))
-                    .sort((a, b) => (a.name || a.id).localeCompare(b.name || b.id));
-
-                  const projectOptions = Array.from(
-                    new Map(
-                      agentMeetingScores
-                        .filter((r) => r.projectId)
-                        .map((r) => [r.projectId as string, r.projectName] as const)
-                    ).entries()
-                  )
-                    .map(([id, name]) => ({ id, name }))
-                    .sort((a, b) => (a.name || a.id).localeCompare(b.name || b.id));
-
-                  const filtered = agentMeetingScores.filter((r) => {
-                    if (selectedAgentId !== "all" && r.agentId !== selectedAgentId) {
-                      return false;
-                    }
-                    if (
-                      selectedProjectId !== "all" &&
-                      String(r.projectId || "") !== selectedProjectId
-                    ) {
-                      return false;
-                    }
-                    if (transcriptFilter === "with" && !r.hasTranscript) return false;
-                    if (transcriptFilter === "without" && r.hasTranscript) return false;
-                    if (min !== null && Number.isFinite(min) && r.score < min) return false;
-                    if (max !== null && Number.isFinite(max) && r.score > max) return false;
-
-                    const q = agentSearch.trim().toLowerCase();
-                    if (!q) return true;
-                    const haystack = [
-                      r.meetingName,
-                      r.projectName,
-                      r.agentName,
-                      r.participantName,
-                      r.status || "",
-                    ]
-                      .join(" ")
-                      .toLowerCase();
-                    return haystack.includes(q);
-                  });
-
-                  const sorted = [...filtered].sort((a, b) => {
-                    if (agentSort === "score_desc") {
-                      if (b.score !== a.score) return b.score - a.score;
-                      const ad = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-                      const bd = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-                      return bd - ad;
-                    }
-                    if (agentSort === "score_asc") {
-                      if (a.score !== b.score) return a.score - b.score;
-                      const ad = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-                      const bd = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-                      return bd - ad;
-                    }
-                    if (agentSort === "oldest") {
-                      const ad = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-                      const bd = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-                      return ad - bd;
-                    }
-                    // newest
-                    const ad = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-                    const bd = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-                    return bd - ad;
-                  });
-
-                  const clearFilters = () => {
-                    setAgentSearch("");
-                    setSelectedAgentId("all");
-                    setSelectedProjectId("all");
-                    setMinAgentScore("");
-                    setMaxAgentScore("");
-                    setTranscriptFilter("all");
-                    setAgentSort("score_desc");
-                  };
-
-                  return (
-                    <div className="space-y-4">
-                      <div className="flex flex-col gap-3">
-                        <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-                          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
-                            <div className="space-y-1">
-                              <div className="text-sm font-medium">Search</div>
-                              <Input
-                                value={agentSearch}
-                                onChange={(e) => setAgentSearch(e.target.value)}
-                                placeholder="Meeting, project, participant, agent…"
-                              />
-                            </div>
-
-                            <div className="space-y-1">
-                              <div className="text-sm font-medium">Agent</div>
-                              <Select
-                                value={selectedAgentId}
-                                onValueChange={setSelectedAgentId}
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="All agents" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="all">All agents</SelectItem>
-                                  {agentOptions.map((a) => (
-                                    <SelectItem key={a.id} value={a.id}>
-                                      {a.name || a.id}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-
-                            <div className="space-y-1">
-                              <div className="text-sm font-medium">Project</div>
-                              <Select
-                                value={selectedProjectId}
-                                onValueChange={setSelectedProjectId}
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="All projects" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="all">All projects</SelectItem>
-                                  {projectOptions.map((p) => (
-                                    <SelectItem key={p.id} value={p.id}>
-                                      {p.name || p.id}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-
-                            <div className="space-y-1">
-                              <div className="text-sm font-medium">Score min</div>
-                              <Input
-                                value={minAgentScore}
-                                onChange={(e) => setMinAgentScore(e.target.value)}
-                                placeholder="e.g. 70"
-                                inputMode="numeric"
-                              />
-                            </div>
-
-                            <div className="space-y-1">
-                              <div className="text-sm font-medium">Score max</div>
-                              <Input
-                                value={maxAgentScore}
-                                onChange={(e) => setMaxAgentScore(e.target.value)}
-                                placeholder="e.g. 100"
-                                inputMode="numeric"
-                              />
-                            </div>
-                          </div>
-
-                          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-                            <div className="space-y-1">
-                              <div className="text-sm font-medium">Transcript</div>
-                              <Select
-                                value={transcriptFilter}
-                                onValueChange={(v) =>
-                                  setTranscriptFilter(v as TranscriptFilter)
-                                }
-                              >
-                                <SelectTrigger className="sm:w-[180px]">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="all">All</SelectItem>
-                                  <SelectItem value="with">Has transcript</SelectItem>
-                                  <SelectItem value="without">
-                                    No transcript
-                                  </SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-
-                            <div className="space-y-1">
-                              <div className="text-sm font-medium">Sort</div>
-                              <Select
-                                value={agentSort}
-                                onValueChange={(v) =>
-                                  setAgentSort(v as "score_desc" | "score_asc" | "newest" | "oldest")
-                                }
-                              >
-                                <SelectTrigger className="sm:w-[180px]">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="score_desc">
-                                    Score (high → low)
-                                  </SelectItem>
-                                  <SelectItem value="score_asc">
-                                    Score (low → high)
-                                  </SelectItem>
-                                  <SelectItem value="newest">Newest</SelectItem>
-                                  <SelectItem value="oldest">Oldest</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-
-                            <Button
-                              variant="outline"
-                              onClick={clearFilters}
-                              className="sm:mb-[1px]"
-                            >
-                              Clear
-                            </Button>
-                          </div>
+                <div className="space-y-4">
+                  <div className="flex flex-col gap-3">
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                        <div className="space-y-1">
+                          <div className="text-sm font-medium">Search</div>
+                          <Input
+                            value={agentSearch}
+                            onChange={(e) => setAgentSearch(e.target.value)}
+                            placeholder="Meeting, project, participant, agent…"
+                          />
                         </div>
 
-                        <div className="text-sm text-muted-foreground">
-                          Showing <span className="font-medium">{sorted.length}</span>{" "}
-                          meeting{sorted.length === 1 ? "" : "s"}
+                        <div className="space-y-1">
+                          <div className="text-sm font-medium">Agent</div>
+                          <Select
+                            value={selectedAgentId}
+                            onValueChange={setSelectedAgentId}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="All agents" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All agents</SelectItem>
+                              {agentOptions.map((a) => (
+                                <SelectItem key={a.id} value={a.id}>
+                                  {a.name || a.id}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-1">
+                          <div className="text-sm font-medium">Project</div>
+                          <Select
+                            value={selectedProjectId}
+                            onValueChange={setSelectedProjectId}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="All projects" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All projects</SelectItem>
+                              {projectOptions.map((p) => (
+                                <SelectItem key={p.id} value={p.id}>
+                                  {p.name || p.id}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-1">
+                          <div className="text-sm font-medium">Score min</div>
+                          <Input
+                            value={minAgentScore}
+                            onChange={(e) => setMinAgentScore(e.target.value)}
+                            placeholder="e.g. 70"
+                            inputMode="numeric"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <div className="text-sm font-medium">Score max</div>
+                          <Input
+                            value={maxAgentScore}
+                            onChange={(e) => setMaxAgentScore(e.target.value)}
+                            placeholder="e.g. 100"
+                            inputMode="numeric"
+                          />
                         </div>
                       </div>
 
-                      <div className="overflow-x-auto">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead className="w-16 text-center">Rank</TableHead>
-                              <TableHead className="text-right min-w-[110px] px-4">
-                                Score
-                              </TableHead>
-                              <TableHead className="min-w-[220px]">
-                                Conversation
-                              </TableHead>
-                              <TableHead className="min-w-[220px]">
-                                Project
-                              </TableHead>
-                              <TableHead className="min-w-[200px]">
-                                Participant
-                              </TableHead>
-                              <TableHead className="min-w-[160px]">Agent</TableHead>
-                              <TableHead className="min-w-[200px]">
-                                Created
-                              </TableHead>
-                              <TableHead className="min-w-[140px]">Status</TableHead>
-                              <TableHead className="text-center w-28">
-                                Review
-                              </TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {sorted.map((row, index) => (
-                              <TableRow key={row.meetingId}>
-                                <TableCell className="font-medium w-16 text-center">
-                                  {index + 1}
-                                </TableCell>
-                                <TableCell className="text-right font-medium min-w-[110px] px-4 tabular-nums">
-                                  {row.score}
-                                </TableCell>
-                                <TableCell className="min-w-[220px]">
-                                  <div className="break-words">
-                                    {row.meetingName || row.meetingId}
-                                  </div>
-                                  <div className="text-xs text-muted-foreground">
-                                    {row.hasTranscript ? "Transcript" : "No transcript"}
-                                    {row.hasRecording ? " • Recording" : ""}
-                                  </div>
-                                </TableCell>
-                                <TableCell className="min-w-[220px]">
-                                  <div className="break-words">
-                                    {row.projectName || "—"}
-                                  </div>
-                                </TableCell>
-                                <TableCell className="min-w-[200px]">
-                                  <div className="break-words">
-                                    {row.participantName || "—"}
-                                  </div>
-                                </TableCell>
-                                <TableCell className="min-w-[160px]">
-                                  <div className="break-words">
-                                    {row.agentName || row.agentId}
-                                  </div>
-                                </TableCell>
-                                <TableCell className="min-w-[200px]">
-                                  <div className="tabular-nums">
-                                    {formatDateTime(row.createdAt)}
-                                  </div>
-                                </TableCell>
-                                <TableCell className="min-w-[140px]">
-                                  <div className="break-words">
-                                    {row.status || "—"}
-                                  </div>
-                                </TableCell>
-                                <TableCell className="text-center w-28">
-                                  <Button asChild size="sm" variant="outline">
-                                    <Link href={`/learn/${row.meetingId}`}>
-                                      Review
-                                    </Link>
-                                  </Button>
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                        <div className="space-y-1">
+                          <div className="text-sm font-medium">Transcript</div>
+                          <Select
+                            value={transcriptFilter}
+                            onValueChange={(v) =>
+                              setTranscriptFilter(v as TranscriptFilter)
+                            }
+                          >
+                            <SelectTrigger className="sm:w-[180px]">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All</SelectItem>
+                              <SelectItem value="with">Has transcript</SelectItem>
+                              <SelectItem value="without">
+                                No transcript
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <Button
+                          variant="outline"
+                          onClick={clearAgentFilters}
+                          className="sm:mb-[1px]"
+                        >
+                          Clear Filters
+                        </Button>
                       </div>
                     </div>
-                  );
-                })()
+
+                    <div className="text-sm text-muted-foreground">
+                      Showing <span className="font-medium">{sortedAgentScores.length}</span>{" "}
+                      meeting{sortedAgentScores.length === 1 ? "" : "s"}
+                    </div>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-16 text-center">Rank</TableHead>
+                          <SortableTableHeader<AgentScoreSortField>
+                            field="score"
+                            label="Score"
+                            sortDirection={getAgentSortDirection("score")}
+                            onSort={handleAgentSort}
+                            className="text-right min-w-[110px] px-4"
+                          />
+                          <SortableTableHeader<AgentScoreSortField>
+                            field="meetingName"
+                            label="Conversation"
+                            sortDirection={getAgentSortDirection("meetingName")}
+                            onSort={handleAgentSort}
+                            className="min-w-[220px]"
+                          />
+                          <SortableTableHeader<AgentScoreSortField>
+                            field="projectName"
+                            label="Project"
+                            sortDirection={getAgentSortDirection("projectName")}
+                            onSort={handleAgentSort}
+                            className="min-w-[220px]"
+                          />
+                          <SortableTableHeader<AgentScoreSortField>
+                            field="participantName"
+                            label="Participant"
+                            sortDirection={getAgentSortDirection("participantName")}
+                            onSort={handleAgentSort}
+                            className="min-w-[200px]"
+                          />
+                          <SortableTableHeader<AgentScoreSortField>
+                            field="agentName"
+                            label="Agent"
+                            sortDirection={getAgentSortDirection("agentName")}
+                            onSort={handleAgentSort}
+                            className="min-w-[160px]"
+                          />
+                          <SortableTableHeader<AgentScoreSortField>
+                            field="createdAt"
+                            label="Created"
+                            sortDirection={getAgentSortDirection("createdAt")}
+                            onSort={handleAgentSort}
+                            className="min-w-[200px]"
+                          />
+                          <SortableTableHeader<AgentScoreSortField>
+                            field="status"
+                            label="Status"
+                            sortDirection={getAgentSortDirection("status")}
+                            onSort={handleAgentSort}
+                            className="min-w-[140px]"
+                          />
+                          <TableHead className="text-center w-28">
+                            Review
+                          </TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {sortedAgentScores.map((row, index) => (
+                          <TableRow key={row.meetingId}>
+                            <TableCell className="font-medium w-16 text-center">
+                              {index + 1}
+                            </TableCell>
+                            <TableCell className="text-right font-medium min-w-[110px] px-4 tabular-nums">
+                              {row.score}
+                            </TableCell>
+                            <TableCell className="min-w-[220px]">
+                              <div className="break-words">
+                                {row.meetingName || row.meetingId}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {row.hasTranscript ? "Transcript" : "No transcript"}
+                                {row.hasRecording ? " • Recording" : ""}
+                              </div>
+                            </TableCell>
+                            <TableCell className="min-w-[220px]">
+                              <div className="break-words">
+                                {row.projectName || "—"}
+                              </div>
+                            </TableCell>
+                            <TableCell className="min-w-[200px]">
+                              <div className="break-words">
+                                {row.participantName || "—"}
+                              </div>
+                            </TableCell>
+                            <TableCell className="min-w-[160px]">
+                              <div className="break-words">
+                                {row.agentName || row.agentId}
+                              </div>
+                            </TableCell>
+                            <TableCell className="min-w-[200px]">
+                              <div className="tabular-nums">
+                                {formatDateTime(row.createdAt)}
+                              </div>
+                            </TableCell>
+                            <TableCell className="min-w-[140px]">
+                              <div className="break-words">
+                                {row.status || "—"}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-center w-28">
+                              <Button asChild size="sm" variant="outline">
+                                <Link href={`/learn/${row.meetingId}`}>
+                                  Review
+                                </Link>
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
               )}
             </CardContent>
           </Card>
