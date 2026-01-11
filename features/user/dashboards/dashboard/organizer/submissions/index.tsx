@@ -25,7 +25,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import Link from "next/link";
-import { Loader2, Trash2 } from "lucide-react";
+import { Loader2, Trash2, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { useToast } from "@/lib/hooks/use-toast";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -59,13 +59,60 @@ interface SubmissionsTabProps {
   eventId: string;
 }
 
+type SortField = "project_name" | "lead_name" | "team_size" | "submitted" | "created_at";
+type SortDirection = "asc" | "desc";
+
 export function SubmissionsTab({ eventId }: SubmissionsTabProps) {
   const [projects, setProjects] = useState<ProjectData[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingProjectId, setDeletingProjectId] = useState<string | null>(null);
   const [selectedProjects, setSelectedProjects] = useState<Set<string>>(new Set());
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [sortField, setSortField] = useState<SortField>("project_name");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const { toast } = useToast();
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortDirection("asc");
+    }
+  };
+
+  const getSortIcon = (field: SortField) => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="h-4 w-4 ml-1" />;
+    }
+    return sortDirection === "asc" ? (
+      <ArrowUp className="h-4 w-4 ml-1" />
+    ) : (
+      <ArrowDown className="h-4 w-4 ml-1" />
+    );
+  };
+
+  const sortedProjects = [...projects].sort((a, b) => {
+    let comparison = 0;
+    switch (sortField) {
+      case "project_name":
+        comparison = a.project_name.localeCompare(b.project_name);
+        break;
+      case "lead_name":
+        comparison = a.lead_name.localeCompare(b.lead_name);
+        break;
+      case "team_size":
+        comparison = ((a.teammates?.length || 0) + 1) - ((b.teammates?.length || 0) + 1);
+        break;
+      case "submitted":
+        comparison = (a.submitted ? 1 : 0) - (b.submitted ? 1 : 0);
+        break;
+      case "created_at":
+        comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        break;
+    }
+    return sortDirection === "asc" ? comparison : -comparison;
+  });
 
   const handleSelectProject = (projectId: string, checked: boolean) => {
     setSelectedProjects((prev) => {
@@ -397,17 +444,57 @@ export function SubmissionsTab({ eventId }: SubmissionsTabProps) {
                       aria-label="Select all projects"
                     />
                   </TableHead>
-                  <TableHead>Project Name</TableHead>
-                  <TableHead>Lead</TableHead>
-                  <TableHead>Team Size</TableHead>
+                  <TableHead>
+                    <button
+                      className="flex items-center hover:text-foreground"
+                      onClick={() => handleSort("project_name")}
+                    >
+                      Project Name
+                      {getSortIcon("project_name")}
+                    </button>
+                  </TableHead>
+                  <TableHead>
+                    <button
+                      className="flex items-center hover:text-foreground"
+                      onClick={() => handleSort("lead_name")}
+                    >
+                      Lead
+                      {getSortIcon("lead_name")}
+                    </button>
+                  </TableHead>
+                  <TableHead>
+                    <button
+                      className="flex items-center hover:text-foreground"
+                      onClick={() => handleSort("team_size")}
+                    >
+                      Team Size
+                      {getSortIcon("team_size")}
+                    </button>
+                  </TableHead>
                   <TableHead>Tracks</TableHead>
-                  <TableHead>Submitted</TableHead>
-                  <TableHead>Created At</TableHead>
+                  <TableHead>
+                    <button
+                      className="flex items-center hover:text-foreground"
+                      onClick={() => handleSort("submitted")}
+                    >
+                      Submitted
+                      {getSortIcon("submitted")}
+                    </button>
+                  </TableHead>
+                  <TableHead>
+                    <button
+                      className="flex items-center hover:text-foreground"
+                      onClick={() => handleSort("created_at")}
+                    >
+                      Created At
+                      {getSortIcon("created_at")}
+                    </button>
+                  </TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {projects.map((project) => (
+                {sortedProjects.map((project) => (
                   <TableRow key={project.id}>
                     <TableCell>
                       <Checkbox
