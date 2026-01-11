@@ -31,11 +31,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 
 interface ProjectData {
   id: string;
-  project_name: string;
-  lead_name: string;
+  project_name: string | null;
+  lead_name: string | null;
   lead_email: string;
-  project_description: string;
-  teammates: string[];
+  project_description: string | null;
+  teammates: string[] | null;
   project_url: string | null;
   additional_materials_url: string | null;
   cover_image_url: string | null;
@@ -210,12 +210,12 @@ export function SubmissionsTab({ eventId }: SubmissionsTabProps) {
     if (data) {
       const csv = Papa.unparse(
         data?.map((project) => ({
-          "Project Name": project.project_name,
-          "Lead Name": project.lead_name,
+          "Project Name": project.project_name || "",
+          "Lead Name": project.lead_name || "",
           "Lead Email": project.lead_email,
-          Description: project.project_description,
+          Description: project.project_description || "",
           "Project URL": project.project_url,
-          "Team Members": project.teammates.join(", "),
+          "Team Members": project.teammates?.join(", ") || "",
           "Tracks":
             project.project_tracks
               ?.map((pt) => pt.event_tracks?.name)
@@ -502,11 +502,11 @@ export function SubmissionsTab({ eventId }: SubmissionsTabProps) {
                         onCheckedChange={(checked) =>
                           handleSelectProject(project.id, checked as boolean)
                         }
-                        aria-label={`Select ${project.project_name}`}
+                        aria-label={`Select ${project.project_name || "project"}`}
                       />
                     </TableCell>
-                    <TableCell>{project.project_name}</TableCell>
-                    <TableCell>{project.lead_name}</TableCell>
+                    <TableCell>{project.project_name || "Untitled"}</TableCell>
+                    <TableCell>{project.lead_name || "Unknown"}</TableCell>
                     <TableCell>
                       {(project.teammates?.length || 0) + 1}
                     </TableCell>
@@ -546,7 +546,7 @@ export function SubmissionsTab({ eventId }: SubmissionsTabProps) {
                             <AlertDialogHeader>
                               <AlertDialogTitle>Delete Project</AlertDialogTitle>
                               <AlertDialogDescription>
-                                Are you sure you want to delete &quot;{project.project_name}&quot;?
+                                Are you sure you want to delete &quot;{project.project_name || "Untitled"}&quot;?
                                 This action cannot be undone. All project data, tracks, and
                                 associated feedback will be permanently removed.
                               </AlertDialogDescription>
@@ -554,7 +554,7 @@ export function SubmissionsTab({ eventId }: SubmissionsTabProps) {
                             <AlertDialogFooter>
                               <AlertDialogCancel>Cancel</AlertDialogCancel>
                               <AlertDialogAction
-                                onClick={() => handleDeleteProject(project.id, project.project_name)}
+                                onClick={() => handleDeleteProject(project.id, project.project_name || "Untitled")}
                                 className="bg-red-600 hover:bg-red-700"
                               >
                                 Delete
