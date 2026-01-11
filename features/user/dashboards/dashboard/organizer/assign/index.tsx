@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,10 +20,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { SortableTableHeader } from "@/components/ui/sortable-table-header";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Trash2, Plus, Shuffle, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Trash2, Plus, Shuffle } from "lucide-react";
 import { useToast } from "@/lib/hooks/use-toast";
+import { useTableSort } from "@/lib/hooks/use-table-sort";
 import { EventRole } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
 import {
@@ -64,8 +66,7 @@ interface AssignTabProps {
   eventId: string;
 }
 
-type SortField = "project_name" | "lead_name" | "judges" | "mentors" | "total";
-type SortDirection = "asc" | "desc";
+type AssignSortField = "project_name" | "lead_name" | "judges" | "mentors" | "total";
 
 export function AssignTab({ eventId }: AssignTabProps) {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
@@ -78,31 +79,9 @@ export function AssignTab({ eventId }: AssignTabProps) {
   const [mentorsPerProject, setMentorsPerProject] = useState<number>(1);
   const [includeOrganizers, setIncludeOrganizers] = useState<boolean>(false);
   const [showName, setShowName] = useState<boolean>(false);
-  const [sortField, setSortField] = useState<SortField>("project_name");
-  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const { toast } = useToast();
 
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
-    } else {
-      setSortField(field);
-      setSortDirection("asc");
-    }
-  };
-
-  const getSortIcon = (field: SortField) => {
-    if (sortField !== field) {
-      return <ArrowUpDown className="h-4 w-4 ml-1" />;
-    }
-    return sortDirection === "asc" ? (
-      <ArrowUp className="h-4 w-4 ml-1" />
-    ) : (
-      <ArrowDown className="h-4 w-4 ml-1" />
-    );
-  };
-
-  const getProjectAssignmentCounts = (projectId: string) => {
+  const getProjectAssignmentCounts = useCallback((projectId: string) => {
     const judgeCount = assignments.filter(
       (a) => a.project_id === projectId && a.role === EventRole.Judge
     ).length;
@@ -110,32 +89,36 @@ export function AssignTab({ eventId }: AssignTabProps) {
       (a) => a.project_id === projectId && a.role === EventRole.Mentor
     ).length;
     return { judgeCount, mentorCount, total: judgeCount + mentorCount };
-  };
+  }, [assignments]);
 
-  const sortedProjects = [...projects].sort((a, b) => {
-    const countsA = getProjectAssignmentCounts(a.id);
-    const countsB = getProjectAssignmentCounts(b.id);
+  const assignSortFn = useCallback(
+    (a: Project, b: Project, field: AssignSortField) => {
+      const countsA = getProjectAssignmentCounts(a.id);
+      const countsB = getProjectAssignmentCounts(b.id);
 
-    let comparison = 0;
-    switch (sortField) {
-      case "project_name":
-        comparison = a.project_name.localeCompare(b.project_name);
-        break;
-      case "lead_name":
-        comparison = a.lead_name.localeCompare(b.lead_name);
-        break;
-      case "judges":
-        comparison = countsA.judgeCount - countsB.judgeCount;
-        break;
-      case "mentors":
-        comparison = countsA.mentorCount - countsB.mentorCount;
-        break;
-      case "total":
-        comparison = countsA.total - countsB.total;
-        break;
-    }
-    return sortDirection === "asc" ? comparison : -comparison;
-  });
+      switch (field) {
+        case "project_name":
+          return (a.project_name || "").localeCompare(b.project_name || "");
+        case "lead_name":
+          return (a.lead_name || "").localeCompare(b.lead_name || "");
+        case "judges":
+          return countsA.judgeCount - countsB.judgeCount;
+        case "mentors":
+          return countsA.mentorCount - countsB.mentorCount;
+        case "total":
+          return countsA.total - countsB.total;
+        default:
+          return 0;
+      }
+    },
+    [getProjectAssignmentCounts]
+  );
+
+  const { sortedData: sortedProjects, handleSort, getSortDirection } = useTableSort(
+    projects,
+    { defaultField: "project_name" as AssignSortField },
+    assignSortFn
+  );
 
   const fetchUsers = useCallback(async () => {
     // Using supabase directly since there's no API endpoint for users by role
@@ -530,51 +513,36 @@ export function AssignTab({ eventId }: AssignTabProps) {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>
-                    <button
-                      className="flex items-center hover:text-foreground"
-                      onClick={() => handleSort("project_name")}
-                    >
-                      Project
-                      {getSortIcon("project_name")}
-                    </button>
-                  </TableHead>
-                  <TableHead>
-                    <button
-                      className="flex items-center hover:text-foreground"
-                      onClick={() => handleSort("lead_name")}
-                    >
-                      Project Lead
-                      {getSortIcon("lead_name")}
-                    </button>
-                  </TableHead>
-                  <TableHead>
-                    <button
-                      className="flex items-center hover:text-foreground"
-                      onClick={() => handleSort("judges")}
-                    >
-                      Assigned Judges
-                      {getSortIcon("judges")}
-                    </button>
-                  </TableHead>
-                  <TableHead>
-                    <button
-                      className="flex items-center hover:text-foreground"
-                      onClick={() => handleSort("mentors")}
-                    >
-                      Assigned Mentors
-                      {getSortIcon("mentors")}
-                    </button>
-                  </TableHead>
-                  <TableHead>
-                    <button
-                      className="flex items-center hover:text-foreground"
-                      onClick={() => handleSort("total")}
-                    >
-                      Total
-                      {getSortIcon("total")}
-                    </button>
-                  </TableHead>
+                  <SortableTableHeader<AssignSortField>
+                    field="project_name"
+                    label="Project"
+                    sortDirection={getSortDirection("project_name")}
+                    onSort={handleSort}
+                  />
+                  <SortableTableHeader<AssignSortField>
+                    field="lead_name"
+                    label="Project Lead"
+                    sortDirection={getSortDirection("lead_name")}
+                    onSort={handleSort}
+                  />
+                  <SortableTableHeader<AssignSortField>
+                    field="judges"
+                    label="Assigned Judges"
+                    sortDirection={getSortDirection("judges")}
+                    onSort={handleSort}
+                  />
+                  <SortableTableHeader<AssignSortField>
+                    field="mentors"
+                    label="Assigned Mentors"
+                    sortDirection={getSortDirection("mentors")}
+                    onSort={handleSort}
+                  />
+                  <SortableTableHeader<AssignSortField>
+                    field="total"
+                    label="Total"
+                    sortDirection={getSortDirection("total")}
+                    onSort={handleSort}
+                  />
                 </TableRow>
               </TableHeader>
               <TableBody>

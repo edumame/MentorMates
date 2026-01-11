@@ -83,7 +83,6 @@ type ProjectScoreQueryRow = {
   event_tracks: unknown;
 };
 
-type AgentMeetingSort = "score_desc" | "score_asc" | "newest" | "oldest";
 type TranscriptFilter = "all" | "with" | "without";
 
 interface AgentMeetingScoreRow {
@@ -140,7 +139,7 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
   const [maxAgentScore, setMaxAgentScore] = useState<string>("");
   const [transcriptFilter, setTranscriptFilter] =
     useState<TranscriptFilter>("all");
-  const [agentSort, setAgentSort] = useState<AgentMeetingSort>("score_desc");
+  const [agentSort, setAgentSort] = useState<"score_desc" | "score_asc" | "newest" | "oldest">("score_desc");
 
   const formatDateTime = (value: string | null) => {
     if (!value) return "—";
@@ -1285,7 +1284,7 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
                               <Select
                                 value={agentSort}
                                 onValueChange={(v) =>
-                                  setAgentSort(v as AgentMeetingSort)
+                                  setAgentSort(v as "score_desc" | "score_asc" | "newest" | "oldest")
                                 }
                               >
                                 <SelectTrigger className="sm:w-[180px]">

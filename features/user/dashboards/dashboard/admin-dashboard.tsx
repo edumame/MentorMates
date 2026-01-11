@@ -12,9 +12,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { SortableTableHeader } from "@/components/ui/sortable-table-header";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Project, EventItem, FeedbackItem } from "@/lib/types";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
+import { useTableSort } from "@/lib/hooks/use-table-sort";
 
 interface AdminDashboardProps {
   event?: EventItem;
@@ -32,10 +34,86 @@ interface ExtendedFeedback extends FeedbackItem {
   project_description: string;
 }
 
+type ProjectSortField = "project_name" | "lead_name" | "lead_email" | "created_at";
+type MentorSortField = "name" | "email" | "created_at";
+type FeedbackSortField = "project_name" | "mentor_name" | "rating" | "created_at";
+
 export function AdminDashboard({ event }: AdminDashboardProps) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [mentors, setMentors] = useState<MentorType[]>([]);
   const [feedback, setFeedback] = useState<ExtendedFeedback[]>([]);
+
+  // Sort functions for each table
+  const projectSortFn = useCallback(
+    (a: Project, b: Project, field: ProjectSortField) => {
+      switch (field) {
+        case "project_name":
+          return (a.project_name || "").localeCompare(b.project_name || "");
+        case "lead_name":
+          return (a.lead_name || "").localeCompare(b.lead_name || "");
+        case "lead_email":
+          return (a.lead_email || "").localeCompare(b.lead_email || "");
+        case "created_at":
+          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        default:
+          return 0;
+      }
+    },
+    []
+  );
+
+  const mentorSortFn = useCallback(
+    (a: MentorType, b: MentorType, field: MentorSortField) => {
+      switch (field) {
+        case "name":
+          return (a.name || "").localeCompare(b.name || "");
+        case "email":
+          return (a.email || "").localeCompare(b.email || "");
+        case "created_at":
+          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        default:
+          return 0;
+      }
+    },
+    []
+  );
+
+  const feedbackSortFn = useCallback(
+    (a: ExtendedFeedback, b: ExtendedFeedback, field: FeedbackSortField) => {
+      switch (field) {
+        case "project_name":
+          return (a.project_name || "").localeCompare(b.project_name || "");
+        case "mentor_name":
+          return (a.mentor_name || "").localeCompare(b.mentor_name || "");
+        case "rating":
+          return (a.rating || 0) - (b.rating || 0);
+        case "created_at":
+          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        default:
+          return 0;
+      }
+    },
+    []
+  );
+
+  // Sorting hooks for each table
+  const {
+    sortedData: sortedProjects,
+    handleSort: handleProjectSort,
+    getSortDirection: getProjectSortDirection,
+  } = useTableSort(projects, { defaultField: "created_at" as ProjectSortField, defaultDirection: "desc" }, projectSortFn);
+
+  const {
+    sortedData: sortedMentors,
+    handleSort: handleMentorSort,
+    getSortDirection: getMentorSortDirection,
+  } = useTableSort(mentors, { defaultField: "created_at" as MentorSortField, defaultDirection: "desc" }, mentorSortFn);
+
+  const {
+    sortedData: sortedFeedback,
+    handleSort: handleFeedbackSort,
+    getSortDirection: getFeedbackSortDirection,
+  } = useTableSort(feedback, { defaultField: "created_at" as FeedbackSortField, defaultDirection: "desc" }, feedbackSortFn);
 
   const fetchProjects = useCallback(async () => {
     const query = supabase
@@ -129,15 +207,35 @@ export function AdminDashboard({ event }: AdminDashboardProps) {
           </TableCaption>
           <TableHeader>
             <TableRow>
-              <TableHead>Project Name</TableHead>
-              <TableHead>Lead Name</TableHead>
-              <TableHead>Lead Email</TableHead>
+              <SortableTableHeader<ProjectSortField>
+                field="project_name"
+                label="Project Name"
+                sortDirection={getProjectSortDirection("project_name")}
+                onSort={handleProjectSort}
+              />
+              <SortableTableHeader<ProjectSortField>
+                field="lead_name"
+                label="Lead Name"
+                sortDirection={getProjectSortDirection("lead_name")}
+                onSort={handleProjectSort}
+              />
+              <SortableTableHeader<ProjectSortField>
+                field="lead_email"
+                label="Lead Email"
+                sortDirection={getProjectSortDirection("lead_email")}
+                onSort={handleProjectSort}
+              />
               <TableHead>Project Description</TableHead>
-              <TableHead>Submitted At</TableHead>
+              <SortableTableHeader<ProjectSortField>
+                field="created_at"
+                label="Submitted At"
+                sortDirection={getProjectSortDirection("created_at")}
+                onSort={handleProjectSort}
+              />
             </TableRow>
           </TableHeader>
           <TableBody>
-            {projects.map((project) => (
+            {sortedProjects.map((project) => (
               <TableRow key={project.id}>
                 <TableCell>{project.project_name}</TableCell>
                 <TableCell>{project.lead_name}</TableCell>
@@ -158,13 +256,28 @@ export function AdminDashboard({ event }: AdminDashboardProps) {
           <TableCaption>A list of all registered mentors.</TableCaption>
           <TableHeader>
             <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Registered At</TableHead>
+              <SortableTableHeader<MentorSortField>
+                field="name"
+                label="Name"
+                sortDirection={getMentorSortDirection("name")}
+                onSort={handleMentorSort}
+              />
+              <SortableTableHeader<MentorSortField>
+                field="email"
+                label="Email"
+                sortDirection={getMentorSortDirection("email")}
+                onSort={handleMentorSort}
+              />
+              <SortableTableHeader<MentorSortField>
+                field="created_at"
+                label="Registered At"
+                sortDirection={getMentorSortDirection("created_at")}
+                onSort={handleMentorSort}
+              />
             </TableRow>
           </TableHeader>
           <TableBody>
-            {mentors.map((mentor) => (
+            {sortedMentors.map((mentor) => (
               <TableRow key={mentor.id}>
                 <TableCell>{mentor.name}</TableCell>
                 <TableCell>{mentor.email}</TableCell>
@@ -187,16 +300,36 @@ export function AdminDashboard({ event }: AdminDashboardProps) {
           </TableCaption>
           <TableHeader>
             <TableRow>
-              <TableHead>Project Name</TableHead>
+              <SortableTableHeader<FeedbackSortField>
+                field="project_name"
+                label="Project Name"
+                sortDirection={getFeedbackSortDirection("project_name")}
+                onSort={handleFeedbackSort}
+              />
               <TableHead>Project Description</TableHead>
-              <TableHead>Mentor Name</TableHead>
+              <SortableTableHeader<FeedbackSortField>
+                field="mentor_name"
+                label="Mentor Name"
+                sortDirection={getFeedbackSortDirection("mentor_name")}
+                onSort={handleFeedbackSort}
+              />
               <TableHead>Feedback</TableHead>
-              <TableHead>Rating</TableHead>
-              <TableHead>Submitted At</TableHead>
+              <SortableTableHeader<FeedbackSortField>
+                field="rating"
+                label="Rating"
+                sortDirection={getFeedbackSortDirection("rating")}
+                onSort={handleFeedbackSort}
+              />
+              <SortableTableHeader<FeedbackSortField>
+                field="created_at"
+                label="Submitted At"
+                sortDirection={getFeedbackSortDirection("created_at")}
+                onSort={handleFeedbackSort}
+              />
             </TableRow>
           </TableHeader>
           <TableBody>
-            {feedback.map((item) => (
+            {sortedFeedback.map((item) => (
               <TableRow key={item.id}>
                 <TableCell>{item.project_name}</TableCell>
                 <TableCell>{item.project_description}</TableCell>

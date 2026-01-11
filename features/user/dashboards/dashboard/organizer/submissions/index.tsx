@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Papa from "papaparse";
@@ -13,6 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { SortableTableHeader } from "@/components/ui/sortable-table-header";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,8 +26,9 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import Link from "next/link";
-import { Loader2, Trash2, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Loader2, Trash2 } from "lucide-react";
 import { useToast } from "@/lib/hooks/use-toast";
+import { useTableSort } from "@/lib/hooks/use-table-sort";
 import { Checkbox } from "@/components/ui/checkbox";
 
 interface ProjectData {
@@ -59,8 +61,7 @@ interface SubmissionsTabProps {
   eventId: string;
 }
 
-type SortField = "project_name" | "lead_name" | "team_size" | "submitted" | "created_at";
-type SortDirection = "asc" | "desc";
+type ProjectSortField = "project_name" | "lead_name" | "team_size" | "submitted" | "created_at";
 
 export function SubmissionsTab({ eventId }: SubmissionsTabProps) {
   const [projects, setProjects] = useState<ProjectData[]>([]);
@@ -68,51 +69,33 @@ export function SubmissionsTab({ eventId }: SubmissionsTabProps) {
   const [deletingProjectId, setDeletingProjectId] = useState<string | null>(null);
   const [selectedProjects, setSelectedProjects] = useState<Set<string>>(new Set());
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
-  const [sortField, setSortField] = useState<SortField>("project_name");
-  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const { toast } = useToast();
 
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
-    } else {
-      setSortField(field);
-      setSortDirection("asc");
-    }
-  };
+  const projectSortFn = useCallback(
+    (a: ProjectData, b: ProjectData, field: ProjectSortField) => {
+      switch (field) {
+        case "project_name":
+          return (a.project_name || "").localeCompare(b.project_name || "");
+        case "lead_name":
+          return (a.lead_name || "").localeCompare(b.lead_name || "");
+        case "team_size":
+          return ((a.teammates?.length || 0) + 1) - ((b.teammates?.length || 0) + 1);
+        case "submitted":
+          return (a.submitted ? 1 : 0) - (b.submitted ? 1 : 0);
+        case "created_at":
+          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        default:
+          return 0;
+      }
+    },
+    []
+  );
 
-  const getSortIcon = (field: SortField) => {
-    if (sortField !== field) {
-      return <ArrowUpDown className="h-4 w-4 ml-1" />;
-    }
-    return sortDirection === "asc" ? (
-      <ArrowUp className="h-4 w-4 ml-1" />
-    ) : (
-      <ArrowDown className="h-4 w-4 ml-1" />
-    );
-  };
-
-  const sortedProjects = [...projects].sort((a, b) => {
-    let comparison = 0;
-    switch (sortField) {
-      case "project_name":
-        comparison = (a.project_name || "").localeCompare(b.project_name || "");
-        break;
-      case "lead_name":
-        comparison = (a.lead_name || "").localeCompare(b.lead_name || "");
-        break;
-      case "team_size":
-        comparison = ((a.teammates?.length || 0) + 1) - ((b.teammates?.length || 0) + 1);
-        break;
-      case "submitted":
-        comparison = (a.submitted ? 1 : 0) - (b.submitted ? 1 : 0);
-        break;
-      case "created_at":
-        comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-        break;
-    }
-    return sortDirection === "asc" ? comparison : -comparison;
-  });
+  const { sortedData: sortedProjects, handleSort, getSortDirection } = useTableSort(
+    projects,
+    { defaultField: "project_name" as ProjectSortField },
+    projectSortFn
+  );
 
   const handleSelectProject = (projectId: string, checked: boolean) => {
     setSelectedProjects((prev) => {
@@ -444,52 +427,37 @@ export function SubmissionsTab({ eventId }: SubmissionsTabProps) {
                       aria-label="Select all projects"
                     />
                   </TableHead>
-                  <TableHead>
-                    <button
-                      className="flex items-center hover:text-foreground"
-                      onClick={() => handleSort("project_name")}
-                    >
-                      Project Name
-                      {getSortIcon("project_name")}
-                    </button>
-                  </TableHead>
-                  <TableHead>
-                    <button
-                      className="flex items-center hover:text-foreground"
-                      onClick={() => handleSort("lead_name")}
-                    >
-                      Lead
-                      {getSortIcon("lead_name")}
-                    </button>
-                  </TableHead>
-                  <TableHead>
-                    <button
-                      className="flex items-center hover:text-foreground"
-                      onClick={() => handleSort("team_size")}
-                    >
-                      Team Size
-                      {getSortIcon("team_size")}
-                    </button>
-                  </TableHead>
+                  <SortableTableHeader<ProjectSortField>
+                    field="project_name"
+                    label="Project Name"
+                    sortDirection={getSortDirection("project_name")}
+                    onSort={handleSort}
+                  />
+                  <SortableTableHeader<ProjectSortField>
+                    field="lead_name"
+                    label="Lead"
+                    sortDirection={getSortDirection("lead_name")}
+                    onSort={handleSort}
+                  />
+                  <SortableTableHeader<ProjectSortField>
+                    field="team_size"
+                    label="Team Size"
+                    sortDirection={getSortDirection("team_size")}
+                    onSort={handleSort}
+                  />
                   <TableHead>Tracks</TableHead>
-                  <TableHead>
-                    <button
-                      className="flex items-center hover:text-foreground"
-                      onClick={() => handleSort("submitted")}
-                    >
-                      Submitted
-                      {getSortIcon("submitted")}
-                    </button>
-                  </TableHead>
-                  <TableHead>
-                    <button
-                      className="flex items-center hover:text-foreground"
-                      onClick={() => handleSort("created_at")}
-                    >
-                      Created At
-                      {getSortIcon("created_at")}
-                    </button>
-                  </TableHead>
+                  <SortableTableHeader<ProjectSortField>
+                    field="submitted"
+                    label="Submitted"
+                    sortDirection={getSortDirection("submitted")}
+                    onSort={handleSort}
+                  />
+                  <SortableTableHeader<ProjectSortField>
+                    field="created_at"
+                    label="Created At"
+                    sortDirection={getSortDirection("created_at")}
+                    onSort={handleSort}
+                  />
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
