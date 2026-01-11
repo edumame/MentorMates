@@ -74,6 +74,7 @@ export function AssignTab({ eventId }: AssignTabProps) {
   const [judgesPerProject, setJudgesPerProject] = useState<number>(3);
   const [mentorsPerProject, setMentorsPerProject] = useState<number>(1);
   const [includeOrganizers, setIncludeOrganizers] = useState<boolean>(false);
+  const [showName, setShowName] = useState<boolean>(false);
   const { toast } = useToast();
 
   const fetchUsers = useCallback(async () => {
@@ -361,6 +362,18 @@ export function AssignTab({ eventId }: AssignTabProps) {
             </Label>
           </div>
 
+          {/* Show Name/Email Toggle */}
+          <div className="flex items-center space-x-2 pb-2 border-b">
+            <Switch
+              id="show-name"
+              checked={showName}
+              onCheckedChange={setShowName}
+            />
+            <Label htmlFor="show-name" className="cursor-pointer">
+              Show names (instead of emails)
+            </Label>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-3">
               <div className="space-y-2">
@@ -489,7 +502,7 @@ export function AssignTab({ eventId }: AssignTabProps) {
                               className="flex items-center gap-2"
                             >
                               <Badge variant="outline">
-                                {assignment.user.display_name}
+                                {showName ? assignment.user.display_name : assignment.user.email}
                               </Badge>
                               <Button
                                 size="sm"
@@ -510,6 +523,7 @@ export function AssignTab({ eventId }: AssignTabProps) {
                               (a) => a.user_id
                             )}
                             onAssign={handleIndividualAssign}
+                            showName={showName}
                           />
                         </div>
                       </TableCell>
@@ -521,7 +535,7 @@ export function AssignTab({ eventId }: AssignTabProps) {
                               className="flex items-center gap-2"
                             >
                               <Badge variant="outline">
-                                {assignment.user.display_name}
+                                {showName ? assignment.user.display_name : assignment.user.email}
                               </Badge>
                               <Button
                                 size="sm"
@@ -542,6 +556,7 @@ export function AssignTab({ eventId }: AssignTabProps) {
                               (a) => a.user_id
                             )}
                             onAssign={handleIndividualAssign}
+                            showName={showName}
                           />
                         </div>
                       </TableCell>
@@ -570,6 +585,7 @@ interface ManualAssignSelectProps {
   users: User[];
   existingAssignments: string[];
   onAssign: (userId: string, projectId: string, role: EventRole) => void;
+  showName: boolean;
 }
 
 function ManualAssignSelect({
@@ -578,6 +594,7 @@ function ManualAssignSelect({
   users,
   existingAssignments,
   onAssign,
+  showName,
 }: ManualAssignSelectProps) {
   const [selectedUserId, setSelectedUserId] = useState<string>("");
 
@@ -600,7 +617,7 @@ function ManualAssignSelect({
         <SelectContent>
           {availableToAssign.map((user) => (
             <SelectItem key={user.user_id} value={user.user_id}>
-              {user.email}
+              {showName ? user.display_name : user.email}
             </SelectItem>
           ))}
         </SelectContent>
