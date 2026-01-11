@@ -349,60 +349,15 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
       let displayScores: TrackScore[];
       
       if (isSubtrack && mainTrackId && trackScores[mainTrackId]) {
-        // If this track has no scores but has projects, get projects from project_tracks
-        if (scores.length === 0) {
-          const track = eventTracks.find((t) => t.track_id === trackId);
-          const projectTracks = (track as unknown as { project_tracks?: Array<{ project_id: string; projects: { id: string; project_name: string; lead_name: string } }> })?.project_tracks || [];
-          
-          displayScores = projectTracks.map((pt) => {
-            // Try to find this project in the main track
-            const mainTrackScore = trackScores[mainTrackId].find(
-              (s) => s.projectId === pt.project_id
-            );
-            
-            // If found in main track, use those scores
-            if (mainTrackScore) {
-              return mainTrackScore;
-            }
-            
-            // If not found in main track, return a zero-score version
-            return {
-              projectId: pt.project_id,
-              projectName: pt.projects.project_name,
-              leadName: pt.projects.lead_name,
-              averageScore: 0,
-              totalScore: 0,
-              numberOfJudges: 0,
-              criterionScores: {},
-              choiceCounts: {},
-            };
-          });
-        } else {
-          // Track has scores, map them to main track scores
-          displayScores = scores.map((subtrackScore) => {
-            // Try to find this project in the main track
-            const mainTrackScore = trackScores[mainTrackId].find(
-              (s) => s.projectId === subtrackScore.projectId
-            );
-            
-            // If found in main track, use those scores
-            if (mainTrackScore) {
-              return mainTrackScore;
-            }
-            
-            // If not found in main track, return a zero-score version
-            return {
-              projectId: subtrackScore.projectId,
-              projectName: subtrackScore.projectName,
-              leadName: subtrackScore.leadName,
-              averageScore: 0,
-              totalScore: 0,
-              numberOfJudges: 0,
-              criterionScores: {},
-              choiceCounts: {},
-            };
-          });
-        }
+        // Get the projects that are in this subtrack
+        const track = eventTracks.find((t) => t.track_id === trackId);
+        const projectTracks = (track as unknown as { project_tracks?: Array<{ project_id: string; projects: { id: string; project_name: string; lead_name: string } }> })?.project_tracks || [];
+        const subtrackProjectIds = new Set(projectTracks.map((pt) => pt.project_id));
+        
+        // Filter main track scores to only include projects in this subtrack
+        displayScores = trackScores[mainTrackId]
+          .filter((mainScore) => subtrackProjectIds.has(mainScore.projectId))
+          .map((mainScore) => mainScore);
       } else {
         displayScores = scores;
       }
@@ -1080,60 +1035,15 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
                           let displayScores: TrackScore[];
                           
                           if (isSubtrack && mainTrackId && trackScores[mainTrackId]) {
-                            // If this track has no scores but has projects, get projects from project_tracks
-                            if (scores.length === 0) {
-                              const track = eventTracks.find((t) => t.track_id === trackId);
-                              const projectTracks = (track as unknown as { project_tracks?: Array<{ project_id: string; projects: { id: string; project_name: string; lead_name: string } }> })?.project_tracks || [];
-                              
-                              displayScores = projectTracks.map((pt) => {
-                                // Try to find this project in the main track
-                                const mainTrackScore = trackScores[mainTrackId].find(
-                                  (s) => s.projectId === pt.project_id
-                                );
-                                
-                                // If found in main track, use those scores
-                                if (mainTrackScore) {
-                                  return mainTrackScore;
-                                }
-                                
-                                // If not found in main track, return a zero-score version
-                                return {
-                                  projectId: pt.project_id,
-                                  projectName: pt.projects.project_name,
-                                  leadName: pt.projects.lead_name,
-                                  averageScore: 0,
-                                  totalScore: 0,
-                                  numberOfJudges: 0,
-                                  criterionScores: {},
-                                  choiceCounts: {},
-                                };
-                              });
-                            } else {
-                              // Track has scores, map them to main track scores
-                              displayScores = scores.map((subtrackScore) => {
-                                // Try to find this project in the main track
-                                const mainTrackScore = trackScores[mainTrackId].find(
-                                  (s) => s.projectId === subtrackScore.projectId
-                                );
-                                
-                                // If found in main track, use those scores
-                                if (mainTrackScore) {
-                                  return mainTrackScore;
-                                }
-                                
-                                // If not found in main track, return a zero-score version
-                                return {
-                                  projectId: subtrackScore.projectId,
-                                  projectName: subtrackScore.projectName,
-                                  leadName: subtrackScore.leadName,
-                                  averageScore: 0,
-                                  totalScore: 0,
-                                  numberOfJudges: 0,
-                                  criterionScores: {},
-                                  choiceCounts: {},
-                                };
-                              });
-                            }
+                            // Get the projects that are in this subtrack
+                            const track = eventTracks.find((t) => t.track_id === trackId);
+                            const projectTracks = (track as unknown as { project_tracks?: Array<{ project_id: string; projects: { id: string; project_name: string; lead_name: string } }> })?.project_tracks || [];
+                            const subtrackProjectIds = new Set(projectTracks.map((pt) => pt.project_id));
+                            
+                            // Filter main track scores to only include projects in this subtrack
+                            displayScores = trackScores[mainTrackId]
+                              .filter((mainScore) => subtrackProjectIds.has(mainScore.projectId))
+                              .map((mainScore) => mainScore);
                           } else {
                             displayScores = scores;
                           }
