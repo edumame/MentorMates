@@ -15,7 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EventScoringConfig, ScoringCriterion, EventTrack } from "@/lib/types";
 import Papa from "papaparse";
 import { supabase } from "@/lib/supabase";
-import { Vote, Gavel, Bot, Download } from "lucide-react";
+import { Vote, Gavel, Bot, Download, Link as LinkIcon } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -26,6 +26,8 @@ import {
 } from "@/components/ui/table";
 import { VotingResultsPanel } from "@/components/voting/voting-results-panel";
 import Link from "next/link";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 interface DashboardProjectScore {
   project_id: string;
@@ -126,6 +128,10 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
   const [eventTracks, setEventTracks] = useState<EventTrack[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Link tracks to main track feature
+  const [linkTracksEnabled, setLinkTracksEnabled] = useState(false);
+  const [mainTrackId, setMainTrackId] = useState<string>("");
+
   // Agent scores filters (organizer view)
   const [agentSearch, setAgentSearch] = useState("");
   const [selectedAgentId, setSelectedAgentId] = useState<string>("all");
@@ -225,11 +231,43 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
         )?.name ||
         trackId;
 
+      // Determine if this is a subtrack (not the main track)
+      const isSubtrack = linkTracksEnabled && mainTrackId && trackId !== mainTrackId;
+
+      // Get the appropriate config - use main track config if linking is enabled
+      const displayTrackId = isSubtrack ? mainTrackId : trackId;
       const trackConfig =
-        scoringConfig.tracks[trackId] ||
+        scoringConfig.tracks[displayTrackId] ||
         Object.values(scoringConfig.tracks).find((t) => t.name === trackName);
 
       if (!trackConfig) return;
+
+      // For subtracks, map subtrack projects to main track scores
+      const displayScores = isSubtrack && mainTrackId && trackScores[mainTrackId]
+        ? scores.map((subtrackScore) => {
+            // Try to find this project in the main track
+            const mainTrackScore = trackScores[mainTrackId].find(
+              (s) => s.projectId === subtrackScore.projectId
+            );
+            
+            // If found in main track, use those scores
+            if (mainTrackScore) {
+              return mainTrackScore;
+            }
+            
+            // If not found in main track, return a zero-score version
+            return {
+              projectId: subtrackScore.projectId,
+              projectName: subtrackScore.projectName,
+              leadName: subtrackScore.leadName,
+              averageScore: 0,
+              totalScore: 0,
+              numberOfJudges: 0,
+              criterionScores: {},
+              choiceCounts: {},
+            };
+          })
+        : scores;
 
       const numericCriteria = trackConfig.criteria.filter(
         (c) => c.type !== "multiplechoice"
@@ -240,7 +278,7 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
       );
 
       // Build CSV data matching the table structure
-      const csvData = scores.map((score, index) => {
+      const csvData = displayScores.map((score, index) => {
         const row: Record<string, string | number> = {
           Rank: index + 1,
           Project: score.projectName,
@@ -391,6 +429,7 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
     },
     [scoringConfig]
   );
+
 
   useEffect(() => {
     async function fetchData() {
@@ -761,6 +800,76 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
                   </div>
                 </div>
 
+                {/* Link Tracks to Main Track Controls */}
+                {Object.keys(trackScores).length > 1 && (
+                  <Card className="bg-muted/50">
+                    <CardContent className="pt-6">
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <Switch
+                              id="link-tracks"
+                              checked={linkTracksEnabled}
+                              onCheckedChange={(checked) => {
+                                setLinkTracksEnabled(checked);
+                                if (!checked) {
+                                  setMainTrackId("");
+                                }
+                              }}
+                            />
+                            <Label htmlFor="link-tracks" className="flex items-center gap-2 cursor-pointer">
+                              <LinkIcon className="w-4 h-4" />
+                              Link all tracks to main track
+                            </Label>
+                          </div>
+                        </div>
+
+                        {linkTracksEnabled && (
+                          <div className="space-y-2">
+                            <Label htmlFor="main-track">Select Main Track</Label>
+                            <Select
+                              value={mainTrackId}
+                              onValueChange={setMainTrackId}
+                            >
+                              <SelectTrigger id="main-track">
+                                <SelectValue placeholder="Choose a main track..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {Object.keys(trackScores).map((trackId) => {
+                                  const trackName =
+                                    eventTracks.find((t) => t.track_id === trackId)?.name ||
+                                    Object.values(scoringConfig.tracks).find((t) =>
+                                      trackId.includes(t.name)
+                                    )?.name ||
+                                    trackId;
+                                  return (
+                                    <SelectItem key={trackId} value={trackId}>
+                                      {trackName}
+                                    </SelectItem>
+                                  );
+                                })}
+                              </SelectContent>
+                            </Select>
+                            {mainTrackId && (
+                              <p className="text-sm text-muted-foreground">
+                                Subtracks will display scores from the{" "}
+                                <span className="font-medium">
+                                  {eventTracks.find((t) => t.track_id === mainTrackId)?.name ||
+                                    Object.values(scoringConfig.tracks).find((t) =>
+                                      mainTrackId.includes(t.name)
+                                    )?.name ||
+                                    mainTrackId}
+                                </span>{" "}
+                                track
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
                 {loading ? (
                   <div className="text-center py-8">Loading scores...</div>
                 ) : (
@@ -780,22 +889,67 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
                             )?.name ||
                             trackId;
 
+                          // Determine if this is a subtrack (not the main track)
+                          const isSubtrack = linkTracksEnabled && mainTrackId && trackId !== mainTrackId;
+
+                          // Get the appropriate config - use main track config if linking is enabled
+                          const displayTrackId = isSubtrack ? mainTrackId : trackId;
+                          const displayConfig = scoringConfig.tracks[displayTrackId] ||
+                            Object.values(scoringConfig.tracks).find((t) =>
+                              displayTrackId.includes(t.name)
+                            );
+
                           const choiceCriteria =
-                            scoringConfig.tracks[trackId]?.criteria.filter(
+                            displayConfig?.criteria.filter(
                               (c) => c.type === "multiplechoice"
                             ) || [];
 
                           const numericCriteria =
-                            scoringConfig.tracks[trackId]?.criteria.filter(
+                            displayConfig?.criteria.filter(
                               (c) => c.type !== "multiplechoice"
                             ) || [];
 
+                          // For subtracks, map subtrack projects to main track scores
+                          const displayScores = isSubtrack && mainTrackId && trackScores[mainTrackId]
+                            ? scores.map((subtrackScore) => {
+                                // Try to find this project in the main track
+                                const mainTrackScore = trackScores[mainTrackId].find(
+                                  (s) => s.projectId === subtrackScore.projectId
+                                );
+                                
+                                // If found in main track, use those scores
+                                if (mainTrackScore) {
+                                  return mainTrackScore;
+                                }
+                                
+                                // If not found in main track, return a zero-score version
+                                return {
+                                  projectId: subtrackScore.projectId,
+                                  projectName: subtrackScore.projectName,
+                                  leadName: subtrackScore.leadName,
+                                  averageScore: 0,
+                                  totalScore: 0,
+                                  numberOfJudges: 0,
+                                  criterionScores: {},
+                                  choiceCounts: {},
+                                };
+                              })
+                            : scores;
+
                           return (
                             <Card key={trackId} className="overflow-hidden">
-                              <div className="bg-primary text-primary-foreground p-4">
-                                <h3 className="text-lg font-medium">
-                                  {trackName} Track
-                                </h3>
+                              <div className={`p-4 ${isSubtrack ? 'bg-secondary text-secondary-foreground' : 'bg-primary text-primary-foreground'}`}>
+                                <div className="flex items-center justify-between">
+                                  <h3 className="text-lg font-medium">
+                                    {trackName} Track
+                                  </h3>
+                                  {isSubtrack && (
+                                    <div className="flex items-center gap-1 text-sm opacity-90">
+                                      <LinkIcon className="w-3 h-3" />
+                                      <span>Linked to main track</span>
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                               <CardContent className="p-0">
                                 <div className="overflow-x-auto">
@@ -845,7 +999,7 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
                                       </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                      {scores.map((score, index) => (
+                                      {displayScores.map((score, index) => (
                                         <TableRow key={score.projectId}>
                                           <TableCell className="font-medium w-16 text-center">
                                             {index + 1}
