@@ -96,10 +96,10 @@ export function SubmissionsTab({ eventId }: SubmissionsTabProps) {
     let comparison = 0;
     switch (sortField) {
       case "project_name":
-        comparison = a.project_name.localeCompare(b.project_name);
+        comparison = (a.project_name || "").localeCompare(b.project_name || "");
         break;
       case "lead_name":
-        comparison = a.lead_name.localeCompare(b.lead_name);
+        comparison = (a.lead_name || "").localeCompare(b.lead_name || "");
         break;
       case "team_size":
         comparison = ((a.teammates?.length || 0) + 1) - ((b.teammates?.length || 0) + 1);
