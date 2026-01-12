@@ -175,17 +175,56 @@ export const meetingsRouter = createTRPCRouter({
     }),
     getOne: protectedProcedure.input(z.object({ id: z.string() })).query(async ({ input, ctx }) => {
         const supabase = ctx.supabase;
-        const { data: meetingRows, error: meetingError } = await supabase
+        const { data: existingMeeting, error: meetingError } = await supabase
             .from('meetings')
             .select('*')
             .eq('id', input.id)
-            .eq('user_id', ctx.auth.user.id)
-            .limit(1);
+            .maybeSingle();
 
         if (meetingError) throw meetingError;
-        const existingMeeting = meetingRows?.[0];
         if (!existingMeeting) {
             throw new TRPCError({ code: "NOT_FOUND", message: "Meeting not found" });
+        }
+
+        // Authorization:
+        // - Meeting owner can always access
+        // - Event organizers (and platform admins) can access meetings tied to their event
+        const userId = ctx.auth.user.id;
+        const meetingOwnerId = (existingMeeting as MeetingRow).user_id ? String((existingMeeting as MeetingRow).user_id) : null;
+        const meetingEventId = (existingMeeting as MeetingRow).event_id ? String((existingMeeting as MeetingRow).event_id) : null;
+
+        let isAuthorized = meetingOwnerId === userId;
+
+        if (!isAuthorized && meetingEventId) {
+            const { data: isAdmin } = await supabase.rpc('is_admin_user', { user_id: userId });
+            if (isAdmin) {
+                isAuthorized = true;
+            } else {
+                const { data: eventRow, error: eventErr } = await supabase
+                    .from("events")
+                    .select("owner_id")
+                    .eq("event_id", meetingEventId)
+                    .maybeSingle();
+                if (eventErr) throw eventErr;
+
+                if (eventRow?.owner_id && String(eventRow.owner_id) === userId) {
+                    isAuthorized = true;
+                } else {
+                    const { data: roleRow, error: roleErr } = await supabase
+                        .from("user_event_roles")
+                        .select("role")
+                        .eq("event_id", meetingEventId)
+                        .eq("user_id", userId)
+                        .in("role", ["organizer", "admin"])
+                        .maybeSingle();
+                    if (roleErr) throw roleErr;
+                    if (roleRow?.role) isAuthorized = true;
+                }
+            }
+        }
+
+        if (!isAuthorized) {
+            throw new TRPCError({ code: "FORBIDDEN", message: "You do not have permission to view this meeting" });
         }
 
         let duration: number | null = null;
@@ -353,12 +392,50 @@ export const meetingsRouter = createTRPCRouter({
             .from('meetings')
             .select('*')
             .eq('id', input.id)
-            .eq('user_id', ctx.auth.user.id)
             .maybeSingle();
 
         if (meetingError) throw meetingError;
         if (!existingMeeting) {
             throw new TRPCError({ code: "NOT_FOUND", message: "meeting not found" });
+        }
+
+        // Same authorization rules as getOne()
+        const userId = ctx.auth.user.id;
+        const meetingOwnerId = (existingMeeting as MeetingRow).user_id ? String((existingMeeting as MeetingRow).user_id) : null;
+        const meetingEventId = (existingMeeting as MeetingRow).event_id ? String((existingMeeting as MeetingRow).event_id) : null;
+
+        let isAuthorized = meetingOwnerId === userId;
+
+        if (!isAuthorized && meetingEventId) {
+            const { data: isAdmin } = await supabase.rpc('is_admin_user', { user_id: userId });
+            if (isAdmin) {
+                isAuthorized = true;
+            } else {
+                const { data: eventRow, error: eventErr } = await supabase
+                    .from("events")
+                    .select("owner_id")
+                    .eq("event_id", meetingEventId)
+                    .maybeSingle();
+                if (eventErr) throw eventErr;
+
+                if (eventRow?.owner_id && String(eventRow.owner_id) === userId) {
+                    isAuthorized = true;
+                } else {
+                    const { data: roleRow, error: roleErr } = await supabase
+                        .from("user_event_roles")
+                        .select("role")
+                        .eq("event_id", meetingEventId)
+                        .eq("user_id", userId)
+                        .in("role", ["organizer", "admin"])
+                        .maybeSingle();
+                    if (roleErr) throw roleErr;
+                    if (roleRow?.role) isAuthorized = true;
+                }
+            }
+        }
+
+        if (!isAuthorized) {
+            throw new TRPCError({ code: "FORBIDDEN", message: "You do not have permission to view this meeting transcript" });
         }
 
         if (!existingMeeting.transcript_url) {

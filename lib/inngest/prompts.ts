@@ -46,7 +46,7 @@ Frame the score as:
 
 ---
 
-### Score Breakdown
+### Evaluation Breakdown
 
 Evaluate the pitch across **3 to 5 criteria**, choosing the most relevant.
 
@@ -54,7 +54,6 @@ For each criterion, use this structure and tone:
 
 #### [Criterion Name]
 
-• **Score:** XX  
 • **What's Working Well:**  
   - Name specific moments, choices, or signals from the pitch  
   - Focus on evidence, not vibes  
@@ -111,14 +110,6 @@ Focus on:
 - Making one abstract idea tangible
 
 Avoid overbuilding. Optimize for learning speed, not completeness.
-
----
-
-### System Prompt
-
-If a system prompt is requested, write it clearly and practically so it can be pasted into another tool.
-
-Match the tone of a thoughtful collaborator, not an instruction manual.
 
 ---
 

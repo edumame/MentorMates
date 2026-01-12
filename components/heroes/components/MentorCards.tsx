@@ -98,11 +98,47 @@ export function MentorCards() {
     "Are you sure?",
     "The following action will remove this meeting."
   );
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [organizerEventIds, setOrganizerEventIds] = useState<Set<string>>(new Set());
 
   const onEdit = (meeting: object) => {
     setUpdateMeetingDialogOpen(true);
     setInitialValues(meeting);
   };
+
+  useEffect(() => {
+    let mounted = true;
+    const fetchRoles = async () => {
+      try {
+        const { data: userResp } = await supabase.auth.getUser();
+        const uid = userResp?.user?.id ?? null;
+        if (!mounted) return;
+
+        if (!uid) return;
+
+        const { data: isAdminData } = await supabase.rpc('is_admin_user', { user_id: uid });
+        if (!mounted) return;
+        setIsAdmin(Boolean(isAdminData));
+
+        const { data: rolesRows } = await supabase
+          .from('user_event_roles')
+          .select('event_id')
+          .eq('user_id', uid)
+          .eq('role', 'organizer');
+
+        if (!mounted) return;
+        const evSet = new Set<string>();
+        const typedRows = (rolesRows as Array<{ event_id?: string | null }> | null) ?? [];
+        typedRows.forEach((r) => { if (r?.event_id) evSet.add(String(r.event_id)); });
+        setOrganizerEventIds(evSet);
+      } catch {
+        // ignore
+      }
+    };
+
+    void fetchRoles();
+    return () => { mounted = false; };
+  }, []);
 
   const removeMeeting = useMutation(trpc.meetings.remove.mutationOptions({
     onSuccess: async () => {
@@ -196,16 +232,22 @@ export function MentorCards() {
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem
                     className="gap-2"
-                    onClick={() => meeting.status === "upcoming" && onEdit(meeting)}
-                    disabled={meeting.status !== "upcoming"}
+                    onClick={() => {
+                      const canManage = meeting.status === "upcoming" || isAdmin || (meeting.event_id && organizerEventIds.has(String(meeting.event_id)));
+                      if (canManage) onEdit(meeting);
+                    }}
+                    disabled={!(meeting.status === "upcoming" || isAdmin || (meeting.event_id && organizerEventIds.has(String(meeting.event_id))))}
                   >
                     <PencilIcon className="size-4 text-black" />
                     Edit
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     className="gap-2"
-                    onClick={() => meeting.status === "upcoming" && handleRemoveMeeting(meeting.id)}
-                    disabled={meeting.status !== "upcoming"}
+                    onClick={() => {
+                      const canManage = meeting.status === "upcoming" || isAdmin || (meeting.event_id && organizerEventIds.has(String(meeting.event_id)));
+                      if (canManage) handleRemoveMeeting(meeting.id);
+                    }}
+                    disabled={!(meeting.status === "upcoming" || isAdmin || (meeting.event_id && organizerEventIds.has(String(meeting.event_id))))}
                   >
                     <TrashIcon className="size-4 text-black" />
                     Delete

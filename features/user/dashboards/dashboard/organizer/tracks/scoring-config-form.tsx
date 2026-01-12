@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
-import { TrashIcon, PlusIcon } from "lucide-react";
+import { TrashIcon, PlusIcon, Users } from "lucide-react";
 import { EventScoringConfig, ScoringCriterion, EventTrack } from "@/lib/types";
 import { defaultCriteria } from "@/lib/config/constants";
 import { supabase } from "@/lib/supabase";
@@ -24,6 +24,7 @@ interface ScoringConfigFormProps {
   isSubmitting?: boolean;
   tracks?: EventTrack[];
   isArchived: boolean;
+  eventId: string;
 }
 
 export function ScoringConfigForm({
@@ -31,6 +32,7 @@ export function ScoringConfigForm({
   onSave,
   isSubmitting = false,
   isArchived,
+  eventId,
 }: ScoringConfigFormProps) {
   const [config, setConfig] = useState<EventScoringConfig>(
     initialConfig || {
@@ -40,6 +42,8 @@ export function ScoringConfigForm({
       defaultWeight: 1,
     }
   );
+  const [isAssigningProjects, setIsAssigningProjects] = useState(false);
+  const [selectedTrackForBulkAssign, setSelectedTrackForBulkAssign] = useState<string>("");
 
   const { toast } = useToast();
 
@@ -201,8 +205,124 @@ export function ScoringConfigForm({
     onSave(config);
   };
 
+  const assignAllProjectsToTrack = async (trackId: string) => {
+    try {
+      setIsAssigningProjects(true);
+
+      // Fetch all projects for this event
+      const { data: projects, error: projectsError } = await supabase
+        .from("projects")
+        .select("id")
+        .eq("event_id", eventId);
+
+      if (projectsError) {
+        throw projectsError;
+      }
+
+      if (!projects || projects.length === 0) {
+        toast({
+          title: "No Projects",
+          description: "There are no projects to assign to this track.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Create project_tracks entries (upsert to avoid duplicates)
+      const projectTrackEntries = projects.map((project) => ({
+        project_id: project.id,
+        track_id: trackId,
+      }));
+
+      const { error: upsertError } = await supabase
+        .from("project_tracks")
+        .upsert(projectTrackEntries, {
+          onConflict: "project_id,track_id",
+          ignoreDuplicates: false,
+        });
+
+      if (upsertError) {
+        throw upsertError;
+      }
+
+      toast({
+        title: "Success",
+        description: `Successfully assigned ${projects.length} project(s) to this track.`,
+      });
+    } catch (error) {
+      console.error("Error assigning projects to track:", error);
+      toast({
+        title: "Error",
+        description: "Failed to assign projects to track",
+        variant: "destructive",
+      });
+    } finally {
+      setIsAssigningProjects(false);
+    }
+  };
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Bulk Assign Section */}
+      {Object.keys(config.tracks).length > 0 && (
+        <Card className="p-6 bg-blue-50 dark:bg-blue-950 border-2 border-blue-300 dark:border-blue-700">
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Users className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100">
+                Bulk Assign All Projects to Track
+              </h3>
+            </div>
+            <p className="text-sm text-blue-700 dark:text-blue-300">
+              Assign all projects in this event to a selected track. This will not remove existing track assignments.
+            </p>
+            <div className="flex items-end gap-4">
+              <div className="flex-1">
+                <label className="text-sm font-medium text-blue-900 dark:text-blue-100 block mb-2">
+                  Select Track
+                </label>
+                <Select
+                  value={selectedTrackForBulkAssign}
+                  onValueChange={setSelectedTrackForBulkAssign}
+                  disabled={isArchived}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Choose a track..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(config.tracks).map(([trackId, track]) => (
+                      <SelectItem key={trackId} value={trackId}>
+                        {track.name || "Unnamed Track"}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button
+                type="button"
+                variant="default"
+                onClick={() => {
+                  if (selectedTrackForBulkAssign) {
+                    assignAllProjectsToTrack(selectedTrackForBulkAssign);
+                  } else {
+                    toast({
+                      title: "No Track Selected",
+                      description: "Please select a track first.",
+                      variant: "destructive",
+                    });
+                  }
+                }}
+                disabled={isArchived || isAssigningProjects || !selectedTrackForBulkAssign}
+                className="min-w-[200px]"
+              >
+                <Users className="h-4 w-4 mr-2" />
+                {isAssigningProjects ? "Assigning..." : "Assign All Projects"}
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
+
       <div className="space-y-4">
         <div className="grid grid-cols-3 gap-4">
           <div>

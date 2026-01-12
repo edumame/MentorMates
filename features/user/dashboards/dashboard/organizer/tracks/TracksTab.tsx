@@ -146,6 +146,7 @@ export function TracksTab({
         onSave={handleScoreUpdate}
         tracks={tracks}
         isArchived={isArchived}
+        eventId={eventId}
       />
     </div>
   );

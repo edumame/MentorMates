@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,7 +21,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, Plus, Shuffle } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Trash2, Plus, Shuffle, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { useToast } from "@/lib/hooks/use-toast";
 import { EventRole } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
@@ -63,6 +64,9 @@ interface AssignTabProps {
   eventId: string;
 }
 
+type SortField = "project_name" | "lead_name" | "judges" | "mentors" | "total";
+type SortDirection = "asc" | "desc";
+
 export function AssignTab({ eventId }: AssignTabProps) {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -72,37 +76,68 @@ export function AssignTab({ eventId }: AssignTabProps) {
   const [autoAssigning, setAutoAssigning] = useState(false);
   const [judgesPerProject, setJudgesPerProject] = useState<number>(3);
   const [mentorsPerProject, setMentorsPerProject] = useState<number>(1);
+  const [includeOrganizers, setIncludeOrganizers] = useState<boolean>(false);
+  const [showName, setShowName] = useState<boolean>(false);
+  const [sortField, setSortField] = useState<SortField>("project_name");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const { toast } = useToast();
 
-  // Fetch all data
-  useEffect(() => {
-    fetchData();
-  }, [eventId]);
-
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      await Promise.all([fetchProjects(), fetchUsers(), fetchAssignments()]);
-    } catch (error) {
-      console.error("Error fetching data:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load assignment data",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortDirection("asc");
     }
   };
 
-  const fetchProjects = async () => {
-    const response = await fetch(`/api/projects?eventId=${eventId}&submitted=true`);
-    if (!response.ok) throw new Error("Failed to fetch projects");
-    const data = await response.json();
-    setProjects(data.projects || []);
+  const getSortIcon = (field: SortField) => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="h-4 w-4 ml-1" />;
+    }
+    return sortDirection === "asc" ? (
+      <ArrowUp className="h-4 w-4 ml-1" />
+    ) : (
+      <ArrowDown className="h-4 w-4 ml-1" />
+    );
   };
 
-  const fetchUsers = async () => {
+  const getProjectAssignmentCounts = (projectId: string) => {
+    const judgeCount = assignments.filter(
+      (a) => a.project_id === projectId && a.role === EventRole.Judge
+    ).length;
+    const mentorCount = assignments.filter(
+      (a) => a.project_id === projectId && a.role === EventRole.Mentor
+    ).length;
+    return { judgeCount, mentorCount, total: judgeCount + mentorCount };
+  };
+
+  const sortedProjects = [...projects].sort((a, b) => {
+    const countsA = getProjectAssignmentCounts(a.id);
+    const countsB = getProjectAssignmentCounts(b.id);
+
+    let comparison = 0;
+    switch (sortField) {
+      case "project_name":
+        comparison = a.project_name.localeCompare(b.project_name);
+        break;
+      case "lead_name":
+        comparison = a.lead_name.localeCompare(b.lead_name);
+        break;
+      case "judges":
+        comparison = countsA.judgeCount - countsB.judgeCount;
+        break;
+      case "mentors":
+        comparison = countsA.mentorCount - countsB.mentorCount;
+        break;
+      case "total":
+        comparison = countsA.total - countsB.total;
+        break;
+    }
+    return sortDirection === "asc" ? comparison : -comparison;
+  });
+
+  const fetchUsers = useCallback(async () => {
     // Using supabase directly since there's no API endpoint for users by role
     const { data: userRoles, error } = await supabase
       .from("user_event_roles")
@@ -117,7 +152,7 @@ export function AssignTab({ eventId }: AssignTabProps) {
       `
       )
       .eq("event_id", eventId)
-      .in("role", [EventRole.Judge, EventRole.Mentor]);
+      .in("role", [EventRole.Judge, EventRole.Mentor, EventRole.Organizer]);
 
     if (error) throw error;
 
@@ -132,12 +167,26 @@ export function AssignTab({ eventId }: AssignTabProps) {
         role: ur.role as EventRole,
       };
     });
+    
+    if (includeOrganizers) {
+      // Include organizers in both judges and mentors pools
+      setJudges(users.filter((u) => u.role === EventRole.Judge || u.role === EventRole.Organizer));
+      setMentors(users.filter((u) => u.role === EventRole.Mentor || u.role === EventRole.Organizer));
+    } else {
+      // Exclude organizers
+      setJudges(users.filter((u) => u.role === EventRole.Judge));
+      setMentors(users.filter((u) => u.role === EventRole.Mentor));
+    }
+  }, [eventId, includeOrganizers]);
 
-    setJudges(users.filter((u) => u.role === EventRole.Judge));
-    setMentors(users.filter((u) => u.role === EventRole.Mentor));
-  };
+  const fetchProjects = useCallback(async () => {
+    const response = await fetch(`/api/projects?eventId=${eventId}&submitted=true`);
+    if (!response.ok) throw new Error("Failed to fetch projects");
+    const data = await response.json();
+    setProjects(data.projects || []);
+  }, [eventId]);
 
-  const fetchAssignments = async () => {
+  const fetchAssignments = useCallback(async () => {
     // First get all project assignments for projects in this event
     const { data: projectsInEvent } = await supabase
       .from("projects")
@@ -199,7 +248,35 @@ export function AssignTab({ eventId }: AssignTabProps) {
     });
 
     setAssignments(assignments);
-  };
+  }, [eventId]);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      await Promise.all([fetchProjects(), fetchUsers(), fetchAssignments()]);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load assignment data",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchProjects, fetchUsers, fetchAssignments, toast]);
+
+  // Fetch all data
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // Refetch users when includeOrganizers changes
+  useEffect(() => {
+    if (!loading) {
+      fetchUsers();
+    }
+  }, [includeOrganizers, loading, fetchUsers]);
 
   const handleAutoAssign = async (role: EventRole) => {
     setAutoAssigning(true);
@@ -333,6 +410,30 @@ export function AssignTab({ eventId }: AssignTabProps) {
             distribution algorithm.
           </p>
 
+          {/* Include Organizers Toggle */}
+          <div className="flex items-center space-x-2 pb-2 border-b">
+            <Switch
+              id="include-organizers"
+              checked={includeOrganizers}
+              onCheckedChange={setIncludeOrganizers}
+            />
+            <Label htmlFor="include-organizers" className="cursor-pointer">
+              Include organizers in assignment pools
+            </Label>
+          </div>
+
+          {/* Show Name/Email Toggle */}
+          <div className="flex items-center space-x-2 pb-2 border-b">
+            <Switch
+              id="show-name"
+              checked={showName}
+              onCheckedChange={setShowName}
+            />
+            <Label htmlFor="show-name" className="cursor-pointer">
+              Show names (instead of emails)
+            </Label>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-3">
               <div className="space-y-2">
@@ -429,15 +530,55 @@ export function AssignTab({ eventId }: AssignTabProps) {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Project</TableHead>
-                  <TableHead>Project Lead</TableHead>
-                  <TableHead>Assigned Judges</TableHead>
-                  <TableHead>Assigned Mentors</TableHead>
-                  <TableHead>Actions</TableHead>
+                  <TableHead>
+                    <button
+                      className="flex items-center hover:text-foreground"
+                      onClick={() => handleSort("project_name")}
+                    >
+                      Project
+                      {getSortIcon("project_name")}
+                    </button>
+                  </TableHead>
+                  <TableHead>
+                    <button
+                      className="flex items-center hover:text-foreground"
+                      onClick={() => handleSort("lead_name")}
+                    >
+                      Project Lead
+                      {getSortIcon("lead_name")}
+                    </button>
+                  </TableHead>
+                  <TableHead>
+                    <button
+                      className="flex items-center hover:text-foreground"
+                      onClick={() => handleSort("judges")}
+                    >
+                      Assigned Judges
+                      {getSortIcon("judges")}
+                    </button>
+                  </TableHead>
+                  <TableHead>
+                    <button
+                      className="flex items-center hover:text-foreground"
+                      onClick={() => handleSort("mentors")}
+                    >
+                      Assigned Mentors
+                      {getSortIcon("mentors")}
+                    </button>
+                  </TableHead>
+                  <TableHead>
+                    <button
+                      className="flex items-center hover:text-foreground"
+                      onClick={() => handleSort("total")}
+                    >
+                      Total
+                      {getSortIcon("total")}
+                    </button>
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {projects.map((project) => {
+                {sortedProjects.map((project) => {
                   const projectJudges = getProjectAssignments(
                     project.id,
                     EventRole.Judge
@@ -461,7 +602,7 @@ export function AssignTab({ eventId }: AssignTabProps) {
                               className="flex items-center gap-2"
                             >
                               <Badge variant="outline">
-                                {assignment.user.display_name}
+                                {showName ? assignment.user.display_name : assignment.user.email}
                               </Badge>
                               <Button
                                 size="sm"
@@ -482,6 +623,7 @@ export function AssignTab({ eventId }: AssignTabProps) {
                               (a) => a.user_id
                             )}
                             onAssign={handleIndividualAssign}
+                            showName={showName}
                           />
                         </div>
                       </TableCell>
@@ -493,7 +635,7 @@ export function AssignTab({ eventId }: AssignTabProps) {
                               className="flex items-center gap-2"
                             >
                               <Badge variant="outline">
-                                {assignment.user.display_name}
+                                {showName ? assignment.user.display_name : assignment.user.email}
                               </Badge>
                               <Button
                                 size="sm"
@@ -514,13 +656,13 @@ export function AssignTab({ eventId }: AssignTabProps) {
                               (a) => a.user_id
                             )}
                             onAssign={handleIndividualAssign}
+                            showName={showName}
                           />
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="text-sm text-muted-foreground">
-                          {projectJudges.length + projectMentors.length} total
-                          assigned
+                          {projectJudges.length + projectMentors.length}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -542,6 +684,7 @@ interface ManualAssignSelectProps {
   users: User[];
   existingAssignments: string[];
   onAssign: (userId: string, projectId: string, role: EventRole) => void;
+  showName: boolean;
 }
 
 function ManualAssignSelect({
@@ -550,6 +693,7 @@ function ManualAssignSelect({
   users,
   existingAssignments,
   onAssign,
+  showName,
 }: ManualAssignSelectProps) {
   const [selectedUserId, setSelectedUserId] = useState<string>("");
 
@@ -572,7 +716,7 @@ function ManualAssignSelect({
         <SelectContent>
           {availableToAssign.map((user) => (
             <SelectItem key={user.user_id} value={user.user_id}>
-              {user.email}
+              {showName ? user.display_name : user.email}
             </SelectItem>
           ))}
         </SelectContent>
