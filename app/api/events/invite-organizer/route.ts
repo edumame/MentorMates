@@ -6,7 +6,10 @@ import { NOTIFICATIONS_EMAIL_FROM } from '@/lib/email_templates/constants';
 import { getOrganizerInvitationEmailTemplate } from '@/lib/email_templates/organizer-invitation';
 import { canAccessRole } from '@/features/user/roles/roles';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Avoid crashing at build time if RESEND_API_KEY isn't set.
+const resend = process.env.RESEND_API_KEY
+  ? new Resend(process.env.RESEND_API_KEY)
+  : (null as unknown as Resend);
 
 export async function POST(request: Request) {
   // TODO: Consider implementing rate limiting to prevent invite spam
@@ -74,6 +77,10 @@ export async function POST(request: Request) {
   const inviterName = inviterProfile 
     ? `${inviterProfile.display_name}`.trim()
     : 'A MentorMates organizer';
+
+  if (!process.env.RESEND_API_KEY) {
+    return NextResponse.json({ error: 'Email service not configured' }, { status: 500 });
+  }
 
   const { data: user } = await supabase
     .from('user_profiles')

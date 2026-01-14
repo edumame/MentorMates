@@ -3,7 +3,10 @@ import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { Resend } from "resend";
 import { z } from "zod";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Avoid crashing at build time if RESEND_API_KEY isn't set.
+const resend = process.env.RESEND_API_KEY
+  ? new Resend(process.env.RESEND_API_KEY)
+  : (null as unknown as Resend);
 
 const BCC_MAX = 50;
 
@@ -12,8 +15,8 @@ const emailRequestSchema = z.object({
   to: z.string().min(1),
   subject: z.string().min(1),
   html: z.string().min(1),
-  bcc: z.array(z.string().min(1)).optional().default([]),
-  cc: z.array(z.string().min(1)).optional().default([]),
+  bcc: z.array(z.string().min(1)).default([]),
+  cc: z.array(z.string().min(1)).default([]),
 });
 
 type EmailRequest = z.infer<typeof emailRequestSchema>;
@@ -63,11 +66,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    if (!process.env.RESEND_API_KEY) {
+      return NextResponse.json(
+        { error: "Email service not configured" },
+        { status: 500 }
+      );
+    }
+
     const emailData: EmailRequest = parsed.data;
 
     // Resend enforces a 50-recipient limit for `bcc`.
     // If the UI selects more than 50 recipients, send multiple emails in batches.
-    const bccChunks = chunkArray(emailData.bcc, BCC_MAX);
+    const bccChunks: string[][] = chunkArray(emailData.bcc, BCC_MAX);
 
     for (const bccChunk of bccChunks) {
       const { error: resendError } = await resend.emails.send({
@@ -75,8 +85,8 @@ export async function POST(request: NextRequest) {
         to: emailData.to,
         subject: emailData.subject,
         html: emailData.html,
-        cc: emailData.cc,
-        bcc: bccChunk,
+        cc: emailData.cc as string[],
+        bcc: bccChunk as string[],
       });
 
       if (resendError) {
