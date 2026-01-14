@@ -121,6 +121,10 @@ export async function POST(req: NextRequest) {
             },
             turn_detection: { type: "server_vad" },
         });
+
+        realtimeClient.on("error", (error: Error) => {
+            console.log(`received error`, error);
+          });
     } else if (eventType === "call.session_participant_left") {
         const event = payload as CallSessionParticipantLeftEvent;
         const meetingId = event.call_cid.split(":")[1];

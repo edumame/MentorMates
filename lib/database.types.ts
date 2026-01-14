@@ -214,6 +214,7 @@ export type Database = {
           approval_status:
             | Database["public"]["Enums"]["approval_status"]
             | null;
+          rejection_reason: string | null;
         };
         Insert: {
           cover_image_url?: string | null;

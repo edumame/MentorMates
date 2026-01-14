@@ -5,6 +5,7 @@ import { createSupabaseClient } from "@/app/utils/supabase/server";
 const updateEventStatusSchema = z.object({
   featured: z.boolean().optional(),
   approval_status: z.enum(["not_submitted", "submitted", "approved", "rejected"]).optional(),
+  rejection_reason: z.string().optional(),
 });
 
 export async function PATCH(
@@ -44,12 +45,30 @@ export async function PATCH(
       );
     }
 
-    const { featured, approval_status } = validation.data;
+    const { featured, approval_status, rejection_reason } = validation.data;
 
     // Build update object with only provided fields
-    const updateData: Record<string, boolean | string> = {};
+    const updateData: Record<string, boolean | string | null> = {};
     if (featured !== undefined) updateData.featured = featured;
-    if (approval_status !== undefined) updateData.approval_status = approval_status;
+    if (approval_status !== undefined) {
+      updateData.approval_status = approval_status;
+      
+      // If status is being set to rejected, require rejection_reason
+      if (approval_status === "rejected" && !rejection_reason) {
+        return NextResponse.json(
+          { error: "rejection_reason is required when rejecting an event" },
+          { status: 400 }
+        );
+      }
+      
+      // Set or clear rejection_reason based on status
+      if (approval_status === "rejected" && rejection_reason) {
+        updateData.rejection_reason = rejection_reason;
+      } else if (approval_status !== "rejected") {
+        // Clear rejection reason when moving away from rejected status
+        updateData.rejection_reason = null;
+      }
+    }
 
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json(
@@ -96,6 +115,7 @@ export async function PATCH(
           previous_status: previousStatus,
           new_status: approval_status,
           notes: null, // Can be extended to include notes in the future
+          rejection_reason: approval_status === "rejected" ? rejection_reason || null : null,
         });
 
       if (logError) {

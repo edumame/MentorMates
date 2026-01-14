@@ -57,6 +57,16 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { PageContainer } from "@/components/layout/PageContainer";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ReactMarkdown from "react-markdown";
 
@@ -78,6 +88,8 @@ export default function NewEventPage() {
   const [activeSubTab, setActiveSubTab] = useState("basics");
   const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
   const [coverImageUploading, setCoverImageUploading] = useState(false);
+  const [showApprovalModal, setShowApprovalModal] = useState(false);
+  const [createdEventId, setCreatedEventId] = useState<string | null>(null);
 
   // Get user's timezone as default
   const getUserTimezone = (): string => {
@@ -320,7 +332,7 @@ export default function NewEventPage() {
     }
   }, [toast]);
 
-  const handleCreate = async (requestApproval = false) => {
+  const handleCreate = async () => {
     if (!form.event_name || !form.event_date || !form.location) {
       toast({
         title: "Missing fields",
@@ -343,8 +355,8 @@ export default function NewEventPage() {
         organizerEmails.unshift(currentUserEmail);
       }
 
-      const endpoint = requestApproval ? "/api/events/request-approval" : "/api/events";
-      const res = await fetch(endpoint, {
+      // Always save as draft by default
+      const res = await fetch("/api/events", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -352,7 +364,7 @@ export default function NewEventPage() {
             event_name: form.event_name,
             event_date: form.event_date,
             location: form.location,
-            visibility: visibility,
+            visibility: EventVisibility.Draft, // Always draft initially
             slug: form.slug || undefined,
             event_description: form.event_description || undefined,
             event_blurb: form.event_blurb || undefined,
@@ -370,8 +382,7 @@ export default function NewEventPage() {
               faqs.length > 0 ? faqs.map(({ id, ...faq }) => faq) : undefined,
             gallery_images:
               galleryImages.length > 0
-                ? galleryImages.map(({ id, ...img }) => img)
-                : undefined,
+                ? galleryImages.map(({ id, ...img }) => img) : undefined,
           },
           organizerEmails,
         }),
@@ -379,17 +390,15 @@ export default function NewEventPage() {
       const data = await res.json();
       if (!res.ok) {
         toast({
-          title: requestApproval ? "Request failed" : "Create failed",
-          description: data.error || `Error ${requestApproval ? "requesting approval for" : "creating"} event.`,
+          title: "Create failed",
+          description: data.error || "Error creating event.",
           variant: "destructive",
         });
         return;
       }
       toast({
-        title: requestApproval ? "Approval requested" : "Event created",
-        description: requestApproval 
-          ? `${data.event.event_name} has been submitted for approval.`
-          : `${data.event.event_name} created successfully.`,
+        title: "Event saved as draft",
+        description: `${data.event.event_name} has been saved as a draft.`,
       });
       router.push(`/events/${data.event.slug || data.event.event_id}/overview`);
     } catch {
@@ -400,6 +409,133 @@ export default function NewEventPage() {
       });
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handlePublishAsPrivate = async () => {
+    if (!form.event_name || !form.event_date || !form.location) {
+      toast({
+        title: "Missing fields",
+        description: "Name, date, and location are required.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setCreating(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const currentUserEmail = sessionData?.session?.user?.email;
+
+      const organizerEmails = (form.organizer_emails || "")
+        .split(",")
+        .map((e) => e.trim())
+        .filter(Boolean);
+
+      if (currentUserEmail && !organizerEmails.includes(currentUserEmail)) {
+        organizerEmails.unshift(currentUserEmail);
+      }
+
+      // Create event as private
+      const res = await fetch("/api/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          event: {
+            event_name: form.event_name,
+            event_date: form.event_date,
+            location: form.location,
+            visibility: EventVisibility.Private, // Private visibility
+            slug: form.slug || undefined,
+            event_description: form.event_description || undefined,
+            event_blurb: form.event_blurb || undefined,
+            cover_image_url: form.cover_image_url || undefined,
+            paid: ticketType === "paid",
+            submission_time_start: form.submission_time_start || undefined,
+            submission_time_cutoff: form.submission_time_cutoff || undefined,
+            participant_capacity: form.participant_capacity
+              ? parseInt(form.participant_capacity, 10)
+              : undefined,
+            event_type: form.event_type || undefined,
+            paywall_content: form.paywall_content || undefined,
+            rules: rules.length > 0 ? rules : undefined,
+            faqs:
+              faqs.length > 0 ? faqs.map(({ id, ...faq }) => faq) : undefined,
+            gallery_images:
+              galleryImages.length > 0
+                ? galleryImages.map(({ id, ...img }) => img) : undefined,
+          },
+          organizerEmails,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast({
+          title: "Publish failed",
+          description: data.error || "Error publishing event.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Store event ID and show approval modal
+      setCreatedEventId(data.event.event_id);
+      setShowApprovalModal(true);
+    } catch {
+      toast({
+        title: "Network error",
+        description: "Unable to publish event.",
+        variant: "destructive",
+      });
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleSubmitForApproval = async () => {
+    if (!createdEventId) return;
+    
+    setCreating(true);
+    try {
+      const res = await fetch("/api/events/request-approval", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          eventId: createdEventId,
+        }),
+      });
+      
+      const data = await res.json();
+      if (!res.ok) {
+        toast({
+          title: "Request failed",
+          description: data.error || "Error submitting for approval.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      toast({
+        title: "Approval requested",
+        description: "Your event has been submitted for approval to be featured on the home page.",
+      });
+      
+      setShowApprovalModal(false);
+      router.push(`/events/${data.event.slug || data.event.event_id}/overview`);
+    } catch {
+      toast({
+        title: "Network error",
+        description: "Unable to submit for approval.",
+        variant: "destructive",
+      });
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleSkipApproval = () => {
+    setShowApprovalModal(false);
+    if (createdEventId) {
+      router.push(`/events/${createdEventId}/overview`);
     }
   };
 
@@ -566,57 +702,7 @@ export default function NewEventPage() {
             </h1>
 
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4 w-full sm:w-auto">
-              <div className="relative w-full sm:w-auto">
-                <button
-                  onClick={() =>
-                    setShowVisibilityDropdown(!showVisibilityDropdown)
-                  }
-                  className="flex items-center gap-2 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] px-3 py-2 h-[44px] w-full sm:w-[142px] hover:bg-gray-50 transition-colors"
-                >
-                  <Globe className="w-5 h-5" />
-                  <span className="text-[16px] font-normal">{visibility}</span>
-                  <svg
-                    className="w-5 h-5 ml-auto"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                  >
-                    <path
-                      d="M7 10l5 5 5-5"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </button>
-
-                {showVisibilityDropdown && (
-                  <>
-                    <div
-                      className="fixed inset-0 z-[5]"
-                      onClick={() => setShowVisibilityDropdown(false)}
-                    />
-                    <div className="absolute top-full mt-2 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] shadow-lg z-[10] w-[142px] overflow-hidden">
-                      {[
-                        EventVisibility.Public,
-                        EventVisibility.Private,
-                        EventVisibility.Draft,
-                      ].map((vis) => (
-                        <button
-                          key={vis}
-                          onClick={() => {
-                            setVisibility(vis);
-                            setShowVisibilityDropdown(false);
-                          }}
-                          className="w-full text-left px-3 py-2 hover:bg-gray-50 text-[16px] font-normal"
-                        >
-                          {vis}
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
+              
 
               <div className="flex gap-2 w-full sm:w-auto">
                 <Button
@@ -626,57 +712,27 @@ export default function NewEventPage() {
                 >
                   Cancel
                 </Button>
-                {isAdmin ? (
-                  <div className="relative flex-1 sm:flex-none create-dropdown-container">
-                    <Button
-                      onClick={() => setShowCreateDropdown(!showCreateDropdown)}
-                      disabled={creating}
-                      className="text-[16px] font-medium w-full flex items-center justify-between gap-2"
-                    >
-                      <span>{creating ? "Processing..." : "Create event"}</span>
-                      <ChevronDown className="h-4 w-4" />
-                    </Button>
-                    {showCreateDropdown && (
-                      <div className="absolute top-full mt-2 right-0 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] shadow-lg z-[10] w-full min-w-[200px] overflow-hidden">
-                        <button
-                          onClick={(e) => {
-                            e.preventDefault();
-                            setShowCreateDropdown(false);
-                            handleCreate(false);
-                          }}
-                          disabled={creating}
-                          className="w-full text-left px-4 py-3 hover:bg-gray-50 text-[16px] font-normal border-b border-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          <div className="font-medium">Create event</div>
-                          <div className="text-sm text-gray-500">Publish immediately</div>
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.preventDefault();
-                            setShowCreateDropdown(false);
-                            handleCreate(true);
-                          }}
-                          disabled={creating}
-                          className="w-full text-left px-4 py-3 hover:bg-gray-50 text-[16px] font-normal disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          <div className="font-medium">Request approval</div>
-                          <div className="text-sm text-gray-500">Submit for review</div>
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <Button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      handleCreate(true);
-                    }}
-                    disabled={creating}
-                    className="text-[16px] font-medium flex-1 sm:flex-none"
-                  >
-                    {creating ? "Requesting..." : "Request approval"}
-                  </Button>
-                )}
+                <Button
+                  variant="outline"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleCreate();
+                  }}
+                  disabled={creating}
+                  className="text-[16px] font-medium flex-1 sm:flex-none border border-[rgba(0,0,0,0.15)] bg-white"
+                >
+                  {creating ? "Saving..." : "Save Draft"}
+                </Button>
+                <Button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handlePublishAsPrivate();
+                  }}
+                  disabled={creating}
+                  className="text-[16px] font-medium flex-1 sm:flex-none bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
+                >
+                  {creating ? "Publishing..." : "Publish as Private Event"}
+                </Button>
               </div>
             </div>
           </div>
@@ -2956,39 +3012,7 @@ export default function NewEventPage() {
                       {/* Password Tab */}
                       <TabsContent value="password" className="mt-0">
                         <div className="space-y-6">
-                          {/* Event Visibility */}
-                          <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4">
-                            <h3 className="text-[18px] font-semibold text-black">
-                              Event Visibility
-                            </h3>
-                            <div className="space-y-2">
-                              <label className="text-[16px] font-normal text-black">
-                                Event Visibility
-                              </label>
-                              <div className="relative">
-                                <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                <select
-                                  value={visibility}
-                                  onChange={(e) =>
-                                    setVisibility(
-                                      e.target.value as EventVisibility
-                                    )
-                                  }
-                                  className="w-full pl-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px] px-3"
-                                >
-                                  <option value={EventVisibility.Public}>
-                                    Public
-                                  </option>
-                                  <option value={EventVisibility.Private}>
-                                    Private (Password Protected)
-                                  </option>
-                                  <option value={EventVisibility.Draft}>
-                                    Draft
-                                  </option>
-                                </select>
-                              </div>
-                            </div>
-                          </div>
+                      
 
                           {/* Role Passwords */}
                           <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4">

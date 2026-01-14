@@ -31,8 +31,11 @@ const eventSchema = z.object({
 });
 
 const payloadSchema = z.object({
-  event: eventSchema,
+  event: eventSchema.optional(),
   organizerEmails: z.array(z.string().email()).optional(),
+  eventId: z.string().uuid().optional(),
+}).refine((data) => data.event || data.eventId, {
+  message: "Either event or eventId must be provided",
 });
 
 export async function POST(req: Request) {
@@ -60,7 +63,71 @@ export async function POST(req: Request) {
       );
     }
 
-    const { event, organizerEmails = [] } = parsed.data;
+    const { event, organizerEmails = [], eventId } = parsed.data;
+
+    // If eventId is provided, update existing event instead of creating new one
+    if (eventId) {
+      // Verify user owns the event
+      const { data: existingEvent, error: fetchError } = await supabase
+        .from("events")
+        .select("event_id, owner_id, approval_status")
+        .eq("event_id", eventId)
+        .single();
+
+      if (fetchError || !existingEvent) {
+        return NextResponse.json(
+          { error: "Event not found" },
+          { status: 404 }
+        );
+      }
+
+      if (existingEvent.owner_id !== user.id) {
+        return NextResponse.json(
+          { error: "Unauthorized - You don't own this event" },
+          { status: 403 }
+        );
+      }
+
+      // Update approval status to submitted
+      const { data: updatedEvent, error: updateError } = await supabase
+        .from("events")
+        .update({ approval_status: ApprovalStatus.Submitted })
+        .eq("event_id", eventId)
+        .select("*")
+        .single();
+
+      if (updateError || !updatedEvent) {
+        console.error("Error updating event approval status:", updateError);
+        return NextResponse.json(
+          { error: "Failed to update event approval status" },
+          { status: 500 }
+        );
+      }
+
+      // Create an approval log entry
+      await supabase.from("event_approval_logs").insert({
+        event_id: eventId,
+        previous_status: existingEvent.approval_status || ApprovalStatus.NotSubmitted,
+        new_status: ApprovalStatus.Submitted,
+        admin_user_id: user.id,
+        notes: "Event submitted for approval",
+      });
+
+      return NextResponse.json(
+        {
+          event: updatedEvent,
+        },
+        { status: 200 }
+      );
+    }
+
+    // Original flow: create new event
+    if (!event) {
+      return NextResponse.json(
+        { error: "Event data is required when eventId is not provided" },
+        { status: 400 }
+      );
+    }
 
     // Build insert payload with approval_status set to 'submitted'
     const insertPayload: Database["public"]["Tables"]["events"]["Insert"] = {
@@ -170,7 +237,7 @@ export async function POST(req: Request) {
       event_id: createdEvent.event_id,
       previous_status: ApprovalStatus.NotSubmitted,
       new_status: ApprovalStatus.Submitted,
-      changed_by: user.id,
+      admin_user_id: user.id,
       notes: "Event submitted for approval",
     });
 

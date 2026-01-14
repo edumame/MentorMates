@@ -403,7 +403,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                         : "bg-gray-500/20 text-black border-none text-xs sm:text-sm"
                 }`}
               >
-                {event.approval_status?.toUpperCase() || "NOT SUBMITTED"}
+                {event.approval_status?.replace(/_/g, ' ').toUpperCase() || "NOT SUBMITTED"}
               </Badge>
             </div>
 

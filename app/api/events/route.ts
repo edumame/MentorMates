@@ -75,10 +75,9 @@ export async function GET() {
       );
     } else {
       // Regular users only see public and private events (exclude archived) that are approved
-      query = query.in("visibility", [
-        EventVisibility.Public,
-        EventVisibility.Private,
-      ]).eq("approval_status", ApprovalStatus.Approved);
+      query = query
+        .in("visibility", [EventVisibility.Public, EventVisibility.Private])
+        .eq("approval_status", ApprovalStatus.Approved);
     }
 
     const { data: events, error: eventsError } = await query;
@@ -187,7 +186,7 @@ export async function POST(req: Request) {
       paid: event.paid ?? null,
       stripe_price_id: event.stripe_price_id ?? null,
       owner_id: user.id, // Set the creator as the owner
-      approval_status: ApprovalStatus.Approved, // Admin-created events are auto-approved
+      approval_status: ApprovalStatus.NotSubmitted, // Events default to not_submitted (visibility controls draft/private/public)
     };
 
     const { data: createdEvent, error: insertError } = await supabase

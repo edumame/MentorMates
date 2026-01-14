@@ -102,11 +102,11 @@ export default async function EventsPage() {
 
   async function fetchPublicEvents() {
     try {
-      // Fetch only public and private events that are approved
+      // Fetch only public events
       const { data: events, error } = await supabase
         .from("events")
         .select("*")
-        .in("visibility", [EventVisibility.Public, EventVisibility.Private])
+        .in("visibility", [EventVisibility.Public])
         .eq("approval_status", ApprovalStatus.Approved)
         .order("event_date", { ascending: false });
 
