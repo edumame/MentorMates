@@ -67,10 +67,10 @@ export async function POST(req: Request) {
 
     // If eventId is provided, update existing event instead of creating new one
     if (eventId) {
-      // Verify user owns the event
+      // Verify user owns the event and check visibility
       const { data: existingEvent, error: fetchError } = await supabase
         .from("events")
-        .select("event_id, owner_id, approval_status")
+        .select("event_id, owner_id, approval_status, visibility")
         .eq("event_id", eventId)
         .single();
 
@@ -85,6 +85,14 @@ export async function POST(req: Request) {
         return NextResponse.json(
           { error: "Unauthorized - You don't own this event" },
           { status: 403 }
+        );
+      }
+
+      // Only allow submission for private events
+      if (existingEvent.visibility !== EventVisibility.Private) {
+        return NextResponse.json(
+          { error: "Only private events can be submitted for approval" },
+          { status: 400 }
         );
       }
 

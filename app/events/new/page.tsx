@@ -316,7 +316,8 @@ export default function NewEventPage() {
 
       if (typeof parsed.visibility === "string") {
         const v = parsed.visibility.toLowerCase();
-        if (v === "public") setVisibility(EventVisibility.Public);
+        // Public visibility is not allowed - default to private instead
+        if (v === "public") setVisibility(EventVisibility.Private);
         else if (v === "private") setVisibility(EventVisibility.Private);
         else if (v === "draft") setVisibility(EventVisibility.Draft);
       }
@@ -577,7 +578,8 @@ export default function NewEventPage() {
 
       if (typeof fields.visibility === "string") {
         const v = (fields.visibility as string).toLowerCase();
-        if (v === "public") setVisibility(EventVisibility.Public);
+        // Public visibility is not allowed - default to private instead
+        if (v === "public") setVisibility(EventVisibility.Private);
         else if (v === "private") setVisibility(EventVisibility.Private);
         else if (v === "draft") setVisibility(EventVisibility.Draft);
         else if (v === "demo") setVisibility(EventVisibility.Demo);
