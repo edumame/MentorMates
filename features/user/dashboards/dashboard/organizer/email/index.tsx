@@ -175,7 +175,16 @@ export function EmailTab({ eventId }: EmailTabProps) {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to send email");
+        const payload = (await response.json().catch(() => null)) as
+          | { name?: string; message?: string; statusCode?: number; error?: string }
+          | null;
+
+        const description =
+          payload?.name === "validation_error" && payload?.message
+            ? payload.message
+            : payload?.error || "Failed to send email";
+
+        throw new Error(description);
       }
 
       toast({
@@ -191,7 +200,8 @@ export function EmailTab({ eventId }: EmailTabProps) {
       console.error("Error sending email:", error);
       toast({
         title: "Error",
-        description: "Failed to send email",
+        description:
+          error instanceof Error ? error.message : "Failed to send email",
         variant: "destructive",
       });
     } finally {

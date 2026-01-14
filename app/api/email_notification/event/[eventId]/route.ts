@@ -17,12 +17,39 @@ const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
   : null as unknown as Resend;
 
+const BCC_MAX = 50;
+
 type UserEmail = {
   user_id: string;
   user_profiles: {
     email: string;
   };
 };
+
+type ResendValidationError = {
+  name: "validation_error";
+  message: string;
+  statusCode: 422;
+};
+
+function chunkArray<T>(arr: T[], size: number): T[][] {
+  if (size <= 0) return [arr];
+  const chunks: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) {
+    chunks.push(arr.slice(i, i + size));
+  }
+  return chunks;
+}
+
+function isResendValidationError(error: unknown): error is ResendValidationError {
+  if (!error || typeof error !== "object") return false;
+  const e = error as Record<string, unknown>;
+  return (
+    e.name === "validation_error" &&
+    typeof e.message === "string" &&
+    e.statusCode === 422
+  );
+}
 
 export async function POST(
   request: Request,
@@ -123,20 +150,33 @@ export async function POST(
     return NextResponse.json({ error: "Email service not configured" }, { status: 500 });
   }
 
-  const { data, error } = await resend.emails.send({
-    from: NOTIFICATIONS_EMAIL_FROM,
-    to: ADMIN_EMAIL,
-    bcc: participantsEmails,
-    subject: email.subject,
-    html: email.html,
-  });
+  // Resend enforces a 50-recipient limit for `bcc`.
+  // If the event has more than 50 recipients, send multiple emails in batches.
+  const bccChunks = chunkArray(participantsEmails, BCC_MAX);
+  let lastData: unknown = null;
 
-  if (error) {
-    return NextResponse.json({ error: "Error sending email" }, { status: 500 });
+  for (const bccChunk of bccChunks) {
+    const { data, error } = await resend.emails.send({
+      from: NOTIFICATIONS_EMAIL_FROM,
+      to: ADMIN_EMAIL,
+      bcc: bccChunk,
+      subject: email.subject,
+      html: email.html,
+    });
+
+    lastData = data ?? lastData;
+
+    if (error) {
+      console.error("Resend error sending event notification:", error);
+      if (isResendValidationError(error)) {
+        return NextResponse.json(error, { status: error.statusCode });
+      }
+      return NextResponse.json({ error: "Error sending email" }, { status: 500 });
+    }
   }
 
   return NextResponse.json(
-    { message: "Email sent successfully", data: data },
+    { message: "Email sent successfully", batches: bccChunks.length, data: lastData },
     { status: 200 }
   );
 }
