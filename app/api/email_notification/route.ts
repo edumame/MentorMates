@@ -13,7 +13,9 @@ interface EmailData {
   cc?: string[];
 }
 
-const MAX_RECIPIENTS_PER_BATCH = 50;
+
+// assuming resend allows 50 recipients per email, we need to send in batches of 49 to include the "to" recipient
+const MAX_RECIPIENTS_PER_BATCH = 49;
 
 function chunkArray<T>(array: T[], chunkSize: number): T[][] {
   const chunks: T[][] = [];
