@@ -123,20 +123,75 @@ export async function POST(
     return NextResponse.json({ error: "Email service not configured" }, { status: 500 });
   }
 
-  const { data, error } = await resend.emails.send({
-    from: NOTIFICATIONS_EMAIL_FROM,
-    to: ADMIN_EMAIL,
-    bcc: participantsEmails,
-    subject: email.subject,
-    html: email.html,
-  });
+  const MAX_RECIPIENTS_PER_BATCH = 50;
 
-  if (error) {
-    return NextResponse.json({ error: "Error sending email" }, { status: 500 });
+  // Check if we need to batch
+  if (participantsEmails.length <= MAX_RECIPIENTS_PER_BATCH) {
+    // Single email send
+    const { data, error } = await resend.emails.send({
+      from: NOTIFICATIONS_EMAIL_FROM,
+      to: ADMIN_EMAIL,
+      bcc: participantsEmails,
+      subject: email.subject,
+      html: email.html,
+    });
+
+    if (error) {
+      return NextResponse.json({ error: "Error sending email" }, { status: 500 });
+    }
+
+    return NextResponse.json(
+      { message: "Email sent successfully", data: data },
+      { status: 200 }
+    );
+  }
+
+  // Batch processing
+  const batches: string[][] = [];
+  for (let i = 0; i < participantsEmails.length; i += MAX_RECIPIENTS_PER_BATCH) {
+    batches.push(participantsEmails.slice(i, i + MAX_RECIPIENTS_PER_BATCH));
+  }
+
+  const sendPromises = batches.map((batch) =>
+    resend.emails.send({
+      from: NOTIFICATIONS_EMAIL_FROM,
+      to: ADMIN_EMAIL,
+      bcc: batch,
+      subject: email.subject,
+      html: email.html,
+    })
+  );
+
+  const results = await Promise.allSettled(sendPromises);
+
+  // Check for any failures
+  const failures = results.filter(
+    (result) =>
+      result.status === "rejected" ||
+      (result.status === "fulfilled" &&
+        result.value &&
+        typeof result.value === "object" &&
+        "error" in result.value &&
+        result.value.error)
+  );
+
+  if (failures.length > 0) {
+    console.error("Some email batches failed:", failures);
+    return NextResponse.json(
+      {
+        error: "Some emails failed to send",
+        failedBatches: failures.length,
+        totalBatches: batches.length,
+      },
+      { status: 500 }
+    );
   }
 
   return NextResponse.json(
-    { message: "Email sent successfully", data: data },
+    {
+      message: `Email sent successfully in ${batches.length} batch(es)`,
+      batches: batches.length,
+    },
     { status: 200 }
   );
 }

@@ -718,7 +718,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                       />
                       <div className="border-t border-[rgba(0,0,0,0.15)] pt-6">
                         <h2 className="text-xl font-semibold mb-4 text-black">
-                          Email Project Participants
+                          Email Event Participants
                         </h2>
                         <EmailTab eventId={eventId} />
                       </div>
