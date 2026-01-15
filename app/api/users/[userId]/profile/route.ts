@@ -53,6 +53,48 @@ export async function GET(
 
     const avatarUrl = profile?.avatar_url || null;
 
+    // Fetch phone number from user_phone_numbers table
+    // Only fetch phone numbers for the user's own profile (privacy)
+    let primaryPhoneNumber: string | null = null;
+    const isOwnProfile = loggedInUser.user?.id === userId;
+
+    if (isOwnProfile) {
+      // Prefer verified phone number, otherwise get the most recent one
+      // First try to get a verified phone number
+      const { data: verifiedPhones, error: verifiedError } = await supabase
+        .from("user_phone_numbers")
+        .select("phone_number")
+        .eq("user_id", userId)
+        .eq("verification_status", "verified")
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      if (verifiedError) {
+        console.error("Error fetching verified phone number:", verifiedError);
+      }
+
+      if (verifiedPhones && verifiedPhones.length > 0) {
+        primaryPhoneNumber = verifiedPhones[0].phone_number;
+      } else {
+        // If no verified phone, get the most recent one
+        const { data: recentPhones, error: recentError } = await supabase
+          .from("user_phone_numbers")
+          .select("phone_number")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false })
+          .limit(1);
+
+        if (recentError) {
+          console.error("Error fetching phone number:", recentError);
+          // Don't fail the request if phone number fetch fails
+        }
+
+        if (recentPhones && recentPhones.length > 0) {
+          primaryPhoneNumber = recentPhones[0].phone_number;
+        }
+      }
+    }
+
     // Fetch projects where user is lead
     const { data: leadProjects, error: leadError } = await supabase
       .from("projects")
@@ -233,10 +275,11 @@ export async function GET(
       });
     }
 
-    // Return profile with avatar_url included
+    // Return profile with avatar_url and phone_number included
     const profileWithAvatar = {
       ...profile,
       avatar_url: avatarUrl,
+      phone_number: primaryPhoneNumber,
     };
 
     return NextResponse.json({
