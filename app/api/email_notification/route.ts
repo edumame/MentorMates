@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
       console.error("Some email batches failed:", failures);
       return NextResponse.json(
         { error: "Some emails failed to send", failedBatches: failures.length },
-        { status: 500 }
+        { status: 422 }
       );
     }
 

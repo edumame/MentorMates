@@ -175,7 +175,11 @@ export function EmailTab({ eventId }: EmailTabProps) {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to send email");
+        if (response.status === 422) {
+          throw new Error("Some emails failed to send. Reselect less recipients and try again.");
+        } else {
+          throw new Error("Failed to send email");
+        }
       }
 
       toast({
@@ -191,7 +195,7 @@ export function EmailTab({ eventId }: EmailTabProps) {
       console.error("Error sending email:", error);
       toast({
         title: "Error",
-        description: "Failed to send email",
+        description: error instanceof Error ? error.message : "Failed to send email",
         variant: "destructive",
       });
     } finally {
