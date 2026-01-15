@@ -1,8 +1,4 @@
--- Migration: Update approval status flow to match new PRD
--- This migration updates the approval_status enum to support the new approval states:
--- not_submitted, submitted, approved, rejected
--- Note: Visibility (draft, private, public) remains separate in the visibility field
--- Note: Featured is kept as a separate boolean column (not part of approval_status)
+-- Migration: Update rejection reason column 
 
 -- Step 1: Add rejection_reason column to events table
 ALTER TABLE public.events 
