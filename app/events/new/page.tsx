@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { supabase } from "@/lib/supabase";
-import { EventVisibility, EventRole, Rule } from "@/lib/types";
+import { EventVisibility, EventRole, Rule, ApprovalStatus } from "@/lib/types";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -67,6 +67,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ReactMarkdown from "react-markdown";
 
@@ -90,6 +96,8 @@ export default function NewEventPage() {
   const [coverImageUploading, setCoverImageUploading] = useState(false);
   const [showApprovalModal, setShowApprovalModal] = useState(false);
   const [createdEventId, setCreatedEventId] = useState<string | null>(null);
+  const [createdEventSlug, setCreatedEventSlug] = useState<string | null>(null);
+  const [isNavigating, setIsNavigating] = useState(false);
 
   // Get user's timezone as default
   const getUserTimezone = (): string => {
@@ -478,8 +486,9 @@ export default function NewEventPage() {
         return;
       }
       
-      // Store event ID and show approval modal
+      // Store event ID and slug, then show approval modal
       setCreatedEventId(data.event.event_id);
+      setCreatedEventSlug(data.event.slug || null);
       setShowApprovalModal(true);
     } catch {
       toast({
@@ -492,9 +501,92 @@ export default function NewEventPage() {
     }
   };
 
+  const handlePublishAsPublic = async () => {
+    if (!form.event_name || !form.event_date || !form.location) {
+      toast({
+        title: "Missing fields",
+        description: "Name, date, and location are required.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setCreating(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const currentUserEmail = sessionData?.session?.user?.email;
+
+      const organizerEmails = (form.organizer_emails || "")
+        .split(",")
+        .map((e) => e.trim())
+        .filter(Boolean);
+
+      if (currentUserEmail && !organizerEmails.includes(currentUserEmail)) {
+        organizerEmails.unshift(currentUserEmail);
+      }
+
+      // Create event as private
+      const res = await fetch("/api/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          event: {
+            event_name: form.event_name,
+            event_date: form.event_date,
+            location: form.location,
+            visibility: EventVisibility.Public, // Public visibility
+            slug: form.slug || undefined,
+            event_description: form.event_description || undefined,
+            event_blurb: form.event_blurb || undefined,
+            cover_image_url: form.cover_image_url || undefined,
+            paid: ticketType === "paid",
+            submission_time_start: form.submission_time_start || undefined,
+            submission_time_cutoff: form.submission_time_cutoff || undefined,
+            participant_capacity: form.participant_capacity
+              ? parseInt(form.participant_capacity, 10)
+              : undefined,
+            event_type: form.event_type || undefined,
+            paywall_content: form.paywall_content || undefined,
+            rules: rules.length > 0 ? rules : undefined,
+            faqs:
+              faqs.length > 0 ? faqs.map(({ id, ...faq }) => faq) : undefined,
+            gallery_images:
+              galleryImages.length > 0
+                ? galleryImages.map(({ id, ...img }) => img) : undefined,
+            approval_status: ApprovalStatus.Approved,
+          },
+          organizerEmails,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast({
+          title: "Publish failed",
+          description: data.error || "Error publishing event.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Store event ID and slug, then navigate to event page
+      setCreatedEventId(data.event.event_id);
+      setCreatedEventSlug(data.event.slug || null);
+      router.push(`/events/${data.event.slug || data.event.event_id}/overview`);
+    } catch {
+      toast({
+        title: "Network error",
+        description: "Unable to publish event.",
+        variant: "destructive",
+      });
+    } finally {
+      setCreating(false);
+    }
+  };
+
+
   const handleSubmitForApproval = async () => {
-    if (!createdEventId) return;
+    if (!createdEventId || isNavigating) return;
     
+    setIsNavigating(true);
     setCreating(true);
     try {
       const res = await fetch("/api/events/request-approval", {
@@ -507,6 +599,7 @@ export default function NewEventPage() {
       
       const data = await res.json();
       if (!res.ok) {
+        setIsNavigating(false);
         toast({
           title: "Request failed",
           description: data.error || "Error submitting for approval.",
@@ -521,8 +614,9 @@ export default function NewEventPage() {
       });
       
       setShowApprovalModal(false);
-      router.push(`/events/${data.event.slug || data.event.event_id}/overview`);
+      router.push(`/events/${createdEventSlug || createdEventId}/overview`);
     } catch {
+      setIsNavigating(false);
       toast({
         title: "Network error",
         description: "Unable to submit for approval.",
@@ -534,9 +628,20 @@ export default function NewEventPage() {
   };
 
   const handleSkipApproval = () => {
+    if (isNavigating) return;
+    setIsNavigating(true);
     setShowApprovalModal(false);
     if (createdEventId) {
-      router.push(`/events/${createdEventId}/overview`);
+      router.push(`/events/${createdEventSlug || createdEventId}/overview`);
+    }
+  };
+
+  const handleModalClose = (open: boolean) => {
+    if (!open && showApprovalModal && !isNavigating) {
+      // Modal is being closed without clicking a button, navigate to event page
+      handleSkipApproval();
+    } else if (open !== showApprovalModal) {
+      setShowApprovalModal(open);
     }
   };
 
@@ -725,16 +830,52 @@ export default function NewEventPage() {
                 >
                   {creating ? "Saving..." : "Save Draft"}
                 </Button>
-                <Button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    handlePublishAsPrivate();
-                  }}
-                  disabled={creating}
-                  className="text-[16px] font-medium flex-1 sm:flex-none bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
-                >
-                  {creating ? "Publishing..." : "Publish as Private Event"}
-                </Button>
+                
+                {isAdmin ? (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        disabled={creating}
+                        className="text-[16px] font-medium flex-1 sm:flex-none bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
+                      >
+                        {creating ? "Publishing..." : "Publish Event"}
+                        <ChevronDown className="ml-2 h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.preventDefault();
+                          handlePublishAsPrivate();
+                        }}
+                        disabled={creating}
+                      >
+                        Publish as Private Event
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.preventDefault();
+                          handlePublishAsPublic();
+                          handleSkipApproval();
+                        }}
+                        disabled={creating}
+                      >
+                        Publish as Public Event
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                ) : (
+                  <Button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handlePublishAsPrivate();
+                    }}
+                    disabled={creating}
+                    className="text-[16px] font-medium flex-1 sm:flex-none bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
+                  >
+                    {creating ? "Publishing..." : "Publish as Private Event"}
+                  </Button>
+                )}
               </div>
             </div>
           </div>
@@ -4258,6 +4399,30 @@ export default function NewEventPage() {
           </Tabs>
         </div>
       </div>
+
+      {/* Request Public Event Modal */}
+      <AlertDialog open={showApprovalModal} onOpenChange={handleModalClose}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Request Public Event</AlertDialogTitle>
+            <AlertDialogDescription>
+              Would you like to request that this event be featured on the home page? 
+              You can always request this later from the event settings.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleSkipApproval}>
+              Skip
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleSubmitForApproval}
+              className="bg-[#4b89ef] hover:bg-[#4b89ef]/90"
+            >
+              Request Approval
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

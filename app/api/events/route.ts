@@ -125,6 +125,8 @@ const eventSchema = z.object({
       })
     )
     .optional(),
+  approval_status: z.nativeEnum(ApprovalStatus).optional(),
+  featured: z.boolean().optional(),
 });
 
 const payloadSchema = z.object({
@@ -186,7 +188,8 @@ export async function POST(req: Request) {
       paid: event.paid ?? null,
       stripe_price_id: event.stripe_price_id ?? null,
       owner_id: user.id, // Set the creator as the owner
-      approval_status: ApprovalStatus.NotSubmitted, // Events default to not_submitted (visibility controls draft/private/public)
+      approval_status: event.approval_status ?? ApprovalStatus.NotSubmitted, // Events default to not_submitted (visibility controls draft/private/public)
+      featured: event.featured ?? false,
     };
 
     const { data: createdEvent, error: insertError } = await supabase

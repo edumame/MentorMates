@@ -290,6 +290,7 @@ export default function ProfilePage() {
                   updated_at: new Date().toISOString(),
                 }))
                 .filter(Boolean) || [],
+            submitted: project.submitted,
           }));
 
         // Set events and projects from API response

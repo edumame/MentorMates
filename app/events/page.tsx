@@ -35,44 +35,16 @@ export default async function EventsPage() {
       if (rolesError) throw rolesError;
 
       const isAdmin = isAdminGlobal;
-
-      // Get event IDs where user is an organizer
-      const organizerEventIds = userRoles
-        .filter((role) => role.role === EventRole.Organizer)
-        .map((role) => role.event_id);
-
-      // Build query for events based on visibility and user role
+      
       let query = supabase.from("events").select("*");
 
       if (isAdmin) {
         // Admins can see all events regardless of approval status
         // No additional filter needed
-      } else if (organizerEventIds.length > 0) {
-        // Organizers can see their own events regardless of approval status
-        // For organizers:
-        // - Public and private events (visible to everyone)
-        // - Draft events where user is an organizer
-        // - Archived events where user is an organizer
-        // - No demo or test events
-        query = query.or(
-          `visibility.in.(${[
-            EventVisibility.Public,
-            EventVisibility.Private,
-          ].join(",")}),` +
-            `and(visibility.eq.${
-              EventVisibility.Draft
-            },event_id.in.(${organizerEventIds.join(",")})),` +
-            `and(visibility.eq.${
-              EventVisibility.Archived
-            },event_id.in.(${organizerEventIds.join(",")}))`
-        );
       } else {
-        // Regular users only see public and private events that are approved
+        // Regular users only see public events that are approved
         query = query
-          .in("visibility", [
-            EventVisibility.Public,
-            EventVisibility.Private,
-          ])
+          .in("visibility", [EventVisibility.Public])
           .eq("approval_status", ApprovalStatus.Approved);
       }
 
