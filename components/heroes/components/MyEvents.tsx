@@ -224,7 +224,7 @@ export function MyEvents() {
       { value: EventVisibility.Draft, label: "Draft" },
       { value: EventVisibility.Archived, label: "Archived" },
     ];
-  }, [isAdmin,]);
+  }, [isAdmin]);
 
   const currentSortLabel = sortOptions.find((opt) => opt.value === sortBy)?.label || "Sort by";
   const currentApprovalLabel = approvalStatusOptions.find((opt) => opt.value === selectedApprovalStatus)?.label || "All statuses";

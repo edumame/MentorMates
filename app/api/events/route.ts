@@ -147,13 +147,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Verify admin via DB function (preferred over client constants)
-    const { data: isAdmin } = await supabase.rpc("is_admin_user", {
-      user_id: user.id,
-    });
-    if (!isAdmin) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    // Verify admin via DB function; no longer needed for general event creation flow
+
+    // const { data: isAdmin } = await supabase.rpc("is_admin_user", {
+    //   user_id: user.id,
+    // });
+    // if (!isAdmin) {
+    //   return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    // }
 
     const json = await req.json();
     const parsed = payloadSchema.safeParse(json);
