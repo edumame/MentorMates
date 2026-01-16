@@ -126,7 +126,7 @@ const ProjectBoard = ({
                         {/* Status Badges - Overlay on Image */}
                         <div className="absolute top-3 left-3 flex items-center gap-2 z-10">
                           <div className="bg-white/95 backdrop-blur-sm border border-gray-200 text-gray-700 px-2.5 py-1 text-xs font-medium rounded-full flex items-center gap-1.5 shadow-sm">
-                            <Sparkles className="w-3 h-3" />
+                            {project.submitted ? <Sparkles className="w-3 h-3" /> : <Loader className="w-3 h-3 animate-spin" />}
                             {project.submitted ? "Submitted" : "Draft"}
                           </div>
                           {isOwner && (

@@ -7,6 +7,7 @@ import { EventItem, ApprovalStatus } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/lib/hooks/use-toast";
 import {
   Loader2,
@@ -41,6 +42,12 @@ export default function AdminPage() {
   );
   const [activeTab, setActiveTab] = useState<"featured" | "approval">(
     "featured"
+  );
+  const [rejectionReasons, setRejectionReasons] = useState<
+    Record<string, string>
+  >({});
+  const [pendingRejections, setPendingRejections] = useState<Set<string>>(
+    new Set()
   );
 
   useEffect(() => {
@@ -108,6 +115,7 @@ export default function AdminPage() {
           event_type,
           featured,
           approval_status,
+          rejection_reason,
           created_at
         `
         )
@@ -115,7 +123,17 @@ export default function AdminPage() {
 
       if (error) throw error;
 
-      setEvents(data || []);
+      const eventsData = data || [];
+      setEvents(eventsData);
+      
+      // Initialize rejection reasons from database
+      const initialRejectionReasons: Record<string, string> = {};
+      eventsData.forEach((event: EventItem & { rejection_reason?: string | null }) => {
+        if (event.rejection_reason) {
+          initialRejectionReasons[event.event_id] = event.rejection_reason;
+        }
+      });
+      setRejectionReasons(initialRejectionReasons);
     } catch (error) {
       console.error("Error loading events:", error);
       toast({
@@ -141,16 +159,33 @@ export default function AdminPage() {
   const updateEventStatus = async (
     eventId: string,
     field: "featured" | "approval_status",
-    value: boolean | ApprovalStatus
+    value: boolean | ApprovalStatus,
+    rejectionReason?: string
   ) => {
     setUpdatingEventId(eventId);
     try {
+      const body: Record<string, unknown> = { [field]: value };
+      
+      // Include rejection_reason if status is being set to rejected
+      if (field === "approval_status" && value === ApprovalStatus.Rejected) {
+        if (!rejectionReason || rejectionReason.trim() === "") {
+          toast({
+            title: "Error",
+            description: "Rejection reason is required when rejecting an event.",
+            variant: "destructive",
+          });
+          setUpdatingEventId(null);
+          return;
+        }
+        body.rejection_reason = rejectionReason;
+      }
+
       const response = await fetch(`/api/admin/events/${eventId}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ [field]: value }),
+        body: JSON.stringify(body),
       });
 
       if (!response.ok) {
@@ -160,10 +195,35 @@ export default function AdminPage() {
 
       // Update local state
       setEvents((prevEvents) =>
-        prevEvents.map((event) =>
-          event.event_id === eventId ? { ...event, [field]: value } : event
-        )
+        prevEvents.map((event) => {
+          if (event.event_id === eventId) {
+            const updated = { ...event, [field]: value };
+            if (field === "approval_status" && value === ApprovalStatus.Rejected && rejectionReason) {
+              (updated as EventItem & { rejection_reason?: string }).rejection_reason = rejectionReason;
+            } else if (field === "approval_status" && value !== ApprovalStatus.Rejected) {
+              delete (updated as EventItem & { rejection_reason?: string }).rejection_reason;
+            }
+            return updated;
+          }
+          return event;
+        })
       );
+
+      // Update rejection reasons state
+      if (field === "approval_status") {
+        if (value === ApprovalStatus.Rejected && rejectionReason) {
+          setRejectionReasons((prev) => ({
+            ...prev,
+            [eventId]: rejectionReason,
+          }));
+        } else if (value !== ApprovalStatus.Rejected) {
+          setRejectionReasons((prev) => {
+            const updated = { ...prev };
+            delete updated[eventId];
+            return updated;
+          });
+        }
+      }
 
       toast({
         title: "Success",
@@ -196,7 +256,7 @@ export default function AdminPage() {
     return null;
   }
 
-  // Separate events into four queues based on approval status
+  // Separate events into queues based on approval status
   const notSubmittedEvents = events.filter(
     (event) =>
       event.approval_status === ApprovalStatus.NotSubmitted ||
@@ -501,13 +561,42 @@ export default function AdminPage() {
                                     event.approval_status ||
                                     ApprovalStatus.NotSubmitted
                                   }
-                                  onValueChange={(value) =>
-                                    updateEventStatus(
-                                      event.event_id,
-                                      "approval_status",
-                                      value as ApprovalStatus
-                                    )
-                                  }
+                                  onValueChange={(value) => {
+                                    const newStatus = value as ApprovalStatus;
+                                    if (newStatus === ApprovalStatus.Rejected) {
+                                      // If rejecting, check if we have a reason
+                                      const reason = rejectionReasons[event.event_id] || "";
+                                      if (!reason || reason.trim() === "") {
+                                        // Mark as pending rejection to show textarea
+                                        setPendingRejections((prev) => new Set(prev).add(event.event_id));
+                                        return;
+                                      }
+                                      // Clear pending flag and update
+                                      setPendingRejections((prev) => {
+                                        const updated = new Set(prev);
+                                        updated.delete(event.event_id);
+                                        return updated;
+                                      });
+                                      updateEventStatus(
+                                        event.event_id,
+                                        "approval_status",
+                                        newStatus,
+                                        reason
+                                      );
+                                    } else {
+                                      // Clear pending rejection if changing away from rejected
+                                      setPendingRejections((prev) => {
+                                        const updated = new Set(prev);
+                                        updated.delete(event.event_id);
+                                        return updated;
+                                      });
+                                      updateEventStatus(
+                                        event.event_id,
+                                        "approval_status",
+                                        newStatus
+                                      );
+                                    }
+                                  }}
                                   disabled={updatingEventId === event.event_id}
                                 >
                                   <SelectTrigger className="w-full">
@@ -544,6 +633,71 @@ export default function AdminPage() {
                                     </SelectItem>
                                   </SelectContent>
                                 </Select>
+                                
+                                {/* Rejection Reason Input */}
+                                {(event.approval_status === ApprovalStatus.Rejected || 
+                                  pendingRejections.has(event.event_id) ||
+                                  rejectionReasons[event.event_id]) && (
+                                  <div className="space-y-2">
+                                    <label className="text-sm font-medium text-gray-700 flex items-center gap-1">
+                                      <XCircle className="w-4 h-4 text-red-500" />
+                                      Rejection Reason
+                                      <span className="text-red-500">*</span>
+                                    </label>
+                                    <Textarea
+                                      placeholder="Enter the reason for rejection..."
+                                      value={rejectionReasons[event.event_id] || ""}
+                                      onChange={(e) => {
+                                        const reason = e.target.value;
+                                        setRejectionReasons((prev) => ({
+                                          ...prev,
+                                          [event.event_id]: reason,
+                                        }));
+                                        
+                                        // If status is already rejected, update immediately
+                                        if (event.approval_status === ApprovalStatus.Rejected && reason.trim()) {
+                                          updateEventStatus(
+                                            event.event_id,
+                                            "approval_status",
+                                            ApprovalStatus.Rejected,
+                                            reason
+                                          );
+                                        }
+                                      }}
+                                      disabled={updatingEventId === event.event_id}
+                                      className="min-h-[100px]"
+                                    />
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => {
+                                        const reason = rejectionReasons[event.event_id] || "";
+                                        if (!reason || reason.trim() === "") {
+                                          toast({
+                                            title: "Error",
+                                            description: "Please enter a rejection reason.",
+                                            variant: "destructive",
+                                          });
+                                          return;
+                                        }
+                                        updateEventStatus(
+                                          event.event_id,
+                                          "approval_status",
+                                          ApprovalStatus.Rejected,
+                                          reason
+                                        );
+                                      }}
+                                      disabled={
+                                        updatingEventId === event.event_id ||
+                                        !rejectionReasons[event.event_id] ||
+                                        rejectionReasons[event.event_id].trim() === ""
+                                      }
+                                      className="w-full"
+                                    >
+                                      Apply Rejection
+                                    </Button>
+                                  </div>
+                                )}
                               </div>
 
                               {/* Event Details */}
@@ -995,13 +1149,42 @@ export default function AdminPage() {
                                                 event.approval_status ||
                                                 ApprovalStatus.NotSubmitted
                                               }
-                                              onValueChange={(value) =>
-                                                updateEventStatus(
-                                                  event.event_id,
-                                                  "approval_status",
-                                                  value as ApprovalStatus
-                                                )
-                                              }
+                                              onValueChange={(value) => {
+                                                const newStatus = value as ApprovalStatus;
+                                                if (newStatus === ApprovalStatus.Rejected) {
+                                                  // If rejecting, check if we have a reason
+                                                  const reason = rejectionReasons[event.event_id] || "";
+                                                  if (!reason || reason.trim() === "") {
+                                                    // Mark as pending rejection to show textarea
+                                                    setPendingRejections((prev) => new Set(prev).add(event.event_id));
+                                                    return;
+                                                  }
+                                                  // Clear pending flag and update
+                                                  setPendingRejections((prev) => {
+                                                    const updated = new Set(prev);
+                                                    updated.delete(event.event_id);
+                                                    return updated;
+                                                  });
+                                                  updateEventStatus(
+                                                    event.event_id,
+                                                    "approval_status",
+                                                    newStatus,
+                                                    reason
+                                                  );
+                                                } else {
+                                                  // Clear pending rejection if changing away from rejected
+                                                  setPendingRejections((prev) => {
+                                                    const updated = new Set(prev);
+                                                    updated.delete(event.event_id);
+                                                    return updated;
+                                                  });
+                                                  updateEventStatus(
+                                                    event.event_id,
+                                                    "approval_status",
+                                                    newStatus
+                                                  );
+                                                }
+                                              }}
                                               disabled={
                                                 updatingEventId ===
                                                 event.event_id
@@ -1053,6 +1236,83 @@ export default function AdminPage() {
                                                 </SelectItem>
                                               </SelectContent>
                                             </Select>
+                                            
+                                            {/* Rejection Reason Input */}
+                                            {(event.approval_status === ApprovalStatus.Rejected || 
+                                              pendingRejections.has(event.event_id) ||
+                                              rejectionReasons[event.event_id]) && (
+                                              <div className="space-y-2">
+                                                <label className="text-sm font-medium text-gray-700 flex items-center gap-1">
+                                                  <XCircle className="w-4 h-4 text-red-500" />
+                                                  Rejection Reason
+                                                  <span className="text-red-500">*</span>
+                                                </label>
+                                                <Textarea
+                                                  placeholder="Enter the reason for rejection..."
+                                                  value={rejectionReasons[event.event_id] || ""}
+                                                  onChange={(e) => {
+                                                    const reason = e.target.value;
+                                                    setRejectionReasons((prev) => ({
+                                                      ...prev,
+                                                      [event.event_id]: reason,
+                                                    }));
+                                                    
+                                                    // If status is already rejected, update immediately
+                                                    if (event.approval_status === ApprovalStatus.Rejected && reason.trim()) {
+                                                      updateEventStatus(
+                                                        event.event_id,
+                                                        "approval_status",
+                                                        ApprovalStatus.Rejected,
+                                                        reason
+                                                      );
+                                                    }
+                                                  }}
+                                                  disabled={updatingEventId === event.event_id}
+                                                  className="min-h-[100px]"
+                                                />
+                                                <Button
+                                                  variant="outline"
+                                                  size="sm"
+                                                  onClick={() => {
+                                                    const reason = rejectionReasons[event.event_id] || "";
+                                                    if (!reason || reason.trim() === "") {
+                                                      toast({
+                                                        title: "Error",
+                                                        description: "Please enter a rejection reason.",
+                                                        variant: "destructive",
+                                                      });
+                                                      return;
+                                                    }
+                                                    // Clear pending flag
+                                                    setPendingRejections((prev) => {
+                                                      const updated = new Set(prev);
+                                                      updated.delete(event.event_id);
+                                                      return updated;
+                                                    });
+                                                    // Clear pending flag
+                                                    setPendingRejections((prev) => {
+                                                      const updated = new Set(prev);
+                                                      updated.delete(event.event_id);
+                                                      return updated;
+                                                    });
+                                                    updateEventStatus(
+                                                      event.event_id,
+                                                      "approval_status",
+                                                      ApprovalStatus.Rejected,
+                                                      reason
+                                                    );
+                                                  }}
+                                                  disabled={
+                                                    updatingEventId === event.event_id ||
+                                                    !rejectionReasons[event.event_id] ||
+                                                    rejectionReasons[event.event_id].trim() === ""
+                                                  }
+                                                  className="w-full"
+                                                >
+                                                  Apply Rejection
+                                                </Button>
+                                              </div>
+                                            )}
                                           </div>
 
                                           {/* Event Details */}

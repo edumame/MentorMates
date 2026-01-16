@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/lib/hooks/use-toast";
-import { EventRole, EventVisibility } from "@/lib/types";
+import { EventRole, EventVisibility, EventDetails } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
 import { getRoleLabel } from "@/features/user/roles/roles";
 import {
@@ -19,14 +19,18 @@ interface PasswordTabProps {
   eventId: string;
   roleLabels?: Record<string, string> | null;
   isArchived: boolean;
+  event: EventDetails;
+  setEvent: React.Dispatch<React.SetStateAction<EventDetails | null>>;
 }
 
-export function PasswordTab({ eventId, roleLabels, isArchived }: PasswordTabProps) {
+export function PasswordTab({ eventId, roleLabels, isArchived, event, setEvent }: PasswordTabProps) {
   const [rolePasswords, setRolePasswords] = useState<Record<EventRole, string>>(
     {} as Record<EventRole, string>
   );
   const [isLoading, setIsLoading] = useState(false);
-  const [visibility, setVisibility] = useState<EventVisibility | null>(null);
+  const [visibility, setVisibility] = useState<EventVisibility | null>(
+    event?.visibility || null
+  );
   const { toast } = useToast();
 
   // List of available roles from the EventRole enum, excluding Admin
@@ -37,24 +41,12 @@ export function PasswordTab({ eventId, roleLabels, isArchived }: PasswordTabProp
     EventRole.Organizer
   ] as EventRole[];
 
+  // Update visibility when event prop changes
   useEffect(() => {
-    // Fetch the current event visibility
-    const fetchEventVisibility = async () => {
-      const { data, error } = await supabase
-        .from("events")
-        .select("visibility")
-        .eq("event_id", eventId)
-        .single();
-
-      if (error) {
-        console.error("Error fetching event visibility:", error);
-      } else if (data) {
-        setVisibility(data.visibility);
-      }
-    };
-
-    fetchEventVisibility();
-  }, [eventId]);
+    if (event?.visibility) {
+      setVisibility(event.visibility);
+    }
+  }, [event?.visibility]);
 
   const handlePasswordChange = (role: EventRole, password: string) => {
     setRolePasswords((prev) => ({
@@ -130,6 +122,12 @@ export function PasswordTab({ eventId, roleLabels, isArchived }: PasswordTabProp
 
       setVisibility(value);
 
+      // Update parent component's event state
+      setEvent((prev) => {
+        if (!prev) return prev;
+        return { ...prev, visibility: value };
+      });
+
       toast({
         title: "Success",
         description: "Event visibility updated successfully",
@@ -164,9 +162,8 @@ export function PasswordTab({ eventId, roleLabels, isArchived }: PasswordTabProp
               <SelectValue placeholder="Select visibility" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={EventVisibility.Public}>Public</SelectItem>
               <SelectItem value={EventVisibility.Private}>
-                Private (Password Protected)
+                Private
               </SelectItem>
               <SelectItem value={EventVisibility.Draft}>Draft</SelectItem>
             </SelectContent>

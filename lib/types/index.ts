@@ -123,7 +123,7 @@ export type EventItem = {
   finalist_recommendation_enabled?: boolean | null;
   event_type?: string;
   featured?: boolean; // Whether this event is featured on homepage
-  approval_status?: ApprovalStatus; // Approval status: not_submitted, submitted, or approved
+  approval_status?: ApprovalStatus; // Approval status: not_submitted, submitted, approved, or rejected. Featured is controlled separately via the featured boolean field.
   created_at?: string; // Timestamp when event was created
 };
 
