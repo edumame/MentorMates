@@ -208,7 +208,6 @@ export async function GET(
     // Fetch events where user has roles
     // If the logged-in user is viewing their own profile, show all events where the user has a role
     // Otherwise, only show public and approved events where the user has a role
-    const isOwnProfile = loggedInUser.user?.id === userId;
     const visibilityFilter = isOwnProfile
       ? [
           EventVisibility.Public,
