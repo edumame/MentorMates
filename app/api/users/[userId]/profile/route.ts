@@ -35,6 +35,7 @@ export async function GET(
 
     if (profileError) {
       console.error("Error fetching user profile:", profileError);
+      
       return NextResponse.json(
         {
           error: "Failed to fetch user profile",
