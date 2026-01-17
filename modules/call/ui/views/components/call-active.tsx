@@ -1,13 +1,15 @@
 import Link from "next/link";
 import Image from "next/image";
 import { CallControls, SpeakerLayout } from "@stream-io/video-react-sdk";
+import ScreenCapture from "./screen-capture";
 
 interface Props {
     onLeave: () => void;
+    meetingId: string;
     meetingName: string;
 };
 
-export const CallActive = ({ onLeave, meetingName }: Props) => {
+export const CallActive = ({ onLeave, meetingId, meetingName }: Props) => {
     return (
         <div className="flex flex-col justify-between p-4 h-full text-white">
             <div className="bg-[#101213] rounded-full p-4 flex items-center gap-4">
@@ -17,6 +19,7 @@ export const CallActive = ({ onLeave, meetingName }: Props) => {
                 <h4 className="text-base">{meetingName}</h4>
             </div>
             <SpeakerLayout />
+            <ScreenCapture meetingId={meetingId} />
             <div className="bg-[#101213] rounded-full px-4">
                 <CallControls onLeave={onLeave} />
             </div>
