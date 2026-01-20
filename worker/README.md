@@ -24,6 +24,22 @@ pnpm build
 pnpm start
 ```
 
+Deploy to Render
+
+Docker
+
+- Go to https://dashboard.render.com and create a new **Web Service**.
+- Connect your Git provider and select this repository and branch.
+- For "Environment", choose **Docker**.
+- Set the **Dockerfile Path** to `worker/Dockerfile` (or the path to the worker Dockerfile in this repo).
+- Set the **Build Context** to the repository root or `worker` if needed.
+- Add the required environment variables in Render: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `OPENAI_API_KEY`, `STREAM_VIDEO_API_KEY`, `STREAM_VIDEO_SECRET_KEY`, and any others you use.
+- Create the service — Render will build using the Dockerfile and run your container. Render will provide the `PORT` environment variable which the app will use.
+
+Notes
+- Render sets the `PORT` environment variable at runtime; keep `PORT` respected by the app (default 8080).
+- Use the Docker option if you want an identical environment to local and to use the `worker/Dockerfile`.
+
 Docker
 ```bash
 docker build -t screen-vision-worker worker
@@ -34,41 +50,4 @@ Endpoints
 - `GET /health` -> { ok: true }
 - `POST /session/start` body: `{ meetingId, agentUserId, instructions }`
 - `POST /session/stop` body: `{ meetingId }`
-
-Fly deploy (buildpacks, no Docker)
-
-- Ensure `flyctl` installed and you're logged in:
-
-```bash
-fly auth login
-```
-
-- Launch (creates `fly.toml` and app) without deploying:
-
-```bash
-cd worker
-fly launch --no-deploy
-```
-
-- Set required secrets (replace values):
-
-```bash
-fly secrets set \
-	OPENAI_API_KEY="..." \
-	NEXT_PUBLIC_STREAM_VIDEO_API_KEY="..." \
-	STREAM_VIDEO_SECRET_KEY="..." \
-	NEXT_PUBLIC_SUPABASE_URL="..." \
-	SUPABASE_SERVICE_ROLE_KEY="..."
-```
-
-- Deploy:
-
-```bash
-fly deploy
-```
-
-Notes:
-- `fly.toml` uses the Heroku builder: `heroku/builder:24` (buildpacks). No Dockerfile is required.
-- The worker listens on `process.env.PORT` (default 4001) to match Fly `internal_port`.
-- If you need a specific pnpm version, set `PNPM_VERSION` in the `[env]` section of `fly.toml` before deploying.
 
