@@ -84,12 +84,8 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Agent not found" }, { status: 404 });
         }
 
-        const call = streamVideo.video.call("default", meetingId);
-        const realtimeClient = await streamVideo.video.connectOpenAi({
-            call,
-            openAiApiKey: process.env.OPENAI_API_KEY!,
-            agentUserId: existingAgent.id,
-        });
+        // Compute Stream callId (real call identifier) and keep meetingId for DB lookups
+        const callId = (event as any).call_cid?.split(":")[1] || (event as any).call?.id;
 
         // If the meeting is linked to a project, fetch project title and description
         let projectContext = "";
@@ -114,19 +110,46 @@ export async function POST(req: NextRequest) {
 
         const instructions = `${existingAgent.instructions || ""}${projectContext}`;
 
-        realtimeClient.updateSession({
-            instructions,
-            input_audio_transcription: {
-                model: "whisper-1",
-            },
-            turn_detection: { type: "server_vad" },
-        });
+        // Delegate OpenAI realtime session management to external worker
+        const workerUrl = process.env.SCREEN_VISION_WORKER_URL;
+        if (!workerUrl) {
+            return NextResponse.json({ error: 'Missing SCREEN_VISION_WORKER_URL' }, { status: 500 });
+        }
+
+        try {
+            const resp = await fetch(`${workerUrl.replace(/\/$/, '')}/session/start`, {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ meetingId, callId, agentUserId: existingAgent.id, instructions }),
+            });
+
+            if (!resp.ok) {
+                const text = await resp.text().catch(() => '<no body>');
+                console.error('worker /session/start failed', { meetingId, callId, status: resp.status, body: text });
+            }
+        } catch (e) {
+            console.error('failed to call worker /session/start', { meetingId, callId, err: String(e) });
+        }
+
+        // worker will update session with instructions and start polling
     } else if (eventType === "call.session_participant_left") {
         const event = payload as CallSessionParticipantLeftEvent;
         const meetingId = event.call_cid.split(":")[1];
 
         const call = streamVideo.video.call("default", meetingId);
         await call.end();
+        try {
+            const workerUrl2 = process.env.SCREEN_VISION_WORKER_URL;
+            if (workerUrl2) {
+                await fetch(`${workerUrl2.replace(/\/$/, '')}/session/stop`, {
+                    method: 'POST',
+                    headers: { 'content-type': 'application/json' },
+                    body: JSON.stringify({ meetingId }),
+                });
+            }
+        } catch (e) {
+            console.warn('failed to notify worker about participant_left', e);
+        }
     } else if (eventType === "call.session_ended") {
         const event = payload as CallEndedEvent;
         const meetingId = event.call.custom?.meetingId;
@@ -139,6 +162,19 @@ export async function POST(req: NextRequest) {
             status: "processing",
             ended_at: new Date().toISOString(),
         }).eq("id", meetingId).eq("status", "active");
+
+        try {
+            const workerUrl3 = process.env.SCREEN_VISION_WORKER_URL;
+            if (workerUrl3) {
+                await fetch(`${workerUrl3.replace(/\/$/, '')}/session/stop`, {
+                    method: 'POST',
+                    headers: { 'content-type': 'application/json' },
+                    body: JSON.stringify({ meetingId }),
+                });
+            }
+        } catch (e) {
+            console.warn('failed to notify worker about session_ended', e);
+        }
     } else if (eventType === "call.transcription_ready") {
         const event = payload as CallTranscriptionReadyEvent;
         const meetingId = event.call_cid.split(":")[1];

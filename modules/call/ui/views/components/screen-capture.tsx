@@ -196,22 +196,22 @@ export const ScreenCapture: React.FC<Props> = ({ meetingId }) => {
     }
   }, [meetingId])
 
-  return (
-  <img
-    id="screen-capture-debug"
-    alt="debug"
-    style={{
-      position: "fixed",
-      right: 12,
-      bottom: 12,
-      width: 260,
-      border: "1px solid rgba(255,255,255,0.2)",
-      zIndex: 9999,
-      background: "#000",
-    }}
-  />
-);
-
+  // return (
+  //   <img
+  //     id="screen-capture-debug"
+  //     alt="debug"
+  //     style={{
+  //       position: "fixed",
+  //       right: 12,
+  //       bottom: 12,
+  //       width: 260,
+  //       border: "1px solid rgba(255,255,255,0.2)",
+  //       zIndex: 9999,
+  //       background: "#000",
+  //     }}
+  //   />
+  // );
+  return null;
 }
 
 export default ScreenCapture
