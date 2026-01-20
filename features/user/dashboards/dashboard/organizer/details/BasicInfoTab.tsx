@@ -295,6 +295,15 @@ export function BasicInfoTab({
         </Alert>
       )}
 
+      {/* Save Button - Moved to top */}
+      <Button
+        onClick={handleBasicInfoUpdate}
+        disabled={saving || isArchived}
+        className="w-full"
+      >
+        {saving ? "Saving..." : "Save Changes"}
+      </Button>
+
       {/* Large Event Title Input */}
       <input
         type="text"
@@ -857,14 +866,6 @@ export function BasicInfoTab({
           </p>
         </div>
       </div>
-
-      <Button
-        onClick={handleBasicInfoUpdate}
-        disabled={saving || isArchived}
-        className="w-full mt-4"
-      >
-        {saving ? "Saving..." : "Save Basic Information"}
-      </Button>
 
       {/* Archive Section */}
       <div className="mt-8 border-t pt-6">
