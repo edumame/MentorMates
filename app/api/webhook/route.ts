@@ -24,12 +24,6 @@ function verifySignatureWithSDK(body: string, signature: string): boolean {
 };
 
 export async function POST(req: NextRequest) {
-    console.log("[webhook] hit", {
-        host: req.headers.get("host"),
-        url: req.url,
-        envWorkerUrlSet: !!process.env.SCREEN_VISION_WORKER_URL,
-    });
-
     const supabase = await createSupabaseServiceClient();
     const signature = req.headers.get("x-signature");
     const apiKey = req.headers.get("x-api-key");
