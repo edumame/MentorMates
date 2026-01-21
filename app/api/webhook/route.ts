@@ -119,15 +119,6 @@ export async function POST(req: NextRequest) {
         }
 
         try {
-            console.log("call.session_started -> worker start", {
-                workerUrl: workerUrl,
-                workerStartUrl: `${workerUrl.replace(/\/$/, '')}/session/start`,
-                meetingId,
-                callId,
-                agentUserId: existingAgent.id,
-            });
-            if (!callId) console.error("Missing callId derived from event");
-
             const resp = await fetch(`${workerUrl.replace(/\/$/, '')}/session/start`, {
                 method: 'POST',
                 headers: { 'content-type': 'application/json' },

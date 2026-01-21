@@ -32,11 +32,6 @@ function injectScreenAsUserMessage(realtimeClient: RealtimeClient, text: string)
 const app = express()
 app.use(express.json({ limit: '2mb' }))
 
-app.use((req, _res, next) => {
-  console.log(`[REQ] ${req.method} ${req.path}`);
-  next();
-});
-
 const PORT = process.env.PORT ? Number(process.env.PORT) : 4001
 
 const SUPABASE_URL =
