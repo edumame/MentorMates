@@ -40,7 +40,6 @@ app.get('/health', (_req, res) => {
     res.json({ ok: true });
 });
 app.post('/session/start', async (req, res) => {
-    console.log("[/session/start] hit", { at: new Date().toISOString(), body: req.body });
     try {
         const { meetingId, callId, agentUserId, instructions } = req.body || {};
         if (!meetingId || !agentUserId || !callId)
