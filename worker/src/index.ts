@@ -89,6 +89,10 @@ app.post('/session/start', async (req: Request, res: Response) => {
       turn_detection: { type: 'server_vad' },
     })
 
+    realtimeClient.on("error", (error: Error) => {
+      console.log(`received error`, error);
+    });
+
     const record: SessionRecord = { realtimeClient, intervalId: null, lastUpdatedAt: null, lastSummary: null }
     sessions.set(meetingId, record)
 

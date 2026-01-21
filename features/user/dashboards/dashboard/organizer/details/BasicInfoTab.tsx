@@ -885,7 +885,7 @@ export function BasicInfoTab({
             <AlertDialogTrigger asChild>
               <Button
                 variant="destructive"
-                disabled={archiving || isArchived}
+                disabled={archiving}
                 className="shrink-0 whitespace-nowrap w-full sm:w-auto"
               >
                 {archiving

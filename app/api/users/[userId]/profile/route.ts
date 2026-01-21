@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
+import { ApprovalStatus, EventVisibility } from "@/lib/types";
 
 export async function GET(
   request: NextRequest,
@@ -201,9 +202,31 @@ export async function GET(
               updated_at: new Date().toISOString(),
             }))
             .filter(Boolean) || [],
+          submitted: project.submitted,
       }));
 
     // Fetch events where user has roles
+    // If the logged-in user is viewing their own profile, show all events where the user has a role
+    // Otherwise, only show public and approved events where the user has a role
+    const visibilityFilter = isOwnProfile
+      ? [
+          EventVisibility.Public,
+          EventVisibility.Private,
+          EventVisibility.Draft,
+          EventVisibility.Archived,
+          EventVisibility.Test,
+          EventVisibility.Demo,
+        ]
+      : [EventVisibility.Public];
+    const approvalFilter = isOwnProfile
+      ? [
+          ApprovalStatus.Approved,
+          ApprovalStatus.NotSubmitted,
+          ApprovalStatus.Submitted,
+          ApprovalStatus.Rejected,
+        ]
+      : [ApprovalStatus.Approved];
+
     const { data: events, error: eventsError } = await supabase
       .from("events")
       .select(
@@ -221,11 +244,13 @@ export async function GET(
         role_labels,
         user_event_roles!inner (
           role
-        )
+        ),
+        approval_status
       `
       )
       .eq("user_event_roles.user_id", userId)
-      .in("visibility", ["public", "private", "draft"]);
+      .in("visibility", visibilityFilter)
+      .in("approval_status", approvalFilter);
 
     if (eventsError) {
       console.error("Error fetching events:", eventsError);
