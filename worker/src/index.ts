@@ -1,23 +1,30 @@
 import express, { Request, Response } from 'express'
 import { createClient } from '@supabase/supabase-js'
 import { StreamClient } from '@stream-io/node-sdk'
+import { RealtimeClient } from '@stream-io/openai-realtime-api'
+
+type RealtimeWS = {
+  readyState: number;
+  send: (payload: string) => void;
+}
 
 type SessionRecord = {
-  realtimeClient: any;
+  realtimeClient: RealtimeClient;
   intervalId: ReturnType<typeof setInterval> | null;
   lastUpdatedAt?: string | null;
   lastSummary?: string | null;
   lastPushedAt?: number;
 }
 
-function wsSend(realtimeClient: any, event: any) {
-  const ws = realtimeClient?.realtime?.ws;
+function wsSend(realtimeClient: unknown, event: Record<string, unknown>) {
+  const rc = realtimeClient as { realtime?: { ws?: RealtimeWS } } | undefined
+  const ws = rc?.realtime?.ws
   if (!ws) throw new Error("Realtime WS missing");
   if (ws.readyState !== 1) throw new Error(`Realtime WS not open (state=${ws.readyState})`);
   ws.send(JSON.stringify(event));
 }
 
-function injectScreenAsUserMessage(realtimeClient: any, text: string) {
+function injectScreenAsUserMessage(realtimeClient: unknown, text: string) {
   wsSend(realtimeClient, {
     type: "conversation.item.create",
     item: {
@@ -27,6 +34,8 @@ function injectScreenAsUserMessage(realtimeClient: any, text: string) {
     },
   });
 }
+
+// helper removed: inline calls used below to avoid ambiguous symbol typing
 
 const app = express()
 app.use(express.json({ limit: '2mb' }))
@@ -59,25 +68,25 @@ app.post('/session/start', async (req: Request, res: Response) => {
     if (!meetingId || !agentUserId || !callId) return res.status(400).json({ error: 'missing params' })
 
     // Stop existing if present (keyed by meetingId)
-    if (sessions.has(meetingId)) {
+      if (sessions.has(meetingId)) {
       const existing = sessions.get(meetingId)!
       if (existing.intervalId) clearInterval(existing.intervalId)
-      try { existing.realtimeClient?.disconnect?.() } catch {}
+      try { (existing.realtimeClient as { disconnect?: () => Promise<unknown> | void }).disconnect?.() } catch {}
       sessions.delete(meetingId)
     }
 
     const call = streamVideo.video.call('default', callId)
 
-    let realtimeClient: any
+    let realtimeClient: RealtimeClient
     try {
       realtimeClient = await streamVideo.video.connectOpenAi({
         call,
         openAiApiKey: process.env.OPENAI_API_KEY || '',
         agentUserId,
       })
-      console.log("realtimeClient keys:", Object.keys(realtimeClient));
-      console.log("conversation keys:", Object.keys(realtimeClient.conversation || {}));
-      console.log("realtime keys:", Object.keys(realtimeClient.realtime || {}));
+      console.log("realtimeClient keys:", Object.keys(realtimeClient|| {}));
+      console.log("conversation keys:", Object.keys((realtimeClient)?.conversation || {}));
+      console.log("realtime keys:", Object.keys((realtimeClient)?.realtime || {}));
     } catch (e) {
       console.error('session/start failed', { meetingId, callId, err: String(e) })
       return res.status(500).json({ ok: false, error: String(e) })
@@ -87,9 +96,9 @@ app.post('/session/start', async (req: Request, res: Response) => {
       instructions,
       input_audio_transcription: { model: 'whisper-1' },
       turn_detection: { type: 'server_vad' },
-    })
+    });
 
-    realtimeClient.on("error", (error: Error) => {
+    (realtimeClient as { on?: (event: string, handler: (...args: unknown[]) => void) => void }).on?.("error", (error?: unknown) => {
       console.log(`received error`, error);
     });
 
@@ -142,9 +151,15 @@ app.post('/session/start', async (req: Request, res: Response) => {
 
 
         try {
-          await realtimeClient.updateSession({
-            instructions: `${baseInstructions}\n\nLatest shared screen:\n${screen}\n`,
-          });
+          {
+            const c = realtimeClient as { updateSession?: (...args: unknown[]) => unknown } | undefined
+            const fn = c?.updateSession
+            if (typeof fn === 'function') {
+              await Promise.resolve(fn.call(c, {
+                instructions: `${baseInstructions}\n\nLatest shared screen:\n${screen}\n`,
+              }) as unknown)
+            }
+          }
           console.log(`[${meetingId}] updateSession OK: ${screen.slice(0, 120)}`);
         } catch (e) {
           console.error(`[${meetingId}] updateSession FAIL`, e);
@@ -182,10 +197,10 @@ app.post('/session/stop', async (req: Request, res: Response) => {
     if (!record) return res.json({ ok: true })
 
     if (record.intervalId) clearInterval(record.intervalId)
-    try {
-      await record.realtimeClient?.disconnect?.()
+      try {
+      await (record.realtimeClient as { disconnect?: () => Promise<unknown> | void }).disconnect?.()
     } catch (e) {
-      try { await record.realtimeClient?.close?.() } catch {}
+      try { await (record.realtimeClient as { close?: () => Promise<unknown> | void }).close?.() } catch {}
     }
 
     sessions.delete(meetingId)

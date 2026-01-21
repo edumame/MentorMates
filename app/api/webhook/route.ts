@@ -85,7 +85,9 @@ export async function POST(req: NextRequest) {
         }
 
         // Compute Stream callId (real call identifier) and keep meetingId for DB lookups
-        const callId = (event as any).call_cid?.split(":")[1] || (event as any).call?.id;
+        type CallReference = { call_cid?: string; call?: { id?: string } };
+        const callRef = event as unknown as CallReference;
+        const callId = callRef.call_cid?.split(":")[1] || callRef.call?.id;
 
         // If the meeting is linked to a project, fetch project title and description
         let projectContext = "";
@@ -270,8 +272,9 @@ export async function POST(req: NextRequest) {
     //         const channel = streamChat.channel("messaging", channelId);
     //         await channel.watch();
 
-    //         const previousMessages = channel.state.messages.slice(-5).filter((msg: any) => msg.text && msg.text.trim() !== "")
-    //             .map<ChatCompletionMessageParam>((message: any) => ({
+    //         type StreamMessage = { text?: string; user?: { id?: string } };
+    //         const previousMessages = channel.state.messages.slice(-5).filter((msg: StreamMessage) => msg.text && msg.text.trim() !== "")
+    //             .map<ChatCompletionMessageParam>((message: StreamMessage) => ({
     //                 role: message.user?.id === existingAgent.id ? "assistant" : "user",
     //                 content: message.text || "",
     //             }));
