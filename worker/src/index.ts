@@ -283,7 +283,42 @@ app.post('/agent/pause', async (req: Request, res: Response) => {
     record.paused = true
     // inspect ws
     const { ws, readyState, isOpen } = getWsState(record.realtimeClient)
-    console.log(`[${meetingId}] pause: ws present=${!!ws} readyState=${readyState}`)
+    console.log(`[${meetingId}] pause called; meetingId=${meetingId} callId=${record.callId} agentUserId=${record.agentUserId} ws present=${!!ws} readyState=${readyState}`)
+
+    // Try to hard-mute at the call level so agent audio isn't published into Stream recordings/transcription
+    let permissionOk = false
+    try {
+      if (record.callId && record.agentUserId) {
+        const call = streamVideo.video.call('default', record.callId)
+        const c: any = call as any
+        // Prefer revokePermissions if available
+        if (typeof c.revokePermissions === 'function') {
+          try {
+            await c.revokePermissions(record.agentUserId, ['SEND_AUDIO'])
+            console.log(`[${meetingId}] revokePermissions(SEND_AUDIO) succeeded for ${record.agentUserId}`)
+            permissionOk = true
+          } catch (e) {
+            console.warn(`[${meetingId}] revokePermissions failed`, e)
+          }
+        }
+
+        // Fallback: update user permissions to remove SEND_AUDIO
+        if (!permissionOk && typeof c.updateUserPermissions === 'function') {
+          try {
+            // attempt to set permissions explicitly (SDKs differ; best-effort)
+            await c.updateUserPermissions(record.agentUserId, { send_audio: false })
+            console.log(`[${meetingId}] updateUserPermissions send_audio=false succeeded for ${record.agentUserId}`)
+            permissionOk = true
+          } catch (e) {
+            console.warn(`[${meetingId}] updateUserPermissions failed`, e)
+          }
+        }
+      } else {
+        console.warn(`[${meetingId}] pause: missing callId or agentUserId, cannot change call-level permissions`, { callId: record.callId, agentUserId: record.agentUserId })
+      }
+    } catch (e) {
+      console.warn(`[${meetingId}] pause: permission change attempt threw`, e)
+    }
 
     // Best-effort: attempt to interrupt any ongoing speech/requests using supported SDK methods.
     try {
@@ -325,7 +360,7 @@ app.post('/agent/pause', async (req: Request, res: Response) => {
     }
 
     const { readyState: afterReadyState, isOpen: afterIsOpen } = getWsState(record.realtimeClient)
-    console.log(`[${meetingId}] pause: updateSession succeeded=${updateOk} wsPresent=${!!afterIsOpen} readyState=${afterReadyState}`)
+    console.log(`[${meetingId}] pause: updateSession succeeded=${updateOk} permissionMuted=${permissionOk} wsPresent=${!!afterIsOpen} readyState=${afterReadyState}`)
 
     // TODO: If we want to instantly cut audio mid-sentence in future, use supported SDK methods
     // (interrupt/cancel APIs) rather than sending raw protocol events.
@@ -348,7 +383,7 @@ app.post('/agent/resume', async (req: Request, res: Response) => {
     if (!record) return res.status(404).json({ ok: false })
 
     const { ws, readyState, isOpen } = getWsState(record.realtimeClient)
-    console.log('RESUME HIT', meetingId, 'wsReadyState=', readyState)
+    console.log(`RESUME HIT meetingId=${meetingId} callId=${record.callId} agentUserId=${record.agentUserId} wsReadyState=${readyState}`)
 
     if (!isOpen) {
       console.warn(`[${meetingId}] realtime ws not open, attempting reconnect`)
@@ -395,6 +430,38 @@ app.post('/agent/resume', async (req: Request, res: Response) => {
       record.paused = false
     }
 
+    // Restore call-level SEND_AUDIO permission so agent can publish audio again
+    let permissionRestoreOk = false
+    try {
+      if (record.callId && record.agentUserId) {
+        const call = streamVideo.video.call('default', record.callId)
+        const c: any = call as any
+        if (typeof c.grantPermissions === 'function') {
+          try {
+            await c.grantPermissions(record.agentUserId, ['SEND_AUDIO'])
+            console.log(`[${meetingId}] grantPermissions(SEND_AUDIO) succeeded for ${record.agentUserId}`)
+            permissionRestoreOk = true
+          } catch (e) {
+            console.warn(`[${meetingId}] grantPermissions failed`, e)
+          }
+        }
+
+        if (!permissionRestoreOk && typeof c.updateUserPermissions === 'function') {
+          try {
+            await c.updateUserPermissions(record.agentUserId, { send_audio: true })
+            console.log(`[${meetingId}] updateUserPermissions send_audio=true succeeded for ${record.agentUserId}`)
+            permissionRestoreOk = true
+          } catch (e) {
+            console.warn(`[${meetingId}] updateUserPermissions restore failed`, e)
+          }
+        }
+      } else {
+        console.warn(`[${meetingId}] resume: missing callId or agentUserId, cannot restore call-level permissions`, { callId: record.callId, agentUserId: record.agentUserId })
+      }
+    } catch (e) {
+      console.warn(`[${meetingId}] resume: permission restore attempt threw`, e)
+    }
+
     // Optional: replay last prompt
     let promptToReplay = record.lastPrompt || null
     if (!promptToReplay) {
@@ -421,8 +488,8 @@ app.post('/agent/resume', async (req: Request, res: Response) => {
       console.error('supabase update agent_paused false failed', e)
     }
 
-    console.log(`[${meetingId}] resume: unmuteOk=${unmuteOk} wsReadyState=${getWsState(record.realtimeClient).readyState}`)
-    return res.json({ ok: true, paused: !unmuteOk ? true : false, replayed })
+    console.log(`[${meetingId}] resume: unmuteOk=${unmuteOk} permissionRestored=${permissionRestoreOk} wsReadyState=${getWsState(record.realtimeClient).readyState}`)
+    return res.json({ ok: true, paused: !unmuteOk ? true : false, replayed, permissionRestored: permissionRestoreOk })
   } catch (err) {
     console.error('/agent/resume error', err)
     res.status(500).json({ error: 'internal' })
