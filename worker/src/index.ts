@@ -312,39 +312,18 @@ app.post('/agent/pause', async (req: Request, res: Response) => {
     let permissionOk = false
     try {
       if (record.callId && record.agentUserId) {
-        let call: unknown
+        const payload = {
+          call_cid: `default:${record.callId}`,
+          user_id: record.agentUserId,
+          revoke_permissions: [OwnCapability.SEND_AUDIO],
+        }
+        console.log(`[${meetingId}] pause: updateUserPermissions payload=`, payload)
         try {
-          call = streamVideo.video.call("default", record.callId);
-          await (call as unknown as CallModeration).updateUserPermissions?.({
-            user_id: record.agentUserId,
-            revoke_permissions: [OwnCapability.SEND_AUDIO],
-          });
-          console.log(`[${meetingId}] agent audio permission revoked`);
+          await streamVideo.video.updateUserPermissions(payload as any)
+          console.log(`[${meetingId}] updateUserPermissions revoke_permissions succeeded for ${record.agentUserId}`)
+          permissionOk = true
         } catch (e) {
-          console.error("updateUserPermissions mute failed", e);
-        }
-        const c = call as unknown as CallModeration
-        // Prefer revokePermissions if available
-        if (typeof c.revokePermissions === 'function') {
-          try {
-            await c.revokePermissions(record.agentUserId, ['SEND_AUDIO'])
-            console.log(`[${meetingId}] revokePermissions(SEND_AUDIO) succeeded for ${record.agentUserId}`)
-            permissionOk = true
-          } catch (e) {
-            console.warn(`[${meetingId}] revokePermissions failed`, e)
-          }
-        }
-
-        // Fallback: update user permissions to remove SEND_AUDIO
-        if (!permissionOk && typeof c.updateUserPermissions === 'function') {
-          try {
-            // attempt to set permissions explicitly (SDKs differ; best-effort)
-            await c.updateUserPermissions(record.agentUserId, { send_audio: false })
-            console.log(`[${meetingId}] updateUserPermissions send_audio=false succeeded for ${record.agentUserId}`)
-            permissionOk = true
-          } catch (e) {
-            console.warn(`[${meetingId}] updateUserPermissions failed`, e)
-          }
+          console.warn(`[${meetingId}] updateUserPermissions revoke_permissions failed`, e)
         }
       } else {
         console.warn(`[${meetingId}] pause: missing callId or agentUserId, cannot change call-level permissions`, { callId: record.callId, agentUserId: record.agentUserId })
@@ -450,6 +429,30 @@ app.post('/agent/resume', async (req: Request, res: Response) => {
       startPollLoop(meetingId, record)
     }
 
+    // Restore call-level SEND_AUDIO permission so agent can publish audio again
+    let permissionRestoreOk = false
+    try {
+      if (record.callId && record.agentUserId) {
+        const payload = {
+          call_cid: `default:${record.callId}`,
+          user_id: record.agentUserId,
+          grant_permissions: [OwnCapability.SEND_AUDIO],
+        }
+        console.log(`[${meetingId}] resume: updateUserPermissions payload=`, payload)
+        try {
+          await streamVideo.video.updateUserPermissions(payload as any)
+          console.log(`[${meetingId}] updateUserPermissions grant_permissions succeeded for ${record.agentUserId}`)
+          permissionRestoreOk = true
+        } catch (e) {
+          console.warn(`[${meetingId}] updateUserPermissions grant_permissions failed`, e)
+        }
+      } else {
+        console.warn(`[${meetingId}] resume: missing callId or agentUserId, cannot restore call-level permissions`, { callId: record.callId, agentUserId: record.agentUserId })
+      }
+    } catch (e) {
+      console.warn(`[${meetingId}] resume: permission restore attempt threw`, e)
+    }
+
     // restore normal instructions AND restore turn detection (unmute)
     let unmuteOk = false
     try {
@@ -461,48 +464,6 @@ app.post('/agent/resume', async (req: Request, res: Response) => {
 
     if (unmuteOk) {
       record.paused = false
-    }
-
-    // Restore call-level SEND_AUDIO permission so agent can publish audio again
-    let permissionRestoreOk = false
-    try {
-      if (record.callId && record.agentUserId) {
-        let call: unknown
-        try {
-          call = streamVideo.video.call("default", record.callId);
-          await (call as unknown as CallModeration).updateUserPermissions?.({
-            user_id: record.agentUserId,
-            grant_permissions: [OwnCapability.SEND_AUDIO],
-          });
-          console.log(`[${meetingId}] agent audio permission restored`);
-        } catch (e) {
-          console.error("updateUserPermissions restore failed", e);
-        }
-        const c = call as unknown as CallModeration
-        if (typeof c.grantPermissions === 'function') {
-          try {
-            await c.grantPermissions(record.agentUserId, ['SEND_AUDIO'])
-            console.log(`[${meetingId}] grantPermissions(SEND_AUDIO) succeeded for ${record.agentUserId}`)
-            permissionRestoreOk = true
-          } catch (e) {
-            console.warn(`[${meetingId}] grantPermissions failed`, e)
-          }
-        }
-
-        if (!permissionRestoreOk && typeof c.updateUserPermissions === 'function') {
-          try {
-            await c.updateUserPermissions(record.agentUserId, { send_audio: true })
-            console.log(`[${meetingId}] updateUserPermissions send_audio=true succeeded for ${record.agentUserId}`)
-            permissionRestoreOk = true
-          } catch (e) {
-            console.warn(`[${meetingId}] updateUserPermissions restore failed`, e)
-          }
-        }
-      } else {
-        console.warn(`[${meetingId}] resume: missing callId or agentUserId, cannot restore call-level permissions`, { callId: record.callId, agentUserId: record.agentUserId })
-      }
-    } catch (e) {
-      console.warn(`[${meetingId}] resume: permission restore attempt threw`, e)
     }
 
     // Optional: replay last prompt
