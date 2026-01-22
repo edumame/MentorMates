@@ -228,6 +228,8 @@ app.post('/session/stop', async (req: Request, res: Response) => {
 app.post("/agent/pause", (req, res) => {
   const { meetingId } = req.body;
   const record = sessions.get(meetingId);
+  console.log("PAUSE HIT", meetingId, "hasSession=", sessions.has(meetingId));
+
   if (!record) return res.status(404).json({ ok: false });
 
   record.paused = true;
