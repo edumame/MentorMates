@@ -135,23 +135,7 @@ export async function POST(req: NextRequest) {
 
         // worker will update session with instructions and start polling
     } else if (eventType === "call.session_participant_left") {
-        const event = payload as CallSessionParticipantLeftEvent;
-        const meetingId = event.call_cid.split(":")[1];
-
-        const call = streamVideo.video.call("default", meetingId);
-        await call.end();
-        try {
-            const workerUrl2 = process.env.SCREEN_VISION_WORKER_URL;
-            if (workerUrl2) {
-                await fetch(`${workerUrl2.replace(/\/$/, '')}/session/stop`, {
-                    method: 'POST',
-                    headers: { 'content-type': 'application/json' },
-                    body: JSON.stringify({ meetingId }),
-                });
-            }
-        } catch (e) {
-            console.warn('failed to notify worker about participant_left', e);
-        }
+        return NextResponse.json({ status: "ok" });
     } else if (eventType === "call.session_ended") {
         const event = payload as CallEndedEvent;
         const meetingId = event.call.custom?.meetingId;

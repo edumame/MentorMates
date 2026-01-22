@@ -13,6 +13,10 @@ type SessionRecord = {
   paused?: boolean;
   baseInstructions?: string;
   lastPrompt?: string | null;
+  // reconnection data
+  callId?: string;
+  agentUserId?: string;
+  rawInstructions?: string;
 }
 
 function wsSend(realtimeClient: RealtimeClient, event: any) {
@@ -54,6 +58,97 @@ const streamVideo = new StreamClient(process.env.NEXT_PUBLIC_STREAM_VIDEO_API_KE
 
 const sessions = new Map<string, SessionRecord>()
 
+// Helper: connect (or reconnect) a realtime OpenAI client for a call
+async function connectRealtimeSession({ callId, agentUserId, instructions }: { callId: string; agentUserId: string; instructions: string; }): Promise<RealtimeClient> {
+  const call = streamVideo.video.call('default', callId)
+  const realtimeClient: RealtimeClient = await streamVideo.video.connectOpenAi({
+    call,
+    openAiApiKey: process.env.OPENAI_API_KEY || '',
+    agentUserId,
+  })
+
+  try {
+    await realtimeClient.updateSession({
+      instructions,
+      input_audio_transcription: { model: 'whisper-1' },
+      turn_detection: { type: 'server_vad' },
+    })
+  } catch (e) {
+    console.error('connectRealtimeSession: updateSession failed', e)
+  }
+
+  return realtimeClient
+}
+
+// Helper: start the poll loop for a meeting and attach intervalId to record
+function startPollLoop(meetingId: string, record: SessionRecord) {
+  const poll = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("meeting_screen_context")
+        .select("summary, updated_at")
+        .eq("meeting_id", meetingId)
+        .maybeSingle();
+
+      if (error || !data) return;
+
+      const summary = (data.summary || "").trim();
+      const updatedAt = data.updated_at;
+
+      if (!summary) return;
+      if (summary === "No meaningful change") return;
+
+      const changed =
+        (!record.lastUpdatedAt || new Date(updatedAt) > new Date(record.lastUpdatedAt)) ||
+        summary !== record.lastSummary;
+
+      if (!changed) return;
+
+      const now = Date.now();
+      if (record.lastPushedAt && now - record.lastPushedAt < 2000) return;
+
+      const screen = summary.startsWith("[Screen]") ? summary : `[Screen] ${summary}`;
+
+      if (record.paused) {
+        console.log(`[${meetingId}] session paused — skipping injection`);
+        record.lastUpdatedAt = updatedAt;
+        record.lastSummary = summary;
+        record.lastPushedAt = now;
+        return;
+      }
+
+      // put it into the conversation as if the user said it
+      try {
+        injectScreenAsUserMessage(record.realtimeClient, screen);
+        console.log(`[${meetingId}] injected user msg: ${screen.slice(0, 120)}`);
+      } catch (e) {
+        console.error(`[${meetingId}] injectScreenAsUserMessage failed`, e);
+      }
+
+      try {
+        await record.realtimeClient.updateSession({
+          instructions: `${record.baseInstructions || ''}\n\nLatest shared screen:\n${screen}\n`,
+        });
+        console.log(`[${meetingId}] updateSession OK: ${screen.slice(0, 120)}`);
+      } catch (e) {
+        console.error(`[${meetingId}] updateSession FAIL`, e);
+      }
+
+      record.lastUpdatedAt = updatedAt;
+      record.lastSummary = summary;
+      record.lastPushedAt = now;
+    } catch (err) {
+      console.error("poll error", err);
+    }
+  };
+
+  if (record.intervalId) clearInterval(record.intervalId)
+  const id = setInterval(poll, 5000)
+  record.intervalId = id
+  // run one immediately
+  poll()
+}
+
 app.get('/health', (_req: Request, res: Response) => {
   res.json({ ok: true })
 })
@@ -71,26 +166,6 @@ app.post('/session/start', async (req: Request, res: Response) => {
       sessions.delete(meetingId)
     }
 
-    const call = streamVideo.video.call('default', callId)
-
-    let realtimeClient: RealtimeClient
-    realtimeClient = await streamVideo.video.connectOpenAi({
-      call,
-      openAiApiKey: process.env.OPENAI_API_KEY || '',
-      agentUserId,
-    })
-    console.log("realtimeClient keys:", Object.keys(realtimeClient));
-    console.log("conversation keys:", Object.keys(realtimeClient.conversation || {}));
-    console.log("realtime keys:", Object.keys(realtimeClient.realtime || {}));
-
-    await realtimeClient.updateSession({
-      instructions,
-      input_audio_transcription: { model: 'whisper-1' },
-      turn_detection: { type: 'server_vad' },
-    })
-
-    const record: SessionRecord = { realtimeClient, intervalId: null, lastUpdatedAt: null, lastSummary: "", paused: false }
-    sessions.set(meetingId, record)
 
     // Somewhere near session start
     const baseInstructions = `${instructions}
@@ -104,6 +179,8 @@ app.post('/session/start', async (req: Request, res: Response) => {
     `;
 
     // initialize paused / last prompt from DB (fallback)
+    let dbPaused = false
+    let dbLastPrompt: string | null = null
     try {
       const { data: meetingRow, error: meetingErr } = await supabase
         .from('meetings')
@@ -112,87 +189,33 @@ app.post('/session/start', async (req: Request, res: Response) => {
         .maybeSingle();
 
       if (!meetingErr && meetingRow) {
-        record.paused = meetingRow.agent_paused ?? false;
-        record.lastPrompt = meetingRow.last_agent_prompt ?? null;
-      } else {
-        record.paused = false;
-        record.lastPrompt = null;
+        dbPaused = meetingRow.agent_paused ?? false;
+        dbLastPrompt = meetingRow.last_agent_prompt ?? null;
       }
     } catch (e) {
       console.error('failed to load meeting pause state', e);
-      record.paused = false;
-      record.lastPrompt = null;
     }
 
-    record.baseInstructions = baseInstructions;
+    // connect realtime client via helper
+    const realtimeClient = await connectRealtimeSession({ callId, agentUserId, instructions })
 
-    // Poll loop
-    const poll = async () => {
-      try {
-        const { data, error } = await supabase
-          .from("meeting_screen_context")
-          .select("summary, updated_at")
-          .eq("meeting_id", meetingId)
-          .maybeSingle();
+    const record: SessionRecord = {
+      realtimeClient,
+      intervalId: null,
+      lastUpdatedAt: null,
+      lastSummary: "",
+      paused: dbPaused,
+      baseInstructions: baseInstructions,
+      lastPrompt: dbLastPrompt,
+      callId,
+      agentUserId,
+      rawInstructions: instructions,
+    }
 
-        if (error || !data) return;
+    sessions.set(meetingId, record)
 
-        const summary = (data.summary || "").trim();
-        const updatedAt = data.updated_at;
-
-        if (!summary) return;
-        if (summary === "No meaningful change") return;
-
-        const changed =
-          (!record.lastUpdatedAt || new Date(updatedAt) > new Date(record.lastUpdatedAt)) ||
-          summary !== record.lastSummary;
-
-        if (!changed) return;
-
-        // (optional) throttle: don’t update session more than once every 2s
-        const now = Date.now();
-        if (record.lastPushedAt && now - record.lastPushedAt < 2000) return;
-
-        const screen = summary.startsWith("[Screen]") ? summary : `[Screen] ${summary}`;
-
-        // If paused, do not inject or update session; still record timestamps to avoid spam on resume
-        if (record.paused) {
-          console.log(`[${meetingId}] session paused — skipping injection`);
-          record.lastUpdatedAt = updatedAt;
-          record.lastSummary = summary;
-          record.lastPushedAt = now;
-          return;
-        }
-
-        // put it into the conversation as if the user said it
-        injectScreenAsUserMessage(realtimeClient, screen);
-        console.log(`[${meetingId}] injected user msg: ${screen.slice(0, 120)}`);
-
-
-        try {
-          await realtimeClient.updateSession({
-            instructions: `${baseInstructions}\n\nLatest shared screen:\n${screen}\n`,
-          });
-          console.log(`[${meetingId}] updateSession OK: ${screen.slice(0, 120)}`);
-        } catch (e) {
-          console.error(`[${meetingId}] updateSession FAIL`, e);
-        }
-
-
-        record.lastUpdatedAt = updatedAt;
-        record.lastSummary = summary;
-        record.lastPushedAt = now;
-      } catch (err) {
-        console.error("poll error", err);
-      }
-    };
-
-
-    const id = setInterval(poll, 5000)
-    record.intervalId = id
-
-    // run one immediately
-    poll()
+    // start poll loop
+    startPollLoop(meetingId, record)
 
     res.json({ ok: true })
   } catch (err) {
@@ -225,51 +248,155 @@ app.post('/session/stop', async (req: Request, res: Response) => {
 })
 
 // Pause the agent for a meeting: stop speaking and set paused state
-app.post("/agent/pause", (req, res) => {
-  const { meetingId } = req.body;
-  const record = sessions.get(meetingId);
-  console.log("PAUSE HIT", meetingId, "hasSession=", sessions.has(meetingId));
-
-  if (!record) return res.status(404).json({ ok: false });
-
-  record.paused = true;
-
-  // Immediately stop current speech
+app.post('/agent/pause', async (req: Request, res: Response) => {
   try {
-    record.realtimeClient?.realtime?.ws?.send(JSON.stringify({
-      type: "response.cancel",
-    }));
-  } catch {}
+    const { meetingId } = req.body || {}
+    console.log('PAUSE HIT', meetingId, 'hasSession=', sessions.has(meetingId))
+    if (!meetingId) return res.status(400).json({ error: 'missing meetingId' })
 
-  res.json({ ok: true, paused: true });
-});
+    const record = sessions.get(meetingId)
+    if (!record) return res.status(404).json({ ok: false })
+
+    // persist paused state
+    try {
+      await supabase.from('meetings').update({ agent_paused: true }).eq('id', meetingId)
+    } catch (e) {
+      console.error('supabase update agent_paused true failed', e)
+    }
+
+    record.paused = true
+
+    // best-effort: cancel current response and clear audio buffer
+    try {
+      wsSend(record.realtimeClient, { type: 'response.cancel' })
+    } catch (e) {
+      console.warn('response.cancel failed', e)
+    }
+    try {
+      wsSend(record.realtimeClient, { type: 'output_audio_buffer.clear' })
+    } catch (e) {
+      // ignore if not supported
+    }
+
+    // update session instructions to a paused rule
+    try {
+      await record.realtimeClient.updateSession({
+        instructions: `${record.baseInstructions || ''}\n\nSYSTEM: AGENT IS PAUSED. Do NOT speak or respond. Only listen.`,
+      })
+    } catch (e) {
+      console.error('updateSession to paused instructions failed', e)
+    }
+
+    return res.json({ ok: true, paused: true })
+  } catch (err) {
+    console.error('/agent/pause error', err)
+    res.status(500).json({ error: 'internal' })
+  }
+})
 
 
 // Resume the agent: restore instructions and optionally replay last prompt
-app.post("/agent/resume", (req, res) => {
-  const { meetingId } = req.body;
-  const record = sessions.get(meetingId);
-  if (!record) return res.status(404).json({ ok: false });
+app.post('/agent/resume', async (req: Request, res: Response) => {
+  try {
+    const { meetingId } = req.body || {}
+    if (!meetingId) return res.status(400).json({ error: 'missing meetingId' })
 
-  record.paused = false;
+    const record = sessions.get(meetingId)
+    if (!record) return res.status(404).json({ ok: false })
 
-  // Optional: replay last prompt
-  if (record.lastPrompt) {
-    record.realtimeClient.realtime.ws.send(JSON.stringify({
-      type: "conversation.item.create",
-      item: {
-        type: "message",
-        role: "user",
-        content: [{ type: "input_text", text: record.lastPrompt }],
-      },
-    }));
-    record.realtimeClient.realtime.ws.send(JSON.stringify({
-      type: "response.create",
-    }));
+    const ws = record.realtimeClient?.realtime?.ws
+    const isOpen = !!ws && ws.readyState === 1
+    console.log('RESUME HIT', meetingId, 'wsReadyState=', ws?.readyState)
+
+    if (!isOpen) {
+      console.warn(`[${meetingId}] realtime ws not open, attempting reconnect`)
+
+      // cleanup old client and poll
+      if (record.intervalId) {
+        clearInterval(record.intervalId)
+        record.intervalId = null
+      }
+      try {
+        await record.realtimeClient?.disconnect?.()
+      } catch (e) {
+        try { await (record.realtimeClient as any)?.close?.() } catch {}
+      }
+
+      // need callId and agentUserId to reconnect
+      if (!record.callId || !record.agentUserId || !record.rawInstructions) {
+        console.error(`[${meetingId}] missing reconnection data`, { callId: record.callId, agentUserId: record.agentUserId })
+        return res.status(500).json({ error: 'missing reconnection data' })
+      }
+
+      try {
+        const newClient = await connectRealtimeSession({ callId: record.callId, agentUserId: record.agentUserId, instructions: record.rawInstructions })
+        record.realtimeClient = newClient
+      } catch (e) {
+        console.error(`[${meetingId}] reconnect failed`, e)
+        return res.status(500).json({ error: 'reconnect failed' })
+      }
+
+      // restart poll loop
+      startPollLoop(meetingId, record)
+    }
+
+    // ensure paused flag cleared and restore normal instructions
+    record.paused = false
+    try {
+      await record.realtimeClient.updateSession({ instructions: record.baseInstructions || '' })
+    } catch (e) {
+      console.error('updateSession restore failed', e)
+    }
+
+    // Optional: replay last prompt
+    let promptToReplay = record.lastPrompt || null
+    if (!promptToReplay) {
+      try {
+        const { data: meetingRow } = await supabase
+          .from('meetings')
+          .select('last_agent_prompt')
+          .eq('id', meetingId)
+          .maybeSingle()
+        if (meetingRow && meetingRow.last_agent_prompt) promptToReplay = meetingRow.last_agent_prompt
+      } catch (e) {
+        console.error('supabase fetch last_agent_prompt failed', e)
+      }
+    }
+
+    if (promptToReplay) {
+      try {
+        wsSend(record.realtimeClient, {
+          type: 'conversation.item.create',
+          item: {
+            type: 'message',
+            role: 'user',
+            content: [{ type: 'input_text', text: promptToReplay }],
+          },
+        })
+      } catch (e) {
+        console.error('ws send conversation.item.create failed', e)
+      }
+
+      try {
+        wsSend(record.realtimeClient, { type: 'response.create' })
+      } catch (e) {
+        console.error('ws send response.create failed', e)
+      }
+    }
+
+    // persist paused=false
+    try {
+      await supabase.from('meetings').update({ agent_paused: false }).eq('id', meetingId)
+    } catch (e) {
+      console.error('supabase update agent_paused false failed', e)
+    }
+
+    return res.json({ ok: true, paused: false, replayed: !!promptToReplay })
+  } catch (err) {
+    console.error('/agent/resume error', err)
+    res.status(500).json({ error: 'internal' })
   }
-
-  res.json({ ok: true, paused: false });
-});
+})
 
 
 // Set/update the last prompt for a meeting (persist in-memory and in supabase)
