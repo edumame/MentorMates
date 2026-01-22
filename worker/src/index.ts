@@ -277,22 +277,8 @@ app.post('/agent/pause', async (req: Request, res: Response) => {
     const { ws, readyState, isOpen } = getWsState(record.realtimeClient)
     console.log(`[${meetingId}] pause: ws present=${!!ws} readyState=${readyState}`)
 
-    // best-effort: cancel current response and clear audio buffer (send twice)
-    try {
-      wsSend(record.realtimeClient, { type: 'response.cancel' })
-    } catch (e) {
-      console.warn('response.cancel failed (first)', e)
-    }
-    setTimeout(() => {
-      try { wsSend(record.realtimeClient, { type: 'response.cancel' }) } catch (e) { /* ignore */ }
-    }, 75)
-    try {
-      wsSend(record.realtimeClient, { type: 'output_audio_buffer.clear' })
-    } catch (e) {
-      // ignore if not supported
-    }
-
-    // update session instructions to a paused rule AND disable turn detection so agent won't auto-start
+    // NOTE: Do NOT send raw websocket events here (can cause protocol errors).
+    // Use updateSession to enforce mute and disable turn detection so agent won't auto-start.
     let updateOk = false
     try {
       await record.realtimeClient.updateSession({
@@ -313,7 +299,11 @@ app.post('/agent/pause', async (req: Request, res: Response) => {
       }
     }
 
-    console.log(`[${meetingId}] pause: updateSession succeeded=${updateOk}`)
+    const { readyState: afterReadyState, isOpen: afterIsOpen } = getWsState(record.realtimeClient)
+    console.log(`[${meetingId}] pause: updateSession succeeded=${updateOk} wsPresent=${!!afterIsOpen} readyState=${afterReadyState}`)
+
+    // TODO: If we want to instantly cut audio mid-sentence in future, use supported SDK methods
+    // (interrupt/cancel APIs) rather than sending raw protocol events.
 
     return res.json({ ok: true, paused: true, updateSessionOk: updateOk })
   } catch (err) {
@@ -395,23 +385,9 @@ app.post('/agent/resume', async (req: Request, res: Response) => {
       }
     }
 
+    // Do NOT send raw websocket events to replay. Replay is disabled for stability.
+    // If replay is desired later, implement it using supported SDK APIs (TODO).
     let replayed = false
-    if (unmuteOk && !record.paused && promptToReplay) {
-      try {
-        wsSend(record.realtimeClient, {
-          type: 'conversation.item.create',
-          item: {
-            type: 'message',
-            role: 'user',
-            content: [{ type: 'input_text', text: promptToReplay }],
-          },
-        })
-        try { wsSend(record.realtimeClient, { type: 'response.create' }) } catch (e) { console.error('ws send response.create failed', e) }
-        replayed = true
-      } catch (e) {
-        console.error('ws send conversation.item.create failed', e)
-      }
-    }
 
     // persist paused=false if we unmuted
     try {
@@ -420,6 +396,7 @@ app.post('/agent/resume', async (req: Request, res: Response) => {
       console.error('supabase update agent_paused false failed', e)
     }
 
+    console.log(`[${meetingId}] resume: unmuteOk=${unmuteOk} wsReadyState=${getWsState(record.realtimeClient).readyState}`)
     return res.json({ ok: true, paused: !unmuteOk ? true : false, replayed })
   } catch (err) {
     console.error('/agent/resume error', err)
