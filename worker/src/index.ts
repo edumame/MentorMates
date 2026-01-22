@@ -37,6 +37,14 @@ function injectScreenAsUserMessage(realtimeClient: RealtimeClient, text: string)
   });
 }
 
+// Helper to inspect websocket state
+function getWsState(client: any): { ws?: any; readyState?: number; isOpen: boolean } {
+  const ws = client?.realtime?.ws
+  const readyState = ws?.readyState
+  const isOpen = !!ws && readyState === 1
+  return { ws, readyState, isOpen }
+}
+
 const app = express()
 app.use(express.json({ limit: '2mb' }))
 
@@ -265,29 +273,49 @@ app.post('/agent/pause', async (req: Request, res: Response) => {
     }
 
     record.paused = true
+    // inspect ws
+    const { ws, readyState, isOpen } = getWsState(record.realtimeClient)
+    console.log(`[${meetingId}] pause: ws present=${!!ws} readyState=${readyState}`)
 
-    // best-effort: cancel current response and clear audio buffer
+    // best-effort: cancel current response and clear audio buffer (send twice)
     try {
       wsSend(record.realtimeClient, { type: 'response.cancel' })
     } catch (e) {
-      console.warn('response.cancel failed', e)
+      console.warn('response.cancel failed (first)', e)
     }
+    setTimeout(() => {
+      try { wsSend(record.realtimeClient, { type: 'response.cancel' }) } catch (e) { /* ignore */ }
+    }, 75)
     try {
       wsSend(record.realtimeClient, { type: 'output_audio_buffer.clear' })
     } catch (e) {
       // ignore if not supported
     }
 
-    // update session instructions to a paused rule
+    // update session instructions to a paused rule AND disable turn detection so agent won't auto-start
+    let updateOk = false
     try {
       await record.realtimeClient.updateSession({
         instructions: `${record.baseInstructions || ''}\n\nSYSTEM: AGENT IS PAUSED. Do NOT speak or respond. Only listen.`,
+        turn_detection: null as any,
       })
+      updateOk = true
     } catch (e) {
-      console.error('updateSession to paused instructions failed', e)
+      console.warn('updateSession with turn_detection=null failed, trying {type:"none"}', e)
+      try {
+        await record.realtimeClient.updateSession({
+          instructions: `${record.baseInstructions || ''}\n\nSYSTEM: AGENT IS PAUSED. Do NOT speak or respond. Only listen.`,
+          turn_detection: { type: 'none' } as any,
+        })
+        updateOk = true
+      } catch (err2) {
+        console.error('updateSession to paused instructions failed', err2)
+      }
     }
 
-    return res.json({ ok: true, paused: true })
+    console.log(`[${meetingId}] pause: updateSession succeeded=${updateOk}`)
+
+    return res.json({ ok: true, paused: true, updateSessionOk: updateOk })
   } catch (err) {
     console.error('/agent/pause error', err)
     res.status(500).json({ error: 'internal' })
@@ -304,9 +332,8 @@ app.post('/agent/resume', async (req: Request, res: Response) => {
     const record = sessions.get(meetingId)
     if (!record) return res.status(404).json({ ok: false })
 
-    const ws = record.realtimeClient?.realtime?.ws
-    const isOpen = !!ws && ws.readyState === 1
-    console.log('RESUME HIT', meetingId, 'wsReadyState=', ws?.readyState)
+    const { ws, readyState, isOpen } = getWsState(record.realtimeClient)
+    console.log('RESUME HIT', meetingId, 'wsReadyState=', readyState)
 
     if (!isOpen) {
       console.warn(`[${meetingId}] realtime ws not open, attempting reconnect`)
@@ -340,12 +367,17 @@ app.post('/agent/resume', async (req: Request, res: Response) => {
       startPollLoop(meetingId, record)
     }
 
-    // ensure paused flag cleared and restore normal instructions
-    record.paused = false
+    // restore normal instructions AND restore turn detection (unmute)
+    let unmuteOk = false
     try {
-      await record.realtimeClient.updateSession({ instructions: record.baseInstructions || '' })
+      await record.realtimeClient.updateSession({ instructions: record.baseInstructions || '', turn_detection: { type: 'server_vad' } as any })
+      unmuteOk = true
     } catch (e) {
       console.error('updateSession restore failed', e)
+    }
+
+    if (unmuteOk) {
+      record.paused = false
     }
 
     // Optional: replay last prompt
@@ -363,7 +395,8 @@ app.post('/agent/resume', async (req: Request, res: Response) => {
       }
     }
 
-    if (promptToReplay) {
+    let replayed = false
+    if (unmuteOk && !record.paused && promptToReplay) {
       try {
         wsSend(record.realtimeClient, {
           type: 'conversation.item.create',
@@ -373,25 +406,21 @@ app.post('/agent/resume', async (req: Request, res: Response) => {
             content: [{ type: 'input_text', text: promptToReplay }],
           },
         })
+        try { wsSend(record.realtimeClient, { type: 'response.create' }) } catch (e) { console.error('ws send response.create failed', e) }
+        replayed = true
       } catch (e) {
         console.error('ws send conversation.item.create failed', e)
       }
-
-      try {
-        wsSend(record.realtimeClient, { type: 'response.create' })
-      } catch (e) {
-        console.error('ws send response.create failed', e)
-      }
     }
 
-    // persist paused=false
+    // persist paused=false if we unmuted
     try {
-      await supabase.from('meetings').update({ agent_paused: false }).eq('id', meetingId)
+      if (unmuteOk) await supabase.from('meetings').update({ agent_paused: false }).eq('id', meetingId)
     } catch (e) {
       console.error('supabase update agent_paused false failed', e)
     }
 
-    return res.json({ ok: true, paused: false, replayed: !!promptToReplay })
+    return res.json({ ok: true, paused: !unmuteOk ? true : false, replayed })
   } catch (err) {
     console.error('/agent/resume error', err)
     res.status(500).json({ error: 'internal' })
