@@ -15,6 +15,7 @@ type SessionRecord = {
   lastPrompt?: string | null;
   // reconnection data
   callId?: string;
+  callType?: string;
   agentUserId?: string;
   rawInstructions?: string;
 }
@@ -90,8 +91,9 @@ const streamVideo = new StreamClient(process.env.NEXT_PUBLIC_STREAM_VIDEO_API_KE
 const sessions = new Map<string, SessionRecord>()
 
 // Helper: connect (or reconnect) a realtime OpenAI client for a call
-async function connectRealtimeSession({ callId, agentUserId, instructions }: { callId: string; agentUserId: string; instructions: string; }): Promise<RealtimeClient> {
-  const call = streamVideo.video.call('default', callId)
+async function connectRealtimeSession({ callId, callType, agentUserId, instructions }: { callId: string; callType?: string; agentUserId: string; instructions: string; }): Promise<RealtimeClient> {
+  const ct = callType || 'default'
+  const call = streamVideo.video.call(ct, callId)
   const realtimeClient: RealtimeClient = await streamVideo.video.connectOpenAi({
     call,
     openAiApiKey: process.env.OPENAI_API_KEY || '',
@@ -185,7 +187,7 @@ app.get('/health', (_req: Request, res: Response) => {
 })
 
 app.post('/session/start', async (req: Request, res: Response) => {
-  const { meetingId, callId, agentUserId, instructions } = req.body || {}
+  const { meetingId, callId, callType, agentUserId, instructions } = req.body || {}
   try {
     if (!meetingId || !agentUserId || !callId) return res.status(400).json({ error: 'missing params' })
 
@@ -228,7 +230,7 @@ app.post('/session/start', async (req: Request, res: Response) => {
     }
 
     // connect realtime client via helper
-    const realtimeClient = await connectRealtimeSession({ callId, agentUserId, instructions })
+    const realtimeClient = await connectRealtimeSession({ callId, callType, agentUserId, instructions })
 
     // One-time discovery logging: list available methods on the client
     try {
@@ -247,6 +249,7 @@ app.post('/session/start', async (req: Request, res: Response) => {
       baseInstructions: baseInstructions,
       lastPrompt: dbLastPrompt,
       callId,
+      callType,
       agentUserId,
       rawInstructions: instructions,
     }
@@ -312,8 +315,10 @@ app.post('/agent/pause', async (req: Request, res: Response) => {
     let permissionOk = false
     try {
       if (record.callId && record.agentUserId) {
+        const callTypeStr = record.callType || 'default'
+        const callCid = `${callTypeStr}:${record.callId}`
         const payload = {
-          call_cid: `default:${record.callId}`,
+          call_cid: callCid,
           user_id: record.agentUserId,
           revoke_permissions: [OwnCapability.SEND_AUDIO],
         }
@@ -418,7 +423,7 @@ app.post('/agent/resume', async (req: Request, res: Response) => {
       }
 
       try {
-        const newClient = await connectRealtimeSession({ callId: record.callId, agentUserId: record.agentUserId, instructions: record.rawInstructions })
+        const newClient = await connectRealtimeSession({ callId: record.callId as string, callType: record.callType, agentUserId: record.agentUserId as string, instructions: record.rawInstructions as string })
         record.realtimeClient = newClient
       } catch (e) {
         console.error(`[${meetingId}] reconnect failed`, e)
@@ -433,8 +438,10 @@ app.post('/agent/resume', async (req: Request, res: Response) => {
     let permissionRestoreOk = false
     try {
       if (record.callId && record.agentUserId) {
+        const callTypeStr = record.callType || 'default'
+        const callCid = `${callTypeStr}:${record.callId}`
         const payload = {
-          call_cid: `default:${record.callId}`,
+          call_cid: callCid,
           user_id: record.agentUserId,
           grant_permissions: [OwnCapability.SEND_AUDIO],
         }
