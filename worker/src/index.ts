@@ -1,6 +1,6 @@
 import express, { Request, Response } from 'express'
 import { createClient } from '@supabase/supabase-js'
-import { StreamClient } from '@stream-io/node-sdk'
+import { StreamClient, OwnCapability } from '@stream-io/node-sdk'
 import { RealtimeClient } from '@stream-io/openai-realtime-api'
 
 type SessionRecord = {
@@ -289,7 +289,16 @@ app.post('/agent/pause', async (req: Request, res: Response) => {
     let permissionOk = false
     try {
       if (record.callId && record.agentUserId) {
-        const call = streamVideo.video.call('default', record.callId)
+        try {
+          const call = streamVideo.video.call("default", record.callId);
+          await call.updateUserPermissions({
+            user_id: record.agentUserId,
+            revoke_permissions: [OwnCapability.SEND_AUDIO],
+          });
+          console.log(`[${meetingId}] agent audio permission revoked`);
+        } catch (e) {
+          console.error("updateUserPermissions mute failed", e);
+        }
         const c: any = call as any
         // Prefer revokePermissions if available
         if (typeof c.revokePermissions === 'function') {
@@ -434,7 +443,16 @@ app.post('/agent/resume', async (req: Request, res: Response) => {
     let permissionRestoreOk = false
     try {
       if (record.callId && record.agentUserId) {
-        const call = streamVideo.video.call('default', record.callId)
+        try {
+          const call = streamVideo.video.call("default", record.callId);
+          await call.updateUserPermissions({
+            user_id: record.agentUserId,
+            grant_permissions: [OwnCapability.SEND_AUDIO],
+          });
+          console.log(`[${meetingId}] agent audio permission restored`);
+        } catch (e) {
+          console.error("updateUserPermissions restore failed", e);
+        }
         const c: any = call as any
         if (typeof c.grantPermissions === 'function') {
           try {
