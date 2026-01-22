@@ -19,8 +19,31 @@ type SessionRecord = {
   rawInstructions?: string;
 }
 
-function wsSend(realtimeClient: RealtimeClient, event: any) {
-  const ws = realtimeClient?.realtime?.ws;
+type WebsocketLike = { readyState?: number; send: (s: string) => void }
+type RealtimeWrapper = { realtime?: { ws?: WebsocketLike } }
+type RealtimeClientLike = {
+  interrupt?: () => Promise<void> | void
+  cancel?: () => Promise<void> | void
+  stop?: () => Promise<void> | void
+  realtime?: {
+    interrupt?: () => Promise<void> | void
+    cancel?: () => Promise<void> | void
+    stop?: () => Promise<void> | void
+    ws?: WebsocketLike
+  }
+  disconnect?: () => Promise<void> | void
+  updateSession?: (opts: Record<string, unknown>) => Promise<void> | void
+  close?: () => Promise<void> | void
+}
+
+type CallModeration = {
+  revokePermissions?: (userId: string, perms: string[]) => Promise<void>
+  grantPermissions?: (userId: string, perms: string[]) => Promise<void>
+  updateUserPermissions?: (...args: unknown[]) => Promise<void>
+}
+
+function wsSend(realtimeClient: RealtimeClient, event: Record<string, unknown>) {
+  const ws = (realtimeClient as unknown as RealtimeWrapper)?.realtime?.ws;
   if (!ws) throw new Error("Realtime WS missing");
   if (ws.readyState !== 1) throw new Error(`Realtime WS not open (state=${ws.readyState})`);
   ws.send(JSON.stringify(event));
@@ -38,8 +61,8 @@ function injectScreenAsUserMessage(realtimeClient: RealtimeClient, text: string)
 }
 
 // Helper to inspect websocket state
-function getWsState(client: any): { ws?: any; readyState?: number; isOpen: boolean } {
-  const ws = client?.realtime?.ws
+function getWsState(client: RealtimeClientLike | RealtimeWrapper): { ws?: WebsocketLike; readyState?: number; isOpen: boolean } {
+  const ws = (client as RealtimeWrapper)?.realtime?.ws
   const readyState = ws?.readyState
   const isOpen = !!ws && readyState === 1
   return { ws, readyState, isOpen }
@@ -210,7 +233,7 @@ app.post('/session/start', async (req: Request, res: Response) => {
     // One-time discovery logging: list available methods on the client
     try {
       console.log('[session/start] realtimeClient keys=', Object.keys(realtimeClient || {}))
-      console.log('[session/start] realtimeClient.realtime keys=', Object.keys((realtimeClient as any).realtime ?? {}))
+      console.log('[session/start] realtimeClient.realtime keys=', Object.keys((realtimeClient as unknown as RealtimeWrapper).realtime ?? {}))
     } catch (e) {
       console.warn('session/start: failed to inspect realtimeClient', e)
     }
@@ -252,7 +275,7 @@ app.post('/session/stop', async (req: Request, res: Response) => {
     try {
       await record.realtimeClient?.disconnect?.()
     } catch (e) {
-      try { await (record.realtimeClient as any)?.close?.() } catch {}
+      try { await (record.realtimeClient as unknown as RealtimeClientLike)?.close?.() } catch {}
     }
 
     sessions.delete(meetingId)
@@ -289,9 +312,10 @@ app.post('/agent/pause', async (req: Request, res: Response) => {
     let permissionOk = false
     try {
       if (record.callId && record.agentUserId) {
+        let call: unknown
         try {
-          const call = streamVideo.video.call("default", record.callId);
-          await call.updateUserPermissions({
+          call = streamVideo.video.call("default", record.callId);
+          await (call as unknown as CallModeration).updateUserPermissions?.({
             user_id: record.agentUserId,
             revoke_permissions: [OwnCapability.SEND_AUDIO],
           });
@@ -299,7 +323,7 @@ app.post('/agent/pause', async (req: Request, res: Response) => {
         } catch (e) {
           console.error("updateUserPermissions mute failed", e);
         }
-        const c: any = call as any
+        const c = call as unknown as CallModeration
         // Prefer revokePermissions if available
         if (typeof c.revokePermissions === 'function') {
           try {
@@ -331,7 +355,7 @@ app.post('/agent/pause', async (req: Request, res: Response) => {
 
     // Best-effort: attempt to interrupt any ongoing speech/requests using supported SDK methods.
     try {
-      const rc: any = record.realtimeClient as any
+      const rc = record.realtimeClient as unknown as RealtimeClientLike
       if (rc) {
         try { await rc.interrupt?.(); } catch (e) { /* ignore */ }
         try { await rc.cancel?.(); } catch (e) { /* ignore */ }
@@ -352,16 +376,16 @@ app.post('/agent/pause', async (req: Request, res: Response) => {
     try {
       await record.realtimeClient.updateSession({
         instructions: `${record.baseInstructions || ''}\n\nSYSTEM: AGENT IS PAUSED. Do NOT speak or respond. Only listen.`,
-        turn_detection: null as any,
-      })
+        turn_detection: null as unknown as Record<string, unknown> | null,
+      } as Record<string, unknown>)
       updateOk = true
     } catch (e) {
       console.warn('updateSession with turn_detection=null failed, trying {type:"none"}', e)
       try {
         await record.realtimeClient.updateSession({
           instructions: `${record.baseInstructions || ''}\n\nSYSTEM: AGENT IS PAUSED. Do NOT speak or respond. Only listen.`,
-          turn_detection: { type: 'none' } as any,
-        })
+          turn_detection: { type: 'none' } as unknown as Record<string, unknown>,
+        } as Record<string, unknown>)
         updateOk = true
       } catch (err2) {
         console.error('updateSession to paused instructions failed', err2)
@@ -405,7 +429,7 @@ app.post('/agent/resume', async (req: Request, res: Response) => {
       try {
         await record.realtimeClient?.disconnect?.()
       } catch (e) {
-        try { await (record.realtimeClient as any)?.close?.() } catch {}
+        try { await (record.realtimeClient as unknown as RealtimeClientLike)?.close?.() } catch {}
       }
 
       // need callId and agentUserId to reconnect
@@ -429,7 +453,7 @@ app.post('/agent/resume', async (req: Request, res: Response) => {
     // restore normal instructions AND restore turn detection (unmute)
     let unmuteOk = false
     try {
-      await record.realtimeClient.updateSession({ instructions: record.baseInstructions || '', turn_detection: { type: 'server_vad' } as any })
+      await record.realtimeClient.updateSession({ instructions: record.baseInstructions || '', turn_detection: { type: 'server_vad' } as unknown as Record<string, unknown> } as Record<string, unknown>)
       unmuteOk = true
     } catch (e) {
       console.error('updateSession restore failed', e)
@@ -443,9 +467,10 @@ app.post('/agent/resume', async (req: Request, res: Response) => {
     let permissionRestoreOk = false
     try {
       if (record.callId && record.agentUserId) {
+        let call: unknown
         try {
-          const call = streamVideo.video.call("default", record.callId);
-          await call.updateUserPermissions({
+          call = streamVideo.video.call("default", record.callId);
+          await (call as unknown as CallModeration).updateUserPermissions?.({
             user_id: record.agentUserId,
             grant_permissions: [OwnCapability.SEND_AUDIO],
           });
@@ -453,7 +478,7 @@ app.post('/agent/resume', async (req: Request, res: Response) => {
         } catch (e) {
           console.error("updateUserPermissions restore failed", e);
         }
-        const c: any = call as any
+        const c = call as unknown as CallModeration
         if (typeof c.grantPermissions === 'function') {
           try {
             await c.grantPermissions(record.agentUserId, ['SEND_AUDIO'])
