@@ -320,20 +320,15 @@ app.post('/agent/pause', async (req: Request, res: Response) => {
     let permissionOk = false
     try {
       if (record.callId && record.agentUserId) {
-        const callCid = record.callCid || `${record.callType || 'default'}:${record.callId}`
-        const payload = {
-          call_cid: callCid,
-          user_id: record.agentUserId,
-          revoke_permissions: [OwnCapability.SEND_AUDIO],
-        }
-        console.log(`[${meetingId}] pause: callType=${record.callType || 'default'} callCid=${callCid} agentUserId=${record.agentUserId}`)
-        console.log(`[${meetingId}] pause: updateUserPermissions payload=`, payload)
+        const ct = record.callType || 'default'
+        const call = streamVideo.video.call(ct, record.callId as string)
+        console.log(`[${meetingId}] pause: calling call.updateUserPermissions; callType=${ct} callId=${record.callId} agentUserId=${record.agentUserId}`)
         try {
-          await streamVideo.video.updateUserPermissions(payload as any)
-          console.log(`[${meetingId}] updateUserPermissions revoke_permissions succeeded for ${record.agentUserId}`)
+          await (call as any).updateUserPermissions({ user_id: record.agentUserId, revoke_permissions: [OwnCapability.SEND_AUDIO] })
+          console.log(`[${meetingId}] call.updateUserPermissions revoke_permissions succeeded for ${record.agentUserId}`)
           permissionOk = true
         } catch (e) {
-          console.warn(`[${meetingId}] updateUserPermissions revoke_permissions failed`, e)
+          console.warn(`[${meetingId}] call.updateUserPermissions revoke_permissions failed`, e)
         }
       } else {
         console.warn(`[${meetingId}] pause: missing callId or agentUserId, cannot change call-level permissions`, { callId: record.callId, agentUserId: record.agentUserId })
@@ -442,32 +437,16 @@ app.post('/agent/resume', async (req: Request, res: Response) => {
     // Restore call-level SEND_AUDIO permission so agent can publish audio again
     let permissionRestoreOk = false
     try {
-      if (record.callCid && record.agentUserId) {
-        const payload = {
-          call_cid: record.callCid,
-          user_id: record.agentUserId,
-          grant_permissions: [OwnCapability.SEND_AUDIO],
-        }
-        console.log(`[${meetingId}] resume: callType=${record.callType || 'default'} callCid=${record.callCid} agentUserId=${record.agentUserId}`)
-        console.log(`[${meetingId}] resume: updateUserPermissions payload=`, payload)
+      if (record.callId && record.agentUserId) {
+        const ct = record.callType || 'default'
+        const call = streamVideo.video.call(ct, record.callId as string)
+        console.log(`[${meetingId}] resume: calling call.updateUserPermissions; callType=${ct} callId=${record.callId} agentUserId=${record.agentUserId}`)
         try {
-          await streamVideo.video.updateUserPermissions(payload as any)
-          console.log(`[${meetingId}] updateUserPermissions grant_permissions succeeded for ${record.agentUserId}`)
+          await (call as any).updateUserPermissions({ user_id: record.agentUserId, grant_permissions: [OwnCapability.SEND_AUDIO] })
+          console.log(`[${meetingId}] call.updateUserPermissions grant_permissions succeeded for ${record.agentUserId}`)
           permissionRestoreOk = true
         } catch (e) {
-          console.warn(`[${meetingId}] updateUserPermissions grant_permissions failed`, e)
-        }
-      } else if (record.callId && record.agentUserId) {
-        // fallback if callCid isn't present
-        const callCid = `${record.callType || 'default'}:${record.callId}`
-        const payload = { call_cid: callCid, user_id: record.agentUserId, grant_permissions: [OwnCapability.SEND_AUDIO] }
-        console.log(`[${meetingId}] resume (fallback): callType=${record.callType || 'default'} callCid=${callCid} agentUserId=${record.agentUserId}`)
-        try {
-          await streamVideo.video.updateUserPermissions(payload as any)
-          console.log(`[${meetingId}] updateUserPermissions grant_permissions succeeded (fallback) for ${record.agentUserId}`)
-          permissionRestoreOk = true
-        } catch (e) {
-          console.warn(`[${meetingId}] updateUserPermissions grant_permissions failed (fallback)`, e)
+          console.warn(`[${meetingId}] call.updateUserPermissions grant_permissions failed`, e)
         }
       } else {
         console.warn(`[${meetingId}] resume: missing callId or agentUserId, cannot restore call-level permissions`, { callId: record.callId, agentUserId: record.agentUserId })
