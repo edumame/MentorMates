@@ -16,7 +16,7 @@ export const CallActive = ({ onLeave, meetingName, meetingId }: Props) => {
     const handleTogglePause = useCallback(async () => {
         if (disabled) return;
         setDisabled(true);
-        const endpoint = paused ? `${process.env.SCREEN_VISION_WORKER_URL}agent/resume` : `${process.env.SCREEN_VISION_WORKER_URL}/agent/pause`;
+        const endpoint = paused ? "/api/agent/resume" : "/api/agent/pause";
         try {
             await fetch(endpoint, {
                 method: "POST",
