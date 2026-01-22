@@ -457,15 +457,45 @@ app.post('/agent/resume', async (req: Request, res: Response) => {
 
     // restore normal instructions AND restore turn detection (unmute)
     let unmuteOk = false
-    try {
-      await record.realtimeClient.updateSession({ instructions: record.baseInstructions || '', turn_detection: { type: 'server_vad' } as unknown as Record<string, unknown> } as Record<string, unknown>)
-      unmuteOk = true
-    } catch (e) {
-      console.error('updateSession restore failed', e)
-    }
+    // Only attempt to re-arm VAD if we successfully restored call-level permissions
+    if (permissionRestoreOk) {
+      try {
+        // First attempt
+        await record.realtimeClient.updateSession({ instructions: record.baseInstructions || '', turn_detection: { type: 'server_vad' } as unknown as Record<string, unknown> } as Record<string, unknown>)
+        // small delay then repeat to ensure server-side VAD gets properly re-armed
+        await new Promise((r) => setTimeout(r, 200))
+        await record.realtimeClient.updateSession({ instructions: record.baseInstructions || '', turn_detection: { type: 'server_vad' } as unknown as Record<string, unknown> } as Record<string, unknown>)
+        unmuteOk = true
+      } catch (e) {
+        console.error('updateSession re-arm (server_vad) failed', e)
+      }
 
-    if (unmuteOk) {
-      record.paused = false
+      if (unmuteOk) {
+        record.paused = false
+      }
+
+      // Reset the generation/response pipeline state after a pause/cancel by issuing a neutral response.create
+      try {
+        wsSend(record.realtimeClient, { type: 'response.create' })
+        console.log(`[${meetingId}] sent response.create to reinitialize response pipeline`)
+      } catch (e) {
+        console.warn(`[${meetingId}] response.create wsSend failed`, e)
+      }
+
+      // Add logs confirming interval alive, paused state, and ws readyState
+      const wsState = getWsState(record.realtimeClient)
+      console.log(`[${meetingId}] resume-post: intervalAlive=${!!record.intervalId} paused=${record.paused} wsReadyState=${wsState.readyState}`)
+    } else {
+      // If permissions weren't restored, still attempt a best-effort update (single attempt)
+      try {
+        await record.realtimeClient.updateSession({ instructions: record.baseInstructions || '', turn_detection: { type: 'server_vad' } as unknown as Record<string, unknown> } as Record<string, unknown>)
+        unmuteOk = true
+        record.paused = false
+      } catch (e) {
+        console.error('updateSession single re-arm attempt failed', e)
+      }
+      const wsState = getWsState(record.realtimeClient)
+      console.log(`[${meetingId}] resume-fallback: intervalAlive=${!!record.intervalId} paused=${record.paused} wsReadyState=${wsState.readyState}`)
     }
 
     // Optional: replay last prompt
