@@ -273,8 +273,31 @@ app.post('/session/start', async (req: Request, res: Response) => {
 
 app.post('/session/stop', async (req: Request, res: Response) => {
   try {
-    const { meetingId } = req.body || {}
+    const { meetingId, reason } = req.body || {}
+    console.log('[session/stop] headers=', req.headers)
+    console.log('[session/stop] payload reason=', reason)
+
     if (!meetingId) return res.status(400).json({ error: 'missing meetingId' })
+
+    // Guard: refuse to stop if the meeting is still marked as active in the DB
+    try {
+      const { data: meetingRow, error: meetingErr } = await supabase
+        .from('meetings')
+        .select('status')
+        .eq('id', meetingId)
+        .maybeSingle();
+
+      if (meetingErr) {
+        console.error('[session/stop] supabase query error', meetingErr)
+      } else {
+        if (meetingRow && meetingRow.status === 'active') {
+          console.log('[session/stop] refusing to stop session because meeting status is still active', { meetingId })
+          return res.status(409).json({ error: 'meeting still active' })
+        }
+      }
+    } catch (e) {
+      console.error('[session/stop] supabase status check failed', e)
+    }
 
     const record = sessions.get(meetingId)
     if (!record) return res.json({ ok: true })

@@ -144,22 +144,43 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Missing meetingId" }, { status: 400 });
         }
 
-        await supabase.from("meetings").update({
-            status: "processing",
-            ended_at: new Date().toISOString(),
-        }).eq("id", meetingId).eq("status", "active");
-
+        // Log call metadata for debugging
         try {
-            const workerUrl3 = process.env.SCREEN_VISION_WORKER_URL;
-            if (workerUrl3) {
-                await fetch(`${workerUrl3.replace(/\/$/, '')}/session/stop`, {
-                    method: 'POST',
-                    headers: { 'content-type': 'application/json' },
-                    body: JSON.stringify({ meetingId }),
-                });
-            }
+            console.log('[webhook] call.session_ended', { meetingId, call_cid: (event as any).call_cid || null, call_type: event.call?.type || null, call_id: event.call?.id || null });
         } catch (e) {
-            console.warn('failed to notify worker about session_ended', e);
+            console.warn('[webhook] failed to log call metadata', e);
+        }
+
+        // Only transition from active -> processing if the meeting was actually active
+        const { data: updatedMeeting, error: updateError } = await supabase
+            .from("meetings")
+            .update({ status: "processing", ended_at: new Date().toISOString() })
+            .eq("id", meetingId)
+            .eq("status", "active")
+            .select()
+            .maybeSingle();
+
+        if (updateError) {
+            console.error('[webhook] error updating meeting status on session_ended', updateError);
+            return NextResponse.json({ error: 'db error' }, { status: 500 });
+        }
+
+        // Only notify worker if the DB update actually changed a row (i.e., meeting was active)
+        if (!updatedMeeting) {
+            console.log('[webhook] session_ended received but meeting was not active; skipping worker stop', { meetingId });
+        } else {
+            try {
+                const workerUrl3 = process.env.SCREEN_VISION_WORKER_URL;
+                if (workerUrl3) {
+                    await fetch(`${workerUrl3.replace(/\/$/, '')}/session/stop`, {
+                        method: 'POST',
+                        headers: { 'content-type': 'application/json' },
+                        body: JSON.stringify({ meetingId, reason: 'call.session_ended' }),
+                    });
+                }
+            } catch (e) {
+                console.warn('failed to notify worker about session_ended', e);
+            }
         }
     } else if (eventType === "call.transcription_ready") {
         const event = payload as CallTranscriptionReadyEvent;
