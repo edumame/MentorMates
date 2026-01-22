@@ -16,6 +16,7 @@ type SessionRecord = {
   // reconnection data
   callId?: string;
   callType?: string;
+  callCid?: string;
   agentUserId?: string;
   rawInstructions?: string;
 }
@@ -236,6 +237,9 @@ app.post('/session/start', async (req: Request, res: Response) => {
     try {
       console.log('[session/start] realtimeClient keys=', Object.keys(realtimeClient || {}))
       console.log('[session/start] realtimeClient.realtime keys=', Object.keys((realtimeClient as unknown as RealtimeWrapper).realtime ?? {}))
+      const callTypeStr = callType || 'default'
+      const callCid = `${callTypeStr}:${callId}`
+      console.log(`[session/start] callType=${callTypeStr} callCid=${callCid} callId=${callId} agentUserId=${agentUserId}`)
     } catch (e) {
       console.warn('session/start: failed to inspect realtimeClient', e)
     }
@@ -250,6 +254,7 @@ app.post('/session/start', async (req: Request, res: Response) => {
       lastPrompt: dbLastPrompt,
       callId,
       callType,
+      callCid: `${callType || 'default'}:${callId}`,
       agentUserId,
       rawInstructions: instructions,
     }
@@ -315,13 +320,13 @@ app.post('/agent/pause', async (req: Request, res: Response) => {
     let permissionOk = false
     try {
       if (record.callId && record.agentUserId) {
-        const callTypeStr = record.callType || 'default'
-        const callCid = `${callTypeStr}:${record.callId}`
+        const callCid = record.callCid || `${record.callType || 'default'}:${record.callId}`
         const payload = {
           call_cid: callCid,
           user_id: record.agentUserId,
           revoke_permissions: [OwnCapability.SEND_AUDIO],
         }
+        console.log(`[${meetingId}] pause: callType=${record.callType || 'default'} callCid=${callCid} agentUserId=${record.agentUserId}`)
         console.log(`[${meetingId}] pause: updateUserPermissions payload=`, payload)
         try {
           await streamVideo.video.updateUserPermissions(payload as any)
@@ -437,14 +442,13 @@ app.post('/agent/resume', async (req: Request, res: Response) => {
     // Restore call-level SEND_AUDIO permission so agent can publish audio again
     let permissionRestoreOk = false
     try {
-      if (record.callId && record.agentUserId) {
-        const callTypeStr = record.callType || 'default'
-        const callCid = `${callTypeStr}:${record.callId}`
+      if (record.callCid && record.agentUserId) {
         const payload = {
-          call_cid: callCid,
+          call_cid: record.callCid,
           user_id: record.agentUserId,
           grant_permissions: [OwnCapability.SEND_AUDIO],
         }
+        console.log(`[${meetingId}] resume: callType=${record.callType || 'default'} callCid=${record.callCid} agentUserId=${record.agentUserId}`)
         console.log(`[${meetingId}] resume: updateUserPermissions payload=`, payload)
         try {
           await streamVideo.video.updateUserPermissions(payload as any)
@@ -452,6 +456,18 @@ app.post('/agent/resume', async (req: Request, res: Response) => {
           permissionRestoreOk = true
         } catch (e) {
           console.warn(`[${meetingId}] updateUserPermissions grant_permissions failed`, e)
+        }
+      } else if (record.callId && record.agentUserId) {
+        // fallback if callCid isn't present
+        const callCid = `${record.callType || 'default'}:${record.callId}`
+        const payload = { call_cid: callCid, user_id: record.agentUserId, grant_permissions: [OwnCapability.SEND_AUDIO] }
+        console.log(`[${meetingId}] resume (fallback): callType=${record.callType || 'default'} callCid=${callCid} agentUserId=${record.agentUserId}`)
+        try {
+          await streamVideo.video.updateUserPermissions(payload as any)
+          console.log(`[${meetingId}] updateUserPermissions grant_permissions succeeded (fallback) for ${record.agentUserId}`)
+          permissionRestoreOk = true
+        } catch (e) {
+          console.warn(`[${meetingId}] updateUserPermissions grant_permissions failed (fallback)`, e)
         }
       } else {
         console.warn(`[${meetingId}] resume: missing callId or agentUserId, cannot restore call-level permissions`, { callId: record.callId, agentUserId: record.agentUserId })
