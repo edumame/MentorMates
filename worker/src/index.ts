@@ -89,7 +89,7 @@ app.post('/session/start', async (req: Request, res: Response) => {
       turn_detection: { type: 'server_vad' },
     })
 
-    const record: SessionRecord = { realtimeClient, intervalId: null, lastUpdatedAt: null, lastSummary: null }
+    const record: SessionRecord = { realtimeClient, intervalId: null, lastUpdatedAt: null, lastSummary: "", paused: false }
     sessions.set(meetingId, record)
 
     // Somewhere near session start
@@ -225,120 +225,50 @@ app.post('/session/stop', async (req: Request, res: Response) => {
 })
 
 // Pause the agent for a meeting: stop speaking and set paused state
-app.post('/agent/pause', async (req: Request, res: Response) => {
+app.post("/agent/pause", (req, res) => {
+  const { meetingId } = req.body;
+  const record = sessions.get(meetingId);
+  if (!record) return res.status(404).json({ ok: false });
+
+  record.paused = true;
+
+  // Immediately stop current speech
   try {
-    const { meetingId } = req.body || {}
-    if (!meetingId) return res.status(400).json({ error: 'missing meetingId' })
+    record.realtimeClient?.realtime?.ws?.send(JSON.stringify({
+      type: "response.cancel",
+    }));
+  } catch {}
 
-    const record = sessions.get(meetingId)
-    if (!record) return res.status(400).json({ error: 'session not found' })
+  res.json({ ok: true, paused: true });
+});
 
-    // persist paused state in supabase (best-effort)
-    try {
-      await supabase.from('meetings').update({ agent_paused: true }).eq('id', meetingId)
-    } catch (e) {
-      console.error('supabase update agent_paused true failed', e)
-    }
-
-    record.paused = true
-
-    // best-effort: cancel current response and clear buffers
-    try {
-      wsSend(record.realtimeClient, { type: 'response.cancel' })
-    } catch (e) {
-      console.warn('response.cancel failed', e)
-    }
-    try {
-      wsSend(record.realtimeClient, { type: 'output_audio_buffer.clear' })
-    } catch (e) {
-      // ignore if not supported
-    }
-
-    // update session instructions to a paused rule so it stops speaking
-    try {
-      await record.realtimeClient.updateSession({
-        instructions: `${record.baseInstructions || ''}\n\nSYSTEM: AGENT IS PAUSED. Do NOT speak or respond. Only listen.`,
-      })
-    } catch (e) {
-      console.error('updateSession to paused instructions failed', e)
-    }
-
-    return res.json({ ok: true, paused: true })
-  } catch (err) {
-    console.error('/agent/pause error', err)
-    res.status(500).json({ error: 'internal' })
-  }
-})
 
 // Resume the agent: restore instructions and optionally replay last prompt
-app.post('/agent/resume', async (req: Request, res: Response) => {
-  try {
-    const { meetingId } = req.body || {}
-    if (!meetingId) return res.status(400).json({ error: 'missing meetingId' })
+app.post("/agent/resume", (req, res) => {
+  const { meetingId } = req.body;
+  const record = sessions.get(meetingId);
+  if (!record) return res.status(404).json({ ok: false });
 
-    const record = sessions.get(meetingId)
-    if (!record) return res.status(400).json({ error: 'session not found' })
+  record.paused = false;
 
-    // persist paused=false
-    try {
-      await supabase.from('meetings').update({ agent_paused: false }).eq('id', meetingId)
-    } catch (e) {
-      console.error('supabase update agent_paused false failed', e)
-    }
-
-    record.paused = false
-
-    // restore instructions
-    try {
-      await record.realtimeClient.updateSession({ instructions: record.baseInstructions || '' })
-    } catch (e) {
-      console.error('updateSession restore failed', e)
-    }
-
-    // determine prompt to replay
-    let promptToReplay = record.lastPrompt || null
-    if (!promptToReplay) {
-      try {
-        const { data: meetingRow } = await supabase
-          .from('meetings')
-          .select('last_agent_prompt')
-          .eq('id', meetingId)
-          .maybeSingle()
-        if (meetingRow && meetingRow.last_agent_prompt) promptToReplay = meetingRow.last_agent_prompt
-      } catch (e) {
-        console.error('supabase fetch last_agent_prompt failed', e)
-      }
-    }
-
-    if (!promptToReplay) {
-      return res.json({ ok: true, paused: false, replayed: false })
-    }
-
-    try {
-      wsSend(record.realtimeClient, {
-        type: 'conversation.item.create',
-        item: {
-          type: 'message',
-          role: 'user',
-          content: [{ type: 'input_text', text: promptToReplay }],
-        },
-      })
-    } catch (e) {
-      console.error('ws send conversation.item.create failed', e)
-    }
-
-    try {
-      wsSend(record.realtimeClient, { type: 'response.create' })
-    } catch (e) {
-      console.error('ws send response.create failed', e)
-    }
-
-    return res.json({ ok: true, paused: false, replayed: true })
-  } catch (err) {
-    console.error('/agent/resume error', err)
-    res.status(500).json({ error: 'internal' })
+  // Optional: replay last prompt
+  if (record.lastPrompt) {
+    record.realtimeClient.realtime.ws.send(JSON.stringify({
+      type: "conversation.item.create",
+      item: {
+        type: "message",
+        role: "user",
+        content: [{ type: "input_text", text: record.lastPrompt }],
+      },
+    }));
+    record.realtimeClient.realtime.ws.send(JSON.stringify({
+      type: "response.create",
+    }));
   }
-})
+
+  res.json({ ok: true, paused: false });
+});
+
 
 // Set/update the last prompt for a meeting (persist in-memory and in supabase)
 app.post('/agent/last-prompt', async (req: Request, res: Response) => {
