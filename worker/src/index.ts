@@ -207,6 +207,14 @@ app.post('/session/start', async (req: Request, res: Response) => {
     // connect realtime client via helper
     const realtimeClient = await connectRealtimeSession({ callId, agentUserId, instructions })
 
+    // One-time discovery logging: list available methods on the client
+    try {
+      console.log('[session/start] realtimeClient keys=', Object.keys(realtimeClient || {}))
+      console.log('[session/start] realtimeClient.realtime keys=', Object.keys((realtimeClient as any).realtime ?? {}))
+    } catch (e) {
+      console.warn('session/start: failed to inspect realtimeClient', e)
+    }
+
     const record: SessionRecord = {
       realtimeClient,
       intervalId: null,
@@ -276,6 +284,23 @@ app.post('/agent/pause', async (req: Request, res: Response) => {
     // inspect ws
     const { ws, readyState, isOpen } = getWsState(record.realtimeClient)
     console.log(`[${meetingId}] pause: ws present=${!!ws} readyState=${readyState}`)
+
+    // Best-effort: attempt to interrupt any ongoing speech/requests using supported SDK methods.
+    try {
+      const rc: any = record.realtimeClient as any
+      if (rc) {
+        try { await rc.interrupt?.(); } catch (e) { /* ignore */ }
+        try { await rc.cancel?.(); } catch (e) { /* ignore */ }
+        try { await rc.stop?.(); } catch (e) { /* ignore */ }
+        // also try nested realtime object if present
+        const nested = rc.realtime ?? {}
+        try { await nested.interrupt?.(); } catch (e) { /* ignore */ }
+        try { await nested.cancel?.(); } catch (e) { /* ignore */ }
+        try { await nested.stop?.(); } catch (e) { /* ignore */ }
+      }
+    } catch (e) {
+      console.warn(`[${meetingId}] pause: interrupt/cancel/stop attempts failed`, e)
+    }
 
     // NOTE: Do NOT send raw websocket events here (can cause protocol errors).
     // Use updateSession to enforce mute and disable turn detection so agent won't auto-start.
@@ -387,7 +412,7 @@ app.post('/agent/resume', async (req: Request, res: Response) => {
 
     // Do NOT send raw websocket events to replay. Replay is disabled for stability.
     // If replay is desired later, implement it using supported SDK APIs (TODO).
-    let replayed = false
+    const replayed = false
 
     // persist paused=false if we unmuted
     try {
