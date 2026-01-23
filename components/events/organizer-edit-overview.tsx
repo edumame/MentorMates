@@ -413,7 +413,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
 
   return (
     <div className="w-full overflow-x-hidden">
-      <div className="w-full flex flex-col lg:min-h-[calc(100vh-88px)] lg:h-[calc(100vh-88px)] lg:overflow-hidden lg:rounded-tl-2xl lg:border-t lg:border-l lg:border-[#D8D8D8] bg-white">
+      <div className="w-full flex flex-col lg:min-h-[calc(100vh-88px)] lg:h-[calc(100vh-88px)] lg:overflow-hidden bg-white">
         <div className="px-4 sm:px-6 lg:px-10 py-4 sm:py-6 lg:py-8 w-full flex flex-col pb-20 lg:pb-4 lg:flex-1 lg:min-h-0 overflow-x-hidden">
           {/* Header with title and action buttons */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 flex-shrink-0">
