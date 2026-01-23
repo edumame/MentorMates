@@ -316,6 +316,8 @@ export default function NewEventPage() {
         event_description: parsed.event_description ?? prev.event_description,
         event_blurb: parsed.event_blurb ?? prev.event_blurb,
         cover_image_url: parsed.cover_image_url ?? prev.cover_image_url,
+        submission_time_start: parsed.submission_time_start ?? prev.submission_time_start,
+        submission_time_cutoff: parsed.submission_time_cutoff ?? prev.submission_time_cutoff,
       }));
 
       if (typeof parsed.paid === "boolean") {
@@ -328,6 +330,93 @@ export default function NewEventPage() {
         if (v === "public") setVisibility(EventVisibility.Private);
         else if (v === "private") setVisibility(EventVisibility.Private);
         else if (v === "draft") setVisibility(EventVisibility.Draft);
+      }
+
+      // Import rules
+      if (Array.isArray(parsed.rules) && parsed.rules.length > 0) {
+        const importedRules: Rule[] = parsed.rules.map((rule: { title: string; items: string[] }) => ({
+          title: rule.title || "",
+          items: Array.isArray(rule.items) ? rule.items : [],
+        }));
+        setRules(importedRules);
+      }
+
+      // Import FAQs
+      if (Array.isArray(parsed.faqs) && parsed.faqs.length > 0) {
+        const importedFaqs = parsed.faqs.map((faq: { question: string; answer: string }, index: number) => ({
+          id: `imported-faq-${index}-${Date.now()}`,
+          question: faq.question || "",
+          answer: faq.answer || "",
+        }));
+        setFaqs(importedFaqs);
+      }
+
+      // Import resources
+      if (Array.isArray(parsed.event_resources) && parsed.event_resources.length > 0) {
+        const importedResources = parsed.event_resources.map((resource: { name: string; link: string }, index: number) => ({
+          id: `imported-resource-${index}-${Date.now()}`,
+          name: resource.name || "",
+          link: resource.link || "",
+        }));
+        setResources(importedResources);
+      }
+
+      // Import schedules
+      if (Array.isArray(parsed.event_schedule) && parsed.event_schedule.length > 0) {
+        const importedSchedules: Array<{
+          id: string;
+          dayTitle: string;
+          eventName: string;
+          time: string;
+          guests: string;
+          description: string;
+        }> = [];
+        parsed.event_schedule.forEach((day: { date: string; events: Array<{ name: string; time: string; description?: string }> }, dayIndex: number) => {
+          if (Array.isArray(day.events)) {
+            day.events.forEach((event, eventIndex: number) => {
+              importedSchedules.push({
+                id: `imported-schedule-${dayIndex}-${eventIndex}-${Date.now()}`,
+                dayTitle: day.date || "",
+                eventName: event.name || "",
+                time: event.time || "",
+                guests: "",
+                description: event.description || "",
+              });
+            });
+          }
+        });
+        setSchedules(importedSchedules);
+      }
+
+      // Import tracks
+      if (Array.isArray(parsed.tracks) && parsed.tracks.length > 0) {
+        const importedTracks = parsed.tracks.map((track: {
+          name: string;
+          description?: string;
+          criteria?: Array<{
+            name: string;
+            description?: string;
+            weight?: number;
+            min?: number;
+            max?: number;
+          }>;
+        }, index: number) => ({
+          id: `imported-track-${index}-${Date.now()}`,
+          name: track.name || "",
+          description: track.description || "",
+          criteria: Array.isArray(track.criteria)
+            ? track.criteria.map((criterion, criterionIndex: number) => ({
+                id: `imported-criterion-${index}-${criterionIndex}-${Date.now()}`,
+                name: criterion.name || "",
+                description: criterion.description || "",
+                questionType: "numeric",
+                minScore: criterion.min ?? 1,
+                maxScore: criterion.max ?? 10,
+                weight: criterion.weight ?? 1,
+              }))
+            : [],
+        }));
+        setTracks(importedTracks);
       }
 
       toast({
