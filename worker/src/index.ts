@@ -216,14 +216,14 @@ app.post("/session/stop", async (req: Request, res: Response) => {
 app.post("/session/pause", async (req: Request, res: Response) => {
   try {
     const { meetingId } = req.body || {};
-    if (!meetingId) return res.status(400).json({ error: "missing meetingId" });
+    if (!meetingId) return res.status(401).json({ error: "missing meetingId" });
 
     const record = sessions.get(meetingId);
 
-    if (!record) return res.status(400).json({ error: "session not found" });
+    if (!record) return res.status(402).json({ error: "session not found" });
     const realtimeClient = record?.realtimeClient;
     if (!realtimeClient)
-      return res.status(400).json({ error: "realtime client not found" });
+      return res.status(404).json({ error: "realtime client not found" });
 
     // send an update to the session to disable automatic response generation but keep VAD enabled
     try {
@@ -252,14 +252,14 @@ app.post("/session/pause", async (req: Request, res: Response) => {
 app.post("/session/resume", async (req: Request, res: Response) => {
   try {
     const { meetingId } = req.body || {};
-    if (!meetingId) return res.status(400).json({ error: "missing meetingId" });
+    if (!meetingId) return res.status(401).json({ error: "missing meetingId" });
 
     const record = sessions.get(meetingId);
-    if (!record) return res.status(400).json({ error: "session not found" });
+    if (!record) return res.status(402).json({ error: "session not found" });
 
     const realtimeClient = record?.realtimeClient;
     if (!realtimeClient)
-      return res.status(400).json({ error: "realtime client not found" });
+      return res.status(404).json({ error: "realtime client not found" });
 
     try {
       realtimeClient.realtime.send("session.update", {
