@@ -383,7 +383,10 @@ app.post('/agent/pause', async (req: Request, res: Response) => {
     try {
       await record.realtimeClient.updateSession({
         instructions: `${record.baseInstructions || ''}\n\nSYSTEM: AGENT IS PAUSED. Do NOT speak or respond. Only listen.`,
-        turn_detection: null as unknown as Record<string, unknown> | null,
+        turn_detection: {
+          type: "server_vad",
+          create_response: false,
+        },
       } as Record<string, unknown>)
       updateOk = true
     } catch (e) {
@@ -391,7 +394,10 @@ app.post('/agent/pause', async (req: Request, res: Response) => {
       try {
         await record.realtimeClient.updateSession({
           instructions: `${record.baseInstructions || ''}\n\nSYSTEM: AGENT IS PAUSED. Do NOT speak or respond. Only listen.`,
-          turn_detection: { type: 'none' } as unknown as Record<string, unknown>,
+            turn_detection: {
+            type: "server_vad",
+            create_response: false,
+          },
         } as Record<string, unknown>)
         updateOk = true
       } catch (err2) {
@@ -484,10 +490,10 @@ app.post('/agent/resume', async (req: Request, res: Response) => {
     if (permissionRestoreOk) {
       try {
         // First attempt
-        await record.realtimeClient.updateSession({ instructions: record.baseInstructions || '', turn_detection: { type: 'server_vad' } as unknown as Record<string, unknown> } as Record<string, unknown>)
+        await record.realtimeClient.updateSession({ instructions: record.baseInstructions || '', turn_detection: { type: 'server_vad', create_response: true } as unknown as Record<string, unknown> } as Record<string, unknown>)
         // small delay then repeat to ensure server-side VAD gets properly re-armed
         await new Promise((r) => setTimeout(r, 200))
-        await record.realtimeClient.updateSession({ instructions: record.baseInstructions || '', turn_detection: { type: 'server_vad' } as unknown as Record<string, unknown> } as Record<string, unknown>)
+        await record.realtimeClient.updateSession({ instructions: record.baseInstructions || '', turn_detection: { type: 'server_vad', create_response: true  } as unknown as Record<string, unknown> } as Record<string, unknown>)
         unmuteOk = true
       } catch (e) {
         console.error('updateSession re-arm (server_vad) failed', e)
@@ -499,7 +505,16 @@ app.post('/agent/resume', async (req: Request, res: Response) => {
 
       // Reset the generation/response pipeline state after a pause/cancel by issuing a neutral response.create
       try {
-        wsSend(record.realtimeClient, { type: 'response.create' })
+        console.log(
+          `[${meetingId}] resume: forcing response.create after pause; paused=${record.paused}`
+        );
+        wsSend(record.realtimeClient, {
+          type: 'response.create',
+          response: {
+            instructions:
+              "The agent has resumed. Use the pitch context and respond to the user's question. If none was asked, ask a clarifying question.",
+          },
+        });
         console.log(`[${meetingId}] sent response.create to reinitialize response pipeline`)
       } catch (e) {
         console.warn(`[${meetingId}] response.create wsSend failed`, e)
@@ -511,7 +526,7 @@ app.post('/agent/resume', async (req: Request, res: Response) => {
     } else {
       // If permissions weren't restored, still attempt a best-effort update (single attempt)
       try {
-        await record.realtimeClient.updateSession({ instructions: record.baseInstructions || '', turn_detection: { type: 'server_vad' } as unknown as Record<string, unknown> } as Record<string, unknown>)
+        await record.realtimeClient.updateSession({ instructions: record.baseInstructions || '', turn_detection: { type: 'server_vad',  create_response: true } as unknown as Record<string, unknown> } as Record<string, unknown>)
         unmuteOk = true
         record.paused = false
       } catch (e) {
@@ -520,35 +535,6 @@ app.post('/agent/resume', async (req: Request, res: Response) => {
       const wsState = getWsState(record.realtimeClient)
       console.log(`[${meetingId}] resume-fallback: intervalAlive=${!!record.intervalId} paused=${record.paused} wsReadyState=${wsState.readyState}`)
     }
-
-    // Optional: replay last prompt
-    let promptToReplay = record.lastPrompt || null
-    if (!promptToReplay) {
-      try {
-        const { data: meetingRow } = await supabase
-          .from('meetings')
-          .select('last_agent_prompt')
-          .eq('id', meetingId)
-          .maybeSingle()
-        if (meetingRow && meetingRow.last_agent_prompt) promptToReplay = meetingRow.last_agent_prompt
-      } catch (e) {
-        console.error('supabase fetch last_agent_prompt failed', e)
-      }
-    }
-
-    // Do NOT send raw websocket events to replay. Replay is disabled for stability.
-    // If replay is desired later, implement it using supported SDK APIs (TODO).
-    const replayed = false
-
-    // persist paused=false if we unmuted
-    try {
-      if (unmuteOk) await supabase.from('meetings').update({ agent_paused: false }).eq('id', meetingId)
-    } catch (e) {
-      console.error('supabase update agent_paused false failed', e)
-    }
-
-    console.log(`[${meetingId}] resume: unmuteOk=${unmuteOk} permissionRestored=${permissionRestoreOk} wsReadyState=${getWsState(record.realtimeClient).readyState}`)
-    return res.json({ ok: true, paused: !unmuteOk ? true : false, replayed, permissionRestored: permissionRestoreOk })
   } catch (err) {
     console.error('/agent/resume error', err)
     res.status(500).json({ error: 'internal' })
