@@ -522,6 +522,12 @@ app.post('/agent/resume', async (req: Request, res: Response) => {
       const wsState = getWsState(record.realtimeClient)
       console.log(`[${meetingId}] resume-fallback: intervalAlive=${!!record.intervalId} paused=${record.paused} wsReadyState=${wsState.readyState}`)
     }
+    return res.json({
+      ok: true,
+      resumed: true,
+      permissionRestored: permissionRestoreOk,
+      paused: record.paused,
+    });
   } catch (err) {
     console.error('/agent/resume error', err)
     res.status(500).json({ error: 'internal' })
