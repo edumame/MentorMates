@@ -271,6 +271,7 @@ app.post('/session/start', async (req: Request, res: Response) => {
   }
 })
 
+// Session stop: stop and cleanup a session when meeting ends
 app.post('/session/stop', async (req: Request, res: Response) => {
   try {
     const { meetingId, reason } = req.body || {}
@@ -383,22 +384,22 @@ app.post('/agent/pause', async (req: Request, res: Response) => {
     try {
       await record.realtimeClient.updateSession({
         instructions: `${record.baseInstructions || ''}\n\nSYSTEM: AGENT IS PAUSED. Do NOT speak or respond. Only listen.`,
-        turn_detection: {
+        turn_detection: ({
           type: "server_vad",
           create_response: false,
-        },
-      } as Record<string, unknown>)
+        } as unknown as Record<string, unknown> & { type: 'server_vad' }),
+      })
       updateOk = true
     } catch (e) {
       console.warn('updateSession with turn_detection=null failed, trying {type:"none"}', e)
       try {
         await record.realtimeClient.updateSession({
           instructions: `${record.baseInstructions || ''}\n\nSYSTEM: AGENT IS PAUSED. Do NOT speak or respond. Only listen.`,
-            turn_detection: {
+            turn_detection: ({
             type: "server_vad",
             create_response: false,
-          },
-        } as Record<string, unknown>)
+          } as unknown as Record<string, unknown> & { type: 'server_vad' }),
+        })
         updateOk = true
       } catch (err2) {
         console.error('updateSession to paused instructions failed', err2)
@@ -490,48 +491,29 @@ app.post('/agent/resume', async (req: Request, res: Response) => {
     if (permissionRestoreOk) {
       try {
         // First attempt
-        await record.realtimeClient.updateSession({ instructions: record.baseInstructions || '', turn_detection: { type: 'server_vad', create_response: true } as unknown as Record<string, unknown> } as Record<string, unknown>)
+        await record.realtimeClient.updateSession({ instructions: record.baseInstructions || '', turn_detection: ({ type: 'server_vad', create_response: true } as unknown as Record<string, unknown> & { type: 'server_vad' }) })
         // small delay then repeat to ensure server-side VAD gets properly re-armed
         await new Promise((r) => setTimeout(r, 200))
-        await record.realtimeClient.updateSession({ instructions: record.baseInstructions || '', turn_detection: { type: 'server_vad', create_response: true  } as unknown as Record<string, unknown> } as Record<string, unknown>)
+        await record.realtimeClient.updateSession({ instructions: record.baseInstructions || '', turn_detection: ({ type: 'server_vad', create_response: true } as unknown as Record<string, unknown> & { type: 'server_vad' }) })
         unmuteOk = true
       } catch (e) {
         console.error('updateSession re-arm (server_vad) failed', e)
       }
+      await record.realtimeClient.updateSession({
+        instructions: record.baseInstructions || '',
+        turn_detection: ({
+          type: 'server_vad',
+          create_response: true,
+        } as unknown as Record<string, unknown> & { type: 'server_vad' }),
+      })
 
       if (unmuteOk) {
         record.paused = false
       }
-
-      // Reset the generation/response pipeline state after a pause/cancel by issuing a neutral response.create
-      try {
-        try {
-          wsSend(record.realtimeClient, { type: "input_audio_buffer.commit" })
-          wsSend(record.realtimeClient, { type: "input_audio_buffer.clear" })
-          console.log(`[${meetingId}] committed and cleared audio buffer before response.create`)
-        } catch (e) {
-          console.warn(`[${meetingId}] audio buffer commit failed (non-fatal)`, e)
-        }
-        wsSend(record.realtimeClient, {
-          type: 'response.create',
-          response: {
-            modalities: ["audio"],
-            instructions:
-              "The agent has resumed. Use the pitch context and respond to the user's question. If none was asked, ask a clarifying question.",
-          },
-        });
-        console.log(`[${meetingId}] sent response.create to reinitialize response pipeline`)
-      } catch (e) {
-        console.warn(`[${meetingId}] response.create wsSend failed`, e)
-      }
-
-      // Add logs confirming interval alive, paused state, and ws readyState
-      const wsState = getWsState(record.realtimeClient)
-      console.log(`[${meetingId}] resume-post: intervalAlive=${!!record.intervalId} paused=${record.paused} wsReadyState=${wsState.readyState}`)
     } else {
       // If permissions weren't restored, still attempt a best-effort update (single attempt)
       try {
-        await record.realtimeClient.updateSession({ instructions: record.baseInstructions || '', turn_detection: { type: 'server_vad',  create_response: true } as unknown as Record<string, unknown> } as Record<string, unknown>)
+        await record.realtimeClient.updateSession({ instructions: record.baseInstructions || '', turn_detection: ({ type: 'server_vad',  create_response: true } as unknown as Record<string, unknown> & { type: 'server_vad' }) })
         unmuteOk = true
         record.paused = false
       } catch (e) {
