@@ -221,6 +221,7 @@ app.post("/session/pause", async (req: Request, res: Response) => {
     const record = sessions.get(meetingId);
     console.log(sessions)
     console.log(meetingId)
+    console.log(record);
     if (!record) return res.status(402).json({ error: "session not found" });
     const realtimeClient = record?.realtimeClient;
     if (!realtimeClient)
