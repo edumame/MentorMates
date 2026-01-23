@@ -505,12 +505,17 @@ app.post('/agent/resume', async (req: Request, res: Response) => {
 
       // Reset the generation/response pipeline state after a pause/cancel by issuing a neutral response.create
       try {
-        console.log(
-          `[${meetingId}] resume: forcing response.create after pause; paused=${record.paused}`
-        );
+        try {
+          wsSend(record.realtimeClient, { type: "input_audio_buffer.commit" })
+          wsSend(record.realtimeClient, { type: "input_audio_buffer.clear" })
+          console.log(`[${meetingId}] committed and cleared audio buffer before response.create`)
+        } catch (e) {
+          console.warn(`[${meetingId}] audio buffer commit failed (non-fatal)`, e)
+        }
         wsSend(record.realtimeClient, {
           type: 'response.create',
           response: {
+            modalities: ["audio"],
             instructions:
               "The agent has resumed. Use the pitch context and respond to the user's question. If none was asked, ask a clarifying question.",
           },
