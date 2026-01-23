@@ -111,6 +111,8 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "express": "^4.18.2",
+    "@types/express": "^4.17.21",
     "@tailwindcss/typography": "^0.5.19",
     "@types/node": "^20.19.29",
     "@types/react": "^18.3.27",
