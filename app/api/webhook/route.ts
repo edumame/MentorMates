@@ -237,10 +237,11 @@ export async function POST(req: NextRequest) {
       .update({ recording_url: event.call_recording.url })
       .eq("id", meetingId);
   } else if (eventType === "custom") {
+    console.log("reaching custom")
     const event = payload as CustomVideoEvent;
     const meetingId = event.call_cid.split(":")[1];
 
-    if (event.type === "agent_pause") {
+    if (event.custom.type === "agent_pause") {
       try {
         const workerUrl = process.env.SCREEN_VISION_WORKER_URL;
         if (workerUrl) {
@@ -253,7 +254,7 @@ export async function POST(req: NextRequest) {
       } catch (e) {
         console.warn("failed to notify worker about session_ended", e);
       }
-    } else if (event.type === "agent_resume") {
+    } else if (event.custom.type === "agent_resume") {
       try {
         const workerUrl = process.env.SCREEN_VISION_WORKER_URL;
         if (workerUrl) {
