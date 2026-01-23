@@ -27,10 +27,34 @@ export const CallUI = ({ meetingId, meetingName}: Props) => {
         setShow("ended");
     };
 
+    const handleAgentPause = () => {
+        if (!call) return;
+
+        call.sendCustomEvent({
+            type: "agent_pause",
+            data: {
+                callId: call.id,
+                meetingId: meetingId,
+            }
+        })
+    };
+
+    const handleAgentResume = () => {   
+        if (!call) return;
+
+        call.sendCustomEvent({
+            type: "agent_resume",
+            data: {
+                callId: call.id,
+                meetingId: meetingId,
+            }
+        })
+    };
+
     return (
         <StreamTheme className="h-[95%]">
             {show === "lobby" && <CallLobby onJoin={handleJoin} />}
-            {show === "call" && <CallActive onLeave={handleLeave} meetingId={meetingId} meetingName={meetingName} />}
+            {show === "call" && <CallActive onLeave={handleLeave} onPause={handleAgentPause} onResume={handleAgentResume} meetingId={meetingId} meetingName={meetingName} />}
             {show === "ended" && <CallEnded />}
         </StreamTheme>
     )

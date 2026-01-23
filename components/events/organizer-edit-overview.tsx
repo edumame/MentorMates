@@ -67,7 +67,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
   const [saving, setSaving] = useState(false);
   const [event, setEvent] = useState<EventDetails | null>(null);
   const [scoringConfig, setScoringConfig] = useState<EventScoringConfig | null>(
-    null
+    null,
   );
   const [deleting, setDeleting] = useState(false);
   const [archiving, setArchiving] = useState(false);
@@ -185,7 +185,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
               prize_description
             )
           )
-        `
+        `,
         )
         .eq("event_id", eventId)
         .single();
@@ -224,7 +224,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                   max: criterion.max || 10,
                   type: criterion.type || "numeric",
                   options: criterion.options || [],
-                })
+                }),
               ),
             };
           }
@@ -336,7 +336,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
     } catch (error) {
       console.error(
         `Error ${event.visibility === EventVisibility.Archived ? "unarchiving" : "archiving"} event:`,
-        error
+        error,
       );
       toast({
         title: "Error",
@@ -727,7 +727,11 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                 </TabsContent>
 
                 <TabsContent value="sessions" className="mt-0 w-full">
-                  <SessionsTab eventId={eventId} event={event} setEvent={setEvent} />
+                  <SessionsTab
+                    eventId={eventId}
+                    event={event}
+                    setEvent={setEvent}
+                  />
                 </TabsContent>
 
                 <TabsContent value="agents" className="mt-0 w-full">
