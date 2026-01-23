@@ -17,6 +17,14 @@ export const CallActive = ({ onLeave, meetingName, meetingId }: Props) => {
         if (disabled) return;
         setDisabled(true);
         const endpoint = paused ? "/api/agent/resume" : "/api/agent/pause";
+        // If we're transitioning into paused=true, stop any audio immediately
+        if (!paused) {
+            try {
+                stopAllAudio()
+            } catch (e) {
+                // ignore
+            }
+        }
         try {
             await fetch(endpoint, {
                 method: "POST",
@@ -31,6 +39,20 @@ export const CallActive = ({ onLeave, meetingName, meetingId }: Props) => {
         // brief disabled/loading state so the user sees the button was pressed
         setTimeout(() => setDisabled(false), 400);
     }, [meetingId, disabled, paused]);
+
+    // Pause and reset all <audio> elements on the page.
+    const stopAllAudio = useCallback(() => {
+        if (typeof document === 'undefined') return;
+        const audios = Array.from(document.querySelectorAll('audio')) as HTMLAudioElement[];
+        audios.forEach((a) => {
+            try {
+                a.pause();
+            } catch (e) {}
+            try {
+                a.currentTime = 0;
+            } catch (e) {}
+        });
+    }, []);
 
     // Toggle Pause/Resume button component
     const PauseAgentButton = ({ onClick, disabledState, pausedState }: { onClick: () => void; disabledState: boolean; pausedState: boolean }) => {
