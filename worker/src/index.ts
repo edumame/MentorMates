@@ -231,11 +231,12 @@ app.post("/session/pause", async (req: Request, res: Response) => {
           turn_detection: null,
         },
       });
-      realtimeClient.realtime.send("response.cancel", {});
-      realtimeClient.realtime.send("output_audio_buffer.clear", {});
       realtimeClient.on("session.updated", (event: any) => {
         console.log("/session/pause session updated", event);
       });
+      realtimeClient.realtime.send("response.cancel", {});
+      // realtimeClient.realtime.send("output_audio_buffer.clear", {});
+
       return res.json({ ok: true, paused: true });
     } catch (err) {
       console.error("/session/pause error on session update", err);
