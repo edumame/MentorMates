@@ -277,20 +277,18 @@ app.post("/session/resume", async (req: Request, res: Response) => {
       realtimeClient.realtime.send("input_audio_buffer.commit", {});
       realtimeClient.realtime.send("response.create", {});
       realtimeClient.realtime.send("input_audio_buffer.clear", {});
-      realtimeClient.realtime.send("session.update", {
-        session: {
-          turn_detection: {
-            type: "server_vad",
-          },
-        },
-      });
-      // await realtimeClient.updateSession({
-      //   turn_detection: ({
-      //     type: "server_vad",
-      //     interrupt_response: true,
-      //     create_response: true,
-      //   } as unknown as Record<string, unknown> & { type: 'server_vad' }),
-      // })
+      // realtimeClient.realtime.send("session.update", {
+      //   session: {
+      //     turn_detection: {
+      //       type: "server_vad",
+      //     },
+      //   },
+      // });
+      realtimeClient.updateSession({
+        turn_detection: ({
+          type: "server_vad",
+        }),
+      })
 
       realtimeClient.on("session.updated", (event: any) => {
         console.log("/session/resume session updated", event);
