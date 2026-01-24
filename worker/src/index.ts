@@ -219,9 +219,6 @@ app.post("/session/pause", async (req: Request, res: Response) => {
     if (!meetingId) return res.status(401).json({ error: "missing meetingId" });
 
     const record = sessions.get(meetingId);
-    console.log(sessions)
-    console.log(meetingId)
-    console.log(record);
     if (!record) return res.status(402).json({ error: "session not found" });
     const realtimeClient = record?.realtimeClient;
     if (!realtimeClient)
@@ -234,14 +231,6 @@ app.post("/session/pause", async (req: Request, res: Response) => {
           turn_detection: null,
         },
       });
-
-      // await realtimeClient.updateSession({
-      //   turn_detection: ({
-      //     type: "server_vad",
-      //     interrupt_response: false,
-      //     create_response: false,
-      //   } as unknown as Record<string, unknown> & { type: 'server_vad' }),
-      // })
 
       realtimeClient.on("session.updated", (event: any) => {
         console.log("/session/pause session updated", event);
@@ -277,13 +266,6 @@ app.post("/session/resume", async (req: Request, res: Response) => {
       realtimeClient.realtime.send("input_audio_buffer.commit", {});
       realtimeClient.realtime.send("response.create", {});
       realtimeClient.realtime.send("input_audio_buffer.clear", {});
-      // realtimeClient.realtime.send("session.update", {
-      //   session: {
-      //     turn_detection: {
-      //       type: "server_vad",
-      //     },
-      //   },
-      // });
       realtimeClient.updateSession({
         turn_detection: ({
           type: "server_vad",
