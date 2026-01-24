@@ -273,12 +273,14 @@ app.post("/session/resume", async (req: Request, res: Response) => {
     if (!realtimeClient)
       return res.status(404).json({ error: "realtime client not found" });
 
-    try {
+    try {  
+      realtimeClient.realtime.send("input_audio_buffer.commit", {});
+      realtimeClient.realtime.send("response.create", {});
+      realtimeClient.realtime.send("input_audio_buffer.clear", {});
       realtimeClient.realtime.send("session.update", {
         session: {
           turn_detection: {
-            interrupt_response: true,
-            create_response: true,
+            type: "server_vad",
           },
         },
       });
