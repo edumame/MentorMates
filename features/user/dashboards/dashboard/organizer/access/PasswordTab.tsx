@@ -4,7 +4,12 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/lib/hooks/use-toast";
-import { EventRole, EventVisibility, EventDetails } from "@/lib/types";
+import {
+  EventRole,
+  EventVisibility,
+  EventDetails,
+  ApprovalStatus,
+} from "@/lib/types";
 import { supabase } from "@/lib/supabase";
 import { getRoleLabel } from "@/features/user/roles/roles";
 import {
@@ -23,7 +28,13 @@ interface PasswordTabProps {
   setEvent: React.Dispatch<React.SetStateAction<EventDetails | null>>;
 }
 
-export function PasswordTab({ eventId, roleLabels, isArchived, event, setEvent }: PasswordTabProps) {
+export function PasswordTab({
+  eventId,
+  roleLabels,
+  isArchived,
+  event,
+  setEvent,
+}: PasswordTabProps) {
   const [rolePasswords, setRolePasswords] = useState<Record<EventRole, string>>(
     {} as Record<EventRole, string>
   );
@@ -38,7 +49,7 @@ export function PasswordTab({ eventId, roleLabels, isArchived, event, setEvent }
     EventRole.Participant,
     EventRole.Mentor,
     EventRole.Judge,
-    EventRole.Organizer
+    EventRole.Organizer,
   ] as EventRole[];
 
   // Update visibility when event prop changes
@@ -144,7 +155,6 @@ export function PasswordTab({ eventId, roleLabels, isArchived, event, setEvent }
     }
   };
 
-
   return (
     <div className="space-y-6">
       <div className="space-y-4 p-4 border rounded-lg bg-card">
@@ -162,10 +172,11 @@ export function PasswordTab({ eventId, roleLabels, isArchived, event, setEvent }
               <SelectValue placeholder="Select visibility" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={EventVisibility.Private}>
-                Private
-              </SelectItem>
+              <SelectItem value={EventVisibility.Private}>Private</SelectItem>
               <SelectItem value={EventVisibility.Draft}>Draft</SelectItem>
+              {event.approval_status === ApprovalStatus.Approved && (
+                <SelectItem value={EventVisibility.Public}>Public</SelectItem>
+              )}
             </SelectContent>
           </Select>
         </div>
@@ -178,9 +189,7 @@ export function PasswordTab({ eventId, roleLabels, isArchived, event, setEvent }
             const label = getRoleLabel(role, roleLabels);
             return (
               <div key={role} className="space-y-2">
-                <label className="text-sm font-medium">
-                  {label} Password
-                </label>
+                <label className="text-sm font-medium">{label} Password</label>
                 <div className="flex gap-2">
                   <Input
                     type="password"
@@ -197,7 +206,8 @@ export function PasswordTab({ eventId, roleLabels, isArchived, event, setEvent }
                   </Button>
                 </div>
                 <p className="text-xs text-gray-500">
-                  This password will be used by {label.toLowerCase()}s to join the event.
+                  This password will be used by {label.toLowerCase()}s to join
+                  the event.
                 </p>
               </div>
             );
