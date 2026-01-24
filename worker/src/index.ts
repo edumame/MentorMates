@@ -11,27 +11,27 @@ type SessionRecord = {
   lastPushedAt?: number;
 };
 
-function wsSend(realtimeClient: RealtimeClient, event: any) {
-  const ws = realtimeClient?.realtime?.ws;
-  if (!ws) throw new Error("Realtime WS missing");
-  if (ws.readyState !== 1)
-    throw new Error(`Realtime WS not open (state=${ws.readyState})`);
-  ws.send(JSON.stringify(event));
-}
+// function wsSend(realtimeClient: RealtimeClient, event: any) {
+//   const ws = realtimeClient?.realtime?.ws;
+//   if (!ws) throw new Error("Realtime WS missing");
+//   if (ws.readyState !== 1)
+//     throw new Error(`Realtime WS not open (state=${ws.readyState})`);
+//   ws.send(JSON.stringify(event));
+// }
 
-function injectScreenAsUserMessage(
-  realtimeClient: RealtimeClient,
-  text: string
-) {
-  wsSend(realtimeClient, {
-    type: "conversation.item.create",
-    item: {
-      type: "message",
-      role: "user",
-      content: [{ type: "input_text", text }],
-    },
-  });
-}
+// function injectScreenAsUserMessage(
+//   realtimeClient: RealtimeClient,
+//   text: string
+// ) {
+//   wsSend(realtimeClient, {
+//     type: "conversation.item.create",
+//     item: {
+//       type: "message",
+//       role: "user",
+//       content: [{ type: "input_text", text }],
+//     },
+//   });
+// }
 
 const app = express();
 app.use(express.json({ limit: "2mb" }));
@@ -150,11 +150,13 @@ app.post("/session/start", async (req: Request, res: Response) => {
           ? summary
           : `[Screen] ${summary}`;
 
+        console.log(`Screen summary: ${screen.slice(0, 120)}`);
+
         // put it into the conversation as if the user said it
-        injectScreenAsUserMessage(realtimeClient, screen);
-        console.log(
-          `[${meetingId}] injected user msg: ${screen.slice(0, 120)}`
-        );
+        // injectScreenAsUserMessage(realtimeClient, screen);
+        // console.log(
+        //   `[${meetingId}] injected user msg: ${screen.slice(0, 120)}`
+        // );
 
         try {
           await realtimeClient.updateSession({
@@ -175,7 +177,7 @@ app.post("/session/start", async (req: Request, res: Response) => {
       }
     };
 
-    const id = setInterval(poll, 5000);
+    const id = setInterval(poll, 2000);
     record.intervalId = id;
 
     // run one immediately
@@ -226,11 +228,10 @@ app.post("/session/pause", async (req: Request, res: Response) => {
 
     // send an update to the session to disable automatic response generation but keep VAD enabled
     try {
-      realtimeClient.realtime.send("session.update", {
-        session: {
-          turn_detection: null,
-        },
+      realtimeClient.updateSession({
+        turn_detection: null,
       });
+      
       realtimeClient.realtime.send("output_audio_buffer.clear", {});
       return res.json({ ok: true, paused: true });
     } catch (err) {
@@ -258,18 +259,15 @@ app.post("/session/resume", async (req: Request, res: Response) => {
       return res.status(404).json({ error: "realtime client not found" });
 
     try {  
-      realtimeClient.realtime.send("input_audio_buffer.commit", {});
-      realtimeClient.realtime.send("response.create", {});
+      // realtimeClient.realtime.send("input_audio_buffer.commit", {});
+      // realtimeClient.realtime.send("response.create", {});
+      realtimeClient.createResponse()
       realtimeClient.realtime.send("input_audio_buffer.clear", {});
       realtimeClient.updateSession({
         turn_detection: ({
           type: "server_vad",
         }),
       })
-
-      realtimeClient.on("session.updated", (event: any) => {
-        console.log("/session/resume session updated", event);
-      });
     } catch (err) {
       console.error("/session/resume error on session update", err);
       res.status(500).json({ error: "internal" });
