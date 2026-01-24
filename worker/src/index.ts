@@ -251,8 +251,6 @@ app.post("/session/resume", async (req: Request, res: Response) => {
     if (!meetingId) return res.status(401).json({ error: "missing meetingId" });
 
     const record = sessions.get(meetingId);
-    console.log(sessions)
-    console.log(meetingId)
     if (!record) return res.status(402).json({ error: "session not found" });
 
     const realtimeClient = record?.realtimeClient;
