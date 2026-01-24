@@ -229,14 +229,22 @@ app.post("/session/pause", async (req: Request, res: Response) => {
 
     // send an update to the session to disable automatic response generation but keep VAD enabled
     try {
-      realtimeClient.realtime.send("session.update", {
-        session: {
-          turn_detection: {
-            interrupt_response: false,
-            create_response: false,
-          },
-        },
-      });
+      // realtimeClient.realtime.send("session.update", {
+      //   session: {
+      //     turn_detection: {
+      //       interrupt_response: false,
+      //       create_response: false,
+      //     },
+      //   },
+      // });
+
+      await realtimeClient.updateSession({
+        turn_detection: ({
+          type: "server_vad",
+          interrupt_response: false,
+          create_response: false,
+        } as unknown as Record<string, unknown> & { type: 'server_vad' }),
+      })
 
       realtimeClient.on("session.updated", (event: any) => {
         console.log("/session/pause session updated", event);
@@ -268,14 +276,21 @@ app.post("/session/resume", async (req: Request, res: Response) => {
       return res.status(404).json({ error: "realtime client not found" });
 
     try {
-      realtimeClient.realtime.send("session.update", {
-        session: {
-          turn_detection: {
-            interrupt_response: true,
-            create_response: true,
-          },
-        },
-      });
+      // realtimeClient.realtime.send("session.update", {
+      //   session: {
+      //     turn_detection: {
+      //       interrupt_response: true,
+      //       create_response: true,
+      //     },
+      //   },
+      // });
+      await realtimeClient.updateSession({
+        turn_detection: ({
+          type: "server_vad",
+          interrupt_response: true,
+          create_response: true,
+        } as unknown as Record<string, unknown> & { type: 'server_vad' }),
+      })
 
       realtimeClient.on("session.updated", (event: any) => {
         console.log("/session/resume session updated", event);
