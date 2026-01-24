@@ -297,14 +297,7 @@ app.post("/session/resume", async (req: Request, res: Response) => {
       console.error("/session/resume error on session update", err);
       res.status(500).json({ error: "internal" });
     }
-
-    try {
-      realtimeClient.realtime.send("response.create", {});
-      return res.json({ ok: true, paused: false });
-    } catch (err) {
-      console.error("/session/resume error on response create", err);
-      res.status(500).json({ error: "internal" });
-    }
+    return res.json({ ok: true, paused: false });
   } catch (err) {
     console.error("/session/resume error", err);
     res.status(500).json({ error: "internal" });
