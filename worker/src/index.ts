@@ -243,10 +243,12 @@ app.post("/session/pause", async (req: Request, res: Response) => {
       });
     } catch (err) {
       console.error("/session/pause error on session update", err);
-      res.status(500).json({ error: "internal" });
+      console.log(err);
+      res.status(501).json({ error: "internal" });
     }
   } catch (err) {
     console.error("/session/pause error", err);
+    console.log(err);
     res.status(500).json({ error: "internal" });
   }
 });

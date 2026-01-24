@@ -252,7 +252,7 @@ export async function POST(req: NextRequest) {
           });
         }
       } catch (e) {
-        console.warn("failed to notify worker about session_ended", e);
+        console.warn("failed to notify worker about session_paused", e);
       }
     } else if (event.custom.type === "agent_resume") {
       try {
