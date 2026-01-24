@@ -231,7 +231,8 @@ app.post("/session/pause", async (req: Request, res: Response) => {
           turn_detection: null,
         },
       });
-
+      realtimeClient.realtime.send("response.cancel", {});
+      realtimeClient.realtime.send("output_audio_buffer.clear", {});
       realtimeClient.on("session.updated", (event: any) => {
         console.log("/session/pause session updated", event);
       });
