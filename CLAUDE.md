@@ -141,6 +141,17 @@ app/
   - Examples: `chinat/fix-feedback-modal`, `cursor/mentor-agent-scoring`
   - Avoid generic names like `frontend`, `dev`, `fix`
 
+## Plan File Naming
+
+When creating plan files for Claude Code sessions, use descriptive names that reflect the task:
+- Use kebab-case: `fix-auth-redirect-bug.md`, `add-mentor-dashboard-feature.md`
+- Include the feature or area being worked on
+- Avoid generic names like `plan.md` or random word combinations
+- Examples:
+  - `refactor-project-submission-form.md`
+  - `update-email-templates.md`
+  - `fix-qr-scanner-permissions.md`
+
 ## Pre-PR Checklist
 
 Before creating a pull request, always:
