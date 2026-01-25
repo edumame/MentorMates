@@ -93,7 +93,7 @@ app.post("/session/start", async (req: Request, res: Response) => {
     );
     console.log("realtime keys:", Object.keys(realtimeClient.realtime || {}));
 
-    await realtimeClient.updateSession({
+    realtimeClient.updateSession({
       instructions,
       input_audio_transcription: { model: "whisper-1" },
       turn_detection: { type: "server_vad" },
@@ -159,8 +159,9 @@ app.post("/session/start", async (req: Request, res: Response) => {
         // );
 
         try {
-          await realtimeClient.updateSession({
+          realtimeClient.updateSession({
             instructions: `${baseInstructions}\n\nLatest shared screen:\n${screen}\n`,
+            turn_detection: { type: "server_vad" },
           });
           console.log(
             `[${meetingId}] updateSession OK: ${screen.slice(0, 120)}`
@@ -200,10 +201,10 @@ app.post("/session/stop", async (req: Request, res: Response) => {
 
     if (record.intervalId) clearInterval(record.intervalId);
     try {
-      await record.realtimeClient?.disconnect?.();
+      record.realtimeClient?.disconnect?.();
     } catch (e) {
       try {
-        await (record.realtimeClient as any)?.close?.();
+        (record.realtimeClient as any)?.close?.();
       } catch {}
     }
 
@@ -228,10 +229,11 @@ app.post("/session/pause", async (req: Request, res: Response) => {
 
     // send an update to the session to disable automatic response generation but keep VAD enabled
     try {
-      realtimeClient.updateSession({
-        turn_detection: null,
+      realtimeClient.realtime.send("session.update", {
+        session: {
+          turn_detection: null,
+        },
       });
-      
       realtimeClient.realtime.send("output_audio_buffer.clear", {});
       return res.json({ ok: true, paused: true });
     } catch (err) {
@@ -259,9 +261,9 @@ app.post("/session/resume", async (req: Request, res: Response) => {
       return res.status(404).json({ error: "realtime client not found" });
 
     try {  
-      // realtimeClient.realtime.send("input_audio_buffer.commit", {});
-      // realtimeClient.realtime.send("response.create", {});
-      realtimeClient.createResponse()
+      realtimeClient.realtime.send("input_audio_buffer.commit", {});
+      realtimeClient.realtime.send("response.create", {});
+      // realtimeClient.createResponse()
       realtimeClient.realtime.send("input_audio_buffer.clear", {});
       realtimeClient.updateSession({
         turn_detection: ({
