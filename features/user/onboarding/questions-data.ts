@@ -183,3 +183,36 @@ export const NON_AI_TOOL_VALUES = [
   "productivity_tools",
 ] as const;
 
+// Platform role options - how users want to participate on MentorMates
+export const PLATFORM_ROLE_OPTIONS = [
+  {
+    value: "participant",
+    label: "Participant",
+    description: "I want to join hackathons and build projects with teams",
+    icon: "rocket",
+  },
+  {
+    value: "mentor",
+    label: "Mentor",
+    description: "I want to guide and support participants during events",
+    icon: "graduation-cap",
+  },
+  {
+    value: "organizer",
+    label: "Organizer",
+    description: "I want to host and manage hackathon events",
+    icon: "calendar",
+  },
+] as const;
+
+export const PLATFORM_ROLE_VALUES = ["participant", "mentor", "organizer"] as const;
+
+export type PlatformRole = (typeof PLATFORM_ROLE_VALUES)[number];
+
+// Redirect destinations based on platform role selection
+export const PLATFORM_ROLE_REDIRECTS: Record<PlatformRole, string> = {
+  participant: "/events",
+  mentor: "/events",
+  organizer: "/host",
+};
+

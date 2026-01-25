@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
+import { Rocket, GraduationCap, Calendar } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -28,10 +29,12 @@ import {
   INDUSTRY_OPTIONS,
   AI_TECH_CATEGORIES,
   NON_AI_TECH_CATEGORIES,
+  PLATFORM_ROLE_OPTIONS,
+  PLATFORM_ROLE_REDIRECTS,
+  type PlatformRole,
 } from "@/features/user/onboarding/questions-data";
 import { useStepNavigation } from "@/features/projects/components/forms/hooks/useStepNavigation";
 
-// No validation schema. FormValues defined inline.
 type FormValues = {
   familiarity: string;
   mainGoals: string[];
@@ -39,18 +42,25 @@ type FormValues = {
   industries: string[];
   aiTools: string[];
   nonAiTools: string[];
+  platformRole: PlatformRole | "";
 };
+
+const PLATFORM_ROLE_ICONS = {
+  participant: Rocket,
+  mentor: GraduationCap,
+  organizer: Calendar,
+} as const;
 
 export default function OnboardingPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const returnUrl = useMemo(
-    () => searchParams.get("returnUrl") || "/",
+    () => searchParams.get("returnUrl") || "",
     [searchParams]
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const totalSteps = 5;
+  const totalSteps = 6;
   const { currentStep, goToNext, goToPrevious } = useStepNavigation(totalSteps);
 
   const form = useForm<FormValues>({
@@ -61,6 +71,7 @@ export default function OnboardingPage() {
       industries: [],
       aiTools: [],
       nonAiTools: [],
+      platformRole: "",
     },
     mode: "onChange",
   });
@@ -69,6 +80,7 @@ export default function OnboardingPage() {
   const goalOptions = GOAL_OPTIONS;
   const roleOptions = ROLE_OPTIONS;
   const industryOptions = INDUSTRY_OPTIONS;
+  const platformRoleOptions = PLATFORM_ROLE_OPTIONS;
 
   const progressPercent = Math.round((currentStep / totalSteps) * 100);
 
@@ -76,7 +88,7 @@ export default function OnboardingPage() {
     setIsSubmitting(true);
     try {
       const payload = {
-        version: 1,
+        version: 3,
         completedAt: new Date().toISOString(),
         answers: values,
       };
@@ -89,10 +101,15 @@ export default function OnboardingPage() {
         const data = await res.json().catch(() => ({}));
         throw new Error(data?.error || "Failed to save");
       }
-      router.push(returnUrl);
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error(err);
+
+      // Redirect based on platform role selection
+      const platformRole = values.platformRole as PlatformRole;
+      const roleBasedRedirect = PLATFORM_ROLE_REDIRECTS[platformRole] || "/";
+
+      // If there's a specific returnUrl (e.g., joining an event), use that instead
+      const finalRedirect = returnUrl || roleBasedRedirect;
+      router.push(finalRedirect);
+    } catch {
       form.setError("familiarity", {
         message: "Something went wrong. Please try again.",
       });
@@ -105,10 +122,6 @@ export default function OnboardingPage() {
     goToNext();
   }
 
-  function handleSkip() {
-    router.push(returnUrl);
-  }
-
   function handleBack() {
     goToPrevious();
   }
@@ -117,9 +130,8 @@ export default function OnboardingPage() {
     form.handleSubmit(handleSubmit)();
   }
 
-  // Watch form values to determine if current step is valid
   const watchedValues = form.watch();
-  
+
   function isCurrentStepValid(): boolean {
     switch (currentStep) {
       case 1:
@@ -131,10 +143,31 @@ export default function OnboardingPage() {
       case 4:
         return Array.isArray(watchedValues.industries) && watchedValues.industries.length > 0;
       case 5:
-        // Step 5 is optional, so always allow proceeding
+        // Tools step is optional
         return true;
+      case 6:
+        return !!watchedValues.platformRole;
       default:
         return false;
+    }
+  }
+
+  function getStepTitle(): string {
+    switch (currentStep) {
+      case 1:
+        return "How familiar are you with AI?";
+      case 2:
+        return "What is your main goal?";
+      case 3:
+        return "Which role best describes you?";
+      case 4:
+        return "Which industries or problem areas excite you most?";
+      case 5:
+        return "What tools or technologies do you want to explore?";
+      case 6:
+        return "How do you want to participate?";
+      default:
+        return "";
     }
   }
 
@@ -149,7 +182,7 @@ export default function OnboardingPage() {
         </div>
         <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
           <div
-            className="h-full bg-primary"
+            className="h-full bg-primary transition-all duration-300"
             style={{ width: `${progressPercent}%` }}
           />
         </div>
@@ -174,7 +207,7 @@ export default function OnboardingPage() {
                     render={({ field }) => (
                       <FormItem className="space-y-3">
                         <FormLabel className="text-lg font-semibold">
-                          How familiar are you with AI?
+                          {getStepTitle()}
                         </FormLabel>
                         <FormControl>
                           <RadioGroup
@@ -216,8 +249,11 @@ export default function OnboardingPage() {
                     render={() => (
                       <FormItem className="space-y-3">
                         <FormLabel className="text-lg font-semibold">
-                          What is your main goal?
+                          {getStepTitle()}
                         </FormLabel>
+                        <p className="text-sm text-muted-foreground">
+                          Select all that apply
+                        </p>
                         <div className="space-y-3">
                           {goalOptions.map((goal) => (
                             <FormField
@@ -260,7 +296,7 @@ export default function OnboardingPage() {
                   />
                 )}
 
-                {/* Step 3: Role */}
+                {/* Step 3: Professional Role */}
                 {currentStep === 3 && (
                   <FormField
                     control={form.control}
@@ -268,7 +304,7 @@ export default function OnboardingPage() {
                     render={({ field }) => (
                       <FormItem className="space-y-3">
                         <FormLabel className="text-lg font-semibold">
-                          Which role are you most interested in?
+                          {getStepTitle()}
                         </FormLabel>
                         <FormControl>
                           <RadioGroup
@@ -310,8 +346,11 @@ export default function OnboardingPage() {
                     render={() => (
                       <FormItem className="space-y-3">
                         <FormLabel className="text-lg font-semibold">
-                          Which industries or problem areas excite you most?
+                          {getStepTitle()}
                         </FormLabel>
+                        <p className="text-sm text-muted-foreground">
+                          Select all that apply
+                        </p>
                         <div className="space-y-3">
                           {industryOptions.map((i) => (
                             <FormField
@@ -358,8 +397,11 @@ export default function OnboardingPage() {
                 {currentStep === 5 && (
                   <FormItem className="space-y-3">
                     <FormLabel className="text-lg font-semibold">
-                      What tools or technologies do you want to explore?
+                      {getStepTitle()}
                     </FormLabel>
+                    <p className="text-sm text-muted-foreground">
+                      Optional - select any that interest you
+                    </p>
                     <div className="space-y-6 overflow-y-auto max-h-96">
                       <div>
                         <div className="mb-3 font-medium">
@@ -459,6 +501,69 @@ export default function OnboardingPage() {
                   </FormItem>
                 )}
 
+                {/* Step 6: Platform Role - How they want to participate */}
+                {currentStep === 6 && (
+                  <FormField
+                    control={form.control}
+                    name="platformRole"
+                    render={({ field }) => (
+                      <FormItem className="space-y-3">
+                        <FormLabel className="text-lg font-semibold">
+                          {getStepTitle()}
+                        </FormLabel>
+                        <p className="text-sm text-muted-foreground">
+                          This helps us personalize your experience
+                        </p>
+                        <FormControl>
+                          <RadioGroup
+                            onValueChange={field.onChange}
+                            value={field.value}
+                            className="space-y-3"
+                          >
+                            {platformRoleOptions.map((opt) => {
+                              const IconComponent = PLATFORM_ROLE_ICONS[opt.value as keyof typeof PLATFORM_ROLE_ICONS];
+                              return (
+                                <div
+                                  key={opt.value}
+                                  className={`flex items-start space-x-3 p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                                    field.value === opt.value
+                                      ? "border-primary bg-primary/5"
+                                      : "border-muted hover:border-muted-foreground/30"
+                                  }`}
+                                  onClick={() => field.onChange(opt.value)}
+                                >
+                                  <RadioGroupItem
+                                    value={opt.value}
+                                    id={`platform-${opt.value}`}
+                                    className="mt-1"
+                                  />
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2">
+                                      {IconComponent && (
+                                        <IconComponent className="h-4 w-4 text-primary" />
+                                      )}
+                                      <label
+                                        htmlFor={`platform-${opt.value}`}
+                                        className="text-sm font-medium leading-relaxed cursor-pointer"
+                                      >
+                                        {opt.label}
+                                      </label>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                      {opt.description}
+                                    </p>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </RadioGroup>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+
                 {/* Navigation */}
                 <div className="flex gap-3 pt-4">
                   {currentStep > 1 && (
@@ -468,27 +573,17 @@ export default function OnboardingPage() {
                       onClick={handleBack}
                       className="flex-1"
                     >
-                      Previous
+                      Back
                     </Button>
                   )}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleSkip}
-                    className={currentStep === 1 ? "flex-1" : ""}
-                  >
-                    Skip
-                  </Button>
                   <Button
                     type="button"
                     onClick={
                       currentStep === totalSteps ? handleComplete : handleNext
                     }
-                    disabled={isSubmitting || (currentStep !== totalSteps && !isCurrentStepValid())}
+                    disabled={isSubmitting || !isCurrentStepValid()}
                     className={`flex-1 ${
-                      isCurrentStepValid() && currentStep !== totalSteps
-                        ? "bg-[#4B89EF] hover:bg-[#3F77D3] text-white"
-                        : currentStep === totalSteps
+                      isCurrentStepValid()
                         ? "bg-[#4B89EF] hover:bg-[#3F77D3] text-white"
                         : ""
                     }`}
@@ -496,8 +591,8 @@ export default function OnboardingPage() {
                     {isSubmitting
                       ? "Saving..."
                       : currentStep === totalSteps
-                      ? "Complete"
-                      : "Next"}
+                      ? "Get Started"
+                      : "Continue"}
                   </Button>
                 </div>
               </form>
