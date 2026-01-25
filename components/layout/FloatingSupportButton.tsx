@@ -90,8 +90,8 @@ export function FloatingSupportButton() {
         <button
           className={cn(
             "fixed bottom-4 right-4 z-40 md:bottom-6 md:right-6",
-            "flex items-center gap-2 px-4 py-2.5 rounded-full",
-            "bg-[#4B89EF] text-white font-medium text-sm",
+            "flex items-center justify-center w-12 h-12 rounded-full",
+            "bg-[#4B89EF] text-white",
             "shadow-lg hover:bg-[#3E7EEA] transition-all duration-200",
             "hover:shadow-xl hover:scale-105",
             "focus:outline-none focus:ring-2 focus:ring-[#4B89EF] focus:ring-offset-2",
@@ -99,8 +99,7 @@ export function FloatingSupportButton() {
           )}
           aria-label="Support"
         >
-          <HelpCircle className="h-5 w-5" />
-          <span className="hidden sm:inline">Support</span>
+          <HelpCircle className="h-6 w-6" />
         </button>
       </PopoverTrigger>
       <PopoverContent
