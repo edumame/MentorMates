@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { HelpCircle, Mail, Linkedin, BookOpen, FileQuestion, X, Instagram } from "lucide-react";
+import { HelpCircle, Mail, Linkedin, BookOpen, FileQuestion, X, Instagram, Bug } from "lucide-react";
 
 // Custom Discord icon since lucide-react doesn't have one
 const DiscordIcon = ({ className }: { className?: string }) => (
@@ -120,18 +120,34 @@ export function FloatingSupportButton() {
             <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
               Contact Us
             </h4>
-            <a
-              href="mailto:contact@outreach.mentormates.ai"
-              className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors group"
-            >
-              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-50 text-[#4B89EF] group-hover:bg-blue-100 transition-colors">
-                <Mail className="h-4 w-4" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900">Mentor Mates</p>
-                <p className="text-xs text-gray-500 truncate">contact@outreach.mentormates.ai</p>
-              </div>
-            </a>
+            <div className="space-y-1">
+              <a
+                href="mailto:contact@outreach.mentormates.ai"
+                className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors group"
+              >
+                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-50 text-[#4B89EF] group-hover:bg-blue-100 transition-colors">
+                  <Mail className="h-4 w-4" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900">Mentor Mates</p>
+                  <p className="text-xs text-gray-500 truncate">contact@outreach.mentormates.ai</p>
+                </div>
+              </a>
+              <a
+                href="https://forms.gle/RazbHHjkvHhK4SGk6"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors group"
+              >
+                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-red-50 text-red-500 group-hover:bg-red-100 transition-colors">
+                  <Bug className="h-4 w-4" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900">Report a Bug</p>
+                  <p className="text-xs text-gray-500 truncate">Help us improve MentorMates</p>
+                </div>
+              </a>
+            </div>
           </section>
 
           {/* Follow Us Section */}
