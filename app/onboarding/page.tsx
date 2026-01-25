@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { Rocket, GraduationCap, Calendar } from "lucide-react";
+import { Rocket, GraduationCap, Scale, Calendar } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -48,6 +48,7 @@ type FormValues = {
 const PLATFORM_ROLE_ICONS = {
   participant: Rocket,
   mentor: GraduationCap,
+  judge: Scale,
   organizer: Calendar,
 } as const;
 

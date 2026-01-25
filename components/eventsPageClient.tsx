@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { EventsList } from "@/components/events/events-list";
 import { EventItem } from "@/lib/types";
 import { UI_TEXT } from "@/lib/config/constants";
@@ -19,6 +20,8 @@ export function EventsPageClient({ eventsList }: { eventsList: EventItem[] }) {
   const { isAuthenticated } = useAuth();
   const isAdmin = useAdmin();
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const searchParams = useSearchParams();
+  const onboardingRole = searchParams.get("role");
 
   const filteredAndSortedEvents = useMemo(() => {
     // First filter by search term
@@ -129,7 +132,7 @@ export function EventsPageClient({ eventsList }: { eventsList: EventItem[] }) {
               {/* Create Event Button - Desktop only */}
               {isAuthenticated && (
                 <Button
-                  className="h-10 hidden sm:inline-flex"
+                  className={`h-10 hidden sm:inline-flex ${onboardingRole === "organizer" ? "animate-bounce" : ""}`}
                   onClick={() => setShowCreateModal(true)}
                 >
                   Create an event
@@ -141,7 +144,7 @@ export function EventsPageClient({ eventsList }: { eventsList: EventItem[] }) {
           {/* Create Event Button - Mobile only */}
           {isAuthenticated && (
             <Button
-              className="h-10 sm:hidden w-full"
+              className={`h-10 sm:hidden w-full ${onboardingRole === "organizer" ? "animate-bounce" : ""}`}
               onClick={() => setShowCreateModal(true)}
             >
               Create an event

@@ -198,6 +198,12 @@ export const PLATFORM_ROLE_OPTIONS = [
     icon: "graduation-cap",
   },
   {
+    value: "judge",
+    label: "Judge",
+    description: "I want to evaluate and score projects at events",
+    icon: "scale",
+  },
+  {
     value: "organizer",
     label: "Organizer",
     description: "I want to host and manage hackathon events",
@@ -205,7 +211,7 @@ export const PLATFORM_ROLE_OPTIONS = [
   },
 ] as const;
 
-export const PLATFORM_ROLE_VALUES = ["participant", "mentor", "organizer"] as const;
+export const PLATFORM_ROLE_VALUES = ["participant", "mentor", "judge", "organizer"] as const;
 
 export type PlatformRole = (typeof PLATFORM_ROLE_VALUES)[number];
 
@@ -213,6 +219,7 @@ export type PlatformRole = (typeof PLATFORM_ROLE_VALUES)[number];
 export const PLATFORM_ROLE_REDIRECTS: Record<PlatformRole, string> = {
   participant: "/events?role=participant",
   mentor: "/events?role=mentor",
+  judge: "/events?role=judge",
   organizer: "/events?role=organizer",
 };
 
