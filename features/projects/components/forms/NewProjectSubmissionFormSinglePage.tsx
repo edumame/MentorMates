@@ -7,18 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import {
-  Loader2,
-  CalendarClock,
-  ThumbsUp,
-  MessageSquarePlus,
-  MoreHorizontal,
-  ImageIcon,
-  Paperclip,
-  Github,
-  Youtube,
-  ExternalLink,
-} from "lucide-react";
+import { Accordion, AccordionContent, AccordionTrigger, AccordionItem } from "@/components/ui/accordion";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Loader2, CalendarClock, ThumbsUp, MessageSquarePlus, MoreHorizontal, ImageIcon, Paperclip, Github, Youtube, ExternalLink, Sparkles, Lightbulb, Presentation, Layers, MessageCircle, CheckCircle2, ChevronRight, type LucideIcon } from "lucide-react";
 import { toast } from "@/lib/hooks/use-toast";
 import { Toaster } from "@/components/ui/toaster";
 import UserSearchWithInvite from "@/components/utils/UserSearchWithInvite";
@@ -34,6 +25,25 @@ interface EventParticipant {
   display_name: string;
   email: string;
 }
+
+type ImportedProject = {
+  project_name?: string | null;
+  project_description?: string | null;
+  project_url?: string | null;
+  video_url?: string | null;
+  cover_image_url?: string | null;
+  additional_materials_url?: string | null;
+  teammates?: string[] | null;
+};
+
+type AiWorkflowTool = {
+  id: string;
+  title: string;
+  description: string;
+  icon: LucideIcon;
+  iconClass: string;
+  onClick: () => void;
+};
 
 export function NewProjectSubmissionFormSinglePage({
   userEmail,
@@ -74,6 +84,138 @@ export function NewProjectSubmissionFormSinglePage({
   );
   const [showVisibilityDropdown, setShowVisibilityDropdown] = useState(false);
   const [isDeletingDraft, setIsDeletingDraft] = useState(false);
+  const [isAutoFillOpen, setIsAutoFillOpen] = useState(false);
+  const [autoFillLink, setAutoFillLink] = useState("");
+  const [isAutoFillLoading, setIsAutoFillLoading] = useState(false);
+  const [isPublishSuccessOpen, setIsPublishSuccessOpen] = useState(false);
+  const [publishedProjectId, setPublishedProjectId] = useState<string | null>(
+    null
+  );
+
+  const aiWorkflowTools = useMemo<AiWorkflowTool[]>(
+    () => [
+      {
+        id: "shayne",
+        title: "Shayne",
+        description: "AI-powered development",
+        icon: Sparkles,
+        iconClass: "bg-orange-100 text-orange-700",
+        onClick: () =>
+          toast({
+            title: "Shayne",
+            description: "This tool will be available soon.",
+          }),
+      },
+      {
+        id: "idea",
+        title: "Idea Generator",
+        description: "Generate project ideas and inspiration",
+        icon: Lightbulb,
+        iconClass: "bg-pink-100 text-pink-700",
+        onClick: () =>
+          toast({
+            title: "Idea Generator",
+            description: "This tool will be available soon.",
+          }),
+      },
+      {
+        id: "mentor-feedback",
+        title: "AI Mentor Feedback",
+        description: "Collect and manage project feedback",
+        icon: MessageCircle,
+        iconClass: "bg-purple-100 text-purple-700",
+        onClick: () =>
+          toast({
+            title: "AI Mentor Feedback",
+            description: "This tool will be available soon.",
+          }),
+      },
+      {
+        id: "autoslide",
+        title: "AutoSlide",
+        description: "Generate slides from your project",
+        icon: Presentation,
+        iconClass: "bg-cyan-100 text-cyan-700",
+        onClick: () =>
+          toast({
+            title: "AutoSlide",
+            description: "This tool will be available soon.",
+          }),
+      },
+      {
+        id: "contextus-visual",
+        title: "Contextus Visual",
+        description: "Visualize your project context",
+        icon: Layers,
+        iconClass: "bg-blue-100 text-blue-700",
+        onClick: () => setIsAutoFillOpen(true),
+      },
+    ],
+    []
+  );
+
+  const renderAiWorkflowToolList = (buttonLabel: string) => (
+    <div className="space-y-4">
+      {aiWorkflowTools.map((tool) => {
+        const Icon = tool.icon;
+        return (
+          <div
+            key={tool.id}
+            className="flex items-center gap-3"
+          >
+            <div
+              className={`h-10 w-10 rounded-sm flex items-center justify-center shrink-0 ${tool.iconClass}`}
+            >
+              <Icon className="h-5 w-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-semibold text-black leading-tight">
+                {tool.title}
+              </div>
+              <div className="text-xs text-black/60 truncate">
+                {tool.description}
+              </div>
+            </div>
+            <Button
+              type="button"
+              variant="secondary"
+              className="h-8 rounded-xl px-4 text-xs font-medium bg-white border border-[rgba(0,0,0,0.15)] shadow-sm hover:bg-gray-50 text-black"
+              onClick={tool.onClick}
+            >
+              {buttonLabel}
+            </Button>
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  const renderAiWorkflowAccordion = (buttonLabel: string, className?: string) => (
+    <div className={className}>
+      <Accordion
+        type="single"
+        collapsible
+        defaultValue="ai-tools"
+        className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl overflow-hidden"
+      >
+        <AccordionItem value="ai-tools" className="border-b-0">
+          <AccordionTrigger
+            className="group px-4 py-3 hover:no-underline [&>svg]:hidden"
+          >
+            <div className="flex items-center gap-2">
+              <ChevronRight className="mm-chevron h-4 w-4 text-black transition-transform duration-200 group-data-[state=open]:rotate-90" />
+              <span className="text-xs font-semibold text-black">
+                Create your project to unlock AI Building Tools
+              </span>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="px-4 pb-4 pt-1">
+            {renderAiWorkflowToolList(buttonLabel)}
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
+    </div>
+  );
 
   // Load available tracks for the event (if any)
   const { availableTracks } = useProjectSubmissionData(eventId);
@@ -469,6 +611,80 @@ export function NewProjectSubmissionFormSinglePage({
     }
   };
 
+  const extractProjectIdFromUrl = (rawUrl: string): string | null => {
+    const url = rawUrl.trim();
+    if (!url) return null;
+
+    // UUID v4-ish match (works for Supabase UUIDs too)
+    const uuidMatch =url.match(/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/i) ?? null;
+    return uuidMatch?.[0] ?? null;
+  };
+
+  const handleAutoFillFromLink = async () => {
+    const importedProjectId = extractProjectIdFromUrl(autoFillLink);
+
+    if (!importedProjectId) {
+      toast({
+        title: "Invalid link",
+        description:
+          "Paste a MentorMates project link (it should include a project ID).",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsAutoFillLoading(true);
+    try {
+      // Pull fields from an existing MentorMates project
+      const resp = await fetch(
+        `/api/projects?projectId=${encodeURIComponent(importedProjectId)}`
+      );
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err.error || `Failed to fetch project (${resp.status})`);
+      }
+
+      const json = (await resp.json()) as { project?: ImportedProject };
+      const imported = json.project;
+      if (!imported) throw new Error("No project found for that link.");
+
+      setFormData((prev) => ({
+        ...prev,
+        projectName: prev.projectName || imported.project_name || "",
+        projectDescription:
+          prev.projectDescription || imported.project_description || "",
+        projectUrl: prev.projectUrl || imported.project_url || "",
+        videoUrl: prev.videoUrl || imported.video_url || "",
+        coverImageUrl: prev.coverImageUrl || imported.cover_image_url || "",
+        additionalMaterialsUrl:
+          prev.additionalMaterialsUrl ||
+          imported.additional_materials_url ||
+          "",
+        teammates:
+          prev.teammates.length > 0
+            ? prev.teammates
+            : imported.teammates || [],
+      }));
+
+      toast({
+        title: "Auto-fill complete",
+        description: "We imported what we could from that project link.",
+      });
+      setIsAutoFillOpen(false);
+    } catch (error) {
+      toast({
+        title: "Auto-fill failed",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Unable to auto-fill from that link.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsAutoFillLoading(false);
+    }
+  };
+
   // Submit
   const handlePublish = async () => {
     setIsSubmitting(true);
@@ -542,7 +758,19 @@ export function NewProjectSubmissionFormSinglePage({
           "Your project is now available for others to view and provide feedback.",
       });
       onProjectSubmitted?.();
-      router.push(`/projects/${data.data?.id || data.id}`);
+      const nextId =
+        (typeof (data as { data?: { id?: unknown } }).data?.id === "string"
+          ? (data as { data?: { id: string } }).data?.id
+          : null) ||
+        (typeof (data as { id?: unknown }).id === "string"
+          ? (data as { id: string }).id
+          : null) ||
+        projectId;
+
+      if (nextId) {
+        setPublishedProjectId(nextId);
+      }
+      setIsPublishSuccessOpen(true);
     } catch (error) {
       toast({
         title: "Error",
@@ -769,7 +997,7 @@ export function NewProjectSubmissionFormSinglePage({
               {/* Left Side - Form */}
               <div className="flex-1 space-y-6">
                 <div className="space-y-1">
-                  <h1 className="text-[28px] font-semibold text-black tracking-[-0.06em] leading-[1.4]">
+                  <h1 className="text-xl font-semibold text-black tracking-[-0.06em] leading-[1.4]">
                     Create your project
                   </h1>
                   <p className="text-base text-black">
@@ -1124,6 +1352,9 @@ export function NewProjectSubmissionFormSinglePage({
                   </button>
                 </div>
 
+                {/* AI Workflow */}
+                {renderAiWorkflowAccordion("Activate", "w-full sm:w-[339px]")}
+
                 {/* Submitted to - Only show if event exists */}
                 {eventDetails && (
                   <>
@@ -1161,6 +1392,144 @@ export function NewProjectSubmissionFormSinglePage({
           </div>
         </div>
       </div>
+
+      {/* Auto-fill modal */}
+      <Dialog open={isAutoFillOpen} onOpenChange={setIsAutoFillOpen}>
+        <DialogContent className="max-w-4xl p-0 overflow-hidden">
+          <div className="flex flex-col md:flex-row">
+            <div className="flex-1 p-6">
+              <DialogHeader>
+                <DialogTitle className="text-base font-semibold text-black">
+                  Auto-fill Your Project
+                </DialogTitle>
+                <DialogDescription className="text-xs text-black/60">
+                  Paste a project link below. We’ll automatically fetch and fill
+                  in your project details.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="mt-4 space-y-2">
+                <label className="text-[11px] font-medium text-black">
+                  Project Link
+                </label>
+                <Input
+                  value={autoFillLink}
+                  onChange={(e) => setAutoFillLink(e.target.value)}
+                  placeholder="https://..."
+                  className="h-9 text-xs"
+                />
+                <p className="text-xs text-black/60">
+                  Currently supports importing from MentorMates project links.
+                </p>
+              </div>
+
+              <DialogFooter className="mt-6">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="bg-[#f2f2f2] hover:bg-[#e8e8e8] text-black rounded-md px-6 text-xs"
+                  onClick={() => setIsAutoFillOpen(false)}
+                  disabled={isAutoFillLoading}
+                >
+                  Back
+                </Button>
+                <Button
+                  type="button"
+                  className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-md px-6 text-xs"
+                  onClick={handleAutoFillFromLink}
+                  disabled={isAutoFillLoading}
+                >
+                  {isAutoFillLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    "Create project"
+                  )}
+                </Button>
+              </DialogFooter>
+
+              {isAdmin && (
+                <div className="mt-4">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="w-full bg-white border border-[rgba(0,0,0,0.15)] hover:bg-gray-50 text-black rounded-xl text-xs"
+                    onClick={handlePrefill}
+                    disabled={isPrefilling}
+                  >
+                    {isPrefilling ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Prefilling...
+                      </>
+                    ) : (
+                      "Use Contextus to prefill this draft"
+                    )}
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            <div className="hidden md:block w-[420px] bg-gradient-to-br from-sky-300 via-blue-400 to-indigo-500 relative">
+              <div className="absolute inset-0 opacity-30 bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.7),transparent_55%)]" />
+              <div className="absolute inset-0 flex items-end p-8">
+                <div className="text-white font-semibold leading-tight tracking-[-0.06em] text-4xl">
+                  Learn,
+                  <br />
+                  Create,
+                  <br />
+                  Grow.
+                </div>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Publish success dialog */}
+      <Dialog
+        open={isPublishSuccessOpen}
+        onOpenChange={(open) => {
+          setIsPublishSuccessOpen(open);
+          if (!open && publishedProjectId) {
+            router.push(`/projects/${publishedProjectId}`);
+          }
+        }}
+      >
+        <DialogContent className="max-w-xl">
+          <DialogHeader className="text-center sm:text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
+              <CheckCircle2 className="h-6 w-6 text-green-700" />
+            </div>
+            <DialogTitle className="mt-2 text-base">
+              Your project has been created
+            </DialogTitle>
+            <DialogDescription className="text-xs text-black/60">
+              Use our AI building tools to speed up your workflow.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="mt-2">
+            {renderAiWorkflowAccordion("Activate")}
+          </div>
+
+          <DialogFooter className="mt-2">
+            <Button
+              type="button"
+              className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-6 text-xs"
+              onClick={() => {
+                if (publishedProjectId) {
+                  router.push(`/projects/${publishedProjectId}`);
+                }
+              }}
+            >
+              View project
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
