@@ -85,7 +85,7 @@ function FAQAccordionItem({
   onToggle: () => void;
 }) {
   return (
-    <div className="border-b border-gray-200 last:border-b-0">
+    <div className="border-b border-gray-100 last:border-b-0">
       <button
         onClick={onToggle}
         className="w-full py-5 flex items-center justify-between text-left hover:bg-gray-50 transition-colors px-4 -mx-4 rounded-lg"
@@ -96,7 +96,7 @@ function FAQAccordionItem({
         </span>
         <ChevronDown
           className={cn(
-            "h-5 w-5 text-gray-500 shrink-0 transition-transform duration-200",
+            "h-5 w-5 text-[#4B89EF] shrink-0 transition-transform duration-200",
             isOpen && "rotate-180"
           )}
         />
@@ -122,22 +122,22 @@ export default function FAQPage() {
         <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 space-y-10 pt-16 pb-16">
           {/* Header */}
           <div className="text-center">
-            <div className="mx-auto mb-4 inline-flex items-center gap-2 rounded-full bg-blue-100 px-3 py-1 text-blue-900">
+            <div className="mx-auto mb-4 inline-flex items-center gap-2 rounded-full bg-[#4B89EF]/10 px-4 py-1.5 text-[#4B89EF]">
               <HelpCircle className="h-4 w-4" />
               <span className="text-sm font-medium">Support</span>
             </div>
             <h1 className="text-4xl sm:text-5xl font-extrabold text-gray-900 tracking-tight">
               Frequently Asked{" "}
-              <span className="text-blue-900">Questions</span>
+              <span className="text-[#4B89EF]">Questions</span>
             </h1>
-            <p className="mx-auto mt-4 max-w-2xl text-lg text-gray-700">
+            <p className="mx-auto mt-4 max-w-2xl text-lg text-gray-600">
               Find answers to common questions about MentorMates. Can&apos;t find
               what you&apos;re looking for? Contact us directly.
             </p>
           </div>
 
           {/* FAQ Accordion */}
-          <div className="bg-white rounded-xl shadow-lg p-6 sm:p-8">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 sm:p-8">
             {faqs.map((faq, index) => (
               <FAQAccordionItem
                 key={index}
@@ -165,24 +165,24 @@ export default function FAQPage() {
                   href={tutorial.href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="group block rounded-xl bg-white p-5 shadow-lg transition-all hover:shadow-xl"
+                  className="group block rounded-xl bg-white border border-gray-100 p-5 shadow-sm transition-all hover:shadow-lg hover:border-[#4B89EF]/20"
                 >
                   <div className="flex items-start justify-between">
                     <div>
-                      <h3 className="text-lg font-semibold text-blue-900">
+                      <h3 className="text-lg font-semibold text-gray-900">
                         {tutorial.title}
                       </h3>
                       <p className="mt-1 text-gray-600 text-sm leading-relaxed">
                         {tutorial.description}
                       </p>
                     </div>
-                    <div className="ml-3 shrink-0 rounded-full bg-blue-50 p-2.5 text-blue-900 transition-transform group-hover:translate-x-1">
+                    <div className="ml-3 shrink-0 rounded-full bg-[#4B89EF]/10 p-2.5 text-[#4B89EF] transition-all group-hover:bg-[#4B89EF] group-hover:text-white group-hover:translate-x-1">
                       <Play className="h-4 w-4" />
                     </div>
                   </div>
-                  <div className="mt-3 inline-flex items-center text-blue-900 font-medium text-sm">
+                  <div className="mt-3 inline-flex items-center text-[#4B89EF] font-medium text-sm group-hover:underline">
                     Watch guide
-                    <ArrowRight className="ml-1 h-3 w-3" />
+                    <ArrowRight className="ml-1 h-3 w-3 transition-transform group-hover:translate-x-1" />
                   </div>
                 </Link>
               ))}
@@ -210,21 +210,21 @@ export default function FAQPage() {
             <div className="flex flex-wrap justify-center gap-4">
               <Link
                 href="/help"
-                className="text-blue-900 underline hover:text-blue-700 font-medium"
+                className="text-[#4B89EF] hover:underline font-medium"
               >
                 Role Guides
               </Link>
               <span className="text-gray-300">|</span>
               <Link
                 href="/research"
-                className="text-blue-900 underline hover:text-blue-700 font-medium"
+                className="text-[#4B89EF] hover:underline font-medium"
               >
                 Our Research
               </Link>
               <span className="text-gray-300">|</span>
               <Link
                 href="/about"
-                className="text-blue-900 underline hover:text-blue-700 font-medium"
+                className="text-[#4B89EF] hover:underline font-medium"
               >
                 About Us
               </Link>
