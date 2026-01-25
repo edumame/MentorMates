@@ -38,7 +38,7 @@ export function Host() {
             Build a Culture of Creative Innovation Across Your Teams
           </h1>
           <p className="mt-4 sm:mt-6 text-gray-700 text-base sm:text-lg max-w-4xl mx-auto">
-            Run internal vibathons, host a lifetime of maker projects, and
+            Run internal hackathons, host a lifetime of maker projects, and
             amplify team creativity — all on one platform.
           </p>
           <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
@@ -136,7 +136,7 @@ export function Host() {
         <div className="max-w-7xl mx-auto">
           <div className="bg-gray-50 border border-gray-200 rounded-2xl p-8 sm:p-10 text-center">
             <h2 className="text-2xl sm:text-3xl md:text-4xl font-semibold text-gray-900">
-              Ready to build your first vibathon?
+              Ready to host your first hackathon?
             </h2>
             <p className="mt-3 text-gray-700 max-w-3xl mx-auto">
               Let’s run a pilot together. Enjoy concierge support and co-design
