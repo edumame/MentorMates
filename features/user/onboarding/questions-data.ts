@@ -211,8 +211,8 @@ export type PlatformRole = (typeof PLATFORM_ROLE_VALUES)[number];
 
 // Redirect destinations based on platform role selection
 export const PLATFORM_ROLE_REDIRECTS: Record<PlatformRole, string> = {
-  participant: "/events",
-  mentor: "/events",
-  organizer: "/host",
+  participant: "/events?role=participant",
+  mentor: "/events?role=mentor",
+  organizer: "/events?role=organizer",
 };
 
