@@ -39,6 +39,10 @@ import { Toaster } from "@/components/ui/toaster";
 import { getRoleLabel } from "@/features/user/roles/roles";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 import { z } from "zod";
+import {
+  PhoneVerificationInput,
+  type PhoneVerificationStatus,
+} from "@/components/phone/PhoneVerificationInput";
 
 // Interface for events with role information
 interface EventWithRole extends EventDetails {
@@ -150,6 +154,7 @@ export default function ProfilePage() {
     cover_image_url?: string | null;
     affiliation?: string | null;
     phone_number?: string | null;
+    phone_verification_status?: PhoneVerificationStatus;
   } | null>(null);
   const [events, setEvents] = useState<EventWithRole[]>([]);
   const [isEditing, setIsEditing] = useState(false);
@@ -159,6 +164,8 @@ export default function ProfilePage() {
   const [newBio, setNewBio] = useState("");
   const [newAffiliation, setNewAffiliation] = useState("");
   const [newPhoneNumber, setNewPhoneNumber] = useState("");
+  const [phoneVerificationStatus, setPhoneVerificationStatus] =
+    useState<PhoneVerificationStatus>(null);
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<ProfileTab>(PROFILE_TABS.PROJECTS);
   const [isProfileAdmin, setIsProfileAdmin] = useState(false);
@@ -248,6 +255,9 @@ export default function ProfilePage() {
         setNewSocialLinks(profileData.profile.links || {});
         setNewAffiliation(profileData.profile.affiliation || "");
         setNewPhoneNumber(profileData.profile.phone_number || "");
+        setPhoneVerificationStatus(
+          profileData.profile.phone_verification_status || null
+        );
 
         const projectsData: { projects: ProjectWithTracks[] } = {
           projects: profileData.projects,
@@ -1389,39 +1399,33 @@ export default function ProfilePage() {
                   )}
                 </div>
 
-                {/* Phone (private) */}
+                {/* Phone (private) with verification */}
                 <div className="space-y-2">
                   <label className="text-base text-black">
                     Phone number (private){" "}
                     <span className="text-[12px] text-zinc-600">(required)</span>
                   </label>
-                  <div
-                    className={`h-11 bg-white border rounded-xl flex items-center px-3 gap-3 ${
-                      validationErrors.phone_number
-                        ? "border-red-500"
-                        : "border-black/15"
-                    }`}
-                  >
-                    <Phone className="w-6 h-6 text-black" />
-                    <input
-                      type="tel"
-                      placeholder="+1 555 555 5555"
-                      value={newPhoneNumber}
-                      onChange={(e) => {
-                        setNewPhoneNumber(e.target.value);
-                        // Clear error on change
-                        if (validationErrors.phone_number) {
-                          setValidationErrors((prev) => {
-                            const newErrors = { ...prev };
-                            delete newErrors.phone_number;
-                            return newErrors;
-                          });
-                        }
-                      }}
-                      maxLength={50}
-                      className="flex-1 text-base bg-transparent outline-none placeholder:text-black/60"
-                    />
-                  </div>
+                  <PhoneVerificationInput
+                    phoneNumber={newPhoneNumber}
+                    onPhoneChange={(value) => {
+                      setNewPhoneNumber(value);
+                      // Reset verification status when phone changes
+                      if (value !== newPhoneNumber) {
+                        setPhoneVerificationStatus("unverified");
+                      }
+                      // Clear error on change
+                      if (validationErrors.phone_number) {
+                        setValidationErrors((prev) => {
+                          const newErrors = { ...prev };
+                          delete newErrors.phone_number;
+                          return newErrors;
+                        });
+                      }
+                    }}
+                    verificationStatus={phoneVerificationStatus}
+                    onVerificationStatusChange={setPhoneVerificationStatus}
+                    disabled={isSaving}
+                  />
                   {validationErrors.phone_number && (
                     <p className="text-sm text-red-500">
                       {validationErrors.phone_number}
