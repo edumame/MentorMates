@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { HelpCircle, Mail, Linkedin, BookOpen, FileQuestion, X, Instagram, Bug } from "lucide-react";
+import { HelpCircle, Mail, Linkedin, BookOpen, FileQuestion, X, Instagram, Bug, PlayCircle } from "lucide-react";
 
 // Custom Discord icon since lucide-react doesn't have one
 const DiscordIcon = ({ className }: { className?: string }) => (
@@ -59,17 +59,24 @@ const socials: SocialItem[] = [
 
 const docs: DocItem[] = [
   {
-    label: "Research & Documentation",
-    href: "/research",
-    description: "Learn about our research and methodology",
-    icon: <BookOpen className="h-4 w-4" />,
-    isExternal: false,
-  },
-  {
     label: "FAQ",
     href: "/faq",
     description: "Frequently asked questions",
     icon: <FileQuestion className="h-4 w-4" />,
+    isExternal: false,
+  },
+  {
+    label: "Role Guides",
+    href: "/help",
+    description: "Video tutorials for each role",
+    icon: <PlayCircle className="h-4 w-4" />,
+    isExternal: false,
+  },
+  {
+    label: "Research",
+    href: "/research",
+    description: "Our methodology and studies",
+    icon: <BookOpen className="h-4 w-4" />,
     isExternal: false,
   },
 ];
