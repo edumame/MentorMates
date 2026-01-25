@@ -1,15 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { HelpCircle, Mail, Users, Bug, Twitter, Linkedin, Github, BookOpen, ExternalLink, X } from "lucide-react";
+import Link from "next/link";
+import { HelpCircle, Mail, Twitter, Linkedin, Github, BookOpen, FileQuestion, X } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-
-interface ContactItem {
-  label: string;
-  email: string;
-  icon: React.ReactNode;
-}
 
 interface SocialItem {
   label: string;
@@ -19,27 +14,11 @@ interface SocialItem {
 
 interface DocItem {
   label: string;
-  url: string;
+  href: string;
   description: string;
+  icon: React.ReactNode;
+  isExternal?: boolean;
 }
-
-const contacts: ContactItem[] = [
-  {
-    label: "Business Inquiries",
-    email: "business@mentormates.io",
-    icon: <Mail className="h-4 w-4" />,
-  },
-  {
-    label: "Community",
-    email: "community@mentormates.io",
-    icon: <Users className="h-4 w-4" />,
-  },
-  {
-    label: "Report a Bug",
-    email: "bugs@mentormates.io",
-    icon: <Bug className="h-4 w-4" />,
-  },
-];
 
 const socials: SocialItem[] = [
   {
@@ -61,14 +40,18 @@ const socials: SocialItem[] = [
 
 const docs: DocItem[] = [
   {
-    label: "Documentation",
-    url: "https://docs.mentormates.io",
-    description: "Learn how to use MentorMates",
+    label: "Research & Documentation",
+    href: "/research",
+    description: "Learn about our research and methodology",
+    icon: <BookOpen className="h-4 w-4" />,
+    isExternal: false,
   },
   {
     label: "FAQ",
-    url: "https://mentormates.io/faq",
+    href: "/faq",
     description: "Frequently asked questions",
+    icon: <FileQuestion className="h-4 w-4" />,
+    isExternal: false,
   },
 ];
 
@@ -118,23 +101,18 @@ export function FloatingSupportButton() {
             <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
               Contact Us
             </h4>
-            <div className="space-y-1">
-              {contacts.map((contact) => (
-                <a
-                  key={contact.email}
-                  href={`mailto:${contact.email}`}
-                  className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors group"
-                >
-                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-50 text-[#4B89EF] group-hover:bg-blue-100 transition-colors">
-                    {contact.icon}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900">{contact.label}</p>
-                    <p className="text-xs text-gray-500 truncate">{contact.email}</p>
-                  </div>
-                </a>
-              ))}
-            </div>
+            <a
+              href="mailto:contact@outreach.mentormates.ai"
+              className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors group"
+            >
+              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-50 text-[#4B89EF] group-hover:bg-blue-100 transition-colors">
+                <Mail className="h-4 w-4" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900">Mentor Mates</p>
+                <p className="text-xs text-gray-500 truncate">contact@outreach.mentormates.ai</p>
+              </div>
+            </a>
           </section>
 
           {/* Follow Us Section */}
@@ -166,24 +144,22 @@ export function FloatingSupportButton() {
             </h4>
             <div className="space-y-1">
               {docs.map((doc) => (
-                <a
+                <Link
                   key={doc.label}
-                  href={doc.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  href={doc.href}
+                  onClick={() => setOpen(false)}
                   className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors group"
                 >
                   <div className="flex items-center justify-center w-8 h-8 rounded-full bg-green-50 text-green-600 group-hover:bg-green-100 transition-colors">
-                    <BookOpen className="h-4 w-4" />
+                    {doc.icon}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 flex items-center gap-1">
+                    <p className="text-sm font-medium text-gray-900">
                       {doc.label}
-                      <ExternalLink className="h-3 w-3 text-gray-400" />
                     </p>
                     <p className="text-xs text-gray-500">{doc.description}</p>
                   </div>
-                </a>
+                </Link>
               ))}
             </div>
           </section>
