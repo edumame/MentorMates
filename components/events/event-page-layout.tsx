@@ -39,6 +39,7 @@ export async function EventPageLayout({
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  const isAuthenticated = !!user;
 
   let userRole: EventRole | null = null;
 
@@ -142,7 +143,13 @@ export async function EventPageLayout({
 
             {/* Main Content */}
             <div className="w-full">
-              <div className="flex flex-wrap sm:flex-nowrap gap-6 w-full px-6 py-[24px]">
+              <div
+                className={
+                  isAuthenticated
+                    ? "flex flex-wrap sm:flex-nowrap gap-6 w-full px-6 py-[24px]"
+                    : "mx-auto flex flex-wrap sm:flex-nowrap gap-6 w-full max-w-10xl px-4 md:px-10 lg:px-24 py-[24px]"
+                }
+              >
                 {children}
               </div>
             </div>
