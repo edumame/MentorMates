@@ -2,6 +2,7 @@ import type React from "react";
 import Link from "next/link";
 import { ArrowRight, HelpCircle, Play } from "lucide-react";
 import { Footer } from "@/components/layout/Footer";
+import { TUTORIAL_VIDEOS } from "@/lib/config/tutorials";
 
 const RoleCard: React.FC<{
   title: string;
@@ -59,26 +60,14 @@ const RolesPage: React.FC = () => {
           </div>
 
           <div className="grid gap-6 md:grid-cols-2">
-            <RoleCard
-              title="Participant"
-              description="Submit projects, share ideas, and get real feedback from mentors and judges."
-              href="https://youtu.be/GMHO4vdLgD0"
-            />
-            <RoleCard
-              title="Mentor"
-              description="Support participants with actionable, encouraging feedback that helps them grow."
-              href="https://youtu.be/mAm-LnMK5dA"
-            />
-            <RoleCard
-              title="Judge"
-              description="Review projects, score fairly, and provide constructive feedback."
-              href="https://youtu.be/o1iCt7qE5UY"
-            />
-            <RoleCard
-              title="Organizer"
-              description="Manage events: set up submissions, assign mentors/judges, and configure parameters."
-              href="https://youtu.be/DFGjGusKtdo"
-            />
+            {TUTORIAL_VIDEOS.map((video) => (
+              <RoleCard
+                key={video.title}
+                title={video.title}
+                description={video.description}
+                href={video.href}
+              />
+            ))}
           </div>
 
           <div className="rounded-xl bg-white p-6 shadow-lg">

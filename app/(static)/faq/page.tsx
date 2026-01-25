@@ -5,40 +5,12 @@ import Link from "next/link";
 import { ChevronDown, HelpCircle, Mail, Play, ArrowRight } from "lucide-react";
 import { Footer } from "@/components/layout/Footer";
 import { cn } from "@/lib/utils";
+import { TUTORIAL_VIDEOS } from "@/lib/config/tutorials";
 
 interface FAQItem {
   question: string;
   answer: string;
 }
-
-interface TutorialVideo {
-  title: string;
-  description: string;
-  href: string;
-}
-
-const tutorials: TutorialVideo[] = [
-  {
-    title: "Participant",
-    description: "Submit projects, share ideas, and get real feedback from mentors and judges.",
-    href: "https://youtu.be/GMHO4vdLgD0",
-  },
-  {
-    title: "Mentor",
-    description: "Support participants with actionable, encouraging feedback that helps them grow.",
-    href: "https://youtu.be/mAm-LnMK5dA",
-  },
-  {
-    title: "Judge",
-    description: "Review projects, score fairly, and provide constructive feedback.",
-    href: "https://youtu.be/o1iCt7qE5UY",
-  },
-  {
-    title: "Organizer",
-    description: "Manage events: set up submissions, assign mentors/judges, and configure parameters.",
-    href: "https://youtu.be/DFGjGusKtdo",
-  },
-];
 
 const faqs: FAQItem[] = [
   {
@@ -187,7 +159,7 @@ export default function FAQPage() {
               Watch quick guides on how to use MentorMates for each role.
             </p>
             <div className="grid gap-4 sm:grid-cols-2">
-              {tutorials.map((tutorial) => (
+              {TUTORIAL_VIDEOS.map((tutorial) => (
                 <Link
                   key={tutorial.title}
                   href={tutorial.href}
