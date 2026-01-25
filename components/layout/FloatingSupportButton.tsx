@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { HelpCircle, Mail, Linkedin, BookOpen, FileQuestion, X, Instagram, Globe } from "lucide-react";
+import { HelpCircle, Mail, Linkedin, BookOpen, FileQuestion, X, Instagram } from "lucide-react";
 
 // Custom Discord icon since lucide-react doesn't have one
 const DiscordIcon = ({ className }: { className?: string }) => (
@@ -36,18 +36,13 @@ interface DocItem {
 
 const socials: SocialItem[] = [
   {
-    label: "Website",
-    url: "https://www.mentormates.ai",
-    icon: <Globe className="h-4 w-4" />,
-  },
-  {
     label: "Instagram",
-    url: "https://www.instagram.com/mentormateshackathon",
+    url: "https://www.instagram.com/mentormates.official/",
     icon: <Instagram className="h-4 w-4" />,
   },
   {
     label: "LinkedIn",
-    url: "https://www.linkedin.com/company/mentormates",
+    url: "https://www.linkedin.com/company/mentormates/",
     icon: <Linkedin className="h-4 w-4" />,
   },
   {
@@ -57,7 +52,7 @@ const socials: SocialItem[] = [
   },
   {
     label: "Discord",
-    url: "https://discord.gg/exY6mhTj",
+    url: "https://discord.gg/vNmsgBRscp",
     icon: <DiscordIcon className="h-4 w-4" />,
   },
 ];
