@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ChevronDown, HelpCircle, Mail } from "lucide-react";
+import { ChevronDown, HelpCircle, Mail, Play, ArrowRight } from "lucide-react";
 import { Footer } from "@/components/layout/Footer";
 import { cn } from "@/lib/utils";
 
@@ -10,6 +10,35 @@ interface FAQItem {
   question: string;
   answer: string;
 }
+
+interface TutorialVideo {
+  title: string;
+  description: string;
+  href: string;
+}
+
+const tutorials: TutorialVideo[] = [
+  {
+    title: "Participant",
+    description: "Submit projects, share ideas, and get real feedback from mentors and judges.",
+    href: "https://youtu.be/GMHO4vdLgD0",
+  },
+  {
+    title: "Mentor",
+    description: "Support participants with actionable, encouraging feedback that helps them grow.",
+    href: "https://youtu.be/mAm-LnMK5dA",
+  },
+  {
+    title: "Judge",
+    description: "Review projects, score fairly, and provide constructive feedback.",
+    href: "https://youtu.be/o1iCt7qE5UY",
+  },
+  {
+    title: "Organizer",
+    description: "Manage events: set up submissions, assign mentors/judges, and configure parameters.",
+    href: "https://youtu.be/DFGjGusKtdo",
+  },
+];
 
 const faqs: FAQItem[] = [
   {
@@ -147,6 +176,45 @@ export default function FAQPage() {
                 }
               />
             ))}
+          </div>
+
+          {/* Video Tutorials Section */}
+          <div className="space-y-4">
+            <h2 className="text-2xl font-bold text-gray-900 text-center">
+              Video Tutorials
+            </h2>
+            <p className="text-gray-600 text-center">
+              Watch quick guides on how to use MentorMates for each role.
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {tutorials.map((tutorial) => (
+                <Link
+                  key={tutorial.title}
+                  href={tutorial.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group block rounded-xl bg-white p-5 shadow-lg transition-all hover:shadow-xl"
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h3 className="text-lg font-semibold text-blue-900">
+                        {tutorial.title}
+                      </h3>
+                      <p className="mt-1 text-gray-600 text-sm leading-relaxed">
+                        {tutorial.description}
+                      </p>
+                    </div>
+                    <div className="ml-3 shrink-0 rounded-full bg-blue-50 p-2.5 text-blue-900 transition-transform group-hover:translate-x-1">
+                      <Play className="h-4 w-4" />
+                    </div>
+                  </div>
+                  <div className="mt-3 inline-flex items-center text-blue-900 font-medium text-sm">
+                    Watch guide
+                    <ArrowRight className="ml-1 h-3 w-3" />
+                  </div>
+                </Link>
+              ))}
+            </div>
           </div>
 
           {/* Contact CTA */}
