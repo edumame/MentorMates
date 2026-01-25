@@ -55,7 +55,7 @@ export const SERVICES_SECTIONS: ServiceSectionData[] = [
     bullets: [
       {
         icon: { name: "Activity" },
-        title: "1. Launch a Vibathon",
+        title: "1. Launch a Hackathon",
         body: "You pick themes, scale, timing. We support you with setup, templates, tools, mentorship, and infrastructure.",
       },
       {
