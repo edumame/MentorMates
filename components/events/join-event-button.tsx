@@ -20,11 +20,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   EventRole,
   EventItem,
   EventVisibility,
   PricingTier,
+  ParticipantRequestStatus,
 } from "@/lib/types";
 import { toast } from "@/lib/hooks/use-toast";
 import { PricingTierSelector } from "./pricing-tier-selector";
@@ -70,6 +72,10 @@ export function JoinEventButton({
     useState<string>("");
   const [showPricingTiers, setShowPricingTiers] = useState(false);
   const [isFull, setIsFull] = useState(false);
+  const [requiresApproval, setRequiresApproval] = useState(false);
+  const [approvalReason, setApprovalReason] = useState("");
+  const [hasPendingRequest, setHasPendingRequest] = useState(false);
+  const [pendingRequestStatus, setPendingRequestStatus] = useState<ParticipantRequestStatus | null>(null);
 
   useEffect(() => {
     async function init() {
@@ -87,7 +93,8 @@ export function JoinEventButton({
             visibility,
             role_labels,
             slug,
-            participant_capacity
+            participant_capacity,
+            require_participant_approval
           `
           )
           .eq("event_id", eventId)
@@ -99,6 +106,7 @@ export function JoinEventButton({
 
         setEvent(eventData);
         setRoleLabels(eventData?.role_labels || null);
+        setRequiresApproval(eventData?.require_participant_approval || false);
         // Check current participant count if capacity set
         if (eventData?.participant_capacity != null) {
           const { count } = await supabase
@@ -155,6 +163,20 @@ export function JoinEventButton({
 
         if (roleData) {
           setHasJoined(true);
+        } else {
+          // Check for pending approval request
+          const { data: pendingRequest } = await supabase
+            .from("participant_approval_requests")
+            .select("id, status")
+            .eq("event_id", eventId)
+            .eq("user_id", userId)
+            .in("status", ["pending"])
+            .maybeSingle();
+
+          if (pendingRequest) {
+            setHasPendingRequest(true);
+            setPendingRequestStatus(pendingRequest.status as ParticipantRequestStatus);
+          }
         }
       } catch (error) {
         console.error("Error checking event status:", error);
@@ -292,6 +314,7 @@ export function JoinEventButton({
           role: selectedRole,
           password: showPasswordInput ? password : undefined,
           userId: session.user.id,
+          reason: requiresApproval && selectedRole === EventRole.Participant ? approvalReason : undefined,
         }),
       });
 
@@ -304,8 +327,25 @@ export function JoinEventButton({
           variant: "destructive",
         });
         if (response.status === 409) {
-          setIsFull(true);
+          if (data.requires_approval) {
+            setHasPendingRequest(true);
+            setPendingRequestStatus(ParticipantRequestStatus.Pending);
+          } else {
+            setIsFull(true);
+          }
         }
+        return;
+      }
+
+      // Check if approval was required and request was created
+      if (data.requires_approval) {
+        setHasPendingRequest(true);
+        setPendingRequestStatus(ParticipantRequestStatus.Pending);
+        setIsDialogOpen(false);
+        toast({
+          title: "Request Submitted",
+          description: "Your request to join has been submitted and is pending organizer approval.",
+        });
         return;
       }
 
@@ -345,6 +385,21 @@ export function JoinEventButton({
 
   if (hasJoined) {
     return null;
+  }
+
+  // Show pending request status
+  if (hasPendingRequest && pendingRequestStatus === ParticipantRequestStatus.Pending) {
+    return (
+      <Button
+        variant="outline"
+        size="lg"
+        className="rounded-full px-6 py-5 gap-2 w-full min-w-0 overflow-hidden cursor-default"
+        disabled
+      >
+        <Ticket className="h-6 w-6 flex-shrink-0" />
+        <span className="truncate">Request Pending</span>
+      </Button>
+    );
   }
 
   return (
@@ -414,6 +469,24 @@ export function JoinEventButton({
                 </SelectContent>
               </Select>
 
+              {requiresApproval && selectedRole === EventRole.Participant && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">
+                    Why do you want to join this event?
+                  </label>
+                  <Textarea
+                    value={approvalReason}
+                    onChange={(e) => setApprovalReason(e.target.value)}
+                    placeholder="Tell the organizers why you'd like to participate..."
+                    className="min-h-[100px]"
+                    maxLength={2000}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Your request will be reviewed by the event organizers.
+                  </p>
+                </div>
+              )}
+
               {showPasswordInput && (
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Enter password:</label>
@@ -441,7 +514,11 @@ export function JoinEventButton({
                 className="w-full rounded-full !mt-5"
               >
                 <Ticket className="h-6 w-6 mr-2" />
-                {isLoading ? "Joining..." : "Confirm"}
+                {isLoading
+                  ? "Submitting..."
+                  : requiresApproval && selectedRole === EventRole.Participant
+                  ? "Request to Join"
+                  : "Confirm"}
               </Button>
             </div>
           )}

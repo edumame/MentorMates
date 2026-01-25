@@ -8,7 +8,7 @@ export async function POST(request: Request) {
 
   try {
     // Get request data
-    const { eventId, role, password, userId } = await request.json();
+    const { eventId, role, password, userId, reason } = await request.json();
 
     // Input validation
     if (!eventId || !role || !userId) {
@@ -163,6 +163,58 @@ export async function POST(request: Request) {
           { status: 409 }
         );
       }
+    }
+
+    // Check if participant approval is required for this event and role
+    if (role === EventRole.Participant && event?.require_participant_approval) {
+      // Check if user already has a pending request
+      const { data: existingRequest } = await supabase
+        .from("participant_approval_requests")
+        .select("id, status")
+        .eq("event_id", eventId)
+        .eq("user_id", userId)
+        .eq("requested_role", role)
+        .eq("status", "pending")
+        .maybeSingle();
+
+      if (existingRequest) {
+        return NextResponse.json(
+          {
+            error: "You already have a pending request for this event",
+            requires_approval: true,
+            request_status: "pending"
+          },
+          { status: 409 }
+        );
+      }
+
+      // Create approval request instead of directly assigning role
+      const { data: newRequest, error: requestError } = await supabase
+        .from("participant_approval_requests")
+        .insert({
+          event_id: eventId,
+          user_id: userId,
+          requested_role: role,
+          reason: reason || null,
+          status: "pending",
+        })
+        .select()
+        .single();
+
+      if (requestError) {
+        console.error("Error creating approval request:", requestError);
+        return NextResponse.json(
+          { error: "Failed to submit approval request" },
+          { status: 500 }
+        );
+      }
+
+      return NextResponse.json({
+        success: true,
+        requires_approval: true,
+        request_id: newRequest.id,
+        message: "Your request has been submitted and is pending organizer approval",
+      });
     }
 
     // Now we can proceed with role assignment
