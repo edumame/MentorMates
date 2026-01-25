@@ -11,27 +11,27 @@ type SessionRecord = {
   lastPushedAt?: number;
 };
 
-function wsSend(realtimeClient: RealtimeClient, event: any) {
-  const ws = realtimeClient?.realtime?.ws;
-  if (!ws) throw new Error("Realtime WS missing");
-  if (ws.readyState !== 1)
-    throw new Error(`Realtime WS not open (state=${ws.readyState})`);
-  ws.send(JSON.stringify(event));
-}
+// function wsSend(realtimeClient: RealtimeClient, event: any) {
+//   const ws = realtimeClient?.realtime?.ws;
+//   if (!ws) throw new Error("Realtime WS missing");
+//   if (ws.readyState !== 1)
+//     throw new Error(`Realtime WS not open (state=${ws.readyState})`);
+//   ws.send(JSON.stringify(event));
+// }
 
-function injectScreenAsUserMessage(
-  realtimeClient: RealtimeClient,
-  text: string
-) {
-  wsSend(realtimeClient, {
-    type: "conversation.item.create",
-    item: {
-      type: "message",
-      role: "user",
-      content: [{ type: "input_text", text }],
-    },
-  });
-}
+// function injectScreenAsUserMessage(
+//   realtimeClient: RealtimeClient,
+//   text: string
+// ) {
+//   wsSend(realtimeClient, {
+//     type: "conversation.item.create",
+//     item: {
+//       type: "message",
+//       role: "user",
+//       content: [{ type: "input_text", text }],
+//     },
+//   });
+// }
 
 const app = express();
 app.use(express.json({ limit: "2mb" }));
@@ -93,7 +93,7 @@ app.post("/session/start", async (req: Request, res: Response) => {
     );
     console.log("realtime keys:", Object.keys(realtimeClient.realtime || {}));
 
-    await realtimeClient.updateSession({
+    realtimeClient.updateSession({
       instructions,
       input_audio_transcription: { model: "whisper-1" },
       turn_detection: { type: "server_vad" },
@@ -150,15 +150,18 @@ app.post("/session/start", async (req: Request, res: Response) => {
           ? summary
           : `[Screen] ${summary}`;
 
+        console.log(`Screen summary: ${screen.slice(0, 120)}`);
+
         // put it into the conversation as if the user said it
-        injectScreenAsUserMessage(realtimeClient, screen);
-        console.log(
-          `[${meetingId}] injected user msg: ${screen.slice(0, 120)}`
-        );
+        // injectScreenAsUserMessage(realtimeClient, screen);
+        // console.log(
+        //   `[${meetingId}] injected user msg: ${screen.slice(0, 120)}`
+        // );
 
         try {
-          await realtimeClient.updateSession({
+          realtimeClient.updateSession({
             instructions: `${baseInstructions}\n\nLatest shared screen:\n${screen}\n`,
+            turn_detection: { type: "server_vad" },
           });
           console.log(
             `[${meetingId}] updateSession OK: ${screen.slice(0, 120)}`
@@ -175,7 +178,7 @@ app.post("/session/start", async (req: Request, res: Response) => {
       }
     };
 
-    const id = setInterval(poll, 5000);
+    const id = setInterval(poll, 2000);
     record.intervalId = id;
 
     // run one immediately
@@ -198,10 +201,10 @@ app.post("/session/stop", async (req: Request, res: Response) => {
 
     if (record.intervalId) clearInterval(record.intervalId);
     try {
-      await record.realtimeClient?.disconnect?.();
+      record.realtimeClient?.disconnect?.();
     } catch (e) {
       try {
-        await (record.realtimeClient as any)?.close?.();
+        (record.realtimeClient as any)?.close?.();
       } catch {}
     }
 
@@ -260,16 +263,13 @@ app.post("/session/resume", async (req: Request, res: Response) => {
     try {  
       realtimeClient.realtime.send("input_audio_buffer.commit", {});
       realtimeClient.realtime.send("response.create", {});
+      // realtimeClient.createResponse()
       realtimeClient.realtime.send("input_audio_buffer.clear", {});
       realtimeClient.updateSession({
         turn_detection: ({
           type: "server_vad",
         }),
       })
-
-      realtimeClient.on("session.updated", (event: any) => {
-        console.log("/session/resume session updated", event);
-      });
     } catch (err) {
       console.error("/session/resume error on session update", err);
       res.status(500).json({ error: "internal" });
