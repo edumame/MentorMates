@@ -155,7 +155,7 @@ export function PublicProjectsGallery() {
   return (
     <PageContainer showBorder={false}>
       <PageContent className="pt-[24px] pb-8">
-        <div className="container mx-auto px-5 sm:px-8 flex flex-col gap-8">
+        <div className="mx-auto w-full max-w-10xl px-4 md:px-10 lg:px-24 flex flex-col gap-8">
           <div className="flex flex-col items-center text-center gap-3 pt-6">
             <h1 className="text-[28px] sm:text-[36px] font-semibold tracking-[-0.06em] text-black">
               Showcase of Past Innovations
