@@ -15,12 +15,52 @@ export async function GET(request: NextRequest) {
     const supabase = await createSupabaseClient();
     const { searchParams } = new URL(request.url);
     const eventId = searchParams.get("eventId");
+    const eventSlugRaw = searchParams.get("eventSlug") ?? searchParams.get("event");
     const projectId = searchParams.get("projectId");
     const isPublic = searchParams.get("public") === "true";
     const submitted = searchParams.get("submitted") === "true";
 
     // For public gallery view, no authentication required
-    if (isPublic && eventId) {
+    if (isPublic) {
+      // Prefer anon client by default (service key may not exist in local dev).
+      let resolvedEventId = eventId;
+      const eventSlug = eventSlugRaw?.trim() ?? null;
+
+      if (!resolvedEventId && eventSlug) {
+        // Resolve slug -> event_id (case-insensitive exact match).
+        const { data: eventData, error: eventError } = await supabase
+          .from("events")
+          .select("event_id")
+          .ilike("slug", eventSlug)
+          .maybeSingle();
+
+        if (eventError) {
+          console.error("Error resolving event slug:", eventError);
+          return NextResponse.json(
+            { error: "Failed to resolve event" },
+            { status: 500 }
+          );
+        }
+
+        resolvedEventId = eventData?.event_id ?? null;
+      }
+
+      if (!resolvedEventId) {
+        if (eventSlug) {
+          return NextResponse.json(
+            {
+              error: "Event not found",
+              eventSlug,
+            },
+            { status: 404 }
+          );
+        }
+        return NextResponse.json(
+          { error: "Missing required parameters" },
+          { status: 400 }
+        );
+      }
+
       // Public view - fetch all projects for the event
       const { data: allProjects, error } = await supabase
         .from("projects")
@@ -55,7 +95,7 @@ export async function GET(request: NextRequest) {
           )
         `
         )
-        .eq("event_id", eventId)
+        .eq("event_id", resolvedEventId)
         .eq("submitted", true)
         .order("project_name")
         .overrideTypes<

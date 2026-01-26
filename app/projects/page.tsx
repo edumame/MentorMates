@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/toaster";
 import ProjectBoard from "@/features/projects/components/displays/ProjectBoard/ProjectBoard";
@@ -11,28 +12,32 @@ import { Footer } from "@/components/layout/Footer";
 import { useAuth } from "@/features/user/authentication/auth/AuthContext";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 import { Search } from "lucide-react";
+import { PublicProjectsGallery } from "@/features/projects/components/displays/PublicProjectsGallery/PublicProjectsGallery";
 
 type FilterType = "all" | "public" | "mine";
 
 export default function ProjectsPage() {
-  const { session, isAuthenticated } = useAuth();
+  const { session, isAuthenticated, isLoading: isAuthLoading } = useAuth();
+  const router = useRouter();
+
   const [projects, setProjects] = useState<Project[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isUserProjectsLoading, setIsUserProjectsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState<FilterType>("all");
 
   useEffect(() => {
-    const getSession = async () => {
-      if (session?.user?.email) {
-        await fetchProjects();
-      }
-      setIsLoading(false);
-    };
+    // Logged-in: fetch user's projects.
+    if (session?.user?.email) {
+      void fetchProjects();
+      return;
+    }
 
-    getSession();
+    // Logged-out: stop the "user projects" spinner.
+    setIsUserProjectsLoading(false);
   }, [session]);
 
   const fetchProjects = async () => {
+    setIsUserProjectsLoading(true);
     try {
       const response = await fetch("/api/projects/user");
       if (!response.ok) {
@@ -43,6 +48,8 @@ export default function ProjectsPage() {
     } catch (error) {
       console.error("Error fetching projects:", error);
       setProjects([]);
+    } finally {
+      setIsUserProjectsLoading(false);
     }
   };
 
@@ -81,6 +88,26 @@ export default function ProjectsPage() {
 
   // All deletion and QR actions are handled inside the ProjectBoard component menu.
 
+  if (isAuthLoading) {
+    return (
+      <PageContainer showBorder={false}>
+        <Toaster />
+        <PageContent className="pt-[24px] pb-8">
+          <div className="container mx-auto px-5 sm:px-8">
+            <div className="flex items-center justify-center py-24">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto" />
+            </div>
+          </div>
+        </PageContent>
+        <Footer />
+      </PageContainer>
+    );
+  }
+
+  if (!session) {
+    return <PublicProjectsGallery />;
+  }
+
   return (
     <PageContainer showBorder={isAuthenticated}>
       <Toaster />
@@ -108,7 +135,7 @@ export default function ProjectsPage() {
 
           {/* Search Section - mirrors events page styling */}
           {/** hide search section for now */}
-          {false && session && !isLoading && (
+          {false && session && !isUserProjectsLoading && (
             <div className="flex flex-col mb-5 gap-4">
               <div className="flex items-end justify-between gap-4">
                 {/* Search Input */}
@@ -143,7 +170,7 @@ export default function ProjectsPage() {
           )}
 
           {/* Project Filter */}
-          {session && !isLoading && projects.length > 0 && (
+          {session && !isUserProjectsLoading && projects.length > 0 && (
             <div className="flex items-center bg-white border border-[rgba(0,0,0,0.15)] rounded-xl p-1 w-full sm:w-fit">
               <button
                 onClick={() => setFilterType("all")}
@@ -175,33 +202,18 @@ export default function ProjectsPage() {
             </div>
           )}
 
-          {isLoading && (
+          {isUserProjectsLoading && (
             <div className="flex items-center justify-center py-12">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
             </div>
           )}
 
-          {!session && !isLoading && (
-            <div className="flex items-center justify-center py-12">
-              <div className="text-center">
-                <h2 className="text-2xl font-bold mb-4">
-                  Please log in to view your projects
-                </h2>
-                <Link href="/login">
-                  <Button className="bg-blue-900 text-white hover:bg-blue-800">
-                    Login
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          )}
-
-          {session && !isLoading && (
+          {session && !isUserProjectsLoading && (
             <>
               {/* Filtered Projects List */}
               {filteredProjects.length > 0 ? (
                 <ProjectBoard
-                  isLoading={isLoading}
+                  isLoading={isUserProjectsLoading}
                   projectList={filteredProjects}
                   session={session}
                   projectBoardContext={ProjectBoardContext.MyProjects}
