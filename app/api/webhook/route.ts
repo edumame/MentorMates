@@ -335,9 +335,10 @@ export async function POST(req: NextRequest) {
           await channel.watch();
 
           const { messages: recentMessages } = await channel.query({ messages: { limit: 5 } });
-          const previousMessages = (recentMessages || [] as any[])
-            .filter((msg: any) => msg?.text && msg.text.trim() !== "")
-            .map<ChatCompletionMessageParam>((message: any) => ({
+          type StreamMessage = { text?: string; user?: { id?: string } };
+          const previousMessages = ((recentMessages || []) as StreamMessage[])
+            .filter((msg) => !!msg?.text && msg.text.trim() !== "")
+            .map<ChatCompletionMessageParam>((message) => ({
               role: message.user?.id === existingAgent.id ? "assistant" : "user",
               content: message.text || "",
             }));
