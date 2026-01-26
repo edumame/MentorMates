@@ -4,16 +4,13 @@ import {
     SparklesIcon,
     FileTextIcon,
     FileVideoIcon,
-    ClockFadingIcon,
+    MessageSquare,
 } from "lucide-react";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MeetingGetOne } from "../../types";
-import { format } from "date-fns";
-import { Badge } from "@/components/ui/badge";
-// import { formatDuration } from "@/lib/utils";
 import { Transcript } from "./transcript";
-// import { ChatProvider } from "./chat-provider";
+import { ChatProvider } from "./chat-provider";
 
 interface Props {
     data: MeetingGetOne;
@@ -53,22 +50,22 @@ export const CompletedState = ({ data }: Props) => {
                                 <FileVideoIcon />
                                 Recording
                             </TabsTrigger>
-                            {/* <TabsTrigger
+                            <TabsTrigger
                                 value="chat"
                                 className="text-muted-foreground rounded-none bg-background data-[state=active]:shadow-none
                                 border-b-2 border-transparent data-[state=active]:border-b-primary
                                 data-[state=active]:text-accent-foreground h-full hover:text-accent-foreground"
                             >
-                                <SparklesIcon />
-                                Ask AI
-                            </TabsTrigger> */}
+                                <MessageSquare />
+                                Chat
+                            </TabsTrigger>
                         </TabsList>
                         <ScrollBar orientation="horizontal" />
                     </ScrollArea>
                 </div>
-                {/* <TabsContent value="chat">
+                <TabsContent value="chat">
                     <ChatProvider meetingId={data.id} meetingName={data.name} />
-                </TabsContent> */}
+                </TabsContent>
                 <TabsContent value="transcript">
                     <Transcript meetingId={data.id} />
                 </TabsContent>
@@ -85,10 +82,6 @@ export const CompletedState = ({ data }: Props) => {
                                 <SparklesIcon className="size-4" />
                                 <p>Feedback summary</p>
                             </div>
-                            {/* <Badge variant="outline" className="flex items-center gap-x-2 [&>svg]:size-4">
-                                <ClockFadingIcon className="text-blue-700" />
-                                {data.duration ? formatDuration(data.duration) : "No duration"}
-                            </Badge> */}
                             <div>
                                 <Markdown
                                     components={{
