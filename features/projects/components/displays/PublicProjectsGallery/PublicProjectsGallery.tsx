@@ -167,7 +167,7 @@ export function PublicProjectsGallery() {
 
           <div className="flex flex-col items-center gap-4">
             <div className="flex flex-wrap items-center justify-center gap-3">
-              <div className="flex items-center bg-white border border-[rgba(0,0,0,0.15)] rounded-xl p-1">
+              <div className="h-10 flex items-center bg-background border border-input rounded-md px-1">
                 <select
                   value={selectedEventId ?? selectedEventSlug}
                   onChange={(e) => {
@@ -181,7 +181,7 @@ export function PublicProjectsGallery() {
                     setSelectedEventSlug(match.slug);
                     router.push(`/projects?event=${encodeURIComponent(match.slug)}`);
                   }}
-                  className="h-9 bg-transparent px-3 text-sm font-medium text-black focus:outline-none"
+                  className="h-full bg-transparent px-3 text-sm font-medium text-black focus:outline-none"
                   aria-label="Select event"
                 >
                   {isPublicEventsLoading && publicEvents.length === 0 ? (
@@ -205,10 +205,6 @@ export function PublicProjectsGallery() {
 
               <Button asChild variant="outline" className="h-10">
                 <Link href="/events">Browse other events</Link>
-              </Button>
-
-              <Button asChild className="h-10 bg-[#4b89ef] hover:bg-[#3d75d9]">
-                <Link href="/login?returnUrl=/projects">Log in</Link>
               </Button>
             </div>
           </div>
