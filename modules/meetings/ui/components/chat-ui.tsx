@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import type { WheelEvent } from "react";
 import { useMutation } from "@tanstack/react-query";
 import type { Channel as StreamChannel } from "stream-chat";
 import {
@@ -51,6 +52,17 @@ export const ChatUI = ({
         setChannel(channel);
     }, [client, meetingId, meetingName, userId]);
 
+    const listRef = useRef<HTMLDivElement | null>(null);
+
+    const handleWheel = (e: WheelEvent<HTMLDivElement>) => {
+        const el = listRef.current;
+        if (!el) return;
+
+        // Apply wheel delta immediately to match native scrollbar speed
+        el.scrollTop += e.deltaY;
+        e.preventDefault();
+    };
+
     if (!client) {
         return (
             <LoadingState
@@ -65,7 +77,11 @@ export const ChatUI = ({
             <Chat client={client}>
                 <Channel channel={channel}>
                     <Window>
-                        <div className="flex-1 overflow-y-auto max-h-[calc(100vh-23rem)] border-b">
+                        <div
+                            ref={listRef}
+                            onWheel={handleWheel}
+                            className="flex-1 overflow-y-auto max-h-[calc(100vh-23rem)] border-b"
+                        >
                             <MessageList />
                         </div>
                         <MessageInput />
