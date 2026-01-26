@@ -33,6 +33,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       "/join-project",
       "/help",
       "/devpost-integration",
+      "/faq",
+      "/support",
     ];
     return [
       ...BASE_PUBLIC_PATHS,

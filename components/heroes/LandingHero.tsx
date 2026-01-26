@@ -105,7 +105,7 @@ export function LandingHero() {
           <div className="lg:col-span-5 mt-4 lg:mt-0">
             <p className="text-base sm:text-[16px] lg:text-18px] leading-relaxed">
               MentorMates guides you through your entire hackathon journey.
-              Built by students, for students, our platform helps you focus on
+              Built by builders, for builders, our platform helps you focus on
               what matters most — creating an impactful project.
             </p>
 

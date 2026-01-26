@@ -9,6 +9,7 @@ import { ConditionalNavbar } from "@/components/layout/ConditionalNavbar";
 import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
 import { LayoutConfigProvider } from "@/components/layout/LayoutConfigProvider";
 import { ConditionalAnnouncement } from "@/components/layout/ConditionalAnnouncement";
+import { FloatingSupportButton } from "@/components/layout/FloatingSupportButton";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -48,6 +49,7 @@ export default function RootLayout({
                   {children}
                 </ConditionalLayout>
               </AuthProvider>
+              <FloatingSupportButton />
             </LayoutConfigProvider>
           </AuthContextProvider>
         </Providers>

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
+import { useAuth } from "@/features/user/authentication/auth/AuthContext";
 
 interface EventPageTabsProps {
   eventId: string;
@@ -20,6 +21,7 @@ export function EventPageTabs({
 }: EventPageTabsProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { isAuthenticated } = useAuth();
 
   const tabs: Array<{
     name: string;
@@ -65,34 +67,43 @@ export function EventPageTabs({
 
   return (
     <div className="border-b border-[#f2f2f2] w-full">
-      <div className="flex gap-4 md:gap-6 items-start px-4 w-full overflow-x-auto no-scrollbar whitespace-nowrap">
-        {tabs.map((tab) => {
-          const isActive = pathname === tab.path;
+      <div
+        className={
+          isAuthenticated
+            ? "px-4 w-full"
+            : "mx-auto w-full max-w-10xl px-4 md:px-10 lg:px-24"
+        }
+      >
+        <div className="flex gap-4 md:gap-6 items-start w-full overflow-x-auto no-scrollbar whitespace-nowrap">
+          {tabs.map((tab) => {
+            const isActive = pathname === tab.path;
 
-          return (
-            <Link
-              key={tab.name}
-              href={getHrefWithParams(tab.path)}
-              className={`inline-flex gap-2 items-center px-0 py-2 flex-shrink-0 ${
-                isActive ? "border-b-2 border-[#4b89ef]" : ""
-              }`}
-            >
-              <p
-                className={`${isActive ? "font-medium" : "font-normal"
-                  } text-base text-black`}
+            return (
+              <Link
+                key={tab.name}
+                href={getHrefWithParams(tab.path)}
+                className={`inline-flex gap-2 items-center px-0 py-2 flex-shrink-0 ${
+                  isActive ? "border-b-2 border-[#4b89ef]" : ""
+                }`}
               >
-                {tab.name}
-              </p>
-              {tab.badge !== null && tab.badge !== undefined && (
-                <div className="border border-[rgba(0,0,0,0.15)] flex gap-3 items-start px-2 rounded-[50px] flex-shrink-0">
-                  <p className="font-normal text-xs md:text-sm text-black">
-                    {tab.badge}
-                  </p>
-                </div>
-              )}
-            </Link>
-          );
-        })}
+                <p
+                  className={`${
+                    isActive ? "font-medium" : "font-normal"
+                  } text-base text-black`}
+                >
+                  {tab.name}
+                </p>
+                {tab.badge !== null && tab.badge !== undefined && (
+                  <div className="border border-[rgba(0,0,0,0.15)] flex gap-3 items-start px-2 rounded-[50px] flex-shrink-0">
+                    <p className="font-normal text-xs md:text-sm text-black">
+                      {tab.badge}
+                    </p>
+                  </div>
+                )}
+              </Link>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
