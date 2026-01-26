@@ -54,6 +54,37 @@ export const ChatUI = ({
 
     const listRef = useRef<HTMLDivElement | null>(null);
 
+    // Auto-scroll to bottom when new messages appear, using smooth behavior
+    useEffect(() => {
+        const el = listRef.current;
+        if (!el) return;
+
+        // Ensure smooth scrolling is enabled
+        try {
+            el.style.scrollBehavior = "smooth";
+        } catch (e) {
+            console.error("Failed to enable smooth scrolling", e);
+        }
+
+        // Scroll to bottom once on mount
+        el.scrollTop = el.scrollHeight;
+
+        const observer = new MutationObserver((mutations) => {
+            for (const m of mutations) {
+                if (m.addedNodes && m.addedNodes.length > 0) {
+                    // New message(s) added -> scroll to bottom
+                    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+                    break;
+                }
+            }
+        });
+
+        observer.observe(el, { childList: true, subtree: true });
+
+        return () => observer.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [listRef.current]);
+
     const handleWheel = (e: WheelEvent<HTMLDivElement>) => {
         const el = listRef.current;
         if (!el) return;
