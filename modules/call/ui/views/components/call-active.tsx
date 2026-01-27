@@ -2,7 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import ScreenCapture from "./screen-capture";
 import { SpeakerLayout, CallControls } from "@stream-io/video-react-sdk";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 interface Props {
   onLeave: () => void;
@@ -12,7 +12,45 @@ interface Props {
 
 export const CallActive = ({ onLeave, meetingName, meetingId }: Props) => {
   const [disabled, setDisabled] = useState(false);
-  const [paused, setPaused] = useState(false);
+  // Default: agent starts paused until the user explicitly resumes.
+  const [paused, setPaused] = useState(true);
+
+  // Defensive: ensure the worker session is paused once it’s available.
+  // The worker also defaults sessions to paused, but this guards against older workers.
+  useEffect(() => {
+    let cancelled = false;
+
+    const ensurePaused = async () => {
+      // If the UI says we’re not paused, don’t force it.
+      if (!paused) return;
+
+      const maxAttempts = 5;
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        if (cancelled) return;
+        try {
+          const resp = await fetch("/api/agent/pause", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ meetingId }),
+          });
+
+          if (resp.ok) return;
+        } catch {
+          // ignore and retry
+        }
+
+        // Backoff: 250ms, 500ms, 1000ms, 2000ms, 4000ms
+        const delayMs = 250 * Math.pow(2, attempt);
+        await new Promise((r) => setTimeout(r, delayMs));
+      }
+    };
+
+    void ensurePaused();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [meetingId, paused]);
 
   const handleTogglePause = useCallback(async () => {
     if (disabled) return;
@@ -37,7 +75,7 @@ export const CallActive = ({ onLeave, meetingName, meetingId }: Props) => {
   }, [meetingId, disabled, paused]);
 
   // Toggle Pause/Resume button component
-  const PauseAgentButton = ({
+  const AgentToggleButton = ({
     onClick,
     disabledState,
     pausedState,
@@ -47,12 +85,12 @@ export const CallActive = ({ onLeave, meetingName, meetingId }: Props) => {
     pausedState: boolean;
   }) => {
     const base =
-      "flex items-center justify-center w-10 h-10 rounded-full transition-all";
+      "flex items-center justify-center h-10 rounded-full transition-all px-3 gap-2";
     const activeClass = pausedState
       ? "bg-white/10 text-white hover:bg-white/20"
       : "bg-red-600 text-white hover:bg-red-700";
     const disabledClass = disabledState ? "opacity-60 pointer-events-none" : "";
-    const label = pausedState ? "Resume Agent" : "Pause Agent";
+    const label = pausedState ? "Start asking me questions" : "Pause Agent";
     const title = label;
     const icon = pausedState ? "▶" : "||";
     return (
@@ -64,6 +102,7 @@ export const CallActive = ({ onLeave, meetingName, meetingId }: Props) => {
         className={`${base} ${activeClass} ${disabledClass}`}
       >
         <span className="text-sm font-medium select-none">{icon}</span>
+        <span className="hidden sm:inline text-sm font-medium">{label}</span>
       </button>
     );
   };
@@ -83,7 +122,7 @@ export const CallActive = ({ onLeave, meetingName, meetingId }: Props) => {
       <ScreenCapture meetingId={meetingId} />
       <div className="bg-[#101213] rounded-full px-4 flex justify-center">
         <div className="flex items-center gap-4 py-2">
-          <PauseAgentButton
+          <AgentToggleButton
             onClick={handleTogglePause}
             disabledState={disabled}
             pausedState={paused}

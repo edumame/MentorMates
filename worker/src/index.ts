@@ -9,6 +9,7 @@ type SessionRecord = {
   lastUpdatedAt?: string | null;
   lastSummary?: string | null;
   lastPushedAt?: number;
+  paused?: boolean;
 };
 
 // function wsSend(realtimeClient: RealtimeClient, event: any) {
@@ -96,7 +97,8 @@ app.post("/session/start", async (req: Request, res: Response) => {
     realtimeClient.updateSession({
       instructions,
       input_audio_transcription: { model: "whisper-1" },
-      turn_detection: { type: "server_vad" },
+      // Default to paused: user speaks first, then resumes to get a response.
+      turn_detection: null,
     });
 
     const record: SessionRecord = {
@@ -104,6 +106,7 @@ app.post("/session/start", async (req: Request, res: Response) => {
       intervalId: null,
       lastUpdatedAt: null,
       lastSummary: null,
+      paused: true,
     };
     sessions.set(meetingId, record);
 
@@ -159,9 +162,10 @@ app.post("/session/start", async (req: Request, res: Response) => {
         // );
 
         try {
+          // Keep pause/resume sticky even when screen context updates.
           realtimeClient.updateSession({
             instructions: `${baseInstructions}\n\nLatest shared screen:\n${screen}\n`,
-            turn_detection: { type: "server_vad" },
+            turn_detection: record.paused ? null : { type: "server_vad" },
           });
           console.log(
             `[${meetingId}] updateSession OK: ${screen.slice(0, 120)}`
@@ -229,6 +233,7 @@ app.post("/session/pause", async (req: Request, res: Response) => {
 
     // send an update to the session to disable automatic response generation but keep VAD enabled
     try {
+      record.paused = true;
       realtimeClient.realtime.send("session.update", {
         session: {
           turn_detection: null,
@@ -261,6 +266,7 @@ app.post("/session/resume", async (req: Request, res: Response) => {
       return res.status(404).json({ error: "realtime client not found" });
 
     try {  
+      record.paused = false;
       realtimeClient.realtime.send("input_audio_buffer.commit", {});
       realtimeClient.realtime.send("response.create", {});
       // realtimeClient.createResponse()
