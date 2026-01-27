@@ -9,7 +9,7 @@ import ProjectBoard from "@/features/projects/components/displays/ProjectBoard/P
 import { DiscordCTA } from "@/components/ui/discord-cta";
 import { Footer } from "@/components/layout/Footer";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
-import { Project, ProjectBoardContext } from "@/lib/types";
+import { EventVisibility, Project, ProjectBoardContext } from "@/lib/types";
 
 const DEFAULT_PUBLIC_EVENT_SLUG = "mentormateshackathon";
 
@@ -17,6 +17,7 @@ type PublicEventOption = {
   event_id: string;
   event_name: string;
   slug: string | null;
+  visibility?: EventVisibility | null;
 };
 
 export function PublicProjectsGallery() {
@@ -48,7 +49,9 @@ export function PublicProjectsGallery() {
         if (!response.ok) return;
 
         const data = (await response.json()) as { events?: PublicEventOption[] };
-        const events = (data.events || []).filter((e) => Boolean(e.slug));
+        const events = (data.events || []).filter(
+          (e) => Boolean(e.slug) && e.visibility === EventVisibility.Public
+        );
         setPublicEvents(events);
 
         if (events.length === 0) return;
