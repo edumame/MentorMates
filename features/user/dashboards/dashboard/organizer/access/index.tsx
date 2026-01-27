@@ -67,6 +67,8 @@ export function AccessTab({
               eventId={eventId}
               roleLabels={event.role_labels}
               isArchived={isArchived}
+              event={event}
+              setEvent={setEvent}
             />
           </TabsContent>
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
+import { ApprovalStatus, EventVisibility } from "@/lib/types";
 
 export async function GET(
   request: NextRequest,
@@ -52,6 +53,48 @@ export async function GET(
     }
 
     const avatarUrl = profile?.avatar_url || null;
+
+    // Fetch phone number from user_phone_numbers table
+    // Only fetch phone numbers for the user's own profile (privacy)
+    let primaryPhoneNumber: string | null = null;
+    const isOwnProfile = loggedInUser.user?.id === userId;
+
+    if (isOwnProfile) {
+      // Prefer verified phone number, otherwise get the most recent one
+      // First try to get a verified phone number
+      const { data: verifiedPhones, error: verifiedError } = await supabase
+        .from("user_phone_numbers")
+        .select("phone_number")
+        .eq("user_id", userId)
+        .eq("verification_status", "verified")
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      if (verifiedError) {
+        console.error("Error fetching verified phone number:", verifiedError);
+      }
+
+      if (verifiedPhones && verifiedPhones.length > 0) {
+        primaryPhoneNumber = verifiedPhones[0].phone_number;
+      } else {
+        // If no verified phone, get the most recent one
+        const { data: recentPhones, error: recentError } = await supabase
+          .from("user_phone_numbers")
+          .select("phone_number")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false })
+          .limit(1);
+
+        if (recentError) {
+          console.error("Error fetching phone number:", recentError);
+          // Don't fail the request if phone number fetch fails
+        }
+
+        if (recentPhones && recentPhones.length > 0) {
+          primaryPhoneNumber = recentPhones[0].phone_number;
+        }
+      }
+    }
 
     // Fetch projects where user is lead
     const { data: leadProjects, error: leadError } = await supabase
@@ -159,9 +202,31 @@ export async function GET(
               updated_at: new Date().toISOString(),
             }))
             .filter(Boolean) || [],
+          submitted: project.submitted,
       }));
 
     // Fetch events where user has roles
+    // If the logged-in user is viewing their own profile, show all events where the user has a role
+    // Otherwise, only show public and approved events where the user has a role
+    const visibilityFilter = isOwnProfile
+      ? [
+          EventVisibility.Public,
+          EventVisibility.Private,
+          EventVisibility.Draft,
+          EventVisibility.Archived,
+          EventVisibility.Test,
+          EventVisibility.Demo,
+        ]
+      : [EventVisibility.Public];
+    const approvalFilter = isOwnProfile
+      ? [
+          ApprovalStatus.Approved,
+          ApprovalStatus.NotSubmitted,
+          ApprovalStatus.Submitted,
+          ApprovalStatus.Rejected,
+        ]
+      : [ApprovalStatus.Approved];
+
     const { data: events, error: eventsError } = await supabase
       .from("events")
       .select(
@@ -179,11 +244,13 @@ export async function GET(
         role_labels,
         user_event_roles!inner (
           role
-        )
+        ),
+        approval_status
       `
       )
       .eq("user_event_roles.user_id", userId)
-      .in("visibility", ["public", "private", "draft"]);
+      .in("visibility", visibilityFilter)
+      .in("approval_status", approvalFilter);
 
     if (eventsError) {
       console.error("Error fetching events:", eventsError);
@@ -233,10 +300,11 @@ export async function GET(
       });
     }
 
-    // Return profile with avatar_url included
+    // Return profile with avatar_url and phone_number included
     const profileWithAvatar = {
       ...profile,
       avatar_url: avatarUrl,
+      phone_number: primaryPhoneNumber,
     };
 
     return NextResponse.json({

@@ -8,10 +8,12 @@ import {
   GOAL_VALUES,
   ROLE_VALUES,
   INDUSTRY_VALUES,
+  PLATFORM_ROLE_VALUES,
 } from "@/features/user/onboarding/questions-data";
 
-const OnboardingSchema = z.object({
-  version: z.number().int().min(1),
+// Version 1 schema (legacy with industries and tools)
+const OnboardingSchemaV1 = z.object({
+  version: z.literal(1),
   completedAt: z.string().datetime(),
   answers: z.object({
     familiarity: z.enum(FAMILIARITY_VALUES),
@@ -22,6 +24,36 @@ const OnboardingSchema = z.object({
     nonAiTools: z.array(z.enum(NON_AI_TOOL_VALUES)).default([]),
   }),
 });
+
+// Version 2 schema (streamlined flow with platform role, no industries/tools)
+const OnboardingSchemaV2 = z.object({
+  version: z.literal(2),
+  completedAt: z.string().datetime(),
+  answers: z.object({
+    familiarity: z.enum(FAMILIARITY_VALUES),
+    mainGoals: z.array(z.enum(GOAL_VALUES)).min(1),
+    role: z.enum(ROLE_VALUES),
+    platformRole: z.enum(PLATFORM_ROLE_VALUES),
+  }),
+});
+
+// Version 3 schema (full flow with all original fields plus platform role)
+const OnboardingSchemaV3 = z.object({
+  version: z.literal(3),
+  completedAt: z.string().datetime(),
+  answers: z.object({
+    familiarity: z.enum(FAMILIARITY_VALUES),
+    mainGoals: z.array(z.enum(GOAL_VALUES)).min(1),
+    role: z.enum(ROLE_VALUES),
+    industries: z.array(z.enum(INDUSTRY_VALUES)).min(1),
+    aiTools: z.array(z.enum(AI_TOOL_VALUES)).default([]),
+    nonAiTools: z.array(z.enum(NON_AI_TOOL_VALUES)).default([]),
+    platformRole: z.enum(PLATFORM_ROLE_VALUES),
+  }),
+});
+
+// Combined schema that accepts any version
+const OnboardingSchema = z.union([OnboardingSchemaV1, OnboardingSchemaV2, OnboardingSchemaV3]);
 
 export async function POST(request: Request) {
   try {

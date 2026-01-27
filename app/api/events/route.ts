@@ -75,10 +75,9 @@ export async function GET() {
       );
     } else {
       // Regular users only see public and private events (exclude archived) that are approved
-      query = query.in("visibility", [
-        EventVisibility.Public,
-        EventVisibility.Private,
-      ]).eq("approval_status", ApprovalStatus.Approved);
+      query = query
+        .in("visibility", [EventVisibility.Public, EventVisibility.Private])
+        .eq("approval_status", ApprovalStatus.Approved);
     }
 
     const { data: events, error: eventsError } = await query;
@@ -126,6 +125,8 @@ const eventSchema = z.object({
       })
     )
     .optional(),
+  approval_status: z.nativeEnum(ApprovalStatus).optional(),
+  featured: z.boolean().optional(),
 });
 
 const payloadSchema = z.object({
@@ -146,13 +147,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Verify admin via DB function (preferred over client constants)
-    const { data: isAdmin } = await supabase.rpc("is_admin_user", {
-      user_id: user.id,
-    });
-    if (!isAdmin) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    // Verify admin via DB function; no longer needed for general event creation flow
+
+    // const { data: isAdmin } = await supabase.rpc("is_admin_user", {
+    //   user_id: user.id,
+    // });
+    // if (!isAdmin) {
+    //   return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    // }
 
     const json = await req.json();
     const parsed = payloadSchema.safeParse(json);
@@ -187,7 +189,8 @@ export async function POST(req: Request) {
       paid: event.paid ?? null,
       stripe_price_id: event.stripe_price_id ?? null,
       owner_id: user.id, // Set the creator as the owner
-      approval_status: ApprovalStatus.Approved, // Admin-created events are auto-approved
+      approval_status: event.approval_status ?? ApprovalStatus.NotSubmitted, // Events default to not_submitted (visibility controls draft/private/public)
+      featured: event.featured ?? false,
     };
 
     const { data: createdEvent, error: insertError } = await supabase

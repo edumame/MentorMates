@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { supabase } from "@/lib/supabase";
-import { EventVisibility, EventRole, Rule } from "@/lib/types";
+import { EventVisibility, EventRole, Rule, ApprovalStatus } from "@/lib/types";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -57,6 +57,22 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { PageContainer } from "@/components/layout/PageContainer";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ReactMarkdown from "react-markdown";
 
@@ -78,6 +94,10 @@ export default function NewEventPage() {
   const [activeSubTab, setActiveSubTab] = useState("basics");
   const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
   const [coverImageUploading, setCoverImageUploading] = useState(false);
+  const [showApprovalModal, setShowApprovalModal] = useState(false);
+  const [createdEventId, setCreatedEventId] = useState<string | null>(null);
+  const [createdEventSlug, setCreatedEventSlug] = useState<string | null>(null);
+  const [isNavigating, setIsNavigating] = useState(false);
 
   // Get user's timezone as default
   const getUserTimezone = (): string => {
@@ -296,6 +316,8 @@ export default function NewEventPage() {
         event_description: parsed.event_description ?? prev.event_description,
         event_blurb: parsed.event_blurb ?? prev.event_blurb,
         cover_image_url: parsed.cover_image_url ?? prev.cover_image_url,
+        submission_time_start: parsed.submission_time_start ?? prev.submission_time_start,
+        submission_time_cutoff: parsed.submission_time_cutoff ?? prev.submission_time_cutoff,
       }));
 
       if (typeof parsed.paid === "boolean") {
@@ -304,9 +326,97 @@ export default function NewEventPage() {
 
       if (typeof parsed.visibility === "string") {
         const v = parsed.visibility.toLowerCase();
-        if (v === "public") setVisibility(EventVisibility.Public);
+        // Public visibility is not allowed - default to private instead
+        if (v === "public") setVisibility(EventVisibility.Private);
         else if (v === "private") setVisibility(EventVisibility.Private);
         else if (v === "draft") setVisibility(EventVisibility.Draft);
+      }
+
+      // Import rules
+      if (Array.isArray(parsed.rules) && parsed.rules.length > 0) {
+        const importedRules: Rule[] = parsed.rules.map((rule: { title: string; items: string[] }) => ({
+          title: rule.title || "",
+          items: Array.isArray(rule.items) ? rule.items : [],
+        }));
+        setRules(importedRules);
+      }
+
+      // Import FAQs
+      if (Array.isArray(parsed.faqs) && parsed.faqs.length > 0) {
+        const importedFaqs = parsed.faqs.map((faq: { question: string; answer: string }, index: number) => ({
+          id: `imported-faq-${index}-${Date.now()}`,
+          question: faq.question || "",
+          answer: faq.answer || "",
+        }));
+        setFaqs(importedFaqs);
+      }
+
+      // Import resources
+      if (Array.isArray(parsed.event_resources) && parsed.event_resources.length > 0) {
+        const importedResources = parsed.event_resources.map((resource: { name: string; link: string }, index: number) => ({
+          id: `imported-resource-${index}-${Date.now()}`,
+          name: resource.name || "",
+          link: resource.link || "",
+        }));
+        setResources(importedResources);
+      }
+
+      // Import schedules
+      if (Array.isArray(parsed.event_schedule) && parsed.event_schedule.length > 0) {
+        const importedSchedules: Array<{
+          id: string;
+          dayTitle: string;
+          eventName: string;
+          time: string;
+          guests: string;
+          description: string;
+        }> = [];
+        parsed.event_schedule.forEach((day: { date: string; events: Array<{ name: string; time: string; description?: string }> }, dayIndex: number) => {
+          if (Array.isArray(day.events)) {
+            day.events.forEach((event, eventIndex: number) => {
+              importedSchedules.push({
+                id: `imported-schedule-${dayIndex}-${eventIndex}-${Date.now()}`,
+                dayTitle: day.date || "",
+                eventName: event.name || "",
+                time: event.time || "",
+                guests: "",
+                description: event.description || "",
+              });
+            });
+          }
+        });
+        setSchedules(importedSchedules);
+      }
+
+      // Import tracks
+      if (Array.isArray(parsed.tracks) && parsed.tracks.length > 0) {
+        const importedTracks = parsed.tracks.map((track: {
+          name: string;
+          description?: string;
+          criteria?: Array<{
+            name: string;
+            description?: string;
+            weight?: number;
+            min?: number;
+            max?: number;
+          }>;
+        }, index: number) => ({
+          id: `imported-track-${index}-${Date.now()}`,
+          name: track.name || "",
+          description: track.description || "",
+          criteria: Array.isArray(track.criteria)
+            ? track.criteria.map((criterion, criterionIndex: number) => ({
+                id: `imported-criterion-${index}-${criterionIndex}-${Date.now()}`,
+                name: criterion.name || "",
+                description: criterion.description || "",
+                questionType: "numeric",
+                minScore: criterion.min ?? 1,
+                maxScore: criterion.max ?? 10,
+                weight: criterion.weight ?? 1,
+              }))
+            : [],
+        }));
+        setTracks(importedTracks);
       }
 
       toast({
@@ -320,7 +430,7 @@ export default function NewEventPage() {
     }
   }, [toast]);
 
-  const handleCreate = async (requestApproval = false) => {
+  const handleCreate = async () => {
     if (!form.event_name || !form.event_date || !form.location) {
       toast({
         title: "Missing fields",
@@ -343,8 +453,8 @@ export default function NewEventPage() {
         organizerEmails.unshift(currentUserEmail);
       }
 
-      const endpoint = requestApproval ? "/api/events/request-approval" : "/api/events";
-      const res = await fetch(endpoint, {
+      // Always save as draft by default
+      const res = await fetch("/api/events", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -352,7 +462,7 @@ export default function NewEventPage() {
             event_name: form.event_name,
             event_date: form.event_date,
             location: form.location,
-            visibility: visibility,
+            visibility: EventVisibility.Draft, // Always draft initially
             slug: form.slug || undefined,
             event_description: form.event_description || undefined,
             event_blurb: form.event_blurb || undefined,
@@ -370,8 +480,7 @@ export default function NewEventPage() {
               faqs.length > 0 ? faqs.map(({ id, ...faq }) => faq) : undefined,
             gallery_images:
               galleryImages.length > 0
-                ? galleryImages.map(({ id, ...img }) => img)
-                : undefined,
+                ? galleryImages.map(({ id, ...img }) => img) : undefined,
           },
           organizerEmails,
         }),
@@ -379,17 +488,15 @@ export default function NewEventPage() {
       const data = await res.json();
       if (!res.ok) {
         toast({
-          title: requestApproval ? "Request failed" : "Create failed",
-          description: data.error || `Error ${requestApproval ? "requesting approval for" : "creating"} event.`,
+          title: "Create failed",
+          description: data.error || "Error creating event.",
           variant: "destructive",
         });
         return;
       }
       toast({
-        title: requestApproval ? "Approval requested" : "Event created",
-        description: requestApproval 
-          ? `${data.event.event_name} has been submitted for approval.`
-          : `${data.event.event_name} created successfully.`,
+        title: "Event saved as draft",
+        description: `${data.event.event_name} has been saved as a draft.`,
       });
       router.push(`/events/${data.event.slug || data.event.event_id}/overview`);
     } catch {
@@ -400,6 +507,230 @@ export default function NewEventPage() {
       });
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handlePublishAsPrivate = async () => {
+    if (!form.event_name || !form.event_date || !form.location) {
+      toast({
+        title: "Missing fields",
+        description: "Name, date, and location are required.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setCreating(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const currentUserEmail = sessionData?.session?.user?.email;
+
+      const organizerEmails = (form.organizer_emails || "")
+        .split(",")
+        .map((e) => e.trim())
+        .filter(Boolean);
+
+      if (currentUserEmail && !organizerEmails.includes(currentUserEmail)) {
+        organizerEmails.unshift(currentUserEmail);
+      }
+
+      // Create event as private
+      const res = await fetch("/api/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          event: {
+            event_name: form.event_name,
+            event_date: form.event_date,
+            location: form.location,
+            visibility: EventVisibility.Private, // Private visibility
+            slug: form.slug || undefined,
+            event_description: form.event_description || undefined,
+            event_blurb: form.event_blurb || undefined,
+            cover_image_url: form.cover_image_url || undefined,
+            paid: ticketType === "paid",
+            submission_time_start: form.submission_time_start || undefined,
+            submission_time_cutoff: form.submission_time_cutoff || undefined,
+            participant_capacity: form.participant_capacity
+              ? parseInt(form.participant_capacity, 10)
+              : undefined,
+            event_type: form.event_type || undefined,
+            paywall_content: form.paywall_content || undefined,
+            rules: rules.length > 0 ? rules : undefined,
+            faqs:
+              faqs.length > 0 ? faqs.map(({ id, ...faq }) => faq) : undefined,
+            gallery_images:
+              galleryImages.length > 0
+                ? galleryImages.map(({ id, ...img }) => img) : undefined,
+          },
+          organizerEmails,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast({
+          title: "Publish failed",
+          description: data.error || "Error publishing event.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Store event ID and slug, then show approval modal
+      setCreatedEventId(data.event.event_id);
+      setCreatedEventSlug(data.event.slug || null);
+      setShowApprovalModal(true);
+    } catch {
+      toast({
+        title: "Network error",
+        description: "Unable to publish event.",
+        variant: "destructive",
+      });
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handlePublishAsPublic = async () => {
+    if (!form.event_name || !form.event_date || !form.location) {
+      toast({
+        title: "Missing fields",
+        description: "Name, date, and location are required.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setCreating(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const currentUserEmail = sessionData?.session?.user?.email;
+
+      const organizerEmails = (form.organizer_emails || "")
+        .split(",")
+        .map((e) => e.trim())
+        .filter(Boolean);
+
+      if (currentUserEmail && !organizerEmails.includes(currentUserEmail)) {
+        organizerEmails.unshift(currentUserEmail);
+      }
+
+      // Create event as private
+      const res = await fetch("/api/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          event: {
+            event_name: form.event_name,
+            event_date: form.event_date,
+            location: form.location,
+            visibility: EventVisibility.Public, // Public visibility
+            slug: form.slug || undefined,
+            event_description: form.event_description || undefined,
+            event_blurb: form.event_blurb || undefined,
+            cover_image_url: form.cover_image_url || undefined,
+            paid: ticketType === "paid",
+            submission_time_start: form.submission_time_start || undefined,
+            submission_time_cutoff: form.submission_time_cutoff || undefined,
+            participant_capacity: form.participant_capacity
+              ? parseInt(form.participant_capacity, 10)
+              : undefined,
+            event_type: form.event_type || undefined,
+            paywall_content: form.paywall_content || undefined,
+            rules: rules.length > 0 ? rules : undefined,
+            faqs:
+              faqs.length > 0 ? faqs.map(({ id, ...faq }) => faq) : undefined,
+            gallery_images:
+              galleryImages.length > 0
+                ? galleryImages.map(({ id, ...img }) => img) : undefined,
+            approval_status: ApprovalStatus.Approved,
+          },
+          organizerEmails,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast({
+          title: "Publish failed",
+          description: data.error || "Error publishing event.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Store event ID and slug, then navigate to event page
+      setCreatedEventId(data.event.event_id);
+      setCreatedEventSlug(data.event.slug || null);
+      router.push(`/events/${data.event.slug || data.event.event_id}/overview`);
+    } catch {
+      toast({
+        title: "Network error",
+        description: "Unable to publish event.",
+        variant: "destructive",
+      });
+    } finally {
+      setCreating(false);
+    }
+  };
+
+
+  const handleSubmitForApproval = async () => {
+    if (!createdEventId || isNavigating) return;
+    
+    setIsNavigating(true);
+    setCreating(true);
+    try {
+      const res = await fetch("/api/events/request-approval", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          eventId: createdEventId,
+        }),
+      });
+      
+      const data = await res.json();
+      if (!res.ok) {
+        setIsNavigating(false);
+        toast({
+          title: "Request failed",
+          description: data.error || "Error submitting for approval.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      toast({
+        title: "Approval requested",
+        description: "Your event has been submitted for approval to be featured on the home page.",
+      });
+      
+      setShowApprovalModal(false);
+      router.push(`/events/${createdEventSlug || createdEventId}/overview`);
+    } catch {
+      setIsNavigating(false);
+      toast({
+        title: "Network error",
+        description: "Unable to submit for approval.",
+        variant: "destructive",
+      });
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleSkipApproval = () => {
+    if (isNavigating) return;
+    setIsNavigating(true);
+    setShowApprovalModal(false);
+    if (createdEventId) {
+      router.push(`/events/${createdEventSlug || createdEventId}/overview`);
+    }
+  };
+
+  const handleModalClose = (open: boolean) => {
+    if (!open && showApprovalModal && !isNavigating) {
+      // Modal is being closed without clicking a button, navigate to event page
+      handleSkipApproval();
+    } else if (open !== showApprovalModal) {
+      setShowApprovalModal(open);
     }
   };
 
@@ -441,7 +772,8 @@ export default function NewEventPage() {
 
       if (typeof fields.visibility === "string") {
         const v = (fields.visibility as string).toLowerCase();
-        if (v === "public") setVisibility(EventVisibility.Public);
+        // Public visibility is not allowed - default to private instead
+        if (v === "public") setVisibility(EventVisibility.Private);
         else if (v === "private") setVisibility(EventVisibility.Private);
         else if (v === "draft") setVisibility(EventVisibility.Draft);
         else if (v === "demo") setVisibility(EventVisibility.Demo);
@@ -566,57 +898,7 @@ export default function NewEventPage() {
             </h1>
 
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4 w-full sm:w-auto">
-              <div className="relative w-full sm:w-auto">
-                <button
-                  onClick={() =>
-                    setShowVisibilityDropdown(!showVisibilityDropdown)
-                  }
-                  className="flex items-center gap-2 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] px-3 py-2 h-[44px] w-full sm:w-[142px] hover:bg-gray-50 transition-colors"
-                >
-                  <Globe className="w-5 h-5" />
-                  <span className="text-[16px] font-normal">{visibility}</span>
-                  <svg
-                    className="w-5 h-5 ml-auto"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                  >
-                    <path
-                      d="M7 10l5 5 5-5"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </button>
-
-                {showVisibilityDropdown && (
-                  <>
-                    <div
-                      className="fixed inset-0 z-[5]"
-                      onClick={() => setShowVisibilityDropdown(false)}
-                    />
-                    <div className="absolute top-full mt-2 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] shadow-lg z-[10] w-[142px] overflow-hidden">
-                      {[
-                        EventVisibility.Public,
-                        EventVisibility.Private,
-                        EventVisibility.Draft,
-                      ].map((vis) => (
-                        <button
-                          key={vis}
-                          onClick={() => {
-                            setVisibility(vis);
-                            setShowVisibilityDropdown(false);
-                          }}
-                          className="w-full text-left px-3 py-2 hover:bg-gray-50 text-[16px] font-normal"
-                        >
-                          {vis}
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
+              
 
               <div className="flex gap-2 w-full sm:w-auto">
                 <Button
@@ -626,55 +908,61 @@ export default function NewEventPage() {
                 >
                   Cancel
                 </Button>
+                <Button
+                  variant="outline"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleCreate();
+                  }}
+                  disabled={creating}
+                  className="text-[16px] font-medium flex-1 sm:flex-none border border-[rgba(0,0,0,0.15)] bg-white"
+                >
+                  {creating ? "Saving..." : "Save Draft"}
+                </Button>
+                
                 {isAdmin ? (
-                  <div className="relative flex-1 sm:flex-none create-dropdown-container">
-                    <Button
-                      onClick={() => setShowCreateDropdown(!showCreateDropdown)}
-                      disabled={creating}
-                      className="text-[16px] font-medium w-full flex items-center justify-between gap-2"
-                    >
-                      <span>{creating ? "Processing..." : "Create event"}</span>
-                      <ChevronDown className="h-4 w-4" />
-                    </Button>
-                    {showCreateDropdown && (
-                      <div className="absolute top-full mt-2 right-0 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] shadow-lg z-[10] w-full min-w-[200px] overflow-hidden">
-                        <button
-                          onClick={(e) => {
-                            e.preventDefault();
-                            setShowCreateDropdown(false);
-                            handleCreate(false);
-                          }}
-                          disabled={creating}
-                          className="w-full text-left px-4 py-3 hover:bg-gray-50 text-[16px] font-normal border-b border-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          <div className="font-medium">Create event</div>
-                          <div className="text-sm text-gray-500">Publish immediately</div>
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.preventDefault();
-                            setShowCreateDropdown(false);
-                            handleCreate(true);
-                          }}
-                          disabled={creating}
-                          className="w-full text-left px-4 py-3 hover:bg-gray-50 text-[16px] font-normal disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          <div className="font-medium">Request approval</div>
-                          <div className="text-sm text-gray-500">Submit for review</div>
-                        </button>
-                      </div>
-                    )}
-                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        disabled={creating}
+                        className="text-[16px] font-medium flex-1 sm:flex-none bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
+                      >
+                        {creating ? "Publishing..." : "Publish Event"}
+                        <ChevronDown className="ml-2 h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.preventDefault();
+                          handlePublishAsPrivate();
+                        }}
+                        disabled={creating}
+                      >
+                        Publish as Private Event
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.preventDefault();
+                          handlePublishAsPublic();
+                          handleSkipApproval();
+                        }}
+                        disabled={creating}
+                      >
+                        Publish as Public Event
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 ) : (
                   <Button
                     onClick={(e) => {
                       e.preventDefault();
-                      handleCreate(true);
+                      handlePublishAsPrivate();
                     }}
                     disabled={creating}
-                    className="text-[16px] font-medium flex-1 sm:flex-none"
+                    className="text-[16px] font-medium flex-1 sm:flex-none bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
                   >
-                    {creating ? "Requesting..." : "Request approval"}
+                    {creating ? "Publishing..." : "Publish as Private Event"}
                   </Button>
                 )}
               </div>
@@ -2956,39 +3244,7 @@ export default function NewEventPage() {
                       {/* Password Tab */}
                       <TabsContent value="password" className="mt-0">
                         <div className="space-y-6">
-                          {/* Event Visibility */}
-                          <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4">
-                            <h3 className="text-[18px] font-semibold text-black">
-                              Event Visibility
-                            </h3>
-                            <div className="space-y-2">
-                              <label className="text-[16px] font-normal text-black">
-                                Event Visibility
-                              </label>
-                              <div className="relative">
-                                <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                <select
-                                  value={visibility}
-                                  onChange={(e) =>
-                                    setVisibility(
-                                      e.target.value as EventVisibility
-                                    )
-                                  }
-                                  className="w-full pl-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] h-[44px] px-3"
-                                >
-                                  <option value={EventVisibility.Public}>
-                                    Public
-                                  </option>
-                                  <option value={EventVisibility.Private}>
-                                    Private (Password Protected)
-                                  </option>
-                                  <option value={EventVisibility.Draft}>
-                                    Draft
-                                  </option>
-                                </select>
-                              </div>
-                            </div>
-                          </div>
+                      
 
                           {/* Role Passwords */}
                           <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] p-6 space-y-4">
@@ -4232,6 +4488,30 @@ export default function NewEventPage() {
           </Tabs>
         </div>
       </div>
+
+      {/* Request Public Event Modal */}
+      <AlertDialog open={showApprovalModal} onOpenChange={handleModalClose}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Request Public Event</AlertDialogTitle>
+            <AlertDialogDescription>
+              Would you like to request that this event be featured on the home page? 
+              You can always request this later from the event settings.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleSkipApproval}>
+              Skip
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleSubmitForApproval}
+              className="bg-[#4b89ef] hover:bg-[#4b89ef]/90"
+            >
+              Request Approval
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

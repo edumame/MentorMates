@@ -116,8 +116,8 @@ const ProjectBoard = ({
                           decoding="async"
                         />
                         {!project.cover_image_url && (
-                          <div className="absolute inset-0 flex items-center justify-center p-4 bg-gradient-to-br from-blue-400/80 via-purple-400/80 to-pink-400/80">
-                            <h3 className="text-white text-xl font-semibold text-center break-words drop-shadow-lg">
+                          <div className="absolute inset-0 flex items-center justify-center p-4 bg-black/25">
+                            <h3 className="text-white text-xl font-semibold text-center break-words drop-shadow-[0_2px_8px_rgba(0,0,0,0.65)]">
                               {project.project_name || "Project"}
                             </h3>
                           </div>
@@ -126,7 +126,7 @@ const ProjectBoard = ({
                         {/* Status Badges - Overlay on Image */}
                         <div className="absolute top-3 left-3 flex items-center gap-2 z-10">
                           <div className="bg-white/95 backdrop-blur-sm border border-gray-200 text-gray-700 px-2.5 py-1 text-xs font-medium rounded-full flex items-center gap-1.5 shadow-sm">
-                            <Sparkles className="w-3 h-3" />
+                            {project.submitted ? <Sparkles className="w-3 h-3" /> : <Loader className="w-3 h-3 animate-spin" />}
                             {project.submitted ? "Submitted" : "Draft"}
                           </div>
                           {isOwner && (

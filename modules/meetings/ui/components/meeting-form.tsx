@@ -115,8 +115,7 @@ export const MeetingForm = ({
       try {
         let projectsQuery = supabase
           .from("projects")
-          .select("id, project_name, event_id, lead_email, teammates")
-          .eq("submitted", true);
+          .select("id, project_name, event_id, lead_email, teammates");
 
         if (eventId) {
           projectsQuery = projectsQuery.eq("event_id", eventId);

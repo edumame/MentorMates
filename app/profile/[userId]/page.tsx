@@ -93,7 +93,7 @@ const ProfileUpdateSchema = z.object({
     .max(200, "Affiliation must be less than 200 characters")
     .optional()
     .or(z.literal("")),
-  // Stored in DB as `user_profiles.phone_number` (should not be shown publicly)
+  // Stored in DB as `user_phone_numbers.phone_number` (should not be shown publicly)
   phone_number: z
     .string()
     .max(50, "Phone number must be less than 50 characters")
@@ -290,6 +290,7 @@ export default function ProfilePage() {
                   updated_at: new Date().toISOString(),
                 }))
                 .filter(Boolean) || [],
+            submitted: project.submitted,
           }));
 
         // Set events and projects from API response

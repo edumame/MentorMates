@@ -18,7 +18,7 @@ const ScheduleEventSchema = z.object({
 });
 
 const ScheduleDaySchema = z.object({
-  time: z.string(),
+  date: z.string(),
   events: z.array(ScheduleEventSchema),
 });
 
@@ -55,6 +55,11 @@ const TrackImportSchema = z.object({
   criteria: z.array(CriterionImportSchema).optional(),
 });
 
+const FaqItemSchema = z.object({
+  question: z.string(),
+  answer: z.string(),
+});
+
 const EventImportSchema = z.object({
   slug: z.string().optional(),
   event_name: z.string().optional(),
@@ -67,7 +72,7 @@ const EventImportSchema = z.object({
   event_schedule: z.array(ScheduleDaySchema).optional(),
   rules: z.array(RuleSectionSchema).optional(),
   event_resources: z.array(ResourceSchema).optional(),
-  faq: z.string().optional(),
+  faqs: z.array(FaqItemSchema).optional(),
   tracks: z.array(TrackImportSchema).optional(),
 });
 
@@ -134,13 +139,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { data: isAdmin } = await supabase.rpc("is_admin_user", {
-      user_id: user.id,
-    });
-    if (!isAdmin) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
     const scrapeRes = await fetch(
       "https://magicloops.dev/api/loop/f4679572-e8bd-425a-a979-960f9e3a7cd7/run",
       {
@@ -177,52 +175,70 @@ export async function POST(req: Request) {
       });
     }
 
-    const systemPrompt = `You are an assistant that converts Devpost hackathon pages into a structured hackathon event JSON used by a Next.js app. Extract ONLY event-level details (not project-level). Output MUST be STRICT JSON with no code fences or commentary and match this TypeScript-like shape:
+    const systemPrompt = `You are an assistant that converts Devpost hackathon pages into a structured hackathon event JSON used by a Next.js app. Extract event-level details. Output MUST be STRICT JSON with no code fences or commentary.
+
+CRITICAL INSTRUCTIONS:
+1. PRESERVE ORIGINAL TEXT: Copy text content exactly as it appears in the source. Do NOT summarize, paraphrase, or shorten descriptions, rules, FAQs, or any other text content. Include the full original wording.
+2. DATE FORMATS: All date fields MUST be in ISO 8601 format:
+   - event_date: "YYYY-MM-DD" (the main event date)
+   - submission_time_start: "YYYY-MM-DDTHH:MM:SS" (when submissions open - REQUIRED if available)
+   - submission_time_cutoff: "YYYY-MM-DDTHH:MM:SS" (submission deadline - REQUIRED if available)
+   Look for phrases like "submissions open", "submissions due", "deadline", "submit by", etc. to find these dates.
+3. COMPLETENESS: Extract ALL available information from the source - every rule, every FAQ, every resource, every track with full descriptions.
+4. EVENT_BLURB: Create a compelling one-liner (max 150 characters) that captures the essence of the hackathon. This should be catchy and suitable for marketing/preview purposes.
+
+Output must match this TypeScript-like shape:
 {
   "slug"?: string,
   "event_name"?: string,
-  "event_date"?: string,
+  "event_date"?: string (ISO format: YYYY-MM-DD, the main event date),
   "location"?: string,
-  "event_blurb"?: string,
-  "event_description"?: string,
-  "submission_time_start"?: string,
-  "submission_time_cutoff"?: string,
+  "event_blurb"?: string (REQUIRED: a catchy one-liner, max 150 chars, summarizing the hackathon's purpose/theme),
+  "event_description"?: string (FULL description text, preserve all paragraphs and formatting),
+  "submission_time_start"?: string (ISO format: YYYY-MM-DDTHH:MM:SS - when submissions open),
+  "submission_time_cutoff"?: string (ISO format: YYYY-MM-DDTHH:MM:SS - submission deadline),
   "event_schedule"?: Array<{
-    "time": string,
+    "date": string (ISO format: YYYY-MM-DD, the day this schedule is for),
     "events": Array<{
-      "name": string,
-      "time": string,
-      "description"?: string
+      "name": string (event/activity name),
+      "time": string (time in HH:MM format, 24-hour),
+      "description"?: string (optional description)
     }>
   }>,
-  "rules"?: Array<{ "title": string, "items": string[] }>,
+  "rules"?: Array<{
+    "title": string (section title like "Eligibility", "Submissions", etc.),
+    "items": string[] (array of rule items, preserve FULL text of each rule)
+  }>,
   "event_resources"?: Array<{ "name": string, "link": string }>,
-  "faq"?: string,
+  "faqs"?: Array<{
+    "question": string (the FAQ question),
+    "answer": string (the full answer, preserve all formatting)
+  }>,
   "tracks"?: Array<{
-    "name": string,
-    "description"?: string,
-    "label"?: string,
-    "prizes"?: Array<{ "prize_amount": string, "prize_description": string }>,
+    "name": string (track/category name),
+    "description"?: string (FULL track description),
+    "label"?: string (short label),
+    "prizes"?: Array<{
+      "prize_amount": string (e.g. "$1000", "First Place"),
+      "prize_description": string (full prize description)
+    }>,
     "criteria"?: Array<{
-      "name": string,
-      "description"?: string,
-      "weight"?: number,
-      "min"?: number,
-      "max"?: number,
-      "type"?: "numeric" | "multiplechoice",
-      "options"?: string[]
+      "name": string (criterion name),
+      "description"?: string (criterion description),
+      "weight"?: number (default 1),
+      "min"?: number (min score, default 1),
+      "max"?: number (max score, default 10)
     }>
   }>
 }`;
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-5.2",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: scrapeData },
       ],
       temperature: 0.2,
-      max_tokens: 1200,
     });
 
     const content = completion.choices?.[0]?.message?.content || "";
@@ -268,6 +284,3 @@ export async function POST(req: Request) {
     );
   }
 }
-
-
-

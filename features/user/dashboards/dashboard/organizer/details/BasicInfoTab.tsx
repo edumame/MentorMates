@@ -295,6 +295,15 @@ export function BasicInfoTab({
         </Alert>
       )}
 
+      {/* Save Button - Moved to top */}
+      <Button
+        onClick={handleBasicInfoUpdate}
+        disabled={saving || isArchived}
+        className="w-full"
+      >
+        {saving ? "Saving..." : "Save Changes"}
+      </Button>
+
       {/* Large Event Title Input */}
       <input
         type="text"
@@ -858,14 +867,6 @@ export function BasicInfoTab({
         </div>
       </div>
 
-      <Button
-        onClick={handleBasicInfoUpdate}
-        disabled={saving || isArchived}
-        className="w-full mt-4"
-      >
-        {saving ? "Saving..." : "Save Basic Information"}
-      </Button>
-
       {/* Archive Section */}
       <div className="mt-8 border-t pt-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -885,7 +886,7 @@ export function BasicInfoTab({
             <AlertDialogTrigger asChild>
               <Button
                 variant="destructive"
-                disabled={archiving || isArchived}
+                disabled={archiving}
                 className="shrink-0 whitespace-nowrap w-full sm:w-auto"
               >
                 {archiving

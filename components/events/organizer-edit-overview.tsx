@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/lib/hooks/use-toast";
-import { Archive, Trash2, ArrowUpRight } from "lucide-react";
+import { Archive, Trash2, ArrowUpRight, Send } from "lucide-react";
 import {
   ApprovalStatus,
   EventDetails,
@@ -71,6 +71,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
   );
   const [deleting, setDeleting] = useState(false);
   const [archiving, setArchiving] = useState(false);
+  const [submittingForApproval, setSubmittingForApproval] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   // Use URL as single source of truth for tab state
@@ -348,6 +349,52 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
     }
   };
 
+  const handleSubmitForApproval = async () => {
+    if (!event) return;
+
+    try {
+      setSubmittingForApproval(true);
+
+      const res = await fetch("/api/events/request-approval", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ eventId: event.event_id }),
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.error || "Failed to submit event for approval");
+      }
+
+      await res.json();
+
+      // Update local state with new approval status
+      setEvent({
+        ...event,
+        approval_status: ApprovalStatus.Submitted,
+      });
+
+      toast({
+        title: "Success",
+        description: "Event submitted for approval. An admin will review it soon.",
+      });
+
+      // Refresh the page to update any cached data
+      router.refresh();
+    } catch (error) {
+      console.error("Error submitting event for approval:", error);
+      toast({
+        title: "Error",
+        description: (error as Error).message,
+        variant: "destructive",
+      });
+    } finally {
+      setSubmittingForApproval(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12 h-screen">
@@ -366,7 +413,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
 
   return (
     <div className="w-full overflow-x-hidden">
-      <div className="w-full flex flex-col lg:min-h-[calc(100vh-88px)] lg:h-[calc(100vh-88px)] lg:overflow-hidden lg:rounded-tl-2xl lg:border-t lg:border-l lg:border-[#D8D8D8] bg-white">
+      <div className="w-full flex flex-col lg:min-h-[calc(100vh-88px)] lg:h-[calc(100vh-88px)] lg:overflow-hidden bg-white">
         <div className="px-4 sm:px-6 lg:px-10 py-4 sm:py-6 lg:py-8 w-full flex flex-col pb-20 lg:pb-4 lg:flex-1 lg:min-h-0 overflow-x-hidden">
           {/* Header with title and action buttons */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 flex-shrink-0">
@@ -403,30 +450,48 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                         : "bg-gray-500/20 text-black border-none text-xs sm:text-sm"
                 }`}
               >
-                {event.approval_status?.toUpperCase() || "NOT SUBMITTED"}
+                {event.approval_status?.replace(/_/g, ' ').toUpperCase() || "NOT SUBMITTED"}
               </Badge>
             </div>
 
-            <div className="flex gap-2 w-full sm:w-auto">
-              {/* Archive Event Dialog */}
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+              {/* Submit for Approval Button - Only show for private events that haven't been submitted or were rejected */}
+              {event.visibility === EventVisibility.Private &&
+                (event.approval_status === ApprovalStatus.NotSubmitted ||
+                  event.approval_status === ApprovalStatus.Rejected ||
+                  !event.approval_status) && (
                   <Button
-                    variant="defaultGray"
-                    className="gap-[6px] px-4 sm:px-6 py-[10px] text-[14px] sm:text-[16px] font-medium flex-1 sm:flex-none"
-                    disabled={
-                      archiving || event.visibility === EventVisibility.Archived
-                    }
+                    variant="default"
+                    className="gap-1.5 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium w-full sm:w-auto whitespace-normal sm:whitespace-nowrap"
+                    disabled={submittingForApproval || archiving || deleting}
+                    onClick={handleSubmitForApproval}
                   >
-                    <Archive className="w-5 h-5 sm:w-5 sm:h-5" />
-                    <span className="hidden sm:inline">
-                      {archiving ? "Archiving..." : "Archive"}
-                    </span>
-                    <span className="sm:hidden">
-                      {archiving ? "..." : "Archive"}
+                    <Send className="w-4 h-4 flex-shrink-0" />
+                    <span className="text-center">
+                      {submittingForApproval
+                        ? "Submitting..."
+                        : "Submit for Approval"}
                     </span>
                   </Button>
-                </AlertDialogTrigger>
+                )}
+
+              <div className="flex gap-2 w-full sm:w-auto">
+                {/* Archive Event Dialog */}
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="defaultGray"
+                      className="gap-1.5 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium flex-1 sm:flex-none"
+                      disabled={
+                        archiving || event.visibility === EventVisibility.Archived
+                      }
+                    >
+                      <Archive className="w-4 h-4" />
+                      <span>
+                        {archiving ? "Archiving..." : "Archive"}
+                      </span>
+                    </Button>
+                  </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle>
@@ -451,19 +516,18 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                 </AlertDialogContent>
               </AlertDialog>
 
-              {/* Delete Event Dialog */}
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button
-                    variant="destructive"
-                    disabled={deleting}
-                    className="gap-[6px] px-4 sm:px-6 py-[10px] text-[14px] sm:text-[16px] font-medium flex-1 sm:flex-none"
-                  >
-                    <Trash2 className="w-5 h-5 sm:w-5 sm:h-5" />
-                    <span className="hidden sm:inline">Delete</span>
-                    <span className="sm:hidden">Delete</span>
-                  </Button>
-                </AlertDialogTrigger>
+                {/* Delete Event Dialog */}
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="destructive"
+                      disabled={deleting}
+                      className="gap-1.5 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium flex-1 sm:flex-none"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      <span>Delete</span>
+                    </Button>
+                  </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle>Delete this event?</AlertDialogTitle>
@@ -484,6 +548,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
+              </div>
             </div>
           </div>
 
@@ -718,7 +783,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                       />
                       <div className="border-t border-[rgba(0,0,0,0.15)] pt-6">
                         <h2 className="text-xl font-semibold mb-4 text-black">
-                          Email Project Participants
+                          Email Event Participants
                         </h2>
                         <EmailTab eventId={eventId} />
                       </div>
