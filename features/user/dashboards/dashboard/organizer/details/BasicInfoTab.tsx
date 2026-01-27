@@ -53,6 +53,7 @@ interface BasicInfoTabProps {
   setSaving: React.Dispatch<React.SetStateAction<boolean>>;
   toast: typeof ToastType;
   router: ReturnType<typeof useRouter>;
+  registerSaveHandler?: (fn: null | (() => Promise<void> | void)) => void;
 }
 
 export function BasicInfoTab({
@@ -62,6 +63,7 @@ export function BasicInfoTab({
   setSaving,
   toast,
   router,
+  registerSaveHandler,
 }: BasicInfoTabProps) {
   type ImportedPrize = { prize_amount: string; prize_description: string };
   type ImportedCriterion = {
@@ -280,6 +282,14 @@ export function BasicInfoTab({
 
   const isArchived = event.visibility === EventVisibility.Archived;
 
+  // Let the parent header trigger saves (Update Event button).
+  useEffect(() => {
+    if (!registerSaveHandler) return;
+    registerSaveHandler(handleBasicInfoUpdate);
+    return () => registerSaveHandler(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [registerSaveHandler, event, selectedCoverImage, useImageUrl, previewUrl, updateSlug]);
+
   return (
     <div className="space-y-4 w-full min-w-0">
       {/* Archived Event Warning */}
@@ -294,15 +304,6 @@ export function BasicInfoTab({
           </AlertDescription>
         </Alert>
       )}
-
-      {/* Save Button - Moved to top */}
-      <Button
-        onClick={handleBasicInfoUpdate}
-        disabled={saving || isArchived}
-        className="w-full"
-      >
-        {saving ? "Saving..." : "Save Changes"}
-      </Button>
 
       {/* Large Event Title Input */}
       <input
