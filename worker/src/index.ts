@@ -10,7 +10,6 @@ type SessionRecord = {
   lastSummary?: string | null;
   lastPushedAt?: number;
   paused?: boolean;
-  hasAudioInBuffer?: boolean;  // Track if user spoke while paused
 };
 
 // function wsSend(realtimeClient: RealtimeClient, event: any) {
@@ -64,16 +63,6 @@ app.get("/health", (_req: Request, res: Response) => {
   res.json({ ok: true });
 });
 
-function setupAudioTracking(realtimeClient: RealtimeClient, record: SessionRecord) {
-  // Listen for when audio is being appended to buffer
-  realtimeClient.on('server.input_audio_buffer.speech_started', () => {
-    if (record.paused) {
-      record.hasAudioInBuffer = true;
-      console.log('Audio detected in buffer while paused');
-    }
-  });
-}
-
 app.post("/session/start", async (req: Request, res: Response) => {
   const { meetingId, callId, agentUserId, instructions } = req.body || {};
   try {
@@ -118,11 +107,7 @@ app.post("/session/start", async (req: Request, res: Response) => {
       lastUpdatedAt: null,
       lastSummary: null,
       paused: true,
-      hasAudioInBuffer: false,
     };
-
-    // Setup audio tracking
-    setupAudioTracking(realtimeClient, record);
 
     sessions.set(meetingId, record);
 
@@ -284,26 +269,27 @@ app.post("/session/resume", async (req: Request, res: Response) => {
     try {  
       record.paused = false;
 
-      // Only commit and create response if user actually spoke
-      if (record.hasAudioInBuffer) {
-        console.log("User spoke while paused - processing audio");
-        realtimeClient.realtime.send("input_audio_buffer.commit", {});
-        realtimeClient.realtime.send("response.create", {});
-        console.log("response.create sent");
-        realtimeClient.realtime.send("input_audio_buffer.clear", {});
-        record.hasAudioInBuffer = false;
-      } else {
-        console.log("No audio in buffer - just re-enabling VAD");
-        // Just clear any stale buffer data
-        realtimeClient.realtime.send("input_audio_buffer.clear", {});
-      }
-      
-      // Always re-enable VAD for ongoing conversation
+      // Re-enable VAD FIRST so the session is in a stable state
       realtimeClient.updateSession({
         turn_detection: {
           type: "server_vad",
         },
       });
+      
+      // Small delay to let the session update propagate
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Now safely commit any audio that was spoken while paused
+      // If buffer is empty, these will just be no-ops
+      realtimeClient.realtime.send("input_audio_buffer.commit", {});
+      realtimeClient.realtime.send("response.create", {});
+      console.log("response.create sent");
+      
+      // Clear for fresh input
+      realtimeClient.realtime.send("input_audio_buffer.clear", {});
+      
+      console.log("Agent resumed successfully");
+      
     } catch (err) {
       console.error("/session/resume error on session update", err);
       res.status(500).json({ error: "internal" });
