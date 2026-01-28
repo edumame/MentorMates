@@ -10,6 +10,8 @@ type SessionRecord = {
   lastSummary?: string | null;
   lastPushedAt?: number;
   paused?: boolean;
+  // whether the user has spoken (audio appended) since the session was paused
+  userHasSpoken?: boolean;
 };
 
 // function wsSend(realtimeClient: RealtimeClient, event: any) {
@@ -107,6 +109,7 @@ app.post("/session/start", async (req: Request, res: Response) => {
       lastUpdatedAt: null,
       lastSummary: null,
       paused: true,
+      userHasSpoken: false,
     };
     sessions.set(meetingId, record);
 
@@ -188,6 +191,39 @@ app.post("/session/start", async (req: Request, res: Response) => {
     // run one immediately
     poll();
 
+    // Attach a lightweight listener to detect incoming input audio / transcription
+    // messages on the realtime connection. This is a heuristic: if a message
+    // contains the substrings below we assume the user has spoken while paused.
+    try {
+      const rtAny: any = realtimeClient.realtime;
+      const wsAny: any = rtAny?.ws;
+
+      const setSpokenIfAudio = (raw: any) => {
+        try {
+          let text = "";
+          if (typeof raw === "string") text = raw;
+          else if (raw && typeof raw.toString === "function") text = raw.toString();
+          if (!text) return;
+          const lc = text.toLowerCase();
+          console.log(lc);
+          if (lc.includes("input_audio") || lc.includes("transcript") || lc.includes("transcription") || lc.includes("speech")) {
+            record.userHasSpoken = true;
+          }
+        } catch (e) {
+          // ignore
+        }
+      };
+
+      if (wsAny && typeof wsAny.on === "function") {
+        try { wsAny.on("message", setSpokenIfAudio); } catch {}
+      }
+      if (rtAny && typeof rtAny.on === "function") {
+        try { rtAny.on("message", setSpokenIfAudio); } catch {}
+      }
+    } catch (e) {
+      // non-fatal
+    }
+
     res.json({ ok: true });
   } catch (err) {
     console.error("/session/start error", err);
@@ -234,6 +270,8 @@ app.post("/session/pause", async (req: Request, res: Response) => {
     // send an update to the session to disable automatic response generation but keep VAD enabled
     try {
       record.paused = true;
+        // reset spoken flag when pausing
+        record.userHasSpoken = false;
       realtimeClient.realtime.send("session.update", {
         session: {
           turn_detection: null,
@@ -267,15 +305,32 @@ app.post("/session/resume", async (req: Request, res: Response) => {
 
     try {  
       record.paused = false;
-      realtimeClient.realtime.send("input_audio_buffer.commit", {});
-      realtimeClient.realtime.send("response.create", {});
-      // realtimeClient.createResponse()
-      realtimeClient.realtime.send("input_audio_buffer.clear", {});
+      // Only commit/create a response if the user actually spoke while paused.
+      if (record.userHasSpoken) {
+        try {
+          realtimeClient.realtime.send("input_audio_buffer.commit", {});
+        } catch (e) {
+          console.warn("commit failed", e);
+        }
+        try {
+          realtimeClient.realtime.send("response.create", {});
+        } catch (e) {
+          console.warn("response.create failed", e);
+        }
+        try {
+          realtimeClient.realtime.send("input_audio_buffer.clear", {});
+        } catch (e) {
+          console.warn("clear failed", e);
+        }
+        // reset the flag after consuming
+        record.userHasSpoken = false;
+      }
+
       realtimeClient.updateSession({
         turn_detection: ({
           type: "server_vad",
         }),
-      })
+      });
     } catch (err) {
       console.error("/session/resume error on session update", err);
       res.status(500).json({ error: "internal" });
