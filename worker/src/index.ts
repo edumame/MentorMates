@@ -251,7 +251,6 @@ app.post("/session/pause", async (req: Request, res: Response) => {
     // send an update to the session to disable automatic response generation but keep VAD enabled
     try {
       record.paused = true;
-      record.hasAudioInBuffer = false;  // Reset tracking
       realtimeClient.realtime.send("session.update", {
         session: {
           turn_detection: null,
