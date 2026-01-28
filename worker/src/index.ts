@@ -64,14 +64,64 @@ app.get("/health", (_req: Request, res: Response) => {
   res.json({ ok: true });
 });
 
-function setupTranscriptTracking(realtimeClient: RealtimeClient, record: SessionRecord) {
-  // Track when transcriptions come in (means user spoke)
-  realtimeClient.on('conversation.item.input_audio_transcription.completed', () => {
-    if (record.paused) {
-      record.lastTranscriptTime = Date.now();
-      console.log('User spoke while paused (transcript detected)');
-    }
-  });
+function setupEventLogging(realtimeClient: RealtimeClient, record: SessionRecord, meetingId: string) {
+  // Log ALL events to discover what's available
+  const originalOn = realtimeClient.on?.bind(realtimeClient);
+  
+  if (originalOn) {
+    // Try common event names
+    const eventNames = [
+      'server.input_audio_buffer.speech_started',
+      'input_audio_buffer.speech_started',
+      'conversation.item.input_audio_transcription.completed',
+      'conversation.item.created',
+      'input_audio_buffer.committed',
+      'server.response.audio_transcript.delta',
+      'server.response.audio_transcript.done',
+    ];
+    
+    eventNames.forEach(eventName => {
+      try {
+        realtimeClient.on(eventName, (event: any) => {
+          console.log(`[${meetingId}] EVENT: ${eventName}`, event);
+          if (record.paused) {
+            console.log(`[${meetingId}] ⚠️ USER SPOKE WHILE PAUSED (${eventName})`);
+            record.userSpokeWhilePaused = true;
+          }
+        });
+      } catch (e) {
+        // Event might not be supported
+      }
+    });
+  }
+  
+  // Alternative: Listen on realtime.ws if available
+  const ws = (realtimeClient as any)?.realtime?.ws;
+  if (ws) {
+    const originalOnMessage = ws.onmessage;
+    ws.onmessage = (event: any) => {
+      try {
+        const data = JSON.parse(event.data);
+        console.log(`[${meetingId}] WS MESSAGE:`, data.type);
+        
+        // Check for audio-related messages during pause
+        if (record.paused && (
+          data.type?.includes('audio') || 
+          data.type?.includes('speech') ||
+          data.type?.includes('transcript')
+        )) {
+          console.log(`[${meetingId}] ⚠️ AUDIO EVENT DURING PAUSE:`, data.type);
+          record.userSpokeWhilePaused = true;
+        }
+      } catch (e) {
+        // Not JSON
+      }
+      
+      if (originalOnMessage) {
+        originalOnMessage.call(ws, event);
+      }
+    };
+  }
 }
 
 app.post("/session/start", async (req: Request, res: Response) => {
@@ -121,8 +171,8 @@ app.post("/session/start", async (req: Request, res: Response) => {
       lastTranscriptTime: undefined,
     };
 
-    // Setup transcript tracking
-    setupTranscriptTracking(realtimeClient, record);
+    // Setup event logging to discover what events fire
+    setupEventLogging(realtimeClient, record, meetingId);
 
     sessions.set(meetingId, record);
 
