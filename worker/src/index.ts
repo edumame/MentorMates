@@ -72,11 +72,6 @@ function setupAudioTracking(realtimeClient: RealtimeClient, record: SessionRecor
       console.log('Audio detected in buffer while paused');
     }
   });
-  
-  // Reset flag when buffer is cleared
-  realtimeClient.on('server.input_audio_buffer.cleared', () => {
-    record.hasAudioInBuffer = false;
-  });
 }
 
 app.post("/session/start", async (req: Request, res: Response) => {
