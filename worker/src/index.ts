@@ -10,7 +10,7 @@ type SessionRecord = {
   lastSummary?: string | null;
   lastPushedAt?: number;
   paused?: boolean;
-  pendingResponseIds: Set<string>; // Track responses to cancel during pause
+  hasAudioInBuffer?: boolean;  // Track if user spoke while paused
 };
 
 // function wsSend(realtimeClient: RealtimeClient, event: any) {
@@ -64,51 +64,14 @@ app.get("/health", (_req: Request, res: Response) => {
   res.json({ ok: true });
 });
 
-function setupResponseInterception(realtimeClient: RealtimeClient, record: SessionRecord, meetingId: string) {
-  // Intercept WebSocket messages to cancel responses during pause
-  const ws = (realtimeClient as any)?.realtime?.ws;
-  if (!ws) {
-    console.warn(`[${meetingId}] WebSocket not found for interception`);
-    return;
-  }
-
-  const originalOnMessage = ws.onmessage;
-  ws.onmessage = (event: any) => {
-    try {
-      const data = JSON.parse(event.data);
-      
-      // If a response is being created while paused, cancel it immediately
-      if (record.paused && data.type === 'response.created') {
-        const responseId = data.response?.id;
-        if (responseId) {
-          console.log(`[${meetingId}] Response created during pause - canceling: ${responseId}`);
-          record.pendingResponseIds.add(responseId);
-          
-          // Cancel the response immediately
-          realtimeClient.realtime.send("response.cancel", {});
-          
-          // Also clear output buffer to prevent audio
-          realtimeClient.realtime.send("output_audio_buffer.clear", {});
-        }
-      }
-      
-      // Track when responses complete
-      if (data.type === 'response.done') {
-        const responseId = data.response?.id;
-        if (responseId) {
-          record.pendingResponseIds.delete(responseId);
-        }
-      }
-      
-    } catch (e) {
-      // Not JSON or parsing error
+function setupAudioTracking(realtimeClient: RealtimeClient, record: SessionRecord) {
+  // Listen for when audio is being appended to buffer
+  realtimeClient.on('server.input_audio_buffer.speech_started', () => {
+    if (record.paused) {
+      record.hasAudioInBuffer = true;
+      console.log('Audio detected in buffer while paused');
     }
-    
-    // Call original handler
-    if (originalOnMessage) {
-      originalOnMessage.call(ws, event);
-    }
-  };
+  });
 }
 
 app.post("/session/start", async (req: Request, res: Response) => {
@@ -145,8 +108,9 @@ app.post("/session/start", async (req: Request, res: Response) => {
     realtimeClient.updateSession({
       instructions,
       input_audio_transcription: { model: "whisper-1" },
-      // Default to paused: user speaks first, then resumes to get a response.
-      turn_detection: null,
+      turn_detection: {
+        type: "server_vad",
+      },
     });
 
     const record: SessionRecord = {
@@ -155,11 +119,11 @@ app.post("/session/start", async (req: Request, res: Response) => {
       lastUpdatedAt: null,
       lastSummary: null,
       paused: true,
-      pendingResponseIds: new Set(),
+      hasAudioInBuffer: false,
     };
 
-    // Setup response interception to suppress during pause
-    setupResponseInterception(realtimeClient, record, meetingId);
+    // Setup audio tracking
+    setupAudioTracking(realtimeClient, record);
 
     sessions.set(meetingId, record);
 
@@ -287,15 +251,12 @@ app.post("/session/pause", async (req: Request, res: Response) => {
     // send an update to the session to disable automatic response generation but keep VAD enabled
     try {
       record.paused = true;
-
-      // Cancel any ongoing response
-      realtimeClient.realtime.send("response.cancel", {});
+      realtimeClient.realtime.send("session.update", {
+        session: {
+          turn_detection: null,
+        },
+      });
       realtimeClient.realtime.send("output_audio_buffer.clear", {});
-      
-      // NOTE: We keep turn_detection enabled so audio continues to be captured
-      // The interception layer will cancel any auto-responses
-      
-      console.log(`[${meetingId}] Agent paused - will capture but not respond`);
       return res.json({ ok: true, paused: true });
     } catch (err) {
       console.error("/session/pause error on session update", err);
@@ -324,18 +285,26 @@ app.post("/session/resume", async (req: Request, res: Response) => {
     try {  
       record.paused = false;
 
-      // Clear any pending response IDs
-      record.pendingResponseIds.clear();
+      // Only commit and create response if user actually spoke
+      if (record.hasAudioInBuffer) {
+        console.log("User spoke while paused - processing audio");
+        realtimeClient.realtime.send("input_audio_buffer.commit", {});
+        realtimeClient.realtime.send("response.create", {});
+        console.log("response.create sent");
+        realtimeClient.realtime.send("input_audio_buffer.clear", {});
+        record.hasAudioInBuffer = false;
+      } else {
+        console.log("No audio in buffer - just re-enabling VAD");
+        // Just clear any stale buffer data
+        realtimeClient.realtime.send("input_audio_buffer.clear", {});
+      }
       
-      // Trigger a response for any buffered audio
-      // Since VAD was always enabled, the audio should be in the buffer
-      console.log(`[${meetingId}] Resuming - triggering response for buffered audio`);
-      
-      realtimeClient.realtime.send("input_audio_buffer.commit", {});
-      realtimeClient.realtime.send("response.create", {});
-      
-      console.log("Agent resumed successfully");
-      
+      // Always re-enable VAD for ongoing conversation
+      realtimeClient.updateSession({
+        turn_detection: {
+          type: "server_vad",
+        },
+      });
     } catch (err) {
       console.error("/session/resume error on session update", err);
       res.status(500).json({ error: "internal" });
