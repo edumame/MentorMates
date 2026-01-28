@@ -125,6 +125,10 @@ app.post("/session/start", async (req: Request, res: Response) => {
       paused: true,
       hasAudioInBuffer: false,
     };
+
+    // Setup audio tracking
+    setupAudioTracking(realtimeClient, record);
+
     sessions.set(meetingId, record);
 
     // Somewhere near session start
@@ -284,7 +288,7 @@ app.post("/session/resume", async (req: Request, res: Response) => {
 
     try {  
       record.paused = false;
-      
+
       // Only commit and create response if user actually spoke
       if (record.hasAudioInBuffer) {
         console.log("User spoke while paused - processing audio");
