@@ -98,6 +98,7 @@ app.post("/session/start", async (req: Request, res: Response) => {
       input_audio_transcription: { model: "whisper-1" },
       turn_detection: null,
     });
+    realtimeClient.realtime.send("output_audio_buffer.clear", {});
 
     const record: SessionRecord = {
       realtimeClient,
