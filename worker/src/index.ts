@@ -268,14 +268,18 @@ app.post("/session/resume", async (req: Request, res: Response) => {
     try {  
       record.paused = false;
       realtimeClient.realtime.send("input_audio_buffer.commit", {});
+      console.log("input commit sent");
       realtimeClient.realtime.send("response.create", {});
+      console.log("response create sent");
       // realtimeClient.createResponse()
       realtimeClient.realtime.send("input_audio_buffer.clear", {});
+      console.log("input clear sent");
       realtimeClient.updateSession({
         turn_detection: ({
           type: "server_vad",
         }),
       })
+      console.log("session updated");
     } catch (err) {
       console.error("/session/resume error on session update", err);
       res.status(500).json({ error: "internal" });
