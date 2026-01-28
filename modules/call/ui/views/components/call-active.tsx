@@ -47,7 +47,7 @@ export const CallActive = ({ onLeave, meetingName, meetingId }: Props) => {
     pausedState: boolean;
   }) => {
     const base =
-      "flex items-center justify-center w-10 h-10 rounded-full transition-all";
+      "flex items-center justify-center h-10 rounded-full transition-all px-3 gap-2";
     const activeClass = pausedState
       ? "bg-white/10 text-white hover:bg-white/20"
       : "bg-red-600 text-white hover:bg-red-700";
@@ -64,6 +64,7 @@ export const CallActive = ({ onLeave, meetingName, meetingId }: Props) => {
         className={`${base} ${activeClass} ${disabledClass}`}
       >
         <span className="text-sm font-medium select-none">{icon}</span>
+        <span className="hidden sm:inline text-sm font-medium">{label}</span>
       </button>
     );
   };
