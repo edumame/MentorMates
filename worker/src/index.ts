@@ -96,7 +96,7 @@ app.post("/session/start", async (req: Request, res: Response) => {
     realtimeClient.updateSession({
       instructions,
       input_audio_transcription: { model: "whisper-1" },
-      turn_detection: { type: "server_vad" },
+      turn_detection: null,
     });
 
     const record: SessionRecord = {

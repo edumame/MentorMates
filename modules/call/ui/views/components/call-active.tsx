@@ -12,7 +12,7 @@ interface Props {
 
 export const CallActive = ({ onLeave, meetingName, meetingId }: Props) => {
   const [disabled, setDisabled] = useState(false);
-  const [paused, setPaused] = useState(false);
+  const [paused, setPaused] = useState(true);
 
   const handleTogglePause = useCallback(async () => {
     if (disabled) return;
@@ -52,7 +52,7 @@ export const CallActive = ({ onLeave, meetingName, meetingId }: Props) => {
       ? "bg-white/10 text-white hover:bg-white/20"
       : "bg-red-600 text-white hover:bg-red-700";
     const disabledClass = disabledState ? "opacity-60 pointer-events-none" : "";
-    const label = pausedState ? "Resume Agent" : "Pause Agent";
+    const label = pausedState ? "Start asking me questions" : "Pause Agent";
     const title = label;
     const icon = pausedState ? "▶" : "||";
     return (
