@@ -10,6 +10,7 @@ type SessionRecord = {
   lastSummary?: string | null;
   lastPushedAt?: number;
   paused?: boolean;
+  lastTranscriptTime?: number; // Track when last transcript came in
 };
 
 // function wsSend(realtimeClient: RealtimeClient, event: any) {
@@ -63,6 +64,16 @@ app.get("/health", (_req: Request, res: Response) => {
   res.json({ ok: true });
 });
 
+function setupTranscriptTracking(realtimeClient: RealtimeClient, record: SessionRecord) {
+  // Track when transcriptions come in (means user spoke)
+  realtimeClient.on('conversation.item.input_audio_transcription.completed', () => {
+    if (record.paused) {
+      record.lastTranscriptTime = Date.now();
+      console.log('User spoke while paused (transcript detected)');
+    }
+  });
+}
+
 app.post("/session/start", async (req: Request, res: Response) => {
   const { meetingId, callId, agentUserId, instructions } = req.body || {};
   try {
@@ -107,6 +118,7 @@ app.post("/session/start", async (req: Request, res: Response) => {
       lastUpdatedAt: null,
       lastSummary: null,
       paused: true,
+      lastTranscriptTime: undefined,
     };
 
     sessions.set(meetingId, record);
@@ -235,6 +247,7 @@ app.post("/session/pause", async (req: Request, res: Response) => {
     // send an update to the session to disable automatic response generation but keep VAD enabled
     try {
       record.paused = true;
+      record.lastTranscriptTime = undefined; // Reset
       realtimeClient.realtime.send("session.update", {
         session: {
           turn_detection: null,
@@ -269,24 +282,42 @@ app.post("/session/resume", async (req: Request, res: Response) => {
     try {  
       record.paused = false;
 
-      // Re-enable VAD FIRST so the session is in a stable state
-      realtimeClient.updateSession({
-        turn_detection: {
-          type: "server_vad",
-        },
-      });
+      // Check if user spoke in the last 30 seconds while paused
+      const userSpokeWhilePaused = record.lastTranscriptTime && 
+                                   (Date.now() - record.lastTranscriptTime < 30000);
+
+      if (userSpokeWhilePaused) {
+        console.log("User spoke while paused - will respond after re-enabling VAD");
+        
+        // Re-enable VAD first
+        realtimeClient.updateSession({
+          turn_detection: {
+            type: "server_vad",
+          },
+        });
+        
+        // Small delay for session update to take effect
+        await new Promise(resolve => setTimeout(resolve, 150));
+        
+        // Now commit and create response
+        realtimeClient.realtime.send("input_audio_buffer.commit", {});
+        realtimeClient.realtime.send("response.create", {});
+        console.log("response.create sent for buffered audio");
+        
+      } else {
+        console.log("No recent speech detected - just re-enabling VAD");
+        
+        // Clear buffer and re-enable VAD
+        realtimeClient.realtime.send("input_audio_buffer.clear", {});
+        realtimeClient.updateSession({
+          turn_detection: {
+            type: "server_vad",
+          },
+        });
+      }
       
-      // Small delay to let the session update propagate
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      // Now safely commit any audio that was spoken while paused
-      // If buffer is empty, these will just be no-ops
-      realtimeClient.realtime.send("input_audio_buffer.commit", {});
-      realtimeClient.realtime.send("response.create", {});
-      console.log("response.create sent");
-      
-      // Clear for fresh input
-      realtimeClient.realtime.send("input_audio_buffer.clear", {});
+      // Reset tracking
+      record.lastTranscriptTime = undefined;
       
       console.log("Agent resumed successfully");
       
