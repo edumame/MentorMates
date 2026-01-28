@@ -121,6 +121,9 @@ app.post("/session/start", async (req: Request, res: Response) => {
       lastTranscriptTime: undefined,
     };
 
+    // Setup transcript tracking
+    setupTranscriptTracking(realtimeClient, record);
+
     sessions.set(meetingId, record);
 
     // Somewhere near session start
