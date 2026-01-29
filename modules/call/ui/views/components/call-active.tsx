@@ -3,6 +3,7 @@ import Image from "next/image";
 import ScreenCapture from "./screen-capture";
 import { SpeakerLayout, CallControls } from "@stream-io/video-react-sdk";
 import { useCallback, useEffect, useState } from "react";
+import { useCallStateHooks } from "@stream-io/video-react-sdk";
 
 interface Props {
   onLeave: () => void;
@@ -14,6 +15,12 @@ export const CallActive = ({ onLeave, meetingName, meetingId }: Props) => {
   const [disabled, setDisabled] = useState(false);
   const [paused, setPaused] = useState(true);
   const [hasSpoken, setHasSpoken] = useState(false);
+  // obtain microphone state hook from the SDK
+  const { useMicrophoneState } = useCallStateHooks();
+  const micState: any = useMicrophoneState?.() ?? {};
+  const micOn = Boolean(
+    micState.isEnabled ?? micState.isPublishing ?? micState.isOn ?? (micState.isMuted === false) ?? micState.enabled
+  );
 
   const handleTogglePause = useCallback(async () => {
     if (disabled) return;
@@ -38,7 +45,8 @@ export const CallActive = ({ onLeave, meetingName, meetingId }: Props) => {
   }, [meetingId, disabled, paused]);
 
   useEffect(() => {
-    if (!paused || hasSpoken) return;
+    // only monitor when paused, hasn't spoken yet, and mic is turned on via CallControls
+    if (!paused || hasSpoken || !micOn) return;
 
     let audioCtx: AudioContext | null = null;
     let mediaStream: MediaStream | null = null;
