@@ -4,8 +4,6 @@ import { Resend } from 'resend';
 import { NOTIFICATIONS_EMAIL_FROM } from '@/lib/email_templates/constants';
 import { getGuestInvitationEmailTemplate } from '@/lib/email_templates/guest-invitation';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 export async function POST(request: Request) {
   const supabase = await createSupabaseClient();
   const { data: auth } = await supabase.auth.getUser();
@@ -67,6 +65,15 @@ export async function POST(request: Request) {
     .single();
 
   const inviterName = inviterProfile?.display_name || 'An event organizer';
+
+  const resendApiKey = process.env.RESEND_API_KEY;
+  if (!resendApiKey) {
+    return NextResponse.json(
+      { error: 'Email service not configured' },
+      { status: 500 }
+    );
+  }
+  const resend = new Resend(resendApiKey);
 
   // Send invitation email
   try {

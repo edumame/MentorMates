@@ -12,11 +12,6 @@ import {
   getEventUpdateNotificationEmail,
 } from "@/lib/email_templates/event-notifications";
 
-//allow custom messages
-const resend = process.env.RESEND_API_KEY
-  ? new Resend(process.env.RESEND_API_KEY)
-  : null as unknown as Resend;
-
 type UserEmail = {
   user_id: string;
   user_profiles: {
@@ -119,9 +114,11 @@ export async function POST(
     customEmailContent
   );
 
-  if (!process.env.RESEND_API_KEY) {
+  const resendApiKey = process.env.RESEND_API_KEY;
+  if (!resendApiKey) {
     return NextResponse.json({ error: "Email service not configured" }, { status: 500 });
   }
+  const resend = new Resend(resendApiKey);
 
   const MAX_RECIPIENTS_PER_BATCH = 50;
 
