@@ -6,7 +6,7 @@ import { TRPCError } from "@trpc/server";
 import z from "zod";
 import JSONL from "jsonl-parse-stringify";
 import { MeetingStatus, StreamTranscriptItem } from "../types";
-import { streamVideo } from "@/lib/stream-video";
+import { getStreamVideoClient } from "@/lib/stream-video";
 
 interface MeetingRow {
   id: string;
@@ -135,6 +135,7 @@ export const meetingsRouter = createTRPCRouter({
         if (insertError) throw insertError;
         const createdMeeting = createdRows?.[0];
 
+        const streamVideo = getStreamVideoClient();
         const call = streamVideo.video.call("default", createdMeeting.id);
         await call.create({
             data: {
@@ -365,6 +366,7 @@ export const meetingsRouter = createTRPCRouter({
         return removedMeeting;
     }),
     generateToken: protectedProcedure.mutation(async ({ ctx }) => {
+        const streamVideo = getStreamVideoClient();
         await streamVideo.upsertUsers([
             {
                 id: ctx.auth.user.id,

@@ -11,7 +11,7 @@ import {
   CustomVideoEvent,
 } from "@stream-io/node-sdk";
 import { createSupabaseServiceClient } from "@/app/utils/supabase/server";
-import { streamVideo } from "@/lib/stream-video";
+import { getStreamVideoClient } from "@/lib/stream-video";
 import { inngest } from "@/lib/inngest/client";
 // import { generateAvatarUri } from "@/lib/avatar";
 // import { streamChat } from "@/lib/stream-chat";
@@ -21,7 +21,7 @@ const openaiClient = new OpenAI();
 const processedMessages = new Set<string>();
 
 function verifySignatureWithSDK(body: string, signature: string): boolean {
-  return streamVideo.verifyWebhook(body, signature);
+  return getStreamVideoClient().verifyWebhook(body, signature);
 }
 
 export async function POST(req: NextRequest) {
@@ -162,6 +162,7 @@ export async function POST(req: NextRequest) {
     const event = payload as CallSessionParticipantLeftEvent;
     const meetingId = event.call_cid.split(":")[1];
 
+    const streamVideo = getStreamVideoClient();
     const call = streamVideo.video.call("default", meetingId);
     await call.end();
     try {
