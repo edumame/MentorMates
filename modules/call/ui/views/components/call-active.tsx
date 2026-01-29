@@ -2,7 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import ScreenCapture from "./screen-capture";
 import { SpeakerLayout, CallControls } from "@stream-io/video-react-sdk";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 interface Props {
   onLeave: () => void;
@@ -13,6 +13,7 @@ interface Props {
 export const CallActive = ({ onLeave, meetingName, meetingId }: Props) => {
   const [disabled, setDisabled] = useState(false);
   const [paused, setPaused] = useState(true);
+  const [hasSpoken, setHasSpoken] = useState(false);
 
   const handleTogglePause = useCallback(async () => {
     if (disabled) return;
@@ -36,6 +37,54 @@ export const CallActive = ({ onLeave, meetingName, meetingId }: Props) => {
     setTimeout(() => setDisabled(false), 400);
   }, [meetingId, disabled, paused]);
 
+  useEffect(() => {
+    if (!paused || hasSpoken) return;
+
+    let audioCtx: AudioContext | null = null;
+    let mediaStream: MediaStream | null = null;
+    let raf = 0;
+
+    const startMonitor = async () => {
+      try {
+        mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const src = audioCtx.createMediaStreamSource(mediaStream);
+        const analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 2048;
+        src.connect(analyser);
+        const data = new Uint8Array(analyser.fftSize);
+
+        const check = () => {
+          analyser.getByteTimeDomainData(data);
+          // compute peak deviation from midpoint (128)
+          let max = 0;
+          for (let i = 0; i < data.length; i++) {
+            const v = Math.abs(data[i] - 128);
+            if (v > max) max = v;
+          }
+          // threshold tuned to detect speech without being too sensitive
+          if (max > 18) {
+            setHasSpoken(true);
+            return;
+          }
+          raf = requestAnimationFrame(check);
+        };
+
+        check();
+      } catch (err) {
+        // ignore permissions or device errors — leave hasSpoken false
+      }
+    };
+
+    startMonitor();
+
+    return () => {
+      if (raf) cancelAnimationFrame(raf);
+      if (mediaStream) mediaStream.getTracks().forEach((t) => t.stop());
+      if (audioCtx) audioCtx.close().catch(() => {});
+    };
+  }, [paused, hasSpoken]);
+
   // Toggle Pause/Resume button component
   const PauseAgentButton = ({
     onClick,
@@ -51,13 +100,16 @@ export const CallActive = ({ onLeave, meetingName, meetingId }: Props) => {
     const activeClass = pausedState
       ? "bg-white/10 text-white hover:bg-white/20"
       : "bg-red-600 text-white hover:bg-red-700";
-    const disabledClass = disabledState ? "opacity-60 pointer-events-none" : "";
+    // keep button disabled when paused AND there is no detected speech yet
+    const shouldDisableStart = pausedState && !hasSpoken;
+    const disabledClass = disabledState || shouldDisableStart ? "opacity-60 pointer-events-none" : "";
     const label = pausedState ? "Start asking me questions" : "Pause Agent";
     const title = label;
     const icon = pausedState ? "▶" : "||";
     return (
       <button
         type="button"
+        disabled={disabledState || (pausedState && !hasSpoken)}
         onClick={onClick}
         aria-label={label}
         title={title}
