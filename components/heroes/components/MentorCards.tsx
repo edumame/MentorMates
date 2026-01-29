@@ -275,7 +275,7 @@ export function MentorCards() {
             </div>
             <div>
               <div className="-mt-px flex divide-x divide-gray-200">
-                {(meeting.status === "upcoming" || meeting.status === "active") && meeting.project_id && (
+                {(meeting.status === "upcoming") && meeting.project_id && (
                   <div className="-ml-px flex w-0 flex-1">
                     <Link
                       href={`/chat/${meeting.id}`}

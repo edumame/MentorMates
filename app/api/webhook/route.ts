@@ -289,28 +289,92 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
       }
 
-      const { data: existingMeeting, error: meetingError2 } = await supabase
+      const { data: existingUpcomingMeeting } = await supabase
+        .from("meetings")
+        .select("*")
+        .eq("id", channelId)
+        .eq("status", "upcoming")
+        .maybeSingle();
+
+      // Start a chat at the Chat with agent page
+      if (existingUpcomingMeeting) {
+        const { data: existingAgent, error: agentError } = await supabase
+            .from("agents")
+            .select("*")
+            .eq("id", existingUpcomingMeeting.agent_id)
+            .maybeSingle();
+
+        if (agentError || !existingAgent) {
+            return NextResponse.json({ error: "Agent not found from upcoming meeting" }, { status: 404 });
+        }
+
+        if (userId !== existingAgent.id) {
+          const channel = streamChat.channel("messaging", channelId);
+          await channel.watch();
+
+          const { messages: recentMessages } = await channel.query({ messages: { limit: 5 } });
+          type StreamMessage = { text?: string; user?: { id?: string } };
+          const previousMessages = ((recentMessages || []) as StreamMessage[])
+            .filter((msg) => !!msg?.text && msg.text.trim() !== "")
+            .map<ChatCompletionMessageParam>((message) => ({
+              role: message.user?.id === existingAgent.id ? "assistant" : "user",
+              content: message.text || "",
+            }));
+
+          const GPTResponse = await openaiClient.chat.completions.create({
+              messages: [
+                  { role: "system", content: existingAgent.instructions },
+                  ...previousMessages,
+                  { role: "user", content: text },
+              ],
+              model: "gpt-5.2",
+          });
+
+          const GPTResponseText = GPTResponse.choices[0].message.content;
+
+          if (!GPTResponseText) {
+              return NextResponse.json({ error: "No response from GPT" }, { status: 400 });
+          }
+
+          streamChat.upsertUser({
+              id: existingAgent.id,
+              name: existingAgent.name,
+              image: existingAgent.avatar_url,
+          });
+
+          channel.sendMessage({
+              text: GPTResponseText,
+              user: {
+                  id: existingAgent.id,
+                  name: existingAgent.name,
+                  image: existingAgent.avatar_url,
+              },
+          });
+        }
+        // Start a chat at the Feedback page
+      } else { 
+        const { data: existingMeeting, error: meetingError2 } = await supabase
           .from("meetings")
           .select("*")
           .eq("id", channelId)
           .eq("status", "completed")
           .maybeSingle();
 
-      if (meetingError2 || !existingMeeting) {
-          return NextResponse.json({ error: "Meeting not found" }, { status: 404 });
-      }
+        if (meetingError2 || !existingMeeting) {
+            return NextResponse.json({ error: "Meeting not found" }, { status: 404 });
+        }
 
-      const { data: existingAgent, error: agentError2 } = await supabase
-          .from("agents")
-          .select("*")
-          .eq("id", existingMeeting.agent_id)
-          .maybeSingle();
+        const { data: existingAgent, error: agentError2 } = await supabase
+            .from("agents")
+            .select("*")
+            .eq("id", existingMeeting.agent_id)
+            .maybeSingle();
 
-      if (agentError2 || !existingAgent) {
-          return NextResponse.json({ error: "Agent not found" }, { status: 404 });
-      }
+        if (agentError2 || !existingAgent) {
+            return NextResponse.json({ error: "Agent not found" }, { status: 404 });
+        }
 
-      if (userId !== existingAgent.id) {
+        if (userId !== existingAgent.id) {
           const instructions = `
               You are an AI assistant helping the user revisit a recently completed meeting.
               Below is a summary of the meeting, generated from the transcript:
@@ -372,6 +436,7 @@ export async function POST(req: NextRequest) {
                   image: existingAgent.avatar_url,
               },
           });
+        }
       }
   };
 
