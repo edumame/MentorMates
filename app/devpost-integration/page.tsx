@@ -12,6 +12,8 @@ import {
   Play,
 } from "lucide-react";
 import { Footer } from "@/components/layout/Footer";
+import { VideoEmbed } from "@/components/utils/VideoEmbed";
+import { VIDEO_SOURCES } from "@/lib/config/video-sources";
 
 const FeatureStep: React.FC<{
   number: string;
@@ -155,15 +157,11 @@ const DevpostIntegrationPage: React.FC = () => {
                     Organizer Demo
                   </h3>
                 </div>
-                <div className="aspect-video rounded-lg overflow-hidden">
-                  <iframe
-                    src="https://www.youtube.com/embed/DFGjGusKtdo"
-                    title="MentorMates Organizer Demo"
-                    className="w-full h-full"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  />
-                </div>
+                <VideoEmbed
+                  url={VIDEO_SOURCES.organizer.url}
+                  title="MentorMates Organizer Demo"
+                  className="rounded-lg overflow-hidden"
+                />
               </div>
             </div>
           </div>

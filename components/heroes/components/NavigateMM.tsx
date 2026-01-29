@@ -1,5 +1,6 @@
 import { data } from "@/lib/NavigateMMData";
 import { X } from "lucide-react";
+import { VideoEmbed } from "@/components/utils/VideoEmbed";
 
 interface NavigateMMProps {
   onClose?: () => void;
@@ -30,14 +31,11 @@ export function NavigateMM({ onClose }: NavigateMMProps) {
       <div className="flex flex-row gap-2 mt-4">
         {data.map((item) => (
           <div key={item.id} className="flex flex-col gap-2 flex-1 min-w-0">
-            <div className="aspect-video w-full rounded-lg overflow-hidden bg-black">
-              <iframe
-                src={item.source}
-                title={item.title}
-                className="w-full h-full min-h-[120px] rounded-lg"
-                allowFullScreen
-              />
-            </div>
+            <VideoEmbed
+              url={item.url}
+              title={item.title}
+              className="min-h-[120px]"
+            />
             <p className="text-sm">{item.title}</p>
           </div>
         ))}

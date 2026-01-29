@@ -1,28 +1,14 @@
+import { ROLE_VIDEO_KEYS, VIDEO_SOURCES } from "@/lib/config/video-sources";
+
 export interface TutorialVideo {
   title: string;
   description: string;
   href: string;
 }
 
-export const TUTORIAL_VIDEOS: TutorialVideo[] = [
-  {
-    title: "Participant",
-    description: "Submit projects, share ideas, and get real feedback from mentors and judges.",
-    href: "https://youtu.be/GMHO4vdLgD0",
-  },
-  {
-    title: "Mentor",
-    description: "Support participants with actionable, encouraging feedback that helps them grow.",
-    href: "https://youtu.be/mAm-LnMK5dA",
-  },
-  {
-    title: "Judge",
-    description: "Review projects, score fairly, and provide constructive feedback.",
-    href: "https://youtu.be/o1iCt7qE5UY",
-  },
-  {
-    title: "Organizer",
-    description: "Manage events: set up submissions, assign mentors/judges, and configure parameters.",
-    href: "https://youtu.be/DFGjGusKtdo",
-  },
-];
+export const TUTORIAL_VIDEOS: TutorialVideo[] = ROLE_VIDEO_KEYS.map((key) => ({
+  // Keep display titles short for the cards.
+  title: VIDEO_SOURCES[key].title.replace(" Guide", ""),
+  description: VIDEO_SOURCES[key].description,
+  href: VIDEO_SOURCES[key].url,
+}));

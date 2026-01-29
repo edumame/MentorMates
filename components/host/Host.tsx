@@ -8,6 +8,8 @@ import { LogoCarousel } from "@/components/heroes/components/LogoCarousel";
 import { Customer } from "@/components/heroes/components/Customer";
 import * as LucideIcons from "lucide-react";
 import { Play } from "lucide-react";
+import { VideoEmbed } from "@/components/utils/VideoEmbed";
+import { VIDEO_SOURCES } from "@/lib/config/video-sources";
 
 // Helper function to render Lucide icons
 function renderLucideIcon(
@@ -76,15 +78,11 @@ export function Host() {
             Watch how organizers manage hackathons from start to finish —
             event setup, mentor assignments, submissions, and judging.
           </p>
-          <div className="aspect-video rounded-xl overflow-hidden shadow-lg">
-            <iframe
-              src="https://www.youtube.com/embed/DFGjGusKtdo"
-              title="MentorMates Organizer Demo"
-              className="w-full h-full"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-            />
-          </div>
+          <VideoEmbed
+            url={VIDEO_SOURCES.organizer.url}
+            title="MentorMates Organizer Demo"
+            className="rounded-xl shadow-lg"
+          />
         </div>
       </div>
 
