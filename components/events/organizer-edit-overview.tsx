@@ -697,7 +697,14 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
 
                 {/* Other Main Tabs */}
                 <TabsContent value="participants" className="mt-0 w-full">
-                  <ParticipantsTab eventId={eventId} />
+                  {event && (
+                    <ParticipantsTab 
+                      eventId={eventId} 
+                      event={event}
+                      setEvent={setEvent}
+                      isArchived={event.visibility === "archived"}
+                    />
+                  )}
                 </TabsContent>
 
                 <TabsContent value="access" className="mt-0 w-full">

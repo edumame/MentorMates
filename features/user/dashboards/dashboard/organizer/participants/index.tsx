@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/lib/supabase";
-import { EventRole } from "@/lib/types";
+import { EventRole, EventDetails } from "@/lib/types";
 import Papa from "papaparse";
 import {
   Table,
@@ -21,10 +22,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Trash2 } from "lucide-react";
 import { useToast } from "@/lib/hooks/use-toast";
 import { useRouter } from "next/navigation";
+import { ApprovalRequestsTab } from "./ApprovalRequestsTab";
+import { ApprovalSettingsTab } from "./ApprovalSettingsTab";
 
 interface UserEventRoleWithProfile {
   user_id: string;
-  role: string;
+  role: string;     
   profiles: {
     display_name: string;
     email: string;
@@ -40,9 +43,12 @@ interface Participant {
 
 interface ParticipantsTabProps {
   eventId: string;
+  event: EventDetails;
+  setEvent: React.Dispatch<React.SetStateAction<EventDetails | null>>;
+  isArchived: boolean;
 }
 
-export function ParticipantsTab({ eventId }: ParticipantsTabProps) {
+export function ParticipantsTab({ eventId, event, setEvent, isArchived }: ParticipantsTabProps) {
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [loading, setLoading] = useState(true);
   const [notifyOnSave, setNotifyOnSave] = useState<boolean>(false);
@@ -231,106 +237,131 @@ export function ParticipantsTab({ eventId }: ParticipantsTabProps) {
     }
   };
 
+  const [activeTab, setActiveTab] = useState("list");
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Event Participants</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="space-y-4">
-          {loading ? (
-            <div>Loading participants...</div>
-          ) : (
-            <>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="notify-on-save"
-                    checked={notifyOnSave}
-                    onCheckedChange={(checked) => setNotifyOnSave(Boolean(checked))}
-                  />
-                  <Label htmlFor="notify-on-save" className="text-sm text-muted-foreground">
-                    Notify participant when saving changes
-                  </Label>
-                </div>
-                <div className="flex gap-2">
-                  <Button onClick={handleCopyEmails} variant="outline" size="sm">
-                    <ContentCopy className="w-4 h-4 mr-2" />
-                    Copy Emails
-                  </Button>
-                  <Button onClick={handleExportCSV} variant="outline" size="sm">
-                    <Download className="w-4 h-4 mr-2" />
-                    Export CSV
-                  </Button>
-                </div>
-              </div>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {participants.map((participant) => (
-                    <TableRow
-                      key={participant.user_id}
-                      onClick={() => {
-                        // Only navigate to profile for actual users, not project participants
-                        if (!participant.user_id.startsWith('project-')) {
-                          navigateToProfile(participant.user_id);
-                        }
-                      }}
-                      className={`${
-                        !participant.user_id.startsWith('project-') 
-                          ? 'cursor-pointer hover:bg-gray-50' 
-                          : 'cursor-default'
-                      }`}
-                    >
-                      <TableCell>{participant.display_name}</TableCell>
-                      <TableCell>{participant.email}</TableCell>
-                      <TableCell onClick={(e) => e.stopPropagation()}>
-                        {!participant.user_id.startsWith('project-') ? (
-                          <Select
-                            value={participant.role}
-                            onValueChange={(val) => handleChangeRole(participant.user_id, val as EventRole)}
-                          >
-                            <SelectTrigger className="w-[180px]">
-                              <SelectValue placeholder="Select role" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value={EventRole.Participant}>Participant</SelectItem>
-                              <SelectItem value={EventRole.Mentor}>Mentor</SelectItem>
-                              <SelectItem value={EventRole.Judge}>Judge</SelectItem>
-                              <SelectItem value={EventRole.Organizer}>Organizer</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          <span className="capitalize">{participant.role}</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                        {!participant.user_id.startsWith('project-') && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-red-600 hover:text-red-700"
-                            onClick={() => handleRemove(participant.user_id)}
-                            aria-label={`Remove ${participant.display_name}`}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </>
-          )}
-        </div>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="list">Participant List</TabsTrigger>
+            <TabsTrigger value="approval-requests">Approval Requests</TabsTrigger>
+            <TabsTrigger value="approval-settings">Approval Settings</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="list" className="mt-6">
+            <div className="space-y-4">
+              {loading ? (
+                <div>Loading participants...</div>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id="notify-on-save"
+                        checked={notifyOnSave}
+                        onCheckedChange={(checked) => setNotifyOnSave(Boolean(checked))}
+                      />
+                      <Label htmlFor="notify-on-save" className="text-sm text-muted-foreground">
+                        Notify participant when saving changes
+                      </Label>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button onClick={handleCopyEmails} variant="outline" size="sm">
+                        <ContentCopy className="w-4 h-4 mr-2" />
+                        Copy Emails
+                      </Button>
+                      <Button onClick={handleExportCSV} variant="outline" size="sm">
+                        <Download className="w-4 h-4 mr-2" />
+                        Export CSV
+                      </Button>
+                    </div>
+                  </div>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Role</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {participants.map((participant) => (
+                        <TableRow
+                          key={participant.user_id}
+                          onClick={() => {
+                            // Only navigate to profile for actual users, not project participants
+                            if (!participant.user_id.startsWith('project-')) {
+                              navigateToProfile(participant.user_id);
+                            }
+                          }}
+                          className={`${
+                            !participant.user_id.startsWith('project-') 
+                              ? 'cursor-pointer hover:bg-gray-50' 
+                              : 'cursor-default'
+                          }`}
+                        >
+                          <TableCell>{participant.display_name}</TableCell>
+                          <TableCell>{participant.email}</TableCell>
+                          <TableCell onClick={(e) => e.stopPropagation()}>
+                            {!participant.user_id.startsWith('project-') ? (
+                              <Select
+                                value={participant.role}
+                                onValueChange={(val) => handleChangeRole(participant.user_id, val as EventRole)}
+                              >
+                                <SelectTrigger className="w-[180px]">
+                                  <SelectValue placeholder="Select role" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value={EventRole.Participant}>Participant</SelectItem>
+                                  <SelectItem value={EventRole.Mentor}>Mentor</SelectItem>
+                                  <SelectItem value={EventRole.Judge}>Judge</SelectItem>
+                                  <SelectItem value={EventRole.Organizer}>Organizer</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              <span className="capitalize">{participant.role}</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                            {!participant.user_id.startsWith('project-') && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-red-600 hover:text-red-700"
+                                onClick={() => handleRemove(participant.user_id)}
+                                aria-label={`Remove ${participant.display_name}`}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </>
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="approval-requests" className="mt-6">
+            <ApprovalRequestsTab eventId={eventId} isArchived={isArchived} />
+          </TabsContent>
+
+          <TabsContent value="approval-settings" className="mt-6">
+            <ApprovalSettingsTab
+              eventId={eventId}
+              event={event}
+              setEvent={setEvent}
+              isArchived={isArchived}
+            />
+          </TabsContent>
+        </Tabs>
       </CardContent>
     </Card>
   );

@@ -20,11 +20,20 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   EventRole,
   EventItem,
   EventVisibility,
   PricingTier,
+  ParticipantRequestStatus,
+  ParticipantApprovalRequest,
 } from "@/lib/types";
 import { toast } from "@/lib/hooks/use-toast";
 import { PricingTierSelector } from "./pricing-tier-selector";
@@ -34,7 +43,7 @@ import {
   formatPrice,
 } from "@/lib/utils/pricing";
 import { getRoleLabel, isHigherOrEqualRole } from "@/features/user/roles/roles";
-import { Ticket, Users, Lock } from "lucide-react";
+import { Ticket, Users, Lock, Loader2 } from "lucide-react";
 
 export interface JoinEventButtonProps {
   eventId: string;
@@ -46,11 +55,27 @@ export interface JoinEventButtonProps {
   label?: string;
 }
 
+// Loading fallback component
+function JoinEventButtonSkeleton() {
+  return (
+    <Button
+      variant="default"
+      size="lg"
+      className="rounded-full px-6 py-5 gap-2 w-full min-w-0 overflow-hidden"
+      disabled
+    >
+      <Ticket className="h-6 w-6 flex-shrink-0" />
+      <Loader2 className="h-6 w-6 flex-shrink-0 animate-spin" />
+    </Button>
+  );
+}
+
 export function JoinEventButton({
   eventId,
   eventName,
   label,
 }: JoinEventButtonProps) {
+  const [isInitializing, setIsInitializing] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [hasJoined, setHasJoined] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -70,6 +95,10 @@ export function JoinEventButton({
     useState<string>("");
   const [showPricingTiers, setShowPricingTiers] = useState(false);
   const [isFull, setIsFull] = useState(false);
+  const [requiresApproval, setRequiresApproval] = useState(false);
+  const [hasPendingRequest, setHasPendingRequest] = useState(false);
+  const [pendingRequest, setPendingRequest] = useState<ParticipantApprovalRequest | null>(null);
+  const [pendingRequestStatus, setPendingRequestStatus] = useState<ParticipantRequestStatus | null>(null);
 
   useEffect(() => {
     async function init() {
@@ -87,7 +116,8 @@ export function JoinEventButton({
             visibility,
             role_labels,
             slug,
-            participant_capacity
+            participant_capacity,
+            require_participant_approval
           `
           )
           .eq("event_id", eventId)
@@ -99,6 +129,7 @@ export function JoinEventButton({
 
         setEvent(eventData);
         setRoleLabels(eventData?.role_labels || null);
+        setRequiresApproval(eventData?.require_participant_approval || false);
         // Check current participant count if capacity set
         if (eventData?.participant_capacity != null) {
           const { count } = await supabase
@@ -109,10 +140,10 @@ export function JoinEventButton({
           setIsFull((count || 0) >= eventData.participant_capacity);
         }
 
-        // Set initial password visibility based on event settings
-        if (eventData?.visibility === EventVisibility.Private) {
-          setShowPasswordInput(true);
-        }
+        // // Set initial password visibility based on event settings
+        // if (eventData?.visibility === EventVisibility.Private) {
+        //   setShowPasswordInput(true);
+        // }
 
         // Fetch pricing tiers for paid events
         if (eventData?.paid) {
@@ -155,9 +186,26 @@ export function JoinEventButton({
 
         if (roleData) {
           setHasJoined(true);
+        } else {
+          // Check for pending, rejected, or withdrawn approval request
+          const { data: pendingRequest } = await supabase
+            .from("participant_approval_requests")
+            .select("id, status, rejection_reason")
+            .eq("event_id", eventId)
+            .eq("user_id", userId)
+            .in("status", [ParticipantRequestStatus.Pending, ParticipantRequestStatus.Rejected, ParticipantRequestStatus.Withdrawn])
+            .maybeSingle();
+
+          if (pendingRequest) {
+            setHasPendingRequest(true);
+            setPendingRequestStatus(pendingRequest.status as ParticipantRequestStatus);
+            setPendingRequest(pendingRequest as ParticipantApprovalRequest);
+          }
         }
       } catch (error) {
         console.error("Error checking event status:", error);
+      } finally {
+        setIsInitializing(false);
       }
     }
 
@@ -184,11 +232,11 @@ export function JoinEventButton({
   const handleRoleSelect = (value: EventRole) => {
     setSelectedRole(value);
     // Show password input for protected roles
-    if (event?.visibility === EventVisibility.Private) {
-      setShowPasswordInput(true);
-    } else {
+    // if (event?.visibility === EventVisibility.Private) {
+    //   setShowPasswordInput(true);
+    // } else {
       setShowPasswordInput(isHigherOrEqualRole(value, EventRole.Judge));
-    }
+    // }
   };
 
   const handlePricingTierContinue = async () => {
@@ -304,8 +352,25 @@ export function JoinEventButton({
           variant: "destructive",
         });
         if (response.status === 409) {
-          setIsFull(true);
+          if (data.requires_approval) {
+            setHasPendingRequest(true);
+            setPendingRequestStatus(ParticipantRequestStatus.Pending);
+          } else {
+            setIsFull(true);
+          }
         }
+        return;
+      }
+
+      // Check if approval was required and request was created
+      if (data.requires_approval) {
+        setHasPendingRequest(true);
+        setPendingRequestStatus(ParticipantRequestStatus.Pending);
+        setIsDialogOpen(false);
+        toast({
+          title: "Request Submitted",
+          description: "Your request to join has been submitted and is pending organizer approval.",
+        });
         return;
       }
 
@@ -343,8 +408,106 @@ export function JoinEventButton({
     return "Join Event - Paid Event";
   };
 
+  // Show loading skeleton while initializing
+  if (isInitializing) {
+    return <JoinEventButtonSkeleton />;
+  }
+
   if (hasJoined) {
     return null;
+  }
+
+  const handleWithdrawRequest = async () => {
+    try {
+      setIsLoading(true);
+
+      if (!pendingRequest?.id) {
+        toast({
+          title: "Error",
+          description: "No pending request found",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const response = await fetch(`/api/events/${eventId}/approval-requests/${pendingRequest.id}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || data.error) {
+        toast({
+          title: "Error",
+          description: data.error || "Failed to withdraw request",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setHasPendingRequest(false);
+      setPendingRequestStatus(ParticipantRequestStatus.Withdrawn);
+      toast({
+        title: "Request Withdrawn",
+        description: "Your join request has been withdrawn.",
+      });
+    } catch (error) {
+      console.error("Error withdrawing request:", error);
+      toast({
+        title: "Error",
+        description: "Failed to withdraw request",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Show rejected request status
+  if (pendingRequestStatus === ParticipantRequestStatus.Rejected) {
+    const rejectionReason = (pendingRequest as ParticipantApprovalRequest)?.rejection_reason || "No reason given";
+    
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="w-full">
+              <Button
+                variant="secondary"
+                size="lg"
+                className="rounded-full px-6 py-5 gap-2 w-full min-w-0 overflow-hidden cursor-not-allowed opacity-60"
+                disabled
+              >
+                <Ticket className="h-6 w-6 flex-shrink-0" />
+                <span className="truncate">Not Approved</span>
+              </Button>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent className="bg-red-500 text-white">
+            <p className="max-w-xs">{rejectionReason}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
+
+  // Show pending request status
+  if (hasPendingRequest && pendingRequestStatus === ParticipantRequestStatus.Pending) {
+    return (
+      <Button
+        variant="destructive"
+        size="lg"
+        className="rounded-full px-6 py-5 gap-2 w-full min-w-0 overflow-hidden"
+        onClick={handleWithdrawRequest}
+        disabled={isLoading}
+      >
+        <Ticket className="h-6 w-6 flex-shrink-0" />
+        <span className="truncate">{isLoading ? "Withdrawing..." : "Withdraw Request"}</span>
+      </Button>
+    );
   }
 
   return (
@@ -414,6 +577,14 @@ export function JoinEventButton({
                 </SelectContent>
               </Select>
 
+              {requiresApproval && selectedRole === EventRole.Participant && (
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground">
+                    Your request will be reviewed by the event organizers.
+                  </p>
+                </div>
+              )}
+
               {showPasswordInput && (
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Enter password:</label>
@@ -441,7 +612,11 @@ export function JoinEventButton({
                 className="w-full rounded-full !mt-5"
               >
                 <Ticket className="h-6 w-6 mr-2" />
-                {isLoading ? "Joining..." : "Confirm"}
+                {isLoading
+                  ? "Submitting..."
+                  : requiresApproval && selectedRole === EventRole.Participant
+                  ? "Request to Join"
+                  : "Confirm"}
               </Button>
             </div>
           )}

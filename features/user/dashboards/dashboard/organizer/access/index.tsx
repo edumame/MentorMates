@@ -54,7 +54,7 @@ export function AccessTab({
       </CardHeader>
       <CardContent className="space-y-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid-cols-3">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="password">Password</TabsTrigger>
             <TabsTrigger value="role-labels">Role Labels</TabsTrigger>
             <TabsTrigger value="invite-organizers">
