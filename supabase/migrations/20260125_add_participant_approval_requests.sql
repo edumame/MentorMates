@@ -28,7 +28,6 @@ CREATE INDEX idx_participant_requests_pending
 
 -- Add comments
 COMMENT ON TABLE public.participant_approval_requests IS 'Stores participant join requests pending organizer approval';
-COMMENT ON COLUMN public.participant_approval_requests.reason IS 'User-provided reason for wanting to join the event';
 COMMENT ON COLUMN public.participant_approval_requests.requested_role IS 'The role the user is requesting (supports future per-role approval)';
 
 -- Add approval configuration to events table
