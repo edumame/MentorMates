@@ -12,8 +12,6 @@ import {
 import { PasswordTab } from "./PasswordTab";
 import { RoleLabelsTab } from "./RoleLabelsTab";
 import { InviteOrganizersTab } from "./InviteOrganizersTab";
-import { ApprovalRequestsTab } from "./ApprovalRequestsTab";
-import { ApprovalSettingsTab } from "./ApprovalSettingsTab";
 import { EventDetails } from "@/lib/types";
 import { useEventArchiveStatus } from "@/lib/hooks/use-event-archive-status";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -56,28 +54,13 @@ export function AccessTab({
       </CardHeader>
       <CardContent className="space-y-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid-cols-5">
-            <TabsTrigger value="approval-requests">Requests</TabsTrigger>
-            <TabsTrigger value="approval-settings">Approval</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="password">Password</TabsTrigger>
             <TabsTrigger value="role-labels">Role Labels</TabsTrigger>
             <TabsTrigger value="invite-organizers">
               Invite Organizers
             </TabsTrigger>
           </TabsList>
-
-          <TabsContent value="approval-requests" className="mt-6">
-            <ApprovalRequestsTab eventId={eventId} isArchived={isArchived} />
-          </TabsContent>
-
-          <TabsContent value="approval-settings" className="mt-6">
-            <ApprovalSettingsTab
-              eventId={eventId}
-              event={event}
-              setEvent={setEvent}
-              isArchived={isArchived}
-            />
-          </TabsContent>
 
           <TabsContent value="password" className="mt-6">
             <PasswordTab

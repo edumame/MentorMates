@@ -12,7 +12,6 @@ const createRequestSchema = z.object({
       EventRole.Judge,
     ])
     .default(EventRole.Participant),
-  reason: z.string().max(2000).optional(),
 });
 
 const listRequestsSchema = z.object({
@@ -24,7 +23,7 @@ const listRequestsSchema = z.object({
       ParticipantRequestStatus.Withdrawn,
     ])
     .optional(),
-  limit: z.coerce.number().min(1).max(100).default(50),
+  limit: z.coerce.number().min(0).max(100).default(50),
   offset: z.coerce.number().min(0).default(0),
 });
 
@@ -69,9 +68,9 @@ export async function GET(
     // Parse query parameters
     const searchParams = request.nextUrl.searchParams;
     const parsed = listRequestsSchema.safeParse({
-      status: searchParams.get("status"),
-      limit: searchParams.get("limit"),
-      offset: searchParams.get("offset"),
+      status: searchParams.get("status") || undefined,
+      limit: searchParams.get("limit") || undefined,
+      offset: searchParams.get("offset") || undefined,
     });
 
     if (!parsed.success) {
@@ -172,7 +171,7 @@ export async function POST(
       );
     }
 
-    const { role, reason } = parsed.data;
+    const { role } = parsed.data;
 
     // Check if event exists and requires approval
     const { data: event, error: eventError } = await supabase
@@ -240,7 +239,6 @@ export async function POST(
         event_id: eventId,
         user_id: user.id,
         requested_role: role,
-        reason: reason || null,
         status: "pending",
       })
       .select()

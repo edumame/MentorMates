@@ -106,9 +106,6 @@ export function ApprovalSettingsTab({
                 instead of joining directly
               </li>
               <li>
-                They can provide a reason for why they want to join (optional)
-              </li>
-              <li>
                 You&apos;ll receive their requests in the &quot;Approval
                 Requests&quot; tab
               </li>

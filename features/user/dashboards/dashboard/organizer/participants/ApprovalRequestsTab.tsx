@@ -33,7 +33,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Check, X, Loader2, RefreshCw } from "lucide-react";
+import { Check, X, Loader2, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface ApprovalRequestsTabProps {
@@ -54,6 +54,9 @@ export function ApprovalRequestsTab({
   const [selectedRequest, setSelectedRequest] =
     useState<ParticipantApprovalRequest | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const pageSize = 10;
   const { toast } = useToast();
 
   const fetchRequests = useCallback(async () => {
@@ -63,6 +66,8 @@ export function ApprovalRequestsTab({
       if (statusFilter && statusFilter !== "all") {
         params.append("status", statusFilter);
       }
+      params.append("limit", pageSize.toString());
+      params.append("offset", ((currentPage - 1) * pageSize).toString());
 
       const response = await fetch(
         `/api/events/${eventId}/approval-requests?${params.toString()}`
@@ -75,6 +80,7 @@ export function ApprovalRequestsTab({
 
       setRequests(data.requests || []);
       setPendingCount(data.pending_count || 0);
+      setTotalCount(data.total || 0);
     } catch (error) {
       console.error("Error fetching approval requests:", error);
       toast({
@@ -85,11 +91,16 @@ export function ApprovalRequestsTab({
     } finally {
       setIsLoading(false);
     }
-  }, [eventId, statusFilter, toast]);
+  }, [eventId, statusFilter, currentPage, toast]);
 
   useEffect(() => {
     fetchRequests();
   }, [fetchRequests]);
+
+  // Reset to page 1 when filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusFilter]);
 
   // Subscribe to realtime updates
   useEffect(() => {
@@ -213,13 +224,13 @@ export function ApprovalRequestsTab({
   const getStatusBadge = (status: ParticipantRequestStatus) => {
     switch (status) {
       case ParticipantRequestStatus.Pending:
-        return <Badge variant="outline">Pending</Badge>;
+        return <Badge variant="outline" className="text-blue-500 bg-blue-500/10">Pending</Badge>;
       case ParticipantRequestStatus.Approved:
-        return <Badge variant="default">Approved</Badge>;
+        return <Badge variant="outline" className="text-green-500 bg-green-500/10">Approved</Badge>;
       case ParticipantRequestStatus.Rejected:
-        return <Badge variant="destructive">Rejected</Badge>;
+        return <Badge variant="outline" className="text-red-500 bg-red-500/10">Rejected</Badge>;
       case ParticipantRequestStatus.Withdrawn:
-        return <Badge variant="secondary">Withdrawn</Badge>;
+        return <Badge variant="outline" className="text-gray-500 bg-gray-500/10">Withdrawn</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -242,6 +253,22 @@ export function ApprovalRequestsTab({
       .join("")
       .toUpperCase()
       .slice(0, 2);
+  };
+
+  const totalPages = Math.ceil(totalCount / pageSize);
+  const startIndex = (currentPage - 1) * pageSize + 1;
+  const endIndex = Math.min(currentPage * pageSize, totalCount);
+
+  const handlePreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
   };
 
   return (
@@ -292,95 +319,119 @@ export function ApprovalRequestsTab({
           <p>No {statusFilter !== "all" ? statusFilter : ""} requests found.</p>
         </div>
       ) : (
-        <div className="border rounded-lg">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>User</TableHead>
-                <TableHead>Reason</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Submitted</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {requests.map((request) => (
-                <TableRow key={request.id}>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-8 w-8">
-                        <AvatarImage
-                          src={request.user_profile?.avatar_url}
-                          alt={request.user_profile?.display_name}
-                        />
-                        <AvatarFallback>
-                          {getInitials(
-                            request.user_profile?.display_name || "U"
-                          )}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="font-medium">
-                          {request.user_profile?.display_name || "Unknown User"}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {request.user_profile?.email}
-                        </p>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="max-w-xs">
-                    <p className="truncate text-sm">
-                      {request.reason || (
-                        <span className="text-muted-foreground italic">
-                          No reason provided
-                        </span>
-                      )}
-                    </p>
-                  </TableCell>
-                  <TableCell>{getStatusBadge(request.status)}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {formatDate(request.created_at)}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {request.status === ParticipantRequestStatus.Pending &&
-                      !isArchived && (
-                        <div className="flex items-center justify-end gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleApprove(request)}
-                            disabled={isProcessing === request.id}
-                          >
-                            {isProcessing === request.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Check className="h-4 w-4" />
-                            )}
-                            <span className="ml-1">Approve</span>
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => handleRejectClick(request)}
-                            disabled={isProcessing === request.id}
-                          >
-                            <X className="h-4 w-4" />
-                            <span className="ml-1">Reject</span>
-                          </Button>
-                        </div>
-                      )}
-                    {request.status === ParticipantRequestStatus.Rejected &&
-                      request.rejection_reason && (
-                        <p className="text-sm text-muted-foreground italic">
-                          Reason: {request.rejection_reason}
-                        </p>
-                      )}
-                  </TableCell>
+        <div className="space-y-4">
+          <div className="border rounded-lg">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>User</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Submitted</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {requests.map((request) => (
+                  <TableRow key={request.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage
+                            src={request.user_profile?.avatar_url}
+                            alt={request.user_profile?.display_name}
+                          />
+                          <AvatarFallback>
+                            {getInitials(
+                              request.user_profile?.display_name || "U"
+                            )}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-medium">
+                            {request.user_profile?.display_name || "Unknown User"}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {request.user_profile?.email}
+                          </p>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>{getStatusBadge(request.status)}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {formatDate(request.created_at)}
+                    </TableCell>
+                    <TableCell>
+                      {request.status === ParticipantRequestStatus.Pending &&
+                        !isArchived && (
+                          <div className="flex items-center gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleApprove(request)}
+                              disabled={isProcessing === request.id}
+                            >
+                              {isProcessing === request.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Check className="h-4 w-4" />
+                              )}
+                              <span className="ml-1">Approve</span>
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => handleRejectClick(request)}
+                              disabled={isProcessing === request.id}
+                            >
+                              <X className="h-4 w-4" />
+                              <span className="ml-1">Reject</span>
+                            </Button>
+                          </div>
+                        )}
+                      {request.status === ParticipantRequestStatus.Rejected &&
+                        request.rejection_reason && (
+                          <p className="text-sm text-muted-foreground italic">
+                            Reason: {request.rejection_reason}
+                          </p>
+                        )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-2">
+              <div className="text-sm text-muted-foreground">
+                Showing {startIndex} to {endIndex} of {totalCount} requests
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handlePreviousPage}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4 mr-1" />
+                  Previous
+                </Button>
+                <div className="text-sm font-medium">
+                  Page {currentPage} of {totalPages}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleNextPage}
+                  disabled={currentPage === totalPages}
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
