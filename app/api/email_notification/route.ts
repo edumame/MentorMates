@@ -1,6 +1,6 @@
-import { supabase } from "@/lib/supabase";
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
+import { createSupabaseClient } from "@/app/utils/supabase/server";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -29,6 +29,9 @@ export async function POST(request: NextRequest) {
   try {
     const { to, from, subject, html, bcc, cc } = await request.json();
 
+    // Create the Supabase client at request-time (not at build-time).
+    // This prevents builds from crashing when env vars aren't present in the build environment.
+    const supabase = await createSupabaseClient();
     const { data: user } = await supabase.auth.getUser();
 
     if (!user) {
