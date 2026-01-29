@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 interface EmailData {
   from: string;
   to: string;
@@ -37,6 +35,17 @@ export async function POST(request: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const resendApiKey = process.env.RESEND_API_KEY;
+    if (!resendApiKey) {
+      return NextResponse.json(
+        { error: "Missing RESEND_API_KEY configuration" },
+        { status: 500 }
+      );
+    }
+
+    // Create Resend client at request-time so builds don't crash without env vars.
+    const resend = new Resend(resendApiKey);
 
     const bccArray: string[] = Array.isArray(bcc) ? bcc : [];
     const ccArray: string[] = Array.isArray(cc) ? cc : [];
