@@ -17,10 +17,21 @@ export const CallActive = ({ onLeave, meetingName, meetingId }: Props) => {
   const [hasSpoken, setHasSpoken] = useState(false);
   // obtain microphone state hook from the SDK
   const { useMicrophoneState } = useCallStateHooks();
-  const micState: any = useMicrophoneState?.() ?? {};
-  const micOn = Boolean(
-    micState.isEnabled ?? micState.isPublishing ?? micState.isOn ?? (micState.isMuted === false) ?? micState.enabled
-  );
+  type MicrophoneState = {
+    isEnabled?: boolean;
+    isPublishing?: boolean;
+    isOn?: boolean;
+    isMuted?: boolean;
+    enabled?: boolean;
+    hasBrowserPermission?: boolean;
+  };
+  const micState: MicrophoneState = (useMicrophoneState?.() as MicrophoneState) ?? {};
+  const micOn =
+    micState.isEnabled === true ||
+    micState.isPublishing === true ||
+    micState.isOn === true ||
+    micState.isMuted === false ||
+    micState.enabled === true;
 
   const handleTogglePause = useCallback(async () => {
     if (disabled) return;
@@ -58,6 +69,7 @@ export const CallActive = ({ onLeave, meetingName, meetingId }: Props) => {
     const startMonitor = async () => {
       try {
         mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
         const src = audioCtx.createMediaStreamSource(mediaStream);
         const analyser = audioCtx.createAnalyser();
@@ -83,7 +95,7 @@ export const CallActive = ({ onLeave, meetingName, meetingId }: Props) => {
 
         check();
       } catch (err) {
-        // ignore permissions or device errors — leave hasSpoken false
+        console.log(err);
       }
     };
 
