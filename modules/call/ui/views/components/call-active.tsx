@@ -35,6 +35,9 @@ export const CallActive = ({ onLeave, meetingName, meetingId }: Props) => {
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
+      if (paused) {
+        setHasSpoken(false);
+      }
       setPaused(!paused);
     } catch (err) {
       console.error(err);
@@ -91,7 +94,7 @@ export const CallActive = ({ onLeave, meetingName, meetingId }: Props) => {
       if (mediaStream) mediaStream.getTracks().forEach((t) => t.stop());
       if (audioCtx) audioCtx.close().catch(() => {});
     };
-  }, [paused, hasSpoken]);
+  }, [paused, hasSpoken, micOn]);
 
   // Toggle Pause/Resume button component
   const PauseAgentButton = ({
