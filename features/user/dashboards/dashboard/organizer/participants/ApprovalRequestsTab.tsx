@@ -148,9 +148,10 @@ export function ApprovalRequestsTab({
         throw new Error(data.error || "Failed to approve request");
       }
 
+      const wasRejected = request.status === ParticipantRequestStatus.Rejected;
       toast({
-        title: "Request Approved",
-        description: `${request.user_profile?.display_name || "User"} has been added to the event.`,
+        title: wasRejected ? "Request Re-Approved" : "Request Approved",
+        description: `${request.user_profile?.display_name || "User"} has been ${wasRejected ? "re-added" : "added"} to the event.`,
       });
 
       fetchRequests();
@@ -199,9 +200,12 @@ export function ApprovalRequestsTab({
         throw new Error(data.error || "Failed to reject request");
       }
 
+      const wasApproved = selectedRequest.status === ParticipantRequestStatus.Approved;
       toast({
-        title: "Request Rejected",
-        description: `The request from ${selectedRequest.user_profile?.display_name || "User"} has been rejected.`,
+        title: wasApproved ? "Access Revoked" : "Request Rejected",
+        description: wasApproved
+          ? `${selectedRequest.user_profile?.display_name || "User"} has been removed from the event.`
+          : `The request from ${selectedRequest.user_profile?.display_name || "User"} has been rejected.`,
       });
 
       setRejectDialogOpen(false);
@@ -388,12 +392,48 @@ export function ApprovalRequestsTab({
                             </Button>
                           </div>
                         )}
-                      {request.status === ParticipantRequestStatus.Rejected &&
-                        request.rejection_reason && (
-                          <p className="text-sm text-muted-foreground italic">
-                            Reason: {request.rejection_reason}
-                          </p>
+                      {request.status === ParticipantRequestStatus.Approved &&
+                        !isArchived && (
+                          <div className="flex items-center gap-2">
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => handleRejectClick(request)}
+                              disabled={isProcessing === request.id}
+                            >
+                              {isProcessing === request.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <X className="h-4 w-4" />
+                              )}
+                              <span className="ml-1">Revoke</span>
+                            </Button>
+                          </div>
                         )}
+                      {request.status === ParticipantRequestStatus.Rejected && (
+                        <div className="space-y-2">
+                          {request.rejection_reason && (
+                            <p className="text-sm text-muted-foreground italic">
+                              Reason: {request.rejection_reason}
+                            </p>
+                          )}
+                          {!isArchived && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleApprove(request)}
+                              disabled={isProcessing === request.id}
+                            >
+                              {isProcessing === request.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Check className="h-4 w-4" />
+                              )}
+                              <span className="ml-1">Approve</span>
+                            </Button>
+                          )}
+                        </div>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -439,16 +479,23 @@ export function ApprovalRequestsTab({
       <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Reject Request</DialogTitle>
+            <DialogTitle>
+              {selectedRequest?.status === ParticipantRequestStatus.Approved
+                ? "Revoke Access"
+                : "Reject Request"}
+            </DialogTitle>
             <DialogDescription>
-              You can optionally provide a reason for rejecting this request.
-              The applicant will be notified.
+              {selectedRequest?.status === ParticipantRequestStatus.Approved
+                ? "This will remove the user from the event. You can optionally provide a reason."
+                : "You can optionally provide a reason for rejecting this request. The applicant will be notified."}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">
-                Rejection Reason (Optional)
+                {selectedRequest?.status === ParticipantRequestStatus.Approved
+                  ? "Revocation Reason (Optional)"
+                  : "Rejection Reason (Optional)"}
               </label>
               <Textarea
                 value={rejectionReason}
@@ -473,7 +520,9 @@ export function ApprovalRequestsTab({
               {isProcessing ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
               ) : null}
-              Reject Request
+              {selectedRequest?.status === ParticipantRequestStatus.Approved
+                ? "Revoke Access"
+                : "Reject Request"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -22,6 +22,12 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   EventRole,
   EventItem,
   EventVisibility,
@@ -90,7 +96,6 @@ export function JoinEventButton({
   const [showPricingTiers, setShowPricingTiers] = useState(false);
   const [isFull, setIsFull] = useState(false);
   const [requiresApproval, setRequiresApproval] = useState(false);
-  const [approvalReason, setApprovalReason] = useState("");
   const [hasPendingRequest, setHasPendingRequest] = useState(false);
   const [pendingRequest, setPendingRequest] = useState<ParticipantApprovalRequest | null>(null);
   const [pendingRequestStatus, setPendingRequestStatus] = useState<ParticipantRequestStatus | null>(null);
@@ -182,13 +187,13 @@ export function JoinEventButton({
         if (roleData) {
           setHasJoined(true);
         } else {
-          // Check for pending approval request
+          // Check for pending, rejected, or withdrawn approval request
           const { data: pendingRequest } = await supabase
             .from("participant_approval_requests")
-            .select("id, status")
+            .select("id, status, rejection_reason")
             .eq("event_id", eventId)
             .eq("user_id", userId)
-            .in("status", ["pending"])
+            .in("status", [ParticipantRequestStatus.Pending, ParticipantRequestStatus.Rejected, ParticipantRequestStatus.Withdrawn])
             .maybeSingle();
 
           if (pendingRequest) {
@@ -335,7 +340,6 @@ export function JoinEventButton({
           role: selectedRole,
           password: showPasswordInput ? password : undefined,
           userId: session.user.id,
-          reason: requiresApproval && selectedRole === EventRole.Participant ? approvalReason : undefined,
         }),
       });
 
@@ -461,6 +465,34 @@ export function JoinEventButton({
       setIsLoading(false);
     }
   };
+
+  // Show rejected request status
+  if (pendingRequestStatus === ParticipantRequestStatus.Rejected) {
+    const rejectionReason = (pendingRequest as ParticipantApprovalRequest)?.rejection_reason || "No reason given";
+    
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="w-full">
+              <Button
+                variant="secondary"
+                size="lg"
+                className="rounded-full px-6 py-5 gap-2 w-full min-w-0 overflow-hidden cursor-not-allowed opacity-60"
+                disabled
+              >
+                <Ticket className="h-6 w-6 flex-shrink-0" />
+                <span className="truncate">Not Approved</span>
+              </Button>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent className="bg-red-500 text-white">
+            <p className="max-w-xs">{rejectionReason}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
 
   // Show pending request status
   if (hasPendingRequest && pendingRequestStatus === ParticipantRequestStatus.Pending) {

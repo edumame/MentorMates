@@ -152,12 +152,25 @@ export async function PATCH(
       return NextResponse.json({ error: "Request not found" }, { status: 404 });
     }
 
-    // Can only update pending requests
-    if (approvalRequest.status !== "pending") {
-      return NextResponse.json(
-        { error: "Can only update pending requests" },
-        { status: 400 }
-      );
+    // Check state transitions
+    const currentStatus = approvalRequest.status;
+    
+    // If rejecting an approved user, remove their role from the event
+    if (currentStatus === ParticipantRequestStatus.Approved && status === ParticipantRequestStatus.Rejected) {
+      const { error: deleteRoleError } = await supabase
+        .from("user_event_roles")
+        .delete()
+        .eq("event_id", eventId)
+        .eq("user_id", approvalRequest.user_id)
+        .eq("role", approvalRequest.requested_role);
+
+      if (deleteRoleError) {
+        console.error("Error removing user role:", deleteRoleError);
+        return NextResponse.json(
+          { error: "Failed to revoke user access to event" },
+          { status: 500 }
+        );
+      }
     }
 
     // If approving, check capacity first
@@ -213,33 +226,44 @@ export async function PATCH(
       );
     }
 
-    // If approved, create the user_event_role entry
+    // If approved, create the user_event_role entry (if not already exists)
     if (status === ParticipantRequestStatus.Approved) {
-      const { error: roleError } = await supabase
+      // Check if role already exists (in case of re-approval)
+      const { data: existingRole } = await supabase
         .from("user_event_roles")
-        .insert({
-          event_id: eventId,
-          user_id: approvalRequest.user_id,
-          role: approvalRequest.requested_role,
-        });
+        .select("*")
+        .eq("event_id", eventId)
+        .eq("user_id", approvalRequest.user_id)
+        .eq("role", approvalRequest.requested_role)
+        .maybeSingle();
 
-      if (roleError) {
-        // If role creation fails, revert the request status
-        await supabase
-          .from("participant_approval_requests")
-          .update({
-            status: "pending",
-            reviewed_by: null,
-            reviewed_at: null,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", requestId);
+      if (!existingRole) {
+        const { error: roleError } = await supabase
+          .from("user_event_roles")
+          .insert({
+            event_id: eventId,
+            user_id: approvalRequest.user_id,
+            role: approvalRequest.requested_role,
+          });
 
-        console.error("Error creating user role:", roleError);
-        return NextResponse.json(
-          { error: "Failed to assign role to user" },
-          { status: 500 }
-        );
+        if (roleError) {
+          // If role creation fails, revert the request status
+          await supabase
+            .from("participant_approval_requests")
+            .update({
+              status: currentStatus,
+              reviewed_by: null,
+              reviewed_at: null,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", requestId);
+
+          console.error("Error creating user role:", roleError);
+          return NextResponse.json(
+            { error: "Failed to assign role to user" },
+            { status: 500 }
+          );
+        }
       }
     }
 

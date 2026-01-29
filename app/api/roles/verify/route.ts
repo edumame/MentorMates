@@ -8,7 +8,7 @@ export async function POST(request: Request) {
 
   try {
     // Get request data
-    const { eventId, role, password, userId, reason } = await request.json();
+    const { eventId, role, password, userId } = await request.json();
 
     // Input validation
     if (!eventId || !role || !userId) {
@@ -152,7 +152,6 @@ export async function POST(request: Request) {
           event_id: eventId,
           user_id: userId,
           requested_role: role,
-          reason: reason || null,
           status: "pending",
         }, {
           onConflict: "event_id,user_id,requested_role",
