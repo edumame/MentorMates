@@ -1,8 +1,5 @@
-import OpenAI from "openai";
 import { NextRequest, NextResponse } from "next/server";
-import { ChatCompletionMessageParam } from "openai/resources/index.mjs";
 import {
-  MessageNewEvent,
   CallEndedEvent,
   CallRecordingReadyEvent,
   CallTranscriptionReadyEvent,
@@ -16,9 +13,8 @@ import { inngest } from "@/lib/inngest/client";
 // import { generateAvatarUri } from "@/lib/avatar";
 // import { streamChat } from "@/lib/stream-chat";
 
-const openaiClient = new OpenAI();
-
-const processedMessages = new Set<string>();
+// NOTE: We intentionally do NOT create an OpenAI client at module scope here.
+// Next.js may import API routes during `next build`, and missing env vars would crash the build.
 
 function verifySignatureWithSDK(body: string, signature: string): boolean {
   return getStreamVideoClient().verifyWebhook(body, signature);
