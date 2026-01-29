@@ -8,7 +8,6 @@ CREATE TABLE public.participant_approval_requests (
     user_id UUID NOT NULL REFERENCES public.user_profiles(uid) ON DELETE CASCADE,
     requested_role event_role NOT NULL DEFAULT 'participant',
     status participant_request_status NOT NULL DEFAULT 'pending',
-    reason TEXT,
     -- form_responses JSONB, form responses will be in a join table 
     reviewed_by UUID REFERENCES public.user_profiles(uid),
     reviewed_at TIMESTAMPTZ,
