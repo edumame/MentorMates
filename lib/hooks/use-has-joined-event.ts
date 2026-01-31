@@ -31,6 +31,7 @@ export function useHasJoinedEvent(eventId: string): UseHasJoinedEventResult {
   }, []);
 
   const checkMembership = async () => {
+    
     setLoading(true);
     setError(null);
 
