@@ -6,6 +6,7 @@ import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { ErrorBoundary } from "react-error-boundary";
+import SubmitTranscriptButton from "@/components/SubmitTranscriptButton";
 
 interface Props {
   params: Promise<{ meetingId: string }>;
@@ -35,6 +36,12 @@ const Page = async ({ params }: Props) => {
                   <h1 className="text-[20px] sm:text-[28px] font-semibold leading-[1.4] tracking-[-0.06em] text-black">
                     Chat with agent
                   </h1>
+                </div>
+                <div>
+                  {/* Client component handles calling the submit endpoint */}
+                  <Suspense>
+                    <SubmitTranscriptButton meetingId={meetingId} />
+                  </Suspense>
                 </div>
               </div>
               <HydrationBoundary state={dehydrate(queryClient)}>
