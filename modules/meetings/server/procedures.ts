@@ -7,6 +7,7 @@ import z from "zod";
 import JSONL from "jsonl-parse-stringify";
 import { MeetingStatus, StreamTranscriptItem } from "../types";
 import { streamVideo } from "@/lib/stream-video";
+import { streamChat } from "@/lib/stream-chat";
 
 interface MeetingRow {
   id: string;
@@ -482,5 +483,14 @@ export const meetingsRouter = createTRPCRouter({
         });
 
         return transcriptWithSpeakers;
+    }),
+    generateChatToken: protectedProcedure.mutation(async ({ ctx }) => {
+        const token = streamChat.createToken(ctx.auth.user.id);
+        await streamChat.upsertUsers([{
+                id: ctx.auth.user.id,
+                role: "admin",
+        }]);
+
+        return token;
     }),
 });

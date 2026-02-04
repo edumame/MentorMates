@@ -5,6 +5,8 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { CompletedState } from "../components/completed-state";
 import { LoadingState } from "@/components/loading-state";
 import { ErrorState } from "@/components/error-state";
+import { ChatProvider } from "../components/chat-provider";
+import { MeetingGetOne } from "../../types";
 
 interface Props {
     meetingId: string;
@@ -16,6 +18,15 @@ export const MeetingIdView = ({ meetingId }: Props) => {
 
     return (
         <CompletedState data={data} />            
+    )
+};
+
+export const MeetingChatView = ({ meetingId }: Props) => {
+    const trpc = useTRPC();
+    const { data }: MeetingGetOne = useSuspenseQuery(trpc.meetings.getOne.queryOptions({ id: meetingId }));
+    
+    return (
+        <ChatProvider meetingId={data.id} meetingName={data.name} />          
     )
 };
 
