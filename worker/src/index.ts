@@ -103,34 +103,28 @@ app.post("/session/start", async (req: Request, res: Response) => {
     // Agent caption buffer - accumulates text deltas across the response
     let outputBuffer = "";
 
-    // Helper: Extract current sentence/phrase for display (YouTube-style captions)
+    // Helper: Get caption text for display (YouTube-style: show recent text, not just last sentence)
     const getCurrentCaption = (text: string): string => {
       if (!text) return "";
 
-      // Split by sentence boundaries (. ! ? followed by space or end)
-      const sentences = text.split(/([.!?]+(?:\s|$))/);
+      // Show last ~150 characters for better context (multiple sentences if short)
+      // This prevents captions from jumping ahead of audio
+      const maxLength = 150;
 
-      // Find the last complete sentence or return last ~100 chars
-      let lastSentence = "";
-      for (let i = sentences.length - 1; i >= 0; i--) {
-        const sentence = sentences[i]?.trim();
-        if (sentence && sentence.length > 3) {
-          lastSentence = sentence;
-          break;
-        }
+      if (text.length <= maxLength) {
+        return text.trim();
       }
 
-      // If no complete sentence, show the last ~100 characters
-      if (!lastSentence) {
-        return text.slice(-100).trim();
+      // If text is too long, show last 150 chars but try to start at a sentence boundary
+      const trimmed = text.slice(-maxLength);
+
+      // Try to find the start of a sentence (after . ! ? followed by space)
+      const sentenceStart = trimmed.search(/[.!?]\s+/);
+      if (sentenceStart !== -1) {
+        return trimmed.slice(sentenceStart + 2).trim();
       }
 
-      // Limit to reasonable length (100 chars for readability)
-      if (lastSentence.length > 100) {
-        return lastSentence.slice(-100).trim();
-      }
-
-      return lastSentence;
+      return trimmed.trim();
     };
 
     // Intercept WebSocket messages to capture agent text in real-time
