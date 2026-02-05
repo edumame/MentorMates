@@ -105,6 +105,7 @@ app.post("/session/start", async (req: Request, res: Response) => {
     let sentenceQueue: string[] = [];
     let currentSentenceIndex = 0;
     let sentenceTimeouts: NodeJS.Timeout[] = [];
+    let firstSentenceShown = false;
 
     // Estimate speaking duration based on word count (roughly 3 words per second to stay ahead of audio)
     const estimateSpeakingDuration = (text: string): number => {
@@ -193,12 +194,25 @@ app.post("/session/start", async (req: Request, res: Response) => {
             });
             outputBuffer = "";
             currentSentenceIndex = 0;
+            firstSentenceShown = false;
           }
 
           // Capture agent text as it's generated
           if (data.type === "response.audio_transcript.delta") {
             outputBuffer += data.delta || "";
-            // Don't display yet - wait for transcript to complete
+
+            // Show first sentence immediately as soon as we detect it
+            if (!firstSentenceShown) {
+              const firstSentenceMatch = outputBuffer.match(/^[^.!?]+[.!?]+/);
+              if (firstSentenceMatch) {
+                const firstSentence = firstSentenceMatch[0];
+                captionStore.set(meetingId, {
+                  text: firstSentence.trim(),
+                  updatedAt: Date.now(),
+                });
+                firstSentenceShown = true;
+              }
+            }
           } else if (data.type === "response.audio_transcript.done") {
             // Now that we have all the text, schedule sentence-by-sentence display
             // This syncs captions with speaking speed
