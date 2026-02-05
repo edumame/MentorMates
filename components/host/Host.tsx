@@ -6,6 +6,8 @@ import { SERVICES_SECTIONS, type ServiceSectionData } from "./content";
 import { Button } from "@/components/ui/button";
 import { LogoCarousel } from "@/components/heroes/components/LogoCarousel";
 import { Customer } from "@/components/heroes/components/Customer";
+import { getEmbedUrl } from "@/components/utils";
+import { VIDEO_SOURCES } from "@/lib/config/video-sources";
 import * as LucideIcons from "lucide-react";
 import { Play } from "lucide-react";
 
@@ -24,6 +26,10 @@ function renderLucideIcon(
 }
 
 export function Host() {
+  const organizerDemo = VIDEO_SOURCES.organizer;
+  const organizerEmbedUrl =
+    getEmbedUrl(organizerDemo.url) ?? organizerDemo.url;
+
   const sections = SERVICES_SECTIONS.map((s, i) => ({
     ...s,
     imageSide: s.imageSide ?? (i % 2 === 0 ? "right" : "left"),
@@ -78,8 +84,8 @@ export function Host() {
           </p>
           <div className="aspect-video rounded-xl overflow-hidden shadow-lg">
             <iframe
-              src="https://www.youtube.com/embed/DFGjGusKtdo"
-              title="MentorMates Organizer Demo"
+              src={organizerEmbedUrl}
+              title={organizerDemo.title}
               className="w-full h-full"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
