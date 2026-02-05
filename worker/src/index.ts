@@ -114,6 +114,11 @@ app.post("/session/start", async (req: Request, res: Response) => {
       if (event.type === "response.output_text.delta") {
         // accumulate partial text
         outputBuffer += event.delta || "";
+        // Immediately store the accumulated caption so client can see it in real-time
+        captionStore.set(meetingId, {
+          text: outputBuffer,
+          updatedAt: Date.now(),
+        });
       }
 
       if (event.type === "response.output_text.done") {
