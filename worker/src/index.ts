@@ -143,6 +143,15 @@ app.post("/session/start", async (req: Request, res: Response) => {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const data = JSON.parse(event.data) as any;
 
+          // Clear caption when agent starts a new response
+          if (data.type === "response.created" || data.type === "response.output_item.added") {
+            captionStore.set(meetingId, {
+              text: "",
+              updatedAt: Date.now(),
+            });
+            outputBuffer = "";
+          }
+
           // Capture agent text as it's generated (before audio plays)
           if (data.type === "response.audio_transcript.delta") {
             outputBuffer += data.delta || "";
@@ -153,13 +162,13 @@ app.post("/session/start", async (req: Request, res: Response) => {
               updatedAt: Date.now(),
             });
           } else if (data.type === "response.audio_transcript.done") {
-            // Clear caption when response is complete (ready for next sentence)
+            // Keep the caption visible (don't clear immediately)
+            // It will be cleared when the next response starts
+            const finalCaption = getCurrentCaption(outputBuffer);
             captionStore.set(meetingId, {
-              text: "",
+              text: finalCaption,
               updatedAt: Date.now(),
             });
-            // Clear buffer for next response
-            outputBuffer = "";
           }
         } catch {
           // Ignore non-JSON messages
