@@ -58,6 +58,8 @@ const streamVideo = new StreamClient(
 
 const sessions = new Map<string, SessionRecord>();
 
+const captionReady = new Set<string>();
+
 app.get("/health", (_req: Request, res: Response) => {
   res.json({ ok: true });
 });
@@ -80,8 +82,7 @@ app.post("/session/start", async (req: Request, res: Response) => {
 
     const call = streamVideo.video.call("default", callId);
 
-    let realtimeClient: RealtimeClient;
-    realtimeClient = await streamVideo.video.connectOpenAi({
+    const realtimeClient: RealtimeClient = await streamVideo.video.connectOpenAi({
       call,
       openAiApiKey: process.env.OPENAI_API_KEY || "",
       agentUserId,
@@ -202,8 +203,9 @@ app.post("/session/stop", async (req: Request, res: Response) => {
     if (record.intervalId) clearInterval(record.intervalId);
     try {
       record.realtimeClient?.disconnect?.();
-    } catch (e) {
+    } catch {
       try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (record.realtimeClient as any)?.close?.();
       } catch {}
     }
@@ -261,6 +263,10 @@ app.post("/session/resume", async (req: Request, res: Response) => {
       return res.status(404).json({ error: "realtime client not found" });
 
     try {  
+      if (!captionReady.has(meetingId)) {
+        // Do NOT create a response yet
+        return;
+      }
       realtimeClient.realtime.send("input_audio_buffer.commit", {});
       realtimeClient.realtime.send("response.create", {});
       // realtimeClient.createResponse()
@@ -279,6 +285,11 @@ app.post("/session/resume", async (req: Request, res: Response) => {
     console.error("/session/resume error", err);
     res.status(500).json({ error: "internal" });
   }
+});
+
+app.post("/captions/ready", (req, res) => {
+  captionReady.add(req.body.meetingId);
+  res.json({ ok: true });
 });
 
 app.listen(PORT, () => {
