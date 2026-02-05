@@ -98,6 +98,27 @@ app.post("/session/start", async (req: Request, res: Response) => {
     );
     console.log("realtime keys:", Object.keys(realtimeClient.realtime || {}));
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    realtimeClient.realtime.on("message", (event: any) => {
+      // Agent finished generating text
+      if (
+        event.type === "response.output_text.delta" ||
+        event.type === "response.output_text.done"
+      ) {
+        const text = event.delta || event.text;
+        if (!text) return;
+
+        fetch(process.env.CLIENT_CAPTION_ENDPOINT!, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            meetingId,
+            text,
+          }),
+        });
+      }
+    });
+
     realtimeClient.updateSession({
       instructions,
       input_audio_transcription: { model: "whisper-1" },
