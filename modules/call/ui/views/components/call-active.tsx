@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import ScreenCapture from "./screen-capture";
-import { SpeakerLayout, CallControls, useCall } from "@stream-io/video-react-sdk";
+import { SpeakerLayout, CallControls } from "@stream-io/video-react-sdk";
 import { useCallback, useState, useEffect, useRef } from "react";
 
 interface Props {
@@ -13,7 +13,6 @@ interface Props {
 export const CallActive = ({ onLeave, meetingName, meetingId }: Props) => {
   const [disabled, setDisabled] = useState(false);
   const [paused, setPaused] = useState(false);
-  const call = useCall();
 
   // Agent-only captions state (sourced from worker)
   const [captions, setCaptions] = useState<string>("");
@@ -59,7 +58,7 @@ export const CallActive = ({ onLeave, meetingName, meetingId }: Props) => {
 
     const poll = async () => {
       try {
-        const res = await fetch(`https://mentormates-dev.onrender.com/captions/receive?meetingId=${meetingId}`);
+        const res = await fetch(`${process.env.NEXT_PUBLIC_SCREEN_VISION_WORKER_URL}/captions/receive?meetingId=${meetingId}`);
         if (!mounted || !polling) return;
         if (!res.ok) return;
         const body = await res.json();
