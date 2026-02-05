@@ -102,29 +102,27 @@ app.post("/session/start", async (req: Request, res: Response) => {
 
     // Agent caption buffer - accumulates text deltas across the response
     let outputBuffer = "";
+    let lastCaptionUpdate = 0;
+    let pendingCaptionTimeout: NodeJS.Timeout | null = null;
 
-    // Helper: Get caption text for display (YouTube-style: show recent text, not just last sentence)
+    // Estimate speaking duration based on word count (roughly 2.5 words per second)
+    const estimateSpeakingDuration = (text: string): number => {
+      const words = text.trim().split(/\s+/).length;
+      return (words / 2.5) * 1000; // Convert to milliseconds
+    };
+
+    // Helper: Get caption text for display (show accumulated text in manageable chunks)
     const getCurrentCaption = (text: string): string => {
       if (!text) return "";
 
-      // Show last ~150 characters for better context (multiple sentences if short)
-      // This prevents captions from jumping ahead of audio
-      const maxLength = 150;
+      // Split into sentences
+      const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
 
-      if (text.length <= maxLength) {
-        return text.trim();
-      }
+      // Show up to 2 complete sentences at a time (for readability)
+      const maxSentences = 2;
+      const recentSentences = sentences.slice(-maxSentences).join(" ");
 
-      // If text is too long, show last 150 chars but try to start at a sentence boundary
-      const trimmed = text.slice(-maxLength);
-
-      // Try to find the start of a sentence (after . ! ? followed by space)
-      const sentenceStart = trimmed.search(/[.!?]\s+/);
-      if (sentenceStart !== -1) {
-        return trimmed.slice(sentenceStart + 2).trim();
-      }
-
-      return trimmed.trim();
+      return recentSentences.trim();
     };
 
     // Intercept WebSocket messages to capture agent text in real-time
@@ -139,30 +137,60 @@ app.post("/session/start", async (req: Request, res: Response) => {
 
           // Clear caption when agent starts a new response
           if (data.type === "response.created" || data.type === "response.output_item.added") {
+            if (pendingCaptionTimeout) {
+              clearTimeout(pendingCaptionTimeout);
+              pendingCaptionTimeout = null;
+            }
             captionStore.set(meetingId, {
               text: "",
               updatedAt: Date.now(),
             });
             outputBuffer = "";
+            lastCaptionUpdate = 0;
           }
 
-          // Capture agent text as it's generated (before audio plays)
+          // Capture agent text as it's generated
           if (data.type === "response.audio_transcript.delta") {
             outputBuffer += data.delta || "";
-            // Store only current sentence/phrase (YouTube-style)
-            const currentCaption = getCurrentCaption(outputBuffer);
-            captionStore.set(meetingId, {
-              text: currentCaption,
-              updatedAt: Date.now(),
-            });
+
+            // Throttle caption updates to match speaking speed (update every ~2 seconds)
+            const now = Date.now();
+            const timeSinceLastUpdate = now - lastCaptionUpdate;
+            const minUpdateInterval = 2000; // Update every 2 seconds max
+
+            if (timeSinceLastUpdate >= minUpdateInterval || lastCaptionUpdate === 0) {
+              const currentCaption = getCurrentCaption(outputBuffer);
+              captionStore.set(meetingId, {
+                text: currentCaption,
+                updatedAt: now,
+              });
+              lastCaptionUpdate = now;
+            }
           } else if (data.type === "response.audio_transcript.done") {
-            // Keep the caption visible (don't clear immediately)
-            // It will be cleared when the next response starts
+            // Show final caption after estimating remaining speaking time
             const finalCaption = getCurrentCaption(outputBuffer);
+            const remainingText = outputBuffer;
+            const estimatedDelay = estimateSpeakingDuration(remainingText);
+
+            // Clear any pending timeout
+            if (pendingCaptionTimeout) {
+              clearTimeout(pendingCaptionTimeout);
+            }
+
+            // Show final caption now
             captionStore.set(meetingId, {
               text: finalCaption,
               updatedAt: Date.now(),
             });
+
+            // Clear caption after estimated speaking duration
+            pendingCaptionTimeout = setTimeout(() => {
+              captionStore.set(meetingId, {
+                text: "",
+                updatedAt: Date.now(),
+              });
+              pendingCaptionTimeout = null;
+            }, Math.min(estimatedDelay, 5000)); // Max 5 seconds
           }
         } catch {
           // Ignore non-JSON messages
