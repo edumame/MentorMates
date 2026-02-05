@@ -106,12 +106,12 @@ app.post("/session/start", async (req: Request, res: Response) => {
     let currentSentenceIndex = 0;
     let sentenceTimeouts: NodeJS.Timeout[] = [];
 
-    // Estimate speaking duration based on word count (roughly 4 words per second for faster, more natural pace)
+    // Estimate speaking duration based on word count (roughly 3 words per second to stay ahead of audio)
     const estimateSpeakingDuration = (text: string): number => {
       const words = text.trim().split(/\s+/).length;
-      const duration = (words / 4) * 1000; // Convert to milliseconds
-      // Minimum 1 second per sentence for readability
-      return Math.max(duration, 1000);
+      const duration = (words / 3) * 1000; // Convert to milliseconds
+      // Minimum 800ms per sentence for quick transitions
+      return Math.max(duration, 800);
     };
 
     // Progressive sentence display: show one sentence at a time with speaking-speed delays
@@ -156,7 +156,8 @@ app.post("/session/start", async (req: Request, res: Response) => {
       });
 
       // Schedule caption clear as a final "display" with empty string
-      const clearDelay = totalDuration + 2000;
+      // Add 4 seconds buffer to ensure caption stays visible through end of speech
+      const clearDelay = totalDuration + 4000;
       console.log(`[${meetingId}] Scheduling caption clear in ${clearDelay}ms (${clearDelay/1000}s)`);
 
       const clearDisplayTimeout = setTimeout(() => {
@@ -165,7 +166,7 @@ app.post("/session/start", async (req: Request, res: Response) => {
           text: "",
           updatedAt: Date.now(),
         });
-      }, clearDelay); // Clear 2 seconds after last sentence
+      }, clearDelay); // Clear 4 seconds after last sentence
 
       sentenceTimeouts.push(clearDisplayTimeout);
     };
