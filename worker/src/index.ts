@@ -59,6 +59,7 @@ const streamVideo = new StreamClient(
 const sessions = new Map<string, SessionRecord>();
 
 const captionReady = new Set<string>();
+const captionStore = new Map<string, { text: string; updatedAt: number }>();
 
 app.get("/health", (_req: Request, res: Response) => {
   res.json({ ok: true });
@@ -105,17 +106,19 @@ app.post("/session/start", async (req: Request, res: Response) => {
         event.type === "response.output_text.delta" ||
         event.type === "response.output_text.done"
       ) {
-        const text = event.delta || event.text;
-        if (!text) return;
+        let buffer = "";
 
-        fetch(process.env.CLIENT_CAPTION_ENDPOINT!, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            meetingId,
-            text,
-          }),
-        });
+        if (event.type === "response.output_text.delta") {
+          buffer += event.delta;
+        }
+
+        if (event.type === "response.output_text.done") {
+          captionStore.set(meetingId, {
+            text: buffer,
+            updatedAt: Date.now(),
+          });
+          buffer = "";
+        }
       }
     });
 
@@ -311,9 +314,14 @@ app.post("/session/resume", async (req: Request, res: Response) => {
   }
 });
 
-app.post("/captions/ready", (req, res) => {
-  captionReady.add(req.body.meetingId);
-  res.json({ ok: true });
+app.get("/captions/receive", (req, res) => {
+  const meetingId = req.query.meetingId as string;
+  if (!meetingId) {
+    return res.status(400).json({ ok: false });
+  }
+
+  const rec = captionStore.get(meetingId) || { text: "", updatedAt: 0 };
+  res.json({ ok: true, text: rec.text, updatedAt: rec.updatedAt });
 });
 
 app.listen(PORT, () => {
