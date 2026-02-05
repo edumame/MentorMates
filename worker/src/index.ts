@@ -80,6 +80,10 @@ app.post("/session/start", async (req: Request, res: Response) => {
       sessions.delete(meetingId);
     }
 
+    setTimeout(() => {
+      captionReady.add(meetingId);
+    }, 3000);
+
     const call = streamVideo.video.call("default", callId);
 
     const realtimeClient: RealtimeClient = await streamVideo.video.connectOpenAi({
@@ -264,8 +268,7 @@ app.post("/session/resume", async (req: Request, res: Response) => {
 
     try {  
       if (!captionReady.has(meetingId)) {
-        // Do NOT create a response yet
-        return;
+        return res.json({ ok: false, waitingForCaptions: true });
       }
       realtimeClient.realtime.send("input_audio_buffer.commit", {});
       realtimeClient.realtime.send("response.create", {});
