@@ -11,42 +11,34 @@ export const VIDEO_SOURCES = {
   participant: {
     title: "Participant Guide",
     description:
-      "Submit projects, share ideas, and get real feedback from mentors and judges.",
-    url: "https://youtu.be/GMHO4vdLgD0",
+      "Learn how to join events, submit projects, and track feedback.",
+    url: "https://youtu.be/RMcgFz-R2n4",
     category: "role",
   },
   mentor: {
     title: "Mentor Guide",
     description:
-      "Support participants with actionable, encouraging feedback that helps them grow.",
-    url: "https://youtu.be/mAm-LnMK5dA",
+      "Learn how to review projects and deliver high-quality feedback.",
+    url: "https://youtu.be/twigjULNzgQ",
     category: "role",
   },
   judge: {
     title: "Judge Guide",
-    description: "Review projects, score fairly, and provide constructive feedback.",
-    url: "https://youtu.be/o1iCt7qE5UY",
+    description: "Understand scoring and judging workflow in MentorMates.",
+    url: "https://www.loom.com/share/ba6d836421194a8fb96218ece6324cb8",
     category: "role",
   },
   organizer: {
     title: "Organizer Guide",
     description:
-      "Manage events: set up submissions, assign mentors/judges, and configure parameters.",
-    url: "https://youtu.be/DFGjGusKtdo",
+      "Run events, manage submissions, and coordinate mentors/judges.",
+    url: "https://youtu.be/kXwY--1M4jY",
     category: "role",
   },
-  organizersGuide: {
-    title: "Organizers Guide",
-    description:
-      "Walkthrough of the organizer workflow and best practices from the Notion guide.",
-    url: "https://youtu.be/kXwY--1M4jY",
-    category: "guide",
-  },
-  participantsGuide: {
-    title: "Participants Guide",
-    description:
-      "Participant onboarding walkthrough based on the Notion guide.",
-    url: "https://youtu.be/RMcgFz-R2n4",
+  aiVoiceAgent: {
+    title: "MentorMates AI Voice Agent Guide",
+    description: "Overview of the AI voice agent workflow and capabilities.",
+    url: "https://www.loom.com/share/5883ad9cbfb944fa925e75f3b2abdd62",
     category: "guide",
   },
 } satisfies Record<string, VideoSource>;
