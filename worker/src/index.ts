@@ -122,6 +122,11 @@ app.post("/session/start", async (req: Request, res: Response) => {
 
       // Split into sentences
       const sentences = outputBuffer.match(/[^.!?]+[.!?]+/g) || [outputBuffer];
+
+      if (!sentences || sentences.length === 0) {
+        return;
+      }
+
       sentenceQueue = sentences;
       currentSentenceIndex = 0;
 
@@ -129,6 +134,7 @@ app.post("/session/start", async (req: Request, res: Response) => {
 
       sentences.forEach((sentence, index) => {
         const speakingDuration = estimateSpeakingDuration(sentence);
+        const isLastSentence = index === sentences.length - 1;
 
         const timeout = setTimeout(() => {
           // Show this sentence
@@ -137,21 +143,23 @@ app.post("/session/start", async (req: Request, res: Response) => {
             updatedAt: Date.now(),
           });
           currentSentenceIndex = index;
+
+          // If this is the last sentence, schedule its removal
+          if (isLastSentence) {
+            const clearTimeout = setTimeout(() => {
+              captionStore.set(meetingId, {
+                text: "",
+                updatedAt: Date.now(),
+              });
+            }, speakingDuration + 2000); // Clear 2 seconds after last sentence displays
+
+            sentenceTimeouts.push(clearTimeout);
+          }
         }, cumulativeDelay);
 
         sentenceTimeouts.push(timeout);
         cumulativeDelay += speakingDuration;
       });
-
-      // Clear caption after all sentences are done (add extra time for last sentence to be read)
-      const finalTimeout = setTimeout(() => {
-        captionStore.set(meetingId, {
-          text: "",
-          updatedAt: Date.now(),
-        });
-      }, cumulativeDelay + 2500); // Extra 2.5 seconds after last sentence
-
-      sentenceTimeouts.push(finalTimeout);
     };
 
     // Intercept WebSocket messages to capture agent text in real-time
