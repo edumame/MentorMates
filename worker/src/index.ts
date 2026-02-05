@@ -110,10 +110,24 @@ app.post("/session/start", async (req: Request, res: Response) => {
     let outputBuffer = "";
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     realtimeClient.realtime.on("message", (event: any) => {
+      // Debug: log ALL event types first to understand what we're receiving
+      console.log(`[${meetingId}] Event type:`, event.type);
+
+      // Debug: log specific events with more detail
+      if (event.type?.includes("output_text") || event.type?.includes("audio") || event.type?.includes("transcript")) {
+        console.log(`[${meetingId}] Realtime event details:`, event.type, JSON.stringify({
+          delta: event.delta,
+          text: event.text,
+          transcript: event.transcript,
+          output: event.output,
+        }));
+      }
+
       // Agent finished generating text (deltas and done events)
       if (event.type === "response.output_text.delta") {
         // accumulate partial text
         outputBuffer += event.delta || "";
+        console.log(`[${meetingId}] Caption delta, buffer now: "${outputBuffer}"`);
         // Immediately store the accumulated caption so client can see it in real-time
         captionStore.set(meetingId, {
           text: outputBuffer,
@@ -124,6 +138,7 @@ app.post("/session/start", async (req: Request, res: Response) => {
       if (event.type === "response.output_text.done") {
         // finalize and store the caption text for this meeting
         const text = outputBuffer || "";
+        console.log(`[${meetingId}] Caption done, final text: "${text}"`);
         captionStore.set(meetingId, {
           text,
           updatedAt: Date.now(),
