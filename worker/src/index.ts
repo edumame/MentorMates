@@ -106,47 +106,84 @@ app.post("/session/start", async (req: Request, res: Response) => {
     );
     console.log("realtime keys:", Object.keys(realtimeClient.realtime || {}));
 
+    // Check if realtime has an 'on' method
+    console.log(`[${meetingId}] realtime.on exists:`, typeof realtimeClient.realtime.on);
+    // @ts-expect-error - checking for alternative event methods
+    console.log(`[${meetingId}] realtime.addEventListener exists:`, typeof realtimeClient.realtime.addEventListener);
+
     // keep a persistent buffer across realtime message events so deltas accumulate
     let outputBuffer = "";
+
+    console.log(`[${meetingId}] Setting up message listener...`);
+
+    // Try listening to all possible events to see which ones fire
+    const testEvents = ["message", "event", "data", "response", "conversation.item.appended"];
+    testEvents.forEach(eventName => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (realtimeClient.realtime as any).on?.(eventName, (data: any) => {
+        console.log(`[${meetingId}] Received REALTIME event on '${eventName}':`, typeof data, data?.type || "no type");
+      });
+    });
+
+    // Also try listening on conversation object
+    if (realtimeClient.conversation) {
+      console.log(`[${meetingId}] Setting up conversation listeners...`);
+      // @ts-expect-error - checking for event methods
+      if (typeof realtimeClient.conversation.on === "function") {
+        testEvents.forEach(eventName => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (realtimeClient.conversation as any).on?.(eventName, (data: any) => {
+            console.log(`[${meetingId}] Received CONVERSATION event on '${eventName}':`, typeof data, data?.type || "no type");
+          });
+        });
+      }
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     realtimeClient.realtime.on("message", (event: any) => {
-      // Debug: log ALL event types first to understand what we're receiving
-      console.log(`[${meetingId}] Event type:`, event.type);
+      try {
+        // Debug: log ALL event types first to understand what we're receiving
+        console.log(`[${meetingId}] Event type:`, event.type);
 
-      // Debug: log specific events with more detail
-      if (event.type?.includes("output_text") || event.type?.includes("audio") || event.type?.includes("transcript")) {
-        console.log(`[${meetingId}] Realtime event details:`, event.type, JSON.stringify({
-          delta: event.delta,
-          text: event.text,
-          transcript: event.transcript,
-          output: event.output,
-        }));
-      }
+        // Debug: log specific events with more detail
+        if (event.type?.includes("output_text") || event.type?.includes("audio") || event.type?.includes("transcript")) {
+          console.log(`[${meetingId}] Realtime event details:`, event.type, JSON.stringify({
+            delta: event.delta,
+            text: event.text,
+            transcript: event.transcript,
+            output: event.output,
+          }));
+        }
 
-      // Agent finished generating text (deltas and done events)
-      if (event.type === "response.output_text.delta") {
-        // accumulate partial text
-        outputBuffer += event.delta || "";
-        console.log(`[${meetingId}] Caption delta, buffer now: "${outputBuffer}"`);
-        // Immediately store the accumulated caption so client can see it in real-time
-        captionStore.set(meetingId, {
-          text: outputBuffer,
-          updatedAt: Date.now(),
-        });
-      }
+        // Agent finished generating text (deltas and done events)
+        if (event.type === "response.output_text.delta") {
+          // accumulate partial text
+          outputBuffer += event.delta || "";
+          console.log(`[${meetingId}] Caption delta, buffer now: "${outputBuffer}"`);
+          // Immediately store the accumulated caption so client can see it in real-time
+          captionStore.set(meetingId, {
+            text: outputBuffer,
+            updatedAt: Date.now(),
+          });
+        }
 
-      if (event.type === "response.output_text.done") {
-        // finalize and store the caption text for this meeting
-        const text = outputBuffer || "";
-        console.log(`[${meetingId}] Caption done, final text: "${text}"`);
-        captionStore.set(meetingId, {
-          text,
-          updatedAt: Date.now(),
-        });
-        // clear buffer for next response
-        outputBuffer = "";
+        if (event.type === "response.output_text.done") {
+          // finalize and store the caption text for this meeting
+          const text = outputBuffer || "";
+          console.log(`[${meetingId}] Caption done, final text: "${text}"`);
+          captionStore.set(meetingId, {
+            text,
+            updatedAt: Date.now(),
+          });
+          // clear buffer for next response
+          outputBuffer = "";
+        }
+      } catch (err) {
+        console.error(`[${meetingId}] Error in message handler:`, err);
       }
     });
+
+    console.log(`[${meetingId}] Message listener set up successfully`);
 
     realtimeClient.updateSession({
       instructions,
