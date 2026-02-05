@@ -106,6 +106,7 @@ app.post("/session/start", async (req: Request, res: Response) => {
     let currentSentenceIndex = 0;
     let sentenceTimeouts: NodeJS.Timeout[] = [];
     let firstSentenceShown = false;
+    let firstSentenceShownAt = 0;
 
     // Estimate speaking duration based on word count (roughly 3 words per second to stay ahead of audio)
     const estimateSpeakingDuration = (text: string): number => {
@@ -140,9 +141,12 @@ app.post("/session/start", async (req: Request, res: Response) => {
         totalDuration += estimateSpeakingDuration(sentence);
       });
 
-      // If first sentence was shown, it's already been visible, so start timing from there
+      // If first sentence was shown, calculate how much time is left before second sentence
       if (firstSentenceShown && sentences.length > 0) {
-        cumulativeDelay = estimateSpeakingDuration(sentences[0]);
+        const firstSentenceDuration = estimateSpeakingDuration(sentences[0]);
+        const timeSinceFirstShown = Date.now() - firstSentenceShownAt;
+        const remainingTime = Math.max(0, firstSentenceDuration - timeSinceFirstShown);
+        cumulativeDelay = remainingTime;
       }
 
       // Schedule sentence displays (skip first if already shown)
@@ -203,6 +207,7 @@ app.post("/session/start", async (req: Request, res: Response) => {
             outputBuffer = "";
             currentSentenceIndex = 0;
             firstSentenceShown = false;
+            firstSentenceShownAt = 0;
           }
 
           // Capture agent text as it's generated
@@ -214,11 +219,13 @@ app.post("/session/start", async (req: Request, res: Response) => {
               const firstSentenceMatch = outputBuffer.match(/^[^.!?]+[.!?]+/);
               if (firstSentenceMatch) {
                 const firstSentence = firstSentenceMatch[0];
+                const now = Date.now();
                 captionStore.set(meetingId, {
                   text: firstSentence.trim(),
-                  updatedAt: Date.now(),
+                  updatedAt: now,
                 });
                 firstSentenceShown = true;
+                firstSentenceShownAt = now;
               }
             }
           } else if (data.type === "response.audio_transcript.done") {
