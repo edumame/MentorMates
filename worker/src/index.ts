@@ -155,15 +155,19 @@ app.post("/session/start", async (req: Request, res: Response) => {
         cumulativeDelay += speakingDuration;
       });
 
-      // Schedule caption clear AFTER all sentences are done
-      const finalClearTimeout = setTimeout(() => {
+      // Schedule caption clear as a final "display" with empty string
+      const clearDelay = totalDuration + 2000;
+      console.log(`[${meetingId}] Scheduling caption clear in ${clearDelay}ms (${clearDelay/1000}s)`);
+
+      const clearDisplayTimeout = setTimeout(() => {
+        console.log(`[${meetingId}] Clearing caption now`);
         captionStore.set(meetingId, {
           text: "",
           updatedAt: Date.now(),
         });
-      }, totalDuration + 2000); // Clear 2 seconds after last sentence
+      }, clearDelay); // Clear 2 seconds after last sentence
 
-      sentenceTimeouts.push(finalClearTimeout);
+      sentenceTimeouts.push(clearDisplayTimeout);
     };
 
     // Intercept WebSocket messages to capture agent text in real-time
