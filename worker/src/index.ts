@@ -129,18 +129,26 @@ app.post("/session/start", async (req: Request, res: Response) => {
       }
 
       sentenceQueue = sentences;
-      currentSentenceIndex = 0;
 
+      // If first sentence was already shown, start from second sentence
+      const startIndex = firstSentenceShown ? 1 : 0;
       let cumulativeDelay = 0;
       let totalDuration = 0;
 
-      // First, calculate total duration
+      // Calculate total duration
       sentences.forEach((sentence) => {
         totalDuration += estimateSpeakingDuration(sentence);
       });
 
-      // Schedule all sentence displays
+      // If first sentence was shown, it's already been visible, so start timing from there
+      if (firstSentenceShown && sentences.length > 0) {
+        cumulativeDelay = estimateSpeakingDuration(sentences[0]);
+      }
+
+      // Schedule sentence displays (skip first if already shown)
       sentences.forEach((sentence, index) => {
+        if (index < startIndex) return; // Skip first sentence if already shown
+
         const speakingDuration = estimateSpeakingDuration(sentence);
 
         const timeout = setTimeout(() => {
