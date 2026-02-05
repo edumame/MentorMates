@@ -106,6 +106,53 @@ app.post("/session/start", async (req: Request, res: Response) => {
     );
     console.log("realtime keys:", Object.keys(realtimeClient.realtime || {}));
 
+    // Check if there's a WebSocket we can listen to directly
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const ws = (realtimeClient.realtime as any).ws;
+    console.log(`[${meetingId}] WebSocket exists:`, !!ws);
+    if (ws) {
+      console.log(`[${meetingId}] WebSocket readyState:`, ws.readyState);
+      console.log(`[${meetingId}] WebSocket keys:`, Object.keys(ws));
+
+      // Listen to raw WebSocket messages
+      const originalOnMessage = ws.onmessage;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ws.onmessage = (event: MessageEvent) => {
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const data = JSON.parse(event.data) as any;
+          console.log(`[${meetingId}] RAW WS MESSAGE:`, data.type);
+
+          // Handle transcript events directly from WebSocket
+          if (data.type === "response.audio_transcript.delta") {
+            outputBuffer += data.delta || "";
+            console.log(`[${meetingId}] WS Caption delta: "${outputBuffer}"`);
+            captionStore.set(meetingId, {
+              text: outputBuffer,
+              updatedAt: Date.now(),
+            });
+          } else if (data.type === "response.audio_transcript.done") {
+            const text = data.transcript || outputBuffer || "";
+            console.log(`[${meetingId}] WS Caption done: "${text}"`);
+            captionStore.set(meetingId, {
+              text,
+              updatedAt: Date.now(),
+            });
+            outputBuffer = "";
+          }
+        } catch {
+          console.log(`[${meetingId}] WS message (not JSON):`, event.data?.substring?.(0, 100));
+        }
+
+        // Call original handler if it exists
+        if (originalOnMessage) {
+          originalOnMessage.call(ws, event);
+        }
+      };
+
+      console.log(`[${meetingId}] Raw WebSocket listener attached`);
+    }
+
     // Check if realtime has an 'on' method
     console.log(`[${meetingId}] realtime.on exists:`, typeof realtimeClient.realtime.on);
     // @ts-expect-error - checking for alternative event methods
@@ -155,9 +202,9 @@ app.post("/session/start", async (req: Request, res: Response) => {
           }));
         }
 
-        // Agent finished generating text (deltas and done events)
-        if (event.type === "response.output_text.delta") {
-          // accumulate partial text
+        // Agent text transcript events (correct OpenAI Realtime API event names)
+        if (event.type === "response.audio_transcript.delta") {
+          // accumulate partial text from transcript
           outputBuffer += event.delta || "";
           console.log(`[${meetingId}] Caption delta, buffer now: "${outputBuffer}"`);
           // Immediately store the accumulated caption so client can see it in real-time
@@ -167,15 +214,35 @@ app.post("/session/start", async (req: Request, res: Response) => {
           });
         }
 
-        if (event.type === "response.output_text.done") {
+        if (event.type === "response.audio_transcript.done") {
           // finalize and store the caption text for this meeting
-          const text = outputBuffer || "";
+          const text = event.transcript || outputBuffer || "";
           console.log(`[${meetingId}] Caption done, final text: "${text}"`);
           captionStore.set(meetingId, {
             text,
             updatedAt: Date.now(),
           });
           // clear buffer for next response
+          outputBuffer = "";
+        }
+
+        // Also try the old event names in case they exist
+        if (event.type === "response.output_text.delta") {
+          outputBuffer += event.delta || "";
+          console.log(`[${meetingId}] Caption delta (output_text), buffer now: "${outputBuffer}"`);
+          captionStore.set(meetingId, {
+            text: outputBuffer,
+            updatedAt: Date.now(),
+          });
+        }
+
+        if (event.type === "response.output_text.done") {
+          const text = outputBuffer || "";
+          console.log(`[${meetingId}] Caption done (output_text), final text: "${text}"`);
+          captionStore.set(meetingId, {
+            text,
+            updatedAt: Date.now(),
+          });
           outputBuffer = "";
         }
       } catch (err) {
