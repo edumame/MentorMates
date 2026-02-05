@@ -102,7 +102,6 @@ app.post("/session/start", async (req: Request, res: Response) => {
 
     // Agent caption buffer - accumulates text deltas across the response
     let outputBuffer = "";
-    let sentenceQueue: string[] = [];
     let currentSentenceIndex = 0;
     let sentenceTimeouts: NodeJS.Timeout[] = [];
     let firstSentenceShown = false;
@@ -128,8 +127,6 @@ app.post("/session/start", async (req: Request, res: Response) => {
       if (!sentences || sentences.length === 0) {
         return;
       }
-
-      sentenceQueue = sentences;
 
       // If first sentence was already shown, start from second sentence
       const startIndex = firstSentenceShown ? 1 : 0;
@@ -171,10 +168,8 @@ app.post("/session/start", async (req: Request, res: Response) => {
       // Schedule caption clear as a final "display" with empty string
       // Add 4 seconds buffer to ensure caption stays visible through end of speech
       const clearDelay = totalDuration + 4000;
-      console.log(`[${meetingId}] Scheduling caption clear in ${clearDelay}ms (${clearDelay/1000}s)`);
 
       const clearDisplayTimeout = setTimeout(() => {
-        console.log(`[${meetingId}] Clearing caption now`);
         captionStore.set(meetingId, {
           text: "",
           updatedAt: Date.now(),
