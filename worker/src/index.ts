@@ -106,10 +106,12 @@ app.post("/session/start", async (req: Request, res: Response) => {
     let currentSentenceIndex = 0;
     let sentenceTimeouts: NodeJS.Timeout[] = [];
 
-    // Estimate speaking duration based on word count (roughly 2.5 words per second)
+    // Estimate speaking duration based on word count (roughly 3.5 words per second for faster pace)
     const estimateSpeakingDuration = (text: string): number => {
       const words = text.trim().split(/\s+/).length;
-      return (words / 2.5) * 1000; // Convert to milliseconds
+      const duration = (words / 3.5) * 1000; // Convert to milliseconds
+      // Minimum 1.5 seconds per sentence for readability
+      return Math.max(duration, 1500);
     };
 
     // Progressive sentence display: show one sentence at a time with speaking-speed delays
@@ -141,13 +143,13 @@ app.post("/session/start", async (req: Request, res: Response) => {
         cumulativeDelay += speakingDuration;
       });
 
-      // Clear caption after all sentences are done
+      // Clear caption after all sentences are done (add extra time for last sentence to be read)
       const finalTimeout = setTimeout(() => {
         captionStore.set(meetingId, {
           text: "",
           updatedAt: Date.now(),
         });
-      }, cumulativeDelay + 1000);
+      }, cumulativeDelay + 2500); // Extra 2.5 seconds after last sentence
 
       sentenceTimeouts.push(finalTimeout);
     };
