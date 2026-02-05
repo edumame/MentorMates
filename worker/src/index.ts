@@ -106,12 +106,12 @@ app.post("/session/start", async (req: Request, res: Response) => {
     let currentSentenceIndex = 0;
     let sentenceTimeouts: NodeJS.Timeout[] = [];
 
-    // Estimate speaking duration based on word count (roughly 3.5 words per second for faster pace)
+    // Estimate speaking duration based on word count (roughly 4 words per second for faster, more natural pace)
     const estimateSpeakingDuration = (text: string): number => {
       const words = text.trim().split(/\s+/).length;
-      const duration = (words / 3.5) * 1000; // Convert to milliseconds
-      // Minimum 1.5 seconds per sentence for readability
-      return Math.max(duration, 1500);
+      const duration = (words / 4) * 1000; // Convert to milliseconds
+      // Minimum 1 second per sentence for readability
+      return Math.max(duration, 1000);
     };
 
     // Progressive sentence display: show one sentence at a time with speaking-speed delays

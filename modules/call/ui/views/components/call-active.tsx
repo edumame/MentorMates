@@ -74,14 +74,14 @@ export const CallActive = ({ onLeave, meetingName, meetingId }: Props) => {
       }
     };
 
-    // 200ms poll for very low latency (adjustable)
+    // 100ms poll for very low latency (adjustable)
     const loop = async () => {
       while (mounted && polling) {
         // fire and forget
         // eslint-disable-next-line no-await-in-loop
         await poll();
         // eslint-disable-next-line no-await-in-loop
-        await new Promise((r) => setTimeout(r, 200));
+        await new Promise((r) => setTimeout(r, 100));
       }
     };
     loop();
