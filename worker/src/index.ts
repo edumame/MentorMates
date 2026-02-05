@@ -106,26 +106,25 @@ app.post("/session/start", async (req: Request, res: Response) => {
     );
     console.log("realtime keys:", Object.keys(realtimeClient.realtime || {}));
 
+    // keep a persistent buffer across realtime message events so deltas accumulate
+    let outputBuffer = "";
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     realtimeClient.realtime.on("message", (event: any) => {
-      // Agent finished generating text
-      if (
-        event.type === "response.output_text.delta" ||
-        event.type === "response.output_text.done"
-      ) {
-        let buffer = "";
+      // Agent finished generating text (deltas and done events)
+      if (event.type === "response.output_text.delta") {
+        // accumulate partial text
+        outputBuffer += event.delta || "";
+      }
 
-        if (event.type === "response.output_text.delta") {
-          buffer += event.delta;
-        }
-
-        if (event.type === "response.output_text.done") {
-          captionStore.set(meetingId, {
-            text: buffer,
-            updatedAt: Date.now(),
-          });
-          buffer = "";
-        }
+      if (event.type === "response.output_text.done") {
+        // finalize and store the caption text for this meeting
+        const text = outputBuffer || "";
+        captionStore.set(meetingId, {
+          text,
+          updatedAt: Date.now(),
+        });
+        // clear buffer for next response
+        outputBuffer = "";
       }
     });
 
