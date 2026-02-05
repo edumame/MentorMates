@@ -146,14 +146,14 @@ app.post("/session/start", async (req: Request, res: Response) => {
 
           // If this is the last sentence, schedule its removal
           if (isLastSentence) {
-            const clearTimeout = setTimeout(() => {
+            const clearCaptionTimeout = setTimeout(() => {
               captionStore.set(meetingId, {
                 text: "",
                 updatedAt: Date.now(),
               });
             }, speakingDuration + 2000); // Clear 2 seconds after last sentence displays
 
-            sentenceTimeouts.push(clearTimeout);
+            sentenceTimeouts.push(clearCaptionTimeout);
           }
         }, cumulativeDelay);
 
