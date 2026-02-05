@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import ScreenCapture from "./screen-capture";
-import { SpeakerLayout, CallControls, useCall, CallClosedCaption } from "@stream-io/video-react-sdk";
+import { SpeakerLayout, CallControls, useCall } from "@stream-io/video-react-sdk";
 import { useCallback, useState, useEffect, useRef } from "react";
 
 interface Props {
@@ -15,19 +15,11 @@ export const CallActive = ({ onLeave, meetingName, meetingId }: Props) => {
   const [paused, setPaused] = useState(false);
   const call = useCall();
 
-  // Closed captions state
+  // Agent-only captions state (sourced from worker)
   const [captions, setCaptions] = useState<string>("");
   // UI toggle only — show or hide captions text locally
   const [captionsEnabled, setCaptionsEnabled] = useState<boolean>(true);
-
-  // ensure we call startClosedCaptions at most once
-  const startedCaptionsRef = useRef<boolean>(false);
-
-  const parseCaption = (captions: CallClosedCaption[]) => {
-    const text = captions.map((caption) => caption.text).join(" ");
-    console.log(text)
-    return text;
-  };
+  const lastTextRef = useRef("");
 
   const handleTogglePause = useCallback(async () => {
     if (disabled) return;
@@ -60,29 +52,45 @@ export const CallActive = ({ onLeave, meetingName, meetingId }: Props) => {
     setCaptionsEnabled((v) => !v);
   }, []);
 
-  // Auto-start captions exactly once when call reaches 'joined'.
-  const callingState = call?.state?.callingState;
+  // Poll the server for the latest agent caption (fast poll for low-latency)
   useEffect(() => {
-    if (!call) return;
-    if (startedCaptionsRef.current) return;
-    if (callingState !== "joined") return;
+    let mounted = true;
+    let polling = true;
 
-    startedCaptionsRef.current = true;
-    call.startClosedCaptions?.();
-  }, [call, callingState]);
-
-  // Subscribe to closedCaptions$ once and keep subscription active for component lifetime.
-  useEffect(() => {
-    if (!call) return;
-    const closed$ = call.state?.closedCaptions$;
-    if (!closed$?.subscribe) return;
-    const subscription = closed$.subscribe((captions) =>
-      setCaptions(parseCaption(captions)),
-    );
-    return () => {
-      subscription.unsubscribe();
+    const poll = async () => {
+      try {
+        const res = await fetch(`https://mentormates-dev.onrender.com/captions/receive?meetingId=${meetingId}`);
+        if (!mounted || !polling) return;
+        if (!res.ok) return;
+        const body = await res.json();
+        const text = (body && body.text) || "";
+        // Update caption even if empty (to clear it)
+        if (text !== lastTextRef.current) {
+          lastTextRef.current = text;
+          setCaptions(text);
+        }
+      } catch (e) {
+        // ignore transient errors
+      }
     };
-  }, [call]);
+
+    // 200ms poll for very low latency (adjustable)
+    const loop = async () => {
+      while (mounted && polling) {
+        // fire and forget
+        // eslint-disable-next-line no-await-in-loop
+        await poll();
+        // eslint-disable-next-line no-await-in-loop
+        await new Promise((r) => setTimeout(r, 200));
+      }
+    };
+    loop();
+
+    return () => {
+      mounted = false;
+      polling = false;
+    };
+  }, [meetingId]);
 
   // Toggle Pause/Resume button component
   const PauseAgentButton = ({
