@@ -103,6 +103,36 @@ app.post("/session/start", async (req: Request, res: Response) => {
     // Agent caption buffer - accumulates text deltas across the response
     let outputBuffer = "";
 
+    // Helper: Extract current sentence/phrase for display (YouTube-style captions)
+    const getCurrentCaption = (text: string): string => {
+      if (!text) return "";
+
+      // Split by sentence boundaries (. ! ? followed by space or end)
+      const sentences = text.split(/([.!?]+(?:\s|$))/);
+
+      // Find the last complete sentence or return last ~100 chars
+      let lastSentence = "";
+      for (let i = sentences.length - 1; i >= 0; i--) {
+        const sentence = sentences[i]?.trim();
+        if (sentence && sentence.length > 3) {
+          lastSentence = sentence;
+          break;
+        }
+      }
+
+      // If no complete sentence, show the last ~100 characters
+      if (!lastSentence) {
+        return text.slice(-100).trim();
+      }
+
+      // Limit to reasonable length (100 chars for readability)
+      if (lastSentence.length > 100) {
+        return lastSentence.slice(-100).trim();
+      }
+
+      return lastSentence;
+    };
+
     // Intercept WebSocket messages to capture agent text in real-time
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const ws = (realtimeClient.realtime as any).ws;
@@ -116,14 +146,16 @@ app.post("/session/start", async (req: Request, res: Response) => {
           // Capture agent text as it's generated (before audio plays)
           if (data.type === "response.audio_transcript.delta") {
             outputBuffer += data.delta || "";
+            // Store only current sentence/phrase (YouTube-style)
+            const currentCaption = getCurrentCaption(outputBuffer);
             captionStore.set(meetingId, {
-              text: outputBuffer,
+              text: currentCaption,
               updatedAt: Date.now(),
             });
           } else if (data.type === "response.audio_transcript.done") {
-            const text = data.transcript || outputBuffer || "";
+            // Clear caption when response is complete (ready for next sentence)
             captionStore.set(meetingId, {
-              text,
+              text: "",
               updatedAt: Date.now(),
             });
             // Clear buffer for next response
