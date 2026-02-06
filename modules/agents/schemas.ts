@@ -36,6 +36,26 @@ const optionalTextAllowEmpty = z
         return (value as string).trim();
     });
 
+// Optional voice helper for inserts: empty string is treated as not provided.
+const optionalVoice = z
+    .union([z.string().trim(), z.literal("")])
+    .optional()
+    .transform((value) => {
+        if (value === undefined) return undefined;
+        const trimmed = (value as string).trim();
+        return trimmed.length === 0 ? undefined : trimmed;
+    });
+
+// Optional voice helper for updates: empty string clears the value.
+const optionalVoiceAllowClear = z
+    .union([z.string(), z.literal("")])
+    .optional()
+    .transform((value) => {
+        if (value === undefined) return undefined;
+        const trimmed = (value as string).trim();
+        return trimmed.length === 0 ? null : trimmed;
+    });
+
 const agentsBaseSchema = z.object({
     name: z.string().min(1, { message: "Name is required" }),
     instructions: z.string().min(1, { message: "Instructions are required" }),
@@ -43,6 +63,9 @@ const agentsBaseSchema = z.object({
     avatar_url: optionalUrl,
     // Optional prompt used when generating feedback/evaluations for this agent
     feedback_prompt: optionalText,
+    // Voice setting for realtime conversations. Accepts a built-in voice name
+    // (e.g. "alloy") or a custom voice id (e.g. "voice_...").
+    voice: optionalVoice,
     event_id: z.string().optional(),
     enabled: z.boolean().optional(),
     // Whether this agent provides an evaluative score (true) or only feedback (false)
@@ -51,11 +74,15 @@ const agentsBaseSchema = z.object({
     // Temporary helper used by the UI when the user chooses the "custom" dropdown option.
     // The form sets `custom_type_tmp` and the submit handler maps it into `type`.
     custom_type_tmp: z.string().optional(),
+    // Temporary helper used by the UI when the user chooses "custom" voice.
+    custom_voice_tmp: z.string().optional(),
 });
 export const agentsInsertSchema = agentsBaseSchema;
 
 export const agentsUpdateSchema = agentsBaseSchema
-    .extend({ feedback_prompt: optionalTextAllowEmpty })
+    .extend({
+        feedback_prompt: optionalTextAllowEmpty,
+        voice: optionalVoiceAllowClear,
+    })
     .partial()
     .extend({ id: z.string().min(1, { message: "Id is required" }) });
-

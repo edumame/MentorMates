@@ -135,6 +135,7 @@ export async function POST(req: NextRequest) {
             callId,
             agentUserId: existingAgent.id,
             instructions,
+            voice: existingAgent.voice ?? undefined,
           }),
         }
       );

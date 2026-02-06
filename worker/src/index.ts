@@ -11,6 +11,23 @@ type SessionRecord = {
   lastPushedAt?: number;
 };
 
+type RealtimeVoice = string | { id: string };
+
+function normalizeRealtimeVoice(input: unknown): RealtimeVoice | undefined {
+  if (typeof input !== "string") return undefined;
+
+  const trimmed = input.trim();
+  if (!trimmed) return undefined;
+
+  // OpenAI custom voice IDs are passed as voice objects: { id: "voice_..." }
+  if (trimmed.startsWith("voice_")) {
+    return { id: trimmed };
+  }
+
+  // Built-in voices are simple string names.
+  return trimmed.toLowerCase();
+}
+
 // function wsSend(realtimeClient: RealtimeClient, event: any) {
 //   const ws = realtimeClient?.realtime?.ws;
 //   if (!ws) throw new Error("Realtime WS missing");
@@ -63,7 +80,7 @@ app.get("/health", (_req: Request, res: Response) => {
 });
 
 app.post("/session/start", async (req: Request, res: Response) => {
-  const { meetingId, callId, agentUserId, instructions } = req.body || {};
+  const { meetingId, callId, agentUserId, instructions, voice } = req.body || {};
   try {
     if (!meetingId || !agentUserId || !callId)
       return res.status(400).json({ error: "missing params" });
@@ -93,11 +110,15 @@ app.post("/session/start", async (req: Request, res: Response) => {
     );
     console.log("realtime keys:", Object.keys(realtimeClient.realtime || {}));
 
-    realtimeClient.updateSession({
+    const sessionVoice = normalizeRealtimeVoice(voice);
+    const sessionUpdate: Record<string, unknown> = {
       instructions,
       input_audio_transcription: { model: "whisper-1" },
       turn_detection: { type: "server_vad" },
-    });
+    };
+    if (sessionVoice) sessionUpdate.voice = sessionVoice;
+
+    realtimeClient.updateSession(sessionUpdate as any);
 
     const record: SessionRecord = {
       realtimeClient,

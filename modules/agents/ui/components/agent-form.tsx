@@ -28,6 +28,22 @@ interface AgentFormProps {
     eventId?: string;
 }
 
+const STANDARD_TYPES = ["brainstorm", "product", "tech", "judge"];
+const BUILT_IN_VOICES = [
+    { value: "alloy", label: "Alloy" },
+    { value: "ash", label: "Ash" },
+    { value: "ballad", label: "Ballad" },
+    { value: "cedar", label: "Cedar" },
+    { value: "coral", label: "Coral" },
+    { value: "echo", label: "Echo" },
+    { value: "marin", label: "Marin" },
+    { value: "sage", label: "Sage" },
+    { value: "shimmer", label: "Shimmer" },
+    { value: "verse", label: "Verse" },
+] as const;
+const BUILT_IN_VOICE_VALUES = new Set(BUILT_IN_VOICES.map((voice) => voice.value));
+const CUSTOM_VOICE_ID_REGEX = /^voice_[a-zA-Z0-9_-]+$/;
+
 export const AgentForm = ({ onSuccess, onCancel, initialValues, eventId } : AgentFormProps) => {
     const trpc = useTRPC();
     const router = useRouter();
@@ -67,11 +83,18 @@ export const AgentForm = ({ onSuccess, onCancel, initialValues, eventId } : Agen
         },
     }));
 
-    type AgentFormValues = z.infer<typeof agentsInsertSchema> & { custom_type_tmp?: string; feedback_prompt?: string };
-
-    const STANDARD = ["brainstorm", "product", "tech", "judge"];
+    type AgentFormValues = z.infer<typeof agentsInsertSchema> & {
+        custom_type_tmp?: string;
+        custom_voice_tmp?: string;
+        feedback_prompt?: string;
+        voice?: string | null;
+    };
 
     const isEdit = !!initialValues?.id;
+    const initialVoiceRaw = (initialValues as AgentGetOne | undefined)?.voice;
+    const initialVoiceTrimmed = typeof initialVoiceRaw === "string" ? initialVoiceRaw.trim() : "";
+    const initialVoiceNormalized = initialVoiceTrimmed.toLowerCase();
+    const initialVoiceIsBuiltIn = BUILT_IN_VOICE_VALUES.has(initialVoiceNormalized as (typeof BUILT_IN_VOICES)[number]["value"]);
 
     const form = useForm<AgentFormValues & { id?: string }>({
         // zodResolver types can be incompatible across resolver versions; cast the schema to z.ZodTypeAny and the result to the correct Resolver type
@@ -85,11 +108,15 @@ export const AgentForm = ({ onSuccess, onCancel, initialValues, eventId } : Agen
             feedback_prompt: (initialValues as AgentGetOne | undefined)?.feedback_prompt ?? "",
             // If initial type is one of the standard options, select it.
             // Otherwise select the special "custom" option and store the original value in `custom_type_tmp`.
-            type: (initialValues?.type && STANDARD.includes(String(initialValues.type).toLowerCase()))
+            type: (initialValues?.type && STANDARD_TYPES.includes(String(initialValues.type).toLowerCase()))
                 ? String(initialValues?.type).toLowerCase()
                 : (initialValues?.type ? "custom" : "brainstorm"),
-            custom_type_tmp: (initialValues?.type && !STANDARD.includes(String(initialValues.type).toLowerCase())) ? String(initialValues.type) : "",
+            custom_type_tmp: (initialValues?.type && !STANDARD_TYPES.includes(String(initialValues.type).toLowerCase())) ? String(initialValues.type) : "",
             avatar_url: (initialValues as AgentGetOne | undefined)?.avatar_url ?? "",
+            voice: initialVoiceTrimmed
+                ? (initialVoiceIsBuiltIn ? initialVoiceNormalized : "custom")
+                : "alloy",
+            custom_voice_tmp: initialVoiceTrimmed && !initialVoiceIsBuiltIn ? initialVoiceTrimmed : "",
         },
     });
 
@@ -107,9 +134,28 @@ export const AgentForm = ({ onSuccess, onCancel, initialValues, eventId } : Agen
             values.type = custom;
         }
 
+        if (values.voice === "custom") {
+            const customVoice = (form.getValues("custom_voice_tmp") || "").toString().trim();
+            if (customVoice.length === 0) {
+                form.setError("custom_voice_tmp", { type: "required", message: "Custom voice ID is required" });
+                return;
+            }
+            if (!CUSTOM_VOICE_ID_REGEX.test(customVoice)) {
+                form.setError("custom_voice_tmp", {
+                    type: "validate",
+                    message: "Custom voice ID must look like voice_xxx",
+                });
+                return;
+            }
+            values.voice = customVoice;
+        } else if (typeof values.voice === "string") {
+            values.voice = values.voice.trim().toLowerCase();
+        }
+
         const payloadBase: Record<string, unknown> = { ...values };
         // Remove helper / UI-only fields
         delete payloadBase.custom_type_tmp;
+        delete payloadBase.custom_voice_tmp;
 
         if (isEdit) {
             updateAgent.mutate({ ...payloadBase, id: initialValues.id });
@@ -197,6 +243,53 @@ export const AgentForm = ({ onSuccess, onCancel, initialValues, eventId } : Agen
                                 <FormLabel>Custom type</FormLabel>
                                 <FormControl>
                                     <Input {...field} placeholder="Enter custom type" />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                )}
+                <FormField
+                    name="voice"
+                    control={form.control}
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Voice</FormLabel>
+                            <FormControl>
+                                <Select
+                                    value={typeof field.value === "string" && field.value.length > 0 ? field.value : "alloy"}
+                                    onValueChange={(val) => {
+                                        field.onChange(val);
+                                        if (val !== "custom") form.setValue("custom_voice_tmp", "");
+                                    }}
+                                >
+                                    <SelectTrigger className="w-full">
+                                        <SelectValue placeholder="Select voice" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {BUILT_IN_VOICES.map((voice) => (
+                                            <SelectItem key={voice.value} value={voice.value}>
+                                                {voice.label}
+                                            </SelectItem>
+                                        ))}
+                                        <SelectItem value="custom">Custom voice ID</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+
+                {form.watch("voice") === "custom" && (
+                    <FormField
+                        name="custom_voice_tmp"
+                        control={form.control}
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Custom voice ID</FormLabel>
+                                <FormControl>
+                                    <Input {...field} placeholder="voice_..." />
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
