@@ -38,9 +38,11 @@ const app = express();
 
 // Configure CORS to allow requests from your frontend
 const allowedOrigins = [
-  "http://localhost:3000",
+  // "http://localhost:3000",
   process.env.FRONTEND_URL,
 ].filter(Boolean); // Remove undefined values
+
+console.log(process.env.FRONTEND_URL);
 
 app.use(
   cors({
