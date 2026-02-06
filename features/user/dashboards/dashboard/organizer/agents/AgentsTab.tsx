@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useTRPC } from "@/trpc/client";
 import type { AgentsGetMany, AgentGetOne } from "@/modules/agents/types";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -11,6 +11,7 @@ import { toast } from "@/lib/hooks/use-toast";
 import { NewAgentDialog } from "@/modules/agents/ui/components/new-agent-dialog";
 import { UpdateAgentDialog } from "@/modules/agents/ui/components/update-agent-dialog";
 import { useConfirm } from "@/lib/hooks/use-confirm";
+import { useAuth } from "@/features/user/authentication/auth/AuthContext";
 
 interface AgentsTabProps {
   eventId: string;
@@ -19,12 +20,13 @@ interface AgentsTabProps {
 export function AgentsTab({ eventId }: AgentsTabProps) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
+  const { session } = useAuth();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<AgentGetOne | null>(null);
   const [search, setSearch] = useState("");
 
-  const agentsQuery = useQuery(trpc.agents.getMany.queryOptions({ pageSize: 100, search }));
+  const agentsQuery = useQuery(trpc.agents.getMany.queryOptions({ pageSize: 100, search, eventId }));
 
   const updateAgent = useMutation(trpc.agents.update.mutationOptions({
     onSuccess: async () => {
@@ -64,8 +66,6 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
     })();
   };
 
-  useEffect(() => {}, [eventId]);
-
   const enableAgent = (agent: AgentGetOne, enabled: boolean) => {
     void (async () => {
       const t = toast({ title: enabled ? "Enabling agent..." : "Disabling agent...", description: String(agent.name), duration: 3000 });
@@ -104,7 +104,11 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
 
       <div className="space-y-3">
         {((agentsQuery.data?.items || []) as AgentsGetMany)
-          .filter((agent: AgentGetOne) => String(agent.event_id ?? "") === String(eventId))
+          .filter(
+            (agent: AgentGetOne) =>
+              String(agent.event_id ?? "") === String(eventId) &&
+              String(agent.user_id ?? "") === String(session?.user?.id ?? "")
+          )
           .map((agent: AgentGetOne) => {
             
             return (
