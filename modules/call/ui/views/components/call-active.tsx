@@ -51,43 +51,33 @@ export const CallActive = ({ onLeave, meetingName, meetingId }: Props) => {
     setCaptionsEnabled((v) => !v);
   }, []);
 
-  // Poll the server for the latest agent caption (fast poll for low-latency)
+  // Subscribe to real-time caption updates via SSE (more efficient than polling)
   useEffect(() => {
-    let mounted = true;
-    let polling = true;
+    const eventSource = new EventSource(
+      `${process.env.NEXT_PUBLIC_SCREEN_VISION_WORKER_URL}/captions/stream?meetingId=${meetingId}`
+    );
 
-    const poll = async () => {
+    eventSource.onmessage = (event) => {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_SCREEN_VISION_WORKER_URL}/captions/receive?meetingId=${meetingId}`);
-        if (!mounted || !polling) return;
-        if (!res.ok) return;
-        const body = await res.json();
-        const text = (body && body.text) || "";
+        const data = JSON.parse(event.data);
+        const text = data.text || "";
         // Update caption even if empty (to clear it)
         if (text !== lastTextRef.current) {
           lastTextRef.current = text;
           setCaptions(text);
         }
       } catch (e) {
-        // ignore transient errors
+        // ignore parse errors
       }
     };
 
-    // 100ms poll for very low latency (adjustable)
-    const loop = async () => {
-      while (mounted && polling) {
-        // fire and forget
-        // eslint-disable-next-line no-await-in-loop
-        await poll();
-        // eslint-disable-next-line no-await-in-loop
-        await new Promise((r) => setTimeout(r, 100));
-      }
+    eventSource.onerror = () => {
+      // EventSource will automatically reconnect
+      // Just log for debugging if needed
     };
-    loop();
 
     return () => {
-      mounted = false;
-      polling = false;
+      eventSource.close();
     };
   }, [meetingId]);
 

@@ -450,6 +450,49 @@ app.post("/session/resume", async (req: Request, res: Response) => {
   }
 });
 
+// SSE endpoint for real-time caption streaming (more efficient than polling)
+app.get("/captions/stream", (req, res) => {
+  const meetingId = req.query.meetingId as string;
+
+  if (!meetingId) {
+    return res.status(400).json({ error: "meetingId required" });
+  }
+
+  // Set up SSE headers
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("Access-Control-Allow-Origin", "*");
+
+  // Track last sent caption to avoid duplicates
+  let lastSentText = "";
+  let lastSentTime = 0;
+
+  // Send initial caption
+  const initialCaption = captionStore.get(meetingId);
+  if (initialCaption) {
+    res.write(`data: ${JSON.stringify({ text: initialCaption.text, updatedAt: initialCaption.updatedAt })}\n\n`);
+    lastSentText = initialCaption.text;
+    lastSentTime = initialCaption.updatedAt;
+  }
+
+  // Check for updates and push only when changed
+  const interval = setInterval(() => {
+    const caption = captionStore.get(meetingId);
+    if (caption && (caption.text !== lastSentText || caption.updatedAt !== lastSentTime)) {
+      res.write(`data: ${JSON.stringify({ text: caption.text, updatedAt: caption.updatedAt })}\n\n`);
+      lastSentText = caption.text;
+      lastSentTime = caption.updatedAt;
+    }
+  }, 100);
+
+  // Clean up on disconnect
+  req.on("close", () => {
+    clearInterval(interval);
+  });
+});
+
+// Keep polling endpoint for backwards compatibility
 app.get("/captions/receive", (req, res) => {
   const meetingId = req.query.meetingId as string;
   if (!meetingId) {
