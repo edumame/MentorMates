@@ -38,11 +38,8 @@ const app = express();
 
 // Configure CORS to allow requests from your frontend
 const allowedOrigins = [
-  // "http://localhost:3000",
   process.env.FRONTEND_URL,
 ].filter(Boolean); // Remove undefined values
-
-console.log(process.env.FRONTEND_URL);
 
 app.use(
   cors({
@@ -450,7 +447,7 @@ app.post("/session/resume", async (req: Request, res: Response) => {
   }
 });
 
-// SSE endpoint for real-time caption streaming (more efficient than polling)
+// SSE endpoint for real-time caption streaming
 app.get("/captions/stream", (req, res) => {
   const meetingId = req.query.meetingId as string;
 
@@ -462,7 +459,6 @@ app.get("/captions/stream", (req, res) => {
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
   res.setHeader("Connection", "keep-alive");
-  res.setHeader("Access-Control-Allow-Origin", "*");
 
   // Track last sent caption to avoid duplicates
   let lastSentText = "";
@@ -490,17 +486,6 @@ app.get("/captions/stream", (req, res) => {
   req.on("close", () => {
     clearInterval(interval);
   });
-});
-
-// Keep polling endpoint for backwards compatibility
-app.get("/captions/receive", (req, res) => {
-  const meetingId = req.query.meetingId as string;
-  if (!meetingId) {
-    return res.status(400).json({ ok: false });
-  }
-
-  const rec = captionStore.get(meetingId) || { text: "", updatedAt: 0 };
-  res.json({ ok: true, text: rec.text, updatedAt: rec.updatedAt });
 });
 
 app.listen(PORT, () => {

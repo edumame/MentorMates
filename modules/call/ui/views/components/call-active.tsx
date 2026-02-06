@@ -51,7 +51,7 @@ export const CallActive = ({ onLeave, meetingName, meetingId }: Props) => {
     setCaptionsEnabled((v) => !v);
   }, []);
 
-  // Subscribe to real-time caption updates via SSE (more efficient than polling)
+  // Subscribe to real-time caption updates via SSE
   useEffect(() => {
     const eventSource = new EventSource(
       `${process.env.NEXT_PUBLIC_SCREEN_VISION_WORKER_URL}/captions/stream?meetingId=${meetingId}`
