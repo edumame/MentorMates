@@ -14,7 +14,7 @@ import { useConfirm } from "@/lib/hooks/use-confirm";
 import { useAuth } from "@/features/user/authentication/auth/AuthContext";
 
 interface AgentsTabProps {
-  eventId: string;
+  eventId?: string;
 }
 
 export function AgentsTab({ eventId }: AgentsTabProps) {
@@ -105,9 +105,12 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
       <div className="space-y-3">
         {((agentsQuery.data?.items || []) as AgentsGetMany)
           .filter(
-            (agent: AgentGetOne) =>
-              String(agent.event_id ?? "") === String(eventId) &&
-              String(agent.user_id ?? "") === String(session?.user?.id ?? "")
+            (agent: AgentGetOne) => {
+              const isOwner = String(agent.user_id ?? "") === String(session?.user?.id ?? "");
+              if (!isOwner) return false;
+              if (!eventId) return true;
+              return String(agent.event_id ?? "") === String(eventId);
+            }
           )
           .map((agent: AgentGetOne) => {
             
