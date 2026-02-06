@@ -23,6 +23,21 @@ function verifySignatureWithSDK(body: string, signature: string): boolean {
   return streamVideo.verifyWebhook(body, signature);
 }
 
+type CallReference = {
+  call_cid?: string;
+  call?: { id?: string; custom?: { meetingId?: string } };
+};
+
+function resolveMeetingId(callRef: CallReference): string | null {
+  const fromCustom = callRef.call?.custom?.meetingId;
+  if (fromCustom) return fromCustom;
+
+  const fromCallCid = callRef.call_cid?.split(":")[1];
+  if (fromCallCid) return fromCallCid;
+
+  return callRef.call?.id ?? null;
+}
+
 export async function POST(req: NextRequest) {
   const supabase = await createSupabaseServiceClient();
   const signature = req.headers.get("x-signature");
@@ -52,7 +67,8 @@ export async function POST(req: NextRequest) {
 
   if (eventType === "call.session_started") {
     const event = payload as CallSessionStartedEvent;
-    const meetingId = event.call.custom?.meetingId;
+    const callRef = event as unknown as CallReference;
+    const meetingId = resolveMeetingId(callRef);
 
     if (!meetingId) {
       return NextResponse.json({ error: "Missing meetingId" }, { status: 400 });
@@ -88,8 +104,6 @@ export async function POST(req: NextRequest) {
     }
 
     // Compute Stream callId (real call identifier) and keep meetingId for DB lookups
-    type CallReference = { call_cid?: string; call?: { id?: string } };
-    const callRef = event as unknown as CallReference;
     const callId = callRef.call_cid?.split(":")[1] || callRef.call?.id;
 
     // If the meeting is linked to a project, fetch project title and description
@@ -177,7 +191,7 @@ export async function POST(req: NextRequest) {
     }
   } else if (eventType === "call.session_ended") {
     const event = payload as CallEndedEvent;
-    const meetingId = event.call.custom?.meetingId;
+    const meetingId = resolveMeetingId(event as unknown as CallReference);
 
     if (!meetingId) {
       return NextResponse.json({ error: "Missing meetingId" }, { status: 400 });
