@@ -21,11 +21,9 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
     BUILT_IN_VOICE_OPTIONS,
-    BUILT_IN_VOICE_PROMPT_OPTIONS,
     BUILT_IN_VOICE_VALUE_SET,
     type BuiltInVoiceValue,
 } from "@/modules/agents/constants/voices";
@@ -382,13 +380,6 @@ export const AgentForm = ({ onSuccess, onCancel, initialValues, eventId } : Agen
                             <p className="mb-2 inline-flex rounded-full border border-[#4b89ef]/35 bg-white/70 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-[#2d65be]">
                                 AI Generation Workspace
                             </p>
-                            <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
-                                <Sparkles className="h-4 w-4 text-[#4b89ef]" />
-                                <span>Left panel generates, right panel is editable output</span>
-                            </div>
-                            <p className="mb-3 text-xs text-muted-foreground leading-relaxed">
-                                Paste a brief below, run generation, then review and edit the generated fields on the right before creating the agent.
-                            </p>
                             <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
                                 Generation brief
                             </p>
@@ -423,15 +414,6 @@ Respond like a real parent with a 3-year-old child and give specific, practical 
                                         </div>
                                     );
                                 })}
-                                <p className="text-muted-foreground">
-                                    This writes into: Instructions, Feedback prompt, and Name/Type/Voice fields.
-                                </p>
-                                <p className="text-muted-foreground">
-                                    Step 2 evaluates the student conversation behavior, not the agent quality.
-                                </p>
-                                <p className="text-muted-foreground">
-                                    Type options: brainstorm, product, tech, judge. Voice options: {BUILT_IN_VOICE_PROMPT_OPTIONS}.
-                                </p>
                                 {aiLoading && aiProgressText ? (
                                     <p className="font-medium text-foreground">{aiProgressText}</p>
                                 ) : null}
@@ -450,11 +432,6 @@ Respond like a real parent with a 3-year-old child and give specific, practical 
                         </div>
                     )}
                     <div className="space-y-4 pb-1">
-                        {!isEdit && (
-                            <div className="rounded-md border border-dashed bg-muted/15 p-3 text-xs text-muted-foreground">
-                                Generated output appears here. You can edit every field before saving.
-                            </div>
-                        )}
                         <FormField
                             name="name"
                             control={form.control}

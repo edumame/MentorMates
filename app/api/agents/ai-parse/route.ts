@@ -46,6 +46,8 @@ const GENERATION_STAGE_ORDER: GenerateStage[] = [
   "feedback_prompt",
   "metadata",
 ];
+const DEFAULT_STUDENT_FEEDBACK_PROMPT =
+  "Evaluate the student's behavior while roleplaying this persona. Focus on student questions, decisions, and specificity, and use transcript evidence. Treat the agent as context, not the subject being evaluated.";
 
 type AiOutputError = {
   kind: "ai-output";
@@ -62,6 +64,29 @@ function isAiOutputError(error: unknown): error is AiOutputError {
     "kind" in error &&
     (error as { kind?: unknown }).kind === "ai-output"
   );
+}
+
+function getFallbackFieldsForStage(stage: GenerateStage, text: string): ParsedAgent {
+  const heuristic = normalizeAgentFields(heuristicParse(text));
+
+  if (stage === "instruction") {
+    return {
+      instructions: heuristic.instructions || cleanOptional(text),
+    };
+  }
+
+  if (stage === "feedback_prompt") {
+    return {
+      feedback_prompt: heuristic.feedback_prompt || DEFAULT_STUDENT_FEEDBACK_PROMPT,
+    };
+  }
+
+  return {
+    name: heuristic.name,
+    type: heuristic.type,
+    voice: heuristic.voice,
+    avatar_url: heuristic.avatar_url,
+  };
 }
 
 function cleanOptional(value?: string): string | undefined {
@@ -271,14 +296,13 @@ Return ONLY the final instruction text.
 
 Quality requirements:
 - Be concrete and specific, not generic.
-- Include a named persona identity and preserve exact facts from the brief (location, age range, role).
-- If the brief targets children or users, anchor feedback to one specific child/user profile with traits, behaviors, and practical constraints.
-- Include a "When giving feedback" section with concrete details to inspect (safety, clarity, engagement, frustration triggers, sensory triggers, supervision, cleanup, durability, sharing).
-- Include a required response structure with numbered sections 1, 2, 3.
-- Use plain, human language for the stated role; avoid technical jargon unless explicitly requested.
-- Avoid generic coaching filler like "be constructive" without specifics.
+- Preserve exact facts from the brief (location, age range, role).
+- Use a clear named persona. The first line must be: "You are **<Full Name>**, a <role> living in **<location>**."
+- If the brief targets children or users, anchor to one specific child/user profile with practical traits and constraints.
+- Keep language simple and direct. Short sentences. No jargon.
+- Avoid huge checklists. Keep it focused and readable.
 - Do NOT add numeric scoring rubrics unless the user explicitly asks for scoring.
-- The output should be ready to paste directly into an agent Instructions field.
+- The output should be immediately usable as an Instructions field.
 
 Do not return JSON.
 Do not wrap in markdown code fences.
@@ -291,14 +315,19 @@ Return ONLY the feedback prompt text.
 
 Rules:
 - Align with the persona and priorities in the instructions.
-- The feedback must evaluate the student's behavior in the conversation, not the agent's performance.
-- Assume the agent is doing its best; do not score, criticize, or diagnose agent quality.
-- Focus on student turns and decisions (clarifying questions, listening, adaptation, specificity, safety awareness, practical actionability).
+- Explicitly include the persona name from the instructions so the target role is clear.
+- Evaluate only the student's behavior in the conversation, never the agent's quality.
+- Assume the agent is doing its best; do not score, criticize, or diagnose agent performance.
+- Focus on student turns and decisions: clarifying questions, listening, adaptation, specificity, safety awareness, and practical actionability.
 - Use agent turns only as context for how the student responded.
-- Ask for concrete observations and actionable coaching for the student.
-- Require evidence from the transcript (specific quotes or turn references tied to student behavior).
-- Keep it short and operational (about 4-8 sentences).
-- Do NOT require numeric scoring unless the user explicitly asks for scoring.
+- Require transcript evidence (specific quotes or turn references tied to student behavior).
+- Keep language simple and direct.
+- End with a required output format for the evaluator:
+  1. What the student did well
+  2. Where the student missed the persona
+  3. Specific next-step coaching
+- Keep it short and operational (about 6-10 sentences).
+- Do NOT require numeric scoring unless explicitly requested.
 - Do not repeat the full persona instructions.
 
 Do not return JSON.
@@ -320,6 +349,7 @@ Rules:
 - Built-in voice descriptions:
 ${BUILT_IN_VOICE_DESCRIPTION_LIST}
 - Pick a clear, human-readable "name" aligned with the persona.
+- If instructions already contain a persona name, reuse that exact name.
 - Never invent an avatar_url unless the user provided an explicit URL.
 - Keep values practical and concise.
 
@@ -351,6 +381,7 @@ ${normalizedContext.instructions ?? "(none)"}
 Context:
 This feedback prompt is for evaluating the student's conversation behavior after they interact with the agent.
 The agent should be treated as a high-quality baseline and not evaluated directly.
+Use the same persona name used in the instructions.
 
 Existing fields (if any):
 ${serializedContext}`;
@@ -520,7 +551,7 @@ export async function POST(req: Request) {
         generated.feedback_prompt =
           generated.feedback_prompt ||
           heuristic.feedback_prompt ||
-          "Evaluate the student's conversation behavior with this agent. Focus on the student's questions, responses, and specific actions; treat the agent as context, not the subject being evaluated.";
+          DEFAULT_STUDENT_FEEDBACK_PROMPT;
       }
       if (step === "all" || step === "metadata") {
         if (!generated.name) generated.name = heuristic.name;
@@ -559,12 +590,21 @@ Rules:
 - Do NOT include code fences or commentary; JSON only.`;
 
     if (mode === "fill") {
-      const extracted = await requestAgentFieldsFromModel({
-        system: systemPromptFill,
-        user: text,
-        temperature: 0.2,
-        maxTokens: 700,
-      });
+      let extracted: ParsedAgent;
+      try {
+        extracted = await requestAgentFieldsFromModel({
+          system: systemPromptFill,
+          user: text,
+          temperature: 0.2,
+          maxTokens: 700,
+        });
+      } catch (error) {
+        if (isAiOutputError(error)) {
+          extracted = normalizeAgentFields(heuristicParse(text));
+        } else {
+          throw error;
+        }
+      }
 
       const fields = normalizeAgentFields(
         ensureTypeAndVoice({ ...normalizedContext, ...extracted }, text, mode, {
@@ -580,32 +620,40 @@ Rules:
 
     for (const generationStage of stagesToRun) {
       let stageFields: ParsedAgent;
-      if (generationStage === "instruction") {
-        stageFields = await requestTextFieldFromModel({
-          stage: generationStage,
-          field: "instructions",
-          system: buildGenerateSystemPrompt(generationStage),
-          user: buildGenerateUserMessage(text, generated, generationStage),
-          temperature: 0.7,
-          maxTokens: 1000,
-        });
-      } else if (generationStage === "feedback_prompt") {
-        stageFields = await requestTextFieldFromModel({
-          stage: generationStage,
-          field: "feedback_prompt",
-          system: buildGenerateSystemPrompt(generationStage),
-          user: buildGenerateUserMessage(text, generated, generationStage),
-          temperature: 0.5,
-          maxTokens: 400,
-        });
-      } else {
-        stageFields = await requestAgentFieldsFromModel({
-          stage: generationStage,
-          system: buildGenerateSystemPrompt(generationStage),
-          user: buildGenerateUserMessage(text, generated, generationStage),
-          temperature: 0.4,
-          maxTokens: 500,
-        });
+      try {
+        if (generationStage === "instruction") {
+          stageFields = await requestTextFieldFromModel({
+            stage: generationStage,
+            field: "instructions",
+            system: buildGenerateSystemPrompt(generationStage),
+            user: buildGenerateUserMessage(text, generated, generationStage),
+            temperature: 0.7,
+            maxTokens: 1000,
+          });
+        } else if (generationStage === "feedback_prompt") {
+          stageFields = await requestTextFieldFromModel({
+            stage: generationStage,
+            field: "feedback_prompt",
+            system: buildGenerateSystemPrompt(generationStage),
+            user: buildGenerateUserMessage(text, generated, generationStage),
+            temperature: 0.5,
+            maxTokens: 400,
+          });
+        } else {
+          stageFields = await requestAgentFieldsFromModel({
+            stage: generationStage,
+            system: buildGenerateSystemPrompt(generationStage),
+            user: buildGenerateUserMessage(text, generated, generationStage),
+            temperature: 0.4,
+            maxTokens: 500,
+          });
+        }
+      } catch (error) {
+        if (!isAiOutputError(error)) {
+          throw error;
+        }
+
+        stageFields = getFallbackFieldsForStage(generationStage, text);
       }
 
       generated = normalizeAgentFields({
