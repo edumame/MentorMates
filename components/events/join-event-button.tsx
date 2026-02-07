@@ -20,7 +20,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Tooltip,
   TooltipContent,
@@ -30,7 +29,6 @@ import {
 import {
   EventRole,
   EventItem,
-  EventVisibility,
   PricingTier,
   ParticipantRequestStatus,
   ParticipantApprovalRequest,
@@ -187,19 +185,24 @@ export function JoinEventButton({
         if (roleData) {
           setHasJoined(true);
         } else {
-          // Check for pending, rejected, or withdrawn approval request
-          const { data: pendingRequest } = await supabase
+          // Check for approval requests (pending, approved, rejected, or withdrawn)
+          const { data: approvalRequest } = await supabase
             .from("participant_approval_requests")
             .select("id, status, rejection_reason")
             .eq("event_id", eventId)
             .eq("user_id", userId)
-            .in("status", [ParticipantRequestStatus.Pending, ParticipantRequestStatus.Rejected, ParticipantRequestStatus.Withdrawn])
+            .in("status", [
+              ParticipantRequestStatus.Pending,
+              ParticipantRequestStatus.Approved,
+              ParticipantRequestStatus.Rejected,
+              ParticipantRequestStatus.Withdrawn
+            ])
             .maybeSingle();
 
-          if (pendingRequest) {
+          if (approvalRequest) {
             setHasPendingRequest(true);
-            setPendingRequestStatus(pendingRequest.status as ParticipantRequestStatus);
-            setPendingRequest(pendingRequest as ParticipantApprovalRequest);
+            setPendingRequestStatus(approvalRequest.status as ParticipantRequestStatus);
+            setPendingRequest(approvalRequest as ParticipantApprovalRequest);
           }
         }
       } catch (error) {
@@ -296,6 +299,63 @@ export function JoinEventButton({
         localStorage.setItem("returnUrl", window.location.pathname);
         router.push("/login");
         return;
+      }
+
+      // For paid events requiring approval, submit approval request FIRST (before payment)
+      if (
+        event?.paid &&
+        requiresApproval &&
+        selectedRole === EventRole.Participant
+      ) {
+        const { data: userTicket } = await supabase
+          .from("event_tickets")
+          .select("ticket_status")
+          .eq("assigned_to_user_id", session.user.id)
+          .eq("event_id", eventId)
+          .maybeSingle();
+
+        // Only require approval if user hasn't paid yet
+        if (!userTicket?.ticket_status) {
+          // Submit approval request via API
+          const response = await fetch("/api/roles/verify", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              eventId,
+              role: selectedRole,
+              password: showPasswordInput ? password : undefined,
+              userId: session.user.id,
+            }),
+          });
+
+          const data = await response.json();
+
+          if (!response.ok || data.error) {
+            toast({
+              title: "Error",
+              description: data.error || "Failed to submit request",
+              variant: "destructive",
+            });
+            if (response.status === 409 && data.requires_approval) {
+              setHasPendingRequest(true);
+              setPendingRequestStatus(ParticipantRequestStatus.Pending);
+            }
+            return;
+          }
+
+          if (data.requires_approval) {
+            setHasPendingRequest(true);
+            setPendingRequestStatus(ParticipantRequestStatus.Pending);
+            setIsDialogOpen(false);
+            toast({
+              title: "Request Submitted",
+              description: "Your request has been submitted. You'll be able to pay after approval.",
+            });
+            return;
+          }
+        }
       }
 
       // Check if event is paid and handle pricing tier selection
@@ -491,6 +551,52 @@ export function JoinEventButton({
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
+    );
+  }
+
+  // Show approved request with payment pending for paid events
+  if (pendingRequestStatus === ParticipantRequestStatus.Approved && event?.paid) {
+    return (
+      <Dialog
+        open={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
+        aria-describedby="pay-now-dialog"
+      >
+        <DialogTrigger asChild>
+          <Button
+            variant="default"
+            size="lg"
+            className="rounded-full px-6 py-5 gap-2 w-full min-w-0 overflow-hidden"
+          >
+            <Ticket className="h-6 w-6 flex-shrink-0" />
+            <span className="truncate">Pay Now - Approved!</span>
+          </Button>
+        </DialogTrigger>
+        <DialogContent
+          aria-describedby="pay-now-dialog"
+          className="max-h-[85vh] overflow-y-auto"
+        >
+          <DialogHeader>
+            <DialogTitle>Select Pricing Tier</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+              <p className="text-sm text-green-700">
+                ✅ Your request has been approved! Complete your payment to finalize your registration.
+              </p>
+            </div>
+            <div className="space-y-4 max-h-[65vh] overflow-y-auto px-1">
+              <PricingTierSelector
+                pricingTiers={pricingTiers}
+                selectedTierId={selectedPricingTierId}
+                onTierSelect={setSelectedPricingTierId}
+                onContinue={handlePricingTierContinue}
+                isLoading={isLoading}
+              />
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     );
   }
 
