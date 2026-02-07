@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Search, Loader, AlertCircle } from "lucide-react";
+import { Loader, AlertCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import { VotableProjectCard } from "./votable-project-card";
 import { VoteCounter } from "./vote-counter";
 import { useEventVotes } from "@/features/voting/hooks/use-event-votes";
 import { Project } from "@/lib/types";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { EventSearchInput } from "@/components/ui/event-search-input";
 
 interface VotingContentProps {
   eventId: string;
@@ -120,16 +121,13 @@ export function VotingContent({
       )}
 
       {/* Search Bar */}
-      <div className="bg-transparent border border-[rgba(0,0,0,0.15)] rounded-xl flex gap-3 items-center px-3 py-2 mb-6 w-full max-w-[560px]">
-        <Search className="w-6 h-6 text-black shrink-0" />
-        <input
-          type="text"
-          placeholder="Search projects by name, description, or lead"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="font-normal text-[16px] leading-[1.5] text-black placeholder:text-[rgba(0,0,0,0.6)] bg-transparent border-none outline-none flex-1"
-        />
-      </div>
+      <EventSearchInput
+        wrapperClassName="mb-6 w-full max-w-[560px]"
+        placeholder="Search projects by name, description, or lead"
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        inputClassName="text-[16px] leading-[1.5] sm:text-[16px]"
+      />
 
       {/* Project Grid */}
       {isLoading ? (

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import AgentTypeLabel from "@/components/ui/agent-type-label";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
+import { EventSearchInput } from "@/components/ui/event-search-input";
 import { toast } from "@/lib/hooks/use-toast";
 import { NewAgentDialog } from "@/modules/agents/ui/components/new-agent-dialog";
 import { UpdateAgentDialog } from "@/modules/agents/ui/components/update-agent-dialog";
@@ -413,11 +414,12 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
   return (
     <div className="w-full">
       <div className="mb-4 flex items-center gap-2 justify-between">
-        <input
+        <EventSearchInput
+          wrapperClassName="flex-1"
           placeholder="Search agents"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="border rounded px-2 py-1 flex-1"
+          inputClassName="text-sm sm:text-sm"
         />
         <div className="ml-3">
           <Button onClick={() => setDialogOpen(true)}>Add agent</Button>
@@ -445,11 +447,11 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
         onOpenChange={setApplyDialogOpen}
       >
         <div className="space-y-3">
-          <input
+          <EventSearchInput
             placeholder="Search events"
             value={applySearch}
             onChange={(e) => setApplySearch(e.target.value)}
-            className="w-full border rounded px-2 py-1"
+            inputClassName="text-sm sm:text-sm"
           />
           {events.length === 0 ? (
             <p className="text-sm text-gray-600">No events available.</p>
