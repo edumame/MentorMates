@@ -10,7 +10,7 @@ import { DiscordCTA } from "@/components/ui/discord-cta";
 import { Footer } from "@/components/layout/Footer";
 import { useAuth } from "@/features/user/authentication/auth/AuthContext";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
-import { Search } from "lucide-react";
+import { EventSearchInput } from "@/components/ui/event-search-input";
 
 type FilterType = "all" | "public" | "mine";
 
@@ -112,18 +112,12 @@ export default function ProjectsPage() {
             <div className="flex flex-col mb-5 gap-4">
               <div className="flex items-end justify-between gap-4">
                 {/* Search Input */}
-                <div className="relative flex-1">
-                  <div className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-[rgba(0,0,0,0.6)]">
-                    <Search className="w-full h-full" strokeWidth={2} />
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="Search"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full h-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-12 py-2 text-xs sm:text-base font-normal text-black placeholder:text-[rgba(0,0,0,0.6)] focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
+                <EventSearchInput
+                  wrapperClassName="flex-1"
+                  placeholder="Search"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
 
                 {/* Create Project Button - Desktop only */}
                 {isAuthenticated && (
