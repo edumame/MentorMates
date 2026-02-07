@@ -2,16 +2,24 @@ import express, { Request, Response } from "express";
 import { createClient } from "@supabase/supabase-js";
 import { StreamClient } from "@stream-io/node-sdk";
 import { RealtimeClient } from "@stream-io/openai-realtime-api";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 
 type SessionRecord = {
   realtimeClient: RealtimeClient;
-  intervalId: ReturnType<typeof setInterval> | null;
+  subscription: RealtimeChannel | null;
   lastUpdatedAt?: string | null;
   lastSummary?: string | null;
   lastPushedAt?: number;
 };
 
 type RealtimeVoice = string | { id: string };
+
+type SessionUpdateParams = {
+  instructions?: string;
+  input_audio_transcription?: { model: string };
+  turn_detection?: { type: string } | null;
+  voice?: RealtimeVoice;
+};
 
 function normalizeRealtimeVoice(input: unknown): RealtimeVoice | undefined {
   if (typeof input !== "string") return undefined;
@@ -88,7 +96,9 @@ app.post("/session/start", async (req: Request, res: Response) => {
     // Stop existing if present (keyed by meetingId)
     if (sessions.has(meetingId)) {
       const existing = sessions.get(meetingId)!;
-      if (existing.intervalId) clearInterval(existing.intervalId);
+      if (existing.subscription) {
+        await supabase.removeChannel(existing.subscription);
+      }
       try {
         existing.realtimeClient?.disconnect?.();
       } catch {}
@@ -97,38 +107,33 @@ app.post("/session/start", async (req: Request, res: Response) => {
 
     const call = streamVideo.video.call("default", callId);
 
-    let realtimeClient: RealtimeClient;
-    realtimeClient = await streamVideo.video.connectOpenAi({
+    const realtimeClient: RealtimeClient = await streamVideo.video.connectOpenAi({
       call,
       openAiApiKey: process.env.OPENAI_API_KEY || "",
       agentUserId,
     });
-    console.log("realtimeClient keys:", Object.keys(realtimeClient));
-    console.log(
-      "conversation keys:",
-      Object.keys(realtimeClient.conversation || {})
-    );
-    console.log("realtime keys:", Object.keys(realtimeClient.realtime || {}));
 
     const sessionVoice = normalizeRealtimeVoice(voice);
-    const sessionUpdate: Record<string, unknown> = {
+    const sessionUpdate: SessionUpdateParams = {
       instructions,
       input_audio_transcription: { model: "whisper-1" },
       turn_detection: { type: "server_vad" },
     };
-    if (sessionVoice) sessionUpdate.voice = sessionVoice;
+    if (sessionVoice) {
+      sessionUpdate.voice = sessionVoice;
+    }
 
-    realtimeClient.updateSession(sessionUpdate as any);
+    // Type assertion needed because library doesn't fully support custom voice IDs in types
+    realtimeClient.updateSession(sessionUpdate as Parameters<typeof realtimeClient.updateSession>[0]);
 
     const record: SessionRecord = {
       realtimeClient,
-      intervalId: null,
+      subscription: null,
       lastUpdatedAt: null,
       lastSummary: null,
     };
     sessions.set(meetingId, record);
 
-    // Somewhere near session start
     const baseInstructions = `${instructions}
 
       SCREEN CONTEXT POLICY:
@@ -139,22 +144,10 @@ app.post("/session/start", async (req: Request, res: Response) => {
 
     `;
 
-    // Poll loop
-    const poll = async () => {
+    // Handler for screen context updates
+    const handleScreenUpdate = async (summary: string, updatedAt: string) => {
       try {
-        const { data, error } = await supabase
-          .from("meeting_screen_context")
-          .select("summary, updated_at")
-          .eq("meeting_id", meetingId)
-          .maybeSingle();
-
-        if (error || !data) return;
-
-        const summary = (data.summary || "").trim();
-        const updatedAt = data.updated_at;
-
-        if (!summary) return;
-        if (summary === "No meaningful change") return;
+        if (!summary || summary === "No meaningful change") return;
 
         const changed =
           !record.lastUpdatedAt ||
@@ -163,7 +156,7 @@ app.post("/session/start", async (req: Request, res: Response) => {
 
         if (!changed) return;
 
-        // (optional) throttle: don’t update session more than once every 2s
+        // Optional throttle: don't update session more than once every 2s
         const now = Date.now();
         if (record.lastPushedAt && now - record.lastPushedAt < 2000) return;
 
@@ -171,22 +164,11 @@ app.post("/session/start", async (req: Request, res: Response) => {
           ? summary
           : `[Screen] ${summary}`;
 
-        console.log(`Screen summary: ${screen.slice(0, 120)}`);
-
-        // put it into the conversation as if the user said it
-        // injectScreenAsUserMessage(realtimeClient, screen);
-        // console.log(
-        //   `[${meetingId}] injected user msg: ${screen.slice(0, 120)}`
-        // );
-
         try {
           realtimeClient.updateSession({
             instructions: `${baseInstructions}\n\nLatest shared screen:\n${screen}\n`,
             turn_detection: { type: "server_vad" },
           });
-          console.log(
-            `[${meetingId}] updateSession OK: ${screen.slice(0, 120)}`
-          );
         } catch (e) {
           console.error(`[${meetingId}] updateSession FAIL`, e);
         }
@@ -195,15 +177,49 @@ app.post("/session/start", async (req: Request, res: Response) => {
         record.lastSummary = summary;
         record.lastPushedAt = now;
       } catch (err) {
-        console.error("poll error", err);
+        console.error(`[${meetingId}] handleScreenUpdate error`, err);
       }
     };
 
-    const id = setInterval(poll, 2000);
-    record.intervalId = id;
+    // Set up Supabase Realtime subscription
+    const subscription = supabase
+      .channel(`meeting:${meetingId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "meeting_screen_context",
+          filter: `meeting_id=eq.${meetingId}`,
+        },
+        async (payload) => {
+          const { summary, updated_at } = payload.new as {
+            summary: string;
+            updated_at: string;
+          };
+          await handleScreenUpdate(summary, updated_at);
+        }
+      )
+      .subscribe((status) => {
+        if (status === "CHANNEL_ERROR") {
+          console.error(`[${meetingId}] Subscription error`);
+        } else if (status === "TIMED_OUT") {
+          console.error(`[${meetingId}] Subscription timed out`);
+        }
+      });
 
-    // run one immediately
-    poll();
+    record.subscription = subscription;
+
+    // Fetch initial screen context
+    const { data: initialData } = await supabase
+      .from("meeting_screen_context")
+      .select("summary, updated_at")
+      .eq("meeting_id", meetingId)
+      .maybeSingle();
+
+    if (initialData?.summary) {
+      await handleScreenUpdate(initialData.summary, initialData.updated_at);
+    }
 
     res.json({ ok: true });
   } catch (err) {
@@ -220,11 +236,17 @@ app.post("/session/stop", async (req: Request, res: Response) => {
     const record = sessions.get(meetingId);
     if (!record) return res.json({ ok: true });
 
-    if (record.intervalId) clearInterval(record.intervalId);
+    // Unsubscribe from realtime updates
+    if (record.subscription) {
+      await supabase.removeChannel(record.subscription);
+    }
+
+    // Disconnect realtime client
     try {
       record.realtimeClient?.disconnect?.();
     } catch (e) {
       try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (record.realtimeClient as any)?.close?.();
       } catch {}
     }
