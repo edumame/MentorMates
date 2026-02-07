@@ -5,7 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { Project, EventTrack } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { EventSearchInput } from "@/components/ui/event-search-input";
 import { DefaultScoring } from "@/components/project-scoring/default-scoring";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import Link from "next/link";
@@ -279,10 +279,11 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
             </CardHeader>
             <CardContent>
               <div className="space-y-4 mb-4">
-                <Input
+                <EventSearchInput
                   placeholder="Search projects..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
+                  inputClassName="text-sm sm:text-sm"
                 />
               </div>
               {filteredProjects.length === 0 ? (

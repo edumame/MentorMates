@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import AgentTypeLabel from "@/components/ui/agent-type-label";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
+import { EventSearchInput } from "@/components/ui/event-search-input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "@/lib/hooks/use-toast";
 import { NewAgentDialog } from "@/modules/agents/ui/components/new-agent-dialog";
@@ -18,6 +18,7 @@ import { useAuth } from "@/features/user/authentication/auth/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { ResponsiveDialog } from "@/components/responsive-dialog";
 import { Bot, ChevronDown, ChevronUp, MessageSquare, Mic } from "lucide-react";
+import { getBuiltInVoiceOption } from "@/modules/agents/constants/voices";
 
 interface AgentsTabProps {
   eventId?: string;
@@ -83,6 +84,10 @@ function formatVoiceLabel(value: unknown): string {
   const voice = cleanText(value);
   if (!voice) return "Default";
   if (voice.startsWith("voice_")) return "Custom Voice";
+  const builtInVoice = getBuiltInVoiceOption(voice.toLowerCase());
+  if (builtInVoice) {
+    return `${builtInVoice.label} (${builtInVoice.description})`;
+  }
   return voice.charAt(0).toUpperCase() + voice.slice(1);
 }
 
@@ -466,11 +471,11 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
       </div>
 
       <div className="mb-4">
-        <Input
+        <EventSearchInput
           placeholder="Search agents"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="h-10"
+          inputClassName="text-sm sm:text-sm"
         />
       </div>
 
@@ -495,11 +500,11 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
         onOpenChange={setApplyDialogOpen}
       >
         <div className="space-y-3">
-          <Input
+          <EventSearchInput
             placeholder="Search events"
             value={applySearch}
             onChange={(e) => setApplySearch(e.target.value)}
-            className="h-9"
+            inputClassName="text-sm sm:text-sm"
           />
 
           {events.length === 0 ? (
