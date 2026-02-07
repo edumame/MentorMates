@@ -1422,7 +1422,7 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
               className="rounded-[14px] border border-[rgba(75,137,239,0.35)] bg-[#f7fbff] p-4 shadow-sm sm:p-5"
             >
               <div className="grid gap-4 lg:grid-cols-[220px_1fr_280px]">
-                <section className="overflow-hidden rounded-xl border border-[rgba(0,0,0,0.12)] bg-white">
+                <section className="self-start overflow-hidden rounded-xl border border-[rgba(0,0,0,0.12)] bg-white">
                   <div className="p-4 text-center">
                     <Avatar className="mx-auto h-16 w-16 border border-[rgba(0,0,0,0.15)]">
                       {hasAvatar && (
