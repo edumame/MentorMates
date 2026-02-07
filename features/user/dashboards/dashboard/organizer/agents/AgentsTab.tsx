@@ -17,8 +17,21 @@ import { useConfirm } from "@/lib/hooks/use-confirm";
 import { useAuth } from "@/features/user/authentication/auth/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { ResponsiveDialog } from "@/components/responsive-dialog";
-import { Bot, ChevronDown, ChevronUp, MessageSquare, Mic } from "lucide-react";
+import {
+  Bot,
+  ChevronDown,
+  ChevronUp,
+  MessageSquare,
+  Mic,
+  PhoneCall,
+  PhoneOff,
+  SendHorizontal,
+} from "lucide-react";
 import { getBuiltInVoiceOption } from "@/modules/agents/constants/voices";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { MeetingForm } from "@/modules/meetings/ui/components/meeting-form";
+import { useRouter } from "next/navigation";
 
 interface AgentsTabProps {
   eventId?: string;
@@ -27,6 +40,23 @@ interface AgentsTabProps {
 interface EventOption {
   event_id: string;
   event_name: string;
+}
+
+type PreviewMode = "chat" | "call";
+type PreviewMessageRole = "agent" | "user";
+
+interface PreviewMessage {
+  id: string;
+  role: PreviewMessageRole;
+  content: string;
+}
+
+interface AgentPreviewState {
+  chatDraft: string;
+  callDraft: string;
+  callConnected: boolean;
+  chatMessages: PreviewMessage[];
+  callMessages: PreviewMessage[];
 }
 
 const PROMPT_PREVIEW_LIMIT = 240;
@@ -91,10 +121,49 @@ function formatVoiceLabel(value: unknown): string {
   return voice.charAt(0).toUpperCase() + voice.slice(1);
 }
 
+function createMessageId(prefix: string): string {
+  return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+}
+
+function createInitialPreviewState(agent: AgentGetOne): AgentPreviewState {
+  const name = cleanText(agent.name) || "Agent";
+  return {
+    chatDraft: "",
+    callDraft: "",
+    callConnected: false,
+    chatMessages: [
+      {
+        id: "chat-welcome",
+        role: "agent",
+        content: `Hi, I'm ${name}. This is a local preview of the conversation experience.`,
+      },
+    ],
+    callMessages: [
+      {
+        id: "call-welcome",
+        role: "agent",
+        content: `You're in a simulated call with ${name}. Connect and try speaking prompts below.`,
+      },
+    ],
+  };
+}
+
+function buildPreviewReply(agent: AgentGetOne, userMessage: string, mode: PreviewMode): string {
+  const type = cleanText(agent.type) || "assistant";
+  const instructions = cleanText(agent.instructions);
+  const userRequest = truncateText(cleanText(userMessage), 120);
+  const personaHint = instructions
+    ? truncateText(instructions, 160)
+    : "focus on practical next steps and concise guidance.";
+  const lead = mode === "call" ? "On a call, I would say:" : "In chat, I would reply:";
+  return `${lead} Thanks for sharing "${userRequest}". As a ${type} persona, I would guide you with this style: ${personaHint}`;
+}
+
 export function AgentsTab({ eventId }: AgentsTabProps) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const { session } = useAuth();
+  const router = useRouter();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
@@ -108,6 +177,13 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
   const [isApplying, setIsApplying] = useState(false);
   const [search, setSearch] = useState("");
   const [expandedPrompts, setExpandedPrompts] = useState<Record<string, boolean>>({});
+  const [expandedPreviews, setExpandedPreviews] = useState<Record<string, boolean>>({});
+  const [previewByAgentId, setPreviewByAgentId] = useState<Record<string, AgentPreviewState>>(
+    {}
+  );
+  const [livePreviewDialogOpen, setLivePreviewDialogOpen] = useState(false);
+  const [livePreviewAgent, setLivePreviewAgent] = useState<AgentGetOne | null>(null);
+  const [livePreviewMode, setLivePreviewMode] = useState<PreviewMode>("chat");
 
   const agentsQuery = useQuery(
     trpc.agents.getMany.queryOptions({ pageSize: 100 })
@@ -261,6 +337,18 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
       return a.event_name.localeCompare(b.event_name);
     });
   }, [events, applySearch, alreadyAppliedEventIds]);
+
+  const livePreviewPrefill = useMemo(() => {
+    if (!livePreviewAgent) return undefined;
+    const sourceEventId =
+      normalizeText(livePreviewAgent.event_id) || normalizeText(eventId);
+    const name = cleanText(livePreviewAgent.name) || "Agent";
+    return {
+      name: `${name} preview`,
+      agentId: livePreviewAgent.id,
+      eventId: sourceEventId || undefined,
+    };
+  }, [livePreviewAgent, eventId]);
 
   const createAgent = useMutation(
     trpc.agents.create.mutationOptions({
@@ -456,6 +544,101 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
     setExpandedPrompts((prev) => ({ ...prev, [agentId]: !prev[agentId] }));
   };
 
+  const openConversationPreview = (agent: AgentGetOne) => {
+    setExpandedPreviews((prev) => ({ ...prev, [agent.id]: !prev[agent.id] }));
+    setPreviewByAgentId((prev) => {
+      if (prev[agent.id]) return prev;
+      return { ...prev, [agent.id]: createInitialPreviewState(agent) };
+    });
+  };
+
+  const updatePreviewDraft = (agent: AgentGetOne, mode: PreviewMode, value: string) => {
+    setPreviewByAgentId((prev) => {
+      const current = prev[agent.id] ?? createInitialPreviewState(agent);
+      const nextState =
+        mode === "chat"
+          ? { ...current, chatDraft: value }
+          : { ...current, callDraft: value };
+      return { ...prev, [agent.id]: nextState };
+    });
+  };
+
+  const sendPreviewMessage = (agent: AgentGetOne, mode: PreviewMode) => {
+    setPreviewByAgentId((prev) => {
+      const current = prev[agent.id] ?? createInitialPreviewState(agent);
+      const draft = (mode === "chat" ? current.chatDraft : current.callDraft).trim();
+      if (!draft) return prev;
+
+      const userMessage: PreviewMessage = {
+        id: createMessageId("user"),
+        role: "user",
+        content: draft,
+      };
+      const agentMessage: PreviewMessage = {
+        id: createMessageId("agent"),
+        role: "agent",
+        content: buildPreviewReply(agent, draft, mode),
+      };
+
+      if (mode === "chat") {
+        return {
+          ...prev,
+          [agent.id]: {
+            ...current,
+            chatDraft: "",
+            chatMessages: [...current.chatMessages, userMessage, agentMessage],
+          },
+        };
+      }
+
+      return {
+        ...prev,
+        [agent.id]: {
+          ...current,
+          callConnected: true,
+          callDraft: "",
+          callMessages: [...current.callMessages, userMessage, agentMessage],
+        },
+      };
+    });
+  };
+
+  const toggleCallPreviewConnection = (agent: AgentGetOne) => {
+    setPreviewByAgentId((prev) => {
+      const current = prev[agent.id] ?? createInitialPreviewState(agent);
+      const nextConnected = !current.callConnected;
+      const systemMessage: PreviewMessage = {
+        id: createMessageId("agent"),
+        role: "agent",
+        content: nextConnected
+          ? "Call connected. Ask a question to simulate voice flow."
+          : "Call ended. Reconnect when you want to continue.",
+      };
+
+      return {
+        ...prev,
+        [agent.id]: {
+          ...current,
+          callConnected: nextConnected,
+          callMessages: [...current.callMessages, systemMessage],
+        },
+      };
+    });
+  };
+
+  const resetPreview = (agent: AgentGetOne) => {
+    setPreviewByAgentId((prev) => ({
+      ...prev,
+      [agent.id]: createInitialPreviewState(agent),
+    }));
+  };
+
+  const openLivePreview = (agent: AgentGetOne, mode: PreviewMode) => {
+    setLivePreviewAgent(agent);
+    setLivePreviewMode(mode);
+    setLivePreviewDialogOpen(true);
+  };
+
   return (
     <div className="w-full">
       <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
@@ -559,6 +742,35 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
         </div>
       </ResponsiveDialog>
 
+      <ResponsiveDialog
+        title={livePreviewMode === "call" ? "Start live call preview" : "Start live chat preview"}
+        description="Pick the project context, then jump directly into a real session with this agent."
+        open={livePreviewDialogOpen}
+        onOpenChange={(open) => {
+          setLivePreviewDialogOpen(open);
+          if (!open) setLivePreviewAgent(null);
+        }}
+      >
+        {livePreviewAgent ? (
+          <MeetingForm
+            key={`${livePreviewAgent.id}-${livePreviewMode}`}
+            prefillValues={livePreviewPrefill}
+            onCancel={() => {
+              setLivePreviewDialogOpen(false);
+              setLivePreviewAgent(null);
+            }}
+            onSuccess={(meetingId) => {
+              setLivePreviewDialogOpen(false);
+              setLivePreviewAgent(null);
+              if (!meetingId) return;
+              router.push(livePreviewMode === "call" ? `/call/${meetingId}` : `/chat/${meetingId}`);
+            }}
+          />
+        ) : (
+          <p className="text-sm text-gray-600">Select an agent first.</p>
+        )}
+      </ResponsiveDialog>
+
       <div className="space-y-4">
         {filteredOwnedAgents.map((agent: AgentGetOne) => {
           const signature = getAgentSignature(agent);
@@ -586,6 +798,8 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
             (agent as AgentGetOne & { meetingCount?: number }).meetingCount ?? 0
           );
           const hasAvatar = cleanText(agent.avatar_url).length > 0;
+          const previewOpen = Boolean(expandedPreviews[agent.id]);
+          const previewState = previewByAgentId[agent.id] ?? createInitialPreviewState(agent);
 
           return (
             <article
@@ -669,6 +883,172 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
                       <p className="mt-1 text-sm text-gray-600">{visibleFeedback}</p>
                     </div>
                   )}
+
+                  {previewOpen && (
+                    <div className="mt-3 rounded-lg border border-[rgba(75,137,239,0.35)] bg-[#f8fbff] p-3">
+                      <Tabs defaultValue="chat" className="w-full">
+                        <TabsList className="grid w-full grid-cols-2">
+                          <TabsTrigger value="chat">Chat preview</TabsTrigger>
+                          <TabsTrigger value="call">Call preview</TabsTrigger>
+                        </TabsList>
+
+                        <TabsContent value="chat" className="space-y-3">
+                          <div className="max-h-52 space-y-2 overflow-auto rounded-lg border border-[rgba(0,0,0,0.08)] bg-white p-3">
+                            {previewState.chatMessages.map((message) => (
+                              <div
+                                key={message.id}
+                                className={`rounded-lg px-3 py-2 text-sm ${
+                                  message.role === "user"
+                                    ? "ml-5 bg-[#edf3ff] text-[#1f3d66]"
+                                    : "mr-5 bg-[#f4f4f5] text-gray-700"
+                                }`}
+                              >
+                                <p className="mb-1 text-[11px] uppercase tracking-wide text-gray-500">
+                                  {message.role === "user" ? "You" : "Agent"}
+                                </p>
+                                <p>{message.content}</p>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div className="flex gap-2">
+                            <Input
+                              value={previewState.chatDraft}
+                              placeholder="Type a message to preview..."
+                              onChange={(event) =>
+                                updatePreviewDraft(agent, "chat", event.target.value)
+                              }
+                              onKeyDown={(event) => {
+                                if (event.key === "Enter") {
+                                  event.preventDefault();
+                                  sendPreviewMessage(agent, "chat");
+                                }
+                              }}
+                            />
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              aria-label="Send preview chat message"
+                              onClick={() => sendPreviewMessage(agent, "chat")}
+                            >
+                              <SendHorizontal className="h-4 w-4" />
+                            </Button>
+                          </div>
+
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={() => openLivePreview(agent, "chat")}
+                            >
+                              Start live chat
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => resetPreview(agent)}
+                            >
+                              Reset preview
+                            </Button>
+                          </div>
+                        </TabsContent>
+
+                        <TabsContent value="call" className="space-y-3">
+                          <div className="flex items-center justify-between rounded-lg border border-[rgba(0,0,0,0.1)] bg-white px-3 py-2">
+                            <p className="text-sm text-gray-700">
+                              {previewState.callConnected
+                                ? "Simulated call connected"
+                                : "Simulated call not connected"}
+                            </p>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={() => toggleCallPreviewConnection(agent)}
+                            >
+                              {previewState.callConnected ? (
+                                <>
+                                  <PhoneOff className="mr-1 h-4 w-4" />
+                                  Hang up
+                                </>
+                              ) : (
+                                <>
+                                  <PhoneCall className="mr-1 h-4 w-4" />
+                                  Join call
+                                </>
+                              )}
+                            </Button>
+                          </div>
+
+                          <div className="max-h-44 space-y-2 overflow-auto rounded-lg border border-[rgba(0,0,0,0.08)] bg-white p-3">
+                            {previewState.callMessages.map((message) => (
+                              <div
+                                key={message.id}
+                                className={`rounded-lg px-3 py-2 text-sm ${
+                                  message.role === "user"
+                                    ? "ml-5 bg-[#edf3ff] text-[#1f3d66]"
+                                    : "mr-5 bg-[#f4f4f5] text-gray-700"
+                                }`}
+                              >
+                                <p className="mb-1 text-[11px] uppercase tracking-wide text-gray-500">
+                                  {message.role === "user" ? "You" : "Agent"}
+                                </p>
+                                <p>{message.content}</p>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div className="flex gap-2">
+                            <Input
+                              value={previewState.callDraft}
+                              disabled={!previewState.callConnected}
+                              placeholder={
+                                previewState.callConnected
+                                  ? "Say something to simulate the call..."
+                                  : "Join the simulated call to speak"
+                              }
+                              onChange={(event) =>
+                                updatePreviewDraft(agent, "call", event.target.value)
+                              }
+                              onKeyDown={(event) => {
+                                if (event.key === "Enter") {
+                                  event.preventDefault();
+                                  sendPreviewMessage(agent, "call");
+                                }
+                              }}
+                            />
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              aria-label="Speak in call preview"
+                              disabled={!previewState.callConnected}
+                              onClick={() => sendPreviewMessage(agent, "call")}
+                            >
+                              <Mic className="h-4 w-4" />
+                            </Button>
+                          </div>
+
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => openLivePreview(agent, "call")}
+                          >
+                            Start live call
+                          </Button>
+                        </TabsContent>
+                      </Tabs>
+
+                      <p className="mt-3 text-xs text-gray-500">
+                        This preview is simulated from your prompt settings; live sessions may
+                        respond differently.
+                      </p>
+                    </div>
+                  )}
                 </section>
 
                 <aside className="rounded-xl border border-[rgba(0,0,0,0.12)] bg-white p-3">
@@ -705,6 +1085,14 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
                   </div>
 
                   <div className="mt-4 space-y-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => openConversationPreview(agent)}
+                    >
+                      {previewOpen ? "Hide preview" : "Preview conversation"}
+                    </Button>
                     <Button
                       size="sm"
                       variant="outline"

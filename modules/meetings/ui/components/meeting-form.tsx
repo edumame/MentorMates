@@ -28,6 +28,12 @@ interface MeetingFormProps {
   onSuccess?: (id?: string) => void;
   onCancel?: () => void;
   initialValues?: MeetingGetOne;
+  prefillValues?: {
+    name?: string;
+    agentId?: string;
+    eventId?: string;
+    projectId?: string;
+  };
 }
 
 interface EventOption {
@@ -44,6 +50,7 @@ export const MeetingForm = ({
   onSuccess,
   onCancel,
   initialValues,
+  prefillValues,
 }: MeetingFormProps) => {
   const trpc = useTRPC();
   const router = useRouter();
@@ -160,10 +167,10 @@ export const MeetingForm = ({
   const form = useForm<z.infer<typeof meetingsInsertSchema>>({
     resolver: zodResolver(meetingsInsertSchema),
     defaultValues: {
-      name: initialValues?.name ?? "",
-      agentId: initialValues?.agent_id ?? "",
-      eventId: initialValues?.event_id ?? undefined,
-      projectId: initialValues?.project_id ?? "",
+      name: initialValues?.name ?? prefillValues?.name ?? "",
+      agentId: initialValues?.agent_id ?? prefillValues?.agentId ?? "",
+      eventId: initialValues?.event_id ?? prefillValues?.eventId ?? undefined,
+      projectId: initialValues?.project_id ?? prefillValues?.projectId ?? "",
     },
   });
 
