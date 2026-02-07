@@ -39,6 +39,13 @@ interface AgentFormProps {
 
 const STANDARD_TYPES = ["brainstorm", "product", "tech", "judge"];
 const CUSTOM_VOICE_ID_REGEX = /^voice_[a-zA-Z0-9_-]+$/;
+type AIGenerationStep = "instruction" | "feedback_prompt" | "metadata";
+
+const AI_GENERATION_STEPS: Array<{ step: AIGenerationStep; label: string }> = [
+    { step: "instruction", label: "Generate instruction" },
+    { step: "feedback_prompt", label: "Generate student-eval prompt" },
+    { step: "metadata", label: "Generate remaining metadata" },
+];
 
 export const AgentForm = ({ onSuccess, onCancel, initialValues, eventId } : AgentFormProps) => {
     const trpc = useTRPC();
@@ -119,6 +126,136 @@ export const AgentForm = ({ onSuccess, onCancel, initialValues, eventId } : Agen
     const isPending = createAgent.isPending || updateAgent.isPending;
     const [aiInput, setAiInput] = useState("");
     const [aiLoading, setAiLoading] = useState(false);
+    const [aiActiveMode, setAiActiveMode] = useState<"fill" | "generate" | null>(null);
+    const [aiProgressText, setAiProgressText] = useState("");
+    const aiActiveStepNumber =
+        aiLoading && aiActiveMode === "generate"
+            ? Number(/Step (\d)\/3/.exec(aiProgressText)?.[1] ?? 0)
+            : 0;
+
+    const resolveSelectedType = () => {
+        const typeValue = (form.getValues("type") || "").toString().trim();
+        if (typeValue === "custom") {
+            const customTypeValue = (form.getValues("custom_type_tmp") || "").toString().trim();
+            return customTypeValue.length > 0 ? customTypeValue : undefined;
+        }
+        return typeValue.length > 0 ? typeValue : undefined;
+    };
+
+    const resolveSelectedVoice = () => {
+        const voiceValue = (form.getValues("voice") || "").toString().trim();
+        if (voiceValue === "custom") {
+            const customVoiceValue = (form.getValues("custom_voice_tmp") || "").toString().trim();
+            return customVoiceValue.length > 0 ? customVoiceValue : undefined;
+        }
+        return voiceValue.length > 0 ? voiceValue : undefined;
+    };
+
+    const buildAiContext = () => {
+        const values = form.getValues();
+        const context: Record<string, string> = {};
+        const name = (values.name || "").toString().trim();
+        const instructions = (values.instructions || "").toString().trim();
+        const feedbackPrompt = (values.feedback_prompt || "").toString().trim();
+        const avatarUrl = (values.avatar_url || "").toString().trim();
+        const resolvedType = resolveSelectedType();
+        const resolvedVoice = resolveSelectedVoice();
+
+        if (name.length > 0) context.name = name;
+        if (instructions.length > 0) context.instructions = instructions;
+        if (feedbackPrompt.length > 0) context.feedback_prompt = feedbackPrompt;
+        if (avatarUrl.length > 0) context.avatar_url = avatarUrl;
+        if (resolvedType) context.type = resolvedType;
+        if (resolvedVoice) context.voice = resolvedVoice;
+
+        return context;
+    };
+
+    const applyAiFields = (fields: Record<string, unknown>) => {
+        const applyOpts = { shouldDirty: true, shouldValidate: true };
+        let appliedCount = 0;
+
+        if (typeof fields.name === "string" && fields.name.trim().length > 0) {
+            form.setValue("name", fields.name.trim(), applyOpts);
+            appliedCount += 1;
+        }
+
+        if (typeof fields.instructions === "string" && fields.instructions.trim().length > 0) {
+            form.setValue("instructions", fields.instructions.trim(), applyOpts);
+            appliedCount += 1;
+        }
+
+        if (typeof fields.feedback_prompt === "string" && fields.feedback_prompt.trim().length > 0) {
+            form.setValue("feedback_prompt", fields.feedback_prompt.trim(), applyOpts);
+            appliedCount += 1;
+        }
+
+        if (typeof fields.avatar_url === "string" && fields.avatar_url.trim().length > 0) {
+            form.setValue("avatar_url", fields.avatar_url.trim(), applyOpts);
+            appliedCount += 1;
+        }
+
+        if (typeof fields.type === "string" && fields.type.trim().length > 0) {
+            const incomingTypeRaw = fields.type.trim();
+            const incomingTypeLower = incomingTypeRaw.toLowerCase();
+
+            if (STANDARD_TYPES.includes(incomingTypeLower)) {
+                form.setValue("type", incomingTypeLower, applyOpts);
+                form.setValue("custom_type_tmp", "", applyOpts);
+            } else {
+                form.setValue("type", "custom", applyOpts);
+                form.setValue("custom_type_tmp", incomingTypeRaw, applyOpts);
+            }
+            appliedCount += 1;
+        }
+
+        if (typeof fields.voice === "string" && fields.voice.trim().length > 0) {
+            const incomingVoiceRaw = fields.voice.trim();
+            const incomingVoiceLower = incomingVoiceRaw.toLowerCase();
+            let voiceApplied = false;
+
+            if (BUILT_IN_VOICE_VALUE_SET.has(incomingVoiceLower as BuiltInVoiceValue)) {
+                form.setValue("voice", incomingVoiceLower, applyOpts);
+                form.setValue("custom_voice_tmp", "", applyOpts);
+                voiceApplied = true;
+            } else if (CUSTOM_VOICE_ID_REGEX.test(incomingVoiceRaw)) {
+                form.setValue("voice", "custom", applyOpts);
+                form.setValue("custom_voice_tmp", incomingVoiceRaw, applyOpts);
+                voiceApplied = true;
+            }
+
+            if (voiceApplied) {
+                appliedCount += 1;
+            }
+        }
+
+        return appliedCount;
+    };
+
+    const requestAiFields = async (options: {
+        mode: "fill" | "generate";
+        step?: "all" | AIGenerationStep;
+        context?: Record<string, string>;
+    }) => {
+        const response = await fetch("/api/agents/ai-parse", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                text: aiInput.trim(),
+                mode: options.mode,
+                step: options.step,
+                context: options.context,
+            }),
+        });
+
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            const stagePrefix = typeof data?.stage === "string" ? `[${data.stage}] ` : "";
+            throw new Error(stagePrefix + (data?.error || "Unable to generate agent details with AI."));
+        }
+
+        return (data?.fields || data?.normalized || {}) as Record<string, unknown>;
+    };
 
     const handleAi = async (mode: "fill" | "generate") => {
         if (!aiInput.trim()) {
@@ -127,85 +264,39 @@ export const AgentForm = ({ onSuccess, onCancel, initialValues, eventId } : Agen
         }
 
         setAiLoading(true);
+        setAiActiveMode(mode);
+        setAiProgressText(mode === "generate" ? "Step 1/3: Generate instruction" : "Filling fields from text");
         try {
-            const response = await fetch("/api/agents/ai-parse", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ text: aiInput.trim(), mode }),
-            });
-
-            const data = await response.json().catch(() => ({}));
-            if (!response.ok) {
-                toast.error(data?.error || "Unable to generate agent details with AI.");
-                return;
-            }
-
-            const fields = (data?.fields || data?.normalized || {}) as Record<string, unknown>;
-            const applyOpts = { shouldDirty: true, shouldValidate: true };
             let appliedCount = 0;
 
-            if (typeof fields.name === "string" && fields.name.trim().length > 0) {
-                form.setValue("name", fields.name.trim(), applyOpts);
-                appliedCount += 1;
-            }
+            if (mode === "fill") {
+                const fields = await requestAiFields({
+                    mode: "fill",
+                    step: "all",
+                    context: buildAiContext(),
+                });
+                appliedCount += applyAiFields(fields);
+            } else {
+                for (let i = 0; i < AI_GENERATION_STEPS.length; i += 1) {
+                    const currentStep = AI_GENERATION_STEPS[i];
+                    setAiProgressText(`Step ${i + 1}/3: ${currentStep.label}`);
 
-            if (typeof fields.instructions === "string" && fields.instructions.trim().length > 0) {
-                form.setValue("instructions", fields.instructions.trim(), applyOpts);
-                appliedCount += 1;
-            }
-
-            if (typeof fields.feedback_prompt === "string" && fields.feedback_prompt.trim().length > 0) {
-                form.setValue("feedback_prompt", fields.feedback_prompt.trim(), applyOpts);
-                appliedCount += 1;
-            }
-
-            if (typeof fields.avatar_url === "string" && fields.avatar_url.trim().length > 0) {
-                form.setValue("avatar_url", fields.avatar_url.trim(), applyOpts);
-                appliedCount += 1;
-            }
-
-            if (typeof fields.type === "string" && fields.type.trim().length > 0) {
-                const incomingTypeRaw = fields.type.trim();
-                const incomingTypeLower = incomingTypeRaw.toLowerCase();
-
-                if (STANDARD_TYPES.includes(incomingTypeLower)) {
-                    form.setValue("type", incomingTypeLower, applyOpts);
-                    form.setValue("custom_type_tmp", "", applyOpts);
-                } else {
-                    form.setValue("type", "custom", applyOpts);
-                    form.setValue("custom_type_tmp", incomingTypeRaw, applyOpts);
-                }
-                appliedCount += 1;
-            }
-
-            if (typeof fields.voice === "string" && fields.voice.trim().length > 0) {
-                const incomingVoiceRaw = fields.voice.trim();
-                const incomingVoiceLower = incomingVoiceRaw.toLowerCase();
-                let voiceApplied = false;
-
-                if (BUILT_IN_VOICE_VALUE_SET.has(incomingVoiceLower as BuiltInVoiceValue)) {
-                    form.setValue("voice", incomingVoiceLower, applyOpts);
-                    form.setValue("custom_voice_tmp", "", applyOpts);
-                    voiceApplied = true;
-                } else if (CUSTOM_VOICE_ID_REGEX.test(incomingVoiceRaw)) {
-                    form.setValue("voice", "custom", applyOpts);
-                    form.setValue("custom_voice_tmp", incomingVoiceRaw, applyOpts);
-                    voiceApplied = true;
+                    const fields = await requestAiFields({
+                        mode: "generate",
+                        step: currentStep.step,
+                        context: buildAiContext(),
+                    });
+                    appliedCount += applyAiFields(fields);
                 }
 
-                if (voiceApplied) {
-                    appliedCount += 1;
-                }
-            }
-
-            if (mode === "generate") {
-                if (!(typeof fields.type === "string" && fields.type.trim().length > 0)) {
+                const applyOpts = { shouldDirty: true, shouldValidate: true };
+                if (!resolveSelectedType()) {
                     form.setValue("type", "brainstorm", applyOpts);
                     form.setValue("custom_type_tmp", "", applyOpts);
                     appliedCount += 1;
                 }
 
-                if (!(typeof fields.voice === "string" && fields.voice.trim().length > 0)) {
+                if (!resolveSelectedVoice()) {
                     form.setValue("voice", "alloy", applyOpts);
                     form.setValue("custom_voice_tmp", "", applyOpts);
                     appliedCount += 1;
@@ -217,11 +308,18 @@ export const AgentForm = ({ onSuccess, onCancel, initialValues, eventId } : Agen
                 return;
             }
 
-            toast.success("Agent details generated.");
-        } catch {
-            toast.error("Unable to contact AI service.");
+            toast.success(
+                mode === "generate"
+                    ? "Completed 3-step generation."
+                    : "Agent details filled from text."
+            );
+        } catch (error) {
+            const message = error instanceof Error ? error.message : "Unable to contact AI service.";
+            toast.error(message);
         } finally {
             setAiLoading(false);
+            setAiActiveMode(null);
+            setAiProgressText("");
         }
     };
 
@@ -280,59 +378,83 @@ export const AgentForm = ({ onSuccess, onCancel, initialValues, eventId } : Agen
             >
                 <div className={cn(!isEdit && "grid gap-4 lg:grid-cols-[minmax(260px,0.9fr)_minmax(0,1.6fr)]")}>
                     {!isEdit && (
-                        <div className="rounded-lg border border-[rgba(0,0,0,0.15)] bg-muted/20 p-4 lg:sticky lg:top-0 lg:self-start">
-                            <div className="mb-3 flex items-center gap-2 text-sm font-medium">
+                        <div className="rounded-lg border border-[#4b89ef]/30 bg-[linear-gradient(180deg,rgba(75,137,239,0.08)_0%,rgba(75,137,239,0.02)_60%,rgba(255,255,255,0.9)_100%)] p-4 lg:sticky lg:top-0 lg:self-start">
+                            <p className="mb-2 inline-flex rounded-full border border-[#4b89ef]/35 bg-white/70 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-[#2d65be]">
+                                AI Generation Workspace
+                            </p>
+                            <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
                                 <Sparkles className="h-4 w-4 text-[#4b89ef]" />
-                                <span>Generate agent details with AI</span>
+                                <span>Left panel generates, right panel is editable output</span>
                             </div>
-                            <p className="mb-3 text-xs text-muted-foreground">
-                                Describe the role, expertise, tone, and outcomes you want. Include type and voice preferences when possible.
+                            <p className="mb-3 text-xs text-muted-foreground leading-relaxed">
+                                Paste a brief below, run generation, then review and edit the generated fields on the right before creating the agent.
+                            </p>
+                            <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                                Generation brief
                             </p>
                             <Textarea
                                 value={aiInput}
                                 onChange={(e) => setAiInput(e.target.value)}
-                                placeholder={`Goal: Build a technical mentor for hackathon teams
-Type: tech
-Voice: sage
-Instruction style examples:
-- Ask up to 2 clarifying questions first
-- Return: Summary, 3 options with tradeoffs, recommended next step
-Feedback prompt example:
-- Score feasibility, technical depth, and user impact (1-10), then give 3 actionable improvements`}
+                                placeholder={`You are a daycare parent in Baltimore. Students are showing you what they built for ages 2-4.
+Respond like a real parent with a 3-year-old child and give specific, practical feedback.`}
                                 className="min-h-[180px] bg-background"
                             />
-                            <div className="mt-3 space-y-2 rounded-md border bg-background p-3 text-xs">
-                                <p className="font-medium text-foreground">Concrete prompt examples</p>
+                            <div className="mt-3 space-y-2 rounded-md border bg-background/90 p-3 text-xs">
+                                <p className="font-medium text-foreground">3-step generation flow</p>
+                                {AI_GENERATION_STEPS.map((item, index) => {
+                                    const stepNumber = index + 1;
+                                    const isComplete = aiActiveStepNumber > stepNumber;
+                                    const isActive = aiActiveStepNumber === stepNumber;
+                                    return (
+                                        <div key={item.step} className="flex items-center gap-2 text-muted-foreground">
+                                            <span
+                                                className={cn(
+                                                    "inline-flex h-5 w-5 items-center justify-center rounded-full border text-[10px] font-semibold",
+                                                    isActive
+                                                        ? "border-[#4b89ef] bg-[#4b89ef]/15 text-[#2d65be]"
+                                                        : isComplete
+                                                            ? "border-green-600 bg-green-50 text-green-700"
+                                                            : "border-muted-foreground/30 text-muted-foreground"
+                                                )}
+                                            >
+                                                {stepNumber}
+                                            </span>
+                                            <span className={cn(isActive && "font-medium text-foreground")}>{item.label}</span>
+                                        </div>
+                                    );
+                                })}
                                 <p className="text-muted-foreground">
-                                    Instructions example: &quot;Ask 1-2 clarifying questions, then give 3 ranked solutions with tradeoffs.&quot;
+                                    This writes into: Instructions, Feedback prompt, and Name/Type/Voice fields.
                                 </p>
                                 <p className="text-muted-foreground">
-                                    Feedback prompt example: &quot;Evaluate novelty, feasibility, and user value (1-10 each) and return top 3 improvements.&quot;
+                                    Step 2 evaluates the student conversation behavior, not the agent quality.
                                 </p>
                                 <p className="text-muted-foreground">
                                     Type options: brainstorm, product, tech, judge. Voice options: {BUILT_IN_VOICE_PROMPT_OPTIONS}.
                                 </p>
+                                {aiLoading && aiProgressText ? (
+                                    <p className="font-medium text-foreground">{aiProgressText}</p>
+                                ) : null}
                             </div>
                             <div className="mt-3 flex flex-wrap justify-end gap-2">
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    disabled={aiLoading || isPending}
-                                    onClick={() => void handleAi("fill")}
-                                >
-                                    {aiLoading ? "Working..." : "Fill from text"}
-                                </Button>
                                 <Button
                                     type="button"
                                     disabled={aiLoading || isPending}
                                     onClick={() => void handleAi("generate")}
                                 >
-                                    {aiLoading ? "Working..." : "Generate details"}
+                                    {aiLoading && aiActiveMode === "generate"
+                                        ? (aiProgressText || "Working...")
+                                        : "Run 3-step generation"}
                                 </Button>
                             </div>
                         </div>
                     )}
                     <div className="space-y-4 pb-1">
+                        {!isEdit && (
+                            <div className="rounded-md border border-dashed bg-muted/15 p-3 text-xs text-muted-foreground">
+                                Generated output appears here. You can edit every field before saving.
+                            </div>
+                        )}
                         <FormField
                             name="name"
                             control={form.control}
