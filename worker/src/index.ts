@@ -73,7 +73,19 @@ const SUPABASE_SERVICE_ROLE_KEY =
 
 const supabase = createClient(
   SUPABASE_URL || "",
-  SUPABASE_SERVICE_ROLE_KEY || ""
+  SUPABASE_SERVICE_ROLE_KEY || "",
+  {
+    realtime: {
+      params: {
+        eventsPerSecond: 10,
+      },
+    },
+    global: {
+      headers: {
+        'x-application-name': 'mentor-mate-worker',
+      },
+    },
+  }
 );
 
 const streamVideo = new StreamClient(
@@ -183,7 +195,12 @@ app.post("/session/start", async (req: Request, res: Response) => {
 
     // Set up Supabase Realtime subscription
     const subscription = supabase
-      .channel(`meeting:${meetingId}`)
+      .channel(`meeting:${meetingId}`, {
+        config: {
+          broadcast: { self: false },
+          presence: { key: "" },
+        },
+      })
       .on(
         "postgres_changes",
         {
@@ -201,12 +218,17 @@ app.post("/session/start", async (req: Request, res: Response) => {
           await handleScreenUpdate(summary, updated_at);
         }
       )
-      .subscribe((status) => {
+      .subscribe(async (status, err) => {
         console.error(`[${meetingId}] Subscription status: ${status}`);
+        if (err) {
+          console.error(`[${meetingId}] Subscription error:`, err);
+        }
         if (status === "CHANNEL_ERROR") {
-          console.error(`[${meetingId}] Subscription error`);
+          console.error(`[${meetingId}] Channel error - connection failed`);
         } else if (status === "TIMED_OUT") {
           console.error(`[${meetingId}] Subscription timed out`);
+        } else if (status === "SUBSCRIBED") {
+          console.error(`[${meetingId}] Successfully subscribed to screen updates`);
         }
       });
 
