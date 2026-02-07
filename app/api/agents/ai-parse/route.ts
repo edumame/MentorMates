@@ -254,6 +254,67 @@ ${params.draftInstructions}`;
   return extractStringField(json, "instructions");
 }
 
+async function generateContextualFeedbackPrompt(params: {
+  brief: string;
+  type?: string;
+  instructions?: string;
+  draftFeedbackPrompt?: string;
+}): Promise<string | undefined> {
+  const feedbackSystem = `You generate a system-level feedback prompt used to evaluate a completed conversation transcript.
+Return STRICT JSON only:
+{
+  "feedback_prompt": string
+}
+
+Intent:
+- The evaluator uses a neutral third-person perspective to review the conversation and give actionable coaching to the user who spoke.
+- The feedback must be context-specific to the scenario in the brief/instructions.
+
+Requirements for "feedback_prompt":
+- Tell the evaluator to ground observations in specific moments from the transcript (avoid generic advice).
+- Focus on practical improvement, not praise-only output.
+- Instruct output with these sections in order:
+  1. Conversation Summary
+  2. What You Did Well
+  3. Improvement Opportunities
+  4. Next Actions
+  5. Questions To Explore Next
+- Keep tone direct, supportive, and practical.
+- If scenario is pitching/public speaking, prioritize message clarity, audience fit, storytelling, objections, and close.
+- If scenario is coding/technical problem solving, prioritize problem framing, decomposition, tradeoffs, debugging quality, and next prompt sequence.
+- If scenario is user/persona practice, prioritize empathy, discovery depth, assumptions, risk/safety concerns, and actionability.
+- Include concise, concrete next steps and suggested practice prompts.
+- Avoid requiring numeric scoring unless explicitly requested by the scenario.
+- Keep it concise (roughly 140-260 words).`;
+
+  const feedbackUser = `Scenario brief:
+${params.brief}
+
+Agent type:
+${params.type || "(not specified)"}
+
+Agent instructions:
+${params.instructions || "(not provided)"}
+
+Current feedback prompt draft:
+${params.draftFeedbackPrompt || "(none)"}`;
+
+  const completion = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    response_format: { type: "json_object" },
+    messages: [
+      { role: "system", content: feedbackSystem },
+      { role: "user", content: feedbackUser },
+    ],
+    temperature: 0.2,
+    max_tokens: 600,
+  });
+
+  const content = completion.choices?.[0]?.message?.content || "";
+  const json = extractJsonFromText(content);
+  return extractStringField(json, "feedback_prompt");
+}
+
 function normalizeAgentFields(input: ParsedAgent): ParsedAgent {
   const normalized: ParsedAgent = {};
 
@@ -272,6 +333,33 @@ function normalizeAgentFields(input: ParsedAgent): ParsedAgent {
   if (voice) normalized.voice = voice;
 
   return normalized;
+}
+
+function buildFallbackFeedbackPrompt(params: { type?: string; brief: string }): string {
+  const focusByType: Record<string, string> = {
+    judge: "evaluation clarity, evidence quality, decision rationale, and recommendation quality",
+    tech: "problem framing, technical decomposition, tradeoffs, debugging quality, and implementation next steps",
+    product: "user problem clarity, prioritization logic, value proposition, and execution sequencing",
+    user: "empathy, discovery depth, assumption quality, risk/safety awareness, and practical actionability",
+    brainstorm: "option quality, creativity, feasibility, and decision focus",
+  };
+
+  const focus = focusByType[params.type || ""] || "clarity, specificity, and actionable communication";
+
+  return `You are a neutral third-person conversation evaluator. Review the completed transcript and provide coaching to the user based on this scenario brief: "${params.brief}".
+
+Focus on: ${focus}.
+
+Ground feedback in specific moments from the transcript. Avoid generic advice.
+
+Output exactly these sections:
+1. Conversation Summary
+2. What You Did Well
+3. Improvement Opportunities
+4. Next Actions
+5. Questions To Explore Next
+
+Keep feedback practical, specific, and supportive. Do not use numeric scoring unless explicitly requested in the scenario.`;
 }
 
 export async function POST(req: Request) {
@@ -331,7 +419,7 @@ Return STRICT JSON only:
   "type": "brainstorm" | "product" | "tech" | "judge" | "user",
   "instructions": string,
   "voice": "alloy" | "ash" | "ballad" | "cedar" | "coral" | "echo" | "marin" | "sage" | "shimmer" | "verse",
-  "feedback_prompt"?: string,
+  "feedback_prompt": string,
   "avatar_url"?: string
 }
 
@@ -348,6 +436,11 @@ Instructions quality bar:
 - Be concrete and specific. Avoid vague language.
 - Include response structure as numbered sections.
 - Keep language matched to audience; avoid technical jargon for non-technical personas.
+
+Feedback prompt quality bar:
+- Must define how a neutral third-person evaluator should review a completed transcript and coach the user.
+- Must be context-specific to the scenario (pitching, coding, user interview/persona, etc.).
+- Must require concrete strengths, concrete improvement opportunities, and clear next steps.
 
 For type "user", instructions MUST include:
 - Persona identity with realistic full name and location.
@@ -409,6 +502,30 @@ Do NOT include code fences or commentary; JSON only.`;
       } catch (rewriteError) {
         // eslint-disable-next-line no-console
         console.warn("Failed to rewrite user persona instructions", rewriteError);
+      }
+    }
+
+    if (mode === "generate") {
+      try {
+        const rewrittenFeedbackPrompt = await generateContextualFeedbackPrompt({
+          brief: text,
+          type: fields.type,
+          instructions: fields.instructions,
+          draftFeedbackPrompt: fields.feedback_prompt,
+        });
+        if (rewrittenFeedbackPrompt) {
+          fields = { ...fields, feedback_prompt: rewrittenFeedbackPrompt };
+        }
+      } catch (feedbackError) {
+        // eslint-disable-next-line no-console
+        console.warn("Failed to generate contextual feedback prompt", feedbackError);
+      }
+
+      if (!fields.feedback_prompt) {
+        fields = {
+          ...fields,
+          feedback_prompt: buildFallbackFeedbackPrompt({ type: fields.type, brief: text }),
+        };
       }
     }
 
