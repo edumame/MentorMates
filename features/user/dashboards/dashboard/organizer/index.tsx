@@ -14,6 +14,7 @@ import {
   FolderKanban,
   DollarSign,
   Bell,
+  Bot,
 } from "lucide-react";
 
 import {
@@ -35,6 +36,7 @@ import { ProjectImport } from "./import/ProjectImportButton";
 import { EmailTab } from "./email";
 import { PricingTab } from "./pricing/PricingTab";
 import EmailDashboard from "./notifications/EmailDashboard";
+import { AgentsTab } from "./agents/AgentsTab";
 // Overview sub-tab components
 import { BasicInfoTab } from "./details/BasicInfoTab";
 import { ContentTab } from "./details/ContentTab";
@@ -75,6 +77,7 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
     { value: "tracks", label: "Tracks", icon: FolderKanban },
     { value: "pricing", label: "Pricing", icon: DollarSign },
     { value: "notify", label: "Notify", icon: Bell },
+    { value: "agents", label: "Agents", icon: Bot },
   ];
 
   // Sub-tabs under Overview matching Figma design
@@ -440,6 +443,10 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
                   eventId={eventId}
                   eventName={event.event_name}
                 />
+              </TabsContent>
+
+              <TabsContent value="agents" className="mt-0">
+                <AgentsTab eventId={eventId} />
               </TabsContent>
             </Tabs>
           </div>
