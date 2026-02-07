@@ -1403,7 +1403,7 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
                 : eventNameById.get(String(agent.event_id)) ||
                   `Event ${String(agent.event_id).slice(0, 8)}`;
 
-          const instructions = cleanText(agent.instructions);
+          const instructions = normalizeText(agent.instructions);
           const feedbackPrompt = cleanText(agent.feedback_prompt);
           const isExpanded = Boolean(expandedPrompts[agent.id]);
           const hasLongPrompt = instructions.length > PROMPT_PREVIEW_LIMIT;
