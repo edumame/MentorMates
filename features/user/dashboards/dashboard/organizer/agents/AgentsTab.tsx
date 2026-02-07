@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useTRPC } from "@/trpc/client";
-import type { AgentsGetMany, AgentGetOne } from "@/modules/agents/types";
+import type { AgentGetOne } from "@/modules/agents/types";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import AgentTypeLabel from "@/components/ui/agent-type-label";
@@ -133,15 +133,15 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
     [events]
   );
 
-  const allOwnedAgents = useMemo(() => {
-    const items = (agentsQuery.data?.items || []) as AgentsGetMany;
+  const allOwnedAgents = useMemo<AgentGetOne[]>(() => {
+    const items = ((agentsQuery.data?.items || []) as unknown[]) as AgentGetOne[];
     return items.filter(
       (agent: AgentGetOne) =>
         String(agent.user_id ?? "") === String(session?.user?.id ?? "")
     );
   }, [agentsQuery.data, session?.user?.id]);
 
-  const ownedAgents = useMemo(() => {
+  const ownedAgents = useMemo<AgentGetOne[]>(() => {
     if (!eventId) return allOwnedAgents;
     return allOwnedAgents.filter(
       (agent: AgentGetOne) =>
