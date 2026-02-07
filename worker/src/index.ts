@@ -193,6 +193,7 @@ app.post("/session/start", async (req: Request, res: Response) => {
           filter: `meeting_id=eq.${meetingId}`,
         },
         async (payload) => {
+          console.error(`[${meetingId}] Received UPDATE event:`, JSON.stringify(payload).slice(0, 200));
           const { summary, updated_at } = payload.new as {
             summary: string;
             updated_at: string;
@@ -201,6 +202,7 @@ app.post("/session/start", async (req: Request, res: Response) => {
         }
       )
       .subscribe((status) => {
+        console.error(`[${meetingId}] Subscription status: ${status}`);
         if (status === "CHANNEL_ERROR") {
           console.error(`[${meetingId}] Subscription error`);
         } else if (status === "TIMED_OUT") {
