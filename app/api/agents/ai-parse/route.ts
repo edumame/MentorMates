@@ -6,6 +6,8 @@ import { createSupabaseClient } from "@/app/utils/supabase/server";
 const openai = process.env.OPENAI_API_KEY
   ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
   : (null as unknown as OpenAI);
+const AGENT_PARSE_MODEL =
+  (process.env.OPENAI_AGENT_PARSE_MODEL || "").trim() || "gpt-5.2";
 
 const STANDARD_TYPES = ["brainstorm", "product", "tech", "judge", "user"] as const;
 const BUILT_IN_VOICES = [
@@ -239,8 +241,7 @@ Current draft instructions:
 ${params.draftInstructions}`;
 
   const completion = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    response_format: { type: "json_object" },
+    model: AGENT_PARSE_MODEL,
     messages: [
       { role: "system", content: rewriteSystem },
       { role: "user", content: rewriteUser },
@@ -300,8 +301,7 @@ Current feedback prompt draft:
 ${params.draftFeedbackPrompt || "(none)"}`;
 
   const completion = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    response_format: { type: "json_object" },
+    model: AGENT_PARSE_MODEL,
     messages: [
       { role: "system", content: feedbackSystem },
       { role: "user", content: feedbackUser },
@@ -458,32 +458,80 @@ Do NOT include code fences or commentary; JSON only.`;
         ? systemPromptGenerate
         : systemPromptFill;
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: text },
-      ],
-      temperature: mode === "generate" ? 0.3 : 0.2,
-      max_tokens: 700,
-    });
+    let content = "";
+    try {
+      const completion = await openai.chat.completions.create({
+        model: AGENT_PARSE_MODEL,
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: text },
+        ],
+        temperature: mode === "generate" ? 0.3 : 0.2,
+        max_tokens: 700,
+      });
+      content = completion.choices?.[0]?.message?.content || "";
+    } catch (modelError) {
+      // eslint-disable-next-line no-console
+      console.warn("Primary OpenAI generation failed; using fallback parsing.", modelError);
 
-    const content = completion.choices?.[0]?.message?.content || "";
+      let fallbackFields = normalizeAgentFields(
+        ensureTypeAndVoice(heuristicParse(text), text, mode)
+      );
+
+      if (mode === "generate" && !fallbackFields.feedback_prompt) {
+        fallbackFields = {
+          ...fallbackFields,
+          feedback_prompt: buildFallbackFeedbackPrompt({
+            type: fallbackFields.type,
+            brief: text,
+          }),
+        };
+      }
+
+      return NextResponse.json({
+        fields: fallbackFields,
+        warning: "OpenAI generation failed. Used fallback parsing.",
+      });
+    }
+
     const json = extractJsonFromText(content);
     if (!json) {
-      return NextResponse.json(
-        { error: "Failed to parse AI output", raw: content },
-        { status: 502 }
+      let fallbackFields = normalizeAgentFields(
+        ensureTypeAndVoice(heuristicParse(text), text, mode)
       );
+      if (mode === "generate" && !fallbackFields.feedback_prompt) {
+        fallbackFields = {
+          ...fallbackFields,
+          feedback_prompt: buildFallbackFeedbackPrompt({
+            type: fallbackFields.type,
+            brief: text,
+          }),
+        };
+      }
+      return NextResponse.json({
+        fields: fallbackFields,
+        warning: "AI output was not valid JSON. Used fallback parsing.",
+      });
     }
 
     const validated = ParsedAgentSchema.safeParse(json);
     if (!validated.success) {
-      return NextResponse.json(
-        { error: "Invalid AI output", details: validated.error.flatten(), raw: content },
-        { status: 502 }
+      let fallbackFields = normalizeAgentFields(
+        ensureTypeAndVoice(heuristicParse(text), text, mode)
       );
+      if (mode === "generate" && !fallbackFields.feedback_prompt) {
+        fallbackFields = {
+          ...fallbackFields,
+          feedback_prompt: buildFallbackFeedbackPrompt({
+            type: fallbackFields.type,
+            brief: text,
+          }),
+        };
+      }
+      return NextResponse.json({
+        fields: fallbackFields,
+        warning: "AI output schema mismatch. Used fallback parsing.",
+      });
     }
 
     let fields = normalizeAgentFields(
