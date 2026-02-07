@@ -1090,6 +1090,134 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
         </section>
       )}
 
+      {eventId && (
+        <section className="mb-6 rounded-[14px] border border-[rgba(0,0,0,0.14)] bg-white p-4 sm:p-5">
+          <div className="flex flex-col gap-1">
+            <h3 className="text-base font-semibold text-black">Session Settings</h3>
+            <p className="text-sm text-muted-foreground">
+              Manage default limits and auto-created conversations for this event.
+            </p>
+          </div>
+
+          <div className="mt-4 grid gap-4 lg:grid-cols-2">
+            <div className="rounded-lg border border-[rgba(0,0,0,0.1)] p-3">
+              <p className="text-sm font-medium text-black">Default cap per user</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Applies when an event-specific per-agent cap is not set.
+              </p>
+
+              <div className="mt-3 flex items-center gap-3">
+                <Input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={defaultUnlimited ? "" : (defaultCap ?? "")}
+                  onChange={(e) => {
+                    setDefaultUnlimited(false);
+                    const v = e.target.value;
+                    setDefaultCap(v === "" ? null : Math.max(0, Number(v)));
+                  }}
+                  placeholder="e.g. 2"
+                  className="h-9 w-32"
+                  disabled={isLoadingSessionSettings || isSavingSessionSettings}
+                />
+                <label className="inline-flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={defaultUnlimited}
+                    onChange={(e) => {
+                      setDefaultUnlimited(e.target.checked);
+                      if (e.target.checked) setDefaultCap(null);
+                    }}
+                    disabled={isLoadingSessionSettings || isSavingSessionSettings}
+                  />
+                  <span>Unlimited</span>
+                </label>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-[rgba(0,0,0,0.1)] p-3">
+              <p className="text-sm font-medium text-black">
+                Auto-create conversations on join
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Pick which agents are created automatically for each role.
+              </p>
+
+              {eventAgents.length === 0 ? (
+                <p className="mt-3 text-sm text-muted-foreground">
+                  No enabled event agents found. Create or enable agents to configure auto-conversations.
+                </p>
+              ) : (
+                <div className="mt-3 space-y-3">
+                  {AUTO_CONVERSATION_ROLES.map((role) => (
+                    <div key={role} className="rounded-md border border-[rgba(0,0,0,0.08)] p-2">
+                      <div className="mb-2 flex items-center justify-between">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">
+                          {getRoleLabel(role, roleLabels)}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {(autoConversations[role] || []).length} selected
+                        </p>
+                      </div>
+
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        {eventAgents.map((agent) => {
+                          const checked = (autoConversations[role] || []).includes(agent.id);
+                          return (
+                            <label
+                              key={`${role}-${agent.id}`}
+                              className="flex items-center gap-2 rounded border border-[rgba(0,0,0,0.1)] px-2 py-2 text-sm"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={(e) =>
+                                  updateAutoConversationAgent(
+                                    role,
+                                    agent.id,
+                                    e.target.checked
+                                  )
+                                }
+                                disabled={isLoadingSessionSettings || isSavingSessionSettings}
+                              />
+                              <span className="flex min-w-0 flex-1 items-center gap-2">
+                                <span className="truncate">{agent.name || agent.id}</span>
+                                <AgentTypeLabel type={agent.type ?? ""} />
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="mt-4 flex justify-end gap-2">
+            <Button
+              variant="ghost"
+              onClick={() => {
+                void loadEventSessionSettings();
+              }}
+              disabled={isLoadingSessionSettings || isSavingSessionSettings}
+            >
+              Reset
+            </Button>
+            <Button
+              onClick={() => {
+                void saveEventSessionSettings();
+              }}
+              disabled={isLoadingSessionSettings || isSavingSessionSettings}
+            >
+              {isSavingSessionSettings ? "Saving..." : "Save Session Settings"}
+            </Button>
+          </div>
+        </section>
+      )}
+
       <NewAgentDialog open={dialogOpen} onOpenChange={setDialogOpen} eventId={eventId} />
 
       {selectedAgent && (
