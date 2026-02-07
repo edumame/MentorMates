@@ -43,9 +43,20 @@ export default function SubmitTranscriptButton({ meetingId }: { meetingId: strin
         if (!cancelled) setHasUserMessages(false);
       }
     }
+
+    // Initial fetch
     fetchHasUserMessages();
+
+    // Poll every 2 seconds to check for new messages
+    const pollInterval = setInterval(() => {
+      if (!cancelled) {
+        fetchHasUserMessages();
+      }
+    }, 2000);
+
     return () => {
       cancelled = true;
+      clearInterval(pollInterval);
     };
   }, [meetingId]);
 
