@@ -135,10 +135,60 @@ export default function JoinProjectPage() {
         return;
       }
 
-      // Check if user is already a teammate
+      // Check if user is already a teammate (in old teammates array)
       if (project.teammates?.includes(userEmail)) {
         setError("You are already a member of this project");
         return;
+      }
+
+      // Check for pending or accepted invitation in project_team_members
+      const { data: teamMember } = await supabase
+        .from("project_team_members")
+        .select("id, status, user_id")
+        .eq("project_id", projectId)
+        .eq("email", userEmail)
+        .maybeSingle();
+
+      if (teamMember) {
+        if (teamMember.status === "accepted") {
+          setError("You are already a member of this project");
+          return;
+        }
+        
+        // Update pending invitation to accepted
+        if (teamMember.status === "pending") {
+          const { error: updateError } = await supabase
+            .from("project_team_members")
+            .update({
+              status: "accepted",
+              user_id: user.id,
+              accepted_at: new Date().toISOString(),
+            })
+            .eq("id", teamMember.id);
+
+          if (updateError) {
+            throw updateError;
+          }
+
+          // Also add to teammates array for backward compatibility
+          const currentTeammates = project.teammates || [];
+          if (!currentTeammates.includes(userEmail)) {
+            const updatedTeammates = [...currentTeammates, userEmail];
+            await supabase
+              .from("projects")
+              .update({
+                teammates: updatedTeammates,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", projectId);
+          }
+
+          setSuccess(true);
+          setTimeout(() => {
+            router.push(`/projects/${projectId}`);
+          }, 2000);
+          return;
+        }
       }
 
       // If project is part of an event, ensure user is registered for the event
@@ -158,7 +208,26 @@ export default function JoinProjectPage() {
         }
       }
 
-      // Add user to teammates array
+      // Create team member record if invitation doesn't exist
+      // (This handles direct joins without invitation)
+      const { error: teamMemberError } = await supabase
+        .from("project_team_members")
+        .upsert({
+          project_id: projectId,
+          email: userEmail,
+          user_id: user.id,
+          status: "accepted",
+          accepted_at: new Date().toISOString(),
+        }, {
+          onConflict: "project_id,email"
+        });
+
+      if (teamMemberError) {
+        console.error("Error creating team member record:", teamMemberError);
+        // Continue with old method for backward compatibility
+      }
+
+      // Also add to teammates array for backward compatibility
       const currentTeammates = project.teammates || [];
       const updatedTeammates = [...currentTeammates, userEmail];
 

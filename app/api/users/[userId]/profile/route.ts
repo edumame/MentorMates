@@ -19,37 +19,52 @@ export async function GET(
 
     // build query to fetch draft projects if the user is the logged in user
     let fetchDraftProjects = "submitted.eq.true";
+    let isViewingOwnProfile = false;
 
     const { data: loggedInUser } = await supabase.auth.getUser();
     if (loggedInUser.user?.id === userId) {
       fetchDraftProjects = "submitted.eq.false,submitted.eq.true";
+      isViewingOwnProfile = true;
     }
 
-    // Fetch user profile including all social media and profile fields
-    // Using * to select all columns for resilience if some columns don't exist yet
-    const { data: profile, error: profileError } = await supabase
+    // Try to fetch full profile (works if viewing own profile or admin)
+    // If that fails due to RLS, fall back to public view (without email)
+    let profile;
+    let profileError;
+
+    const { data: fullProfile, error: fullProfileError } = await supabase
       .from("user_profiles")
       .select("*")
       .eq("uid", userId)
       .single();
 
-    if (profileError) {
-      console.error("Error fetching user profile:", profileError);
-      return NextResponse.json(
-        {
-          error: "Failed to fetch user profile",
-          details: profileError.message,
-          code: profileError.code,
-        },
-        { status: 500 }
-      );
-    }
+    if (fullProfileError || !fullProfile) {
+      // If we can't access the full profile, try the public view
+      const { data: publicProfile, error: publicProfileError } = await supabase
+        .from("user_profiles_public")
+        .select("*")
+        .eq("uid", userId)
+        .single();
 
-    if (!profile) {
-      return NextResponse.json(
-        { error: "User profile not found" },
-        { status: 404 }
-      );
+      if (publicProfileError || !publicProfile) {
+        console.error("Error fetching user profile:", publicProfileError || fullProfileError);
+        return NextResponse.json(
+          {
+            error: "Failed to fetch user profile",
+            details: (publicProfileError || fullProfileError)?.message || "Profile not found",
+            code: (publicProfileError || fullProfileError)?.code,
+          },
+          { status: publicProfileError?.code === "PGRST116" ? 404 : 500 }
+        );
+      }
+
+      // Use public profile (no email)
+      profile = publicProfile;
+      profileError = null;
+    } else {
+      // Use full profile (includes email)
+      profile = fullProfile;
+      profileError = null;
     }
 
     const avatarUrl = profile?.avatar_url || null;
@@ -96,67 +111,138 @@ export async function GET(
       }
     }
 
-    // Fetch projects where user is lead
-    const { data: leadProjects, error: leadError } = await supabase
-      .from("projects")
-      .select(
-        `
-        id,
-        project_name,
-        project_description,
-        lead_name,
-        lead_email,
-        teammates,
-        project_url,
-        cover_image_url,
-        event_id,
-        created_at,
-        project_tracks (
-          event_tracks (
-            track_id,
-            name
-          )
-        ),
-        submitted
-      `
-      )
-      .eq("lead_email", profile.email)
-      .or(fetchDraftProjects);
+    // Fetch projects for the user
+    // Use lead_user_id when available (works for all profiles)
+    // Fall back to lead_email when we have email access (for own profile)
+    type ProjectWithTracks = {
+      id: string;
+      project_name: string | null;
+      project_description: string | null;
+      lead_name: string;
+      lead_email: string | null;
+      lead_user_id?: string | null;
+      teammates: string[] | null;
+      project_url: string | null;
+      cover_image_url: string | null;
+      event_id: string | null;
+      created_at: string | null;
+      project_tracks?: Array<{
+        event_tracks?: Array<{
+          track_id: string;
+          name: string;
+        }>;
+      }>;
+      submitted?: boolean | null;
+    };
+    
+    let leadProjects: ProjectWithTracks[] = [];
+    let teamProjects: ProjectWithTracks[] = [];
+    let leadError = null;
+    let teamError = null;
 
-    if (leadError) {
-      console.error("Error fetching lead projects:", leadError);
-      return NextResponse.json(
-        { error: "Failed to fetch lead projects" },
-        { status: 500 }
-      );
+    const projectSelect = `
+      id,
+      project_name,
+      project_description,
+      lead_name,
+      lead_email,
+      lead_user_id,
+      teammates,
+      project_url,
+      cover_image_url,
+      event_id,
+      created_at,
+      project_tracks (
+        event_tracks (
+          track_id,
+          name
+        )
+      ),
+      submitted
+    `;
+
+    // Fetch projects where user is lead
+    // Prefer lead_user_id (works even without email access), fall back to lead_email
+    if (userId) {
+      let leadQuery = supabase
+        .from("projects")
+        .select(projectSelect);
+      
+      // Build OR condition: use lead_user_id if available, or lead_email if we have email
+      if (profile.email) {
+        // Try both user_id and email to catch any projects that haven't been migrated yet
+        // Format: "lead_user_id.eq.{userId},lead_email.eq.{email}"
+        leadQuery = leadQuery.or(`lead_user_id.eq.${userId},lead_email.eq.${profile.email}`);
+      } else {
+        // Only use user_id when we don't have email access
+        leadQuery = leadQuery.eq("lead_user_id", userId);
+      }
+      
+      // For own profile, show both submitted and draft projects
+      // For other users, only show submitted projects
+      if (!isViewingOwnProfile) {
+        leadQuery = leadQuery.eq("submitted", true);
+      }
+      
+      const leadResult = await leadQuery;
+      leadProjects = (leadResult.data || []) as ProjectWithTracks[];
+      leadError = leadResult.error;
+
+      if (leadError) {
+        console.error("Error fetching lead projects:", leadError);
+      }
     }
 
     // Fetch projects where user is teammate
-    const { data: teamProjects, error: teamError } = await supabase
-      .from("projects")
-      .select(
-        `
-        id,
-        project_name,
-        project_description,
-        lead_name,
-        lead_email,
-        teammates,
-        project_url,
-        cover_image_url,
-        event_id,
-        created_at,
-        project_tracks (
-          event_tracks (
-            track_id,
-            name
-          )
-        ),
-        submitted
-      `
-      )
-      .contains("teammates", [profile.email])
-      .or(fetchDraftProjects);
+    // Use project_team_members table which supports querying by user_id
+    // Also check old teammates array for backward compatibility
+    if (userId) {
+      // First, get project IDs from project_team_members table
+      const { data: teamMemberRecords, error: teamMemberError } = await supabase
+        .from("project_team_members")
+        .select("project_id")
+        .or(
+          profile.email
+            ? `user_id.eq.${userId},email.eq.${profile.email}`
+            : `user_id.eq.${userId}`
+        )
+        .eq("status", "accepted");
+
+      if (teamMemberError) {
+        console.error("Error fetching team member records:", teamMemberError);
+      } else if (teamMemberRecords && teamMemberRecords.length > 0) {
+        // Extract project IDs
+        const projectIds = teamMemberRecords.map((tm: { project_id: string }) => tm.project_id);
+        
+        // Fetch the actual projects
+        const teamMemberProjectsResult = await supabase
+          .from("projects")
+          .select(projectSelect)
+          .in("id", projectIds);
+
+        if (!teamMemberProjectsResult.error && teamMemberProjectsResult.data) {
+          teamProjects = (teamMemberProjectsResult.data as ProjectWithTracks[]);
+        }
+      }
+
+      // Also check old teammates array for backward compatibility (only if we have email)
+      if (profile.email && isViewingOwnProfile) {
+        const teamArrayResult = await supabase
+          .from("projects")
+          .select(projectSelect)
+          .contains("teammates", [profile.email])
+          .or(fetchDraftProjects);
+
+        if (!teamArrayResult.error && teamArrayResult.data) {
+          // Merge with team member projects, avoiding duplicates
+          const existingIds = new Set(teamProjects.map((p: ProjectWithTracks) => p.id));
+          const newProjects = (teamArrayResult.data as ProjectWithTracks[]).filter(
+            (p: ProjectWithTracks) => !existingIds.has(p.id)
+          );
+          teamProjects = [...teamProjects, ...newProjects];
+        }
+      }
+    }
 
     if (teamError) {
       console.error("Error fetching team projects:", teamError);

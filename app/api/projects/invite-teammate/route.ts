@@ -56,11 +56,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Forbidden: Only project lead or teammates can invite others' }, { status: 403 });
   }
 
-  // Check if the email is already on the project
-  const isAlreadyTeammate = project.teammates?.includes(email.trim().toLowerCase());
-  const isTheProjectLead = project.lead_email === email.trim().toLowerCase();
+  const normalizedEmail = email.trim().toLowerCase();
 
-  if (isAlreadyTeammate || isTheProjectLead) {
+  // Check if the email is already on the project (in teammates array or team_members table)
+  const isAlreadyTeammate = project.teammates?.includes(normalizedEmail);
+  const isTheProjectLead = project.lead_email === normalizedEmail;
+
+  // Also check project_team_members table
+  const { data: existingMember } = await supabase
+    .from('project_team_members')
+    .select('id, status')
+    .eq('project_id', projectId)
+    .eq('email', normalizedEmail)
+    .maybeSingle();
+
+  if (isAlreadyTeammate || isTheProjectLead || existingMember) {
     return NextResponse.json({ error: 'This person is already on the project' }, { status: 400 });
   }
 
@@ -88,6 +98,39 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Email service not configured' }, { status: 500 });
   }
 
+  // Create invitation record in project_team_members table
+  // This allows tracking invitations even before the user signs up
+  const { data: teamMember, error: teamMemberError } = await supabase
+    .from('project_team_members')
+    .insert({
+      project_id: projectId,
+      email: normalizedEmail,
+      invited_by_user_id: auth.user.id,
+      status: 'pending',
+    })
+    .select()
+    .single();
+
+  if (teamMemberError) {
+    console.error('Error creating team member record:', teamMemberError);
+    return NextResponse.json({ error: 'Failed to create invitation record' }, { status: 500 });
+  }
+
+  // Check if the invited user already has an account
+  const { data: existingUser } = await supabase
+    .from('user_profiles')
+    .select('uid, email')
+    .eq('email', normalizedEmail)
+    .maybeSingle();
+
+  // If user exists, update the team member record with their user_id
+  if (existingUser) {
+    await supabase
+      .from('project_team_members')
+      .update({ user_id: existingUser.uid })
+      .eq('id', teamMember.id);
+  }
+
   // Send invitation email
   try {
     const emailTemplate = getProjectInvitationEmailTemplate(
@@ -99,17 +142,33 @@ export async function POST(request: Request) {
 
     const { error: emailError } = await resend.emails.send({
       from: NOTIFICATIONS_EMAIL_FROM,
-      to: email.trim(),
+      to: normalizedEmail,
       subject: emailTemplate.subject,
       html: emailTemplate.html,
     });
 
     if (emailError) {
-      return NextResponse.json({ error: 'Failed to send invitation email' }, { status: 500 });
+      console.error('Failed to send invitation email:', emailError);
+      // Don't fail the request - invitation record is created, email can be resent
+      return NextResponse.json({ 
+        success: true, 
+        message: 'Invitation created but email failed to send',
+        warning: 'Please try resending the invitation'
+      }, { status: 200 });
     }
-  } catch {
-    return NextResponse.json({ error: 'Error sending invitation email' }, { status: 500 });
+  } catch (emailErr) {
+    console.error('Error sending invitation email:', emailErr);
+    // Don't fail the request - invitation record is created
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Invitation created but email failed to send',
+      warning: 'Please try resending the invitation'
+    }, { status: 200 });
   }
 
-  return NextResponse.json({ success: true, message: 'Invitation sent successfully' });
+  return NextResponse.json({ 
+    success: true, 
+    message: 'Invitation sent successfully',
+    userExists: !!existingUser
+  });
 }
