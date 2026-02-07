@@ -2,26 +2,23 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import OpenAI from "openai";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
+import {
+  BUILT_IN_VOICE_OPTIONS,
+  BUILT_IN_VOICE_PROMPT_OPTIONS,
+  BUILT_IN_VOICE_VALUE_SET,
+  type BuiltInVoiceValue,
+} from "@/modules/agents/constants/voices";
 
 const openai = process.env.OPENAI_API_KEY
   ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
   : (null as unknown as OpenAI);
 
 const STANDARD_TYPES = ["brainstorm", "product", "tech", "judge"] as const;
-const BUILT_IN_VOICES = [
-  "alloy",
-  "ash",
-  "ballad",
-  "cedar",
-  "coral",
-  "echo",
-  "marin",
-  "sage",
-  "shimmer",
-  "verse",
-] as const;
-const BUILT_IN_VOICE_SET = new Set(BUILT_IN_VOICES);
+const BUILT_IN_VOICE_SET = BUILT_IN_VOICE_VALUE_SET;
 const CUSTOM_VOICE_ID_REGEX = /^voice_[a-zA-Z0-9_-]+$/;
+const BUILT_IN_VOICE_DESCRIPTION_LIST = BUILT_IN_VOICE_OPTIONS
+  .map((voice) => `- ${voice.value}: ${voice.description}`)
+  .join("\n");
 
 const RequestSchema = z.object({
   text: z.string().min(1),
@@ -75,7 +72,7 @@ function normalizeVoice(input?: string): string | undefined {
   if (!value) return undefined;
 
   const lower = value.toLowerCase();
-  if (BUILT_IN_VOICE_SET.has(lower as (typeof BUILT_IN_VOICES)[number])) {
+  if (BUILT_IN_VOICE_SET.has(lower as BuiltInVoiceValue)) {
     return lower;
   }
   if (CUSTOM_VOICE_ID_REGEX.test(value)) {
@@ -108,24 +105,43 @@ function detectTypeFromText(text: string): string | undefined {
 }
 
 function detectVoiceFromText(text: string): string | undefined {
-  const explicitVoice = BUILT_IN_VOICES.find((voice) =>
-    new RegExp(`\\b${voice}\\b`, "i").test(text)
+  const explicitVoice = BUILT_IN_VOICE_OPTIONS.find((voice) =>
+    new RegExp(`\\b${voice.value}\\b`, "i").test(text) ||
+    new RegExp(`\\b${voice.label}\\b`, "i").test(text)
   );
-  if (explicitVoice) return explicitVoice;
+  if (explicitVoice) return explicitVoice.value;
 
   const lower = text.toLowerCase();
 
-  if (/\bjudge|evaluate|evaluation|rubric|objective|analytical|analysis|technical\b/.test(lower)) {
-    return "alloy";
+  const descriptorMatch = [
+    { voice: "fable", pattern: /\banother plain male\b|\balternate plain male\b/ },
+    { voice: "ballad", pattern: /\bbritish\b|\buk accent\b|\bengland\b/ },
+    { voice: "cedar", pattern: /\baudiobook\b|\bnarrator\b|\bvoiceover\b/ },
+    { voice: "coral", pattern: /\benergetic\b|\blively\b|\bupbeat\b/ },
+    { voice: "marin", pattern: /\bsunny\b|\bbright\b|\bcheerful\b/ },
+    { voice: "nova", pattern: /\bcrisp\b|\bclean\b|\bclear\b/ },
+    { voice: "onyx", pattern: /\bsteady\b|\bdeep\b|\bgrounded\b|\bauthoritative\b/ },
+    { voice: "sage", pattern: /\bgentle\b|\bsupportive\b|\bpatient\b|\bcalm\b/ },
+    { voice: "shimmer", pattern: /\bsoft\b|\bsoothing\b|\blight\b/ },
+    { voice: "alloy", pattern: /\bplain female\b|\bneutral female\b/ },
+    { voice: "ash", pattern: /\bplain male\b|\bneutral male\b/ },
+  ] as const satisfies Array<{ voice: BuiltInVoiceValue; pattern: RegExp }>;
+
+  const matchedDescriptor = descriptorMatch.find((candidate) =>
+    candidate.pattern.test(lower)
+  );
+  if (matchedDescriptor) {
+    return matchedDescriptor.voice;
   }
-  if (/\bmentor|coaching|coach|supportive|empathetic|patient|calm\b/.test(lower)) {
+
+  if (/\bjudge\b|\bevaluate\b|\bevaluation\b|\brubric\b|\banalytical\b|\btechnical\b/.test(lower)) {
+    return "onyx";
+  }
+  if (/\bmentor\b|\bcoaching\b|\bcoach\b|\bempathetic\b/.test(lower)) {
     return "sage";
   }
-  if (/\bcreative|brainstorm|energetic|playful|fun|inspiring\b/.test(lower)) {
-    return "shimmer";
-  }
-  if (/\bstory|narrative|writer|copywriting|brand voice\b/.test(lower)) {
-    return "verse";
+  if (/\bcreative\b|\bbrainstorm\b|\bideation\b/.test(lower)) {
+    return "coral";
   }
 
   return undefined;
@@ -252,8 +268,10 @@ Output STRICT JSON with only these optional fields when present:
   "instructions"?: string,         // Main system instructions for this agent
   "feedback_prompt"?: string,      // Optional rubric/evaluation prompt
   "avatar_url"?: string,           // Public image URL if explicitly provided
-  "voice"?: string                 // One of: alloy, ash, ballad, cedar, coral, echo, marin, sage, shimmer, verse, or a custom voice_* id
+  "voice"?: string                 // One built-in voice (${BUILT_IN_VOICE_PROMPT_OPTIONS}) or a custom voice_* id
 }
+Built-in voice descriptions:
+${BUILT_IN_VOICE_DESCRIPTION_LIST}
 Rules:
 - If a field is unknown, omit it.
 - If type or voice is inferable from context, include them.
@@ -264,7 +282,9 @@ Rules:
 Produce a coherent agent identity and high-quality instructions aligned to the brief.
 For generate mode, ALWAYS include "type" and "voice".
 "type" must be one of: brainstorm, product, tech, judge.
-"voice" should be one of: alloy, ash, ballad, cedar, coral, echo, marin, sage, shimmer, verse.
+"voice" should be one of: ${BUILT_IN_VOICE_PROMPT_OPTIONS}.
+Voice descriptions:
+${BUILT_IN_VOICE_DESCRIPTION_LIST}
 Also generate clear "instructions" and (when relevant) a concrete "feedback_prompt".
 
 Concrete examples:

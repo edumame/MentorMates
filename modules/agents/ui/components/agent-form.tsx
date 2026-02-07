@@ -23,6 +23,12 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+    BUILT_IN_VOICE_OPTIONS,
+    BUILT_IN_VOICE_PROMPT_OPTIONS,
+    BUILT_IN_VOICE_VALUE_SET,
+    type BuiltInVoiceValue,
+} from "@/modules/agents/constants/voices";
 
 interface AgentFormProps {
     onSuccess?: () => void;
@@ -32,19 +38,6 @@ interface AgentFormProps {
 }
 
 const STANDARD_TYPES = ["brainstorm", "product", "tech", "judge"];
-const BUILT_IN_VOICES = [
-    { value: "alloy", label: "Alloy" },
-    { value: "ash", label: "Ash" },
-    { value: "ballad", label: "Ballad" },
-    { value: "cedar", label: "Cedar" },
-    { value: "coral", label: "Coral" },
-    { value: "echo", label: "Echo" },
-    { value: "marin", label: "Marin" },
-    { value: "sage", label: "Sage" },
-    { value: "shimmer", label: "Shimmer" },
-    { value: "verse", label: "Verse" },
-] as const;
-const BUILT_IN_VOICE_VALUES = new Set(BUILT_IN_VOICES.map((voice) => voice.value));
 const CUSTOM_VOICE_ID_REGEX = /^voice_[a-zA-Z0-9_-]+$/;
 
 export const AgentForm = ({ onSuccess, onCancel, initialValues, eventId } : AgentFormProps) => {
@@ -97,7 +90,7 @@ export const AgentForm = ({ onSuccess, onCancel, initialValues, eventId } : Agen
     const initialVoiceRaw = (initialValues as AgentGetOne | undefined)?.voice;
     const initialVoiceTrimmed = typeof initialVoiceRaw === "string" ? initialVoiceRaw.trim() : "";
     const initialVoiceNormalized = initialVoiceTrimmed.toLowerCase();
-    const initialVoiceIsBuiltIn = BUILT_IN_VOICE_VALUES.has(initialVoiceNormalized as (typeof BUILT_IN_VOICES)[number]["value"]);
+    const initialVoiceIsBuiltIn = BUILT_IN_VOICE_VALUE_SET.has(initialVoiceNormalized as BuiltInVoiceValue);
 
     const form = useForm<AgentFormValues & { id?: string }>({
         // zodResolver types can be incompatible across resolver versions; cast the schema to z.ZodTypeAny and the result to the correct Resolver type
@@ -190,7 +183,7 @@ export const AgentForm = ({ onSuccess, onCancel, initialValues, eventId } : Agen
                 const incomingVoiceLower = incomingVoiceRaw.toLowerCase();
                 let voiceApplied = false;
 
-                if (BUILT_IN_VOICE_VALUES.has(incomingVoiceLower as (typeof BUILT_IN_VOICES)[number]["value"])) {
+                if (BUILT_IN_VOICE_VALUE_SET.has(incomingVoiceLower as BuiltInVoiceValue)) {
                     form.setValue("voice", incomingVoiceLower, applyOpts);
                     form.setValue("custom_voice_tmp", "", applyOpts);
                     voiceApplied = true;
@@ -317,7 +310,7 @@ Feedback prompt example:
                                     Feedback prompt example: &quot;Evaluate novelty, feasibility, and user value (1-10 each) and return top 3 improvements.&quot;
                                 </p>
                                 <p className="text-muted-foreground">
-                                    Type options: brainstorm, product, tech, judge. Voice options: alloy, ash, ballad, cedar, coral, echo, marin, sage, shimmer, verse.
+                                    Type options: brainstorm, product, tech, judge. Voice options: {BUILT_IN_VOICE_PROMPT_OPTIONS}.
                                 </p>
                             </div>
                             <div className="mt-3 flex flex-wrap justify-end gap-2">
@@ -435,9 +428,9 @@ Feedback prompt example:
                                                 <SelectValue placeholder="Select voice" />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                {BUILT_IN_VOICES.map((voice) => (
+                                                {BUILT_IN_VOICE_OPTIONS.map((voice) => (
                                                     <SelectItem key={voice.value} value={voice.value}>
-                                                        {voice.label}
+                                                        {voice.label} ({voice.description})
                                                     </SelectItem>
                                                 ))}
                                                 <SelectItem value="custom">Custom voice ID</SelectItem>

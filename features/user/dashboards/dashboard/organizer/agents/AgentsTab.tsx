@@ -18,6 +18,7 @@ import { useAuth } from "@/features/user/authentication/auth/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { ResponsiveDialog } from "@/components/responsive-dialog";
 import { Bot, ChevronDown, ChevronUp, MessageSquare, Mic } from "lucide-react";
+import { getBuiltInVoiceOption } from "@/modules/agents/constants/voices";
 
 interface AgentsTabProps {
   eventId?: string;
@@ -83,6 +84,10 @@ function formatVoiceLabel(value: unknown): string {
   const voice = cleanText(value);
   if (!voice) return "Default";
   if (voice.startsWith("voice_")) return "Custom Voice";
+  const builtInVoice = getBuiltInVoiceOption(voice.toLowerCase());
+  if (builtInVoice) {
+    return `${builtInVoice.label} (${builtInVoice.description})`;
+  }
   return voice.charAt(0).toUpperCase() + voice.slice(1);
 }
 
