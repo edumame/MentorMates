@@ -1491,7 +1491,7 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
                     <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
                       Instructions
                     </p>
-                    <p className="mt-2 text-sm leading-6 text-gray-700">
+                    <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-gray-700">
                       {visiblePrompt || "No persona instructions yet."}
                     </p>
 
