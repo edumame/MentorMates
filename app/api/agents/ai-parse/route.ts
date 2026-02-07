@@ -202,6 +202,58 @@ function extractJsonFromText(text: string): unknown {
   return null;
 }
 
+function extractStringField(json: unknown, fieldName: string): string | undefined {
+  if (!json || typeof json !== "object") return undefined;
+  const record = json as Record<string, unknown>;
+  const raw = record[fieldName];
+  return typeof raw === "string" ? cleanOptional(raw) : undefined;
+}
+
+async function rewriteUserPersonaInstructions(params: {
+  brief: string;
+  draftInstructions: string;
+}): Promise<string | undefined> {
+  const rewriteSystem = `You rewrite an agent instruction prompt for a synthetic user persona.
+Return STRICT JSON only:
+{
+  "instructions": string
+}
+
+Requirements for "instructions":
+- Keep markdown formatting.
+- Write as a concrete persona, not generic guidance.
+- Include a realistic full name and location (use location from the brief when provided).
+- If childcare/young-children context is present, include one concrete child profile (name + age) and practical constraints.
+- Include 6-8 specific bullet points about the persona's habits, sensitivities, and constraints.
+- Include a "When giving feedback" section with concrete evaluation lens and real-world constraints.
+- Include "Structure your response as" with numbered sections 1, 2, 3.
+- Keep tone warm, honest, and practical.
+- Avoid technical jargon if the brief implies a non-technical audience.
+- Target ~220-420 words.
+- Do not mention being an AI or an assistant.`;
+
+  const rewriteUser = `Original brief:
+${params.brief}
+
+Current draft instructions:
+${params.draftInstructions}`;
+
+  const completion = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    response_format: { type: "json_object" },
+    messages: [
+      { role: "system", content: rewriteSystem },
+      { role: "user", content: rewriteUser },
+    ],
+    temperature: 0.2,
+    max_tokens: 800,
+  });
+
+  const content = completion.choices?.[0]?.message?.content || "";
+  const json = extractJsonFromText(content);
+  return extractStringField(json, "instructions");
+}
+
 function normalizeAgentFields(input: ParsedAgent): ParsedAgent {
   const normalized: ParsedAgent = {};
 
@@ -268,41 +320,54 @@ Output STRICT JSON with only these optional fields when present:
 }
 Rules:
 - If a field is unknown, omit it.
-- If type or voice is inferable from context, include them.
+- Prefer explicit values from labeled lines (for example: "Type:", "Voice:", "Instructions:", "Feedback Prompt:").
 - Keep content practical and concise.
 - Do NOT include code fences or commentary; JSON only.`;
 
-    const systemPromptGenerate = `You are an assistant that GENERATES plausible agent setup fields from a short brief.
-Produce a coherent agent identity and high-quality instructions aligned to the brief.
-For generate mode, ALWAYS include "name", "type", "voice", and "instructions".
-"type" must be one of: brainstorm, product, tech, judge, user.
-"voice" should be one of: alloy, ash, ballad, cedar, coral, echo, marin, sage, shimmer, verse.
-Also generate a concrete "feedback_prompt" when evaluation/scoring is relevant.
+    const systemPromptGenerate = `You GENERATE complete agent setup fields from a short brief.
+Return STRICT JSON only:
+{
+  "name": string,
+  "type": "brainstorm" | "product" | "tech" | "judge" | "user",
+  "instructions": string,
+  "voice": "alloy" | "ash" | "ballad" | "cedar" | "coral" | "echo" | "marin" | "sage" | "shimmer" | "verse",
+  "feedback_prompt"?: string,
+  "avatar_url"?: string
+}
 
-If the brief asks to simulate a real end-user/persona (for example parent, customer, teacher, student, caregiver), prefer type "user".
+Type selection rules:
+- "user": simulated end-user persona with lived perspective (for example parent, customer, teacher, student, caregiver, patient).
+- "judge": formal evaluator with rubric/scoring/ratings.
+- "tech": technical mentor/engineering advisor.
+- "product": product/strategy/go-to-market advisor.
+- "brainstorm": ideation/creative exploration.
+- If brief includes both persona + feedback, choose "user" unless formal scoring/judging is explicitly requested.
 
-Quality bar for "instructions":
-- Convert the brief into a ready-to-use system prompt, not a short summary.
-- Be specific, concrete, and contextual. If the brief implies a persona, include specific identity details (name, location, responsibilities, audience details, and constraints).
-- Avoid vague wording like "give helpful feedback"; define exactly what to look for and how to respond.
+Instructions quality bar:
+- Convert the brief into a ready-to-use system prompt, not a summary.
+- Be concrete and specific. Avoid vague language.
 - Include response structure as numbered sections.
-- Keep language aligned to the requested audience (for example: no technical jargon if the brief asks for plain language).
-- Target roughly 140-260 words unless the user input is already more detailed.
-- If the brief references young children or caregivers, include practical safety and attention-span constraints (e.g., supervision, durability, cleanup, sensory overload, and frustration points).
+- Keep language matched to audience; avoid technical jargon for non-technical personas.
 
-Concrete examples:
-- Good instructions example: "Start by asking up to 2 clarifying questions, then provide 3 ranked options with tradeoffs and a recommended next step."
-- Good feedback_prompt example: "Evaluate the submission on feasibility, technical depth, and user impact (1-10 each), then return 3 actionable improvements."
+For type "user", instructions MUST include:
+- Persona identity with realistic full name and location.
+- Concrete context details (for example relationship, responsibilities, and environment).
+- 6-8 bullet points describing habits, sensitivities, and practical constraints.
+- A "When giving feedback" section with specific criteria and real-world concerns.
+- A "Structure your response as" section with numbered 1, 2, 3.
+- Warm, honest, practical tone.
 
-Do not invent avatar URLs unless a URL is provided in the input.`;
+Do not invent avatar URLs unless a URL is provided in the input.
+Do NOT include code fences or commentary; JSON only.`;
 
     const system =
       mode === "generate"
-        ? `${systemPromptFill}\n\n${systemPromptGenerate}`
+        ? systemPromptGenerate
         : systemPromptFill;
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
+      response_format: { type: "json_object" },
       messages: [
         { role: "system", content: system },
         { role: "user", content: text },
@@ -328,9 +393,25 @@ Do not invent avatar URLs unless a URL is provided in the input.`;
       );
     }
 
-    const fields = normalizeAgentFields(
+    let fields = normalizeAgentFields(
       ensureTypeAndVoice(normalizeAgentFields(validated.data), text, mode)
     );
+
+    if (mode === "generate" && fields.type === "user" && fields.instructions) {
+      try {
+        const rewritten = await rewriteUserPersonaInstructions({
+          brief: text,
+          draftInstructions: fields.instructions,
+        });
+        if (rewritten) {
+          fields = { ...fields, instructions: rewritten };
+        }
+      } catch (rewriteError) {
+        // eslint-disable-next-line no-console
+        console.warn("Failed to rewrite user persona instructions", rewriteError);
+      }
+    }
+
     return NextResponse.json({ fields });
   } catch (error) {
     // eslint-disable-next-line no-console
