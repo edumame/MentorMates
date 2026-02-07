@@ -7,9 +7,10 @@ import { z } from "zod";
 import { useState } from "react";
 import { agentsInsertSchema, agentsUpdateSchema } from "@/modules/agents/schemas";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
     Select,
     SelectTrigger,
@@ -118,6 +119,7 @@ export const AgentForm = ({ onSuccess, onCancel, initialValues, eventId } : Agen
                 ? (initialVoiceIsBuiltIn ? initialVoiceNormalized : "custom")
                 : "alloy",
             custom_voice_tmp: initialVoiceTrimmed && !initialVoiceIsBuiltIn ? initialVoiceTrimmed : "",
+            requires_project: (initialValues as AgentGetOne & { requires_project?: boolean })?.requires_project ?? true,
         },
     });
 
@@ -585,6 +587,28 @@ Respond like a real parent with a 3-year-old child and give specific, practical 
                                         />
                                     </FormControl>
                                     <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            name="requires_project"
+                            control={form.control}
+                            render={({ field }) => (
+                                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                                    <FormControl>
+                                        <Checkbox
+                                            checked={field.value}
+                                            onCheckedChange={field.onChange}
+                                        />
+                                    </FormControl>
+                                    <div className="space-y-1 leading-none">
+                                        <FormLabel>
+                                            Require project selection
+                                        </FormLabel>
+                                        <FormDescription>
+                                            When enabled, users must select a project before starting a session with this agent.
+                                        </FormDescription>
+                                    </div>
                                 </FormItem>
                             )}
                         />
