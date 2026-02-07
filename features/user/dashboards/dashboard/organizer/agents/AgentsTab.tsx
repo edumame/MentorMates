@@ -458,7 +458,7 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
 
   return (
     <div className="w-full">
-      <div className="sticky top-0 z-20 mb-4 border-b border-[rgba(0,0,0,0.08)] bg-white pb-4">
+      <div className="mb-4">
         <div className="mb-4">
           <h2 className="text-xl font-semibold text-black">Agents</h2>
           <p className="text-sm text-muted-foreground">
@@ -475,7 +475,6 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
             inputClassName="text-sm sm:text-sm"
           />
           <Button
-            size="sm"
             onClick={() => setDialogOpen(true)}
             className="h-10 w-full shrink-0 sm:w-auto"
           >
