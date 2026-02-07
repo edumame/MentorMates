@@ -7,7 +7,7 @@ const openai = process.env.OPENAI_API_KEY
   ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
   : (null as unknown as OpenAI);
 
-const STANDARD_TYPES = ["brainstorm", "product", "tech", "judge"] as const;
+const STANDARD_TYPES = ["brainstorm", "product", "tech", "judge", "user"] as const;
 const BUILT_IN_VOICES = [
   "alloy",
   "ash",
@@ -60,19 +60,6 @@ function normalizeType(input?: string): string | undefined {
     return lower;
   }
 
-  if (["technical", "developer", "engineer", "coding", "code"].includes(lower)) {
-    return "tech";
-  }
-  if (["product manager", "pm", "strategy", "roadmap"].includes(lower)) {
-    return "product";
-  }
-  if (["evaluation", "evaluator", "review", "scoring", "grader"].includes(lower)) {
-    return "judge";
-  }
-  if (["ideation", "creative", "brainstorming"].includes(lower)) {
-    return "brainstorm";
-  }
-
   return value;
 }
 
@@ -98,132 +85,32 @@ function normalizeVoice(input?: string): string | undefined {
   return undefined;
 }
 
-function detectTypeFromText(text: string): string | undefined {
-  const lower = text.toLowerCase();
-
-  if (/\bjudge|score|scoring|evaluate|evaluation|rubric|review|feedback|critique|assess(?:ment)?\b/.test(lower)) {
-    return "judge";
-  }
-  if (/\btech|technical|engineer|developer|coding|code\b/.test(lower)) {
-    return "tech";
-  }
-  if (/\bproduct|roadmap|strategy|go[- ]to[- ]market|pm\b/.test(lower)) {
-    return "product";
-  }
-  if (/\bbrainstorm|ideate|ideation|creative\b/.test(lower)) {
-    return "brainstorm";
-  }
-
-  return undefined;
+function extractLabeledValue(text: string, labelPattern: string): string | undefined {
+  const match = new RegExp(`(?:^|\\n)\\s*(?:${labelPattern})\\s*[:\\-]\\s*([^\\n]+)`, "im").exec(text);
+  return cleanOptional(match?.[1]);
 }
 
-function detectVoiceFromText(text: string): string | undefined {
-  const voiceLabelMatch = /(?:^|\n)\s*voice\s*[:\-]\s*([^\n]+)/im.exec(text);
-  const voiceFromLabel = normalizeVoice(voiceLabelMatch?.[1]);
-  if (voiceFromLabel) return voiceFromLabel;
+function extractExplicitType(text: string): string | undefined {
+  const labeledType = extractLabeledValue(text, "agent\\s*type|type|role");
+  const normalizedLabeledType = normalizeType(labeledType);
+  if (normalizedLabeledType) return normalizedLabeledType;
 
-  const explicitVoice = BUILT_IN_VOICES.find((voice) => new RegExp(`\\b${voice}\\b`, "i").test(text));
-  if (explicitVoice) return explicitVoice;
+  const explicitStandardType = new RegExp(`\\b(?:${STANDARD_TYPES.join("|")})\\b`, "i").exec(text)?.[0];
+  return normalizeType(explicitStandardType);
+}
 
-  const explicitAlias = Object.entries(LEGACY_VOICE_ALIAS_MAP).find(([legacyVoice]) =>
-    new RegExp(`\\b${legacyVoice}\\b`, "i").test(text)
-  );
-  if (explicitAlias) return explicitAlias[1];
+function extractExplicitVoice(text: string): string | undefined {
+  const labeledVoice = extractLabeledValue(text, "voice");
+  const normalizedLabeledVoice = normalizeVoice(labeledVoice);
+  if (normalizedLabeledVoice) return normalizedLabeledVoice;
 
   const explicitCustomVoice = text.match(/\bvoice_[a-zA-Z0-9_-]+\b/i)?.[0];
-  if (explicitCustomVoice) return explicitCustomVoice;
+  const normalizedCustomVoice = normalizeVoice(explicitCustomVoice);
+  if (normalizedCustomVoice) return normalizedCustomVoice;
 
-  const lower = text.toLowerCase();
-  const scoreByVoice = Object.fromEntries(
-    BUILT_IN_VOICES.map((voice) => [voice, 0])
-  ) as Record<BuiltInVoice, number>;
-
-  const scoreVoice = (voice: BuiltInVoice, patterns: RegExp[], weight: number) => {
-    for (const pattern of patterns) {
-      if (pattern.test(lower)) {
-        scoreByVoice[voice] += weight;
-      }
-    }
-  };
-
-  scoreVoice(
-    "ballad",
-    [/\bbritish\b/, /\buk\b/, /\benglish accent\b/, /\beuropean accent\b/],
-    3
-  );
-  scoreVoice(
-    "cedar",
-    [/\baudiobook\b/, /\bnarrator\b/, /\bdeep voice\b/, /\bsteady\b/, /\bgrounded\b/],
-    3
-  );
-  scoreVoice(
-    "coral",
-    [/\benergetic\b/, /\bhigh[- ]energy\b/, /\bupbeat\b/, /\banimated\b/, /\benthusiastic\b/],
-    2
-  );
-  scoreVoice(
-    "marin",
-    [/\bsunny\b/, /\boptimistic\b/, /\bbright\b/, /\bcheerful\b/, /\bfriendly\b/],
-    2
-  );
-  scoreVoice(
-    "sage",
-    [
-      /\bgentle\b/,
-      /\bwarm\b/,
-      /\bempathetic\b/,
-      /\bpatient\b/,
-      /\bsupportive\b/,
-      /\bparent\b/,
-      /\bdaycare\b/,
-      /\btoddler\b/,
-      /\bpreschool\b/,
-      /\bearly childhood\b/,
-      /\bages?\s*2\s*(?:-|to)\s*4\b/,
-      /\byoung children\b/,
-      /\bcaregiver\b/,
-    ],
-    2
-  );
-  scoreVoice("shimmer", [/\bsoft\b/, /\bsoothing\b/, /\bcomforting\b/, /\bcalming\b/], 2);
-  scoreVoice(
-    "alloy",
-    [
-      /\bjudge\b/,
-      /\bevaluate\b/,
-      /\bevaluation\b/,
-      /\brubric\b/,
-      /\bobjective\b/,
-      /\banalytical\b/,
-      /\banalysis\b/,
-      /\btechnical\b/,
-      /\bprecise\b/,
-      /\bstructured\b/,
-      /\bscore\b/,
-      /\bscoring\b/,
-    ],
-    2
-  );
-  scoreVoice(
-    "verse",
-    [/\bstory\b/, /\bnarrative\b/, /\bwriter\b/, /\bcopywriting\b/, /\bbrand voice\b/, /\bscript\b/],
-    2
-  );
-  scoreVoice("ash", [/\bplain male\b/, /\bneutral male\b/, /\bstraightforward\b/], 1);
-  scoreVoice("echo", [/\bconversational\b/, /\bcasual\b/, /\beveryday tone\b/], 1);
-
-  let selectedVoice: BuiltInVoice | undefined;
-  let selectedScore = 0;
-
-  for (const voice of BUILT_IN_VOICES) {
-    const score = scoreByVoice[voice];
-    if (score > selectedScore) {
-      selectedScore = score;
-      selectedVoice = voice;
-    }
-  }
-
-  return selectedScore > 0 ? selectedVoice : undefined;
+  const explicitVoiceNames = [...BUILT_IN_VOICES, ...Object.keys(LEGACY_VOICE_ALIAS_MAP)];
+  const explicitNamedVoice = new RegExp(`\\b(?:${explicitVoiceNames.join("|")})\\b`, "i").exec(text)?.[0];
+  return normalizeVoice(explicitNamedVoice);
 }
 
 function defaultVoiceForType(type: string | undefined): BuiltInVoice {
@@ -234,6 +121,8 @@ function defaultVoiceForType(type: string | undefined): BuiltInVoice {
       return "ash";
     case "product":
       return "marin";
+    case "user":
+      return "echo";
     case "brainstorm":
     default:
       return "shimmer";
@@ -243,29 +132,26 @@ function defaultVoiceForType(type: string | undefined): BuiltInVoice {
 function ensureTypeAndVoice(input: ParsedAgent, text: string, mode: "fill" | "generate"): ParsedAgent {
   const ensured: ParsedAgent = { ...input };
 
-  const contextText = [text, input.instructions, input.feedback_prompt]
-    .filter((part): part is string => typeof part === "string" && part.trim().length > 0)
-    .join("\n");
-
   const normalizedType = normalizeType(ensured.type);
-  if (!normalizedType) {
-    ensured.type = detectTypeFromText(contextText) ?? (mode === "generate" ? "brainstorm" : undefined);
-  } else {
+  const explicitTypeFromText = extractExplicitType(text);
+  if (normalizedType) {
     ensured.type = normalizedType;
+  } else if (explicitTypeFromText) {
+    ensured.type = explicitTypeFromText;
+  } else {
+    ensured.type = mode === "generate" ? "brainstorm" : undefined;
   }
 
-  const detectedVoice = detectVoiceFromText(contextText);
-  if (detectedVoice) {
-    ensured.voice = detectedVoice;
+  const normalizedVoice = normalizeVoice(ensured.voice);
+  const explicitVoiceFromText = extractExplicitVoice(text);
+  if (normalizedVoice) {
+    ensured.voice = normalizedVoice;
+  } else if (explicitVoiceFromText) {
+    ensured.voice = explicitVoiceFromText;
   } else if (mode === "generate") {
     ensured.voice = defaultVoiceForType(ensured.type);
   } else {
-    const normalizedVoice = normalizeVoice(ensured.voice);
-    if (normalizedVoice) {
-      ensured.voice = normalizedVoice;
-    } else {
-      ensured.voice = undefined;
-    }
+    ensured.voice = undefined;
   }
 
   return ensured;
@@ -279,18 +165,18 @@ function heuristicParse(text: string): ParsedAgent {
 
   const firstLine = lines[0] && lines[0].length <= 120 ? lines[0] : undefined;
   const nameMatch = /(?:^|\n)(?:agent\s*name|name|title)\s*[:\-]\s*(.+)$/im.exec(text);
-  const typeMatch = /(?:^|\n)(?:agent\s*type|type|role)\s*[:\-]\s*(.+)$/im.exec(text);
   const feedbackPromptMatch =
     /(?:^|\n)(?:feedback\s*prompt|evaluation\s*prompt)\s*[:\-]\s*([\s\S]+)$/im.exec(text);
   const instructionsMatch =
     /(?:^|\n)(?:instructions?|system\s*prompt|prompt)\s*[:\-]\s*([\s\S]+)$/im.exec(text);
   const imageUrlMatch = /(https?:\/\/\S+\.(?:png|jpe?g|webp|gif))/i.exec(text);
 
-  const voiceMatch = detectVoiceFromText(text);
+  const typeMatch = extractExplicitType(text);
+  const voiceMatch = extractExplicitVoice(text);
 
   return {
     name: cleanOptional(nameMatch?.[1] || firstLine),
-    type: cleanOptional(typeMatch?.[1]) || detectTypeFromText(text),
+    type: typeMatch,
     instructions: cleanOptional(instructionsMatch?.[1]) || cleanOptional(text),
     feedback_prompt: cleanOptional(feedbackPromptMatch?.[1]),
     avatar_url: cleanOptional(imageUrlMatch?.[1]),
@@ -366,7 +252,7 @@ export async function POST(req: Request) {
       );
       return NextResponse.json({
         fields,
-        warning: "OPENAI_API_KEY not configured. Used heuristic parsing.",
+        warning: "OPENAI_API_KEY not configured. Used explicit field parsing and defaults.",
       });
     }
 
@@ -374,7 +260,7 @@ export async function POST(req: Request) {
 Output STRICT JSON with only these optional fields when present:
 {
   "name"?: string,
-  "type"?: string,                 // Prefer brainstorm, product, tech, or judge. Custom is allowed.
+  "type"?: string,                 // Prefer brainstorm, product, tech, judge, or user. Custom is allowed.
   "instructions"?: string,         // Main system instructions for this agent
   "feedback_prompt"?: string,      // Optional rubric/evaluation prompt
   "avatar_url"?: string,           // Public image URL if explicitly provided
@@ -389,9 +275,11 @@ Rules:
     const systemPromptGenerate = `You are an assistant that GENERATES plausible agent setup fields from a short brief.
 Produce a coherent agent identity and high-quality instructions aligned to the brief.
 For generate mode, ALWAYS include "name", "type", "voice", and "instructions".
-"type" must be one of: brainstorm, product, tech, judge.
+"type" must be one of: brainstorm, product, tech, judge, user.
 "voice" should be one of: alloy, ash, ballad, cedar, coral, echo, marin, sage, shimmer, verse.
 Also generate a concrete "feedback_prompt" when evaluation/scoring is relevant.
+
+If the brief asks to simulate a real end-user/persona (for example parent, customer, teacher, student, caregiver), prefer type "user".
 
 Quality bar for "instructions":
 - Convert the brief into a ready-to-use system prompt, not a short summary.

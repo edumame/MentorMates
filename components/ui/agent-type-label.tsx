@@ -29,6 +29,8 @@ export function AgentTypeLabel({ type }: Props) {
         return "bg-purple-50 text-purple-700 ring-purple-600/20";
       case "brainstorm":
         return "bg-sky-50 text-sky-700 ring-sky-600/20";
+      case "user":
+        return "bg-amber-50 text-amber-700 ring-amber-600/20";
       default:
         return "bg-gray-50 text-gray-700 ring-gray-600/20";
     }

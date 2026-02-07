@@ -31,7 +31,7 @@ interface AgentFormProps {
     eventId?: string;
 }
 
-const STANDARD_TYPES = ["brainstorm", "product", "tech", "judge"];
+const STANDARD_TYPES = ["brainstorm", "product", "tech", "judge", "user"];
 const BUILT_IN_VOICES = [
     { value: "alloy", label: "Alloy" },
     { value: "ash", label: "Ash" },
@@ -317,7 +317,7 @@ Feedback prompt example:
                                     Feedback prompt example: &quot;Evaluate novelty, feasibility, and user value (1-10 each) and return top 3 improvements.&quot;
                                 </p>
                                 <p className="text-muted-foreground">
-                                    Type options: brainstorm, product, tech, judge. Voice options: alloy, ash, ballad, cedar, coral, echo, marin, sage, shimmer, verse.
+                                    Type options: brainstorm, product, tech, judge, user. Voice options: alloy, ash, ballad, cedar, coral, echo, marin, sage, shimmer, verse.
                                 </p>
                             </div>
                             <div className="mt-3 flex flex-wrap justify-end gap-2">
@@ -393,6 +393,7 @@ Feedback prompt example:
                                                 <SelectItem value="product">Product</SelectItem>
                                                 <SelectItem value="tech">Tech</SelectItem>
                                                 <SelectItem value="judge">Judge</SelectItem>
+                                                <SelectItem value="user">User</SelectItem>
                                                 <SelectItem value="custom">Custom</SelectItem>
                                             </SelectContent>
                                         </Select>
