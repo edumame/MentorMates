@@ -175,6 +175,7 @@ export const MeetingForm = ({
   });
 
   const selectedEventId = form.watch("eventId");
+  const selectedAgentId = form.watch("agentId");
 
   useEffect(() => {
     if (selectedEventId) {
@@ -213,6 +214,14 @@ export const MeetingForm = ({
       (p.project_name || "").toLowerCase().includes(q)
     );
   }, [projects, projectSearch]);
+
+  // Find the selected agent and check if it requires a project
+  const selectedAgent = useMemo(() => {
+    if (!selectedAgentId) return null;
+    return filteredAgents.find((a: AgentGetOne) => a.id === selectedAgentId);
+  }, [selectedAgentId, filteredAgents]);
+
+  const requiresProject = (selectedAgent as AgentGetOne & { requires_project?: boolean })?.requires_project ?? true;
 
   const createMeeting = useMutation(
     trpc.meetings.create.mutationOptions({
@@ -270,6 +279,15 @@ export const MeetingForm = ({
   const isPending = createMeeting.isPending || updateMeeting.isPending;
 
   const onSubmit = (values: z.infer<typeof meetingsInsertSchema>) => {
+    // Validate that project is provided if the agent requires it
+    if (requiresProject && !values.projectId) {
+      form.setError("projectId", {
+        type: "manual",
+        message: "Project is required for this agent",
+      });
+      return;
+    }
+
     if (isEdit) {
       updateMeeting.mutate({ ...values, id: initialValues.id });
     } else {
@@ -327,10 +345,25 @@ export const MeetingForm = ({
             control={form.control}
             render={({ field }) => (
               <FormItem className="grid">
-                <FormLabel>Project</FormLabel>
+                <FormLabel>
+                  Project{!requiresProject && " (Optional)"}
+                </FormLabel>
                 <FormControl>
                   <CommandSelect
                     options={[
+                      ...(requiresProject
+                        ? []
+                        : [
+                            {
+                              id: "none",
+                              value: "",
+                              children: (
+                                <span className="text-muted-foreground">
+                                  No project
+                                </span>
+                              ),
+                            },
+                          ]),
                       ...filteredProjects.map((project) => ({
                         id: project.id,
                         value: project.id,
@@ -361,8 +394,12 @@ export const MeetingForm = ({
                       }
                     }}
                     onSearch={setProjectSearch}
-                    value={field.value}
-                    placeholder="Select a project"
+                    value={field.value || ""}
+                    placeholder={
+                      requiresProject
+                        ? "Select a project"
+                        : "Select a project (optional)"
+                    }
                   />
                 </FormControl>
                 <FormMessage />

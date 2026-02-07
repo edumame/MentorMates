@@ -893,6 +893,7 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
             event_id: targetEventId,
             enabled: Boolean(applyAgent.enabled ?? true),
             scoring: Boolean(applyAgent.scoring ?? true),
+            requires_project: Boolean((applyAgent as AgentGetOne & { requires_project?: boolean }).requires_project ?? true),
             avatar_url: normalizeOptionalUrl(applyAgent.avatar_url),
             feedback_prompt: normalizeOptionalText(applyAgent.feedback_prompt),
             voice: normalizeOptionalText(applyAgent.voice),
