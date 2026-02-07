@@ -20,11 +20,6 @@ const BUILT_IN_VOICE_DESCRIPTION_LIST = BUILT_IN_VOICE_OPTIONS
   .map((voice) => `- ${voice.value}: ${voice.description}`)
   .join("\n");
 
-const RequestSchema = z.object({
-  text: z.string().min(1),
-  mode: z.enum(["fill", "generate"]).optional().default("fill"),
-});
-
 const ParsedAgentSchema = z.object({
   name: z.string().optional(),
   type: z.string().optional(),
@@ -35,6 +30,64 @@ const ParsedAgentSchema = z.object({
 });
 
 type ParsedAgent = z.infer<typeof ParsedAgentSchema>;
+const GenerationStepSchema = z.enum(["all", "instruction", "feedback_prompt", "metadata"]);
+type GenerationStep = z.infer<typeof GenerationStepSchema>;
+type GenerateStage = Exclude<GenerationStep, "all">;
+
+const RequestSchema = z.object({
+  text: z.string().min(1),
+  mode: z.enum(["fill", "generate"]).optional().default("fill"),
+  step: GenerationStepSchema.optional().default("all"),
+  context: ParsedAgentSchema.optional().default({}),
+});
+
+const GENERATION_STAGE_ORDER: GenerateStage[] = [
+  "instruction",
+  "feedback_prompt",
+  "metadata",
+];
+const DEFAULT_STUDENT_FEEDBACK_PROMPT =
+  "Evaluate the student's behavior while roleplaying this persona. Focus on student questions, decisions, and specificity, and use transcript evidence. Treat the agent as context, not the subject being evaluated.";
+
+type AiOutputError = {
+  kind: "ai-output";
+  message: string;
+  raw?: string;
+  details?: unknown;
+  stage?: GenerationStep;
+};
+
+function isAiOutputError(error: unknown): error is AiOutputError {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "kind" in error &&
+    (error as { kind?: unknown }).kind === "ai-output"
+  );
+}
+
+function getFallbackFieldsForStage(stage: GenerateStage, text: string): ParsedAgent {
+  const heuristic = normalizeAgentFields(heuristicParse(text));
+
+  if (stage === "instruction") {
+    return {
+      instructions: heuristic.instructions || cleanOptional(text),
+    };
+  }
+
+  if (stage === "feedback_prompt") {
+    return {
+      feedback_prompt: heuristic.feedback_prompt || DEFAULT_STUDENT_FEEDBACK_PROMPT,
+    };
+  }
+
+  return {
+    name: heuristic.name,
+    type: heuristic.type,
+    voice: heuristic.voice,
+    avatar_url: heuristic.avatar_url,
+  };
+}
 
 function cleanOptional(value?: string): string | undefined {
   if (typeof value !== "string") return undefined;
@@ -147,15 +200,25 @@ function detectVoiceFromText(text: string): string | undefined {
   return undefined;
 }
 
-function ensureTypeAndVoice(input: ParsedAgent, text: string, mode: "fill" | "generate"): ParsedAgent {
+function ensureTypeAndVoice(
+  input: ParsedAgent,
+  text: string,
+  mode: "fill" | "generate",
+  options?: { applyGenerateDefaults?: boolean }
+): ParsedAgent {
   const ensured: ParsedAgent = { ...input };
+  const applyGenerateDefaults = options?.applyGenerateDefaults ?? true;
 
   if (!ensured.type) {
-    ensured.type = detectTypeFromText(text) ?? (mode === "generate" ? "brainstorm" : undefined);
+    ensured.type =
+      detectTypeFromText(text) ??
+      (mode === "generate" && applyGenerateDefaults ? "brainstorm" : undefined);
   }
 
   if (!ensured.voice) {
-    ensured.voice = detectVoiceFromText(text) ?? (mode === "generate" ? "alloy" : undefined);
+    ensured.voice =
+      detectVoiceFromText(text) ??
+      (mode === "generate" && applyGenerateDefaults ? "alloy" : undefined);
   }
 
   return ensured;
@@ -226,6 +289,217 @@ function normalizeAgentFields(input: ParsedAgent): ParsedAgent {
   return normalized;
 }
 
+function buildGenerateSystemPrompt(stage: GenerateStage): string {
+  if (stage === "instruction") {
+    return `You write production-quality system instructions for a custom agent based on a short user brief.
+Return ONLY the final instruction text.
+
+Quality requirements:
+- Be concrete and specific, not generic.
+- Preserve exact facts from the brief (location, age range, role).
+- Use a clear named persona. The first line must be: "You are **<Full Name>**, a <role> living in **<location>**."
+- If the brief targets children or users, anchor to one specific child/user profile with practical traits and constraints.
+- Keep language simple and direct. Short sentences. No jargon.
+- Avoid huge checklists. Keep it focused and readable.
+- Do NOT add numeric scoring rubrics unless the user explicitly asks for scoring.
+- The output should be immediately usable as an Instructions field.
+
+Do not return JSON.
+Do not wrap in markdown code fences.
+Do not add commentary before or after the instructions.`;
+  }
+
+  if (stage === "feedback_prompt") {
+    return `Write a concise feedback-evaluation prompt that complements the agent instructions.
+Return ONLY the feedback prompt text.
+
+Rules:
+- Align with the persona and priorities in the instructions.
+- Explicitly include the persona name from the instructions so the target role is clear.
+- Evaluate only the student's behavior in the conversation, never the agent's quality.
+- Assume the agent is doing its best; do not score, criticize, or diagnose agent performance.
+- Focus on student turns and decisions: clarifying questions, listening, adaptation, specificity, safety awareness, and practical actionability.
+- Use agent turns only as context for how the student responded.
+- Require transcript evidence (specific quotes or turn references tied to student behavior).
+- Keep language simple and direct.
+- End with a required output format for the evaluator:
+  1. What the student did well
+  2. Where the student missed the persona
+  3. Specific next-step coaching
+- Keep it short and operational (about 6-10 sentences).
+- Do NOT require numeric scoring unless explicitly requested.
+- Do not repeat the full persona instructions.
+
+Do not return JSON.
+Do not wrap in markdown code fences.
+Do not add commentary before or after the prompt.`;
+  }
+
+  return `Return STRICT JSON only:
+{
+  "name"?: string,
+  "type"?: string,
+  "voice"?: string,
+  "avatar_url"?: string
+}
+Rules:
+- Include "type" and "voice" whenever possible.
+- "type" should prefer one of: brainstorm, product, tech, judge (custom is allowed only when clearly better).
+- "voice" should be one of: ${BUILT_IN_VOICE_PROMPT_OPTIONS} (or a valid custom voice_* id if explicitly requested).
+- Built-in voice descriptions:
+${BUILT_IN_VOICE_DESCRIPTION_LIST}
+- Pick a clear, human-readable "name" aligned with the persona.
+- If instructions already contain a persona name, reuse that exact name.
+- Never invent an avatar_url unless the user provided an explicit URL.
+- Keep values practical and concise.
+
+JSON only. No markdown code fences.`;
+}
+
+function buildGenerateUserMessage(text: string, context: ParsedAgent, stage: GenerateStage): string {
+  const normalizedContext = normalizeAgentFields(context);
+  const serializedContext =
+    Object.keys(normalizedContext).length > 0
+      ? JSON.stringify(normalizedContext, null, 2)
+      : "{}";
+
+  if (stage === "instruction") {
+    return `User brief:
+${text}
+
+Existing fields (if any):
+${serializedContext}`;
+  }
+
+  if (stage === "feedback_prompt") {
+    return `User brief:
+${text}
+
+Current instructions:
+${normalizedContext.instructions ?? "(none)"}
+
+Context:
+This feedback prompt is for evaluating the student's conversation behavior after they interact with the agent.
+The agent should be treated as a high-quality baseline and not evaluated directly.
+Use the same persona name used in the instructions.
+
+Existing fields (if any):
+${serializedContext}`;
+  }
+
+  return `User brief:
+${text}
+
+Current instructions:
+${normalizedContext.instructions ?? "(none)"}
+
+Current feedback prompt:
+${normalizedContext.feedback_prompt ?? "(none)"}
+
+Existing fields (if any):
+${serializedContext}`;
+}
+
+async function requestModelContent(options: {
+  system: string;
+  user: string;
+  temperature: number;
+  maxTokens: number;
+  stage?: GenerationStep;
+}): Promise<string> {
+  const completion = await openai.chat.completions.create({
+    model: "gpt-5.2",
+    messages: [
+      { role: "system", content: options.system },
+      { role: "user", content: options.user },
+    ],
+    temperature: options.temperature,
+    max_completion_tokens: options.maxTokens,
+  });
+
+  return completion.choices?.[0]?.message?.content || "";
+}
+
+function cleanModelTextOutput(content: string): string | undefined {
+  const trimmed = cleanOptional(content);
+  if (!trimmed) return undefined;
+
+  const fencedMatch = /^```(?:\w+)?\s*([\s\S]*?)\s*```$/m.exec(trimmed);
+  if (fencedMatch?.[1]) {
+    return cleanOptional(fencedMatch[1]);
+  }
+
+  return trimmed;
+}
+
+function tryReadStringFieldFromJson(content: string, field: keyof ParsedAgent): string | undefined {
+  const parsed = extractJsonFromText(content);
+  if (!parsed || typeof parsed !== "object") return undefined;
+
+  const value = (parsed as Record<string, unknown>)[field];
+  return typeof value === "string" ? cleanOptional(value) : undefined;
+}
+
+async function requestTextFieldFromModel(options: {
+  system: string;
+  user: string;
+  temperature: number;
+  maxTokens: number;
+  stage: GenerationStep;
+  field: "instructions" | "feedback_prompt";
+}): Promise<ParsedAgent> {
+  const content = await requestModelContent(options);
+
+  const fromJson = tryReadStringFieldFromJson(content, options.field);
+  const value = fromJson || cleanModelTextOutput(content);
+  if (!value) {
+    throw {
+      kind: "ai-output",
+      message: `Model returned empty ${options.field}`,
+      raw: content,
+      stage: options.stage,
+    } satisfies AiOutputError;
+  }
+
+  if (options.field === "instructions") {
+    return { instructions: value };
+  }
+
+  return { feedback_prompt: value };
+}
+
+async function requestAgentFieldsFromModel(options: {
+  system: string;
+  user: string;
+  temperature: number;
+  maxTokens: number;
+  stage?: GenerationStep;
+}): Promise<ParsedAgent> {
+  const content = await requestModelContent(options);
+  const json = extractJsonFromText(content);
+  if (!json) {
+    throw {
+      kind: "ai-output",
+      message: "Failed to parse AI output",
+      raw: content,
+      stage: options.stage,
+    } satisfies AiOutputError;
+  }
+
+  const validated = ParsedAgentSchema.safeParse(json);
+  if (!validated.success) {
+    throw {
+      kind: "ai-output",
+      message: "Invalid AI output",
+      raw: content,
+      details: validated.error.flatten(),
+      stage: options.stage,
+    } satisfies AiOutputError;
+  }
+
+  return normalizeAgentFields(validated.data);
+}
+
 export async function POST(req: Request) {
   const supabase = await createSupabaseClient();
 
@@ -239,7 +513,8 @@ export async function POST(req: Request) {
       );
     }
 
-    const { text, mode } = parsedReq.data;
+    const { text, mode, step, context } = parsedReq.data;
+    const normalizedContext = normalizeAgentFields(context || {});
 
     const {
       data: { user },
@@ -251,8 +526,44 @@ export async function POST(req: Request) {
     }
 
     if (!process.env.OPENAI_API_KEY) {
+      const heuristic = normalizeAgentFields(heuristicParse(text));
+
+      if (mode === "fill") {
+        const fields = normalizeAgentFields(
+          ensureTypeAndVoice(
+            { ...normalizedContext, ...heuristic },
+            text,
+            mode,
+            { applyGenerateDefaults: false }
+          )
+        );
+        return NextResponse.json({
+          fields,
+          warning: "OPENAI_API_KEY not configured. Used heuristic parsing.",
+        });
+      }
+
+      const generated: ParsedAgent = { ...normalizedContext };
+      if (step === "all" || step === "instruction") {
+        generated.instructions = generated.instructions || heuristic.instructions || cleanOptional(text);
+      }
+      if (step === "all" || step === "feedback_prompt") {
+        generated.feedback_prompt =
+          generated.feedback_prompt ||
+          heuristic.feedback_prompt ||
+          DEFAULT_STUDENT_FEEDBACK_PROMPT;
+      }
+      if (step === "all" || step === "metadata") {
+        if (!generated.name) generated.name = heuristic.name;
+        if (!generated.type) generated.type = heuristic.type;
+        if (!generated.voice) generated.voice = heuristic.voice;
+        if (!generated.avatar_url) generated.avatar_url = heuristic.avatar_url;
+      }
+
       const fields = normalizeAgentFields(
-        ensureTypeAndVoice(heuristicParse(text), text, mode)
+        ensureTypeAndVoice(generated, text, mode, {
+          applyGenerateDefaults: step === "all" || step === "metadata",
+        })
       );
       return NextResponse.json({
         fields,
@@ -278,58 +589,98 @@ Rules:
 - Keep content practical and concise.
 - Do NOT include code fences or commentary; JSON only.`;
 
-    const systemPromptGenerate = `You are an assistant that GENERATES plausible agent setup fields from a short brief.
-Produce a coherent agent identity and high-quality instructions aligned to the brief.
-For generate mode, ALWAYS include "type" and "voice".
-"type" must be one of: brainstorm, product, tech, judge.
-"voice" should be one of: ${BUILT_IN_VOICE_PROMPT_OPTIONS}.
-Voice descriptions:
-${BUILT_IN_VOICE_DESCRIPTION_LIST}
-Also generate clear "instructions" and (when relevant) a concrete "feedback_prompt".
+    if (mode === "fill") {
+      let extracted: ParsedAgent;
+      try {
+        extracted = await requestAgentFieldsFromModel({
+          system: systemPromptFill,
+          user: text,
+          temperature: 0.2,
+          maxTokens: 700,
+        });
+      } catch (error) {
+        if (isAiOutputError(error)) {
+          extracted = normalizeAgentFields(heuristicParse(text));
+        } else {
+          throw error;
+        }
+      }
 
-Concrete examples:
-- Good instructions example: "Start by asking up to 2 clarifying questions, then provide 3 ranked options with tradeoffs and a recommended next step."
-- Good feedback_prompt example: "Evaluate the submission on feasibility, technical depth, and user impact (1-10 each), then return 3 actionable improvements."
-
-Do not invent avatar URLs unless a URL is provided in the input.`;
-
-    const system =
-      mode === "generate"
-        ? `${systemPromptFill}\n\n${systemPromptGenerate}`
-        : systemPromptFill;
-
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: text },
-      ],
-      temperature: mode === "generate" ? 0.6 : 0.2,
-      max_tokens: 700,
-    });
-
-    const content = completion.choices?.[0]?.message?.content || "";
-    const json = extractJsonFromText(content);
-    if (!json) {
-      return NextResponse.json(
-        { error: "Failed to parse AI output", raw: content },
-        { status: 502 }
+      const fields = normalizeAgentFields(
+        ensureTypeAndVoice({ ...normalizedContext, ...extracted }, text, mode, {
+          applyGenerateDefaults: false,
+        })
       );
+      return NextResponse.json({ fields });
     }
 
-    const validated = ParsedAgentSchema.safeParse(json);
-    if (!validated.success) {
-      return NextResponse.json(
-        { error: "Invalid AI output", details: validated.error.flatten(), raw: content },
-        { status: 502 }
-      );
+    let generated: ParsedAgent = { ...normalizedContext };
+    const stagesToRun: GenerateStage[] =
+      step === "all" ? GENERATION_STAGE_ORDER : [step];
+
+    for (const generationStage of stagesToRun) {
+      let stageFields: ParsedAgent;
+      try {
+        if (generationStage === "instruction") {
+          stageFields = await requestTextFieldFromModel({
+            stage: generationStage,
+            field: "instructions",
+            system: buildGenerateSystemPrompt(generationStage),
+            user: buildGenerateUserMessage(text, generated, generationStage),
+            temperature: 0.7,
+            maxTokens: 1000,
+          });
+        } else if (generationStage === "feedback_prompt") {
+          stageFields = await requestTextFieldFromModel({
+            stage: generationStage,
+            field: "feedback_prompt",
+            system: buildGenerateSystemPrompt(generationStage),
+            user: buildGenerateUserMessage(text, generated, generationStage),
+            temperature: 0.5,
+            maxTokens: 400,
+          });
+        } else {
+          stageFields = await requestAgentFieldsFromModel({
+            stage: generationStage,
+            system: buildGenerateSystemPrompt(generationStage),
+            user: buildGenerateUserMessage(text, generated, generationStage),
+            temperature: 0.4,
+            maxTokens: 500,
+          });
+        }
+      } catch (error) {
+        if (!isAiOutputError(error)) {
+          throw error;
+        }
+
+        stageFields = getFallbackFieldsForStage(generationStage, text);
+      }
+
+      generated = normalizeAgentFields({
+        ...generated,
+        ...stageFields,
+      });
     }
 
     const fields = normalizeAgentFields(
-      ensureTypeAndVoice(normalizeAgentFields(validated.data), text, mode)
+      ensureTypeAndVoice(generated, text, mode, {
+        applyGenerateDefaults: step === "all" || step === "metadata",
+      })
     );
-    return NextResponse.json({ fields });
+    return NextResponse.json({ fields, step });
   } catch (error) {
+    if (isAiOutputError(error)) {
+      return NextResponse.json(
+        {
+          error: error.message,
+          details: error.details,
+          raw: error.raw,
+          stage: error.stage,
+        },
+        { status: 502 }
+      );
+    }
+
     // eslint-disable-next-line no-console
     console.error("Error in POST /api/agents/ai-parse:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
