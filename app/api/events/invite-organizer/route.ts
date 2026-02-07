@@ -6,8 +6,6 @@ import { NOTIFICATIONS_EMAIL_FROM } from '@/lib/email_templates/constants';
 import { getOrganizerInvitationEmailTemplate } from '@/lib/email_templates/organizer-invitation';
 import { canAccessRole } from '@/features/user/roles/roles';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 export async function POST(request: Request) {
   // TODO: Consider implementing rate limiting to prevent invite spam
   // Example: Allow max 10 invites per organizer per hour
@@ -63,6 +61,16 @@ export async function POST(request: Request) {
   if (!eventData) {
     return NextResponse.json({ error: 'Event not found' }, { status: 404 });
   }
+
+  const resendApiKey = process.env.RESEND_API_KEY;
+  if (!resendApiKey) {
+    return NextResponse.json(
+      { error: 'Email service not configured' },
+      { status: 500 }
+    );
+  }
+
+  const resend = new Resend(resendApiKey);
 
   // Fetch inviter's name
   const { data: inviterProfile } = await supabase
