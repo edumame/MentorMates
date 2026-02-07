@@ -19,8 +19,19 @@ import { supabase } from "@/lib/supabase";
 import { ResponsiveDialog } from "@/components/responsive-dialog";
 import { EventRole } from "@/lib/types";
 import { getRoleLabel } from "@/features/user/roles/roles";
-import { Bot, ChevronDown, ChevronUp, MessageSquare, Mic } from "lucide-react";
+import {
+  Bot,
+  ClockArrowUp,
+  ChevronDown,
+  ChevronUp,
+  MessageSquare,
+  Mic,
+  PhoneCall,
+} from "lucide-react";
 import { getBuiltInVoiceOption } from "@/modules/agents/constants/voices";
+import { Input } from "@/components/ui/input";
+import { MeetingForm } from "@/modules/meetings/ui/components/meeting-form";
+import { useRouter } from "next/navigation";
 
 interface AgentsTabProps {
   eventId?: string;
@@ -30,6 +41,8 @@ interface EventOption {
   event_id: string;
   event_name: string;
 }
+
+type SessionLaunchMode = "chat" | "call";
 
 const PROMPT_PREVIEW_LIMIT = 240;
 const FEEDBACK_PREVIEW_LIMIT = 180;
@@ -177,6 +190,7 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const { session } = useAuth();
+  const router = useRouter();
   const isDevNoAuthBypassEnabled = process.env.NEXT_PUBLIC_DEV_AUTH_BYPASS === "true";
   const isRunningDevNoAuthBypass = isDevNoAuthBypassEnabled && !session?.user?.id;
   const devBypassUserId = normalizeText(process.env.NEXT_PUBLIC_DEV_AUTH_BYPASS_USER_ID);
@@ -198,6 +212,9 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
   const [isApplying, setIsApplying] = useState(false);
   const [search, setSearch] = useState("");
   const [expandedPrompts, setExpandedPrompts] = useState<Record<string, boolean>>({});
+  const [livePreviewDialogOpen, setLivePreviewDialogOpen] = useState(false);
+  const [livePreviewAgent, setLivePreviewAgent] = useState<AgentGetOne | null>(null);
+  const [livePreviewMode, setLivePreviewMode] = useState<SessionLaunchMode>("chat");
   const [defaultCap, setDefaultCap] = useState<number | null>(null);
   const [defaultUnlimited, setDefaultUnlimited] = useState(true);
   const [autoConversations, setAutoConversations] = useState<RoleAutoConversations>({});
@@ -453,6 +470,18 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
       return a.event_name.localeCompare(b.event_name);
     });
   }, [events, applySearch, alreadyAppliedEventIds]);
+
+  const livePreviewPrefill = useMemo(() => {
+    if (!livePreviewAgent) return undefined;
+    const sourceEventId =
+      normalizeText(livePreviewAgent.event_id) || normalizeText(eventId);
+    const name = cleanText(livePreviewAgent.name) || "Agent";
+    return {
+      name: `${name} conversation`,
+      agentId: livePreviewAgent.id,
+      eventId: sourceEventId || undefined,
+    };
+  }, [livePreviewAgent, eventId]);
 
   const createAgent = useMutation(
     trpc.agents.create.mutationOptions({
@@ -935,6 +964,12 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
     setExpandedPrompts((prev) => ({ ...prev, [agentId]: !prev[agentId] }));
   };
 
+  const openLivePreview = (agent: AgentGetOne, mode: SessionLaunchMode) => {
+    setLivePreviewAgent(agent);
+    setLivePreviewMode(mode);
+    setLivePreviewDialogOpen(true);
+  };
+
   return (
     <div className="w-full">
       <div className="mb-4">
@@ -1324,6 +1359,35 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
         </div>
       </ResponsiveDialog>
 
+      <ResponsiveDialog
+        title={livePreviewMode === "call" ? "Start call" : "Start chat"}
+        description="Pick the project context, then start a session with this agent."
+        open={livePreviewDialogOpen}
+        onOpenChange={(open) => {
+          setLivePreviewDialogOpen(open);
+          if (!open) setLivePreviewAgent(null);
+        }}
+      >
+        {livePreviewAgent ? (
+          <MeetingForm
+            key={`${livePreviewAgent.id}-${livePreviewMode}`}
+            prefillValues={livePreviewPrefill}
+            onCancel={() => {
+              setLivePreviewDialogOpen(false);
+              setLivePreviewAgent(null);
+            }}
+            onSuccess={(meetingId) => {
+              setLivePreviewDialogOpen(false);
+              setLivePreviewAgent(null);
+              if (!meetingId) return;
+              router.push(livePreviewMode === "call" ? `/call/${meetingId}` : `/chat/${meetingId}`);
+            }}
+          />
+        ) : (
+          <p className="text-sm text-gray-600">Select an agent first.</p>
+        )}
+      </ResponsiveDialog>
+
       <div className="space-y-4">
         {filteredOwnedAgents.map((agent: AgentGetOne) => {
           const signature = getAgentSignature(agent);
@@ -1358,27 +1422,53 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
               className="rounded-[14px] border border-[rgba(75,137,239,0.35)] bg-[#f7fbff] p-4 shadow-sm sm:p-5"
             >
               <div className="grid gap-4 lg:grid-cols-[220px_1fr_280px]">
-                <section className="rounded-xl border border-[rgba(0,0,0,0.12)] bg-white p-4 text-center">
-                  <Avatar className="mx-auto h-16 w-16 border border-[rgba(0,0,0,0.15)]">
-                    {hasAvatar && (
-                      <AvatarImage src={String(agent.avatar_url)} alt={String(agent.name)} />
-                    )}
-                    <AvatarFallback className="bg-[#eaf2ff] text-[#2f61b3] text-lg font-semibold">
-                      {getInitials(String(agent.name))}
-                    </AvatarFallback>
-                  </Avatar>
+                <section className="overflow-hidden rounded-xl border border-[rgba(0,0,0,0.12)] bg-white">
+                  <div className="p-4 text-center">
+                    <Avatar className="mx-auto h-16 w-16 border border-[rgba(0,0,0,0.15)]">
+                      {hasAvatar && (
+                        <AvatarImage src={String(agent.avatar_url)} alt={String(agent.name)} />
+                      )}
+                      <AvatarFallback className="bg-[#eaf2ff] text-[#2f61b3] text-lg font-semibold">
+                        {getInitials(String(agent.name))}
+                      </AvatarFallback>
+                    </Avatar>
 
-                  <h3 className="mt-3 text-base font-semibold text-black">{agent.name}</h3>
-                  <div className="mt-2 flex justify-center">
-                    <AgentTypeLabel type={agent.type} />
+                    <h3 className="mt-3 text-base font-semibold text-black">{agent.name}</h3>
+                    <div className="mt-2 flex justify-center">
+                      <AgentTypeLabel type={agent.type} />
+                    </div>
+
+                    {!agent.enabled && (
+                      <p className="mt-2 text-xs font-medium text-gray-500">Paused</p>
+                    )}
+
+                    <span className="mt-3 inline-flex items-center gap-1 rounded-md border border-yellow-700/10 bg-yellow-500/20 px-2.5 py-1 text-xs font-medium text-yellow-800">
+                      <ClockArrowUp className="h-3.5 w-3.5" />
+                      Upcoming
+                    </span>
+
+                    <p className="mt-3 text-xs text-gray-500">Available in</p>
+                    <p className="line-clamp-3 text-sm text-gray-700">{appliedEventsLabel}</p>
                   </div>
 
-                  {!agent.enabled && (
-                    <p className="mt-2 text-xs font-medium text-gray-500">Paused</p>
-                  )}
-
-                  <p className="mt-3 text-xs text-gray-500">Available in</p>
-                  <p className="line-clamp-3 text-sm text-gray-700">{appliedEventsLabel}</p>
+                  <div className="-mt-px flex divide-x divide-gray-200 border-t border-gray-200">
+                    <button
+                      type="button"
+                      className="inline-flex w-0 flex-1 items-center justify-center gap-2 py-3 text-sm font-semibold text-gray-900 hover:bg-gray-50"
+                      onClick={() => openLivePreview(agent, "chat")}
+                    >
+                      <MessageSquare className="h-5 w-5 text-gray-400" />
+                      Chat
+                    </button>
+                    <button
+                      type="button"
+                      className="inline-flex w-0 flex-1 items-center justify-center gap-2 py-3 text-sm font-semibold text-gray-900 hover:bg-gray-50"
+                      onClick={() => openLivePreview(agent, "call")}
+                    >
+                      <PhoneCall className="h-5 w-5 text-gray-400" />
+                      Start Call
+                    </button>
+                  </div>
                 </section>
 
                 <section className="rounded-xl border border-[rgba(0,0,0,0.12)] bg-white p-4">
@@ -1434,6 +1524,7 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
                       <p className="mt-1 text-sm text-gray-600">{visibleFeedback}</p>
                     </div>
                   )}
+
                 </section>
 
                 <aside className="rounded-xl border border-[rgba(0,0,0,0.12)] bg-white p-3">
