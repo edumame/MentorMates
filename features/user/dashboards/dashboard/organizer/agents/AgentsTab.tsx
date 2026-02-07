@@ -25,6 +25,19 @@ interface EventOption {
   event_name: string;
 }
 
+function normalizeText(value: unknown): string {
+  if (typeof value !== "string") return "";
+  return value.trim();
+}
+
+function getAgentSignature(agent: AgentGetOne): string {
+  const name = normalizeText(agent.name).toLowerCase();
+  const type = normalizeText(agent.type).toLowerCase();
+  const instructions = normalizeText(agent.instructions);
+  const feedbackPrompt = normalizeText(agent.feedback_prompt);
+  return `${name}::${type}::${instructions}::${feedbackPrompt}`;
+}
+
 function normalizeOptionalUrl(value: unknown): string | undefined {
   if (typeof value !== "string") return undefined;
   const trimmed = value.trim();
@@ -53,12 +66,14 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
   const [events, setEvents] = useState<EventOption[]>([]);
   const [applyDialogOpen, setApplyDialogOpen] = useState(false);
   const [applyAgent, setApplyAgent] = useState<AgentGetOne | null>(null);
-  const [targetEventIds, setTargetEventIds] = useState<string[]>([]);
+  const [alreadyAppliedEventIds, setAlreadyAppliedEventIds] = useState<string[]>([]);
+  const [selectedEventIds, setSelectedEventIds] = useState<string[]>([]);
+  const [applySearch, setApplySearch] = useState("");
   const [isApplying, setIsApplying] = useState(false);
   const [search, setSearch] = useState("");
 
   const agentsQuery = useQuery(
-    trpc.agents.getMany.queryOptions({ pageSize: 100, search })
+    trpc.agents.getMany.queryOptions({ pageSize: 100 })
   );
 
   useEffect(() => {
@@ -134,18 +149,84 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
     );
   }, [allOwnedAgents, eventId]);
 
+  const filteredOwnedAgents = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return ownedAgents;
+    return ownedAgents.filter((agent: AgentGetOne) => {
+      const name = normalizeText(agent.name).toLowerCase();
+      const instructions = normalizeText(agent.instructions).toLowerCase();
+      const type = normalizeText(agent.type).toLowerCase();
+      return (
+        name.includes(q) ||
+        instructions.includes(q) ||
+        type.includes(q)
+      );
+    });
+  }, [ownedAgents, search]);
+
   const existingAgentKeys = useMemo(
     () =>
       new Set(
         allOwnedAgents.map(
           (agent: AgentGetOne) =>
-            `${String(agent.event_id ?? "")}::${String(agent.name ?? "")
-              .trim()
-              .toLowerCase()}`
+            `${String(agent.event_id ?? "")}::${getAgentSignature(agent)}`
         )
       ),
     [allOwnedAgents]
   );
+
+  const signatureToEventIds = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    for (const agent of allOwnedAgents) {
+      const signature = getAgentSignature(agent);
+      const eventIdValue = normalizeText(agent.event_id);
+      const set = map.get(signature) || new Set<string>();
+      if (eventIdValue) set.add(eventIdValue);
+      map.set(signature, set);
+    }
+    return map;
+  }, [allOwnedAgents]);
+
+  const signatureToAgentsByEvent = useMemo(() => {
+    const map = new Map<string, Map<string, AgentGetOne[]>>();
+    for (const agent of allOwnedAgents) {
+      const signature = getAgentSignature(agent);
+      const eventIdValue = normalizeText(agent.event_id);
+      if (!eventIdValue) continue;
+
+      const byEvent = map.get(signature) || new Map<string, AgentGetOne[]>();
+      const rows = byEvent.get(eventIdValue) || [];
+      rows.push(agent);
+      byEvent.set(eventIdValue, rows);
+      map.set(signature, byEvent);
+    }
+    return map;
+  }, [allOwnedAgents]);
+
+  const hasApplySelectionChanges = useMemo(() => {
+    if (!applyDialogOpen) return false;
+    const current = new Set(alreadyAppliedEventIds);
+    const next = new Set(selectedEventIds);
+    if (current.size !== next.size) return true;
+    for (const id of current) {
+      if (!next.has(id)) return true;
+    }
+    return false;
+  }, [applyDialogOpen, alreadyAppliedEventIds, selectedEventIds]);
+
+  const applyDialogEvents = useMemo(() => {
+    const q = applySearch.trim().toLowerCase();
+    const filtered = !q
+      ? [...events]
+      : events.filter((event) => event.event_name.toLowerCase().includes(q));
+
+    return filtered.sort((a, b) => {
+      const aApplied = alreadyAppliedEventIds.includes(a.event_id) ? 1 : 0;
+      const bApplied = alreadyAppliedEventIds.includes(b.event_id) ? 1 : 0;
+      if (aApplied !== bApplied) return bApplied - aApplied;
+      return a.event_name.localeCompare(b.event_name);
+    });
+  }, [events, applySearch, alreadyAppliedEventIds]);
 
   const createAgent = useMutation(
     trpc.agents.create.mutationOptions({
@@ -212,13 +293,17 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
   };
 
   const openApplyDialog = (agent: AgentGetOne) => {
+    const signature = getAgentSignature(agent);
+    const applied = Array.from(signatureToEventIds.get(signature) || []);
     setApplyAgent(agent);
-    setTargetEventIds([]);
+    setAlreadyAppliedEventIds(applied);
+    setSelectedEventIds(applied);
+    setApplySearch("");
     setApplyDialogOpen(true);
   };
 
   const toggleTargetEvent = (targetId: string, checked: boolean) => {
-    setTargetEventIds((prev) => {
+    setSelectedEventIds((prev) => {
       if (checked) {
         if (prev.includes(targetId)) return prev;
         return [...prev, targetId];
@@ -229,18 +314,14 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
 
   const applyAgentToEvents = async () => {
     if (!applyAgent) return;
-    if (targetEventIds.length === 0) {
-      toast({
-        title: "No events selected",
-        description: "Choose at least one event.",
-        variant: "destructive",
-      });
+    if (!hasApplySelectionChanges) {
       return;
     }
 
-    const name = String(applyAgent.name ?? "").trim();
-    const instructions = String(applyAgent.instructions ?? "").trim();
-    const type = String(applyAgent.type ?? "brainstorm").trim() || "brainstorm";
+    const signature = getAgentSignature(applyAgent);
+    const name = normalizeText(applyAgent.name);
+    const instructions = normalizeText(applyAgent.instructions);
+    const type = normalizeText(applyAgent.type) || "brainstorm";
     if (!name || !instructions) {
       toast({
         title: "Cannot apply agent",
@@ -252,14 +333,39 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
 
     setIsApplying(true);
     let createdCount = 0;
+    let removedCount = 0;
     let skippedCount = 0;
     let failedCount = 0;
 
     try {
-      for (const targetEventId of targetEventIds) {
+      const currentSet = new Set(alreadyAppliedEventIds);
+      const nextSet = new Set(selectedEventIds);
+      const toRemove = Array.from(currentSet).filter((id) => !nextSet.has(id));
+      const toAdd = Array.from(nextSet).filter((id) => !currentSet.has(id));
+
+      const byEvent = signatureToAgentsByEvent.get(signature) || new Map<string, AgentGetOne[]>();
+
+      for (const targetEventId of toRemove) {
+        const rows = byEvent.get(targetEventId) || [];
+        if (rows.length === 0) {
+          skippedCount += 1;
+          continue;
+        }
+
+        try {
+          for (const row of rows) {
+            await removeAgent.mutateAsync({ id: row.id });
+          }
+          removedCount += 1;
+        } catch {
+          failedCount += 1;
+        }
+      }
+
+      for (const targetEventId of toAdd) {
         const sameEvent =
           String(applyAgent.event_id ?? "") === String(targetEventId);
-        const key = `${targetEventId}::${name.toLowerCase()}`;
+        const key = `${targetEventId}::${signature}`;
         if (sameEvent || existingAgentKeys.has(key)) {
           skippedCount += 1;
           continue;
@@ -286,6 +392,7 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
 
       const parts = [
         createdCount > 0 ? `${createdCount} created` : null,
+        removedCount > 0 ? `${removedCount} removed` : null,
         skippedCount > 0 ? `${skippedCount} skipped` : null,
         failedCount > 0 ? `${failedCount} failed` : null,
       ].filter(Boolean);
@@ -295,7 +402,7 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
         description: parts.length > 0 ? parts.join(" | ") : "No changes made",
       });
 
-      if (createdCount > 0) {
+      if (failedCount === 0) {
         setApplyDialogOpen(false);
       }
     } finally {
@@ -333,44 +440,41 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
 
       <ResponsiveDialog
         title="Apply agent to events"
-        description="This creates copies of the current agent in the selected events."
+        description="Check to apply, uncheck to remove. Already applied events are listed first."
         open={applyDialogOpen}
         onOpenChange={setApplyDialogOpen}
       >
         <div className="space-y-3">
+          <input
+            placeholder="Search events"
+            value={applySearch}
+            onChange={(e) => setApplySearch(e.target.value)}
+            className="w-full border rounded px-2 py-1"
+          />
           {events.length === 0 ? (
             <p className="text-sm text-gray-600">No events available.</p>
+          ) : applyDialogEvents.length === 0 ? (
+            <p className="text-sm text-gray-600">No events match your search.</p>
           ) : (
             <div className="max-h-72 overflow-auto space-y-2 rounded border p-3">
-              {events.map((event) => {
-                const isCurrentEvent =
-                  String(applyAgent?.event_id ?? "") === String(event.event_id);
-                const nameKey = String(applyAgent?.name ?? "").trim().toLowerCase();
-                const alreadyExists = existingAgentKeys.has(
-                  `${event.event_id}::${nameKey}`
-                );
-                const disabled = isCurrentEvent || alreadyExists;
+              {applyDialogEvents.map((event) => {
+                const alreadyExists = alreadyAppliedEventIds.includes(event.event_id);
                 return (
                   <label
                     key={event.event_id}
-                    className={`flex items-center justify-between gap-2 rounded p-2 ${
-                      disabled ? "opacity-60" : ""
-                    }`}
+                    className="flex items-center justify-between gap-2 rounded p-2"
                   >
                     <div className="flex items-center gap-2">
                       <Checkbox
-                        checked={targetEventIds.includes(event.event_id)}
-                        disabled={disabled}
+                        checked={selectedEventIds.includes(event.event_id)}
+                        disabled={isApplying}
                         onCheckedChange={(checked) =>
                           toggleTargetEvent(event.event_id, Boolean(checked))
                         }
                       />
                       <span className="text-sm">{event.event_name}</span>
                     </div>
-                    {isCurrentEvent && (
-                      <span className="text-xs text-gray-500">current</span>
-                    )}
-                    {!isCurrentEvent && alreadyExists && (
+                    {alreadyExists && (
                       <span className="text-xs text-gray-500">already applied</span>
                     )}
                   </label>
@@ -390,7 +494,7 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
             <Button
               type="button"
               onClick={applyAgentToEvents}
-              disabled={isApplying || targetEventIds.length === 0}
+              disabled={isApplying || !hasApplySelectionChanges}
             >
               {isApplying ? "Applying..." : "Apply"}
             </Button>
@@ -399,12 +503,21 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
       </ResponsiveDialog>
 
       <div className="space-y-3">
-        {ownedAgents.map((agent: AgentGetOne) => {
+        {filteredOwnedAgents.map((agent: AgentGetOne) => {
+          const signature = getAgentSignature(agent);
+          const appliedEventIds = Array.from(signatureToEventIds.get(signature) || []);
+          const appliedEventNames = appliedEventIds
+            .map((id) =>
+              eventNameById.get(String(id)) || `Event ${String(id).slice(0, 8)}`
+            )
+            .sort((a, b) => a.localeCompare(b));
           const eventName =
-            agent.event_id == null
-              ? "Global (all events)"
-              : eventNameById.get(String(agent.event_id)) ||
-                `Event ${String(agent.event_id).slice(0, 8)}`;
+            appliedEventNames.length > 0
+              ? appliedEventNames.join(", ")
+              : agent.event_id == null
+                ? "Global (all events)"
+                : eventNameById.get(String(agent.event_id)) ||
+                  `Event ${String(agent.event_id).slice(0, 8)}`;
           return (
             <div key={agent.id} className="flex items-center justify-between border p-3 rounded">
               <div>
@@ -414,7 +527,7 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
                 </div>
                 <div className="text-sm text-gray-600">{agent.instructions}</div>
                 <div className="text-xs text-gray-500 mt-1">
-                  Applied to: {eventName}
+                  Applied to events: {eventName}
                 </div>
               </div>
               <div className="flex items-center gap-3">
