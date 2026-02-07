@@ -9,6 +9,7 @@ import AgentTypeLabel from "@/components/ui/agent-type-label";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { EventSearchInput } from "@/components/ui/event-search-input";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "@/lib/hooks/use-toast";
 import { NewAgentDialog } from "@/modules/agents/ui/components/new-agent-dialog";
 import { UpdateAgentDialog } from "@/modules/agents/ui/components/update-agent-dialog";
@@ -16,6 +17,7 @@ import { useConfirm } from "@/lib/hooks/use-confirm";
 import { useAuth } from "@/features/user/authentication/auth/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { ResponsiveDialog } from "@/components/responsive-dialog";
+import { Bot, ChevronDown, ChevronUp, MessageSquare, Mic } from "lucide-react";
 
 interface AgentsTabProps {
   eventId?: string;
@@ -25,6 +27,9 @@ interface EventOption {
   event_id: string;
   event_name: string;
 }
+
+const PROMPT_PREVIEW_LIMIT = 240;
+const FEEDBACK_PREVIEW_LIMIT = 180;
 
 function normalizeText(value: unknown): string {
   if (typeof value !== "string") return "";
@@ -57,10 +62,35 @@ function normalizeOptionalText(value: unknown): string | undefined {
   return trimmed ? trimmed : undefined;
 }
 
+function cleanText(value: unknown): string {
+  if (typeof value !== "string") return "";
+  return value.replace(/\s+/g, " ").trim();
+}
+
+function truncateText(value: string, maxLength: number): string {
+  if (value.length <= maxLength) return value;
+  return `${value.slice(0, maxLength).trimEnd()}...`;
+}
+
+function getInitials(value: string): string {
+  const parts = value.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "AI";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0] ?? ""}${parts[1][0] ?? ""}`.toUpperCase();
+}
+
+function formatVoiceLabel(value: unknown): string {
+  const voice = cleanText(value);
+  if (!voice) return "Default";
+  if (voice.startsWith("voice_")) return "Custom Voice";
+  return voice.charAt(0).toUpperCase() + voice.slice(1);
+}
+
 export function AgentsTab({ eventId }: AgentsTabProps) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const { session } = useAuth();
+
   const [dialogOpen, setDialogOpen] = useState(false);
   const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<AgentGetOne | null>(null);
@@ -72,6 +102,7 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
   const [applySearch, setApplySearch] = useState("");
   const [isApplying, setIsApplying] = useState(false);
   const [search, setSearch] = useState("");
+  const [expandedPrompts, setExpandedPrompts] = useState<Record<string, boolean>>({});
 
   const agentsQuery = useQuery(
     trpc.agents.getMany.queryOptions({ pageSize: 100 })
@@ -130,7 +161,9 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
 
   const eventNameById = useMemo(
     () =>
-      new Map<string, string>(events.map((event) => [event.event_id, event.event_name])),
+      new Map<string, string>(
+        events.map((event) => [event.event_id, event.event_name])
+      ),
     [events]
   );
 
@@ -145,8 +178,7 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
   const ownedAgents = useMemo<AgentGetOne[]>(() => {
     if (!eventId) return allOwnedAgents;
     return allOwnedAgents.filter(
-      (agent: AgentGetOne) =>
-        String(agent.event_id ?? "") === String(eventId)
+      (agent: AgentGetOne) => String(agent.event_id ?? "") === String(eventId)
     );
   }, [allOwnedAgents, eventId]);
 
@@ -157,11 +189,7 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
       const name = normalizeText(agent.name).toLowerCase();
       const instructions = normalizeText(agent.instructions).toLowerCase();
       const type = normalizeText(agent.type).toLowerCase();
-      return (
-        name.includes(q) ||
-        instructions.includes(q) ||
-        type.includes(q)
-      );
+      return name.includes(q) || instructions.includes(q) || type.includes(q);
     });
   }, [ownedAgents, search]);
 
@@ -267,8 +295,8 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
 
   const [RemoveConfirmation, confirmRemove] = useConfirm(
     "Are you sure?",
-    `The following action will remove any associated conversations`,
-  )
+    "The following action will remove any associated conversations"
+  );
 
   const handleRemoveAgent = async (id: string) => {
     const ok = await confirmRemove();
@@ -279,7 +307,11 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
 
   const toggleScoring = (agent: AgentGetOne, scoring: boolean) => {
     void (async () => {
-      const t = toast({ title: scoring ? "Enabling scoring..." : "Disabling scoring...", description: String(agent.name), duration: 3000 });
+      const t = toast({
+        title: scoring ? "Enabling scoring..." : "Disabling scoring...",
+        description: String(agent.name),
+        duration: 3000,
+      });
       await updateAgent.mutateAsync({ id: agent.id, scoring });
       t.dismiss();
     })();
@@ -287,7 +319,11 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
 
   const enableAgent = (agent: AgentGetOne, enabled: boolean) => {
     void (async () => {
-      const t = toast({ title: enabled ? "Enabling agent..." : "Disabling agent...", description: String(agent.name), duration: 3000 });
+      const t = toast({
+        title: enabled ? "Enabling agent..." : "Disabling agent...",
+        description: String(agent.name),
+        duration: 3000,
+      });
       await updateAgent.mutateAsync({ id: agent.id, enabled });
       t.dismiss();
     })();
@@ -315,17 +351,16 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
 
   const applyAgentToEvents = async () => {
     if (!applyAgent) return;
-    if (!hasApplySelectionChanges) {
-      return;
-    }
+    if (!hasApplySelectionChanges) return;
 
     const signature = getAgentSignature(applyAgent);
     const name = normalizeText(applyAgent.name);
     const instructions = normalizeText(applyAgent.instructions);
     const type = normalizeText(applyAgent.type) || "brainstorm";
+
     if (!name || !instructions) {
       toast({
-        title: "Cannot apply agent",
+        title: "Cannot update availability",
         description: "This agent is missing a required name or instructions.",
         variant: "destructive",
       });
@@ -344,7 +379,8 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
       const toRemove = Array.from(currentSet).filter((id) => !nextSet.has(id));
       const toAdd = Array.from(nextSet).filter((id) => !currentSet.has(id));
 
-      const byEvent = signatureToAgentsByEvent.get(signature) || new Map<string, AgentGetOne[]>();
+      const byEvent =
+        signatureToAgentsByEvent.get(signature) || new Map<string, AgentGetOne[]>();
 
       for (const targetEventId of toRemove) {
         const rows = byEvent.get(targetEventId) || [];
@@ -364,8 +400,7 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
       }
 
       for (const targetEventId of toAdd) {
-        const sameEvent =
-          String(applyAgent.event_id ?? "") === String(targetEventId);
+        const sameEvent = String(applyAgent.event_id ?? "") === String(targetEventId);
         const key = `${targetEventId}::${signature}`;
         if (sameEvent || existingAgentKeys.has(key)) {
           skippedCount += 1;
@@ -382,6 +417,7 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
             scoring: Boolean(applyAgent.scoring ?? true),
             avatar_url: normalizeOptionalUrl(applyAgent.avatar_url),
             feedback_prompt: normalizeOptionalText(applyAgent.feedback_prompt),
+            voice: normalizeOptionalText(applyAgent.voice),
           });
           createdCount += 1;
         } catch {
@@ -399,7 +435,7 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
       ].filter(Boolean);
 
       toast({
-        title: "Apply complete",
+        title: "Availability updated",
         description: parts.length > 0 ? parts.join(" | ") : "No changes made",
       });
 
@@ -411,19 +447,31 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
     }
   };
 
+  const togglePromptPreview = (agentId: string) => {
+    setExpandedPrompts((prev) => ({ ...prev, [agentId]: !prev[agentId] }));
+  };
+
   return (
     <div className="w-full">
-      <div className="mb-4 flex items-center gap-2 justify-between">
+      <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h2 className="text-xl font-semibold text-black">Agents</h2>
+          <p className="text-sm text-muted-foreground">
+            Assign focused AI personas for your event without exposing full prompts by default.
+          </p>
+        </div>
+        <Button size="sm" onClick={() => setDialogOpen(true)} className="w-full sm:w-auto">
+          Add agent
+        </Button>
+      </div>
+
+      <div className="mb-4">
         <EventSearchInput
-          wrapperClassName="flex-1"
           placeholder="Search agents"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           inputClassName="text-sm sm:text-sm"
         />
-        <div className="ml-3">
-          <Button onClick={() => setDialogOpen(true)}>Add agent</Button>
-        </div>
       </div>
 
       <NewAgentDialog open={dialogOpen} onOpenChange={setDialogOpen} eventId={eventId} />
@@ -441,8 +489,8 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
       <RemoveConfirmation />
 
       <ResponsiveDialog
-        title="Apply agent to events"
-        description="Check to apply, uncheck to remove. Already applied events are listed first."
+        title="Manage agent availability"
+        description="Select the events where participants can access this agent. Uncheck to remove access."
         open={applyDialogOpen}
         onOpenChange={setApplyDialogOpen}
       >
@@ -453,6 +501,7 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
             onChange={(e) => setApplySearch(e.target.value)}
             inputClassName="text-sm sm:text-sm"
           />
+
           {events.length === 0 ? (
             <p className="text-sm text-gray-600">No events available.</p>
           ) : applyDialogEvents.length === 0 ? (
@@ -477,13 +526,14 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
                       <span className="text-sm">{event.event_name}</span>
                     </div>
                     {alreadyExists && (
-                      <span className="text-xs text-gray-500">already applied</span>
+                      <span className="text-xs text-gray-500">currently available</span>
                     )}
                   </label>
                 );
               })}
             </div>
           )}
+
           <div className="flex justify-end gap-2">
             <Button
               variant="ghost"
@@ -498,75 +548,217 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
               onClick={applyAgentToEvents}
               disabled={isApplying || !hasApplySelectionChanges}
             >
-              {isApplying ? "Applying..." : "Apply"}
+              {isApplying ? "Saving..." : "Save access"}
             </Button>
           </div>
         </div>
       </ResponsiveDialog>
 
-      <div className="space-y-3">
+      <div className="space-y-4">
         {filteredOwnedAgents.map((agent: AgentGetOne) => {
           const signature = getAgentSignature(agent);
           const appliedEventIds = Array.from(signatureToEventIds.get(signature) || []);
           const appliedEventNames = appliedEventIds
-            .map((id) =>
-              eventNameById.get(String(id)) || `Event ${String(id).slice(0, 8)}`
-            )
+            .map((id) => eventNameById.get(String(id)) || `Event ${String(id).slice(0, 8)}`)
             .sort((a, b) => a.localeCompare(b));
-          const eventName =
+          const appliedEventsLabel =
             appliedEventNames.length > 0
               ? appliedEventNames.join(", ")
               : agent.event_id == null
                 ? "Global (all events)"
                 : eventNameById.get(String(agent.event_id)) ||
                   `Event ${String(agent.event_id).slice(0, 8)}`;
+
+          const instructions = cleanText(agent.instructions);
+          const feedbackPrompt = cleanText(agent.feedback_prompt);
+          const isExpanded = Boolean(expandedPrompts[agent.id]);
+          const hasLongPrompt = instructions.length > PROMPT_PREVIEW_LIMIT;
+          const visiblePrompt = isExpanded
+            ? instructions
+            : truncateText(instructions, PROMPT_PREVIEW_LIMIT);
+          const visibleFeedback = truncateText(feedbackPrompt, FEEDBACK_PREVIEW_LIMIT);
+          const meetingCount = Number(
+            (agent as AgentGetOne & { meetingCount?: number }).meetingCount ?? 0
+          );
+          const hasAvatar = cleanText(agent.avatar_url).length > 0;
+
           return (
-            <div key={agent.id} className="flex items-center justify-between border p-3 rounded">
-              <div>
-                <div className="font-medium flex items-center gap-2">
-                  <span>{agent.name}</span>
-                  <AgentTypeLabel type={agent.type} />
-                </div>
-                <div className="text-sm text-gray-600">{agent.instructions}</div>
-                <div className="text-xs text-gray-500 mt-1">
-                  Applied to events: {eventName}
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="flex flex-col items-center gap-1">
-                  <span className="text-sm">Enable</span>
-                  <Switch
-                    aria-label={agent.enabled ? "Disable agent" : "Enable agent"}
-                    checked={Boolean(agent.enabled)}
-                    onCheckedChange={(e) => enableAgent(agent, e as boolean)}
-                  />
-                </div>
+            <article
+              key={agent.id}
+              className="rounded-[14px] border border-[rgba(75,137,239,0.35)] bg-[#f7fbff] p-4 shadow-sm sm:p-5"
+            >
+              <div className="grid gap-4 lg:grid-cols-[220px_1fr_280px]">
+                <section className="rounded-xl border border-[rgba(0,0,0,0.12)] bg-white p-4 text-center">
+                  <Avatar className="mx-auto h-16 w-16 border border-[rgba(0,0,0,0.15)]">
+                    {hasAvatar && (
+                      <AvatarImage src={String(agent.avatar_url)} alt={String(agent.name)} />
+                    )}
+                    <AvatarFallback className="bg-[#eaf2ff] text-[#2f61b3] text-lg font-semibold">
+                      {getInitials(String(agent.name))}
+                    </AvatarFallback>
+                  </Avatar>
 
-                <div className="flex flex-col items-center gap-1">
-                  <span className="text-sm">Scoring</span>
-                  <Switch
-                    aria-label={agent.scoring === false ? "Enable scoring" : "Disable scoring"}
-                    checked={Boolean(agent.scoring ?? true)}
-                    onCheckedChange={(e) => toggleScoring(agent, e as boolean)}
-                  />
-                </div>
+                  <h3 className="mt-3 text-base font-semibold text-black">{agent.name}</h3>
+                  <div className="mt-2 flex justify-center">
+                    <AgentTypeLabel type={agent.type} />
+                  </div>
 
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => openApplyDialog(agent)}
-                >
-                  Apply
-                </Button>
-                <Button onClick={() => {
-                  setSelectedAgent(agent);
-                  setUpdateDialogOpen(true);
-                }}>Edit</Button>
-                <Button size="sm" variant="destructive" onClick={() => handleRemoveAgent(agent.id)}>Delete</Button>
+                  {!agent.enabled && (
+                    <p className="mt-2 text-xs font-medium text-gray-500">Paused</p>
+                  )}
+
+                  <p className="mt-3 text-xs text-gray-500">Available in</p>
+                  <p className="line-clamp-3 text-sm text-gray-700">{appliedEventsLabel}</p>
+                </section>
+
+                <section className="rounded-xl border border-[rgba(0,0,0,0.12)] bg-white p-4">
+                  <div className="mb-3 flex flex-wrap gap-2">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-[#eef5ff] px-2.5 py-1 text-xs text-[#305f99]">
+                      <Bot className="h-3.5 w-3.5" />
+                      Persona
+                    </span>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-[#eef5ff] px-2.5 py-1 text-xs text-[#305f99]">
+                      <Mic className="h-3.5 w-3.5" />
+                      {formatVoiceLabel(agent.voice)}
+                    </span>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-[#eef5ff] px-2.5 py-1 text-xs text-[#305f99]">
+                      <MessageSquare className="h-3.5 w-3.5" />
+                      {meetingCount} {meetingCount === 1 ? "session" : "sessions"}
+                    </span>
+                  </div>
+
+                  <div className="rounded-lg border border-[rgba(0,0,0,0.1)] bg-[#fbfdff] p-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      Instructions
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-gray-700">
+                      {visiblePrompt || "No persona instructions yet."}
+                    </p>
+
+                    {hasLongPrompt && (
+                      <button
+                        type="button"
+                        onClick={() => togglePromptPreview(agent.id)}
+                        className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-[#4b89ef] hover:text-[#3f7bd8]"
+                      >
+                        {isExpanded ? (
+                          <>
+                            Hide full prompt
+                            <ChevronUp className="h-4 w-4" />
+                          </>
+                        ) : (
+                          <>
+                            Show full prompt
+                            <ChevronDown className="h-4 w-4" />
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
+
+                  {feedbackPrompt && (
+                    <div className="mt-3 rounded-lg border border-dashed border-[rgba(0,0,0,0.12)] p-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        Feedback behavior
+                      </p>
+                      <p className="mt-1 text-sm text-gray-600">{visibleFeedback}</p>
+                    </div>
+                  )}
+                </section>
+
+                <aside className="rounded-xl border border-[rgba(0,0,0,0.12)] bg-white p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Live controls
+                  </p>
+
+                  <div className="mt-3 space-y-3">
+                    <div className="flex items-center justify-between rounded-lg border border-[rgba(0,0,0,0.1)] px-3 py-2">
+                      <div>
+                        <p className="text-sm font-medium text-black">Enable agent</p>
+                        <p className="text-xs text-gray-500">Can participants use it?</p>
+                      </div>
+                      <Switch
+                        aria-label={agent.enabled ? "Disable agent" : "Enable agent"}
+                        checked={Boolean(agent.enabled)}
+                        onCheckedChange={(e) => enableAgent(agent, e as boolean)}
+                        disabled={updateAgent.isPending}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between rounded-lg border border-[rgba(0,0,0,0.1)] px-3 py-2">
+                      <div>
+                        <p className="text-sm font-medium text-black">Scoring mode</p>
+                        <p className="text-xs text-gray-500">Add numeric evaluations</p>
+                      </div>
+                      <Switch
+                        aria-label={agent.scoring === false ? "Enable scoring" : "Disable scoring"}
+                        checked={Boolean(agent.scoring ?? true)}
+                        onCheckedChange={(e) => toggleScoring(agent, e as boolean)}
+                        disabled={updateAgent.isPending}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-4 space-y-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => openApplyDialog(agent)}
+                      disabled={isApplying}
+                    >
+                      Event access
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => {
+                        setSelectedAgent(agent);
+                        setUpdateDialogOpen(true);
+                      }}
+                    >
+                      Edit agent
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      className="w-full"
+                      onClick={() => handleRemoveAgent(agent.id)}
+                      disabled={removeAgent.isPending}
+                    >
+                      Delete agent
+                    </Button>
+                  </div>
+                </aside>
               </div>
-            </div>
+            </article>
           );
         })}
+
+        {agentsQuery.isLoading && (
+          <div className="rounded-[14px] border border-[rgba(0,0,0,0.15)] bg-white p-6 text-sm text-gray-500">
+            Loading agents...
+          </div>
+        )}
+
+        {!agentsQuery.isLoading && filteredOwnedAgents.length === 0 && (
+          <div className="rounded-[14px] border border-dashed border-[rgba(0,0,0,0.25)] bg-white p-8 text-center">
+            <p className="text-base font-medium text-black">No agents found</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {!session?.user?.id
+                ? "Sign in to view and manage agents."
+                : search.trim().length > 0
+                  ? "Try a different search or clear filters."
+                  : "Create an agent to start assigning AI personas to your events."}
+            </p>
+            {session?.user?.id && search.trim().length === 0 && (
+              <Button size="sm" onClick={() => setDialogOpen(true)} className="mt-4">
+                Add your first agent
+              </Button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
