@@ -17,6 +17,8 @@ import { useConfirm } from "@/lib/hooks/use-confirm";
 import { useAuth } from "@/features/user/authentication/auth/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { ResponsiveDialog } from "@/components/responsive-dialog";
+import { EventRole } from "@/lib/types";
+import { getRoleLabel } from "@/features/user/roles/roles";
 import { Bot, ChevronDown, ChevronUp, MessageSquare, Mic } from "lucide-react";
 
 interface AgentsTabProps {
@@ -30,6 +32,21 @@ interface EventOption {
 
 const PROMPT_PREVIEW_LIMIT = 240;
 const FEEDBACK_PREVIEW_LIMIT = 180;
+interface EventSessionCaps {
+  default?: number | null;
+  agent_caps?: Record<string, number | null>;
+  auto_conversations?: Record<string, string[]>;
+  [key: string]: unknown;
+}
+
+type RoleAutoConversations = Partial<Record<EventRole, string[]>>;
+
+const AUTO_CONVERSATION_ROLES: EventRole[] = [
+  EventRole.Participant,
+  EventRole.Mentor,
+  EventRole.Judge,
+  EventRole.Organizer,
+];
 
 function normalizeText(value: unknown): string {
   if (typeof value !== "string") return "";
@@ -86,11 +103,81 @@ function formatVoiceLabel(value: unknown): string {
   return voice.charAt(0).toUpperCase() + voice.slice(1);
 }
 
+function normalizeSessionCaps(value: unknown): EventSessionCaps {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return { agent_caps: {} };
+  }
+
+  const raw = value as EventSessionCaps;
+  const rawAgentCaps = raw.agent_caps;
+  const nextAgentCaps =
+    rawAgentCaps && typeof rawAgentCaps === "object" && !Array.isArray(rawAgentCaps)
+      ? ({ ...rawAgentCaps } as Record<string, number | null>)
+      : {};
+
+  return {
+    ...raw,
+    agent_caps: nextAgentCaps,
+  };
+}
+
+function capInputFromValue(value: unknown): string {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+    return "";
+  }
+  return String(value);
+}
+
+function parseCapInput(value: string | undefined): number | null | "invalid" {
+  const trimmed = (value ?? "").trim();
+  if (!trimmed) return null;
+
+  const parsed = Number(trimmed);
+  if (!Number.isFinite(parsed) || parsed < 0 || !Number.isInteger(parsed)) {
+    return "invalid";
+  }
+
+  return parsed;
+}
+
+function normalizedCapForComparison(value: string | undefined): string {
+  const parsed = parseCapInput(value);
+  if (parsed === null) return "";
+  if (parsed === "invalid") return (value ?? "").trim();
+  return String(parsed);
+}
+
+function normalizeAutoConversations(value: unknown): RoleAutoConversations {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+
+  const src = value as Record<string, unknown>;
+  const out: RoleAutoConversations = {};
+
+  for (const role of AUTO_CONVERSATION_ROLES) {
+    const rawIds = src[role];
+    if (!Array.isArray(rawIds)) continue;
+    out[role] = Array.from(
+      new Set(
+        rawIds.filter((id) => typeof id === "string" && id.trim().length > 0)
+      )
+    );
+  }
+
+  return out;
+}
+
 export function AgentsTab({ eventId }: AgentsTabProps) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const { session } = useAuth();
-
+  const isDevNoAuthBypassEnabled = process.env.NEXT_PUBLIC_DEV_AUTH_BYPASS === "true";
+  const isRunningDevNoAuthBypass = isDevNoAuthBypassEnabled && !session?.user?.id;
+  const devBypassUserId = normalizeText(process.env.NEXT_PUBLIC_DEV_AUTH_BYPASS_USER_ID);
+  const effectiveUserId =
+    normalizeText(session?.user?.id) ||
+    (isDevNoAuthBypassEnabled ? devBypassUserId : "");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<AgentGetOne | null>(null);
@@ -99,10 +186,19 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
   const [applyAgent, setApplyAgent] = useState<AgentGetOne | null>(null);
   const [alreadyAppliedEventIds, setAlreadyAppliedEventIds] = useState<string[]>([]);
   const [selectedEventIds, setSelectedEventIds] = useState<string[]>([]);
+  const [selectedEventCaps, setSelectedEventCaps] = useState<Record<string, string>>({});
+  const [initialSelectedEventCaps, setInitialSelectedEventCaps] = useState<Record<string, string>>({});
+  const [isLoadingEventCaps, setIsLoadingEventCaps] = useState(false);
   const [applySearch, setApplySearch] = useState("");
   const [isApplying, setIsApplying] = useState(false);
   const [search, setSearch] = useState("");
   const [expandedPrompts, setExpandedPrompts] = useState<Record<string, boolean>>({});
+  const [defaultCap, setDefaultCap] = useState<number | null>(null);
+  const [defaultUnlimited, setDefaultUnlimited] = useState(true);
+  const [autoConversations, setAutoConversations] = useState<RoleAutoConversations>({});
+  const [roleLabels, setRoleLabels] = useState<Record<string, string> | null>(null);
+  const [isLoadingSessionSettings, setIsLoadingSessionSettings] = useState(false);
+  const [isSavingSessionSettings, setIsSavingSessionSettings] = useState(false);
 
   const agentsQuery = useQuery(
     trpc.agents.getMany.queryOptions({ pageSize: 100 })
@@ -110,16 +206,38 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
 
   useEffect(() => {
     const fetchEvents = async () => {
-      if (!session?.user?.id) {
+      if (!effectiveUserId) {
         setEvents([]);
         return;
       }
 
       try {
+        if (isRunningDevNoAuthBypass) {
+          const { data: publicEvents, error: publicEventsError } = await supabase
+            .from("events")
+            .select("event_id, event_name")
+            .order("event_name", { ascending: true });
+
+          if (publicEventsError) throw publicEventsError;
+
+          const options = (publicEvents || []).map((row) => ({
+            event_id: String((row as { event_id?: unknown }).event_id || ""),
+            event_name:
+              String((row as { event_name?: unknown }).event_name || "").trim() ||
+              "Untitled event",
+          }));
+
+          const deduped = Array.from(
+            new Map(options.filter((e) => e.event_id).map((e) => [e.event_id, e])).values()
+          );
+          setEvents(deduped);
+          return;
+        }
+
         const { data: userRoles, error } = await supabase
           .from("user_event_roles")
           .select("event_id, events:event_id (event_id, event_name)")
-          .eq("user_id", session.user.id);
+          .eq("user_id", effectiveUserId);
 
         if (error) throw error;
 
@@ -157,7 +275,52 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
     };
 
     fetchEvents();
-  }, [session?.user?.id]);
+  }, [effectiveUserId, isRunningDevNoAuthBypass]);
+
+  const loadEventSessionSettings = async () => {
+    if (!eventId) {
+      setDefaultCap(null);
+      setDefaultUnlimited(true);
+      setAutoConversations({});
+      setRoleLabels(null);
+      return;
+    }
+
+    setIsLoadingSessionSettings(true);
+    try {
+      const { data, error } = await supabase
+        .from("events")
+        .select("session_caps, role_labels")
+        .eq("event_id", eventId)
+        .maybeSingle();
+      if (error) throw error;
+
+      const row = data as
+        | { session_caps?: unknown; role_labels?: Record<string, string> | null }
+        | null;
+      const sessionCaps = normalizeSessionCaps(row?.session_caps);
+      const nextDefault = sessionCaps.default;
+
+      setDefaultCap(typeof nextDefault === "number" ? nextDefault : null);
+      setDefaultUnlimited(nextDefault == null);
+      setAutoConversations(normalizeAutoConversations(sessionCaps.auto_conversations));
+      setRoleLabels(row?.role_labels ?? null);
+    } catch (error) {
+      console.error("Error loading session settings:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load session settings.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingSessionSettings(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadEventSessionSettings();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eventId]);
 
   const eventNameById = useMemo(
     () =>
@@ -169,11 +332,12 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
 
   const allOwnedAgents = useMemo<AgentGetOne[]>(() => {
     const items = ((agentsQuery.data?.items || []) as unknown[]) as AgentGetOne[];
+    if (!effectiveUserId) return [];
     return items.filter(
       (agent: AgentGetOne) =>
-        String(agent.user_id ?? "") === String(session?.user?.id ?? "")
+        String(agent.user_id ?? "") === String(effectiveUserId)
     );
-  }, [agentsQuery.data, session?.user?.id]);
+  }, [agentsQuery.data, effectiveUserId]);
 
   const ownedAgents = useMemo<AgentGetOne[]>(() => {
     if (!eventId) return allOwnedAgents;
@@ -192,6 +356,21 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
       return name.includes(q) || instructions.includes(q) || type.includes(q);
     });
   }, [ownedAgents, search]);
+
+  const eventAgents = useMemo<AgentGetOne[]>(() => {
+    const items = ((agentsQuery.data?.items || []) as unknown[]) as AgentGetOne[];
+    if (!eventId) return [];
+
+    return items
+      .filter(
+        (agent) =>
+          String(agent.event_id ?? "") === String(eventId) &&
+          agent.enabled !== false
+      )
+      .sort((a, b) =>
+        normalizeText(a.name).localeCompare(normalizeText(b.name))
+      );
+  }, [agentsQuery.data, eventId]);
 
   const existingAgentKeys = useMemo(
     () =>
@@ -240,8 +419,21 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
     for (const id of current) {
       if (!next.has(id)) return true;
     }
+
+    for (const id of next) {
+      const currentCap = normalizedCapForComparison(initialSelectedEventCaps[id]);
+      const nextCap = normalizedCapForComparison(selectedEventCaps[id]);
+      if (currentCap !== nextCap) return true;
+    }
+
     return false;
-  }, [applyDialogOpen, alreadyAppliedEventIds, selectedEventIds]);
+  }, [
+    applyDialogOpen,
+    alreadyAppliedEventIds,
+    selectedEventIds,
+    initialSelectedEventCaps,
+    selectedEventCaps,
+  ]);
 
   const applyDialogEvents = useMemo(() => {
     const q = applySearch.trim().toLowerCase();
@@ -293,6 +485,10 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
     })
   );
 
+  const updateEventSessionCaps = useMutation(
+    trpc.agents.updateEventSessionCaps.mutationOptions()
+  );
+
   const [RemoveConfirmation, confirmRemove] = useConfirm(
     "Are you sure?",
     "The following action will remove any associated conversations"
@@ -335,8 +531,63 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
     setApplyAgent(agent);
     setAlreadyAppliedEventIds(applied);
     setSelectedEventIds(applied);
+    setSelectedEventCaps({});
+    setInitialSelectedEventCaps({});
     setApplySearch("");
     setApplyDialogOpen(true);
+
+    if (applied.length === 0) {
+      setIsLoadingEventCaps(false);
+      return;
+    }
+
+    setIsLoadingEventCaps(true);
+    void (async () => {
+      try {
+        const { data, error } = await supabase
+          .from("events")
+          .select("event_id, session_caps")
+          .in("event_id", applied);
+
+        if (error) throw error;
+
+        const rows =
+          (data as Array<{ event_id?: string | null; session_caps?: unknown }> | null) || [];
+        const sessionCapsByEventId = new Map<string, EventSessionCaps>();
+        for (const row of rows) {
+          const targetEventId = normalizeText(row.event_id);
+          if (!targetEventId) continue;
+          sessionCapsByEventId.set(targetEventId, normalizeSessionCaps(row.session_caps));
+        }
+
+        const byEvent = signatureToAgentsByEvent.get(signature) || new Map<string, AgentGetOne[]>();
+        const capInputs: Record<string, string> = {};
+        for (const targetEventId of applied) {
+          const caps = sessionCapsByEventId.get(targetEventId)?.agent_caps || {};
+          const matchingRows = byEvent.get(targetEventId) || [];
+          let capValue = "";
+
+          for (const row of matchingRows) {
+            capValue = capInputFromValue(caps[row.id]);
+            if (capValue) break;
+          }
+
+          capInputs[targetEventId] = capValue;
+        }
+
+        setSelectedEventCaps(capInputs);
+        setInitialSelectedEventCaps(capInputs);
+      } catch (error) {
+        console.error("Error loading apply dialog caps:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load existing session caps for this agent.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoadingEventCaps(false);
+      }
+    })();
   };
 
   const toggleTargetEvent = (targetId: string, checked: boolean) => {
@@ -347,6 +598,110 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
       }
       return prev.filter((id) => id !== targetId);
     });
+  };
+
+  const updateTargetEventCap = (targetId: string, value: string) => {
+    setSelectedEventCaps((prev) => ({
+      ...prev,
+      [targetId]: value,
+    }));
+  };
+
+  const closeApplyDialog = () => {
+    setApplyDialogOpen(false);
+    setApplyAgent(null);
+    setSelectedEventCaps({});
+    setInitialSelectedEventCaps({});
+    setIsLoadingEventCaps(false);
+  };
+
+  const updateAutoConversationAgent = (
+    role: EventRole,
+    agentId: string,
+    enabled: boolean
+  ) => {
+    setAutoConversations((prev) => {
+      const current = new Set(prev[role] || []);
+      if (enabled) {
+        current.add(agentId);
+      } else {
+        current.delete(agentId);
+      }
+
+      const nextRoleValues = Array.from(current);
+      if (nextRoleValues.length === 0) {
+        const rest = { ...prev };
+        delete rest[role];
+        return rest;
+      }
+
+      return { ...prev, [role]: nextRoleValues };
+    });
+  };
+
+  const saveEventSessionSettings = async () => {
+    if (!eventId) return;
+    if (
+      !defaultUnlimited &&
+      (defaultCap == null || !Number.isInteger(defaultCap) || defaultCap < 0)
+    ) {
+      toast({
+        title: "Invalid default cap",
+        description: "Default cap must be a non-negative whole number.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSavingSessionSettings(true);
+    try {
+      const { data, error } = await supabase
+        .from("events")
+        .select("session_caps")
+        .eq("event_id", eventId)
+        .maybeSingle();
+      if (error) throw error;
+
+      const row = data as { session_caps?: unknown } | null;
+      const currentSessionCaps = normalizeSessionCaps(row?.session_caps);
+
+      const sanitizedAutoConversations = AUTO_CONVERSATION_ROLES.reduce(
+        (acc, role) => {
+          const ids = Array.from(
+            new Set((autoConversations[role] || []).filter(Boolean))
+          );
+          if (ids.length > 0) acc[role] = ids;
+          return acc;
+        },
+        {} as RoleAutoConversations
+      );
+
+      const nextSessionCaps: EventSessionCaps = {
+        ...currentSessionCaps,
+        default: defaultUnlimited ? null : defaultCap,
+        agent_caps: currentSessionCaps.agent_caps || {},
+        auto_conversations: sanitizedAutoConversations,
+      };
+
+      await updateEventSessionCaps.mutateAsync({
+        eventId,
+        sessionCaps: nextSessionCaps as Record<string, unknown>,
+      });
+
+      toast({
+        title: "Saved",
+        description: "Session settings updated.",
+      });
+    } catch (error) {
+      console.error("Failed to save session settings", error);
+      toast({
+        title: "Error",
+        description: "Failed to save session settings.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSavingSessionSettings(false);
+    }
   };
 
   const applyAgentToEvents = async () => {
@@ -367,9 +722,28 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
       return;
     }
 
+    const selectedCapsByEventId = new Map<string, number | null>();
+    for (const selectedEventId of selectedEventIds) {
+      const parsedCap = parseCapInput(selectedEventCaps[selectedEventId]);
+      if (parsedCap === "invalid") {
+        const targetEventName =
+          eventNameById.get(selectedEventId) ||
+          `Event ${String(selectedEventId).slice(0, 8)}`;
+        toast({
+          title: "Invalid cap",
+          description: `${targetEventName} must use a non-negative whole number.`,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      selectedCapsByEventId.set(selectedEventId, parsedCap);
+    }
+
     setIsApplying(true);
     let createdCount = 0;
     let removedCount = 0;
+    let capUpdatedCount = 0;
     let skippedCount = 0;
     let failedCount = 0;
 
@@ -378,9 +752,73 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
       const nextSet = new Set(selectedEventIds);
       const toRemove = Array.from(currentSet).filter((id) => !nextSet.has(id));
       const toAdd = Array.from(nextSet).filter((id) => !currentSet.has(id));
+      const capUpdateTargets = Array.from(nextSet).filter(
+        (id) =>
+          currentSet.has(id) &&
+          normalizedCapForComparison(initialSelectedEventCaps[id]) !==
+            normalizedCapForComparison(selectedEventCaps[id])
+      );
 
-      const byEvent =
-        signatureToAgentsByEvent.get(signature) || new Map<string, AgentGetOne[]>();
+      const byEvent = signatureToAgentsByEvent.get(signature) || new Map<string, AgentGetOne[]>();
+      const sessionCapsCache = new Map<string, EventSessionCaps>();
+
+      const getSessionCaps = async (targetEventId: string): Promise<EventSessionCaps> => {
+        const cached = sessionCapsCache.get(targetEventId);
+        if (cached) return cached;
+
+        const { data, error } = await supabase
+          .from("events")
+          .select("session_caps")
+          .eq("event_id", targetEventId)
+          .maybeSingle();
+        if (error) throw error;
+
+        const row = data as { session_caps?: unknown } | null;
+        const normalized = normalizeSessionCaps(row?.session_caps);
+        sessionCapsCache.set(targetEventId, normalized);
+        return normalized;
+      };
+
+      const mergeAgentCapsForEvent = async (
+        targetEventId: string,
+        updates: Record<string, number | undefined>
+      ) => {
+        const currentCaps = await getSessionCaps(targetEventId);
+        const nextAgentCaps = { ...(currentCaps.agent_caps || {}) };
+        let changed = false;
+
+        for (const [agentId, nextCap] of Object.entries(updates)) {
+          if (!agentId) continue;
+
+          if (nextCap === undefined) {
+            if (agentId in nextAgentCaps) {
+              delete nextAgentCaps[agentId];
+              changed = true;
+            }
+            continue;
+          }
+
+          if (nextAgentCaps[agentId] !== nextCap) {
+            nextAgentCaps[agentId] = nextCap;
+            changed = true;
+          }
+        }
+
+        if (!changed) return false;
+
+        const nextSessionCaps: EventSessionCaps = {
+          ...currentCaps,
+          agent_caps: nextAgentCaps,
+        };
+
+        await updateEventSessionCaps.mutateAsync({
+          eventId: targetEventId,
+          sessionCaps: nextSessionCaps as Record<string, unknown>,
+        });
+
+        sessionCapsCache.set(targetEventId, nextSessionCaps);
+        return true;
+      };
 
       for (const targetEventId of toRemove) {
         const rows = byEvent.get(targetEventId) || [];
@@ -393,6 +831,12 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
           for (const row of rows) {
             await removeAgent.mutateAsync({ id: row.id });
           }
+
+          const updates = rows.reduce(
+            (acc, row) => ({ ...acc, [row.id]: undefined }),
+            {} as Record<string, number | undefined>
+          );
+          await mergeAgentCapsForEvent(targetEventId, updates);
           removedCount += 1;
         } catch {
           failedCount += 1;
@@ -408,7 +852,7 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
         }
 
         try {
-          await createAgent.mutateAsync({
+          const created = await createAgent.mutateAsync({
             name,
             instructions,
             type,
@@ -419,7 +863,41 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
             feedback_prompt: normalizeOptionalText(applyAgent.feedback_prompt),
             voice: normalizeOptionalText(applyAgent.voice),
           });
+
+          const createdId = normalizeText((created as { id?: unknown } | null)?.id);
+          const selectedCap = selectedCapsByEventId.get(targetEventId);
+          if (createdId && selectedCap !== null && selectedCap !== undefined) {
+            const updated = await mergeAgentCapsForEvent(targetEventId, {
+              [createdId]: selectedCap,
+            });
+            if (updated) capUpdatedCount += 1;
+          }
+
           createdCount += 1;
+        } catch {
+          failedCount += 1;
+        }
+      }
+
+      for (const targetEventId of capUpdateTargets) {
+        const rows = byEvent.get(targetEventId) || [];
+        if (rows.length === 0) {
+          skippedCount += 1;
+          continue;
+        }
+
+        const selectedCap = selectedCapsByEventId.get(targetEventId) ?? null;
+        const updates = rows.reduce(
+          (acc, row) => ({
+            ...acc,
+            [row.id]: selectedCap === null ? undefined : selectedCap,
+          }),
+          {} as Record<string, number | undefined>
+        );
+
+        try {
+          const updated = await mergeAgentCapsForEvent(targetEventId, updates);
+          if (updated) capUpdatedCount += 1;
         } catch {
           failedCount += 1;
         }
@@ -430,6 +908,7 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
       const parts = [
         createdCount > 0 ? `${createdCount} created` : null,
         removedCount > 0 ? `${removedCount} removed` : null,
+        capUpdatedCount > 0 ? `${capUpdatedCount} cap updates` : null,
         skippedCount > 0 ? `${skippedCount} skipped` : null,
         failedCount > 0 ? `${failedCount} failed` : null,
       ].filter(Boolean);
@@ -440,7 +919,7 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
       });
 
       if (failedCount === 0) {
-        setApplyDialogOpen(false);
+        closeApplyDialog();
       }
     } finally {
       setIsApplying(false);
@@ -474,6 +953,134 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
         />
       </div>
 
+      {eventId && (
+        <section className="mb-6 rounded-[14px] border border-[rgba(0,0,0,0.14)] bg-white p-4 sm:p-5">
+          <div className="flex flex-col gap-1">
+            <h3 className="text-base font-semibold text-black">Session Settings</h3>
+            <p className="text-sm text-muted-foreground">
+              Manage default limits and auto-created conversations for this event.
+            </p>
+          </div>
+
+          <div className="mt-4 grid gap-4 lg:grid-cols-2">
+            <div className="rounded-lg border border-[rgba(0,0,0,0.1)] p-3">
+              <p className="text-sm font-medium text-black">Default cap per user</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Applies when an event-specific per-agent cap is not set.
+              </p>
+
+              <div className="mt-3 flex items-center gap-3">
+                <Input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={defaultUnlimited ? "" : (defaultCap ?? "")}
+                  onChange={(e) => {
+                    setDefaultUnlimited(false);
+                    const v = e.target.value;
+                    setDefaultCap(v === "" ? null : Math.max(0, Number(v)));
+                  }}
+                  placeholder="e.g. 2"
+                  className="h-9 w-32"
+                  disabled={isLoadingSessionSettings || isSavingSessionSettings}
+                />
+                <label className="inline-flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={defaultUnlimited}
+                    onChange={(e) => {
+                      setDefaultUnlimited(e.target.checked);
+                      if (e.target.checked) setDefaultCap(null);
+                    }}
+                    disabled={isLoadingSessionSettings || isSavingSessionSettings}
+                  />
+                  <span>Unlimited</span>
+                </label>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-[rgba(0,0,0,0.1)] p-3">
+              <p className="text-sm font-medium text-black">
+                Auto-create conversations on join
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Pick which agents are created automatically for each role.
+              </p>
+
+              {eventAgents.length === 0 ? (
+                <p className="mt-3 text-sm text-muted-foreground">
+                  No enabled event agents found. Create or enable agents to configure auto-conversations.
+                </p>
+              ) : (
+                <div className="mt-3 space-y-3">
+                  {AUTO_CONVERSATION_ROLES.map((role) => (
+                    <div key={role} className="rounded-md border border-[rgba(0,0,0,0.08)] p-2">
+                      <div className="mb-2 flex items-center justify-between">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">
+                          {getRoleLabel(role, roleLabels)}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {(autoConversations[role] || []).length} selected
+                        </p>
+                      </div>
+
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        {eventAgents.map((agent) => {
+                          const checked = (autoConversations[role] || []).includes(agent.id);
+                          return (
+                            <label
+                              key={`${role}-${agent.id}`}
+                              className="flex items-center gap-2 rounded border border-[rgba(0,0,0,0.1)] px-2 py-2 text-sm"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={(e) =>
+                                  updateAutoConversationAgent(
+                                    role,
+                                    agent.id,
+                                    e.target.checked
+                                  )
+                                }
+                                disabled={isLoadingSessionSettings || isSavingSessionSettings}
+                              />
+                              <span className="flex min-w-0 flex-1 items-center gap-2">
+                                <span className="truncate">{agent.name || agent.id}</span>
+                                <AgentTypeLabel type={agent.type ?? ""} />
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="mt-4 flex justify-end gap-2">
+            <Button
+              variant="ghost"
+              onClick={() => {
+                void loadEventSessionSettings();
+              }}
+              disabled={isLoadingSessionSettings || isSavingSessionSettings}
+            >
+              Reset
+            </Button>
+            <Button
+              onClick={() => {
+                void saveEventSessionSettings();
+              }}
+              disabled={isLoadingSessionSettings || isSavingSessionSettings}
+            >
+              {isSavingSessionSettings ? "Saving..." : "Save Session Settings"}
+            </Button>
+          </div>
+        </section>
+      )}
+
       <NewAgentDialog open={dialogOpen} onOpenChange={setDialogOpen} eventId={eventId} />
 
       {selectedAgent && (
@@ -490,9 +1097,12 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
 
       <ResponsiveDialog
         title="Manage agent availability"
-        description="Select the events where participants can access this agent. Uncheck to remove access."
+        description="Select events for this agent and set the per-event cap in one place."
         open={applyDialogOpen}
-        onOpenChange={setApplyDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) closeApplyDialog();
+          else setApplyDialogOpen(true);
+        }}
       >
         <div className="space-y-3">
           <Input
@@ -501,7 +1111,12 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
             onChange={(e) => setApplySearch(e.target.value)}
             className="h-9"
           />
-
+          <p className="text-xs text-gray-600">
+            Cap is per user for this agent in that event. Leave blank to use the event default.
+          </p>
+          {isLoadingEventCaps && (
+            <p className="text-xs text-gray-500">Loading existing caps...</p>
+          )}
           {events.length === 0 ? (
             <p className="text-sm text-gray-600">No events available.</p>
           ) : applyDialogEvents.length === 0 ? (
@@ -510,14 +1125,15 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
             <div className="max-h-72 overflow-auto space-y-2 rounded border p-3">
               {applyDialogEvents.map((event) => {
                 const alreadyExists = alreadyAppliedEventIds.includes(event.event_id);
+                const isSelected = selectedEventIds.includes(event.event_id);
                 return (
                   <label
                     key={event.event_id}
-                    className="flex items-center justify-between gap-2 rounded p-2"
+                    className="flex items-center justify-between gap-3 rounded p-2"
                   >
                     <div className="flex items-center gap-2">
                       <Checkbox
-                        checked={selectedEventIds.includes(event.event_id)}
+                        checked={isSelected}
                         disabled={isApplying}
                         onCheckedChange={(checked) =>
                           toggleTargetEvent(event.event_id, Boolean(checked))
@@ -525,9 +1141,26 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
                       />
                       <span className="text-sm">{event.event_name}</span>
                     </div>
-                    {alreadyExists && (
-                      <span className="text-xs text-gray-500">currently available</span>
-                    )}
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-500">Cap</span>
+                        <input
+                          type="number"
+                          min={0}
+                          step={1}
+                          value={selectedEventCaps[event.event_id] ?? ""}
+                          onChange={(e) =>
+                            updateTargetEventCap(event.event_id, e.target.value)
+                          }
+                          disabled={!isSelected || isApplying || isLoadingEventCaps}
+                          placeholder="Default"
+                          className="w-24 rounded border px-2 py-1 text-sm"
+                        />
+                      </div>
+                      {alreadyExists && (
+                        <span className="text-xs text-gray-500">already applied</span>
+                      )}
+                    </div>
                   </label>
                 );
               })}
@@ -538,7 +1171,7 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
             <Button
               variant="ghost"
               type="button"
-              onClick={() => setApplyDialogOpen(false)}
+              onClick={closeApplyDialog}
               disabled={isApplying}
             >
               Cancel
@@ -546,7 +1179,7 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
             <Button
               type="button"
               onClick={applyAgentToEvents}
-              disabled={isApplying || !hasApplySelectionChanges}
+              disabled={isApplying || isLoadingEventCaps || !hasApplySelectionChanges}
             >
               {isApplying ? "Saving..." : "Save access"}
             </Button>

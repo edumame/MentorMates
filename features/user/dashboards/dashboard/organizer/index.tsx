@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/lib/hooks/use-toast";
@@ -59,7 +59,12 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [refetchTrigger, setRefetchTrigger] = useState(0);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
+  const isDevNoAuthMode =
+    process.env.NEXT_PUBLIC_DEV_AUTH_BYPASS === "true" &&
+    searchParams.get("devNoAuth") === "1";
+  const devBypassUserId = process.env.NEXT_PUBLIC_DEV_AUTH_BYPASS_USER_ID;
 
   // Redirect from pricing tab if user is not admin
   useEffect(() => {
@@ -94,34 +99,50 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
   useEffect(() => {
     async function fetchEvent() {
       try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-        if (!session) {
-          router.push("/login");
-          return;
+        let userId: string | null = null;
+
+        if (isDevNoAuthMode) {
+          userId = devBypassUserId || null;
+        } else {
+          const {
+            data: { session },
+          } = await supabase.auth.getSession();
+          if (!session) {
+            router.push("/login");
+            return;
+          }
+
+          userId = session.user.id;
+
+          // Fetch user's role for this event and check access in app code
+          const { data: roleData } = await supabase
+            .from("user_event_roles")
+            .select("role")
+            .eq("user_id", userId)
+            .eq("event_id", eventId)
+            .maybeSingle();
+
+          if (
+            !roleData ||
+            !canAccessRole(roleData.role as EventRole, EventRole.Organizer)
+          ) {
+            toast({
+              title: "Error",
+              description: "You don't have permission to edit this event",
+              variant: "destructive",
+            });
+            router.push(`/events/${eventId}/dashboard`);
+            return;
+          }
         }
 
-        const userId = session.user.id;
-
-        // Fetch user's role for this event and check access in app code
-        const { data: roleData } = await supabase
-          .from("user_event_roles")
-          .select("role")
-          .eq("user_id", userId)
-          .eq("event_id", eventId)
-          .maybeSingle();
-
-        if (
-          !roleData ||
-          !canAccessRole(roleData.role as EventRole, EventRole.Organizer)
-        ) {
+        if (!userId) {
           toast({
-            title: "Error",
-            description: "You don't have permission to edit this event",
+            title: "Bypass not configured",
+            description:
+              "Set NEXT_PUBLIC_DEV_AUTH_BYPASS_USER_ID to test without login.",
             variant: "destructive",
           });
-          router.push(`/events/${eventId}/dashboard`);
           return;
         }
 
@@ -129,7 +150,7 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
         const { data: adminData } = await supabase.rpc("is_admin_user", {
           user_id: userId,
         });
-        setIsAdmin(adminData || false);
+        setIsAdmin(Boolean(adminData) || isDevNoAuthMode);
 
         const { data: eventData, error } = await supabase
           .from("events")
@@ -227,7 +248,7 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
     }
 
     fetchEvent();
-  }, [eventId, router, toast, refetchTrigger]);
+  }, [eventId, router, toast, refetchTrigger, isDevNoAuthMode, devBypassUserId]);
 
   const { isArchived } = useEventArchiveStatus(event);
 
