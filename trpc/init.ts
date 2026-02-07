@@ -1,5 +1,9 @@
-import { createSupabaseClient } from '@/app/utils/supabase/server';
+import {
+  createSupabaseClient,
+  createSupabaseServiceClient,
+} from '@/app/utils/supabase/server';
 import { initTRPC, TRPCError } from '@trpc/server';
+import type { User } from '@supabase/supabase-js';
 import { cache } from 'react';
 
 export const createTRPCContext = cache(async () => {
@@ -25,9 +29,29 @@ export const baseProcedure = t.procedure;
 export const protectedProcedure = baseProcedure.use(async ({ ctx, next }) => {
   const supabase = await createSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    throw new TRPCError({ code: "UNAUTHORIZED", message: "Unauthorized" });
+  if (user) {
+    return next({ ctx: { ...ctx, auth: { user }, supabase } });
   }
 
-  return next({ ctx: { ...ctx, auth: { user }, supabase } });
+  const isDevBypassEnabled =
+    process.env.NODE_ENV !== "production" &&
+    process.env.NEXT_PUBLIC_DEV_AUTH_BYPASS === "true";
+  const bypassUserId =
+    process.env.DEV_AUTH_BYPASS_USER_ID ||
+    process.env.NEXT_PUBLIC_DEV_AUTH_BYPASS_USER_ID;
+
+  if (isDevBypassEnabled && bypassUserId) {
+    const serviceSupabase = await createSupabaseServiceClient();
+    const bypassUser = { id: bypassUserId } as User;
+
+    return next({
+      ctx: {
+        ...ctx,
+        auth: { user: bypassUser, isDevBypass: true },
+        supabase: serviceSupabase,
+      },
+    });
+  }
+
+  throw new TRPCError({ code: "UNAUTHORIZED", message: "Unauthorized" });
 });
