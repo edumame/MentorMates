@@ -1,8 +1,6 @@
-import { supabase } from "@/lib/supabase";
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+import { createSupabaseClient } from "@/app/utils/supabase/server";
 
 interface EmailData {
   from: string;
@@ -29,7 +27,20 @@ export async function POST(request: NextRequest) {
   try {
     const { to, from, subject, html, bcc, cc } = await request.json();
 
-    const { data: user } = await supabase.auth.getUser();
+    const resendApiKey = process.env.RESEND_API_KEY;
+    if (!resendApiKey) {
+      return NextResponse.json(
+        { error: "Missing RESEND_API_KEY" },
+        { status: 500 }
+      );
+    }
+
+    const resend = new Resend(resendApiKey);
+
+    const supabase = await createSupabaseClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
