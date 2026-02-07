@@ -937,25 +937,29 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
 
   return (
     <div className="w-full">
-      <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-        <div>
+      <div className="mb-4">
+        <div className="mb-4">
           <h2 className="text-xl font-semibold text-black">Agents</h2>
           <p className="text-sm text-muted-foreground">
             Assign focused AI personas for your event without exposing full prompts by default.
           </p>
         </div>
-        <Button size="sm" onClick={() => setDialogOpen(true)} className="w-full sm:w-auto">
-          Add agent
-        </Button>
-      </div>
 
-      <div className="mb-4">
-        <EventSearchInput
-          placeholder="Search agents"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          inputClassName="text-sm sm:text-sm"
-        />
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-4">
+          <EventSearchInput
+            wrapperClassName="flex-1"
+            placeholder="Search agents"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            inputClassName="text-sm sm:text-sm"
+          />
+          <Button
+            onClick={() => setDialogOpen(true)}
+            className="h-10 w-full shrink-0 sm:w-auto"
+          >
+            Add agent
+          </Button>
+        </div>
       </div>
 
       {eventId && (
