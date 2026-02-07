@@ -15,12 +15,13 @@ export const BUILT_IN_VOICE_OPTIONS = [
 ] as const;
 
 export type BuiltInVoiceValue = (typeof BUILT_IN_VOICE_OPTIONS)[number]["value"];
+export type BuiltInVoiceOption = (typeof BUILT_IN_VOICE_OPTIONS)[number];
 
 export const BUILT_IN_VOICE_VALUE_SET = new Set(
   BUILT_IN_VOICE_OPTIONS.map((voice) => voice.value)
 );
 
-const BUILT_IN_VOICE_OPTION_BY_VALUE = new Map(
+const BUILT_IN_VOICE_OPTION_BY_VALUE: ReadonlyMap<string, BuiltInVoiceOption> = new Map(
   BUILT_IN_VOICE_OPTIONS.map((voice) => [voice.value, voice] as const)
 );
 
