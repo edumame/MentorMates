@@ -20,8 +20,14 @@ const BUILT_IN_VOICES = [
   "shimmer",
   "verse",
 ] as const;
+type BuiltInVoice = (typeof BUILT_IN_VOICES)[number];
 const BUILT_IN_VOICE_SET = new Set(BUILT_IN_VOICES);
 const CUSTOM_VOICE_ID_REGEX = /^voice_[a-zA-Z0-9_-]+$/;
+const LEGACY_VOICE_ALIAS_MAP: Record<string, BuiltInVoice> = {
+  fable: "verse",
+  nova: "coral",
+  onyx: "cedar",
+};
 
 const RequestSchema = z.object({
   text: z.string().min(1),
@@ -75,6 +81,10 @@ function normalizeVoice(input?: string): string | undefined {
   if (!value) return undefined;
 
   const lower = value.toLowerCase();
+  const alias = LEGACY_VOICE_ALIAS_MAP[lower];
+  if (alias) {
+    return alias;
+  }
   if (BUILT_IN_VOICE_SET.has(lower as (typeof BUILT_IN_VOICES)[number])) {
     return lower;
   }
@@ -91,7 +101,7 @@ function normalizeVoice(input?: string): string | undefined {
 function detectTypeFromText(text: string): string | undefined {
   const lower = text.toLowerCase();
 
-  if (/\bjudge|score|scoring|evaluate|evaluation|rubric|review\b/.test(lower)) {
+  if (/\bjudge|score|scoring|evaluate|evaluation|rubric|review|feedback|critique|assess(?:ment)?\b/.test(lower)) {
     return "judge";
   }
   if (/\btech|technical|engineer|developer|coding|code\b/.test(lower)) {
@@ -108,38 +118,154 @@ function detectTypeFromText(text: string): string | undefined {
 }
 
 function detectVoiceFromText(text: string): string | undefined {
-  const explicitVoice = BUILT_IN_VOICES.find((voice) =>
-    new RegExp(`\\b${voice}\\b`, "i").test(text)
-  );
+  const voiceLabelMatch = /(?:^|\n)\s*voice\s*[:\-]\s*([^\n]+)/im.exec(text);
+  const voiceFromLabel = normalizeVoice(voiceLabelMatch?.[1]);
+  if (voiceFromLabel) return voiceFromLabel;
+
+  const explicitVoice = BUILT_IN_VOICES.find((voice) => new RegExp(`\\b${voice}\\b`, "i").test(text));
   if (explicitVoice) return explicitVoice;
 
+  const explicitAlias = Object.entries(LEGACY_VOICE_ALIAS_MAP).find(([legacyVoice]) =>
+    new RegExp(`\\b${legacyVoice}\\b`, "i").test(text)
+  );
+  if (explicitAlias) return explicitAlias[1];
+
+  const explicitCustomVoice = text.match(/\bvoice_[a-zA-Z0-9_-]+\b/i)?.[0];
+  if (explicitCustomVoice) return explicitCustomVoice;
+
   const lower = text.toLowerCase();
+  const scoreByVoice = Object.fromEntries(
+    BUILT_IN_VOICES.map((voice) => [voice, 0])
+  ) as Record<BuiltInVoice, number>;
 
-  if (/\bjudge|evaluate|evaluation|rubric|objective|analytical|analysis|technical\b/.test(lower)) {
-    return "alloy";
-  }
-  if (/\bmentor|coaching|coach|supportive|empathetic|patient|calm\b/.test(lower)) {
-    return "sage";
-  }
-  if (/\bcreative|brainstorm|energetic|playful|fun|inspiring\b/.test(lower)) {
-    return "shimmer";
-  }
-  if (/\bstory|narrative|writer|copywriting|brand voice\b/.test(lower)) {
-    return "verse";
+  const scoreVoice = (voice: BuiltInVoice, patterns: RegExp[], weight: number) => {
+    for (const pattern of patterns) {
+      if (pattern.test(lower)) {
+        scoreByVoice[voice] += weight;
+      }
+    }
+  };
+
+  scoreVoice(
+    "ballad",
+    [/\bbritish\b/, /\buk\b/, /\benglish accent\b/, /\beuropean accent\b/],
+    3
+  );
+  scoreVoice(
+    "cedar",
+    [/\baudiobook\b/, /\bnarrator\b/, /\bdeep voice\b/, /\bsteady\b/, /\bgrounded\b/],
+    3
+  );
+  scoreVoice(
+    "coral",
+    [/\benergetic\b/, /\bhigh[- ]energy\b/, /\bupbeat\b/, /\banimated\b/, /\benthusiastic\b/],
+    2
+  );
+  scoreVoice(
+    "marin",
+    [/\bsunny\b/, /\boptimistic\b/, /\bbright\b/, /\bcheerful\b/, /\bfriendly\b/],
+    2
+  );
+  scoreVoice(
+    "sage",
+    [
+      /\bgentle\b/,
+      /\bwarm\b/,
+      /\bempathetic\b/,
+      /\bpatient\b/,
+      /\bsupportive\b/,
+      /\bparent\b/,
+      /\bdaycare\b/,
+      /\btoddler\b/,
+      /\bpreschool\b/,
+      /\bearly childhood\b/,
+      /\bages?\s*2\s*(?:-|to)\s*4\b/,
+      /\byoung children\b/,
+      /\bcaregiver\b/,
+    ],
+    2
+  );
+  scoreVoice("shimmer", [/\bsoft\b/, /\bsoothing\b/, /\bcomforting\b/, /\bcalming\b/], 2);
+  scoreVoice(
+    "alloy",
+    [
+      /\bjudge\b/,
+      /\bevaluate\b/,
+      /\bevaluation\b/,
+      /\brubric\b/,
+      /\bobjective\b/,
+      /\banalytical\b/,
+      /\banalysis\b/,
+      /\btechnical\b/,
+      /\bprecise\b/,
+      /\bstructured\b/,
+      /\bscore\b/,
+      /\bscoring\b/,
+    ],
+    2
+  );
+  scoreVoice(
+    "verse",
+    [/\bstory\b/, /\bnarrative\b/, /\bwriter\b/, /\bcopywriting\b/, /\bbrand voice\b/, /\bscript\b/],
+    2
+  );
+  scoreVoice("ash", [/\bplain male\b/, /\bneutral male\b/, /\bstraightforward\b/], 1);
+  scoreVoice("echo", [/\bconversational\b/, /\bcasual\b/, /\beveryday tone\b/], 1);
+
+  let selectedVoice: BuiltInVoice | undefined;
+  let selectedScore = 0;
+
+  for (const voice of BUILT_IN_VOICES) {
+    const score = scoreByVoice[voice];
+    if (score > selectedScore) {
+      selectedScore = score;
+      selectedVoice = voice;
+    }
   }
 
-  return undefined;
+  return selectedScore > 0 ? selectedVoice : undefined;
+}
+
+function defaultVoiceForType(type: string | undefined): BuiltInVoice {
+  switch (type) {
+    case "judge":
+      return "alloy";
+    case "tech":
+      return "ash";
+    case "product":
+      return "marin";
+    case "brainstorm":
+    default:
+      return "shimmer";
+  }
 }
 
 function ensureTypeAndVoice(input: ParsedAgent, text: string, mode: "fill" | "generate"): ParsedAgent {
   const ensured: ParsedAgent = { ...input };
 
-  if (!ensured.type) {
-    ensured.type = detectTypeFromText(text) ?? (mode === "generate" ? "brainstorm" : undefined);
+  const contextText = [text, input.instructions, input.feedback_prompt]
+    .filter((part): part is string => typeof part === "string" && part.trim().length > 0)
+    .join("\n");
+
+  const normalizedType = normalizeType(ensured.type);
+  if (!normalizedType) {
+    ensured.type = detectTypeFromText(contextText) ?? (mode === "generate" ? "brainstorm" : undefined);
+  } else {
+    ensured.type = normalizedType;
   }
 
-  if (!ensured.voice) {
-    ensured.voice = detectVoiceFromText(text) ?? (mode === "generate" ? "alloy" : undefined);
+  const detectedVoice = detectVoiceFromText(contextText);
+  if (detectedVoice) {
+    ensured.voice = detectedVoice;
+  } else if (mode === "generate") {
+    ensured.voice = defaultVoiceForType(ensured.type);
+  } else {
+    const normalizedVoice = normalizeVoice(ensured.voice);
+    if (normalizedVoice) {
+      ensured.voice = normalizedVoice;
+    } else {
+      ensured.voice = undefined;
+    }
   }
 
   return ensured;
@@ -262,10 +388,19 @@ Rules:
 
     const systemPromptGenerate = `You are an assistant that GENERATES plausible agent setup fields from a short brief.
 Produce a coherent agent identity and high-quality instructions aligned to the brief.
-For generate mode, ALWAYS include "type" and "voice".
+For generate mode, ALWAYS include "name", "type", "voice", and "instructions".
 "type" must be one of: brainstorm, product, tech, judge.
 "voice" should be one of: alloy, ash, ballad, cedar, coral, echo, marin, sage, shimmer, verse.
-Also generate clear "instructions" and (when relevant) a concrete "feedback_prompt".
+Also generate a concrete "feedback_prompt" when evaluation/scoring is relevant.
+
+Quality bar for "instructions":
+- Convert the brief into a ready-to-use system prompt, not a short summary.
+- Be specific, concrete, and contextual. If the brief implies a persona, include specific identity details (name, location, responsibilities, audience details, and constraints).
+- Avoid vague wording like "give helpful feedback"; define exactly what to look for and how to respond.
+- Include response structure as numbered sections.
+- Keep language aligned to the requested audience (for example: no technical jargon if the brief asks for plain language).
+- Target roughly 140-260 words unless the user input is already more detailed.
+- If the brief references young children or caregivers, include practical safety and attention-span constraints (e.g., supervision, durability, cleanup, sensory overload, and frustration points).
 
 Concrete examples:
 - Good instructions example: "Start by asking up to 2 clarifying questions, then provide 3 ranked options with tradeoffs and a recommended next step."
@@ -284,7 +419,7 @@ Do not invent avatar URLs unless a URL is provided in the input.`;
         { role: "system", content: system },
         { role: "user", content: text },
       ],
-      temperature: mode === "generate" ? 0.6 : 0.2,
+      temperature: mode === "generate" ? 0.3 : 0.2,
       max_tokens: 700,
     });
 
