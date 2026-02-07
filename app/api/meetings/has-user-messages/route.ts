@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
 
     try {
       const channel = streamChat.channel("messaging", meetingId);
-      await channel.watch();
+      // Query messages directly without watch() for better performance
       const { messages } = await channel.query({ messages: { limit: 200 } });
 
       type StreamMessage = { text?: string | null; user?: { id?: string; name?: string } };
