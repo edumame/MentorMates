@@ -1,6 +1,6 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useEventRegistration } from "@/components/event-registration-provider";
 import { EventRole } from "@/lib/types";
@@ -13,11 +13,15 @@ import { RoleSwitcher } from "@/components/role-switcher";
 
 export default function DashboardPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const slug = params.id as string;
   const [eventId, setEventId] = useState<string | null>(null);
   const { userRole, activeRole, switchRole, roleLabels } =
     useEventRegistration();
   const [loading, setLoading] = useState(true);
+  const isDevNoAuthMode =
+    process.env.NEXT_PUBLIC_DEV_AUTH_BYPASS === "true" &&
+    searchParams.get("devNoAuth") === "1";
 
   useEffect(() => {
     const resolveEventId = async () => {
@@ -53,8 +57,12 @@ export default function DashboardPage() {
   }
 
   const renderDashboard = () => {
+    const effectiveRole = isDevNoAuthMode
+      ? activeRole ?? EventRole.Organizer
+      : activeRole;
+
     // Use activeRole for dashboard rendering to support role switching
-    switch (activeRole) {
+    switch (effectiveRole) {
       case EventRole.Participant:
         return <ParticipantDashboard eventId={eventId} canCreateProjects />;
       case EventRole.Judge:
@@ -88,7 +96,7 @@ export default function DashboardPage() {
       ) : (
         <>
           {/* Show role switcher for users who can access multiple roles */}
-          {userRole && activeRole && (
+          {!isDevNoAuthMode && userRole && activeRole && (
             <div className="flex justify-end">
               <RoleSwitcher
                 actualRole={userRole}

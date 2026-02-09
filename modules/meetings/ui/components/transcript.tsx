@@ -1,10 +1,9 @@
 import { useState } from "react";
 import { format } from "date-fns";
-import { SearchIcon } from "lucide-react";
 import Highlighter from "react-highlight-words";
 import { useQuery } from "@tanstack/react-query";
 import { useTRPC } from "@/trpc/client";
-import { Input } from "@/components/ui/input";
+import { EventSearchInput } from "@/components/ui/event-search-input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
 
@@ -24,14 +23,14 @@ export const Transcript = ({ meetingId }: Props) => {
     return (
         <div className="bg-white rounded-lg border px-4 py-5 flex flex-col gap-y-4 w-full">
             <p className="text-sm font-medium">Transcript</p>
-            <div className="relative">
-                <Input
+            <div>
+                <EventSearchInput
                     placeholder="Search Transcript"
-                    className="pl-7 h-9 w-[240px]"
+                    wrapperClassName="w-[240px]"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
+                    inputClassName="text-sm sm:text-sm"
                 />
-                <SearchIcon className="absolute left-2 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
             </div>
             <ScrollArea>
                 <div className="flex flex-col gap-y-4">

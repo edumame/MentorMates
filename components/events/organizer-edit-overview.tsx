@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useTransition } from "react";
+import { useRef, useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import { usePathname } from "next/navigation";
@@ -28,7 +28,6 @@ import { PricingTab } from "@/features/user/dashboards/dashboard/organizer/prici
 import EmailDashboard from "@/features/user/dashboards/dashboard/organizer/notifications/EmailDashboard";
 import { EmailTab } from "@/features/user/dashboards/dashboard/organizer/email";
 import { ProjectImport } from "@/features/user/dashboards/dashboard/organizer/import/ProjectImportButton";
-import { SessionsTab } from "@/features/user/dashboards/dashboard/organizer/sessions/SessionsTab";
 import { AgentsTab } from "@/features/user/dashboards/dashboard/organizer/agents/AgentsTab";
 
 // Import sub-tab components for Overview
@@ -78,6 +77,10 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
   const activeTab = searchParams.get("tab") || "overview";
   const activeSubTab = searchParams.get("subtab") || "basics";
 
+  const basicInfoSaveHandlerRef = useRef<null | (() => Promise<void> | void)>(
+    null
+  );
+
   const [participantCount, setParticipantCount] = useState<number>(0);
   const [isAdmin, setIsAdmin] = useState(false);
 
@@ -92,7 +95,6 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
     { value: "live-scores", label: "Live Scores" },
     { value: "ticketing", label: "Ticketing" },
     { value: "notify", label: "Notify" },
-    { value: "sessions", label: "Sessions" },
     { value: "agents", label: "Agents" },
   ];
 
@@ -548,6 +550,26 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
+
+                {/* Update Event (Save Changes) */}
+                {activeTab === "overview" && activeSubTab === "basics" && (
+                  <Button
+                    variant="default"
+                    className="gap-1.5 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium flex-1 sm:flex-none bg-[#4b89ef] hover:bg-[#3d75d9]"
+                    disabled={
+                      saving ||
+                      archiving ||
+                      deleting ||
+                      event.visibility === EventVisibility.Archived ||
+                      !basicInfoSaveHandlerRef.current
+                    }
+                    onClick={() => {
+                      void basicInfoSaveHandlerRef.current?.();
+                    }}
+                  >
+                    <span>{saving ? "Updating..." : "Update Event"}</span>
+                  </Button>
+                )}
               </div>
             </div>
           </div>
@@ -628,6 +650,9 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                             setSaving={setSaving}
                             toast={toast}
                             router={router}
+                            registerSaveHandler={(fn) => {
+                              basicInfoSaveHandlerRef.current = fn;
+                            }}
                           />
                         )}
                       </TabsContent>
@@ -796,10 +821,6 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                       </div>
                     </div>
                   )}
-                </TabsContent>
-
-                <TabsContent value="sessions" className="mt-0 w-full">
-                  <SessionsTab eventId={eventId} event={event} setEvent={setEvent} />
                 </TabsContent>
 
                 <TabsContent value="agents" className="mt-0 w-full">

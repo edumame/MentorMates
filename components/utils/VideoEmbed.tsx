@@ -16,17 +16,25 @@ export const getEmbedUrl = (url: string): string | null => {
       return `https://www.youtube.com/embed/${youtubeMatch[1]}`;
     }
   
-    // Vimeo patterns
-    const vimeoRegex = /(?:vimeo\.com\/)(\d+)/;
-    const vimeoMatch = url.match(vimeoRegex);
-    if (vimeoMatch) {
-      return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
-    }
+  // Vimeo patterns
+  const vimeoRegex = /(?:vimeo\.com\/)(\d+)/;
+  const vimeoMatch = url.match(vimeoRegex);
+  if (vimeoMatch) {
+    return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
+  }
+
+  // Loom patterns
+  const loomRegex = /(?:loom\.com\/(?:share|embed)\/)([a-zA-Z0-9]+)/;
+  const loomMatch = url.match(loomRegex);
+  if (loomMatch) {
+    return `https://www.loom.com/embed/${loomMatch[1]}`;
+  }
   
     // Already an embed URL
     if (
       url.includes('youtube.com/embed/') || 
       url.includes('player.vimeo.com/video/') ||
+      url.includes('loom.com/embed/') ||
       url.includes('dailymotion.com/embed/') ||
       url.includes('twitch.tv/videos/') ||
       url.includes('facebook.com/plugins/video.php')

@@ -4,6 +4,7 @@ import Link from "next/link";
 import React, { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { createClient } from "@/app/utils/supabase/client";
+import { Bot } from "lucide-react";
 
 const HomeIcon = (
   <svg
@@ -92,6 +93,8 @@ const FeedbackIcon = (
   </svg>
 );
 
+const AgentsIcon = <Bot size={24} color="#09090B" strokeWidth={1.67} />;
+
 const SupportIcon = (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -134,6 +137,7 @@ const data = [
   { name: "Learn", href: "/learn", icon: BookIcon },
   { name: "Projects", href: "/projects", icon: ProjectIcon },
   { name: "Feedback", href: "/feedback", icon: FeedbackIcon },
+  { name: "Agents", href: "/agents", icon: AgentsIcon },
 ];
 
 const bottomLinksBase = [
