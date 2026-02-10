@@ -17,7 +17,7 @@ import { Play } from "lucide-react";
 const HOST_LOGOS = [
   ...defaultLogoItems,
   { alt: "a16z", src: "/partners/a16z.svg" },
-  { alt: "Lovable", src: "/partners/lovable.svg" },
+  { alt: "Lovable", src: "/partners/lovable-gray.svg" },
 ];
 
 // Helper function to render Lucide icons
