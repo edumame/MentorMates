@@ -13,6 +13,7 @@ import { useAuth } from "@/features/user/authentication/auth/AuthContext";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 import { Search } from "lucide-react";
 import { PublicProjectsGallery } from "@/features/projects/components/displays/PublicProjectsGallery/PublicProjectsGallery";
+import { EventSearchInput } from "@/components/ui/event-search-input";
 
 type FilterType = "all" | "public" | "mine";
 
