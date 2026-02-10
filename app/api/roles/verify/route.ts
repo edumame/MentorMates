@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { EventRole, EventVisibility } from "@/lib/types";
+import { EventRole } from "@/lib/types";
 import * as bcrypt from "bcrypt";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 
@@ -124,17 +124,40 @@ export async function POST(request: Request) {
 
     // Check if participant approval is required for this event and role
     if (role === EventRole.Participant && event?.require_participant_approval) {
-      // Check if user already has a pending request
+      // Check if user has any existing approval request
       const { data: existingRequest } = await supabase
         .from("participant_approval_requests")
         .select("id, status")
         .eq("event_id", eventId)
         .eq("user_id", userId)
         .eq("requested_role", role)
-        .eq("status", "pending")
         .maybeSingle();
 
-      if (existingRequest) {
+      // If there's an approved request and event is paid, allow role creation (post-payment)
+      if (existingRequest?.status === "approved" && event?.paid) {
+        // Check if user has paid
+        const { data: payment } = await supabase
+          .from("user_event_payments")
+          .select("payment_status")
+          .eq("user_id", userId)
+          .eq("event_id", eventId)
+          .eq("payment_status", "paid")
+          .maybeSingle();
+
+        if (!payment) {
+          return NextResponse.json(
+            {
+              error: "Payment required. Your request has been approved, but payment is still needed.",
+              requires_approval: false,
+              request_status: "approved_pending_payment"
+            },
+            { status: 402 }
+          );
+        }
+
+        // Payment confirmed, proceed with role assignment below
+        // Fall through to role assignment logic
+      } else if (existingRequest?.status === "pending") {
         return NextResponse.json(
           {
             error: "You already have a pending request for this event",
@@ -143,36 +166,47 @@ export async function POST(request: Request) {
           },
           { status: 409 }
         );
-      }
+      } else if (existingRequest?.status === "approved" && !event?.paid) {
+        // For non-paid events with approved request, proceed with role assignment
+        // Fall through to role assignment logic
+      } else if (!existingRequest) {
+        // No existing request, create a new one
+        const { data: newRequest, error: requestError } = await supabase
+          .from("participant_approval_requests")
+          .insert({
+            event_id: eventId,
+            user_id: userId,
+            requested_role: role,
+            status: "pending",
+          })
+          .select()
+          .single();
 
-      // Upsert approval request instead of directly assigning role
-      const { data: newRequest, error: requestError } = await supabase
-        .from("participant_approval_requests")
-        .upsert({
-          event_id: eventId,
-          user_id: userId,
-          requested_role: role,
-          status: "pending",
-        }, {
-          onConflict: "event_id,user_id,requested_role",
-        })
-        .select()
-        .single();
+        if (requestError) {
+          console.error("Error creating approval request:", requestError);
+          return NextResponse.json(
+            { error: "Failed to submit approval request" },
+            { status: 500 }
+          );
+        }
 
-      if (requestError) {
-        console.error("Error creating approval request:", requestError);
+        return NextResponse.json({
+          success: true,
+          requires_approval: true,
+          request_id: newRequest.id,
+          message: "Your request has been submitted and is pending organizer approval",
+        });
+      } else {
+        // Request exists but is rejected or withdrawn
         return NextResponse.json(
-          { error: "Failed to submit approval request" },
-          { status: 500 }
+          {
+            error: "Your previous request was not approved. Please contact the organizers.",
+            requires_approval: false,
+            request_status: existingRequest.status
+          },
+          { status: 403 }
         );
       }
-
-      return NextResponse.json({
-        success: true,
-        requires_approval: true,
-        request_id: newRequest.id,
-        message: "Your request has been submitted and is pending organizer approval",
-      });
     }
 
     // Now we can proceed with role assignment
