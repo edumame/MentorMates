@@ -177,6 +177,7 @@ export interface Prize {
 export interface Resource {
   name: string;
   link: string;
+  is_private?: boolean;
 }
 
 export interface Lesson {
