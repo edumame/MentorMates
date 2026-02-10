@@ -6,28 +6,14 @@
   fill="none"
 >
   <title>Lovable</title>
-  <defs>
-    <linearGradient
-      id="lovable-gradient"
-      x1="5"
-      y1="4"
-      x2="81"
-      y2="76"
-      gradientUnits="userSpaceOnUse"
-    >
-      <stop offset="0%" stop-color="#FF8A00" />
-      <stop offset="45%" stop-color="#FF3D77" />
-      <stop offset="100%" stop-color="#748EF5" />
-    </linearGradient>
-  </defs>
   <path
     d="M8 56V24C8 12.95 16.95 4 28 4C39.05 4 48 12.95 48 24V36H60C71.05 36 80 44.95 80 56C80 67.05 71.05 76 60 76H28C16.95 76 8 67.05 8 56Z"
-    fill="url(#lovable-gradient)"
+    fill="#6B7280"
   />
   <text
     x="96"
     y="53"
-    fill="#111827"
+    fill="#4B5563"
     font-family="Inter, Arial, Helvetica, sans-serif"
     font-size="40"
     font-weight="600"
