@@ -32,6 +32,7 @@ import {
   PricingTier,
   ParticipantRequestStatus,
   ParticipantApprovalRequest,
+  EventTicket,
 } from "@/lib/types";
 import { toast } from "@/lib/hooks/use-toast";
 import { PricingTierSelector } from "./pricing-tier-selector";
@@ -95,8 +96,11 @@ export function JoinEventButton({
   const [isFull, setIsFull] = useState(false);
   const [requiresApproval, setRequiresApproval] = useState(false);
   const [hasPendingRequest, setHasPendingRequest] = useState(false);
-  const [pendingRequest, setPendingRequest] = useState<ParticipantApprovalRequest | null>(null);
-  const [pendingRequestStatus, setPendingRequestStatus] = useState<ParticipantRequestStatus | null>(null);
+  const [pendingRequest, setPendingRequest] =
+    useState<ParticipantApprovalRequest | null>(null);
+  const [pendingRequestStatus, setPendingRequestStatus] =
+    useState<ParticipantRequestStatus | null>(null);
+  const [userTicket, setUserTicket] = useState<EventTicket | null>(null);
 
   useEffect(() => {
     async function init() {
@@ -195,15 +199,28 @@ export function JoinEventButton({
               ParticipantRequestStatus.Pending,
               ParticipantRequestStatus.Approved,
               ParticipantRequestStatus.Rejected,
-              ParticipantRequestStatus.Withdrawn
+              ParticipantRequestStatus.Withdrawn,
             ])
             .maybeSingle();
 
           if (approvalRequest) {
             setHasPendingRequest(true);
-            setPendingRequestStatus(approvalRequest.status as ParticipantRequestStatus);
+            setPendingRequestStatus(
+              approvalRequest.status as ParticipantRequestStatus
+            );
             setPendingRequest(approvalRequest as ParticipantApprovalRequest);
           }
+        }
+
+        const { data: userTicket } = await supabase
+          .from("event_tickets")
+          .select("ticket_status")
+          .eq("assigned_to_user_id", userId)
+          .eq("event_id", eventId)
+          .maybeSingle();
+
+        if (userTicket) {
+          setUserTicket(userTicket as EventTicket);
         }
       } catch (error) {
         console.error("Error checking event status:", error);
@@ -238,7 +255,7 @@ export function JoinEventButton({
     // if (event?.visibility === EventVisibility.Private) {
     //   setShowPasswordInput(true);
     // } else {
-      setShowPasswordInput(isHigherOrEqualRole(value, EventRole.Judge));
+    setShowPasswordInput(isHigherOrEqualRole(value, EventRole.Judge));
     // }
   };
 
@@ -351,7 +368,8 @@ export function JoinEventButton({
             setIsDialogOpen(false);
             toast({
               title: "Request Submitted",
-              description: "Your request has been submitted. You'll be able to pay after approval.",
+              description:
+                "Your request has been submitted. You'll be able to pay after approval.",
             });
             return;
           }
@@ -429,7 +447,8 @@ export function JoinEventButton({
         setIsDialogOpen(false);
         toast({
           title: "Request Submitted",
-          description: "Your request to join has been submitted and is pending organizer approval.",
+          description:
+            "Your request to join has been submitted and is pending organizer approval.",
         });
         return;
       }
@@ -490,12 +509,15 @@ export function JoinEventButton({
         return;
       }
 
-      const response = await fetch(`/api/events/${eventId}/approval-requests/${pendingRequest.id}`, {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
+      const response = await fetch(
+        `/api/events/${eventId}/approval-requests/${pendingRequest.id}`,
+        {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
 
       const data = await response.json();
 
@@ -528,8 +550,10 @@ export function JoinEventButton({
 
   // Show rejected request status
   if (pendingRequestStatus === ParticipantRequestStatus.Rejected) {
-    const rejectionReason = (pendingRequest as ParticipantApprovalRequest)?.rejection_reason || "No reason given";
-    
+    const rejectionReason =
+      (pendingRequest as ParticipantApprovalRequest)?.rejection_reason ||
+      "No reason given";
+
     return (
       <TooltipProvider>
         <Tooltip>
@@ -555,7 +579,11 @@ export function JoinEventButton({
   }
 
   // Show approved request with payment pending for paid events
-  if (pendingRequestStatus === ParticipantRequestStatus.Approved && event?.paid) {
+  if (
+    pendingRequestStatus === ParticipantRequestStatus.Approved &&
+    event?.paid &&
+    !userTicket
+  ) {
     return (
       <Dialog
         open={isDialogOpen}
@@ -582,7 +610,8 @@ export function JoinEventButton({
           <div className="space-y-4">
             <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
               <p className="text-sm text-green-700">
-                ✅ Your request has been approved! Complete your payment to finalize your registration.
+                ✅ Your request has been approved! Complete your payment to
+                finalize your registration.
               </p>
             </div>
             <div className="space-y-4 max-h-[65vh] overflow-y-auto px-1">
@@ -600,8 +629,31 @@ export function JoinEventButton({
     );
   }
 
+  // if user has a ticket, allow them to join and show the ticket details
+  if (
+    pendingRequestStatus === ParticipantRequestStatus.Approved &&
+    event?.paid &&
+    userTicket
+  ) {
+    return (
+      <Button
+        variant="default"
+        size="lg"
+        className="rounded-full px-6 py-5 gap-2 w-full min-w-0 overflow-hidden"
+        onClick={handleJoinEvent}
+        disabled={isLoading}
+      >
+        <Ticket className="h-6 w-6 flex-shrink-0" />
+        <span className="truncate">Ticket Already Assigned - Join Event!</span>
+      </Button>
+    );
+  }
+
   // Show pending request status
-  if (hasPendingRequest && pendingRequestStatus === ParticipantRequestStatus.Pending) {
+  if (
+    hasPendingRequest &&
+    pendingRequestStatus === ParticipantRequestStatus.Pending
+  ) {
     return (
       <Button
         variant="destructive"
@@ -611,7 +663,9 @@ export function JoinEventButton({
         disabled={isLoading}
       >
         <Ticket className="h-6 w-6 flex-shrink-0" />
-        <span className="truncate">{isLoading ? "Withdrawing..." : "Withdraw Request"}</span>
+        <span className="truncate">
+          {isLoading ? "Withdrawing..." : "Withdraw Request"}
+        </span>
       </Button>
     );
   }
@@ -721,8 +775,8 @@ export function JoinEventButton({
                 {isLoading
                   ? "Submitting..."
                   : requiresApproval && selectedRole === EventRole.Participant
-                  ? "Request to Join"
-                  : "Confirm"}
+                    ? "Request to Join"
+                    : "Confirm"}
               </Button>
             </div>
           )}

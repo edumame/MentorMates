@@ -207,6 +207,14 @@ export interface Rule {
   items: string[];
 }
 
+export interface EventTicket {
+  ticket_status: string;
+  assigned_to_user_id: string;
+  event_id: string;
+  payment_id: string;
+  purchased_by_user_id: string;
+}
+
 export interface EventTrack {
   track_id: string;
   event_id: string;
