@@ -56,7 +56,7 @@ export function EventPageHeader({
   })();
   return (
     <div
-      className="bg-white flex flex-col w-full"
+      className="bg-white flex flex-col w-full overflow-x-hidden"
       style={{ maxWidth: "100vw" }}
     >
       {/* Cover Image */}
@@ -131,7 +131,7 @@ export function EventPageHeader({
               </div>
 
               {/* Right: Join Button and Meta */}
-              <div className="flex flex-col gap-[12px] items-end justify-center w-[411px]">
+              <div className="flex flex-col gap-[12px] items-end justify-center w-full sm:w-[411px] max-w-full">
                 <div className="flex flex-col gap-[16px] items-center justify-center w-full">
                   <div className="flex gap-[16px] items-start w-full">
                     {(() => {
@@ -185,7 +185,7 @@ export function EventPageHeader({
                 </div>
 
                 {/* Date and Location */}
-                <div className="flex gap-[8px] items-center justify-around w-full ">
+                <div className="flex gap-[8px] items-center justify-between w-full flex-wrap">
                   <div className="flex gap-[8px] items-center flex-wrap">
                     <CalendarDays className="w-6 h-6 text-black flex-shrink-0" />
                     <p className="font-normal text-sm leading-[1.5] text-black">

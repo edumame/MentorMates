@@ -23,8 +23,8 @@ export function PageContainer({
     <div
       className={`${
         showBorder
-          ? "h-[calc(100vh-88px)] overflow-hidden"
-          : "min-h-[calc(100vh-64px)]"
+          ? "h-[calc(100dvh-72px-var(--banner-h,0px))] overflow-hidden"
+          : "min-h-[calc(100dvh-72px-var(--banner-h,0px))]"
       } flex flex-col ${
         showBorder ? "lg:rounded-tl-2xl lg:border-t lg:border-l lg:border-[#D8D8D8]" : ""
       } bg-white ${className}`}
@@ -46,7 +46,7 @@ interface PageContentProps {
  */
 export function PageContent({ children, className = "" }: PageContentProps) {
   return (
-    <div className={`flex-grow overflow-auto ${className}`}>
+    <div className={`flex-grow overflow-y-auto overflow-x-hidden ${className}`}>
       {children}
     </div>
   );

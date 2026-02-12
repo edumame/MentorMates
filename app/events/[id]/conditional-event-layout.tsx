@@ -60,7 +60,7 @@ export function ConditionalEventLayout({
 
   return (
     <PageContainer>
-      <PageContent className="px-0">
+      <PageContent className="px-0 pt-[calc(72px+var(--banner-h,0px))]">
         <div className="flex flex-col bg-background">
           {showEventWrapper ? (
             <EventRegistrationWrapper eventId={event.event_id}>

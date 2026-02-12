@@ -74,7 +74,7 @@ export function EventPageTabs({
             : "mx-auto w-full max-w-10xl px-4 md:px-10 lg:px-24"
         }
       >
-        <div className="flex gap-4 md:gap-6 items-start w-full overflow-x-auto no-scrollbar whitespace-nowrap">
+        <div className="flex flex-wrap gap-x-4 gap-y-2 md:gap-x-6 items-start w-full">
           {tabs.map((tab) => {
             const isActive = pathname === tab.path;
 
@@ -82,7 +82,7 @@ export function EventPageTabs({
               <Link
                 key={tab.name}
                 href={getHrefWithParams(tab.path)}
-                className={`inline-flex gap-2 items-center px-0 py-2 flex-shrink-0 ${
+                className={`inline-flex gap-2 items-center px-0 py-2 ${
                   isActive ? "border-b-2 border-[#4b89ef]" : ""
                 }`}
               >
