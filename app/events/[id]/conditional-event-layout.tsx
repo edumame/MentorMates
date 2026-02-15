@@ -6,7 +6,6 @@ import { EventHeader } from "@/components/events/event-header";
 import { Footer } from "@/components/layout/Footer";
 import { useLayoutConfig } from "@/components/layout/LayoutConfigProvider";
 import { EventVisibility } from "@/lib/types";
-import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 
 interface ConditionalEventLayoutProps {
   children: ReactNode;
@@ -59,19 +58,15 @@ export function ConditionalEventLayout({
   );
 
   return (
-    <PageContainer>
-      <PageContent className="px-0 pt-[calc(72px+var(--banner-h,0px))]">
-        <div className="flex flex-col bg-background">
-          {showEventWrapper ? (
-            <EventRegistrationWrapper eventId={event.event_id}>
-              {content}
-            </EventRegistrationWrapper>
-          ) : (
-            content
-          )}
-          <div className="pt-8">{showFooter && <Footer />}</div>
-        </div>
-      </PageContent>
-    </PageContainer>
+    <div className="w-full bg-background pt-[calc(72px+var(--banner-h,0px))]">
+      {showEventWrapper ? (
+        <EventRegistrationWrapper eventId={event.event_id}>
+          {content}
+        </EventRegistrationWrapper>
+      ) : (
+        content
+      )}
+      <div className="pt-8">{showFooter && <Footer />}</div>
+    </div>
   );
 }
