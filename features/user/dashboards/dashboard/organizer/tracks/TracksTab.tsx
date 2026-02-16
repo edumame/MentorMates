@@ -134,20 +134,29 @@ export function TracksTab({
   };
 
   return (
-    <div className="space-y-6">
-      <p className="text-sm text-muted-foreground mb-6">
-        Configure your event tracks below. For each track, you can set up
-        scoring criteria.
-      </p>
+    <div className="space-y-4">
+      <div className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6">
+        <div className="space-y-1">
+          <h2 className="text-base font-semibold text-gray-900">
+            Tracks &amp; Scoring
+          </h2>
+          <p className="text-sm text-gray-600">
+            Configure your event tracks below. For each track, you can set up
+            scoring criteria.
+          </p>
+        </div>
 
-      <ScoringConfigForm
-        initialConfig={scoringConfig}
-        isSubmitting={saving}
-        onSave={handleScoreUpdate}
-        tracks={tracks}
-        isArchived={isArchived}
-        eventId={eventId}
-      />
+        <div className="mt-5">
+          <ScoringConfigForm
+            initialConfig={scoringConfig}
+            isSubmitting={saving}
+            onSave={handleScoreUpdate}
+            tracks={tracks}
+            isArchived={isArchived}
+            eventId={eventId}
+          />
+        </div>
+      </div>
     </div>
   );
 }
