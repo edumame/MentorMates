@@ -4,12 +4,21 @@ import Image from "next/image";
 import Link from "next/link";
 import { SERVICES_SECTIONS, type ServiceSectionData } from "./content";
 import { Button } from "@/components/ui/button";
-import { LogoCarousel } from "@/components/heroes/components/LogoCarousel";
+import {
+  LogoCarousel,
+  logos as defaultLogoItems,
+} from "@/components/heroes/components/LogoCarousel";
 import { Customer } from "@/components/heroes/components/Customer";
 import { getEmbedUrl } from "@/components/utils";
 import { VIDEO_SOURCES } from "@/lib/config/video-sources";
 import * as LucideIcons from "lucide-react";
 import { Play } from "lucide-react";
+
+const HOST_LOGOS = [
+  ...defaultLogoItems,
+  { alt: "a16z", src: "/partners/a16z.svg" },
+  { alt: "Lovable", src: "/partners/lovable-gray.svg" },
+];
 
 // Helper function to render Lucide icons
 function renderLucideIcon(
@@ -106,7 +115,7 @@ export function Host() {
             {/* Logos */}
             <div className="bg-white">
               <div>
-                <LogoCarousel />
+                <LogoCarousel items={HOST_LOGOS} />
               </div>
             </div>
 
