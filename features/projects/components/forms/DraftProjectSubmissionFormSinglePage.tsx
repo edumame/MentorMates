@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { Session } from "@supabase/supabase-js";
 import { toast } from "@/lib/hooks/use-toast";
+import { useDebouncedEffect } from "@/lib/hooks/use-debounced-effect";
 import { Project, EventVisibility } from "@/lib/types";
 import { updateProjectClient } from "@/features/projects/client-actions/client-update";
 import { updateProjectTeamClient } from "@/features/projects/client-actions/client-update";
@@ -305,14 +306,13 @@ export default function DraftProjectSubmissionFormSinglePage({
   }, [project, onProjectUpdate]);
 
   // Auto-save functionality with debounce
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      handleAutoSave();
-    }, 2000);
-
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formData]);
+  useDebouncedEffect(
+    () => {
+      void handleAutoSave();
+    },
+    [formData],
+    2000
+  );
 
   const handleAutoSave = async () => {
     if (isSaving) return;

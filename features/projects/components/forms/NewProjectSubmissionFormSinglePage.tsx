@@ -20,6 +20,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { toast } from "@/lib/hooks/use-toast";
+import { useDebouncedEffect } from "@/lib/hooks/use-debounced-effect";
 import { Toaster } from "@/components/ui/toaster";
 import UserSearchWithInvite from "@/components/utils/UserSearchWithInvite";
 import { useAdmin } from "@/lib/hooks/use-admin";
@@ -261,15 +262,14 @@ export function NewProjectSubmissionFormSinglePage({
   ]);
 
   // Auto-save functionality with debounce
-  useEffect(() => {
-    if (!projectId || isLoading) return;
-
-    const timer = setTimeout(() => {
-      handleAutoSave();
-    }, 2000);
-
-    return () => clearTimeout(timer);
-  }, [formData, projectId, isLoading]);
+  useDebouncedEffect(
+    () => {
+      if (!projectId || isLoading) return;
+      void handleAutoSave();
+    },
+    [formData, projectId, isLoading],
+    2000
+  );
 
   const handleAutoSave = async () => {
     if (!projectId || isLoading || isSaving) return;

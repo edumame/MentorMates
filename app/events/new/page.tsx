@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { EventSearchInput } from "@/components/ui/event-search-input";
 import { useToast } from "@/lib/hooks/use-toast";
+import { useDebouncedEffect } from "@/lib/hooks/use-debounced-effect";
 import { DatePicker } from "@/components/ui/date-picker";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
 import {
@@ -75,6 +76,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ReactMarkdown from "react-markdown";
+
+const PREFILL_STORAGE_KEY = "mentorMates-event-prefill";
+const CREATE_DRAFT_STORAGE_KEY = "mentorMates-event-create-draft";
+const AUTO_SAVE_DEBOUNCE_MS = 1500;
 
 export default function NewEventPage() {
   const router = useRouter();
@@ -231,6 +236,11 @@ export default function NewEventPage() {
   });
   const [organizerEmails, setOrganizerEmails] = useState<string[]>([]);
   const [organizerEmailInput, setOrganizerEmailInput] = useState("");
+  const [isRestoringDraft, setIsRestoringDraft] = useState(true);
+  const [autoSaveStatus, setAutoSaveStatus] = useState<
+    "idle" | "saving" | "saved" | "error"
+  >("idle");
+  const [lastAutoSavedAt, setLastAutoSavedAt] = useState<Date | null>(null);
 
   const [form, setForm] = useState({
     event_name: "",
@@ -248,6 +258,13 @@ export default function NewEventPage() {
     location_type: "virtual", // "in-person" or "virtual"
     paywall_content: "",
   });
+
+  const clearCreateDraft = () => {
+    if (typeof window === "undefined") return;
+    window.localStorage.removeItem(CREATE_DRAFT_STORAGE_KEY);
+    setAutoSaveStatus("idle");
+    setLastAutoSavedAt(null);
+  };
 
   const onChange = (key: keyof typeof form, value: string) =>
     setForm((p) => ({ ...p, [key]: value }));
@@ -301,8 +318,219 @@ export default function NewEventPage() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+
     try {
-      const stored = window.localStorage.getItem("mentorMates-event-prefill");
+      const storedDraft = window.localStorage.getItem(CREATE_DRAFT_STORAGE_KEY);
+      if (!storedDraft) return;
+
+      const parsed = JSON.parse(storedDraft) as Record<string, unknown>;
+      if (!parsed || typeof parsed !== "object") return;
+
+      const draftForm = parsed.form as Partial<typeof form> | undefined;
+      if (draftForm && typeof draftForm === "object") {
+        setForm((prev) => ({
+          ...prev,
+          event_name:
+            typeof draftForm.event_name === "string"
+              ? draftForm.event_name
+              : prev.event_name,
+          event_date:
+            typeof draftForm.event_date === "string"
+              ? draftForm.event_date
+              : prev.event_date,
+          location:
+            typeof draftForm.location === "string"
+              ? draftForm.location
+              : prev.location,
+          slug: typeof draftForm.slug === "string" ? draftForm.slug : prev.slug,
+          event_description:
+            typeof draftForm.event_description === "string"
+              ? draftForm.event_description
+              : prev.event_description,
+          event_blurb:
+            typeof draftForm.event_blurb === "string"
+              ? draftForm.event_blurb
+              : prev.event_blurb,
+          cover_image_url:
+            typeof draftForm.cover_image_url === "string"
+              ? draftForm.cover_image_url
+              : prev.cover_image_url,
+          organizer_emails:
+            typeof draftForm.organizer_emails === "string"
+              ? draftForm.organizer_emails
+              : prev.organizer_emails,
+          submission_time_start:
+            typeof draftForm.submission_time_start === "string"
+              ? draftForm.submission_time_start
+              : prev.submission_time_start,
+          submission_time_cutoff:
+            typeof draftForm.submission_time_cutoff === "string"
+              ? draftForm.submission_time_cutoff
+              : prev.submission_time_cutoff,
+          participant_capacity:
+            typeof draftForm.participant_capacity === "string"
+              ? draftForm.participant_capacity
+              : prev.participant_capacity,
+          event_type:
+            typeof draftForm.event_type === "string"
+              ? draftForm.event_type
+              : prev.event_type,
+          location_type:
+            draftForm.location_type === "in-person" ||
+            draftForm.location_type === "virtual"
+              ? draftForm.location_type
+              : prev.location_type,
+          paywall_content:
+            typeof draftForm.paywall_content === "string"
+              ? draftForm.paywall_content
+              : prev.paywall_content,
+        }));
+      }
+
+      if (parsed.ticketType === "free" || parsed.ticketType === "paid") {
+        setTicketType(parsed.ticketType);
+      }
+
+      if (
+        typeof parsed.visibility === "string" &&
+        Object.values(EventVisibility).includes(
+          parsed.visibility as EventVisibility
+        )
+      ) {
+        setVisibility(parsed.visibility as EventVisibility);
+      }
+
+      if (typeof parsed.submissionTimezone === "string") {
+        setSubmissionTimezone(parsed.submissionTimezone);
+      }
+
+      if (Array.isArray(parsed.schedules)) {
+        setSchedules(parsed.schedules as typeof schedules);
+      }
+
+      if (Array.isArray(parsed.resources)) {
+        setResources(parsed.resources as typeof resources);
+      }
+
+      if (Array.isArray(parsed.rules)) {
+        setRules(parsed.rules as Rule[]);
+      }
+
+      if (Array.isArray(parsed.faqs)) {
+        setFaqs(parsed.faqs as typeof faqs);
+      }
+
+      if (Array.isArray(parsed.galleryImages)) {
+        setGalleryImages(parsed.galleryImages as typeof galleryImages);
+      }
+
+      if (Array.isArray(parsed.tracks)) {
+        setTracks(parsed.tracks as typeof tracks);
+      }
+
+      if (Array.isArray(parsed.prizes)) {
+        setPrizes(parsed.prizes as typeof prizes);
+      }
+
+      if (parsed.rolePasswords && typeof parsed.rolePasswords === "object") {
+        setRolePasswords(parsed.rolePasswords as Record<string, string>);
+      }
+
+      if (parsed.roleLabels && typeof parsed.roleLabels === "object") {
+        setRoleLabels(parsed.roleLabels as Record<string, string>);
+      }
+
+      if (Array.isArray(parsed.organizerEmails)) {
+        setOrganizerEmails(
+          parsed.organizerEmails.filter(
+            (email): email is string => typeof email === "string"
+          )
+        );
+      }
+
+      if (typeof parsed.savedAt === "string") {
+        const parsedDate = new Date(parsed.savedAt);
+        if (!Number.isNaN(parsedDate.getTime())) {
+          setLastAutoSavedAt(parsedDate);
+        }
+      }
+
+      setAutoSaveStatus("saved");
+      toast({
+        title: "Draft restored",
+        description: "Your previous event draft was restored automatically.",
+      });
+    } catch (error) {
+      console.error("Failed to restore event draft", error);
+    } finally {
+      setIsRestoringDraft(false);
+    }
+  }, [toast]);
+
+  useDebouncedEffect(
+    () => {
+      if (typeof window === "undefined" || isRestoringDraft || creating) return;
+
+      setAutoSaveStatus("saving");
+
+      try {
+        const payload = {
+          version: 1,
+          savedAt: new Date().toISOString(),
+          form,
+          ticketType,
+          visibility,
+          submissionTimezone,
+          schedules,
+          resources,
+          rules,
+          faqs,
+          galleryImages,
+          tracks,
+          prizes,
+          rolePasswords,
+          roleLabels,
+          organizerEmails,
+        };
+
+        window.localStorage.setItem(
+          CREATE_DRAFT_STORAGE_KEY,
+          JSON.stringify(payload)
+        );
+
+        const savedAt = new Date(payload.savedAt);
+        setLastAutoSavedAt(savedAt);
+        setAutoSaveStatus("saved");
+      } catch (error) {
+        console.error("Failed to auto-save event draft", error);
+        setAutoSaveStatus("error");
+      }
+    },
+    [
+      isRestoringDraft,
+      creating,
+      form,
+      ticketType,
+      visibility,
+      submissionTimezone,
+      schedules,
+      resources,
+      rules,
+      faqs,
+      galleryImages,
+      tracks,
+      prizes,
+      rolePasswords,
+      roleLabels,
+      organizerEmails,
+    ],
+    AUTO_SAVE_DEBOUNCE_MS
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const stored = window.localStorage.getItem(PREFILL_STORAGE_KEY);
       if (!stored) return;
       const parsed = JSON.parse(stored);
       if (!parsed || typeof parsed !== "object") return;
@@ -426,7 +654,7 @@ export default function NewEventPage() {
     } catch (error) {
       console.error("Failed to load event prefill", error);
     } finally {
-      window.localStorage.removeItem("mentorMates-event-prefill");
+      window.localStorage.removeItem(PREFILL_STORAGE_KEY);
     }
   }, [toast]);
 
@@ -498,6 +726,7 @@ export default function NewEventPage() {
         title: "Event saved as draft",
         description: `${data.event.event_name} has been saved as a draft.`,
       });
+      clearCreateDraft();
       router.push(`/events/${data.event.slug || data.event.event_id}/overview`);
     } catch {
       toast({
@@ -576,6 +805,7 @@ export default function NewEventPage() {
       }
       
       // Store event ID and slug, then show approval modal
+      clearCreateDraft();
       setCreatedEventId(data.event.event_id);
       setCreatedEventSlug(data.event.slug || null);
       setShowApprovalModal(true);
@@ -657,6 +887,7 @@ export default function NewEventPage() {
       }
       
       // Store event ID and slug, then navigate to event page
+      clearCreateDraft();
       setCreatedEventId(data.event.event_id);
       setCreatedEventSlug(data.event.slug || null);
       router.push(`/events/${data.event.slug || data.event.event_id}/overview`);
@@ -898,7 +1129,23 @@ export default function NewEventPage() {
             </h1>
 
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4 w-full sm:w-auto">
-              
+              {!isRestoringDraft && (
+                <p className="text-xs text-gray-500 sm:text-right">
+                  {autoSaveStatus === "saving"
+                    ? "Autosaving draft..."
+                    : autoSaveStatus === "error"
+                      ? "Autosave failed"
+                      : autoSaveStatus === "saved" && lastAutoSavedAt
+                        ? `Draft autosaved at ${lastAutoSavedAt.toLocaleTimeString(
+                            [],
+                            {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            }
+                          )}`
+                        : "Autosave is on"}
+                </p>
+              )}
 
               <div className="flex gap-2 w-full sm:w-auto">
                 <Button

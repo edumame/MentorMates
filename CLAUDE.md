@@ -119,6 +119,14 @@ app/
 - Config: `@/lib/config/*`
 - Types: `@/lib/types/*`
 
+**Debounce and Autosave:**
+- Use the shared `useDebouncedEffect` hook from `@/lib/hooks/use-debounced-effect` for debounced side effects.
+- Keep autosave business logic local to the feature/screen, and only centralize debounce timing.
+- Prefer this pattern over ad-hoc `setTimeout`/`clearTimeout` blocks in individual components.
+- Typical delays in this codebase are `1500ms` to `2000ms` depending on UX sensitivity.
+- Example:
+  - `useDebouncedEffect(() => { void handleAutoSave(); }, [formData], 2000);`
+
 **Database Operations:**
 - Use TypeScript types from `lib/database.types.ts`
 - Prefer server-side operations for sensitive data
