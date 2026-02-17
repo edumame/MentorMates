@@ -28,7 +28,6 @@ import { PricingTab } from "@/features/user/dashboards/dashboard/organizer/prici
 import EmailDashboard from "@/features/user/dashboards/dashboard/organizer/notifications/EmailDashboard";
 import { EmailTab } from "@/features/user/dashboards/dashboard/organizer/email";
 import { ProjectImport } from "@/features/user/dashboards/dashboard/organizer/import/ProjectImportButton";
-import { SessionsTab } from "@/features/user/dashboards/dashboard/organizer/sessions/SessionsTab";
 import { AgentsTab } from "@/features/user/dashboards/dashboard/organizer/agents/AgentsTab";
 
 // Import sub-tab components for Overview
@@ -92,7 +91,6 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
     { value: "live-scores", label: "Live Scores" },
     { value: "ticketing", label: "Ticketing" },
     { value: "notify", label: "Notify" },
-    { value: "sessions", label: "Sessions" },
     { value: "agents", label: "Agents" },
   ];
 
@@ -697,7 +695,14 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
 
                 {/* Other Main Tabs */}
                 <TabsContent value="participants" className="mt-0 w-full">
-                  <ParticipantsTab eventId={eventId} />
+                  {event && (
+                    <ParticipantsTab 
+                      eventId={eventId} 
+                      event={event}
+                      setEvent={setEvent}
+                      isArchived={event.visibility === "archived"}
+                    />
+                  )}
                 </TabsContent>
 
                 <TabsContent value="access" className="mt-0 w-full">
@@ -789,10 +794,6 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                       </div>
                     </div>
                   )}
-                </TabsContent>
-
-                <TabsContent value="sessions" className="mt-0 w-full">
-                  <SessionsTab eventId={eventId} event={event} setEvent={setEvent} />
                 </TabsContent>
 
                 <TabsContent value="agents" className="mt-0 w-full">

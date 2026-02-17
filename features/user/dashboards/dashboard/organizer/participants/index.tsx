@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/lib/supabase";
-import { EventRole } from "@/lib/types";
+import { EventRole, EventDetails } from "@/lib/types";
 import Papa from "papaparse";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,8 @@ import { ChevronLeft, ChevronRight, Download, Copy, Trash2 } from "lucide-react"
 import { useToast } from "@/lib/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
+import { ApprovalRequestsTab } from "./ApprovalRequestsTab";
+import { ApprovalSettingsTab } from "./ApprovalSettingsTab";
 
 interface UserEventRoleWithProfile {
   user_id: string;
@@ -31,6 +34,9 @@ interface Participant {
 
 interface ParticipantsTabProps {
   eventId: string;
+  event: EventDetails;
+  setEvent: React.Dispatch<React.SetStateAction<EventDetails | null>>;
+  isArchived: boolean;
 }
 
 interface ProjectRow {
@@ -38,7 +44,7 @@ interface ProjectRow {
   teammates: string[] | null;
 }
 
-export function ParticipantsTab({ eventId }: ParticipantsTabProps) {
+export function ParticipantsTab({ eventId, event, setEvent, isArchived }: ParticipantsTabProps) {
   const PAGE_SIZE = 10;
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [loading, setLoading] = useState(true);
@@ -260,6 +266,8 @@ export function ParticipantsTab({ eventId }: ParticipantsTabProps) {
     }
   };
 
+  const [activeTab, setActiveTab] = useState("list");
+
   return (
     <Card className="border-0 bg-transparent shadow-none">
       <CardHeader className="flex flex-row items-center justify-between gap-3">
@@ -307,134 +315,157 @@ export function ParticipantsTab({ eventId }: ParticipantsTabProps) {
       </CardHeader>
 
       <CardContent>
-        <div className="space-y-4">
-          {loading ? (
-            <div>Loading participants...</div>
-          ) : (
-            <>
-              <div className="rounded-lg border bg-card">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Role</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {pagedParticipants.map((participant) => (
-                      <TableRow
-                        key={participant.user_id}
-                        onClick={() => {
-                          if (!participant.user_id.startsWith("project-")) {
-                            navigateToProfile(participant.user_id);
-                          }
-                        }}
-                        className={
-                          !participant.user_id.startsWith("project-")
-                            ? "cursor-pointer hover:bg-gray-50"
-                            : "cursor-default"
-                        }
-                      >
-                        <TableCell>{participant.display_name}</TableCell>
-                        <TableCell>{participant.email}</TableCell>
-                        <TableCell onClick={(e) => e.stopPropagation()}>
-                          {!participant.user_id.startsWith("project-") ? (
-                            <Select
-                              value={participant.role}
-                              onValueChange={(val) =>
-                                handleChangeRole(participant.user_id, val as EventRole)
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="list">Participant List</TabsTrigger>
+            <TabsTrigger value="approval-requests">Approval Requests</TabsTrigger>
+            <TabsTrigger value="approval-settings">Approval Settings</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="list" className="mt-6">
+            <div className="space-y-4">
+              {loading ? (
+                <div>Loading participants...</div>
+              ) : (
+                <>
+                  <div className="rounded-lg border bg-card">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Email</TableHead>
+                          <TableHead>Role</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {pagedParticipants.map((participant) => (
+                          <TableRow
+                            key={participant.user_id}
+                            onClick={() => {
+                              if (!participant.user_id.startsWith("project-")) {
+                                navigateToProfile(participant.user_id);
                               }
+                            }}
+                            className={
+                              !participant.user_id.startsWith("project-")
+                                ? "cursor-pointer hover:bg-gray-50"
+                                : "cursor-default"
+                            }
+                          >
+                            <TableCell>{participant.display_name}</TableCell>
+                            <TableCell>{participant.email}</TableCell>
+                            <TableCell onClick={(e) => e.stopPropagation()}>
+                              {!participant.user_id.startsWith("project-") ? (
+                                <Select
+                                  value={participant.role}
+                                  onValueChange={(val) =>
+                                    handleChangeRole(participant.user_id, val as EventRole)
+                                  }
+                                >
+                                  <SelectTrigger className="w-[180px]">
+                                    <SelectValue placeholder="Select role" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value={EventRole.Participant}>Participant</SelectItem>
+                                    <SelectItem value={EventRole.Mentor}>Mentor</SelectItem>
+                                    <SelectItem value={EventRole.Judge}>Judge</SelectItem>
+                                    <SelectItem value={EventRole.Organizer}>Organizer</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              ) : (
+                                <span className="capitalize">{participant.role}</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                              {!participant.user_id.startsWith("project-") && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-red-600 hover:text-red-700"
+                                  onClick={() => handleRemove(participant.user_id)}
+                                  aria-label={`Remove ${participant.display_name}`}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3 pt-4">
+                    <Button
+                      variant="secondary"
+                      size="default"
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      disabled={clampedCurrentPage === 1}
+                      className="min-w-[110px]"
+                    >
+                      <ChevronLeft className="mr-2 h-4 w-4" />
+                      Prev
+                    </Button>
+
+                    <div className="flex items-center justify-center gap-2">
+                      {getPageItems().map((item, idx) => {
+                        if (item === "ellipsis") {
+                          return (
+                            <span
+                              key={`ellipsis-${idx}`}
+                              className="px-2 text-sm text-muted-foreground"
+                              aria-hidden="true"
                             >
-                              <SelectTrigger className="w-[180px]">
-                                <SelectValue placeholder="Select role" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value={EventRole.Participant}>Participant</SelectItem>
-                                <SelectItem value={EventRole.Mentor}>Mentor</SelectItem>
-                                <SelectItem value={EventRole.Judge}>Judge</SelectItem>
-                                <SelectItem value={EventRole.Organizer}>Organizer</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          ) : (
-                            <span className="capitalize">{participant.role}</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                          {!participant.user_id.startsWith("project-") && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-red-600 hover:text-red-700"
-                              onClick={() => handleRemove(participant.user_id)}
-                              aria-label={`Remove ${participant.display_name}`}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+                              …
+                            </span>
+                          );
+                        }
+                        const isActive = item === clampedCurrentPage;
+                        return (
+                          <Button
+                            key={item}
+                            variant={isActive ? "outline" : "ghost"}
+                            size="icon"
+                            className="h-9 w-9"
+                            onClick={() => setCurrentPage(item)}
+                            aria-current={isActive ? "page" : undefined}
+                          >
+                            {item}
+                          </Button>
+                        );
+                      })}
+                    </div>
 
-              <div className="flex items-center justify-between gap-3 pt-4">
-                <Button
-                  variant="secondary"
-                  size="default"
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  disabled={clampedCurrentPage === 1}
-                  className="min-w-[110px]"
-                >
-                  <ChevronLeft className="mr-2 h-4 w-4" />
-                  Prev
-                </Button>
+                    <Button
+                      variant="secondary"
+                      size="default"
+                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={clampedCurrentPage === totalPages}
+                      className="min-w-[110px]"
+                    >
+                      Next
+                      <ChevronRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </div>
+                </>
+              )}
+            </div>
+          </TabsContent>
 
-                <div className="flex items-center justify-center gap-2">
-                  {getPageItems().map((item, idx) => {
-                    if (item === "ellipsis") {
-                      return (
-                        <span
-                          key={`ellipsis-${idx}`}
-                          className="px-2 text-sm text-muted-foreground"
-                          aria-hidden="true"
-                        >
-                          …
-                        </span>
-                      );
-                    }
-                    const isActive = item === clampedCurrentPage;
-                    return (
-                      <Button
-                        key={item}
-                        variant={isActive ? "outline" : "ghost"}
-                        size="icon"
-                        className="h-9 w-9"
-                        onClick={() => setCurrentPage(item)}
-                        aria-current={isActive ? "page" : undefined}
-                      >
-                        {item}
-                      </Button>
-                    );
-                  })}
-                </div>
+          <TabsContent value="approval-requests" className="mt-6">
+            <ApprovalRequestsTab eventId={eventId} isArchived={isArchived} />
+          </TabsContent>
 
-                <Button
-                  variant="secondary"
-                  size="default"
-                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={clampedCurrentPage === totalPages}
-                  className="min-w-[110px]"
-                >
-                  Next
-                  <ChevronRight className="ml-2 h-4 w-4" />
-                </Button>
-              </div>
-            </>
-          )}
-        </div>
+          <TabsContent value="approval-settings" className="mt-6">
+            <ApprovalSettingsTab
+              eventId={eventId}
+              event={event}
+              setEvent={setEvent}
+              isArchived={isArchived}
+            />
+          </TabsContent>
+        </Tabs>
       </CardContent>
     </Card>
   );

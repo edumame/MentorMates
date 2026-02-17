@@ -1,3 +1,4 @@
+import { getEmbedUrl } from "@/components/utils";
 import { data } from "@/lib/NavigateMMData";
 import { X } from "lucide-react";
 
@@ -28,19 +29,25 @@ export function NavigateMM({ onClose }: NavigateMMProps) {
       </p>
 
       <div className="flex flex-row gap-2 mt-4">
-        {data.map((item) => (
-          <div key={item.id} className="flex flex-col gap-2 flex-1 min-w-0">
-            <div className="aspect-video w-full rounded-lg overflow-hidden bg-black">
-              <iframe
-                src={item.source}
-                title={item.title}
-                className="w-full h-full min-h-[120px] rounded-lg"
-                allowFullScreen
-              />
+        {data.map((item) => {
+          const embedUrl = getEmbedUrl(item.url);
+          if (!embedUrl) {
+            return null;
+          }
+          return (
+            <div key={item.id} className="flex flex-col gap-2 flex-1 min-w-0">
+              <div className="aspect-video w-full rounded-lg overflow-hidden bg-black">
+                <iframe
+                  src={embedUrl}
+                  title={item.title}
+                  className="w-full h-full min-h-[120px] rounded-lg"
+                  allowFullScreen
+                />
+              </div>
+              <p className="text-sm">{item.title}</p>
             </div>
-            <p className="text-sm">{item.title}</p>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

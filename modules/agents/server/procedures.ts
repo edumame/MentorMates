@@ -168,4 +168,63 @@ export const agentsRouter = createTRPCRouter({
         if (!updatedAgent) throw new TRPCError({ code: "NOT_FOUND", message: "Agent not found" });
         return updatedAgent;
     }),
+
+    updateEventSessionCaps: protectedProcedure
+        .input(
+            z.object({
+                eventId: z.string().min(1, { message: "eventId is required" }),
+                sessionCaps: z.record(z.unknown()),
+            })
+        )
+        .mutation(async ({ ctx, input }) => {
+            const supabase = ctx.supabase;
+            const userId = ctx.auth.user.id;
+
+            // Permission check mirrors organizer-level access:
+            // event owner, organizer/admin role on the event, or platform admin.
+            const { data: isAdmin } = await supabase.rpc("is_admin_user", {
+                user_id: userId,
+            });
+
+            let canEdit = Boolean(isAdmin);
+
+            if (!canEdit) {
+                const { data: eventRow, error: eventErr } = await supabase
+                    .from("events")
+                    .select("owner_id")
+                    .eq("event_id", input.eventId)
+                    .maybeSingle();
+                if (eventErr) throw eventErr;
+
+                if (eventRow?.owner_id && String(eventRow.owner_id) === String(userId)) {
+                    canEdit = true;
+                } else {
+                    const { data: roleRow, error: roleErr } = await supabase
+                        .from("user_event_roles")
+                        .select("role")
+                        .eq("event_id", input.eventId)
+                        .eq("user_id", userId)
+                        .in("role", ["organizer", "admin"])
+                        .maybeSingle();
+                    if (roleErr) throw roleErr;
+                    canEdit = Boolean(roleRow?.role);
+                }
+            }
+
+            if (!canEdit) {
+                throw new TRPCError({
+                    code: "FORBIDDEN",
+                    message: "You don't have permission to update session caps for this event.",
+                });
+            }
+
+            const { error } = await supabase
+                .from("events")
+                .update({ session_caps: input.sessionCaps })
+                .eq("event_id", input.eventId);
+
+            if (error) throw error;
+
+            return { ok: true };
+        }),
 });
