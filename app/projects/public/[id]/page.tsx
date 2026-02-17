@@ -30,7 +30,7 @@ import { useProjectLike } from "@/features/projects/hooks/use-project-like";
 import { toast } from "@/lib/hooks/use-toast";
 import { Toaster } from "@/components/ui/toaster";
 import { ProjectScoringForm } from "@/components/project-scoring/project-scoring-form";
-import { EventRole, EventTrack, TrackScoringConfig } from "@/lib/types";
+import { EventRole, EventTrack, EventVisibility, TrackScoringConfig } from "@/lib/types";
 import { VideoEmbed, canEmbed } from "@/components/utils";
 import { canAccessRole } from "@/features/user/roles/roles";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
@@ -110,7 +110,17 @@ export default function PublicProjectPage() {
       if (error) {
         // Error handled
       } else {
-        setProject(data);
+        // Ensure the project belongs to a public event.
+        const { data: eventMeta, error: eventMetaError } = await supabase
+          .from("events")
+          .select("visibility")
+          .eq("event_id", data.event_id)
+          .maybeSingle();
+
+        const isEventPublic =
+          !eventMetaError && eventMeta?.visibility === EventVisibility.Public;
+
+        setProject(isEventPublic ? data : null);
       }
       
       setIsLoading(false);

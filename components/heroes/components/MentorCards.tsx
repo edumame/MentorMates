@@ -11,7 +11,8 @@ import {
   MoreVerticalIcon,
   PencilIcon,
   TrashIcon,
-  VideoIcon
+  VideoIcon,
+  MessageSquareIcon
 } from "lucide-react";
 import { UpdateMeetingDialog } from "@/modules/meetings/ui/components/update-meeting-dialog";
 import { supabase } from "@/lib/supabase";
@@ -274,7 +275,18 @@ export function MentorCards() {
             </div>
             <div>
               <div className="-mt-px flex divide-x divide-gray-200">
-                {(meeting.status === "upcoming" || meeting.status === "active") && meeting.project_id && (
+                {(meeting.status === "upcoming") && (meeting.project_id || !((meeting.agent as { requires_project?: boolean })?.requires_project === true)) && (
+                  <div className="-ml-px flex w-0 flex-1">
+                    <Link
+                      href={`/chat/${meeting.id}`}
+                      className="relative inline-flex w-0 flex-1 items-center justify-center gap-x-3 rounded-br-lg border border-transparent py-4 text-sm font-semibold text-gray-900"
+                    >
+                      <MessageSquareIcon aria-hidden="true" className="size-5 text-gray-400" />
+                      Chat
+                    </Link>
+                  </div>
+                )}
+                {(meeting.status === "upcoming" || meeting.status === "active") && (meeting.project_id || !((meeting.agent as { requires_project?: boolean })?.requires_project === true)) && (
                   <div className="-ml-px flex w-0 flex-1">
                     <Link
                       href={`/call/${meeting.id}`}
@@ -285,7 +297,7 @@ export function MentorCards() {
                     </Link>
                   </div>
                 )}
-                {(meeting.status === "upcoming" || meeting.status === "active") && !meeting.project_id && (
+                {(meeting.status === "upcoming" || meeting.status === "active") && !meeting.project_id && ((meeting.agent as { requires_project?: boolean })?.requires_project === true) && (
                   <div className="-ml-px flex w-0 flex-1">
                     <div className="relative inline-flex w-0 flex-1 items-center justify-center gap-x-3 rounded-br-lg border border-transparent py-4 text-sm font-semibold text-gray-900">
                       Please select a project to start the session

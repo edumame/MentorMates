@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useTransition } from "react";
+import { useRef, useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import { usePathname } from "next/navigation";
@@ -28,7 +28,6 @@ import { PricingTab } from "@/features/user/dashboards/dashboard/organizer/prici
 import EmailDashboard from "@/features/user/dashboards/dashboard/organizer/notifications/EmailDashboard";
 import { EmailTab } from "@/features/user/dashboards/dashboard/organizer/email";
 import { ProjectImport } from "@/features/user/dashboards/dashboard/organizer/import/ProjectImportButton";
-import { SessionsTab } from "@/features/user/dashboards/dashboard/organizer/sessions/SessionsTab";
 import { AgentsTab } from "@/features/user/dashboards/dashboard/organizer/agents/AgentsTab";
 
 // Import sub-tab components for Overview
@@ -78,6 +77,10 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
   const activeTab = searchParams.get("tab") || "overview";
   const activeSubTab = searchParams.get("subtab") || "basics";
 
+  const basicInfoSaveHandlerRef = useRef<null | (() => Promise<void> | void)>(
+    null
+  );
+
   const [participantCount, setParticipantCount] = useState<number>(0);
   const [isAdmin, setIsAdmin] = useState(false);
 
@@ -86,13 +89,12 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
     { value: "overview", label: "Overview" },
     { value: "participants", label: "Participants", badge: participantCount },
     { value: "access", label: "Access" },
-    { value: "tracks", label: "Tracks" },
+    { value: "tracks", label: "Tracks & prizes" },
     { value: "assign", label: "Assign" },
     { value: "project-submission", label: "Project Submission" },
     { value: "live-scores", label: "Live Scores" },
     { value: "ticketing", label: "Ticketing" },
     { value: "notify", label: "Notify" },
-    { value: "sessions", label: "Sessions" },
     { value: "agents", label: "Agents" },
   ];
 
@@ -548,6 +550,26 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
+
+                {/* Update Event (Save Changes) */}
+                {activeTab === "overview" && activeSubTab === "basics" && (
+                  <Button
+                    variant="default"
+                    className="gap-1.5 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium flex-1 sm:flex-none bg-[#4b89ef] hover:bg-[#3d75d9]"
+                    disabled={
+                      saving ||
+                      archiving ||
+                      deleting ||
+                      event.visibility === EventVisibility.Archived ||
+                      !basicInfoSaveHandlerRef.current
+                    }
+                    onClick={() => {
+                      void basicInfoSaveHandlerRef.current?.();
+                    }}
+                  >
+                    <span>{saving ? "Updating..." : "Update Event"}</span>
+                  </Button>
+                )}
               </div>
             </div>
           </div>
@@ -559,7 +581,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
             className="flex flex-col lg:flex-1 lg:min-h-0"
           >
             <div
-              className="w-full overflow-x-auto -mx-4 sm:-mx-6 lg:-mx-10 px-4 sm:px-6 lg:px-10 mb-6 flex-shrink-0"
+              className="w-full overflow-x-auto no-scrollbar -mx-4 sm:-mx-6 lg:-mx-10 px-4 sm:px-6 lg:px-10 mb-6 flex-shrink-0"
               style={{ WebkitOverflowScrolling: "touch" }}
             >
               <TabsList className="flex h-auto gap-4 sm:gap-6 items-center border-b border-[#d2d7e7] p-0 justify-start bg-transparent rounded-none flex-nowrap min-w-max">
@@ -597,14 +619,10 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                     onValueChange={(value) => setActiveSubTab(value)}
                   >
                     <div
-                      className="w-screen -mx-4 sm:-mx-6 lg:w-full lg:mx-0 overflow-x-auto overflow-y-visible px-4 sm:px-6 lg:px-0 mb-6"
-                      style={{
-                        WebkitOverflowScrolling: "touch",
-                        scrollbarWidth: "thin",
-                        msOverflowStyle: "-ms-autohiding-scrollbar",
-                      }}
+                      className="w-screen -mx-4 sm:-mx-6 lg:w-full lg:mx-0 overflow-x-auto no-scrollbar overflow-y-visible px-4 sm:px-6 lg:px-0 mb-6"
+                      style={{ WebkitOverflowScrolling: "touch" }}
                     >
-                      <TabsList className="inline-flex h-auto gap-2 bg-transparent p-0 justify-start pb-1 items-center flex-nowrap">
+                      <TabsList className="inline-flex h-auto gap-2 bg-transparent p-0 justify-start pb-1 items-center flex-nowrap min-w-max">
                         {overviewSubTabs.map((subTab) => (
                           <TabsTrigger
                             key={subTab.value}
@@ -628,6 +646,9 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                             setSaving={setSaving}
                             toast={toast}
                             router={router}
+                            registerSaveHandler={(fn) => {
+                              basicInfoSaveHandlerRef.current = fn;
+                            }}
                           />
                         )}
                       </TabsContent>
@@ -697,7 +718,14 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
 
                 {/* Other Main Tabs */}
                 <TabsContent value="participants" className="mt-0 w-full">
-                  <ParticipantsTab eventId={eventId} />
+                  {event && (
+                    <ParticipantsTab 
+                      eventId={eventId} 
+                      event={event}
+                      setEvent={setEvent}
+                      isArchived={event.visibility === "archived"}
+                    />
+                  )}
                 </TabsContent>
 
                 <TabsContent value="access" className="mt-0 w-full">
@@ -789,10 +817,6 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                       </div>
                     </div>
                   )}
-                </TabsContent>
-
-                <TabsContent value="sessions" className="mt-0 w-full">
-                  <SessionsTab eventId={eventId} event={event} setEvent={setEvent} />
                 </TabsContent>
 
                 <TabsContent value="agents" className="mt-0 w-full">

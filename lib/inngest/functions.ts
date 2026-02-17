@@ -77,6 +77,18 @@ export const meetingsProcessing = inngest.createFunction(
 
     const supabase = await createSupabaseServiceClient();
     const response = await step.run("fetch-transcript", async () => {
+      // Support either a transcript URL (original flow) or a raw transcriptText
+      // If `transcriptText` is provided on the event, use it directly. This
+      // avoids calling `fetch(undefined)` which causes a runtime error when
+      // `transcriptUrl` is missing.
+      if (event.data && event.data.transcriptText) {
+        return event.data.transcriptText as string;
+      }
+
+      if (!event.data || !event.data.transcriptUrl) {
+        throw new Error("Missing transcriptUrl and transcriptText on event data");
+      }
+
       return fetch(event.data.transcriptUrl).then((res) => res.text());
     });
 

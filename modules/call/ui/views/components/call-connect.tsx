@@ -31,6 +31,7 @@ export const CallConnect = ({
 }: Props) => {
     const trpc = useTRPC();
     const { mutateAsync: generateToken } = useMutation(trpc.meetings.generateToken.mutationOptions());
+    const { mutateAsync: ensureCallExists } = useMutation(trpc.meetings.ensureCallExists.mutationOptions());
 
     const [client, setClient] = useState<StreamVideoClient>();
     useEffect(() => {
@@ -53,25 +54,38 @@ export const CallConnect = ({
     }, [userId, userName, userImage, generateToken]);
 
     const [call, setCall] = useState<Call>();
+    const [isEnsuring, setIsEnsuring] = useState(false);
 
     useEffect(() => {
         if (!client) return;
 
-        const _call = client.call("default", meetingId);
-        _call.camera.disable();
-        _call.microphone.disable();
-        setCall(_call);
+        const setupCall = async () => {
+            try {
+                setIsEnsuring(true);
+                // Ensure the Stream.io call exists before trying to join
+                await ensureCallExists({ id: meetingId });
+
+                const _call = client.call("default", meetingId);
+                _call.camera.disable();
+                _call.microphone.disable();
+                setCall(_call);
+            } finally {
+                setIsEnsuring(false);
+            }
+        };
+
+        setupCall();
 
         return () => {
-            if (_call.state.callingState !== CallingState.LEFT) {
-                _call.leave();
-                _call.endCall();
+            if (call && call.state.callingState !== CallingState.LEFT) {
+                call.leave();
+                call.endCall();
                 setCall(undefined);
             };
         };
-    }, [client, meetingId]);
+    }, [client, meetingId, ensureCallExists]);
 
-    if (!client || !call) {
+    if (!client || !call || isEnsuring) {
         return (
             <div className="flex h-screen items-center justify-center bg-radial from-sidebar-accent to-sidebar">
                 <LoaderIcon className="size-6 animate-spin text-white" />

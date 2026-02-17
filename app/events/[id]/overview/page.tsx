@@ -11,6 +11,14 @@ interface PageProps {
   params: Promise<{ id: string }>;
 }
 
+interface EventJudge {
+  id: string;
+  name: string;
+  bio?: string | null;
+  avatarUrl?: string | null;
+  affiliation?: string | null;
+}
+
 export default async function EventOverviewPage({ params }: PageProps) {
   const { id } = await Promise.resolve(params);
   const supabase = await createSupabaseClient();
@@ -70,6 +78,34 @@ export default async function EventOverviewPage({ params }: PageProps) {
   (typedEvent as EventDetails & { event_lessons?: Lesson[] }).event_lessons = (lessonsData || []) as Lesson[];
   const tracks = (tracksData || []) as EventTrack[];
 
+  const { data: judgesData } = await supabase
+    .from("user_event_roles")
+    .select(
+      "user_id, user_profiles!user_id(uid, display_name, bio, avatar_url, affiliation)"
+    )
+    .eq("event_id", eventData.event_id)
+    .eq("role", "judge");
+
+  const judges: EventJudge[] = (judgesData || []).flatMap((judgeRecord) => {
+      const profile = Array.isArray(judgeRecord.user_profiles)
+        ? judgeRecord.user_profiles[0]
+        : judgeRecord.user_profiles;
+
+      if (!profile?.uid || !profile?.display_name) {
+        return [];
+      }
+
+      return [
+        {
+          id: profile.uid,
+          name: profile.display_name,
+          bio: profile.bio ?? null,
+          avatarUrl: profile.avatar_url ?? null,
+          affiliation: profile.affiliation ?? null,
+        },
+      ];
+    });
+
   // Check if user has joined and get their role
   const {
     data: { user },
@@ -109,6 +145,7 @@ export default async function EventOverviewPage({ params }: PageProps) {
         tracks={tracks}
         hasJoined={hasJoined}
         userRole={userRole}
+        judges={judges}
       />
 
       {/* Sidebar */}

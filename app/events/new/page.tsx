@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { EventSearchInput } from "@/components/ui/event-search-input";
 import { useToast } from "@/lib/hooks/use-toast";
 import { DatePicker } from "@/components/ui/date-picker";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
@@ -38,7 +39,6 @@ import {
   Upload,
   ArrowUpRight,
   Clock,
-  Search,
   Plus,
   Link2,
   Trash2,
@@ -1779,8 +1779,7 @@ export default function NewEventPage() {
                                     Add guests
                                   </label>
                                   <div className="relative">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
-                                    <Input
+                                    <EventSearchInput
                                       value={scheduleForm.guests}
                                       onChange={(e) =>
                                         setScheduleForm((prev) => ({
@@ -1789,29 +1788,32 @@ export default function NewEventPage() {
                                         }))
                                       }
                                       placeholder="Search guests"
-                                      className="h-[44px] pl-11 pr-32 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+                                      inputClassName="h-[44px] rounded-[12px] pr-32 text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:border-[rgba(0,0,0,0.15)] focus:ring-2 focus:ring-blue-500 sm:text-[16px]"
+                                      iconWrapperClassName="text-gray-600"
+                                      rightAdornment={
+                                        <div className="flex items-center gap-2">
+                                          <button
+                                            type="button"
+                                            className="whitespace-nowrap text-[14px] text-[#4b89ef] hover:underline"
+                                          >
+                                            Invite guest
+                                          </button>
+                                          <svg
+                                            className="h-5 w-5 text-gray-400"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                          >
+                                            <path
+                                              strokeLinecap="round"
+                                              strokeLinejoin="round"
+                                              strokeWidth={2}
+                                              d="M19 9l-7 7-7-7"
+                                            />
+                                          </svg>
+                                        </div>
+                                      }
                                     />
-                                    <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                                      <button
-                                        type="button"
-                                        className="text-[14px] text-[#4b89ef] hover:underline whitespace-nowrap"
-                                      >
-                                        Invite guest
-                                      </button>
-                                      <svg
-                                        className="w-5 h-5 text-gray-400"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 24 24"
-                                      >
-                                        <path
-                                          strokeLinecap="round"
-                                          strokeLinejoin="round"
-                                          strokeWidth={2}
-                                          d="M19 9l-7 7-7-7"
-                                        />
-                                      </svg>
-                                    </div>
                                   </div>
                                 </div>
 

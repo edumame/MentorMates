@@ -125,6 +125,7 @@ export type EventItem = {
   featured?: boolean; // Whether this event is featured on homepage
   approval_status?: ApprovalStatus; // Approval status: not_submitted, submitted, approved, or rejected. Featured is controlled separately via the featured boolean field.
   created_at?: string; // Timestamp when event was created
+  require_participant_approval?: boolean; // Whether participants need approval to join
 };
 
 export interface EventApprovalLog {
@@ -204,6 +205,14 @@ export interface Lesson {
 export interface Rule {
   title: string;
   items: string[];
+}
+
+export interface EventTicket {
+  ticket_status: string;
+  assigned_to_user_id: string;
+  event_id: string;
+  payment_id: string;
+  purchased_by_user_id: string;
 }
 
 export interface EventTrack {
@@ -425,4 +434,39 @@ export interface DevpostProjectImport {
   event_id: string;
   video_url?: string;
   teammates?: string[];
+}
+
+// Participant Approval Types
+export enum ParticipantRequestStatus {
+  Pending = "pending",
+  Approved = "approved",
+  Rejected = "rejected",
+  Withdrawn = "withdrawn",
+}
+
+export interface ParticipantApprovalRequest {
+  id: string;
+  event_id: string;
+  user_id: string;
+  requested_role: EventRole;
+  status: ParticipantRequestStatus;
+  reason?: string;
+  form_responses?: Record<string, unknown>;
+  reviewed_by?: string;
+  reviewed_at?: string;
+  rejection_reason?: string;
+  created_at: string;
+  updated_at: string;
+  // Joined fields from user_profiles
+  user_profile?: {
+    uid: string;
+    display_name: string;
+    email?: string;
+    avatar_url?: string;
+  };
+  // Joined fields for reviewer
+  reviewer_profile?: {
+    uid: string;
+    display_name: string;
+  };
 }
