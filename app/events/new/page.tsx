@@ -872,16 +872,18 @@ export default function NewEventPage() {
         RESOURCE_FORM_STRING_KEYS
       );
 
-      if (isRecord(parsed.rulesForm)) {
+      const parsedRulesForm = parsed.rulesForm;
+      if (isRecord(parsedRulesForm)) {
         restoreStringFields(
-          parsed.rulesForm,
+          parsedRulesForm,
           setRulesForm,
           RULES_FORM_STRING_KEYS
         );
-        if (Array.isArray(parsed.rulesForm.rules)) {
+        const parsedRules = parsedRulesForm.rules;
+        if (Array.isArray(parsedRules)) {
           setRulesForm((prev) => ({
             ...prev,
-            rules: parsed.rulesForm.rules.filter(
+            rules: parsedRules.filter(
               (rule): rule is string => typeof rule === "string"
             ),
           }));
