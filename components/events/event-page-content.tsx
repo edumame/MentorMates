@@ -218,7 +218,7 @@ export function EventPageContent({
 
       {/* Tracks */}
       {tracks.length > 0 && (
-        <Card className="shadow-lg rounded-lg mb-8">
+        <Card className="shadow-lg rounded-lg mt-6 mb-8">
           <CardHeader className="pb-4">
             <CardTitle className="text-2xl font-semibold text-gray-800">
               Prizes & Tracks
