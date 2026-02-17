@@ -3,6 +3,7 @@ import Image from "next/image";
 import ScreenCapture from "./screen-capture";
 import { SpeakerLayout, CallControls } from "@stream-io/video-react-sdk";
 import { useCallback, useState, useEffect, useRef } from "react";
+import { useCallStateHooks } from "@stream-io/video-react-sdk";
 
 interface Props {
   onLeave: () => void;
@@ -12,7 +13,25 @@ interface Props {
 
 export const CallActive = ({ onLeave, meetingName, meetingId }: Props) => {
   const [disabled, setDisabled] = useState(false);
-  const [paused, setPaused] = useState(false);
+  const [paused, setPaused] = useState(true);
+  const [hasSpoken, setHasSpoken] = useState(false);
+  // obtain microphone state hook from the SDK
+  const { useMicrophoneState } = useCallStateHooks();
+  type MicrophoneState = {
+    isEnabled?: boolean;
+    isPublishing?: boolean;
+    isOn?: boolean;
+    isMuted?: boolean;
+    enabled?: boolean;
+    hasBrowserPermission?: boolean;
+  };
+  const micState: MicrophoneState = (useMicrophoneState?.() as MicrophoneState) ?? {};
+  const micOn =
+    micState.isEnabled === true ||
+    micState.isPublishing === true ||
+    micState.isOn === true ||
+    micState.isMuted === false ||
+    micState.enabled === true;
 
   // Agent-only captions state (sourced from worker)
   const [captions, setCaptions] = useState<string>("");
@@ -33,6 +52,9 @@ export const CallActive = ({ onLeave, meetingName, meetingId }: Props) => {
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
+      if (paused) {
+        setHasSpoken(false);
+      }
       setPaused(!paused);
     } catch (err) {
       console.error(err);
@@ -41,6 +63,56 @@ export const CallActive = ({ onLeave, meetingName, meetingId }: Props) => {
     // brief disabled/loading state so the user sees the button was pressed
     setTimeout(() => setDisabled(false), 400);
   }, [meetingId, disabled, paused]);
+
+  useEffect(() => {
+    // only monitor when paused, hasn't spoken yet, and mic is turned on via CallControls
+    if (!paused || hasSpoken || !micOn) return;
+
+    let audioCtx: AudioContext | null = null;
+    let mediaStream: MediaStream | null = null;
+    let raf = 0;
+
+    const startMonitor = async () => {
+      try {
+        mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const src = audioCtx.createMediaStreamSource(mediaStream);
+        const analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 2048;
+        src.connect(analyser);
+        const data = new Uint8Array(analyser.fftSize);
+
+        const check = () => {
+          analyser.getByteTimeDomainData(data);
+          // compute peak deviation from midpoint (128)
+          let max = 0;
+          for (let i = 0; i < data.length; i++) {
+            const v = Math.abs(data[i] - 128);
+            if (v > max) max = v;
+          }
+          // threshold tuned to detect speech without being too sensitive
+          if (max > 18) {
+            setHasSpoken(true);
+            return;
+          }
+          raf = requestAnimationFrame(check);
+        };
+
+        check();
+      } catch (err) {
+        console.log(err);
+      }
+    };
+
+    startMonitor();
+
+    return () => {
+      if (raf) cancelAnimationFrame(raf);
+      if (mediaStream) mediaStream.getTracks().forEach((t) => t.stop());
+      if (audioCtx) audioCtx.close().catch(() => {});
+    };
+  }, [paused, hasSpoken, micOn]);
 
   useEffect(() => {
     // nothing else needed here — we intentionally don't tie UI toggle to SDK calls
@@ -96,12 +168,15 @@ export const CallActive = ({ onLeave, meetingName, meetingId }: Props) => {
     const activeClass = pausedState
       ? "bg-white/10 text-white hover:bg-white/20"
       : "bg-red-600 text-white hover:bg-red-700";
-    const disabledClass = disabledState ? "opacity-60 pointer-events-none" : "";
+    // keep button disabled when paused AND there is no detected speech yet
+    const shouldDisableStart = pausedState && !hasSpoken;
+    const disabledClass = disabledState || shouldDisableStart ? "opacity-60 pointer-events-none" : "";
     const label = pausedState ? "Start Q&A" : "Pause Q&A";
     const title = label;
     return (
       <button
         type="button"
+        disabled={disabledState || (pausedState && !hasSpoken)}
         onClick={onClick}
         aria-label={label}
         title={title}

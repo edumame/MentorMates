@@ -10,6 +10,7 @@ type SessionRecord = {
   lastUpdatedAt?: string | null;
   lastSummary?: string | null;
   lastPushedAt?: number;
+  paused?: boolean;
 };
 
 type RealtimeVoice = string | { id: string };
@@ -276,17 +277,19 @@ app.post("/session/start", async (req: Request, res: Response) => {
     const sessionUpdate: Record<string, unknown> = {
       instructions,
       input_audio_transcription: { model: "whisper-1" },
-      turn_detection: { type: "server_vad" },
+      // Default to paused: user speaks first, then resumes to get a response.
+      turn_detection: null,
     };
     if (sessionVoice) sessionUpdate.voice = sessionVoice;
 
-    realtimeClient.updateSession(sessionUpdate as any);
+    realtimeClient.updateSession(sessionUpdate as any); // eslint-disable-line @typescript-eslint/no-explicit-any
 
     const record: SessionRecord = {
       realtimeClient,
       intervalId: null,
       lastUpdatedAt: null,
       lastSummary: null,
+      paused: true,
     };
     sessions.set(meetingId, record);
 
@@ -342,9 +345,10 @@ app.post("/session/start", async (req: Request, res: Response) => {
         // );
 
         try {
+          // Keep pause/resume sticky even when screen context updates.
           realtimeClient.updateSession({
             instructions: `${baseInstructions}\n\nLatest shared screen:\n${screen}\n`,
-            turn_detection: { type: "server_vad" },
+            turn_detection: record.paused ? null : { type: "server_vad" },
           });
           console.log(
             `[${meetingId}] updateSession OK: ${screen.slice(0, 120)}`
@@ -413,6 +417,7 @@ app.post("/session/pause", async (req: Request, res: Response) => {
 
     // send an update to the session to disable automatic response generation but keep VAD enabled
     try {
+      record.paused = true;
       realtimeClient.realtime.send("session.update", {
         session: {
           turn_detection: null,
@@ -445,6 +450,7 @@ app.post("/session/resume", async (req: Request, res: Response) => {
       return res.status(404).json({ error: "realtime client not found" });
 
     try {  
+      record.paused = false;
       if (!captionReady.has(meetingId)) {
         return res.json({ ok: false, waitingForCaptions: true });
       }
@@ -456,7 +462,7 @@ app.post("/session/resume", async (req: Request, res: Response) => {
         turn_detection: ({
           type: "server_vad",
         }),
-      })
+      });
     } catch (err) {
       console.error("/session/resume error on session update", err);
       res.status(500).json({ error: "internal" });

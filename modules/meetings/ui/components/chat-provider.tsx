@@ -11,7 +11,7 @@ interface Props {
 };
 
 export const ChatProvider = ({ meetingId, meetingName }: Props) => {
-    const [session, setSession] = useState<any | null>(null);
+    const [session, setSession] = useState<any | null>(null); // eslint-disable-line @typescript-eslint/no-explicit-any
     const [isPending, setIsPending] = useState(true);
 
     useEffect(() => {
