@@ -86,25 +86,25 @@ export default async function EventOverviewPage({ params }: PageProps) {
     .eq("event_id", eventData.event_id)
     .eq("role", "judge");
 
-  const judges: EventJudge[] = (judgesData || [])
-    .map((judgeRecord) => {
+  const judges: EventJudge[] = (judgesData || []).flatMap((judgeRecord) => {
       const profile = Array.isArray(judgeRecord.user_profiles)
         ? judgeRecord.user_profiles[0]
         : judgeRecord.user_profiles;
 
       if (!profile?.uid || !profile?.display_name) {
-        return null;
+        return [];
       }
 
-      return {
-        id: profile.uid,
-        name: profile.display_name,
-        bio: profile.bio,
-        avatarUrl: profile.avatar_url,
-        affiliation: profile.affiliation,
-      };
-    })
-    .filter((judge): judge is EventJudge => judge !== null);
+      return [
+        {
+          id: profile.uid,
+          name: profile.display_name,
+          bio: profile.bio ?? null,
+          avatarUrl: profile.avatar_url ?? null,
+          affiliation: profile.affiliation ?? null,
+        },
+      ];
+    });
 
   // Check if user has joined and get their role
   const {
