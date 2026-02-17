@@ -3,6 +3,7 @@
 import ReactMarkdown from "react-markdown";
 import { customMarkdownComponents } from "@/components/markdown/custom-components";
 import { markdownRehypePlugins } from "@/components/markdown/plugins";
+import { Trophy } from "lucide-react";
 import {
   EventDetails,
   ScheduleDay,
@@ -11,8 +12,6 @@ import {
   EventRole,
 } from "@/lib/types";
 import Link from "next/link";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ParticipantDashboard } from "@/features/user/dashboards/dashboard/participant-dashboard";
 import { JudgeDashboard } from "@/features/user/dashboards/dashboard/judge-dashboard";
 import { useActiveRole } from "./ActiveRoleContext";
 
@@ -21,6 +20,13 @@ interface EventPageContentProps {
   tracks: EventTrack[];
   hasJoined: boolean;
   userRole?: EventRole | null;
+  judges?: {
+    id: string;
+    name: string;
+    bio?: string | null;
+    avatarUrl?: string | null;
+    affiliation?: string | null;
+  }[];
 }
 
 export function EventPageContent({
@@ -28,7 +34,48 @@ export function EventPageContent({
   tracks,
   hasJoined,
   userRole,
+  judges = [],
 }: EventPageContentProps) {
+  const getInitials = (name: string) =>
+    name
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase() || "")
+      .join("");
+
+  const formatPrizeDisplay = (prizeAmount: string, prizeDescription: string) => {
+    const amount = prizeAmount?.trim() || "";
+    const description = prizeDescription?.trim() || "";
+    const descriptionLower = description.toLowerCase();
+    const amountLower = amount.toLowerCase();
+
+    if (!amount && !description) {
+      return { title: "Prize details coming soon", subtitle: "" };
+    }
+
+    if (!amount) {
+      return { title: description, subtitle: "" };
+    }
+
+    if (!description) {
+      return { title: amount, subtitle: "" };
+    }
+
+    if (descriptionLower.startsWith(amountLower)) {
+      const title = description.slice(amount.length).trim().replace(/^[\-–:]\s*/, "");
+      return {
+        title: title || description,
+        subtitle: description,
+      };
+    }
+
+    return {
+      title: description,
+      subtitle: `${amount} ${description}`.trim(),
+    };
+  };
+
   // Get active role from context, fallback to userRole
   const { activeRole } = useActiveRole();
   const displayRole = activeRole || userRole;
@@ -44,7 +91,7 @@ export function EventPageContent({
 
   // Show default event overview for participants, mentors, organizers, and non-authenticated users
   return (
-    <div className="flex flex-col flex-1 px-2 md:px-4 w-full">
+    <div className="flex flex-col flex-1 w-full max-w-full md:max-w-[747px]">
       {/* Introduction */}
       <div className="flex flex-col pb-4 pt-0 px-0 w-full min-w-0 max-w-full">
         <h2 className="font-semibold text-[24px] leading-[32px] text-black tracking-[-0.6px] break-words">
@@ -133,6 +180,48 @@ export function EventPageContent({
         </div>
       )}
 
+      {/* Judges */}
+      {judges.length > 0 && (
+        <>
+          <div className="h-px bg-[rgba(0,0,0,0.15)] w-full my-0" />
+          <div className="flex flex-col pt-4 pb-4 px-0 w-full min-w-0 max-w-full">
+            <h2 className="font-semibold text-[24px] leading-[32px] text-black tracking-[-0.6px] break-words">
+              Judges
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-3 w-full pb-4">
+            {judges.map((judge) => {
+              const secondaryText = judge.affiliation || judge.bio || "Judge";
+
+              return (
+                <div key={judge.id} className="flex items-center gap-3 min-w-0">
+                  {judge.avatarUrl ? (
+                    <img
+                      src={judge.avatarUrl}
+                      alt={judge.name}
+                      className="h-10 w-10 rounded-full object-cover shrink-0"
+                    />
+                  ) : (
+                    <div className="h-10 w-10 rounded-full bg-[rgba(0,0,0,0.08)] text-[13px] font-semibold text-[rgba(0,0,0,0.65)] flex items-center justify-center shrink-0">
+                      {getInitials(judge.name)}
+                    </div>
+                  )}
+
+                  <div className="min-w-0">
+                    <p className="font-semibold text-[16px] leading-[1.5] text-black truncate">
+                      {judge.name}
+                    </p>
+                    <p className="font-normal text-[14px] leading-[1.5] text-black truncate">
+                      {secondaryText}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+
       {/* Rules */}
       {event.rules && event.rules.length > 0 && (
         <>
@@ -218,45 +307,68 @@ export function EventPageContent({
 
       {/* Tracks */}
       {tracks.length > 0 && (
-        <Card className="shadow-lg rounded-lg mt-6 mb-8">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-2xl font-semibold text-gray-800">
+        <div className="flex flex-col pt-4 pb-8 w-full">
+          <div className="flex flex-col pb-4 pt-0 px-0 w-full min-w-0 max-w-full">
+            <h2 className="font-semibold text-[24px] leading-[32px] text-black tracking-[-0.6px] break-words">
               Prizes & Tracks
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {tracks.map((track) => (
-                <Card key={track.track_id} className="shadow border rounded-lg">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-xl font-bold text-blue-900">
-                      {track.name}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {track.prizes && track.prizes.length > 0 && (
-                      <div className="space-y-4">
-                        {track.prizes.map((prize, index) => (
-                          <div
-                            key={index}
-                            className="border-b pb-3 last:border-b-0 last:pb-0"
-                          >
-                            <div className="text-2xl font-extrabold text-green-600 mb-2">
-                              {prize.prize_amount}
+            </h2>
+          </div>
+
+          <div className="flex flex-col gap-3 w-full">
+            {tracks.map((track) => (
+              <div
+                key={track.track_id}
+                className="w-full rounded-xl border border-[rgba(0,0,0,0.15)] overflow-hidden"
+              >
+                <div className="bg-[#F7FAFE] border-b border-[rgba(0,0,0,0.15)] px-6 py-4">
+                  <p className="font-semibold text-[22px] leading-[1.4] tracking-[-0.06em] text-black">
+                    {track.name}
+                  </p>
+                </div>
+
+                <div className="bg-white px-4 py-4">
+                  {track.prizes && track.prizes.length > 0 ? (
+                    <div className="flex flex-col">
+                      {track.prizes.map((prize, index) => (
+                        (() => {
+                          const { title, subtitle } = formatPrizeDisplay(
+                            prize.prize_amount,
+                            prize.prize_description
+                          );
+
+                          return (
+                            <div
+                              key={index}
+                              className="flex items-center gap-3 py-3 border-b border-[rgba(0,0,0,0.15)] last:border-b-0"
+                            >
+                              <div className="h-12 w-12 shrink-0 rounded-full bg-[rgba(0,0,0,0.08)] flex items-center justify-center">
+                                <Trophy className="h-5 w-5 text-[rgba(0,0,0,0.45)]" />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="font-semibold text-[18px] leading-[1.5] tracking-[-0.04em] text-black break-words">
+                                  {title}
+                                </p>
+                                {subtitle && (
+                                  <p className="font-normal text-base leading-[1.5] text-black break-words">
+                                    {subtitle}
+                                  </p>
+                                )}
+                              </div>
                             </div>
-                            <p className="text-gray-600">
-                              {prize.prize_description}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+                          );
+                        })()
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="font-normal text-base leading-[1.5] text-black">
+                      Prizes will be announced soon.
+                    </p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
       {/* FAQ */}
