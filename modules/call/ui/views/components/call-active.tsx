@@ -47,14 +47,13 @@ export const CallActive = ({ onLeave, meetingName, meetingId }: Props) => {
     pausedState: boolean;
   }) => {
     const base =
-      "flex items-center justify-center w-10 h-10 rounded-full transition-all";
+      "flex items-center justify-center h-10 rounded-full px-4 text-sm font-medium transition-all";
     const activeClass = pausedState
       ? "bg-white/10 text-white hover:bg-white/20"
       : "bg-red-600 text-white hover:bg-red-700";
     const disabledClass = disabledState ? "opacity-60 pointer-events-none" : "";
-    const label = pausedState ? "Resume Agent" : "Pause Agent";
+    const label = pausedState ? "Start Q&A" : "Pause Q&A";
     const title = label;
-    const icon = pausedState ? "▶" : "||";
     return (
       <button
         type="button"
@@ -63,7 +62,7 @@ export const CallActive = ({ onLeave, meetingName, meetingId }: Props) => {
         title={title}
         className={`${base} ${activeClass} ${disabledClass}`}
       >
-        <span className="text-sm font-medium select-none">{icon}</span>
+        <span className="select-none">{label}</span>
       </button>
     );
   };
