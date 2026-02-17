@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { supabase } from "@/lib/supabase";
@@ -95,6 +102,32 @@ const RESTORABLE_FORM_STRING_KEYS = [
   "event_type",
   "paywall_content",
 ] as const;
+const SCHEDULE_FORM_STRING_KEYS = [
+  "dayTitle",
+  "eventName",
+  "time",
+  "guests",
+  "description",
+] as const;
+const RESOURCE_FORM_STRING_KEYS = ["resourceName", "resourceLink"] as const;
+const RULES_FORM_STRING_KEYS = ["sectionTitle"] as const;
+const FAQ_FORM_STRING_KEYS = ["question", "answer"] as const;
+const TRACK_FORM_STRING_KEYS = [
+  "name",
+  "description",
+  "criterionName",
+  "criterionDescription",
+  "questionType",
+  "minScore",
+  "maxScore",
+  "weight",
+] as const;
+const PRIZE_FORM_STRING_KEYS = [
+  "trackId",
+  "name",
+  "description",
+  "coverImageUrl",
+] as const;
 
 type RestorableFormStringKey = (typeof RESTORABLE_FORM_STRING_KEYS)[number];
 
@@ -111,6 +144,101 @@ function isEventVisibility(value: unknown): value is EventVisibility {
     typeof value === "string" &&
     Object.values(EventVisibility).includes(value as EventVisibility)
   );
+}
+
+function restoreStringFields<T extends Record<string, unknown>>(
+  value: unknown,
+  setter: Dispatch<SetStateAction<T>>,
+  keys: readonly (keyof T)[]
+) {
+  if (!isRecord(value)) return;
+
+  setter((prev) => {
+    const next = { ...prev };
+    for (const key of keys) {
+      const fieldValue = value[key as string];
+      if (typeof fieldValue === "string") {
+        (next as Record<string, unknown>)[key as string] = fieldValue;
+      }
+    }
+    return next;
+  });
+}
+
+function hasNonEmptyText(values: Array<string | undefined | null>): boolean {
+  return values.some(
+    (value) => typeof value === "string" && value.trim().length > 0
+  );
+}
+
+function normalizeDateForServer(value: string): string {
+  if (value && !Number.isNaN(Date.parse(value))) {
+    return value;
+  }
+  return new Date().toISOString().split("T")[0];
+}
+
+function buildFaqMarkdown(
+  faqs: Array<{ question: string; answer: string }>
+): string | null {
+  const sections = faqs
+    .map((faq) => ({
+      question: faq.question?.trim() || "",
+      answer: faq.answer?.trim() || "",
+    }))
+    .filter((faq) => faq.question && faq.answer)
+    .map((faq) => `## ${faq.question}\n${faq.answer}`);
+
+  return sections.length > 0 ? sections.join("\n\n") : null;
+}
+
+function buildEventSchedulePayload(
+  schedules: Array<{
+    dayTitle: string;
+    eventName: string;
+    time: string;
+    guests: string;
+    description: string;
+  }>
+) {
+  const grouped = new Map<
+    string,
+    Array<{
+      name: string;
+      time: string;
+      description?: string;
+      participants?: Array<{ name: string; role: string; title: string }>;
+    }>
+  >();
+
+  for (const schedule of schedules) {
+    const dayTitle = schedule.dayTitle?.trim();
+    const eventName = schedule.eventName?.trim();
+    if (!dayTitle || !eventName) continue;
+
+    const participants = schedule.guests
+      .split(",")
+      .map((guest) => guest.trim())
+      .filter(Boolean)
+      .map((name) => ({ name, role: "Guest", title: "" }));
+
+    const event = {
+      name: eventName,
+      time: schedule.time?.trim() || "",
+      description: schedule.description?.trim() || undefined,
+      participants: participants.length > 0 ? participants : undefined,
+    };
+
+    if (!grouped.has(dayTitle)) {
+      grouped.set(dayTitle, []);
+    }
+    grouped.get(dayTitle)?.push(event);
+  }
+
+  return Array.from(grouped.entries()).map(([time, events]) => ({
+    time,
+    events,
+  }));
 }
 
 export default function NewEventPage() {
@@ -134,7 +262,13 @@ export default function NewEventPage() {
   const [showApprovalModal, setShowApprovalModal] = useState(false);
   const [createdEventId, setCreatedEventId] = useState<string | null>(null);
   const [createdEventSlug, setCreatedEventSlug] = useState<string | null>(null);
+  const [draftEventId, setDraftEventId] = useState<string | null>(null);
+  const [serverSaveStatus, setServerSaveStatus] = useState<
+    "idle" | "saving" | "saved" | "error"
+  >("idle");
+  const [lastServerSavedAt, setLastServerSavedAt] = useState<Date | null>(null);
   const [isNavigating, setIsNavigating] = useState(false);
+  const createDraftPromiseRef = useRef<Promise<string | null> | null>(null);
 
   // Get user's timezone as default
   const getUserTimezone = (): string => {
@@ -296,27 +430,69 @@ export default function NewEventPage() {
     window.localStorage.removeItem(CREATE_DRAFT_STORAGE_KEY);
     setAutoSaveStatus("idle");
     setLastAutoSavedAt(null);
+    setServerSaveStatus("idle");
+    setLastServerSavedAt(null);
+    setDraftEventId(null);
   };
 
-  const restoreArrayState = <T,>(
-    value: unknown,
-    setter: Dispatch<SetStateAction<T>>
-  ) => {
-    if (Array.isArray(value)) {
-      setter(value as T);
-    }
-  };
+  const restoreArrayState = useCallback(
+    <T,>(value: unknown, setter: Dispatch<SetStateAction<T>>) => {
+      if (Array.isArray(value)) {
+        setter(value as T);
+      }
+    },
+    []
+  );
 
-  const restoreStringRecordState = (
-    value: unknown,
-    setter: Dispatch<SetStateAction<Record<string, string>>>
-  ) => {
-    if (isRecord(value)) {
-      setter(value as Record<string, string>);
-    }
-  };
+  const restoreStringRecordState = useCallback(
+    (
+      value: unknown,
+      setter: Dispatch<SetStateAction<Record<string, string>>>
+    ) => {
+      if (isRecord(value)) {
+        setter(value as Record<string, string>);
+      }
+    },
+    []
+  );
 
-  const applyRestoredForm = (draftForm: unknown) => {
+  const restoreBooleanState = useCallback(
+    (value: unknown, setter: Dispatch<SetStateAction<boolean>>) => {
+      if (typeof value === "boolean") {
+        setter(value);
+      }
+    },
+    []
+  );
+
+  const restoreStringState = useCallback(
+    (value: unknown, setter: Dispatch<SetStateAction<string>>) => {
+      if (typeof value === "string") {
+        setter(value);
+      }
+    },
+    []
+  );
+
+  const restoreNullableStringState = useCallback(
+    (value: unknown, setter: Dispatch<SetStateAction<string | null>>) => {
+      if (value === null || typeof value === "string") {
+        setter(value);
+      }
+    },
+    []
+  );
+
+  const restoreNullableNumberState = useCallback(
+    (value: unknown, setter: Dispatch<SetStateAction<number | null>>) => {
+      if (value === null || typeof value === "number") {
+        setter(value);
+      }
+    },
+    []
+  );
+
+  const applyRestoredForm = useCallback((draftForm: unknown) => {
     if (!isRecord(draftForm)) return;
 
     setForm((prev) => {
@@ -334,7 +510,241 @@ export default function NewEventPage() {
 
       return next;
     });
-  };
+  }, []);
+
+  const hasMeaningfulDraftData = useCallback(() => {
+    return (
+      hasNonEmptyText([
+        form.event_name,
+        form.event_date,
+        form.location,
+        form.slug,
+        form.event_description,
+        form.event_blurb,
+        form.cover_image_url,
+        form.organizer_emails,
+        form.submission_time_start,
+        form.submission_time_cutoff,
+        form.participant_capacity,
+        form.event_type,
+        form.paywall_content,
+        organizerEmailInput,
+        scheduleForm.dayTitle,
+        scheduleForm.eventName,
+        scheduleForm.time,
+        scheduleForm.guests,
+        scheduleForm.description,
+        resourcesForm.resourceName,
+        resourcesForm.resourceLink,
+        rulesForm.sectionTitle,
+        faqsForm.question,
+        faqsForm.answer,
+        trackForm.name,
+        trackForm.description,
+        prizeForm.trackId,
+        prizeForm.name,
+        prizeForm.description,
+      ]) ||
+      [schedules, resources, rules, faqs, galleryImages, tracks, prizes].some(
+        (collection) => collection.length > 0
+      ) ||
+      rulesForm.rules.some((ruleItem) => ruleItem.trim().length > 0)
+    );
+  }, [
+    form,
+    organizerEmailInput,
+    schedules,
+    resources,
+    rules,
+    faqs,
+    galleryImages,
+    tracks,
+    prizes,
+    scheduleForm,
+    resourcesForm,
+    rulesForm,
+    faqsForm,
+    trackForm,
+    prizeForm,
+  ]);
+
+  const buildServerDraftPayload = useCallback(() => {
+    const parsedParticipantCapacity = form.participant_capacity
+      ? parseInt(form.participant_capacity, 10)
+      : null;
+
+    const organizerLabelsPayload =
+      Object.keys(roleLabels).length > 0 ? roleLabels : null;
+
+    const eventSchedulePayload = buildEventSchedulePayload(schedules);
+    const eventResourcesPayload = resources
+      .map((resource) => ({
+        name: resource.name?.trim() || "",
+        link: resource.link?.trim() || "",
+      }))
+      .filter((resource) => resource.name && resource.link);
+
+    return {
+      event_name: form.event_name.trim() || "Untitled Event",
+      event_date: normalizeDateForServer(form.event_date),
+      location: form.location.trim() || null,
+      slug: form.slug.trim() || null,
+      event_description: form.event_description.trim() || null,
+      event_blurb: form.event_blurb.trim() || null,
+      cover_image_url: form.cover_image_url.trim() || null,
+      submission_time_start: form.submission_time_start || null,
+      submission_time_cutoff: form.submission_time_cutoff || null,
+      participant_capacity: Number.isNaN(parsedParticipantCapacity)
+        ? null
+        : parsedParticipantCapacity,
+      paid: ticketType === "paid",
+      event_type: form.event_type.trim() || null,
+      paywall_content: form.paywall_content.trim() || null,
+      event_schedule: eventSchedulePayload,
+      event_resources: eventResourcesPayload,
+      event_prizes: prizes,
+      rules,
+      faq: buildFaqMarkdown(faqs),
+      role_labels: organizerLabelsPayload,
+    };
+  }, [form, ticketType, schedules, resources, prizes, rules, faqs, roleLabels]);
+
+  const createServerDraftEvent = useCallback(async (): Promise<string | null> => {
+    if (draftEventId) return draftEventId;
+    if (createDraftPromiseRef.current) {
+      return createDraftPromiseRef.current;
+    }
+
+    const createPromise = (async () => {
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const currentUserEmail = sessionData?.session?.user?.email
+          ?.trim()
+          .toLowerCase();
+
+        const organizerEmailSet = new Set<string>();
+        form.organizer_emails
+          .split(",")
+          .map((email) => email.trim().toLowerCase())
+          .filter(Boolean)
+          .forEach((email) => organizerEmailSet.add(email));
+
+        organizerEmails
+          .map((email) => email.trim().toLowerCase())
+          .filter(Boolean)
+          .forEach((email) => organizerEmailSet.add(email));
+
+        if (currentUserEmail) {
+          organizerEmailSet.add(currentUserEmail);
+        }
+
+        const response = await fetch("/api/events", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            event: {
+              event_name: form.event_name.trim() || "Untitled Event",
+              event_date: normalizeDateForServer(form.event_date),
+              location: form.location.trim() || "TBD",
+              visibility: EventVisibility.Draft,
+              slug: form.slug.trim() || undefined,
+              event_description: form.event_description.trim() || undefined,
+              event_blurb: form.event_blurb.trim() || undefined,
+              cover_image_url: form.cover_image_url.trim() || undefined,
+              paid: ticketType === "paid",
+              submission_time_start: form.submission_time_start || undefined,
+              submission_time_cutoff: form.submission_time_cutoff || undefined,
+            },
+            organizerEmails: Array.from(organizerEmailSet),
+          }),
+        });
+
+        const result = await response.json();
+        if (!response.ok || !result?.event?.event_id) {
+          throw new Error(result?.error || "Failed to create event draft");
+        }
+
+        setDraftEventId(result.event.event_id as string);
+        return result.event.event_id as string;
+      } catch (error) {
+        console.error("Failed to create event draft on server", error);
+        setServerSaveStatus("error");
+        return null;
+      } finally {
+        createDraftPromiseRef.current = null;
+      }
+    })();
+
+    createDraftPromiseRef.current = createPromise;
+    return createPromise;
+  }, [draftEventId, form, organizerEmails, ticketType]);
+
+  const saveDraftToServer = useCallback(
+    async (options?: { ensureDraft?: boolean; showErrorToast?: boolean }) => {
+      const ensureDraft = options?.ensureDraft ?? true;
+      const showErrorToast = options?.showErrorToast ?? false;
+
+      if (isRestoringDraft || isNavigating || !hasMeaningfulDraftData()) {
+        return draftEventId;
+      }
+
+      let targetEventId = draftEventId;
+      if (!targetEventId && ensureDraft) {
+        targetEventId = await createServerDraftEvent();
+      }
+
+      if (!targetEventId) {
+        if (showErrorToast) {
+          toast({
+            title: "Autosave unavailable",
+            description:
+              "Could not create a server draft yet. Your changes are still saved locally.",
+            variant: "destructive",
+          });
+        }
+        return null;
+      }
+
+      setServerSaveStatus("saving");
+
+      try {
+        const { error } = await supabase
+          .from("events")
+          .update(buildServerDraftPayload())
+          .eq("event_id", targetEventId);
+
+        if (error) {
+          throw error;
+        }
+
+        setDraftEventId(targetEventId);
+        setServerSaveStatus("saved");
+        setLastServerSavedAt(new Date());
+        return targetEventId;
+      } catch (error) {
+        console.error("Failed to autosave draft to server", error);
+        setServerSaveStatus("error");
+        if (showErrorToast) {
+          toast({
+            title: "Autosave failed",
+            description:
+              "We couldn't save the latest changes to the server. Local draft is still available.",
+            variant: "destructive",
+          });
+        }
+        return null;
+      }
+    },
+    [
+      isRestoringDraft,
+      isNavigating,
+      hasMeaningfulDraftData,
+      draftEventId,
+      createServerDraftEvent,
+      buildServerDraftPayload,
+      toast,
+    ]
+  );
 
   const onChange = (key: keyof typeof form, value: string) =>
     setForm((p) => ({ ...p, [key]: value }));
@@ -410,6 +820,96 @@ export default function NewEventPage() {
         setSubmissionTimezone(parsed.submissionTimezone);
       }
 
+      if (typeof parsed.draftEventId === "string") {
+        setDraftEventId(parsed.draftEventId);
+      }
+
+      const stringStateRestorers: Array<
+        [string, Dispatch<SetStateAction<string>>]
+      > = [
+        ["activeTab", setActiveTab],
+        ["activeSubTab", setActiveSubTab],
+        ["activeTracksSubTab", setActiveTracksSubTab],
+        ["activeAccessSubTab", setActiveAccessSubTab],
+        ["defaultMinScore", setDefaultMinScore],
+        ["defaultMaxScore", setDefaultMaxScore],
+        ["defaultWeight", setDefaultWeight],
+        ["organizerEmailInput", setOrganizerEmailInput],
+      ];
+
+      for (const [key, setter] of stringStateRestorers) {
+        restoreStringState(parsed[key], setter);
+      }
+
+      const booleanStateRestorers: Array<
+        [string, Dispatch<SetStateAction<boolean>>]
+      > = [
+        ["showScheduleForm", setShowScheduleForm],
+        ["showResourcesForm", setShowResourcesForm],
+        ["showRulesForm", setShowRulesForm],
+        ["showFaqsForm", setShowFaqsForm],
+        ["showTrackForm", setShowTrackForm],
+        ["showPrizeForm", setShowPrizeForm],
+      ];
+
+      for (const [key, setter] of booleanStateRestorers) {
+        restoreBooleanState(parsed[key], setter);
+      }
+
+      restoreStringFields(
+        parsed.scheduleForm,
+        setScheduleForm,
+        SCHEDULE_FORM_STRING_KEYS
+      );
+      restoreStringFields(
+        parsed.resourcesForm,
+        setResourcesForm,
+        RESOURCE_FORM_STRING_KEYS
+      );
+      restoreStringFields(
+        parsed.editingResourceForm,
+        setEditingResourceForm,
+        RESOURCE_FORM_STRING_KEYS
+      );
+
+      if (isRecord(parsed.rulesForm)) {
+        restoreStringFields(
+          parsed.rulesForm,
+          setRulesForm,
+          RULES_FORM_STRING_KEYS
+        );
+        if (Array.isArray(parsed.rulesForm.rules)) {
+          setRulesForm((prev) => ({
+            ...prev,
+            rules: parsed.rulesForm.rules.filter(
+              (rule): rule is string => typeof rule === "string"
+            ),
+          }));
+        }
+      }
+
+      restoreStringFields(parsed.faqsForm, setFaqsForm, FAQ_FORM_STRING_KEYS);
+      restoreStringFields(
+        parsed.editingFaqForm,
+        setEditingFaqForm,
+        FAQ_FORM_STRING_KEYS
+      );
+      restoreStringFields(parsed.trackForm, setTrackForm, TRACK_FORM_STRING_KEYS);
+      restoreStringFields(parsed.prizeForm, setPrizeForm, PRIZE_FORM_STRING_KEYS);
+
+      const nullableStringRestorers: Array<
+        [string, Dispatch<SetStateAction<string | null>>]
+      > = [
+        ["editingResourceId", setEditingResourceId],
+        ["editingFaqId", setEditingFaqId],
+      ];
+
+      for (const [key, setter] of nullableStringRestorers) {
+        restoreNullableStringState(parsed[key], setter);
+      }
+
+      restoreNullableNumberState(parsed.editingRuleIndex, setEditingRuleIndex);
+
       restoreArrayState(parsed.schedules, setSchedules);
       restoreArrayState(parsed.resources, setResources);
       restoreArrayState(parsed.rules, setRules);
@@ -446,11 +946,26 @@ export default function NewEventPage() {
     } finally {
       setIsRestoringDraft(false);
     }
-  }, [toast]);
+  }, [
+    toast,
+    applyRestoredForm,
+    restoreArrayState,
+    restoreStringRecordState,
+    restoreBooleanState,
+    restoreStringState,
+    restoreNullableStringState,
+    restoreNullableNumberState,
+  ]);
 
   useDebouncedEffect(
     () => {
-      if (typeof window === "undefined" || isRestoringDraft || creating) return;
+      if (
+        typeof window === "undefined" ||
+        isRestoringDraft ||
+        creating ||
+        isNavigating
+      )
+        return;
 
       setAutoSaveStatus("saving");
 
@@ -462,6 +977,32 @@ export default function NewEventPage() {
           ticketType,
           visibility,
           submissionTimezone,
+          draftEventId,
+          activeTab,
+          activeSubTab,
+          activeTracksSubTab,
+          activeAccessSubTab,
+          showScheduleForm,
+          scheduleForm,
+          showResourcesForm,
+          resourcesForm,
+          editingResourceId,
+          editingResourceForm,
+          showRulesForm,
+          rulesForm,
+          editingRuleIndex,
+          showFaqsForm,
+          faqsForm,
+          editingFaqId,
+          editingFaqForm,
+          showTrackForm,
+          trackForm,
+          defaultMinScore,
+          defaultMaxScore,
+          defaultWeight,
+          showPrizeForm,
+          prizeForm,
+          organizerEmailInput,
           schedules,
           resources,
           rules,
@@ -490,10 +1031,37 @@ export default function NewEventPage() {
     [
       isRestoringDraft,
       creating,
+      isNavigating,
       form,
       ticketType,
       visibility,
       submissionTimezone,
+      draftEventId,
+      activeTab,
+      activeSubTab,
+      activeTracksSubTab,
+      activeAccessSubTab,
+      showScheduleForm,
+      scheduleForm,
+      showResourcesForm,
+      resourcesForm,
+      editingResourceId,
+      editingResourceForm,
+      showRulesForm,
+      rulesForm,
+      editingRuleIndex,
+      showFaqsForm,
+      faqsForm,
+      editingFaqId,
+      editingFaqForm,
+      showTrackForm,
+      trackForm,
+      defaultMinScore,
+      defaultMaxScore,
+      defaultWeight,
+      showPrizeForm,
+      prizeForm,
+      organizerEmailInput,
       schedules,
       resources,
       rules,
@@ -506,6 +1074,28 @@ export default function NewEventPage() {
       organizerEmails,
     ],
     AUTO_SAVE_DEBOUNCE_MS
+  );
+
+  useDebouncedEffect(
+    () => {
+      if (
+        typeof window === "undefined" ||
+        isRestoringDraft ||
+        creating ||
+        isNavigating
+      )
+        return;
+      if (!hasMeaningfulDraftData()) return;
+      void saveDraftToServer();
+    },
+    [
+      isRestoringDraft,
+      creating,
+      isNavigating,
+      hasMeaningfulDraftData,
+      saveDraftToServer,
+    ],
+    2000
   );
 
   useEffect(() => {
@@ -639,7 +1229,15 @@ export default function NewEventPage() {
     }
   }, [toast]);
 
-  const handleCreate = async () => {
+  const handlePublish = async ({
+    nextVisibility,
+    nextApprovalStatus,
+    navigateOnSuccess,
+  }: {
+    nextVisibility: EventVisibility.Private | EventVisibility.Public;
+    nextApprovalStatus: ApprovalStatus;
+    navigateOnSuccess: boolean;
+  }) => {
     if (!form.event_name || !form.event_date || !form.location) {
       toast({
         title: "Missing fields",
@@ -650,69 +1248,50 @@ export default function NewEventPage() {
     }
     setCreating(true);
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const currentUserEmail = sessionData?.session?.user?.email;
-
-      const organizerEmails = (form.organizer_emails || "")
-        .split(",")
-        .map((e) => e.trim())
-        .filter(Boolean);
-
-      if (currentUserEmail && !organizerEmails.includes(currentUserEmail)) {
-        organizerEmails.unshift(currentUserEmail);
-      }
-
-      // Always save as draft by default
-      const res = await fetch("/api/events", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          event: {
-            event_name: form.event_name,
-            event_date: form.event_date,
-            location: form.location,
-            visibility: EventVisibility.Draft, // Always draft initially
-            slug: form.slug || undefined,
-            event_description: form.event_description || undefined,
-            event_blurb: form.event_blurb || undefined,
-            cover_image_url: form.cover_image_url || undefined,
-            paid: ticketType === "paid",
-            submission_time_start: form.submission_time_start || undefined,
-            submission_time_cutoff: form.submission_time_cutoff || undefined,
-            participant_capacity: form.participant_capacity
-              ? parseInt(form.participant_capacity, 10)
-              : undefined,
-            event_type: form.event_type || undefined,
-            paywall_content: form.paywall_content || undefined,
-            rules: rules.length > 0 ? rules : undefined,
-            faqs:
-              faqs.length > 0 ? faqs.map(({ id, ...faq }) => faq) : undefined,
-            gallery_images:
-              galleryImages.length > 0
-                ? galleryImages.map(({ id, ...img }) => img) : undefined,
-          },
-          organizerEmails,
-        }),
+      const targetEventId = await saveDraftToServer({
+        ensureDraft: true,
+        showErrorToast: true,
       });
-      const data = await res.json();
-      if (!res.ok) {
+      if (!targetEventId) {
         toast({
-          title: "Create failed",
-          description: data.error || "Error creating event.",
+          title: "Publish failed",
+          description: "Could not save the draft before publishing.",
           variant: "destructive",
         });
         return;
       }
-      toast({
-        title: "Event saved as draft",
-        description: `${data.event.event_name} has been saved as a draft.`,
-      });
+
+      const { data: updatedEvent, error: updateError } = await supabase
+        .from("events")
+        .update({
+          visibility: nextVisibility,
+          approval_status: nextApprovalStatus,
+        })
+        .eq("event_id", targetEventId)
+        .select("event_id, slug")
+        .single();
+
+      if (updateError || !updatedEvent) {
+        throw updateError || new Error("Event not found");
+      }
+
+      setCreatedEventId(updatedEvent.event_id);
+      setCreatedEventSlug(updatedEvent.slug || null);
+
+      if (!navigateOnSuccess) {
+        setShowApprovalModal(true);
+        return;
+      }
+
+      setIsNavigating(true);
       clearCreateDraft();
-      router.push(`/events/${data.event.slug || data.event.event_id}/overview`);
-    } catch {
+      router.push(`/events/${updatedEvent.slug || updatedEvent.event_id}/overview`);
+    } catch (error) {
+      console.error("Error publishing event", error);
+      setIsNavigating(false);
       toast({
-        title: "Network error",
-        description: "Unable to create event.",
+        title: "Publish failed",
+        description: "Unable to publish event.",
         variant: "destructive",
       });
     } finally {
@@ -721,166 +1300,19 @@ export default function NewEventPage() {
   };
 
   const handlePublishAsPrivate = async () => {
-    if (!form.event_name || !form.event_date || !form.location) {
-      toast({
-        title: "Missing fields",
-        description: "Name, date, and location are required.",
-        variant: "destructive",
-      });
-      return;
-    }
-    setCreating(true);
-    try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const currentUserEmail = sessionData?.session?.user?.email;
-
-      const organizerEmails = (form.organizer_emails || "")
-        .split(",")
-        .map((e) => e.trim())
-        .filter(Boolean);
-
-      if (currentUserEmail && !organizerEmails.includes(currentUserEmail)) {
-        organizerEmails.unshift(currentUserEmail);
-      }
-
-      // Create event as private
-      const res = await fetch("/api/events", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          event: {
-            event_name: form.event_name,
-            event_date: form.event_date,
-            location: form.location,
-            visibility: EventVisibility.Private, // Private visibility
-            slug: form.slug || undefined,
-            event_description: form.event_description || undefined,
-            event_blurb: form.event_blurb || undefined,
-            cover_image_url: form.cover_image_url || undefined,
-            paid: ticketType === "paid",
-            submission_time_start: form.submission_time_start || undefined,
-            submission_time_cutoff: form.submission_time_cutoff || undefined,
-            participant_capacity: form.participant_capacity
-              ? parseInt(form.participant_capacity, 10)
-              : undefined,
-            event_type: form.event_type || undefined,
-            paywall_content: form.paywall_content || undefined,
-            rules: rules.length > 0 ? rules : undefined,
-            faqs:
-              faqs.length > 0 ? faqs.map(({ id, ...faq }) => faq) : undefined,
-            gallery_images:
-              galleryImages.length > 0
-                ? galleryImages.map(({ id, ...img }) => img) : undefined,
-          },
-          organizerEmails,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        toast({
-          title: "Publish failed",
-          description: data.error || "Error publishing event.",
-          variant: "destructive",
-        });
-        return;
-      }
-      
-      // Store event ID and slug, then show approval modal
-      clearCreateDraft();
-      setCreatedEventId(data.event.event_id);
-      setCreatedEventSlug(data.event.slug || null);
-      setShowApprovalModal(true);
-    } catch {
-      toast({
-        title: "Network error",
-        description: "Unable to publish event.",
-        variant: "destructive",
-      });
-    } finally {
-      setCreating(false);
-    }
+    await handlePublish({
+      nextVisibility: EventVisibility.Private,
+      nextApprovalStatus: ApprovalStatus.NotSubmitted,
+      navigateOnSuccess: false,
+    });
   };
 
   const handlePublishAsPublic = async () => {
-    if (!form.event_name || !form.event_date || !form.location) {
-      toast({
-        title: "Missing fields",
-        description: "Name, date, and location are required.",
-        variant: "destructive",
-      });
-      return;
-    }
-    setCreating(true);
-    try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const currentUserEmail = sessionData?.session?.user?.email;
-
-      const organizerEmails = (form.organizer_emails || "")
-        .split(",")
-        .map((e) => e.trim())
-        .filter(Boolean);
-
-      if (currentUserEmail && !organizerEmails.includes(currentUserEmail)) {
-        organizerEmails.unshift(currentUserEmail);
-      }
-
-      // Create event as private
-      const res = await fetch("/api/events", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          event: {
-            event_name: form.event_name,
-            event_date: form.event_date,
-            location: form.location,
-            visibility: EventVisibility.Public, // Public visibility
-            slug: form.slug || undefined,
-            event_description: form.event_description || undefined,
-            event_blurb: form.event_blurb || undefined,
-            cover_image_url: form.cover_image_url || undefined,
-            paid: ticketType === "paid",
-            submission_time_start: form.submission_time_start || undefined,
-            submission_time_cutoff: form.submission_time_cutoff || undefined,
-            participant_capacity: form.participant_capacity
-              ? parseInt(form.participant_capacity, 10)
-              : undefined,
-            event_type: form.event_type || undefined,
-            paywall_content: form.paywall_content || undefined,
-            rules: rules.length > 0 ? rules : undefined,
-            faqs:
-              faqs.length > 0 ? faqs.map(({ id, ...faq }) => faq) : undefined,
-            gallery_images:
-              galleryImages.length > 0
-                ? galleryImages.map(({ id, ...img }) => img) : undefined,
-            approval_status: ApprovalStatus.Approved,
-          },
-          organizerEmails,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        toast({
-          title: "Publish failed",
-          description: data.error || "Error publishing event.",
-          variant: "destructive",
-        });
-        return;
-      }
-      
-      // Store event ID and slug, then navigate to event page
-      clearCreateDraft();
-      setCreatedEventId(data.event.event_id);
-      setCreatedEventSlug(data.event.slug || null);
-      router.push(`/events/${data.event.slug || data.event.event_id}/overview`);
-    } catch {
-      toast({
-        title: "Network error",
-        description: "Unable to publish event.",
-        variant: "destructive",
-      });
-    } finally {
-      setCreating(false);
-    }
+    await handlePublish({
+      nextVisibility: EventVisibility.Public,
+      nextApprovalStatus: ApprovalStatus.Approved,
+      navigateOnSuccess: true,
+    });
   };
 
 
@@ -914,6 +1346,7 @@ export default function NewEventPage() {
         description: "Your event has been submitted for approval to be featured on the home page.",
       });
       
+      clearCreateDraft();
       setShowApprovalModal(false);
       router.push(`/events/${createdEventSlug || createdEventId}/overview`);
     } catch {
@@ -933,6 +1366,7 @@ export default function NewEventPage() {
     setIsNavigating(true);
     setShowApprovalModal(false);
     if (createdEventId) {
+      clearCreateDraft();
       router.push(`/events/${createdEventSlug || createdEventId}/overview`);
     }
   };
@@ -1112,8 +1546,20 @@ export default function NewEventPage() {
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4 w-full sm:w-auto">
               {!isRestoringDraft && (
                 <p className="text-xs text-gray-500 sm:text-right">
-                  {autoSaveStatus === "saving"
-                    ? "Autosaving draft..."
+                  {serverSaveStatus === "saving"
+                    ? "Saving changes..."
+                    : serverSaveStatus === "error"
+                      ? "Cloud save failed (local draft is safe)"
+                      : serverSaveStatus === "saved" && lastServerSavedAt
+                        ? `All changes saved at ${lastServerSavedAt.toLocaleTimeString(
+                            [],
+                            {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            }
+                          )}`
+                    : autoSaveStatus === "saving"
+                    ? "Autosaving locally..."
                     : autoSaveStatus === "error"
                       ? "Autosave failed"
                       : autoSaveStatus === "saved" && lastAutoSavedAt
@@ -1135,17 +1581,6 @@ export default function NewEventPage() {
                   className="text-[16px] font-medium flex-1 sm:flex-none"
                 >
                   Cancel
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    handleCreate();
-                  }}
-                  disabled={creating}
-                  className="text-[16px] font-medium flex-1 sm:flex-none border border-[rgba(0,0,0,0.15)] bg-white"
-                >
-                  {creating ? "Saving..." : "Save Draft"}
                 </Button>
                 
                 {isAdmin ? (
@@ -1173,7 +1608,6 @@ export default function NewEventPage() {
                         onClick={(e) => {
                           e.preventDefault();
                           handlePublishAsPublic();
-                          handleSkipApproval();
                         }}
                         disabled={creating}
                       >
