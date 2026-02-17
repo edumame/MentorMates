@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { supabase } from "@/lib/supabase";
@@ -80,6 +80,38 @@ import ReactMarkdown from "react-markdown";
 const PREFILL_STORAGE_KEY = "mentorMates-event-prefill";
 const CREATE_DRAFT_STORAGE_KEY = "mentorMates-event-create-draft";
 const AUTO_SAVE_DEBOUNCE_MS = 1500;
+const RESTORABLE_FORM_STRING_KEYS = [
+  "event_name",
+  "event_date",
+  "location",
+  "slug",
+  "event_description",
+  "event_blurb",
+  "cover_image_url",
+  "organizer_emails",
+  "submission_time_start",
+  "submission_time_cutoff",
+  "participant_capacity",
+  "event_type",
+  "paywall_content",
+] as const;
+
+type RestorableFormStringKey = (typeof RESTORABLE_FORM_STRING_KEYS)[number];
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isLocationType(value: unknown): value is "in-person" | "virtual" {
+  return value === "in-person" || value === "virtual";
+}
+
+function isEventVisibility(value: unknown): value is EventVisibility {
+  return (
+    typeof value === "string" &&
+    Object.values(EventVisibility).includes(value as EventVisibility)
+  );
+}
 
 export default function NewEventPage() {
   const router = useRouter();
@@ -266,6 +298,44 @@ export default function NewEventPage() {
     setLastAutoSavedAt(null);
   };
 
+  const restoreArrayState = <T,>(
+    value: unknown,
+    setter: Dispatch<SetStateAction<T>>
+  ) => {
+    if (Array.isArray(value)) {
+      setter(value as T);
+    }
+  };
+
+  const restoreStringRecordState = (
+    value: unknown,
+    setter: Dispatch<SetStateAction<Record<string, string>>>
+  ) => {
+    if (isRecord(value)) {
+      setter(value as Record<string, string>);
+    }
+  };
+
+  const applyRestoredForm = (draftForm: unknown) => {
+    if (!isRecord(draftForm)) return;
+
+    setForm((prev) => {
+      const next = { ...prev };
+      for (const key of RESTORABLE_FORM_STRING_KEYS) {
+        const value = draftForm[key];
+        if (typeof value === "string") {
+          next[key as RestorableFormStringKey] = value;
+        }
+      }
+
+      if (isLocationType(draftForm.location_type)) {
+        next.location_type = draftForm.location_type;
+      }
+
+      return next;
+    });
+  };
+
   const onChange = (key: keyof typeof form, value: string) =>
     setForm((p) => ({ ...p, [key]: value }));
 
@@ -323,122 +393,33 @@ export default function NewEventPage() {
       const storedDraft = window.localStorage.getItem(CREATE_DRAFT_STORAGE_KEY);
       if (!storedDraft) return;
 
-      const parsed = JSON.parse(storedDraft) as Record<string, unknown>;
-      if (!parsed || typeof parsed !== "object") return;
+      const parsed = JSON.parse(storedDraft);
+      if (!isRecord(parsed)) return;
 
-      const draftForm = parsed.form as Partial<typeof form> | undefined;
-      if (draftForm && typeof draftForm === "object") {
-        setForm((prev) => ({
-          ...prev,
-          event_name:
-            typeof draftForm.event_name === "string"
-              ? draftForm.event_name
-              : prev.event_name,
-          event_date:
-            typeof draftForm.event_date === "string"
-              ? draftForm.event_date
-              : prev.event_date,
-          location:
-            typeof draftForm.location === "string"
-              ? draftForm.location
-              : prev.location,
-          slug: typeof draftForm.slug === "string" ? draftForm.slug : prev.slug,
-          event_description:
-            typeof draftForm.event_description === "string"
-              ? draftForm.event_description
-              : prev.event_description,
-          event_blurb:
-            typeof draftForm.event_blurb === "string"
-              ? draftForm.event_blurb
-              : prev.event_blurb,
-          cover_image_url:
-            typeof draftForm.cover_image_url === "string"
-              ? draftForm.cover_image_url
-              : prev.cover_image_url,
-          organizer_emails:
-            typeof draftForm.organizer_emails === "string"
-              ? draftForm.organizer_emails
-              : prev.organizer_emails,
-          submission_time_start:
-            typeof draftForm.submission_time_start === "string"
-              ? draftForm.submission_time_start
-              : prev.submission_time_start,
-          submission_time_cutoff:
-            typeof draftForm.submission_time_cutoff === "string"
-              ? draftForm.submission_time_cutoff
-              : prev.submission_time_cutoff,
-          participant_capacity:
-            typeof draftForm.participant_capacity === "string"
-              ? draftForm.participant_capacity
-              : prev.participant_capacity,
-          event_type:
-            typeof draftForm.event_type === "string"
-              ? draftForm.event_type
-              : prev.event_type,
-          location_type:
-            draftForm.location_type === "in-person" ||
-            draftForm.location_type === "virtual"
-              ? draftForm.location_type
-              : prev.location_type,
-          paywall_content:
-            typeof draftForm.paywall_content === "string"
-              ? draftForm.paywall_content
-              : prev.paywall_content,
-        }));
-      }
+      applyRestoredForm(parsed.form);
 
       if (parsed.ticketType === "free" || parsed.ticketType === "paid") {
         setTicketType(parsed.ticketType);
       }
 
-      if (
-        typeof parsed.visibility === "string" &&
-        Object.values(EventVisibility).includes(
-          parsed.visibility as EventVisibility
-        )
-      ) {
-        setVisibility(parsed.visibility as EventVisibility);
+      if (isEventVisibility(parsed.visibility)) {
+        setVisibility(parsed.visibility);
       }
 
       if (typeof parsed.submissionTimezone === "string") {
         setSubmissionTimezone(parsed.submissionTimezone);
       }
 
-      if (Array.isArray(parsed.schedules)) {
-        setSchedules(parsed.schedules as typeof schedules);
-      }
+      restoreArrayState(parsed.schedules, setSchedules);
+      restoreArrayState(parsed.resources, setResources);
+      restoreArrayState(parsed.rules, setRules);
+      restoreArrayState(parsed.faqs, setFaqs);
+      restoreArrayState(parsed.galleryImages, setGalleryImages);
+      restoreArrayState(parsed.tracks, setTracks);
+      restoreArrayState(parsed.prizes, setPrizes);
 
-      if (Array.isArray(parsed.resources)) {
-        setResources(parsed.resources as typeof resources);
-      }
-
-      if (Array.isArray(parsed.rules)) {
-        setRules(parsed.rules as Rule[]);
-      }
-
-      if (Array.isArray(parsed.faqs)) {
-        setFaqs(parsed.faqs as typeof faqs);
-      }
-
-      if (Array.isArray(parsed.galleryImages)) {
-        setGalleryImages(parsed.galleryImages as typeof galleryImages);
-      }
-
-      if (Array.isArray(parsed.tracks)) {
-        setTracks(parsed.tracks as typeof tracks);
-      }
-
-      if (Array.isArray(parsed.prizes)) {
-        setPrizes(parsed.prizes as typeof prizes);
-      }
-
-      if (parsed.rolePasswords && typeof parsed.rolePasswords === "object") {
-        setRolePasswords(parsed.rolePasswords as Record<string, string>);
-      }
-
-      if (parsed.roleLabels && typeof parsed.roleLabels === "object") {
-        setRoleLabels(parsed.roleLabels as Record<string, string>);
-      }
+      restoreStringRecordState(parsed.rolePasswords, setRolePasswords);
+      restoreStringRecordState(parsed.roleLabels, setRoleLabels);
 
       if (Array.isArray(parsed.organizerEmails)) {
         setOrganizerEmails(
