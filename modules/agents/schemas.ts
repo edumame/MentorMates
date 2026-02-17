@@ -82,9 +82,13 @@ const agentsBaseSchema = z.object({
 export const agentsInsertSchema = agentsBaseSchema;
 
 export const agentsUpdateSchema = agentsBaseSchema
+    .omit({ event_id: true })
     .extend({
         feedback_prompt: optionalTextAllowEmpty,
         voice: optionalVoiceAllowClear,
     })
     .partial()
-    .extend({ id: z.string().min(1, { message: "Id is required" }) });
+    .extend({
+        id: z.string().min(1, { message: "Id is required" }),
+        expected_updated_at: z.string().datetime().optional(),
+    });

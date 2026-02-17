@@ -359,7 +359,15 @@ export const AgentForm = ({ onSuccess, onCancel, initialValues, eventId } : Agen
         delete payloadBase.custom_voice_tmp;
 
         if (isEdit) {
-            updateAgent.mutate({ ...payloadBase, id: initialValues.id });
+            const expectedUpdatedAt =
+                typeof (initialValues as AgentGetOne | undefined)?.updated_at === "string"
+                    ? String((initialValues as AgentGetOne).updated_at)
+                    : undefined;
+            updateAgent.mutate({
+                ...payloadBase,
+                id: initialValues.id,
+                expected_updated_at: expectedUpdatedAt,
+            });
         } else {
             try {
                 const payload = eventId ? { ...payloadBase, event_id: eventId } : payloadBase;

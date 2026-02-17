@@ -42,6 +42,8 @@ interface EventOption {
   event_name: string;
 }
 
+type AgentListItem = AgentGetOne & { can_edit?: boolean };
+
 type SessionLaunchMode = "chat" | "call";
 
 const PROMPT_PREVIEW_LIMIT = 240;
@@ -353,13 +355,9 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
   );
 
   const allOwnedAgents = useMemo<AgentGetOne[]>(() => {
-    const items = ((agentsQuery.data?.items || []) as unknown[]) as AgentGetOne[];
-    if (!effectiveUserId) return [];
-    return items.filter(
-      (agent: AgentGetOne) =>
-        String(agent.user_id ?? "") === String(effectiveUserId)
-    );
-  }, [agentsQuery.data, effectiveUserId]);
+    const items = ((agentsQuery.data?.items || []) as unknown[]) as AgentListItem[];
+    return items.filter((agent: AgentListItem) => Boolean(agent.can_edit));
+  }, [agentsQuery.data]);
 
   const ownedAgents = useMemo<AgentGetOne[]>(() => {
     if (!eventId) return allOwnedAgents;
@@ -542,8 +540,18 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
         description: String(agent.name),
         duration: 3000,
       });
-      await updateAgent.mutateAsync({ id: agent.id, scoring });
-      t.dismiss();
+      try {
+        await updateAgent.mutateAsync({
+          id: agent.id,
+          scoring,
+          expected_updated_at:
+            typeof (agent as AgentGetOne & { updated_at?: unknown }).updated_at === "string"
+              ? String((agent as AgentGetOne & { updated_at?: unknown }).updated_at)
+              : undefined,
+        });
+      } finally {
+        t.dismiss();
+      }
     })();
   };
 
@@ -554,8 +562,18 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
         description: String(agent.name),
         duration: 3000,
       });
-      await updateAgent.mutateAsync({ id: agent.id, enabled });
-      t.dismiss();
+      try {
+        await updateAgent.mutateAsync({
+          id: agent.id,
+          enabled,
+          expected_updated_at:
+            typeof (agent as AgentGetOne & { updated_at?: unknown }).updated_at === "string"
+              ? String((agent as AgentGetOne & { updated_at?: unknown }).updated_at)
+              : undefined,
+        });
+      } finally {
+        t.dismiss();
+      }
     })();
   };
 

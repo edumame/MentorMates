@@ -4,27 +4,138 @@ import { createTRPCRouter, protectedProcedure } from "@/trpc/init";
 import { TRPCError } from "@trpc/server";
 import z from "zod";
 
+const EDITOR_EVENT_ROLES = ["organizer", "admin"] as const;
+type EditorEventRole = (typeof EDITOR_EVENT_ROLES)[number];
+
+type AgentPermissionRow = {
+    id: string;
+    user_id?: string | null;
+    event_id?: string | null;
+    updated_at?: string | null;
+    [key: string]: unknown;
+};
+
+type UserEventRoleRow = {
+    event_id?: string | null;
+    role?: string | null;
+};
+
+type EventOwnerRow = {
+    event_id?: string | null;
+    owner_id?: string | null;
+};
+
+interface AgentAccessContext {
+    isAdmin: boolean;
+    editorEventIds: Set<string>;
+    ownerEventIds: Set<string>;
+}
+
+function normalizeId(value: unknown): string {
+    if (typeof value !== "string") return "";
+    return value.trim();
+}
+
+function toIdSet(values: unknown[]): Set<string> {
+    return new Set(values.map(normalizeId).filter(Boolean));
+}
+
+async function getIsAdmin(supabase: any, userId: string) {
+    const { data, error } = await supabase.rpc("is_admin_user", { user_id: userId });
+    if (error) throw error;
+    return Boolean(data);
+}
+
+async function getUserEventRoles(supabase: any, userId: string) {
+    const { data, error } = await supabase.from("user_event_roles").select("event_id, role").eq("user_id", userId);
+    if (error) throw error;
+    return (data ?? []) as UserEventRoleRow[];
+}
+
+async function getOwnerEventIds(supabase: any, userId: string) {
+    const { data, error } = await supabase.from("events").select("event_id").eq("owner_id", userId);
+    if (error) throw error;
+    return toIdSet(((data ?? []) as EventOwnerRow[]).map((row) => row.event_id));
+}
+
+function canManageEvent(eventId: string, access: AgentAccessContext): boolean {
+    if (!eventId) return false;
+    return access.isAdmin || access.editorEventIds.has(eventId) || access.ownerEventIds.has(eventId);
+}
+
+function canEditAgent(agent: AgentPermissionRow, userId: string, access: AgentAccessContext): boolean {
+    const ownerId = normalizeId(agent.user_id);
+    if (ownerId === userId) return true;
+    if (access.isAdmin) return true;
+    const eventId = normalizeId(agent.event_id);
+    if (!eventId) return false;
+    return canManageEvent(eventId, access);
+}
+
+async function userCanManageEventAgents(supabase: any, userId: string, eventId: string): Promise<boolean> {
+    const isAdmin = await getIsAdmin(supabase, userId);
+    if (isAdmin) return true;
+
+    const { data: eventRow, error: eventError } = await supabase
+        .from("events")
+        .select("owner_id")
+        .eq("event_id", eventId)
+        .maybeSingle();
+    if (eventError) throw eventError;
+    if (normalizeId(eventRow?.owner_id) === userId) return true;
+
+    const { data: roleRow, error: roleError } = await supabase
+        .from("user_event_roles")
+        .select("role")
+        .eq("event_id", eventId)
+        .eq("user_id", userId)
+        .in("role", [...EDITOR_EVENT_ROLES])
+        .maybeSingle();
+    if (roleError) throw roleError;
+
+    return Boolean(roleRow?.role);
+}
+
+async function userCanEditAgent(supabase: any, userId: string, agent: AgentPermissionRow): Promise<boolean> {
+    const ownerId = normalizeId(agent.user_id);
+    if (ownerId === userId) return true;
+
+    const eventId = normalizeId(agent.event_id);
+    if (!eventId) {
+        return getIsAdmin(supabase, userId);
+    }
+
+    return userCanManageEventAgents(supabase, userId, eventId);
+}
+
 export const agentsRouter = createTRPCRouter({
     getOne: protectedProcedure.input(z.object({ id: z.string() })).query(async ({ input, ctx }) => {
         const supabase = ctx.supabase;
+        const userId = ctx.auth.user.id;
 
         const { data: agent, error: agentError } = await supabase.from("agents").select("*").eq("id", input.id).maybeSingle();
         if (agentError) throw agentError;
         if (!agent) throw new TRPCError({ code: "NOT_FOUND", message: "Agent not found" });
 
-        // Allow access when any of the following is true:
-        // - owner of the agent
-        // - agent is global (no event_id)
-        // - user has a role on the agent's event
-        if (agent.user_id !== ctx.auth.user.id && agent.event_id != null) {
-            const { data: roleRows = [], error: roleErr } = await supabase
-                .from("user_event_roles")
-                .select("event_id")
-                .eq("user_id", ctx.auth.user.id)
-                .eq("event_id", agent.event_id)
-                .limit(1);
-            if (roleErr) throw roleErr;
-            if (!roleRows || roleRows.length === 0) throw new TRPCError({ code: "FORBIDDEN", message: "Not authorized to view this agent" });
+        const [isAdmin, userEventRoles, ownerEventIds] = await Promise.all([
+            getIsAdmin(supabase, userId),
+            getUserEventRoles(supabase, userId),
+            getOwnerEventIds(supabase, userId),
+        ]);
+
+        const memberEventIds = toIdSet(userEventRoles.map((r) => r.event_id));
+        const editorEventIds = toIdSet(
+            userEventRoles
+                .filter((r) => EDITOR_EVENT_ROLES.includes(normalizeId(r.role) as EditorEventRole))
+                .map((r) => r.event_id)
+        );
+        const access: AgentAccessContext = { isAdmin, editorEventIds, ownerEventIds };
+
+        const agentEventId = normalizeId(agent.event_id);
+        const ownerId = normalizeId(agent.user_id);
+        const canViewEventAgent = isAdmin || ownerEventIds.has(agentEventId) || memberEventIds.has(agentEventId);
+        if (ownerId !== userId && agentEventId && !canViewEventAgent) {
+            throw new TRPCError({ code: "FORBIDDEN", message: "Not authorized to view this agent" });
         }
 
         const { count: meetingCount } = await supabase
@@ -33,7 +144,7 @@ export const agentsRouter = createTRPCRouter({
             .eq("agent_id", agent.id)
             .then((r) => ({ count: r.count ?? 0 }));
 
-        return { ...agent, meetingCount };
+        return { ...agent, meetingCount, can_edit: canEditAgent(agent as AgentPermissionRow, userId, access) };
     }),
 
     getMany: protectedProcedure
@@ -48,16 +159,30 @@ export const agentsRouter = createTRPCRouter({
         .query(async ({ ctx, input }) => {
             const { search, page, pageSize, eventId } = input;
             const supabase = ctx.supabase;
+            const userId = ctx.auth.user.id;
 
             const offset = (page - 1) * pageSize;
 
-            // Get event IDs where user has a role (for accessing event-specific agents)
-            const { data: userEventRoles } = await supabase
-                .from("user_event_roles")
-                .select("event_id")
-                .eq("user_id", ctx.auth.user.id);
+            const [isAdmin, userEventRoles, ownerEventIds] = await Promise.all([
+                getIsAdmin(supabase, userId),
+                getUserEventRoles(supabase, userId),
+                getOwnerEventIds(supabase, userId),
+            ]);
 
-            const userEventIds = (userEventRoles || []).map((r) => r.event_id).filter(Boolean);
+            const memberEventIds = toIdSet(userEventRoles.map((r) => r.event_id));
+            const accessibleEventIds = Array.from(new Set([...memberEventIds, ...ownerEventIds]));
+            const editorEventIds = toIdSet(
+                userEventRoles
+                    .filter((r) => EDITOR_EVENT_ROLES.includes(normalizeId(r.role) as EditorEventRole))
+                    .map((r) => r.event_id)
+            );
+
+            if (eventId) {
+                const canViewEvent = isAdmin || ownerEventIds.has(eventId) || memberEventIds.has(eventId);
+                if (!canViewEvent) {
+                    throw new TRPCError({ code: "FORBIDDEN", message: "Not authorized to view agents for this event" });
+                }
+            }
 
             // Build query to get:
             // 1. Agents owned by the user (user_id = current user)
@@ -67,14 +192,14 @@ export const agentsRouter = createTRPCRouter({
             if (eventId) {
                 // If specific event requested, only show agents for that event
                 agentsQuery = agentsQuery.eq("event_id", eventId);
-            } else if (userEventIds.length > 0) {
+            } else if (accessibleEventIds.length > 0) {
                 // Show user's own agents OR agents from events they have access to OR global agents (no event_id)
                 agentsQuery = agentsQuery.or(
-                    `user_id.eq.${ctx.auth.user.id},event_id.in.(${userEventIds.join(",")}),event_id.is.null`
+                    `user_id.eq.${userId},event_id.in.(${accessibleEventIds.join(",")}),event_id.is.null`
                 );
             } else {
                 // No event access, show user's own agents or global agents
-                agentsQuery = agentsQuery.or(`user_id.eq.${ctx.auth.user.id},event_id.is.null`);
+                agentsQuery = agentsQuery.or(`user_id.eq.${userId},event_id.is.null`);
             }
 
             if (search) agentsQuery = agentsQuery.ilike("name", `%${search}%`);
@@ -90,12 +215,12 @@ export const agentsRouter = createTRPCRouter({
             let countQuery = supabase.from("agents").select("id", { count: "exact", head: false });
             if (eventId) {
                 countQuery = countQuery.eq("event_id", eventId);
-            } else if (userEventIds.length > 0) {
+            } else if (accessibleEventIds.length > 0) {
                 countQuery = countQuery.or(
-                    `user_id.eq.${ctx.auth.user.id},event_id.in.(${userEventIds.join(",")}),event_id.is.null`
+                    `user_id.eq.${userId},event_id.in.(${accessibleEventIds.join(",")}),event_id.is.null`
                 );
             } else {
-                countQuery = countQuery.or(`user_id.eq.${ctx.auth.user.id},event_id.is.null`);
+                countQuery = countQuery.or(`user_id.eq.${userId},event_id.is.null`);
             }
             if (search) countQuery = countQuery.ilike("name", `%${search}%`);
             const { count, error: countError } = await countQuery;
@@ -104,7 +229,7 @@ export const agentsRouter = createTRPCRouter({
             const totalPages = Math.ceil(total / pageSize);
 
             // meeting counts per agent
-            const agentIds = Array.from(new Set((items || []).map((a: unknown) => (a as { id?: string }).id).filter(Boolean)));
+            const agentIds = Array.from(new Set((items || []).map((a: unknown) => normalizeId((a as { id?: string }).id)).filter(Boolean)));
             let meetingCountsMap: Record<string, number> = {};
             if (agentIds.length > 0) {
                 const { data: meetingsRows = [], error: meetingsErr } = await supabase
@@ -119,9 +244,15 @@ export const agentsRouter = createTRPCRouter({
                 }, {});
             }
 
+            const access: AgentAccessContext = { isAdmin, editorEventIds, ownerEventIds };
             const itemsWithCounts = (items || []).map((a: unknown) => {
-                const id = (a as { id?: string }).id;
-                return { ...(a as Record<string, unknown>), meetingCount: meetingCountsMap[id ?? ""] ?? 0 };
+                const row = a as AgentPermissionRow;
+                const id = normalizeId(row.id);
+                return {
+                    ...(row as Record<string, unknown>),
+                    meetingCount: meetingCountsMap[id] ?? 0,
+                    can_edit: canEditAgent(row, userId, access),
+                };
             });
 
             return {
@@ -133,6 +264,16 @@ export const agentsRouter = createTRPCRouter({
 
     create: protectedProcedure.input(agentsInsertSchema).mutation(async ({ input, ctx }) => {
         const supabase = ctx.supabase;
+        if (input.event_id) {
+            const canManage = await userCanManageEventAgents(supabase, ctx.auth.user.id, input.event_id);
+            if (!canManage) {
+                throw new TRPCError({
+                    code: "FORBIDDEN",
+                    message: "You don't have permission to create agents for this event.",
+                });
+            }
+        }
+
         const payloadBase = { ...input, user_id: ctx.auth.user.id };
         const dbPayload: Record<string, unknown> = { ...payloadBase };
         // strip undefined fields to avoid accidental updates
@@ -147,24 +288,69 @@ export const agentsRouter = createTRPCRouter({
 
     remove: protectedProcedure.input(z.object({ id: z.string() })).mutation(async ({ ctx, input }) => {
         const supabase = ctx.supabase;
-        const { data, error } = await supabase.from("agents").delete().match({ id: input.id, user_id: ctx.auth.user.id }).select();
+        const { data: existingAgent, error: existingError } = await supabase
+            .from("agents")
+            .select("id, user_id, event_id")
+            .eq("id", input.id)
+            .maybeSingle();
+        if (existingError) throw existingError;
+        if (!existingAgent) throw new TRPCError({ code: "NOT_FOUND", message: "Agent not found" });
+
+        const canEdit = await userCanEditAgent(supabase, ctx.auth.user.id, existingAgent as AgentPermissionRow);
+        if (!canEdit) throw new TRPCError({ code: "FORBIDDEN", message: "You don't have permission to delete this agent." });
+
+        const { data, error } = await supabase.from("agents").delete().eq("id", input.id).select().limit(1);
         if (error) throw error;
         const removedAgent = data?.[0];
-        if (!removedAgent) throw new TRPCError({ code: "NOT_FOUND", message: "Agent not found" });
+        if (!removedAgent) throw new TRPCError({ code: "NOT_FOUND", message: "Agent not found or already removed" });
         return removedAgent;
     }),
 
     update: protectedProcedure.input(agentsUpdateSchema).mutation(async ({ ctx, input }) => {
         const supabase = ctx.supabase;
+        const { data: existingAgent, error: existingError } = await supabase
+            .from("agents")
+            .select("id, user_id, event_id, updated_at")
+            .eq("id", input.id)
+            .maybeSingle();
+        if (existingError) throw existingError;
+        if (!existingAgent) throw new TRPCError({ code: "NOT_FOUND", message: "Agent not found" });
+
+        const canEdit = await userCanEditAgent(supabase, ctx.auth.user.id, existingAgent as AgentPermissionRow);
+        if (!canEdit) throw new TRPCError({ code: "FORBIDDEN", message: "You don't have permission to update this agent." });
+
+        const expectedUpdatedAt = normalizeId(input.expected_updated_at);
+        const currentUpdatedAt = normalizeId((existingAgent as AgentPermissionRow).updated_at);
+        if (expectedUpdatedAt && expectedUpdatedAt !== currentUpdatedAt) {
+            throw new TRPCError({
+                code: "CONFLICT",
+                message: "This agent was updated by someone else. Reload the page and try again.",
+            });
+        }
+
         const updateBase = { ...input } as Record<string, unknown>;
         // remove id from payload
         delete updateBase.id;
+        delete updateBase.expected_updated_at;
         // remove undefined fields so we don't overwrite columns unintentionally
         Object.keys(updateBase).forEach((k) => (updateBase[k] === undefined ? delete updateBase[k] : null));
+        updateBase.updated_at = new Date().toISOString();
 
-        const { data, error } = await supabase.from("agents").update(updateBase).match({ id: input.id, user_id: ctx.auth.user.id }).select();
+        let updateQuery = supabase.from("agents").update(updateBase).eq("id", input.id);
+        if (expectedUpdatedAt) {
+            updateQuery = updateQuery.eq("updated_at", expectedUpdatedAt);
+        }
+
+        const { data, error } = await updateQuery.select().limit(1);
         if (error) throw error;
+
         const updatedAgent = data?.[0];
+        if (!updatedAgent && expectedUpdatedAt) {
+            throw new TRPCError({
+                code: "CONFLICT",
+                message: "This agent was updated by someone else. Reload the page and try again.",
+            });
+        }
         if (!updatedAgent) throw new TRPCError({ code: "NOT_FOUND", message: "Agent not found" });
         return updatedAgent;
     }),
@@ -180,36 +366,7 @@ export const agentsRouter = createTRPCRouter({
             const supabase = ctx.supabase;
             const userId = ctx.auth.user.id;
 
-            // Permission check mirrors organizer-level access:
-            // event owner, organizer/admin role on the event, or platform admin.
-            const { data: isAdmin } = await supabase.rpc("is_admin_user", {
-                user_id: userId,
-            });
-
-            let canEdit = Boolean(isAdmin);
-
-            if (!canEdit) {
-                const { data: eventRow, error: eventErr } = await supabase
-                    .from("events")
-                    .select("owner_id")
-                    .eq("event_id", input.eventId)
-                    .maybeSingle();
-                if (eventErr) throw eventErr;
-
-                if (eventRow?.owner_id && String(eventRow.owner_id) === String(userId)) {
-                    canEdit = true;
-                } else {
-                    const { data: roleRow, error: roleErr } = await supabase
-                        .from("user_event_roles")
-                        .select("role")
-                        .eq("event_id", input.eventId)
-                        .eq("user_id", userId)
-                        .in("role", ["organizer", "admin"])
-                        .maybeSingle();
-                    if (roleErr) throw roleErr;
-                    canEdit = Boolean(roleRow?.role);
-                }
-            }
+            const canEdit = await userCanManageEventAgents(supabase, userId, input.eventId);
 
             if (!canEdit) {
                 throw new TRPCError({
