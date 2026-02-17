@@ -87,6 +87,7 @@ import ReactMarkdown from "react-markdown";
 const PREFILL_STORAGE_KEY = "mentorMates-event-prefill";
 const CREATE_DRAFT_STORAGE_KEY = "mentorMates-event-create-draft";
 const AUTO_SAVE_DEBOUNCE_MS = 1500;
+const DEFAULT_EVENT_TYPE = "Hackathon";
 const RESTORABLE_FORM_STRING_KEYS = [
   "event_name",
   "event_date",
@@ -420,7 +421,7 @@ export default function NewEventPage() {
     submission_time_start: "",
     submission_time_cutoff: "",
     participant_capacity: "",
-    event_type: "",
+    event_type: DEFAULT_EVENT_TYPE,
     location_type: "virtual", // "in-person" or "virtual"
     paywall_content: "",
   });
@@ -513,6 +514,10 @@ export default function NewEventPage() {
   }, []);
 
   const hasMeaningfulDraftData = useCallback(() => {
+    const trimmedEventType = form.event_type.trim();
+    const hasCustomEventType =
+      trimmedEventType.length > 0 && trimmedEventType !== DEFAULT_EVENT_TYPE;
+
     return (
       hasNonEmptyText([
         form.event_name,
@@ -526,7 +531,6 @@ export default function NewEventPage() {
         form.submission_time_start,
         form.submission_time_cutoff,
         form.participant_capacity,
-        form.event_type,
         form.paywall_content,
         organizerEmailInput,
         scheduleForm.dayTitle,
@@ -548,6 +552,7 @@ export default function NewEventPage() {
       [schedules, resources, rules, faqs, galleryImages, tracks, prizes].some(
         (collection) => collection.length > 0
       ) ||
+      hasCustomEventType ||
       rulesForm.rules.some((ruleItem) => ruleItem.trim().length > 0)
     );
   }, [
@@ -572,9 +577,12 @@ export default function NewEventPage() {
     const parsedParticipantCapacity = form.participant_capacity
       ? parseInt(form.participant_capacity, 10)
       : null;
-
-    const organizerLabelsPayload =
-      Object.keys(roleLabels).length > 0 ? roleLabels : null;
+    const trimmedSlug = form.slug.trim();
+    const trimmedDescription = form.event_description.trim();
+    const trimmedBlurb = form.event_blurb.trim();
+    const trimmedCoverImageUrl = form.cover_image_url.trim();
+    const trimmedPaywallContent = form.paywall_content.trim();
+    const faqMarkdown = buildFaqMarkdown(faqs);
 
     const eventSchedulePayload = buildEventSchedulePayload(schedules);
     const eventResourcesPayload = resources
@@ -584,29 +592,44 @@ export default function NewEventPage() {
       }))
       .filter((resource) => resource.name && resource.link);
 
-    return {
+    const payload: Record<string, unknown> = {
       event_name: form.event_name.trim() || "Untitled Event",
       event_date: normalizeDateForServer(form.event_date),
-      location: form.location.trim() || null,
-      slug: form.slug.trim() || null,
-      event_description: form.event_description.trim() || null,
-      event_blurb: form.event_blurb.trim() || null,
-      cover_image_url: form.cover_image_url.trim() || null,
-      submission_time_start: form.submission_time_start || null,
-      submission_time_cutoff: form.submission_time_cutoff || null,
-      participant_capacity: Number.isNaN(parsedParticipantCapacity)
-        ? null
-        : parsedParticipantCapacity,
+      location: form.location.trim() || "TBD",
+      event_description: trimmedDescription,
+      event_blurb: trimmedBlurb,
+      cover_image_url: trimmedCoverImageUrl,
       paid: ticketType === "paid",
-      event_type: form.event_type.trim() || null,
-      paywall_content: form.paywall_content.trim() || null,
+      event_type: form.event_type.trim() || DEFAULT_EVENT_TYPE,
+      paywall_content: trimmedPaywallContent,
       event_schedule: eventSchedulePayload,
       event_resources: eventResourcesPayload,
       event_prizes: prizes,
       rules,
-      faq: buildFaqMarkdown(faqs),
-      role_labels: organizerLabelsPayload,
+      faq: faqMarkdown || "",
+      role_labels: roleLabels,
     };
+
+    if (trimmedSlug) {
+      payload.slug = trimmedSlug;
+    }
+
+    if (form.submission_time_start) {
+      payload.submission_time_start = form.submission_time_start;
+    }
+
+    if (form.submission_time_cutoff) {
+      payload.submission_time_cutoff = form.submission_time_cutoff;
+    }
+
+    if (
+      parsedParticipantCapacity !== null &&
+      !Number.isNaN(parsedParticipantCapacity)
+    ) {
+      payload.participant_capacity = parsedParticipantCapacity;
+    }
+
+    return payload;
   }, [form, ticketType, schedules, resources, prizes, rules, faqs, roleLabels]);
 
   const createServerDraftEvent = useCallback(async (): Promise<string | null> => {
@@ -2560,26 +2583,6 @@ export default function NewEventPage() {
                                   className="border border-[rgba(0,0,0,0.15)] bg-white"
                                 >
                                   Cancel
-                                </Button>
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  className="border border-[#4b89ef] text-[#4b89ef] bg-white hover:bg-[#4b89ef]/10"
-                                  onClick={() => {
-                                    toast({
-                                      title: "Event added",
-                                      description: "Event added to schedule.",
-                                    });
-                                    setScheduleForm({
-                                      dayTitle: "",
-                                      eventName: "",
-                                      time: "",
-                                      guests: "",
-                                      description: "",
-                                    });
-                                  }}
-                                >
-                                  Add event
                                 </Button>
                               </div>
                             </div>
