@@ -367,7 +367,8 @@ const UserSearchWithInvite = ({
           {filteredTags.length > 0 && (
             <ul
               id="dropdown"
-              className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm"
+              className="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto overscroll-contain rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm"
+              style={{ WebkitOverflowScrolling: "touch" }}
             >
               {filteredTags.map((tag, index) => (
                 <li

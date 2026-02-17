@@ -6,6 +6,7 @@ import { ChevronDown, HelpCircle, Mail, Play, ArrowRight } from "lucide-react";
 import { Footer } from "@/components/layout/Footer";
 import { cn } from "@/lib/utils";
 import { TUTORIAL_VIDEOS } from "@/lib/config/tutorials";
+import { useAuth } from "@/features/user/authentication/auth/AuthContext";
 
 interface FAQItem {
   question: string;
@@ -85,7 +86,7 @@ function FAQAccordionItem({
   onToggle: () => void;
 }) {
   return (
-    <div className="border-b border-gray-100 last:border-b-0">
+    <div className="border-b border-black/10 last:border-b-0">
       <button
         onClick={onToggle}
         className="w-full py-5 flex items-center justify-between text-left hover:bg-gray-50 transition-colors px-4 -mx-4 rounded-lg"
@@ -115,10 +116,11 @@ function FAQAccordionItem({
 
 export default function FAQPage() {
   const [openIndex, setOpenIndex] = React.useState<number | null>(0);
+  const { isAuthenticated } = useAuth();
 
   return (
     <>
-      <div className="min-h-screen py-2">
+      <div className={isAuthenticated ? "min-h-full py-2" : "py-2"}>
         <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 space-y-10 pt-16 pb-16">
           {/* Header */}
           <div className="text-center">
@@ -137,7 +139,7 @@ export default function FAQPage() {
           </div>
 
           {/* FAQ Accordion */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 sm:p-8">
+          <div className="bg-white rounded-xl shadow-sm border border-black/10 p-6 sm:p-8">
             {faqs.map((faq, index) => (
               <FAQAccordionItem
                 key={index}
@@ -165,7 +167,7 @@ export default function FAQPage() {
                   href={tutorial.href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="group block rounded-xl bg-white border border-gray-100 p-5 shadow-sm transition-all hover:shadow-lg hover:border-[#4B89EF]/20"
+                  className="group block rounded-xl bg-white border border-black/10 p-5 shadow-sm transition-all hover:shadow-lg hover:border-[#4B89EF]/20"
                 >
                   <div className="flex items-start justify-between">
                     <div>

@@ -195,9 +195,15 @@ export const MeetingForm = ({
       return enabledItems.filter((a: AgentGetOne) => a.event_id == null);
     }
     return enabledItems.filter(
-      (a: AgentGetOne) =>
+      (a: AgentGetOne) => {
         // include general agents (no event_id) as well as agents for the selected event
-        a.event_id == null || String(a.event_id ?? "") === String(selectedEventId)
+        if (a.event_id == null) return true;
+        if (String(a.event_id ?? "") === String(selectedEventId)) return true;
+        // also include agents linked to this event via agent_events
+        const linked = (a as AgentGetOne & { linkedEventIds?: string[] }).linkedEventIds;
+        if (Array.isArray(linked) && linked.includes(String(selectedEventId))) return true;
+        return false;
+      }
     );
   }, [agents.data, selectedEventId]);
 

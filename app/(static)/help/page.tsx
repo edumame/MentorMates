@@ -1,8 +1,11 @@
+"use client";
+
 import type React from "react";
 import Link from "next/link";
 import { ArrowRight, Play, PlayCircle } from "lucide-react";
 import { Footer } from "@/components/layout/Footer";
 import { TUTORIAL_VIDEOS } from "@/lib/config/tutorials";
+import { useAuth } from "@/features/user/authentication/auth/AuthContext";
 
 const RoleCard: React.FC<{
   title: string;
@@ -36,9 +39,11 @@ const RoleCard: React.FC<{
 };
 
 const RolesPage: React.FC = () => {
+  const { isAuthenticated } = useAuth();
+
   return (
     <>
-      <div className="min-h-screen py-2">
+      <div className={isAuthenticated ? "min-h-full py-2" : "py-2"}>
         <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 space-y-10 pt-16 pb-16">
           {/* Header */}
           <div className="text-center">
