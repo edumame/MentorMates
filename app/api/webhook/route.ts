@@ -71,24 +71,35 @@ type ResponseInputItem = {
   content: ResponseInputContentItem[];
 };
 
+type ResponseCreateParams = Parameters<typeof openaiClient.responses.create>[0];
+type ResponseTool = NonNullable<ResponseCreateParams["tools"]>[number];
+
+function inputText(text: string): { type: "input_text"; text: string } {
+  return { type: "input_text", text };
+}
+
 function buildResponsesInput(
   systemInstructions: string,
   previousMessages: ChatHistoryMessage[],
   userText: string,
   userAttachments: UserAttachmentInput[]
 ): ResponseInputItem[] {
+  const historyItems: ResponseInputItem[] = previousMessages.map(
+    (message): ResponseInputItem => ({
+      role: message.role,
+      content: [inputText(message.content)],
+    })
+  );
+
   return [
     {
       role: "system",
-      content: [{ type: "input_text", text: systemInstructions }],
+      content: [inputText(systemInstructions)],
     },
-    ...previousMessages.map((message) => ({
-      role: message.role,
-      content: [{ type: "input_text", text: message.content }],
-    })),
+    ...historyItems,
     {
       role: "user",
-      content: [{ type: "input_text", text: userText }, ...userAttachments],
+      content: [inputText(userText), ...userAttachments],
     },
   ];
 }
@@ -132,7 +143,7 @@ async function createTextResponse(params: {
 }): Promise<string> {
   const tools = buildResponseTools();
 
-  const requestBody: Record<string, unknown> = {
+  const requestBody: Parameters<typeof openaiClient.responses.create>[0] = {
     model: CHAT_RESPONSES_MODEL,
     input: buildResponsesInput(
       params.systemInstructions,
@@ -140,16 +151,15 @@ async function createTextResponse(params: {
       params.userText,
       params.userAttachments
     ),
+    ...(tools.length > 0
+      ? {
+          tools,
+          tool_choice: CHAT_TOOL_CHOICE,
+        }
+      : {}),
   };
 
-  if (tools.length > 0) {
-    requestBody.tools = tools;
-    requestBody.tool_choice = CHAT_TOOL_CHOICE;
-  }
-
-  const response = await openaiClient.responses.create(
-    requestBody as Parameters<typeof openaiClient.responses.create>[0]
-  );
+  const response = await openaiClient.responses.create(requestBody);
   if (CHAT_LOG_TOOL_CALLS) {
     const toolCalls = extractToolCalls(response);
     console.log("chat tool calls", toolCalls);
@@ -272,11 +282,11 @@ function buildAttachmentInputs(
   return outputs;
 }
 
-function buildResponseTools(): Array<Record<string, unknown>> {
-  const tools: Array<Record<string, unknown>> = [];
+function buildResponseTools(): ResponseTool[] {
+  const tools: ResponseTool[] = [];
 
   if (CHAT_ENABLE_WEB_SEARCH) {
-    tools.push({ type: "web_search" });
+    tools.push({ type: "web_search_preview" });
   }
 
   if (DEFAULT_FILE_SEARCH_VECTOR_STORE_IDS.length > 0) {

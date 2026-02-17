@@ -81,7 +81,7 @@ curl -s https://api.openai.com/v1/responses \
     "model": "gpt-5",
     "input": "What are two current headlines about AI this week? Keep it short.",
     "tools": [
-      { "type": "web_search" }
+      { "type": "web_search_preview" }
     ]
   }' | jq -r '.output_text'
 ```
