@@ -205,7 +205,6 @@ export const CallActive = ({ onLeave, meetingName, meetingId }: Props) => {
         className={`${base} ${activeClass}`}
       >
         <span className="text-sm font-medium select-none">{icon}</span>
-        <span className="hidden sm:inline text-sm font-medium">{label}</span>
       </button>
     );
   };
