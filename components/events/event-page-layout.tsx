@@ -130,6 +130,7 @@ export async function EventPageLayout({
               activeRole={null}
               paid={paid || false}
               eventType={eventType || "Hackathon"}
+              containerClassName="mx-auto w-full max-w-10xl px-4 md:px-10 lg:px-24"
             />
 
             {/* Tabs Navigation */}

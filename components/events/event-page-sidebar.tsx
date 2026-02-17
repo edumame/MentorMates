@@ -1,6 +1,6 @@
 "use client";
 
-import { Link as LinkIcon, QrCode, Linkedin, Facebook } from "lucide-react";
+import { Link as LinkIcon, QrCode } from "lucide-react";
 import { Resource } from "@/lib/types";
 
 interface EventPageSidebarProps {
@@ -44,7 +44,7 @@ export function EventPageSidebar({
   };
 
   return (
-    <div className="flex flex-col gap-6 w-full md:w-[341px] min-w-0">
+    <div className="flex flex-col gap-6 w-full md:w-[341px] md:shrink-0 min-w-0">
       {/* Important Links */}
       {eventResources && eventResources.length > 0 && (
         <div className="flex flex-col gap-4 w-full items-center">
@@ -59,7 +59,7 @@ export function EventPageSidebar({
                 href={res.link}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="bg-[rgba(0,0,0,0.05)] flex gap-2 items-center justify-center px-6 py-2.5 rounded-xl shadow-sm relative"
+                className="bg-[rgba(0,0,0,0.05)] flex gap-2 items-center justify-center px-6 py-2.5 min-h-11 rounded-xl shadow-sm relative w-full"
                 style={{
                   boxShadow:
                     "0px 0px 0px 1px inset rgba(0,0,0,0.05), 0px -2px 1px 0px inset rgba(0,0,0,0.05)",
@@ -79,7 +79,7 @@ export function EventPageSidebar({
 
       {/* Share Section */}
       <div className="flex flex-col gap-4 items-center w-full">
-        <p className="font-medium text-lg text-black text-center md:text-left tracking-[-0.06em]">
+        <p className="font-medium text-[18px] leading-[1.5] text-black text-center tracking-[-0.06em]">
           Share this event
         </p>
 
