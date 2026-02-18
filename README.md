@@ -384,6 +384,11 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 - `npm run start` - Start production server
 - `npm run lint` - Run ESLint
 - `npm run setup-db` - Initialize database schema
+- `scripts/test-webhook-message-new.sh` - CLI webhook smoke test for the chat `message.new` path
+
+### Testing Docs
+
+- Responses migration CLI test guide: [`RESPONSES_CLI_TESTING.md`](./RESPONSES_CLI_TESTING.md)
 
 ## 🏗️ Architecture
 
