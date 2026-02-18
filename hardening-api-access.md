@@ -1,4 +1,0 @@
--- projects need to be linked to user_ids, and project invitations from people who are not registered go in an invite queue that they can accept. 
--- email identifiers need to be removed and replaced with uid identifiers
--- move user_profiles to a view that excludes personal information like emails and only allow people to view their own emails
--- event content needs to be behind agate as wells
