@@ -7,7 +7,7 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import SubmitTranscriptButton from "@/components/SubmitTranscriptButton";
-import { ChevronDownIcon } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface Props {
   params: Promise<{ meetingId: string }>;
@@ -38,17 +38,26 @@ const Page = async ({ params }: Props) => {
 
   const meetingData = queryClient.getQueryData(meetingQueryOptions.queryKey) as MeetingHeaderData | undefined;
   const agentName = meetingData?.agent?.name?.trim() || "Assistant";
+  const agentAvatarUrl = meetingData?.agent?.avatar_url?.trim() || "";
+  const agentFallback = agentName.charAt(0).toUpperCase();
 
   return (
     <PageContainer className="bg-[#F4F4F5]">
           <PageContent className="h-full overflow-hidden">
             <div className="flex h-full min-h-0 flex-col">
-              <div className="flex items-center justify-between px-5 pb-3 pt-4 sm:px-8">
-                <div className="inline-flex items-center gap-1 text-[26px] font-medium tracking-[-0.02em] text-[#1A1D22] sm:text-[32px]">
-                  <span>{agentName}</span>
-                  <ChevronDownIcon className="h-6 w-6 text-[#5E636B] sm:h-7 sm:w-7" />
+              <div className="flex items-center justify-between gap-3 px-5 pb-3 pt-4 sm:px-8">
+                <div className="flex min-w-0 flex-1 items-center gap-3 text-[20px] font-medium leading-[1.15] tracking-[-0.02em] text-[#1A1D22] sm:text-[32px]">
+                  <Avatar className="h-10 w-10 shrink-0 border border-[#D5D9DF]">
+                    <AvatarImage src={agentAvatarUrl} alt={agentName} />
+                    <AvatarFallback className="bg-[#EAF2FF] text-base font-semibold text-[#2F61B3]">
+                      {agentFallback}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="block min-w-0 overflow-hidden text-ellipsis whitespace-nowrap sm:overflow-visible sm:whitespace-normal">
+                    {agentName}
+                  </span>
                 </div>
-                <div>
+                <div className="shrink-0">
                   <Suspense>
                     <SubmitTranscriptButton meetingId={meetingId} />
                   </Suspense>
