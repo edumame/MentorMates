@@ -259,8 +259,7 @@ body {
 .chatgpt-stream-shell .str-chat__message-input .str-chat__file-input-container button,
 .chatgpt-stream-shell .str-chat__message-input .str-chat__file-input-label,
 .chatgpt-stream-shell .str-chat__message-input button[aria-label*="Attach"],
-.chatgpt-stream-shell .str-chat__message-input button[data-testid*="attachment"],
-.chatgpt-stream-shell .str-chat__message-input button[class*="attachment"] {
+.chatgpt-stream-shell .str-chat__message-input button[data-testid*="attachment"] {
   width: 40px;
   height: 40px;
   min-width: 40px;
@@ -282,8 +281,7 @@ body {
 .chatgpt-stream-shell .str-chat__message-input .str-chat__file-input-container button:hover,
 .chatgpt-stream-shell .str-chat__message-input .str-chat__file-input-label:hover,
 .chatgpt-stream-shell .str-chat__message-input button[aria-label*="Attach"]:hover,
-.chatgpt-stream-shell .str-chat__message-input button[data-testid*="attachment"]:hover,
-.chatgpt-stream-shell .str-chat__message-input button[class*="attachment"]:hover {
+.chatgpt-stream-shell .str-chat__message-input button[data-testid*="attachment"]:hover {
   background: #f1f2f4 !important;
 }
 
@@ -292,8 +290,7 @@ body {
 .chatgpt-stream-shell .str-chat__message-input .str-chat__file-input-container button svg,
 .chatgpt-stream-shell .str-chat__message-input .str-chat__file-input-label svg,
 .chatgpt-stream-shell .str-chat__message-input button[aria-label*="Attach"] svg,
-.chatgpt-stream-shell .str-chat__message-input button[data-testid*="attachment"] svg,
-.chatgpt-stream-shell .str-chat__message-input button[class*="attachment"] svg {
+.chatgpt-stream-shell .str-chat__message-input button[data-testid*="attachment"] svg {
   display: none !important;
 }
 
@@ -302,8 +299,7 @@ body {
 .chatgpt-stream-shell .str-chat__message-input .str-chat__file-input-container button::before,
 .chatgpt-stream-shell .str-chat__message-input .str-chat__file-input-label::before,
 .chatgpt-stream-shell .str-chat__message-input button[aria-label*="Attach"]::before,
-.chatgpt-stream-shell .str-chat__message-input button[data-testid*="attachment"]::before,
-.chatgpt-stream-shell .str-chat__message-input button[class*="attachment"]::before {
+.chatgpt-stream-shell .str-chat__message-input button[data-testid*="attachment"]::before {
   content: "";
   width: 18px;
   height: 2px;
@@ -321,8 +317,7 @@ body {
 .chatgpt-stream-shell .str-chat__message-input .str-chat__file-input-container button::after,
 .chatgpt-stream-shell .str-chat__message-input .str-chat__file-input-label::after,
 .chatgpt-stream-shell .str-chat__message-input button[aria-label*="Attach"]::after,
-.chatgpt-stream-shell .str-chat__message-input button[data-testid*="attachment"]::after,
-.chatgpt-stream-shell .str-chat__message-input button[class*="attachment"]::after {
+.chatgpt-stream-shell .str-chat__message-input button[data-testid*="attachment"]::after {
   content: "";
   width: 2px;
   height: 18px;
@@ -333,6 +328,15 @@ body {
   left: 50%;
   transform: translate(-50%, -50%);
   pointer-events: none;
+}
+
+.chatgpt-stream-shell .str-chat {
+  --str-chat__attachment-preview-close-icon-color: #dc2626;
+  --str-chat__attachment-preview-close-icon-background: transparent;
+}
+
+.chatgpt-stream-shell .str-chat__attachment-preview-list .str-chat__attachment-preview-delete svg path {
+  fill: #dc2626 !important;
 }
 
 .chatgpt-stream-shell .str-chat__send-button,

@@ -18,25 +18,26 @@ import "stream-chat-react/dist/css/v2/index.css";
 interface ChatUIProps {
     meetingId: string;
     meetingName: string;
+    projectName?: string | null;
     userId: string;
     userName: string;
     userImage: string | undefined;
 };
 
-const ChatEmptyState = ({ meetingName }: { meetingName: string }) => (
+const ChatEmptyState = ({ contextName }: { contextName: string }) => (
     <div className="mx-auto flex min-h-[56vh] w-full max-w-5xl flex-col items-center justify-center pb-20 text-center">
         <h2 className="text-[38px] font-medium tracking-[-0.03em] text-[#0E1013] sm:text-[56px]">
             What can I help with?
         </h2>
         <p className="mt-4 text-[16px] text-[#6C7077]">
-            Ask anything about {meetingName}.
+            Ask anything about {contextName}.
         </p>
     </div>
 );
 
 export const ChatUI = ({
     meetingId,
-    meetingName,
+    projectName,
     userId,
     userName,
     userImage,
@@ -109,12 +110,14 @@ export const ChatUI = ({
         );
     }
 
+    const emptyStateContextName = projectName?.trim() || "this project";
+
     return (
         <div className="chatgpt-stream-shell flex h-full min-h-0 flex-col bg-[#F4F4F5]">
             <Chat client={client}>
                 <Channel
                     channel={channel}
-                    EmptyStateIndicator={() => <ChatEmptyState meetingName={meetingName} />}
+                    EmptyStateIndicator={() => <ChatEmptyState contextName={emptyStateContextName} />}
                 >
                     <Window>
                         <div className="flex-1 overflow-y-auto px-4 pb-6 pt-4 sm:px-8">
