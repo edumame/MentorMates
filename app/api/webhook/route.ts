@@ -62,15 +62,6 @@ type UserAttachmentInput =
   | { type: "input_image"; image_url: string; detail: "auto" }
   | { type: "input_file"; file_url: string; filename?: string };
 
-type ResponseInputContentItem =
-  | { type: "input_text"; text: string }
-  | UserAttachmentInput;
-
-type ResponseInputItem = {
-  role: "system" | "assistant" | "user";
-  content: ResponseInputContentItem[];
-};
-
 type ResponseCreateParams = Parameters<typeof openaiClient.responses.create>[0];
 type ResponseTool = NonNullable<ResponseCreateParams["tools"]>[number];
 
@@ -83,25 +74,23 @@ function buildResponsesInput(
   previousMessages: ChatHistoryMessage[],
   userText: string,
   userAttachments: UserAttachmentInput[]
-): ResponseInputItem[] {
-  const historyItems: ResponseInputItem[] = previousMessages.map(
-    (message): ResponseInputItem => ({
-      role: message.role,
-      content: [inputText(message.content)],
-    })
-  );
+): ResponseCreateParams["input"] {
+  const historyItems = previousMessages.map((message) => ({
+    role: message.role as "user" | "assistant",
+    content: message.content,
+  }));
 
   return [
     {
-      role: "system",
-      content: [inputText(systemInstructions)],
+      role: "system" as const,
+      content: systemInstructions,
     },
     ...historyItems,
     {
-      role: "user",
-      content: [inputText(userText), ...userAttachments],
+      role: "user" as const,
+      content: [inputText(userText), ...userAttachments] as never,
     },
-  ];
+  ] as ResponseCreateParams["input"];
 }
 
 function extractResponseText(response: unknown): string {
