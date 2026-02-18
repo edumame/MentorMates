@@ -1,4 +1,4 @@
-import { agentsInsertSchema, agentsUpdateSchema } from "@/modules/agents/schemas";
+import { agentsInsertSchema, agentsUpdateSchema, agentLinkEventsSchema, agentUnlinkEventsSchema, agentGetLinkedEventsSchema } from "@/modules/agents/schemas";
 import { DEFAULT_PAGE, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, MIN_PAGE_SIZE } from "@/lib/config/constants";
 import { createTRPCRouter, protectedProcedure } from "@/trpc/init";
 import { TRPCError } from "@trpc/server";
@@ -187,14 +187,31 @@ export const agentsRouter = createTRPCRouter({
                 }
             }
 
+            // When filtering by a specific event, also include agents linked via agent_events
+            let linkedAgentIds: string[] = [];
+            if (eventId) {
+                const { data: linkedRows } = await supabase
+                    .from("agent_events")
+                    .select("agent_id")
+                    .eq("event_id", eventId);
+                linkedAgentIds = (linkedRows || []).map((r: { agent_id: string }) => r.agent_id).filter(Boolean);
+            }
+
             // Build query to get:
             // 1. Agents owned by the user (user_id = current user)
             // 2. Agents for events the user has access to (event_id in user's events)
+            // 3. Agents linked to events via agent_events junction table
             let agentsQuery = supabase.from("agents").select("*");
 
             if (eventId) {
-                // If specific event requested, only show agents for that event
-                agentsQuery = agentsQuery.eq("event_id", eventId);
+                // If specific event requested, show agents with that event_id OR linked via agent_events
+                if (linkedAgentIds.length > 0) {
+                    agentsQuery = agentsQuery.or(
+                        `event_id.eq.${eventId},id.in.(${linkedAgentIds.join(",")})`
+                    );
+                } else {
+                    agentsQuery = agentsQuery.eq("event_id", eventId);
+                }
             } else if (accessibleEventIds.length > 0) {
                 // Show user's own agents OR agents from events they have access to OR global agents (no event_id)
                 agentsQuery = agentsQuery.or(
@@ -217,7 +234,13 @@ export const agentsRouter = createTRPCRouter({
             // total count - use same filter logic as main query
             let countQuery = supabase.from("agents").select("id", { count: "exact", head: false });
             if (eventId) {
-                countQuery = countQuery.eq("event_id", eventId);
+                if (linkedAgentIds.length > 0) {
+                    countQuery = countQuery.or(
+                        `event_id.eq.${eventId},id.in.(${linkedAgentIds.join(",")})`
+                    );
+                } else {
+                    countQuery = countQuery.eq("event_id", eventId);
+                }
             } else if (accessibleEventIds.length > 0) {
                 countQuery = countQuery.or(
                     `user_id.eq.${userId},event_id.in.(${accessibleEventIds.join(",")}),event_id.is.null`
@@ -231,9 +254,10 @@ export const agentsRouter = createTRPCRouter({
             const total = count ?? 0;
             const totalPages = Math.ceil(total / pageSize);
 
-            // meeting counts per agent
+            // meeting counts and linked events per agent
             const agentIds = Array.from(new Set((items || []).map((a: unknown) => normalizeId((a as { id?: string }).id)).filter(Boolean)));
             let meetingCountsMap: Record<string, number> = {};
+            let linkedEventsMap: Record<string, string[]> = {};
             if (agentIds.length > 0) {
                 const { data: meetingsRows = [], error: meetingsErr } = await supabase
                     .from("meetings")
@@ -245,6 +269,20 @@ export const agentsRouter = createTRPCRouter({
                     if (agentId) acc[agentId] = (acc[agentId] || 0) + 1;
                     return acc;
                 }, {});
+
+                // Fetch linked events from agent_events junction table
+                const { data: agentEventRows = [], error: aeErr } = await supabase
+                    .from("agent_events")
+                    .select("agent_id, event_id")
+                    .in("agent_id", agentIds);
+                if (aeErr) throw aeErr;
+                linkedEventsMap = (agentEventRows || []).reduce((acc: Record<string, string[]>, r: { agent_id: string; event_id: string }) => {
+                    if (r.agent_id) {
+                        if (!acc[r.agent_id]) acc[r.agent_id] = [];
+                        acc[r.agent_id].push(r.event_id);
+                    }
+                    return acc;
+                }, {});
             }
 
             const access: AgentAccessContext = { isAdmin, editorEventIds, ownerEventIds };
@@ -254,6 +292,7 @@ export const agentsRouter = createTRPCRouter({
                 return {
                     ...(row as Record<string, unknown>),
                     meetingCount: meetingCountsMap[id] ?? 0,
+                    linkedEventIds: linkedEventsMap[id] ?? [],
                     can_edit: canEditAgent(row, userId, access),
                 };
             });
@@ -386,5 +425,99 @@ export const agentsRouter = createTRPCRouter({
             if (error) throw error;
 
             return { ok: true };
+        }),
+
+    getLinkedEvents: protectedProcedure
+        .input(agentGetLinkedEventsSchema)
+        .query(async ({ ctx, input }) => {
+            const supabase = ctx.supabase;
+
+            // Verify the user owns the agent
+            const { data: agent, error: agentErr } = await supabase
+                .from("agents")
+                .select("id, user_id")
+                .eq("id", input.agentId)
+                .maybeSingle();
+            if (agentErr) throw agentErr;
+            if (!agent) throw new TRPCError({ code: "NOT_FOUND", message: "Agent not found" });
+            if (agent.user_id !== ctx.auth.user.id) {
+                throw new TRPCError({ code: "FORBIDDEN", message: "Not authorized" });
+            }
+
+            const { data: rows, error } = await supabase
+                .from("agent_events")
+                .select("event_id")
+                .eq("agent_id", input.agentId);
+            if (error) throw error;
+
+            return (rows || []).map((r: { event_id: string }) => r.event_id);
+        }),
+
+    linkToEvents: protectedProcedure
+        .input(agentLinkEventsSchema)
+        .mutation(async ({ ctx, input }) => {
+            const supabase = ctx.supabase;
+
+            // Verify the user owns the agent and get its name
+            const { data: agent, error: agentErr } = await supabase
+                .from("agents")
+                .select("id, user_id, name")
+                .eq("id", input.agentId)
+                .maybeSingle();
+            if (agentErr) throw agentErr;
+            if (!agent) throw new TRPCError({ code: "NOT_FOUND", message: "Agent not found" });
+            if (agent.user_id !== ctx.auth.user.id) {
+                throw new TRPCError({ code: "FORBIDDEN", message: "Not authorized" });
+            }
+
+            // Fetch event names for readability
+            const { data: eventRows } = await supabase
+                .from("events")
+                .select("event_id, event_name")
+                .in("event_id", input.eventIds);
+            const eventNameMap = new Map(
+                (eventRows || []).map((e: { event_id: string; event_name: string }) => [e.event_id, e.event_name])
+            );
+
+            const rows = input.eventIds.map((eventId) => ({
+                agent_id: input.agentId,
+                event_id: eventId,
+                agent_name: agent.name ?? null,
+                event_name: eventNameMap.get(eventId) ?? null,
+            }));
+
+            const { error } = await supabase
+                .from("agent_events")
+                .upsert(rows, { onConflict: "agent_id,event_id" });
+            if (error) throw error;
+
+            return { ok: true, linked: input.eventIds.length };
+        }),
+
+    unlinkFromEvents: protectedProcedure
+        .input(agentUnlinkEventsSchema)
+        .mutation(async ({ ctx, input }) => {
+            const supabase = ctx.supabase;
+
+            // Verify the user owns the agent
+            const { data: agent, error: agentErr } = await supabase
+                .from("agents")
+                .select("id, user_id")
+                .eq("id", input.agentId)
+                .maybeSingle();
+            if (agentErr) throw agentErr;
+            if (!agent) throw new TRPCError({ code: "NOT_FOUND", message: "Agent not found" });
+            if (agent.user_id !== ctx.auth.user.id) {
+                throw new TRPCError({ code: "FORBIDDEN", message: "Not authorized" });
+            }
+
+            const { error } = await supabase
+                .from("agent_events")
+                .delete()
+                .eq("agent_id", input.agentId)
+                .in("event_id", input.eventIds);
+            if (error) throw error;
+
+            return { ok: true, unlinked: input.eventIds.length };
         }),
 });

@@ -262,23 +262,23 @@ export function ScoringConfigForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-5">
       {/* Bulk Assign Section */}
       {Object.keys(config.tracks).length > 0 && (
-        <Card className="p-6 bg-blue-50 dark:bg-blue-950 border-2 border-blue-300 dark:border-blue-700">
+        <Card className="p-5 border border-gray-200 bg-gray-50">
           <div className="space-y-4">
             <div className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-              <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100">
+              <Users className="h-5 w-5 text-gray-700" />
+              <h3 className="text-base font-semibold text-gray-900">
                 Bulk Assign All Projects to Track
               </h3>
             </div>
-            <p className="text-sm text-blue-700 dark:text-blue-300">
+            <p className="text-sm text-gray-600">
               Assign all projects in this event to a selected track. This will not remove existing track assignments.
             </p>
             <div className="flex items-end gap-4">
               <div className="flex-1">
-                <label className="text-sm font-medium text-blue-900 dark:text-blue-100 block mb-2">
+                <label className="text-sm font-medium text-gray-900 block mb-2">
                   Select Track
                 </label>
                 <Select
@@ -324,13 +324,14 @@ export function ScoringConfigForm({
       )}
 
       <div className="space-y-4">
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="text-sm font-medium">Default Min Score</label>
+            <label className="text-sm font-medium text-gray-900">Default Min Score</label>
             <Input
               type="number"
               value={config.defaultMin}
               disabled={isArchived}
+              className="mt-1 h-10"
               onChange={(e) =>
                 setConfig((prev) => ({
                   ...prev,
@@ -341,11 +342,12 @@ export function ScoringConfigForm({
             />
           </div>
           <div>
-            <label className="text-sm font-medium">Default Max Score</label>
+            <label className="text-sm font-medium text-gray-900">Default Max Score</label>
             <Input
               type="number"
               value={config.defaultMax}
               disabled={isArchived}
+              className="mt-1 h-10"
               onChange={(e) =>
                 setConfig((prev) => ({
                   ...prev,
@@ -356,11 +358,12 @@ export function ScoringConfigForm({
             />
           </div>
           <div>
-            <label className="text-sm font-medium">Default Weight</label>
+            <label className="text-sm font-medium text-gray-900">Default Weight</label>
             <Input
               type="number"
               value={config.defaultWeight}
               disabled={isArchived}
+              className="mt-1 h-10"
               onChange={(e) =>
                 setConfig((prev) => ({
                   ...prev,
@@ -374,14 +377,15 @@ export function ScoringConfigForm({
         </div>
 
         {Object.entries(config.tracks).map(([trackId, track]) => (
-          <Card key={trackId} className="p-4 border-2 border-blue-400">
+          <Card key={trackId} className="rounded-2xl border border-gray-200">
             <CardContent className="space-y-4">
               <div className="flex items-center gap-4">
                 <div className="flex-1">
-                  <h3 className="text-lg font-semibold">Track Name</h3>
+                  <h3 className="text-sm font-medium text-gray-900">Track Name</h3>
                   <Input
                     value={track.name}
                     disabled={isArchived}
+                    className="mt-1 h-10"
                     onChange={(e) => {
                       updateTrackName(trackId, e.target.value);
                     }}
@@ -391,10 +395,11 @@ export function ScoringConfigForm({
 
                 <Button
                   type="button"
-                  variant="destructive"
+                  variant="ghost"
                   size="icon"
                   onClick={() => removeTrack(trackId)}
                   disabled={isArchived}
+                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
                 >
                   <TrashIcon className="h-4 w-4" />
                 </Button>
@@ -402,7 +407,7 @@ export function ScoringConfigForm({
 
               <div className="space-y-4">
                 {track.criteria.map((criterion, index) => (
-                  <div key={criterion.id} className="space-y-2 border-t pt-4">
+                  <div key={criterion.id} className="space-y-3 rounded-xl border border-gray-200 p-4">
                     <div className="flex items-start gap-4">
                       <div className="flex-1 space-y-4">
                         <div>
@@ -412,6 +417,7 @@ export function ScoringConfigForm({
                           <Input
                             value={criterion.name}
                             disabled={isArchived}
+                            className="mt-1 h-10"
                             onChange={(e) =>
                               updateCriterion(trackId, index, {
                                 name: e.target.value,
@@ -427,6 +433,7 @@ export function ScoringConfigForm({
                           <Textarea
                             value={criterion.description}
                             disabled={isArchived}
+                            className="mt-1"
                             onChange={(e) =>
                               updateCriterion(trackId, index, {
                                 description: e.target.value,
@@ -450,7 +457,7 @@ export function ScoringConfigForm({
                               })
                             }
                           >
-                            <SelectTrigger className="w-full">
+                            <SelectTrigger className="w-full mt-1 h-10">
                               <SelectValue placeholder="Select question type" />
                             </SelectTrigger>
                             <SelectContent>
@@ -527,7 +534,7 @@ export function ScoringConfigForm({
                             </div>
                           </div>
                         ) : (
-                          <div className="grid grid-cols-3 gap-4">
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div>
                               <label className="text-sm font-medium">
                                 Min Score
@@ -536,6 +543,7 @@ export function ScoringConfigForm({
                                 type="number"
                                 value={criterion.min ?? config.defaultMin}
                                 disabled={isArchived}
+                                className="mt-1 h-10"
                                 onChange={(e) =>
                                   updateCriterion(trackId, index, {
                                     min: parseInt(e.target.value),
@@ -552,6 +560,7 @@ export function ScoringConfigForm({
                                 type="number"
                                 value={criterion.max ?? config.defaultMax}
                                 disabled={isArchived}
+                                className="mt-1 h-10"
                                 onChange={(e) =>
                                   updateCriterion(trackId, index, {
                                     max: parseInt(e.target.value),
@@ -568,6 +577,7 @@ export function ScoringConfigForm({
                                 type="number"
                                 value={criterion.weight ?? config.defaultWeight}
                                 disabled={isArchived}
+                                className="mt-1 h-10"
                                 onChange={(e) =>
                                   updateCriterion(trackId, index, {
                                     weight: parseFloat(e.target.value),
@@ -582,10 +592,11 @@ export function ScoringConfigForm({
                       </div>
                       <Button
                         type="button"
-                        variant="destructive"
+                        variant="ghost"
                         size="icon"
                         onClick={() => removeCriterion(trackId, index)}
                         disabled={isArchived}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
                       >
                         <TrashIcon className="h-4 w-4" />
                       </Button>
@@ -598,7 +609,7 @@ export function ScoringConfigForm({
                 type="button"
                 variant="outline"
                 onClick={() => addCriterion(trackId)}
-                className="w-full"
+                className="w-full rounded-xl"
                 disabled={isArchived}
               >
                 <PlusIcon className="h-4 w-4 mr-2" />
@@ -614,11 +625,11 @@ export function ScoringConfigForm({
           type="button"
           variant="outline"
           onClick={addTrack}
-          className="w-full"
+          className="w-full rounded-xl"
           disabled={isArchived}
         >
           <PlusIcon className="h-4 w-4 mr-2" />
-          Add Track
+          Add new track
         </Button>
 
         <Button type="submit" disabled={isSubmitting || isArchived} className="w-full">

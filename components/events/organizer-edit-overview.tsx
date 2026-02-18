@@ -89,7 +89,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
     { value: "overview", label: "Overview" },
     { value: "participants", label: "Participants", badge: participantCount },
     { value: "access", label: "Access" },
-    { value: "tracks", label: "Tracks" },
+    { value: "tracks", label: "Tracks & prizes" },
     { value: "assign", label: "Assign" },
     { value: "project-submission", label: "Project Submission" },
     { value: "live-scores", label: "Live Scores" },
@@ -581,7 +581,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
             className="flex flex-col lg:flex-1 lg:min-h-0"
           >
             <div
-              className="w-full overflow-x-auto -mx-4 sm:-mx-6 lg:-mx-10 px-4 sm:px-6 lg:px-10 mb-6 flex-shrink-0"
+              className="w-full overflow-x-auto no-scrollbar -mx-4 sm:-mx-6 lg:-mx-10 px-4 sm:px-6 lg:px-10 mb-6 flex-shrink-0"
               style={{ WebkitOverflowScrolling: "touch" }}
             >
               <TabsList className="flex h-auto gap-4 sm:gap-6 items-center border-b border-[#d2d7e7] p-0 justify-start bg-transparent rounded-none flex-nowrap min-w-max">
@@ -619,14 +619,10 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                     onValueChange={(value) => setActiveSubTab(value)}
                   >
                     <div
-                      className="w-screen -mx-4 sm:-mx-6 lg:w-full lg:mx-0 overflow-x-auto overflow-y-visible px-4 sm:px-6 lg:px-0 mb-6"
-                      style={{
-                        WebkitOverflowScrolling: "touch",
-                        scrollbarWidth: "thin",
-                        msOverflowStyle: "-ms-autohiding-scrollbar",
-                      }}
+                      className="w-screen -mx-4 sm:-mx-6 lg:w-full lg:mx-0 overflow-x-auto no-scrollbar overflow-y-visible px-4 sm:px-6 lg:px-0 mb-6"
+                      style={{ WebkitOverflowScrolling: "touch" }}
                     >
-                      <TabsList className="inline-flex h-auto gap-2 bg-transparent p-0 justify-start pb-1 items-center flex-nowrap">
+                      <TabsList className="inline-flex h-auto gap-2 bg-transparent p-0 justify-start pb-1 items-center flex-nowrap min-w-max">
                         {overviewSubTabs.map((subTab) => (
                           <TabsTrigger
                             key={subTab.value}

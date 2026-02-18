@@ -69,31 +69,7 @@ function normalizeText(value: unknown): string {
   return value.trim();
 }
 
-function getAgentSignature(agent: AgentGetOne): string {
-  const name = normalizeText(agent.name).toLowerCase();
-  const type = normalizeText(agent.type).toLowerCase();
-  const instructions = normalizeText(agent.instructions);
-  const feedbackPrompt = normalizeText(agent.feedback_prompt);
-  return `${name}::${type}::${instructions}::${feedbackPrompt}`;
-}
-
-function normalizeOptionalUrl(value: unknown): string | undefined {
-  if (typeof value !== "string") return undefined;
-  const trimmed = value.trim();
-  if (!trimmed) return undefined;
-  try {
-    new URL(trimmed);
-    return trimmed;
-  } catch {
-    return undefined;
-  }
-}
-
-function normalizeOptionalText(value: unknown): string | undefined {
-  if (typeof value !== "string") return undefined;
-  const trimmed = value.trim();
-  return trimmed ? trimmed : undefined;
-}
+type AgentWithLinkedEvents = AgentGetOne & { linkedEventIds?: string[] };
 
 function cleanText(value: unknown): string {
   if (typeof value !== "string") return "";
@@ -359,10 +335,15 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
     return items.filter((agent: AgentListItem) => Boolean(agent.can_edit));
   }, [agentsQuery.data]);
 
-  const ownedAgents = useMemo<AgentGetOne[]>(() => {
+  const ownedAgents = useMemo<AgentWithLinkedEvents[]>(() => {
     if (!eventId) return allOwnedAgents;
     return allOwnedAgents.filter(
-      (agent: AgentGetOne) => String(agent.event_id ?? "") === String(eventId)
+      (agent: AgentWithLinkedEvents) => {
+        if (String(agent.event_id ?? "") === String(eventId)) return true;
+        const linked = agent.linkedEventIds;
+        if (Array.isArray(linked) && linked.includes(String(eventId))) return true;
+        return false;
+      }
     );
   }, [allOwnedAgents, eventId]);
 
@@ -378,58 +359,23 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
   }, [ownedAgents, search]);
 
   const eventAgents = useMemo<AgentGetOne[]>(() => {
-    const items = ((agentsQuery.data?.items || []) as unknown[]) as AgentGetOne[];
+    const items = ((agentsQuery.data?.items || []) as unknown[]) as AgentWithLinkedEvents[];
     if (!eventId) return [];
 
     return items
       .filter(
-        (agent) =>
-          String(agent.event_id ?? "") === String(eventId) &&
-          agent.enabled !== false
+        (agent) => {
+          if (agent.enabled === false) return false;
+          if (String(agent.event_id ?? "") === String(eventId)) return true;
+          const linked = agent.linkedEventIds;
+          if (Array.isArray(linked) && linked.includes(String(eventId))) return true;
+          return false;
+        }
       )
       .sort((a, b) =>
         normalizeText(a.name).localeCompare(normalizeText(b.name))
       );
   }, [agentsQuery.data, eventId]);
-
-  const existingAgentKeys = useMemo(
-    () =>
-      new Set(
-        allOwnedAgents.map(
-          (agent: AgentGetOne) =>
-            `${String(agent.event_id ?? "")}::${getAgentSignature(agent)}`
-        )
-      ),
-    [allOwnedAgents]
-  );
-
-  const signatureToEventIds = useMemo(() => {
-    const map = new Map<string, Set<string>>();
-    for (const agent of allOwnedAgents) {
-      const signature = getAgentSignature(agent);
-      const eventIdValue = normalizeText(agent.event_id);
-      const set = map.get(signature) || new Set<string>();
-      if (eventIdValue) set.add(eventIdValue);
-      map.set(signature, set);
-    }
-    return map;
-  }, [allOwnedAgents]);
-
-  const signatureToAgentsByEvent = useMemo(() => {
-    const map = new Map<string, Map<string, AgentGetOne[]>>();
-    for (const agent of allOwnedAgents) {
-      const signature = getAgentSignature(agent);
-      const eventIdValue = normalizeText(agent.event_id);
-      if (!eventIdValue) continue;
-
-      const byEvent = map.get(signature) || new Map<string, AgentGetOne[]>();
-      const rows = byEvent.get(eventIdValue) || [];
-      rows.push(agent);
-      byEvent.set(eventIdValue, rows);
-      map.set(signature, byEvent);
-    }
-    return map;
-  }, [allOwnedAgents]);
 
   const hasApplySelectionChanges = useMemo(() => {
     if (!applyDialogOpen) return false;
@@ -480,18 +426,6 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
       eventId: sourceEventId || undefined,
     };
   }, [livePreviewAgent, eventId]);
-
-  const createAgent = useMutation(
-    trpc.agents.create.mutationOptions({
-      onError: (error) => {
-        toast({
-          title: "Error",
-          description: error.message,
-          variant: "destructive",
-        });
-      },
-    })
-  );
 
   const updateAgent = useMutation(
     trpc.agents.update.mutationOptions({
@@ -578,24 +512,33 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
   };
 
   const openApplyDialog = (agent: AgentGetOne) => {
-    const signature = getAgentSignature(agent);
-    const applied = Array.from(signatureToEventIds.get(signature) || []);
     setApplyAgent(agent);
-    setAlreadyAppliedEventIds(applied);
-    setSelectedEventIds(applied);
+    setAlreadyAppliedEventIds([]);
+    setSelectedEventIds([]);
     setSelectedEventCaps({});
     setInitialSelectedEventCaps({});
     setApplySearch("");
     setApplyDialogOpen(true);
-
-    if (applied.length === 0) {
-      setIsLoadingEventCaps(false);
-      return;
-    }
-
     setIsLoadingEventCaps(true);
+
     void (async () => {
       try {
+        // Fetch linked events from the agent_events junction table
+        const { data: linkedRows, error: linkedErr } = await supabase
+          .from("agent_events")
+          .select("event_id")
+          .eq("agent_id", agent.id);
+        if (linkedErr) throw linkedErr;
+
+        const applied = (linkedRows || []).map((r: { event_id: string }) => r.event_id);
+        setAlreadyAppliedEventIds(applied);
+        setSelectedEventIds(applied);
+
+        if (applied.length === 0) {
+          setIsLoadingEventCaps(false);
+          return;
+        }
+
         const { data, error } = await supabase
           .from("events")
           .select("event_id, session_caps")
@@ -612,28 +555,20 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
           sessionCapsByEventId.set(targetEventId, normalizeSessionCaps(row.session_caps));
         }
 
-        const byEvent = signatureToAgentsByEvent.get(signature) || new Map<string, AgentGetOne[]>();
         const capInputs: Record<string, string> = {};
         for (const targetEventId of applied) {
           const caps = sessionCapsByEventId.get(targetEventId)?.agent_caps || {};
-          const matchingRows = byEvent.get(targetEventId) || [];
-          let capValue = "";
-
-          for (const row of matchingRows) {
-            capValue = capInputFromValue(caps[row.id]);
-            if (capValue) break;
-          }
-
+          const capValue = capInputFromValue(caps[agent.id]);
           capInputs[targetEventId] = capValue;
         }
 
         setSelectedEventCaps(capInputs);
         setInitialSelectedEventCaps(capInputs);
       } catch (error) {
-        console.error("Error loading apply dialog caps:", error);
+        console.error("Error loading apply dialog:", error);
         toast({
           title: "Error",
-          description: "Failed to load existing session caps for this agent.",
+          description: "Failed to load existing event links for this agent.",
           variant: "destructive",
         });
       } finally {
@@ -756,23 +691,25 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
     }
   };
 
+  const linkToEvents = useMutation(
+    trpc.agents.linkToEvents.mutationOptions({
+      onError: (err) => {
+        toast({ title: "Error", description: err.message, variant: "destructive" });
+      },
+    })
+  );
+
+  const unlinkFromEvents = useMutation(
+    trpc.agents.unlinkFromEvents.mutationOptions({
+      onError: (err) => {
+        toast({ title: "Error", description: err.message, variant: "destructive" });
+      },
+    })
+  );
+
   const applyAgentToEvents = async () => {
     if (!applyAgent) return;
     if (!hasApplySelectionChanges) return;
-
-    const signature = getAgentSignature(applyAgent);
-    const name = normalizeText(applyAgent.name);
-    const instructions = normalizeText(applyAgent.instructions);
-    const type = normalizeText(applyAgent.type) || "brainstorm";
-
-    if (!name || !instructions) {
-      toast({
-        title: "Cannot update availability",
-        description: "This agent is missing a required name or instructions.",
-        variant: "destructive",
-      });
-      return;
-    }
 
     const selectedCapsByEventId = new Map<string, number | null>();
     for (const selectedEventId of selectedEventIds) {
@@ -793,10 +730,9 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
     }
 
     setIsApplying(true);
-    let createdCount = 0;
-    let removedCount = 0;
+    let linkedCount = 0;
+    let unlinkedCount = 0;
     let capUpdatedCount = 0;
-    let skippedCount = 0;
     let failedCount = 0;
 
     try {
@@ -811,7 +747,6 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
             normalizedCapForComparison(selectedEventCaps[id])
       );
 
-      const byEvent = signatureToAgentsByEvent.get(signature) || new Map<string, AgentGetOne[]>();
       const sessionCapsCache = new Map<string, EventSessionCaps>();
 
       const getSessionCaps = async (targetEventId: string): Promise<EventSessionCaps> => {
@@ -872,84 +807,58 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
         return true;
       };
 
-      for (const targetEventId of toRemove) {
-        const rows = byEvent.get(targetEventId) || [];
-        if (rows.length === 0) {
-          skippedCount += 1;
-          continue;
-        }
-
+      // Unlink removed events
+      if (toRemove.length > 0) {
         try {
-          for (const row of rows) {
-            await removeAgent.mutateAsync({ id: row.id });
-          }
-
-          const updates = rows.reduce(
-            (acc, row) => ({ ...acc, [row.id]: undefined }),
-            {} as Record<string, number | undefined>
-          );
-          await mergeAgentCapsForEvent(targetEventId, updates);
-          removedCount += 1;
-        } catch {
-          failedCount += 1;
-        }
-      }
-
-      for (const targetEventId of toAdd) {
-        const sameEvent = String(applyAgent.event_id ?? "") === String(targetEventId);
-        const key = `${targetEventId}::${signature}`;
-        if (sameEvent || existingAgentKeys.has(key)) {
-          skippedCount += 1;
-          continue;
-        }
-
-        try {
-          const created = await createAgent.mutateAsync({
-            name,
-            instructions,
-            type,
-            event_id: targetEventId,
-            enabled: Boolean(applyAgent.enabled ?? true),
-            scoring: Boolean(applyAgent.scoring ?? true),
-            requires_project: Boolean((applyAgent as AgentGetOne & { requires_project?: boolean }).requires_project ?? true),
-            avatar_url: normalizeOptionalUrl(applyAgent.avatar_url),
-            feedback_prompt: normalizeOptionalText(applyAgent.feedback_prompt),
-            voice: normalizeOptionalText(applyAgent.voice),
+          await unlinkFromEvents.mutateAsync({
+            agentId: applyAgent.id,
+            eventIds: toRemove,
           });
+          unlinkedCount = toRemove.length;
 
-          const createdId = normalizeText((created as { id?: unknown } | null)?.id);
-          const selectedCap = selectedCapsByEventId.get(targetEventId);
-          if (createdId && selectedCap !== null && selectedCap !== undefined) {
-            const updated = await mergeAgentCapsForEvent(targetEventId, {
-              [createdId]: selectedCap,
+          // Clean up session caps for unlinked events
+          for (const targetEventId of toRemove) {
+            await mergeAgentCapsForEvent(targetEventId, {
+              [applyAgent.id]: undefined,
             });
-            if (updated) capUpdatedCount += 1;
           }
-
-          createdCount += 1;
         } catch {
-          failedCount += 1;
+          failedCount += toRemove.length;
         }
       }
 
-      for (const targetEventId of capUpdateTargets) {
-        const rows = byEvent.get(targetEventId) || [];
-        if (rows.length === 0) {
-          skippedCount += 1;
-          continue;
-        }
+      // Link new events
+      if (toAdd.length > 0) {
+        try {
+          await linkToEvents.mutateAsync({
+            agentId: applyAgent.id,
+            eventIds: toAdd,
+          });
+          linkedCount = toAdd.length;
 
+          // Set session caps for newly linked events
+          for (const targetEventId of toAdd) {
+            const selectedCap = selectedCapsByEventId.get(targetEventId);
+            if (selectedCap !== null && selectedCap !== undefined) {
+              const updated = await mergeAgentCapsForEvent(targetEventId, {
+                [applyAgent.id]: selectedCap,
+              });
+              if (updated) capUpdatedCount += 1;
+            }
+          }
+        } catch {
+          failedCount += toAdd.length;
+        }
+      }
+
+      // Update caps for events that stayed but had cap changes
+      for (const targetEventId of capUpdateTargets) {
         const selectedCap = selectedCapsByEventId.get(targetEventId) ?? null;
-        const updates = rows.reduce(
-          (acc, row) => ({
-            ...acc,
-            [row.id]: selectedCap === null ? undefined : selectedCap,
-          }),
-          {} as Record<string, number | undefined>
-        );
 
         try {
-          const updated = await mergeAgentCapsForEvent(targetEventId, updates);
+          const updated = await mergeAgentCapsForEvent(targetEventId, {
+            [applyAgent.id]: selectedCap === null ? undefined : selectedCap,
+          });
           if (updated) capUpdatedCount += 1;
         } catch {
           failedCount += 1;
@@ -959,10 +868,9 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
       await queryClient.invalidateQueries(trpc.agents.getMany.queryOptions({}));
 
       const parts = [
-        createdCount > 0 ? `${createdCount} created` : null,
-        removedCount > 0 ? `${removedCount} removed` : null,
+        linkedCount > 0 ? `${linkedCount} linked` : null,
+        unlinkedCount > 0 ? `${unlinkedCount} unlinked` : null,
         capUpdatedCount > 0 ? `${capUpdatedCount} cap updates` : null,
-        skippedCount > 0 ? `${skippedCount} skipped` : null,
         failedCount > 0 ? `${failedCount} failed` : null,
       ].filter(Boolean);
 
@@ -1280,12 +1188,11 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
       </ResponsiveDialog>
 
       <div className="space-y-4">
-        {filteredOwnedAgents.map((agent: AgentGetOne) => {
-          const signature = getAgentSignature(agent);
-          const appliedEventIds = Array.from(signatureToEventIds.get(signature) || []);
-          const appliedEventNames = appliedEventIds
-            .map((id) => eventNameById.get(String(id)) || `Event ${String(id).slice(0, 8)}`)
-            .sort((a, b) => a.localeCompare(b));
+        {filteredOwnedAgents.map((agent: AgentWithLinkedEvents) => {
+          const linked = agent.linkedEventIds || [];
+          const appliedEventNames = linked
+            .map((id: string) => eventNameById.get(String(id)) || `Event ${String(id).slice(0, 8)}`)
+            .sort((a: string, b: string) => a.localeCompare(b));
           const appliedEventsLabel =
             appliedEventNames.length > 0
               ? appliedEventNames.join(", ")

@@ -195,6 +195,7 @@ export function EventPageClientWrapper({
         onManageEventClick={() => handleRoleChange(EventRole.Organizer)}
         paid={paid}
         eventType={eventType}
+        containerClassName="w-full px-4 md:px-6"
       />
       {tabsAndContent}
 

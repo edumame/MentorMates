@@ -92,3 +92,17 @@ export const agentsUpdateSchema = agentsBaseSchema
         id: z.string().min(1, { message: "Id is required" }),
         expected_updated_at: z.string().datetime({ offset: true }).optional(),
     });
+
+export const agentLinkEventsSchema = z.object({
+    agentId: z.string().min(1, { message: "Agent ID is required" }),
+    eventIds: z.array(z.string().min(1)).min(1, { message: "At least one event ID is required" }),
+});
+
+export const agentUnlinkEventsSchema = z.object({
+    agentId: z.string().min(1, { message: "Agent ID is required" }),
+    eventIds: z.array(z.string().min(1)).min(1, { message: "At least one event ID is required" }),
+});
+
+export const agentGetLinkedEventsSchema = z.object({
+    agentId: z.string().min(1, { message: "Agent ID is required" }),
+});
