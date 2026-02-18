@@ -239,7 +239,19 @@ export const meetingsRouter = createTRPCRouter({
         if (agentError) throw agentError;
         const agent = agentRows?.[0] ?? null;
 
-        return { ...existingMeeting, agent, duration };
+        let projectName: string | null = null;
+        if ((existingMeeting as MeetingRow).project_id) {
+            const { data: projectRow, error: projectError } = await supabase
+                .from("projects")
+                .select("project_name")
+                .eq("id", String((existingMeeting as MeetingRow).project_id))
+                .maybeSingle();
+
+            if (projectError) throw projectError;
+            projectName = (projectRow as { project_name?: string | null } | null)?.project_name ?? null;
+        }
+
+        return { ...existingMeeting, agent, duration, projectName };
     }),
     getMany: protectedProcedure.input(z.object({
         page: z.number().default(DEFAULT_PAGE),
