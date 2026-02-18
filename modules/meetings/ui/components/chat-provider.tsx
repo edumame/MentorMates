@@ -41,7 +41,7 @@ export const ChatProvider = ({ meetingId, meetingName, projectName }: Props) => 
 
     const user = session.user;
     const userName = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split("@")[0];
-    const userImage = user?.user_metadata?.avatar_url || user?.avatar_url || "";
+    const userImage = user?.user_metadata?.avatar_url || "";
 
     return (
         <ChatUI
