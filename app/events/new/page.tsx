@@ -252,6 +252,222 @@ export default function NewEventPage() {
   const onChange = (key: keyof typeof form, value: string) =>
     setForm((p) => ({ ...p, [key]: value }));
 
+  const buildEventSchedulePayload = () => {
+    if (schedules.length === 0) return undefined;
+
+    const groupedByDay = schedules.reduce<
+      Record<
+        string,
+        Array<{
+          name: string;
+          time?: string;
+          description?: string;
+          guests?: string;
+        }>
+      >
+    >((acc, schedule) => {
+      const dayTitle = schedule.dayTitle.trim();
+      if (!dayTitle) return acc;
+
+      if (!acc[dayTitle]) {
+        acc[dayTitle] = [];
+      }
+
+      acc[dayTitle].push({
+        name: schedule.eventName,
+        time: schedule.time || undefined,
+        description: schedule.description || undefined,
+        guests: schedule.guests || undefined,
+      });
+
+      return acc;
+    }, {});
+
+    const normalized = Object.entries(groupedByDay).map(([dayTitle, events]) => ({
+      time: dayTitle,
+      events: events.filter((event) => event.name.trim().length > 0),
+    }));
+
+    return normalized.length > 0 ? normalized : undefined;
+  };
+
+  const buildFaqMarkdown = () => {
+    if (faqs.length === 0) return undefined;
+
+    const sections = faqs
+      .filter(
+        (faq) => faq.question.trim().length > 0 || faq.answer.trim().length > 0
+      )
+      .map((faq) => `### ${faq.question.trim()}\n${faq.answer.trim()}`);
+
+    return sections.length > 0 ? sections.join("\n\n") : undefined;
+  };
+
+  const buildEventResourcesPayload = () => {
+    const normalizedResources = resources
+      .map((resource) => ({
+        name: resource.name.trim(),
+        link: resource.link.trim(),
+      }))
+      .filter((resource) => resource.name.length > 0 && resource.link.length > 0);
+
+    const draftName = resourcesForm.resourceName.trim();
+    const draftLink = resourcesForm.resourceLink.trim();
+    const hasDraftResource =
+      showResourcesForm && draftName.length > 0 && draftLink.length > 0;
+
+    if (hasDraftResource) {
+      normalizedResources.push({
+        name: draftName,
+        link: draftLink,
+      });
+    }
+
+    return normalizedResources.length > 0 ? normalizedResources : undefined;
+  };
+
+  const getOrganizerEmailsForSubmit = async () => {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const currentUserEmail = sessionData?.session?.user?.email?.trim().toLowerCase();
+
+    const fromAccessTab = organizerEmails.map((email) => email.trim().toLowerCase());
+    const fromLegacyField = (form.organizer_emails || "")
+      .split(",")
+      .map((email) => email.trim().toLowerCase())
+      .filter(Boolean);
+
+    const deduped = Array.from(
+      new Set([...fromAccessTab, ...fromLegacyField].filter(Boolean))
+    );
+
+    if (currentUserEmail && !deduped.includes(currentUserEmail)) {
+      deduped.unshift(currentUserEmail);
+    }
+
+    return deduped;
+  };
+
+  const buildTracksPayload = () => {
+    const normalizedTracks = tracks
+      .map((track) => {
+        const normalizedCriteria = track.criteria
+          .map((criterion) => ({
+            id: criterion.id,
+            name: criterion.name.trim(),
+            description: criterion.description.trim(),
+            type:
+              criterion.questionType === "multiplechoice"
+                ? "multiplechoice"
+                : "numeric",
+            min: criterion.minScore,
+            max: criterion.maxScore,
+            weight: criterion.weight,
+          }))
+          .filter((criterion) => criterion.name.length > 0);
+
+        return {
+          client_id: track.id,
+          name: track.name.trim(),
+          description: track.description.trim() || null,
+          scoring_criteria: {
+            name: track.name.trim(),
+            criteria: normalizedCriteria,
+          },
+        };
+      })
+      .filter((track) => track.name.length > 0);
+
+    return normalizedTracks.length > 0 ? normalizedTracks : undefined;
+  };
+
+  const buildPrizesPayload = () => {
+    const normalizedPrizes = prizes
+      .map((prize) => ({
+        track_client_id: prize.trackId,
+        name: prize.name.trim(),
+        description: prize.description.trim(),
+        cover_image_url: prize.coverImageUrl.trim() || null,
+      }))
+      .filter((prize) => prize.name.length > 0 && prize.track_client_id.length > 0);
+
+    return normalizedPrizes.length > 0 ? normalizedPrizes : undefined;
+  };
+
+  const validateCoverImageFile = (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      throw new Error("Please upload an image file (PNG, JPG, GIF, etc.)");
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      throw new Error("Image size must be less than 5MB");
+    }
+  };
+
+  const uploadCoverImageFile = async (file: File) => {
+    validateCoverImageFile(file);
+
+    const fileExt = file.name.split(".").pop();
+    const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
+    const filePath = `event-covers/${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("event-materials")
+      .upload(filePath, file);
+
+    if (uploadError) {
+      throw new Error(uploadError.message || "Failed to upload image file");
+    }
+
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from("event-materials").getPublicUrl(filePath);
+
+    return publicUrl;
+  };
+
+  const ensureCoverImageUrl = async () => {
+    if (!coverImageFile) return form.cover_image_url || undefined;
+
+    setCoverImageUploading(true);
+    try {
+      const publicUrl = await uploadCoverImageFile(coverImageFile);
+      onChange("cover_image_url", publicUrl);
+      setCoverImageFile(null);
+      return publicUrl;
+    } finally {
+      setCoverImageUploading(false);
+    }
+  };
+
+  const buildEventPayload = (
+    visibilityOverride: EventVisibility,
+    coverImageUrl?: string,
+    approvalStatus?: ApprovalStatus
+  ) => ({
+    event_name: form.event_name,
+    event_date: form.event_date,
+    location: form.location,
+    visibility: visibilityOverride,
+    slug: form.slug || undefined,
+    event_description: form.event_description || undefined,
+    event_blurb: form.event_blurb || undefined,
+    cover_image_url: coverImageUrl || undefined,
+    paid: ticketType === "paid",
+    submission_time_start: form.submission_time_start || undefined,
+    submission_time_cutoff: form.submission_time_cutoff || undefined,
+    participant_capacity: form.participant_capacity
+      ? parseInt(form.participant_capacity, 10)
+      : undefined,
+    paywall_content: form.paywall_content || undefined,
+    rules: rules.length > 0 ? rules : undefined,
+    event_schedule: buildEventSchedulePayload(),
+    event_resources: buildEventResourcesPayload(),
+    faq: buildFaqMarkdown(),
+    tracks: buildTracksPayload(),
+    prizes: buildPrizesPayload(),
+    ...(approvalStatus ? { approval_status: approvalStatus } : {}),
+  });
+
   // Generate slug from event name for preview
   const getPreviewSlug = () => {
     if (form.slug) return form.slug;
@@ -441,47 +657,16 @@ export default function NewEventPage() {
     }
     setCreating(true);
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const currentUserEmail = sessionData?.session?.user?.email;
+      const organizerEmails = await getOrganizerEmailsForSubmit();
 
-      const organizerEmails = (form.organizer_emails || "")
-        .split(",")
-        .map((e) => e.trim())
-        .filter(Boolean);
-
-      if (currentUserEmail && !organizerEmails.includes(currentUserEmail)) {
-        organizerEmails.unshift(currentUserEmail);
-      }
+      const coverImageUrl = await ensureCoverImageUrl();
 
       // Always save as draft by default
       const res = await fetch("/api/events", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          event: {
-            event_name: form.event_name,
-            event_date: form.event_date,
-            location: form.location,
-            visibility: EventVisibility.Draft, // Always draft initially
-            slug: form.slug || undefined,
-            event_description: form.event_description || undefined,
-            event_blurb: form.event_blurb || undefined,
-            cover_image_url: form.cover_image_url || undefined,
-            paid: ticketType === "paid",
-            submission_time_start: form.submission_time_start || undefined,
-            submission_time_cutoff: form.submission_time_cutoff || undefined,
-            participant_capacity: form.participant_capacity
-              ? parseInt(form.participant_capacity, 10)
-              : undefined,
-            event_type: form.event_type || undefined,
-            paywall_content: form.paywall_content || undefined,
-            rules: rules.length > 0 ? rules : undefined,
-            faqs:
-              faqs.length > 0 ? faqs.map(({ id, ...faq }) => faq) : undefined,
-            gallery_images:
-              galleryImages.length > 0
-                ? galleryImages.map(({ id, ...img }) => img) : undefined,
-          },
+          event: buildEventPayload(EventVisibility.Draft, coverImageUrl),
           organizerEmails,
         }),
       });
@@ -521,47 +706,16 @@ export default function NewEventPage() {
     }
     setCreating(true);
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const currentUserEmail = sessionData?.session?.user?.email;
+      const organizerEmails = await getOrganizerEmailsForSubmit();
 
-      const organizerEmails = (form.organizer_emails || "")
-        .split(",")
-        .map((e) => e.trim())
-        .filter(Boolean);
-
-      if (currentUserEmail && !organizerEmails.includes(currentUserEmail)) {
-        organizerEmails.unshift(currentUserEmail);
-      }
+      const coverImageUrl = await ensureCoverImageUrl();
 
       // Create event as private
       const res = await fetch("/api/events", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          event: {
-            event_name: form.event_name,
-            event_date: form.event_date,
-            location: form.location,
-            visibility: EventVisibility.Private, // Private visibility
-            slug: form.slug || undefined,
-            event_description: form.event_description || undefined,
-            event_blurb: form.event_blurb || undefined,
-            cover_image_url: form.cover_image_url || undefined,
-            paid: ticketType === "paid",
-            submission_time_start: form.submission_time_start || undefined,
-            submission_time_cutoff: form.submission_time_cutoff || undefined,
-            participant_capacity: form.participant_capacity
-              ? parseInt(form.participant_capacity, 10)
-              : undefined,
-            event_type: form.event_type || undefined,
-            paywall_content: form.paywall_content || undefined,
-            rules: rules.length > 0 ? rules : undefined,
-            faqs:
-              faqs.length > 0 ? faqs.map(({ id, ...faq }) => faq) : undefined,
-            gallery_images:
-              galleryImages.length > 0
-                ? galleryImages.map(({ id, ...img }) => img) : undefined,
-          },
+          event: buildEventPayload(EventVisibility.Private, coverImageUrl),
           organizerEmails,
         }),
       });
@@ -601,48 +755,20 @@ export default function NewEventPage() {
     }
     setCreating(true);
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const currentUserEmail = sessionData?.session?.user?.email;
+      const organizerEmails = await getOrganizerEmailsForSubmit();
 
-      const organizerEmails = (form.organizer_emails || "")
-        .split(",")
-        .map((e) => e.trim())
-        .filter(Boolean);
-
-      if (currentUserEmail && !organizerEmails.includes(currentUserEmail)) {
-        organizerEmails.unshift(currentUserEmail);
-      }
+      const coverImageUrl = await ensureCoverImageUrl();
 
       // Create event as private
       const res = await fetch("/api/events", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          event: {
-            event_name: form.event_name,
-            event_date: form.event_date,
-            location: form.location,
-            visibility: EventVisibility.Public, // Public visibility
-            slug: form.slug || undefined,
-            event_description: form.event_description || undefined,
-            event_blurb: form.event_blurb || undefined,
-            cover_image_url: form.cover_image_url || undefined,
-            paid: ticketType === "paid",
-            submission_time_start: form.submission_time_start || undefined,
-            submission_time_cutoff: form.submission_time_cutoff || undefined,
-            participant_capacity: form.participant_capacity
-              ? parseInt(form.participant_capacity, 10)
-              : undefined,
-            event_type: form.event_type || undefined,
-            paywall_content: form.paywall_content || undefined,
-            rules: rules.length > 0 ? rules : undefined,
-            faqs:
-              faqs.length > 0 ? faqs.map(({ id, ...faq }) => faq) : undefined,
-            gallery_images:
-              galleryImages.length > 0
-                ? galleryImages.map(({ id, ...img }) => img) : undefined,
-            approval_status: ApprovalStatus.Approved,
-          },
+          event: buildEventPayload(
+            EventVisibility.Public,
+            coverImageUrl,
+            ApprovalStatus.Approved
+          ),
           organizerEmails,
         }),
       });
@@ -797,20 +923,15 @@ export default function NewEventPage() {
   };
 
   const handleCoverImageUpload = async (file: File) => {
-    if (!file.type.startsWith("image/")) {
+    try {
+      validateCoverImageFile(file);
+    } catch (error) {
       toast({
-        title: "Invalid file type",
-        description: "Please upload an image file (PNG, JPG, GIF, etc.)",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Check file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      toast({
-        title: "File too large",
-        description: "Image size must be less than 5MB",
+        title: "Invalid image",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Please upload a valid image file.",
         variant: "destructive",
       });
       return;
@@ -818,27 +939,7 @@ export default function NewEventPage() {
 
     setCoverImageUploading(true);
     try {
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
-      const filePath = `event-covers/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("event-materials")
-        .upload(filePath, file);
-
-      if (uploadError) {
-        toast({
-          title: "Upload failed",
-          description: "Failed to upload image file",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from("event-materials").getPublicUrl(filePath);
-
+      const publicUrl = await uploadCoverImageFile(file);
       onChange("cover_image_url", publicUrl);
       setCoverImageFile(null);
 
@@ -1310,7 +1411,7 @@ export default function NewEventPage() {
                                   </div>
                                   <div className="relative">
                                     <Input
-                                      value=""
+                                      value={form.cover_image_url}
                                       onChange={(e) =>
                                         onChange(
                                           "cover_image_url",
@@ -1402,7 +1503,7 @@ export default function NewEventPage() {
                                   </div>
                                   <div className="relative">
                                     <Input
-                                      value=""
+                                      value={form.cover_image_url}
                                       onChange={(e) =>
                                         onChange(
                                           "cover_image_url",
@@ -1922,17 +2023,6 @@ export default function NewEventPage() {
                           )}
                         </TabsContent>
 
-                        {showScheduleForm && (
-                          <Button
-                            type="button"
-                            className="rounded-[12px] border-0 mt-4 text-black bg-gray-50 hover:bg-gray-100"
-                            onClick={() => setShowScheduleForm(true)}
-                          >
-                            <Plus className="w-4 h-4 mr-2" />
-                            Add new day
-                          </Button>
-                        )}
-
                         <TabsContent
                           value="resources"
                           className="mt-0 overflow-x-hidden px-2"
@@ -2267,31 +2357,6 @@ export default function NewEventPage() {
                             </div>
                           )}
                         </TabsContent>
-
-                        {showResourcesForm && (
-                          <Button
-                            type="button"
-                            className="rounded-[12px] border-0 mt-4 text-black bg-gray-50 hover:bg-gray-100"
-                            style={{
-                              background: "rgba(0, 0, 0, 0.05)",
-                              boxShadow:
-                                "0 0 0 1px rgba(0, 0, 0, 0.05) inset, 0 -2px 1px 0 rgba(0, 0, 0, 0.05) inset, 0 1px 2px 0 rgba(0, 0, 0, 0.05)",
-                            }}
-                            onClick={() => {
-                              setResourcesForm({
-                                resourceName: "",
-                                resourceLink: "",
-                              });
-                              toast({
-                                title: "New resource",
-                                description: "Ready to add a new resource.",
-                              });
-                            }}
-                          >
-                            <Plus className="w-4 h-4 mr-2" />
-                            Add new resource
-                          </Button>
-                        )}
 
                         <TabsContent
                           value="rules"
