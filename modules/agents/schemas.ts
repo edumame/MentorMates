@@ -90,5 +90,5 @@ export const agentsUpdateSchema = agentsBaseSchema
     .partial()
     .extend({
         id: z.string().min(1, { message: "Id is required" }),
-        expected_updated_at: z.string().datetime().optional(),
+        expected_updated_at: z.string().datetime({ offset: true }).optional(),
     });
