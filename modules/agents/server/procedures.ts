@@ -2,7 +2,10 @@ import { agentsInsertSchema, agentsUpdateSchema } from "@/modules/agents/schemas
 import { DEFAULT_PAGE, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, MIN_PAGE_SIZE } from "@/lib/config/constants";
 import { createTRPCRouter, protectedProcedure } from "@/trpc/init";
 import { TRPCError } from "@trpc/server";
+import { createSupabaseClient } from "@/app/utils/supabase/server";
 import z from "zod";
+
+type SupabaseClient = Awaited<ReturnType<typeof createSupabaseClient>>;
 
 const EDITOR_EVENT_ROLES = ["organizer", "admin"] as const;
 type EditorEventRole = (typeof EDITOR_EVENT_ROLES)[number];
@@ -40,19 +43,19 @@ function toIdSet(values: unknown[]): Set<string> {
     return new Set(values.map(normalizeId).filter(Boolean));
 }
 
-async function getIsAdmin(supabase: any, userId: string) {
+async function getIsAdmin(supabase: SupabaseClient, userId: string) {
     const { data, error } = await supabase.rpc("is_admin_user", { user_id: userId });
     if (error) throw error;
     return Boolean(data);
 }
 
-async function getUserEventRoles(supabase: any, userId: string) {
+async function getUserEventRoles(supabase: SupabaseClient, userId: string) {
     const { data, error } = await supabase.from("user_event_roles").select("event_id, role").eq("user_id", userId);
     if (error) throw error;
     return (data ?? []) as UserEventRoleRow[];
 }
 
-async function getOwnerEventIds(supabase: any, userId: string) {
+async function getOwnerEventIds(supabase: SupabaseClient, userId: string) {
     const { data, error } = await supabase.from("events").select("event_id").eq("owner_id", userId);
     if (error) throw error;
     return toIdSet(((data ?? []) as EventOwnerRow[]).map((row) => row.event_id));
@@ -72,7 +75,7 @@ function canEditAgent(agent: AgentPermissionRow, userId: string, access: AgentAc
     return canManageEvent(eventId, access);
 }
 
-async function userCanManageEventAgents(supabase: any, userId: string, eventId: string): Promise<boolean> {
+async function userCanManageEventAgents(supabase: SupabaseClient, userId: string, eventId: string): Promise<boolean> {
     const isAdmin = await getIsAdmin(supabase, userId);
     if (isAdmin) return true;
 
@@ -96,7 +99,7 @@ async function userCanManageEventAgents(supabase: any, userId: string, eventId: 
     return Boolean(roleRow?.role);
 }
 
-async function userCanEditAgent(supabase: any, userId: string, agent: AgentPermissionRow): Promise<boolean> {
+async function userCanEditAgent(supabase: SupabaseClient, userId: string, agent: AgentPermissionRow): Promise<boolean> {
     const ownerId = normalizeId(agent.user_id);
     if (ownerId === userId) return true;
 
@@ -279,7 +282,7 @@ export const agentsRouter = createTRPCRouter({
         // strip undefined fields to avoid accidental updates
         Object.keys(dbPayload).forEach((k) => (dbPayload[k] === undefined ? delete dbPayload[k] : null));
 
-        const { data: createdRows, error } = await supabase.from("agents").insert(dbPayload).select().limit(1);
+        const { data: createdRows, error } = await supabase.from("agents").insert(dbPayload).select();
         if (error) throw error;
         const createdAgent = createdRows?.[0];
 
@@ -299,7 +302,7 @@ export const agentsRouter = createTRPCRouter({
         const canEdit = await userCanEditAgent(supabase, ctx.auth.user.id, existingAgent as AgentPermissionRow);
         if (!canEdit) throw new TRPCError({ code: "FORBIDDEN", message: "You don't have permission to delete this agent." });
 
-        const { data, error } = await supabase.from("agents").delete().eq("id", input.id).select().limit(1);
+        const { data, error } = await supabase.from("agents").delete().eq("id", input.id).select();
         if (error) throw error;
         const removedAgent = data?.[0];
         if (!removedAgent) throw new TRPCError({ code: "NOT_FOUND", message: "Agent not found or already removed" });
@@ -341,7 +344,7 @@ export const agentsRouter = createTRPCRouter({
             updateQuery = updateQuery.eq("updated_at", expectedUpdatedAt);
         }
 
-        const { data, error } = await updateQuery.select().limit(1);
+        const { data, error } = await updateQuery.select();
         if (error) throw error;
 
         const updatedAgent = data?.[0];
