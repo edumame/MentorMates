@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -49,6 +49,15 @@ export function ViewTicketsTab({ eventId }: ViewTicketsTabProps) {
   const [user, setUser] = useState<User | null>(null);
   const { toast } = useToast();
 
+  const fetchMyTickets = useCallback(async () => {
+    const response = await fetch(`/api/events/${eventId}/my-tickets`);
+    const payload = await response.json();
+    if (!response.ok) {
+      throw new Error(payload.error || "Failed to load tickets");
+    }
+    return (payload.tickets || []) as EventTicket[];
+  }, [eventId]);
+
   useEffect(() => {
     const fetchUserAndTickets = async () => {
       // Get current user
@@ -59,43 +68,21 @@ export function ViewTicketsTab({ eventId }: ViewTicketsTabProps) {
 
       setUser(session.user);
 
-      // Fetch tickets purchased by this user for this event
-      const { data: tickets, error } = await supabase
-        .from("event_tickets")
-        .select(
-          `
-          id,
-          assigned_to_user_id,
-          assigned_to_email,
-          ticket_status,
-          assigned_at,
-          created_at,
-          assigned_user:user_profiles!event_tickets_assigned_to_user_id_fkey(
-            display_name,
-            email
-          )
-        `
-        )
-        .eq("event_id", eventId)
-        .eq("purchased_by_user_id", session.user.id)
-        .order("created_at", { ascending: true })
-        .overrideTypes<EventTicket[]>();
-
-      if (error) {
+      try {
+        const tickets = await fetchMyTickets();
+        setTickets(tickets || []);
+      } catch {
         toast({
           title: "Error",
           description: "Failed to load tickets",
           variant: "destructive",
         });
-        return;
       }
-
-      setTickets(tickets || []);
       setLoading(false);
     };
 
     fetchUserAndTickets();
-  }, [eventId, toast]);
+  }, [fetchMyTickets, toast]);
 
   const assignTicket = async (ticketId: string) => {
     const ticketEmail = ticketEmails[ticketId]?.trim();
@@ -167,31 +154,8 @@ export function ViewTicketsTab({ eventId }: ViewTicketsTabProps) {
         throw new Error("Failed to send invitation email");
       }
 
-      // Refresh tickets
-      const { data: updatedTickets } = await supabase
-        .from("event_tickets")
-        .select(
-          `
-          id,
-          assigned_to_user_id,
-          assigned_to_email,
-          ticket_status,
-          assigned_at,
-          created_at,
-          assigned_user:user_profiles!event_tickets_assigned_to_user_id_fkey(
-            display_name,
-            email
-          )
-        `
-        )
-        .eq("event_id", eventId)
-        .eq("purchased_by_user_id", user?.id)
-        .order("created_at", { ascending: true })
-        .overrideTypes<EventTicket[]>();
-
-      if (updatedTickets) {
-        setTickets(updatedTickets);
-      }
+      const updatedTickets = await fetchMyTickets();
+      setTickets(updatedTickets);
 
       // Clear the email input for this specific ticket
       setTicketEmails((prev) => ({ ...prev, [ticketId]: "" }));

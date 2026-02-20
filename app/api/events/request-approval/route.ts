@@ -4,6 +4,7 @@ import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { defaultRules } from "@/lib/config/constants";
 import { z } from "zod";
 import type { Database, Json } from "@/lib/database.types";
+import { createSupabaseServiceClient } from "@/lib/supabase/service";
 
 const eventSchema = z.object({
   event_name: z.string().min(3, "Event name must be at least 3 characters"),
@@ -40,6 +41,7 @@ const payloadSchema = z.object({
 
 export async function POST(req: Request) {
   const supabase = await createSupabaseClient();
+  const serviceSupabase = createSupabaseServiceClient();
 
   try {
     const {
@@ -196,7 +198,7 @@ export async function POST(req: Request) {
       );
 
       // Fetch all users by email in one query
-      const { data: usersByEmail, error: usersError } = await supabase
+      const { data: usersByEmail, error: usersError } = await serviceSupabase
         .from("user_profiles")
         .select("uid, email")
         .in("email", normalizedEmails);

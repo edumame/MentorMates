@@ -58,23 +58,30 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
   useEffect(() => {
     async function fetchParticipants() {
       try {
-        // Get participants with their profile info
-        const { data, error } = await supabase
-          .from("user_event_roles")
-          .select(
-            `
-            user_id,
-            role,
-            profiles:user_id (
-              display_name,
-              email
-            )
-          `
-          )
-          .eq("event_id", eventId)
-          .overrideTypes<UserEventRoleWithProfile[]>();
-
-        if (error) throw error;
+        const participantsResponse = await fetch(
+          `/api/events/${eventId}/users?roles=participant,mentor,judge,organizer,admin&limit=500`
+        );
+        const participantsPayload = await participantsResponse.json();
+        if (!participantsResponse.ok) {
+          throw new Error(
+            participantsPayload.error || "Failed to fetch participants"
+          );
+        }
+        const data = (participantsPayload.users || []).map(
+          (user: {
+            user_id: string;
+            role: EventRole;
+            display_name: string;
+            email: string;
+          }) => ({
+            user_id: user.user_id,
+            role: user.role,
+            profiles: {
+              display_name: user.display_name,
+              email: user.email,
+            },
+          })
+        ) as UserEventRoleWithProfile[];
 
         // get all lead email and teammembers 
         const { data: leadData, error: leadError } = await supabase
@@ -205,8 +212,10 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
         body: JSON.stringify({ role: newRole, notify: notifyOnSave }),
       });
       if (!res.ok) {
-        const data = await res.json().catch(() => ({} as any));
-        throw new Error((data as any).error || "Failed to update role");
+        const data = (await res.json().catch(() => ({}))) as {
+          error?: string;
+        };
+        throw new Error(data.error || "Failed to update role");
       }
       setParticipants((prev) =>
         prev.map((p) => (p.user_id === userId ? { ...p, role: newRole } : p))
@@ -226,8 +235,10 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
         body: JSON.stringify({ notify: notifyOnSave }),
       });
       if (!res.ok) {
-        const data = await res.json().catch(() => ({} as any));
-        throw new Error((data as any).error || "Failed to remove user");
+        const data = (await res.json().catch(() => ({}))) as {
+          error?: string;
+        };
+        throw new Error(data.error || "Failed to remove user");
       }
       setParticipants((prev) => prev.filter((p) => p.user_id !== userId));
       toast({ title: "Removed from event" });

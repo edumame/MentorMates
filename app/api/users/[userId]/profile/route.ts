@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
+import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { ApprovalStatus, EventVisibility } from "@/lib/types";
 
 export async function GET(
@@ -8,6 +9,7 @@ export async function GET(
 ) {
   try {
     const supabase = await createSupabaseClient();
+    const serviceSupabase = createSupabaseServiceClient();
     const { userId } = await params;
 
     if (!userId) {
@@ -27,7 +29,7 @@ export async function GET(
 
     // Fetch user profile including all social media and profile fields
     // Using * to select all columns for resilience if some columns don't exist yet
-    const { data: profile, error: profileError } = await supabase
+    const { data: profile, error: profileError } = await serviceSupabase
       .from("user_profiles")
       .select("*")
       .eq("uid", userId)

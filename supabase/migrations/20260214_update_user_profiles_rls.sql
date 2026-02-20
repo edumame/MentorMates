@@ -9,9 +9,13 @@ DROP POLICY IF EXISTS "user_profiles_select" ON public.user_profiles;
 DROP POLICY IF EXISTS "user_profiles_insert" ON public.user_profiles;
 DROP POLICY IF EXISTS "user_profiles_update" ON public.user_profiles;
 DROP POLICY IF EXISTS "user_profiles_delete" ON public.user_profiles;
+DROP POLICY IF EXISTS "admins_organizers_and_users_can_select_profiles" ON public.user_profiles;
+DROP POLICY IF EXISTS "admins_and_users_can_insert_own_profile" ON public.user_profiles;
+DROP POLICY IF EXISTS "admins_and_users_can_update_own_profile" ON public.user_profiles;
+DROP POLICY IF EXISTS "admins_and_users_can_delete_own_profile" ON public.user_profiles;
 
 -- SELECT policy: Admins see all, organizers see users in their events, users see own
-CREATE POLICY "user_profiles_select"
+CREATE POLICY "admins_organizers_and_users_can_select_profiles"
     ON public.user_profiles
     FOR SELECT
     TO authenticated
@@ -27,36 +31,36 @@ CREATE POLICY "user_profiles_select"
     );
 
 -- INSERT policy: Anyone can insert their own row (for user registration)
-CREATE POLICY "user_profiles_insert"
+CREATE POLICY "admins_and_users_can_insert_own_profile"
     ON public.user_profiles
     FOR INSERT
     WITH CHECK (
-        is_admin_user(auth.uid())
-        OR uid = auth.uid()
+        is_admin_user((SELECT auth.uid()))
+        OR uid = (SELECT auth.uid())
     );
 
 -- UPDATE policy: Admins update all, users update own
-CREATE POLICY "user_profiles_update"
+CREATE POLICY "admins_and_users_can_update_own_profile"
     ON public.user_profiles
     FOR UPDATE
     TO authenticated
     USING (
-        is_admin_user(auth.uid())
-        OR uid = auth.uid()
+        is_admin_user((SELECT auth.uid()))
+        OR uid = (SELECT auth.uid())
     )
     WITH CHECK (
-        is_admin_user(auth.uid())
-        OR uid = auth.uid()
+        is_admin_user((SELECT auth.uid()))
+        OR uid = (SELECT auth.uid())
     );
 
 -- DELETE policy: Admins delete all, users delete own
-CREATE POLICY "user_profiles_delete"
+CREATE POLICY "admins_and_users_can_delete_own_profile"
     ON public.user_profiles
     FOR DELETE
     TO authenticated
     USING (
-        is_admin_user(auth.uid())
-        OR uid = auth.uid()
+        is_admin_user((SELECT auth.uid()))
+        OR uid = (SELECT auth.uid())
     );
 
 -- Add comment explaining the RLS setup

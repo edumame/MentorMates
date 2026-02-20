@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
+import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { EventRole, ParticipantRequestStatus } from "@/lib/types";
 import { canAccessRole } from "@/features/user/roles/roles";
 
@@ -20,6 +21,7 @@ export async function GET(
   try {
     const { eventId, requestId } = await context.params;
     const supabase = await createSupabaseClient();
+    const serviceSupabase = createSupabaseServiceClient();
 
     const {
       data: { user },
@@ -31,7 +33,7 @@ export async function GET(
     }
 
     // Fetch the request
-    const { data: approvalRequest, error: queryError } = await supabase
+    const { data: approvalRequest, error: queryError } = await serviceSupabase
       .from("participant_approval_requests")
       .select(
         `

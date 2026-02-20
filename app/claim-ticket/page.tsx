@@ -20,10 +20,6 @@ interface TicketInfo {
   };
   assigned_to_email: string | null;
   ticket_status: string;
-  purchased_by: {
-    display_name: string | null;
-    email: string;
-  };
 }
 
 export default function ClaimTicketPage() {
@@ -72,10 +68,6 @@ export default function ClaimTicketPage() {
               event_name,
               event_date,
               event_description
-            ),
-            purchased_by:user_profiles!event_tickets_purchased_by_user_id_fkey(
-              display_name,
-              email
             )
           `
           )
@@ -276,12 +268,8 @@ export default function ClaimTicketPage() {
               <Alert>
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
-                  This ticket was purchased by{" "}
-                  <strong>
-                    {ticket.purchased_by.display_name ||
-                      ticket.purchased_by.email}
-                  </strong>{" "}
-                  and assigned to <strong>{ticket.assigned_to_email}</strong>
+                  This ticket is assigned to{" "}
+                  <strong>{ticket.assigned_to_email}</strong>
                 </AlertDescription>
               </Alert>
 

@@ -115,19 +115,13 @@ export default function JoinProjectPage() {
     setError(null);
 
     try {
-      // Get user's email
-      const { data: userProfile } = await supabase
-        .from("user_profiles")
-        .select("email")
-        .eq("uid", user.id)
-        .single();
-
-      if (!userProfile) {
+      const userEmailFromAuth = user.email?.toLowerCase();
+      if (!userEmailFromAuth) {
         setError("User profile not found");
         return;
       }
 
-      const userEmail = userProfile.email.toLowerCase();
+      const userEmail = userEmailFromAuth;
       
       // Check if user is already the project lead
       if (project.lead_email === userEmail) {
