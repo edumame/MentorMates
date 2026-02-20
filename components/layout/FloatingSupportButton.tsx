@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { HelpCircle, Mail, Linkedin, BookOpen, FileQuestion, X, Instagram, Bug, PlayCircle } from "lucide-react";
 
 // Custom Discord icon since lucide-react doesn't have one
@@ -83,13 +84,16 @@ const docs: DocItem[] = [
 
 export function FloatingSupportButton() {
   const [open, setOpen] = React.useState(false);
+  const pathname = usePathname();
+  const isChatPage = pathname?.startsWith("/chat");
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button
           className={cn(
-            "fixed bottom-4 right-4 z-40 md:bottom-6 md:right-6",
+            "fixed right-4 z-40 md:right-6",
+            isChatPage ? "bottom-28 md:bottom-32" : "bottom-4 md:bottom-6",
             "flex items-center justify-center w-12 h-12 rounded-full",
             "bg-[#4B89EF] text-white",
             "shadow-lg hover:bg-[#3E7EEA] transition-all duration-200",

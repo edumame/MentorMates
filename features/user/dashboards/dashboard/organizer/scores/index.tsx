@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { EventSearchInput } from "@/components/ui/event-search-input";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -1342,10 +1343,11 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
                           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
                             <div className="space-y-1">
                               <div className="text-sm font-medium">Search</div>
-                              <Input
+                              <EventSearchInput
                                 value={agentSearch}
                                 onChange={(e) => setAgentSearch(e.target.value)}
                                 placeholder="Meeting, project, participant, agent…"
+                                inputClassName="text-sm sm:text-sm"
                               />
                             </div>
 

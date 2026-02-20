@@ -239,7 +239,19 @@ export const meetingsRouter = createTRPCRouter({
         if (agentError) throw agentError;
         const agent = agentRows?.[0] ?? null;
 
-        return { ...existingMeeting, agent, duration };
+        let projectName: string | null = null;
+        if ((existingMeeting as MeetingRow).project_id) {
+            const { data: projectRow, error: projectError } = await supabase
+                .from("projects")
+                .select("project_name")
+                .eq("id", String((existingMeeting as MeetingRow).project_id))
+                .maybeSingle();
+
+            if (projectError) throw projectError;
+            projectName = (projectRow as { project_name?: string | null } | null)?.project_name ?? null;
+        }
+
+        return { ...existingMeeting, agent, duration, projectName };
     }),
     getMany: protectedProcedure.input(z.object({
         page: z.number().default(DEFAULT_PAGE),
@@ -492,5 +504,120 @@ export const meetingsRouter = createTRPCRouter({
         }]);
 
         return token;
+    }),
+    ensureCallExists: protectedProcedure.input(z.object({ id: z.string() })).mutation(async ({ input, ctx }) => {
+        const supabase = ctx.supabase;
+
+        // Get the meeting from database
+        const { data: existingMeeting, error: meetingError } = await supabase
+            .from('meetings')
+            .select('*')
+            .eq('id', input.id)
+            .maybeSingle();
+
+        if (meetingError) throw meetingError;
+        if (!existingMeeting) {
+            throw new TRPCError({ code: "NOT_FOUND", message: "Meeting not found" });
+        }
+
+        // Check if user has access to this meeting
+        const userId = ctx.auth.user.id;
+        const meetingOwnerId = (existingMeeting as MeetingRow).user_id ? String((existingMeeting as MeetingRow).user_id) : null;
+        const meetingEventId = (existingMeeting as MeetingRow).event_id ? String((existingMeeting as MeetingRow).event_id) : null;
+
+        let isAuthorized = meetingOwnerId === userId;
+
+        if (!isAuthorized && meetingEventId) {
+            const { data: isAdmin } = await supabase.rpc('is_admin_user', { user_id: userId });
+            if (isAdmin) {
+                isAuthorized = true;
+            } else {
+                const { data: eventRow, error: eventErr } = await supabase
+                    .from("events")
+                    .select("owner_id")
+                    .eq("event_id", meetingEventId)
+                    .maybeSingle();
+                if (eventErr) throw eventErr;
+
+                if (eventRow?.owner_id && String(eventRow.owner_id) === userId) {
+                    isAuthorized = true;
+                } else {
+                    const { data: roleRow, error: roleErr } = await supabase
+                        .from("user_event_roles")
+                        .select("role")
+                        .eq("event_id", meetingEventId)
+                        .eq("user_id", userId)
+                        .maybeSingle();
+                    if (roleErr) throw roleErr;
+                    if (roleRow?.role) isAuthorized = true;
+                }
+            }
+        }
+
+        if (!isAuthorized) {
+            throw new TRPCError({ code: "FORBIDDEN", message: "You do not have permission to access this meeting" });
+        }
+
+        // Try to get the call from Stream.io
+        const call = streamVideo.video.call("default", input.id);
+
+        try {
+            await call.get();
+            // Call exists, we're done
+            return { created: false };
+        } catch {
+            // Call doesn't exist, create it
+            const agentId = (existingMeeting as MeetingRow).agent_id;
+            if (!agentId) {
+                throw new TRPCError({ code: "BAD_REQUEST", message: "Meeting has no agent assigned" });
+            }
+
+            // Get agent details
+            const { data: agentRows, error: agentError } = await supabase
+                .from('agents')
+                .select('*')
+                .eq('id', agentId)
+                .limit(1);
+
+            if (agentError) throw agentError;
+            const existingAgent = agentRows?.[0];
+            if (!existingAgent) {
+                throw new TRPCError({ code: 'NOT_FOUND', message: 'Agent not found' });
+            }
+
+            // Create the Stream.io call
+            await call.create({
+                data: {
+                    created_by_id: userId,
+                    custom: {
+                        meetingId: input.id,
+                        meetingName: (existingMeeting as MeetingRow).name
+                    },
+                    settings_override: {
+                        transcription: {
+                            language: "en",
+                            mode: "auto-on",
+                            closed_caption_mode: "auto-on",
+                        },
+                        recording: {
+                            mode: "auto-on",
+                            quality: "1080p",
+                        },
+                    },
+                },
+            });
+
+            // Upsert agent user in Stream
+            await streamVideo.upsertUsers([
+                {
+                    id: existingAgent.id,
+                    name: existingAgent.name,
+                    role: "user",
+                    image: existingAgent.avatar_url,
+                },
+            ]);
+
+            return { created: true };
+        }
     }),
 });

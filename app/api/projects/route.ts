@@ -15,12 +15,148 @@ export async function GET(request: NextRequest) {
     const supabase = await createSupabaseClient();
     const { searchParams } = new URL(request.url);
     const eventId = searchParams.get("eventId");
+    const eventSlugRaw = searchParams.get("eventSlug") ?? searchParams.get("event");
     const projectId = searchParams.get("projectId");
     const isPublic = searchParams.get("public") === "true";
     const submitted = searchParams.get("submitted") === "true";
 
-    // For public gallery view, no authentication required
-    if (isPublic && eventId) {
+    // For public views, no authentication required (guarded by visibility checks).
+    if (isPublic) {
+      // Prefer anon client by default (service key may not exist in local dev).
+      let resolvedEventId = eventId;
+      const eventSlug = eventSlugRaw?.trim() ?? null;
+
+      // Public single-project view (e.g. logged-out project page).
+      if (projectId) {
+        const { data: project, error } = await supabase
+          .from("projects")
+          .select(
+            `
+            id,
+            project_name,
+            lead_name,
+            lead_email,
+            project_description,
+            teammates,
+            project_url,
+            additional_materials_url,
+            cover_image_url,
+            event_id,
+            contextus_project_id,
+            created_at,
+            submitted,
+            project_tracks (
+              event_tracks (
+                track_id,
+                event_id,
+                name,
+                description,
+                label,
+                prize_amount,
+                prize_description,
+                scoring_criteria,
+                created_at,
+                updated_at
+              )
+            )
+          `
+          )
+          .eq("id", projectId)
+          .eq("submitted", true)
+          .maybeSingle()
+          .overrideTypes<{
+            project_tracks: Array<{ event_tracks: EventTrack }>;
+          }>();
+
+        if (error || !project) {
+          return NextResponse.json({ error: "Project not found" }, { status: 404 });
+        }
+
+        // Ensure the owning event is public.
+        const { data: eventMeta, error: eventMetaError } = await supabase
+          .from("events")
+          .select("visibility")
+          .eq("event_id", project.event_id)
+          .maybeSingle();
+
+        if (eventMetaError || eventMeta?.visibility !== "public") {
+          return NextResponse.json({ error: "Project not found" }, { status: 404 });
+        }
+
+        const transformedProject = {
+          id: project.id,
+          project_name: project.project_name,
+          lead_name: project.lead_name,
+          lead_email: project.lead_email,
+          project_description: project.project_description,
+          teammates: project.teammates,
+          project_url: project.project_url,
+          additional_materials_url: project.additional_materials_url,
+          cover_image_url: project.cover_image_url,
+          event_id: project.event_id,
+          contextus_project_id: (
+            project as unknown as { contextus_project_id?: string }
+          ).contextus_project_id,
+          submitted: (project as unknown as { submitted?: boolean }).submitted ?? true,
+          tracks:
+            project.project_tracks?.map((pt) => pt.event_tracks).filter(Boolean) ||
+            [],
+          track_ids:
+            project.project_tracks
+              ?.map((pt) => pt.event_tracks?.track_id)
+              .filter(Boolean) || [],
+          created_at: project.created_at,
+        };
+
+        return NextResponse.json({ project: transformedProject });
+      }
+
+      if (!resolvedEventId && eventSlug) {
+        // Resolve slug -> event_id (case-insensitive exact match).
+        const { data: eventData, error: eventError } = await supabase
+          .from("events")
+          .select("event_id")
+          .ilike("slug", eventSlug)
+          .maybeSingle();
+
+        if (eventError) {
+          console.error("Error resolving event slug:", eventError);
+          return NextResponse.json(
+            { error: "Failed to resolve event" },
+            { status: 500 }
+          );
+        }
+
+        resolvedEventId = eventData?.event_id ?? null;
+      }
+
+      if (!resolvedEventId) {
+        if (eventSlug) {
+          return NextResponse.json(
+            {
+              error: "Event not found",
+              eventSlug,
+            },
+            { status: 404 }
+          );
+        }
+        return NextResponse.json(
+          { error: "Missing required parameters" },
+          { status: 400 }
+        );
+      }
+
+      // Ensure the event itself is public before returning any projects.
+      const { data: eventMeta, error: eventMetaError } = await supabase
+        .from("events")
+        .select("visibility")
+        .eq("event_id", resolvedEventId)
+        .maybeSingle();
+
+      if (eventMetaError || eventMeta?.visibility !== "public") {
+        return NextResponse.json({ error: "Event not found" }, { status: 404 });
+      }
+
       // Public view - fetch all projects for the event
       const { data: allProjects, error } = await supabase
         .from("projects")
@@ -55,7 +191,7 @@ export async function GET(request: NextRequest) {
           )
         `
         )
-        .eq("event_id", eventId)
+        .eq("event_id", resolvedEventId)
         .eq("submitted", true)
         .order("project_name")
         .overrideTypes<

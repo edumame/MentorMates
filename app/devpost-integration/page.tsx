@@ -12,6 +12,8 @@ import {
   Play,
 } from "lucide-react";
 import { Footer } from "@/components/layout/Footer";
+import { getEmbedUrl } from "@/components/utils";
+import { VIDEO_SOURCES } from "@/lib/config/video-sources";
 
 const FeatureStep: React.FC<{
   number: string;
@@ -56,6 +58,10 @@ const BenefitCard: React.FC<{
 };
 
 const DevpostIntegrationPage: React.FC = () => {
+  const organizerDemo = VIDEO_SOURCES.organizer;
+  const organizerEmbedUrl =
+    getEmbedUrl(organizerDemo.url) ?? organizerDemo.url;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-2">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12 pt-16">
@@ -157,8 +163,8 @@ const DevpostIntegrationPage: React.FC = () => {
                 </div>
                 <div className="aspect-video rounded-lg overflow-hidden">
                   <iframe
-                    src="https://www.youtube.com/embed/DFGjGusKtdo"
-                    title="MentorMates Organizer Demo"
+                    src={organizerEmbedUrl}
+                    title={organizerDemo.title}
                     className="w-full h-full"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     allowFullScreen

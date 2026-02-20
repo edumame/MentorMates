@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Users,
   Calendar,
@@ -17,7 +18,6 @@ import {
   Copy,
   ExternalLink,
   Trash2,
-  X,
   UserPlus,
   Edit,
   Heart,
@@ -99,6 +99,16 @@ export default function ProjectPage() {
   // Participant search state
   const [participants, setParticipants] = useState<EventParticipant[]>([]);
   const [isLoadingParticipants, setIsLoadingParticipants] = useState(false);
+  const [teamProfileByEmail, setTeamProfileByEmail] = useState<
+    Record<
+      string,
+      {
+        displayName: string | null;
+        avatarUrl: string | null;
+        affiliation: string | null;
+      }
+    >
+  >({});
 
   // Event details state
   const [eventDetails, setEventDetails] = useState<EventDetails | null>(null);
@@ -768,6 +778,66 @@ export default function ProjectPage() {
     }
   }, [project?.event_id, fetchEventParticipants]);
 
+  const getInitials = useCallback((value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed) return "?";
+    const parts = trimmed.split(/\s+/).filter(Boolean);
+    const first = parts[0]?.[0] ?? "";
+    const last = parts.length > 1 ? parts[parts.length - 1]?.[0] ?? "" : "";
+    const initials = (first + last).toUpperCase();
+    return initials || trimmed.slice(0, 2).toUpperCase();
+  }, []);
+
+  // Load team profile info for team members (from user_profiles)
+  useEffect(() => {
+    if (!project) return;
+
+    const emails = Array.from(
+      new Set([project.lead_email, ...(project.teammates ?? [])])
+    )
+      .filter(Boolean)
+      .map((e) => String(e).toLowerCase());
+
+    if (emails.length === 0) return;
+
+    let alive = true;
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from("user_profiles")
+          .select("email, affiliation, avatar_url, display_name")
+          .in("email", emails);
+
+        if (error || !alive) return;
+
+        const map: Record<
+          string,
+          {
+            displayName: string | null;
+            avatarUrl: string | null;
+            affiliation: string | null;
+          }
+        > = {};
+        for (const row of data ?? []) {
+          const email = row.email?.toLowerCase();
+          if (!email) continue;
+          map[email] = {
+            displayName: row.display_name?.trim() || null,
+            avatarUrl: row.avatar_url?.trim() || null,
+            affiliation: row.affiliation?.trim() || null,
+          };
+        }
+        setTeamProfileByEmail(map);
+      } catch {
+        // ignore
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [project?.lead_email, project?.teammates, project]);
+
   const handleAddTeammate = async (email: string) => {
     const emailToAdd = email.trim();
 
@@ -973,8 +1043,27 @@ export default function ProjectPage() {
     );
   }
 
-  const isLead = session?.user?.email === project.lead_email;
+  const isLead =
+    session?.user?.email?.toLowerCase() === project.lead_email?.toLowerCase();
   const totalMembers = (project.teammates?.length || 0) + 1;
+  const teamMembers = [
+    {
+      email: project.lead_email,
+      displayName:
+        teamProfileByEmail[project.lead_email.toLowerCase()]?.displayName ||
+        project.lead_name,
+      role: "lead" as const,
+    },
+    ...(project.teammates ?? []).map((email) => ({
+      email,
+      displayName:
+        teamProfileByEmail[email.toLowerCase()]?.displayName ||
+        participants.find((p) => p.email.toLowerCase() === email.toLowerCase())
+          ?.display_name || email,
+      role: "member" as const,
+    })),
+  ];
+
   const feedbackUrl = `${
     typeof window !== "undefined" ? window.location.origin : ""
   }/projects/public/${project.id}`;
@@ -1635,65 +1724,82 @@ export default function ProjectPage() {
                       </TabsContent>
                     )}
 
-                    <TabsContent value="team" className="mt-0 overflow-hidden">
-                      <Card>
-                        <CardHeader>
-                          <CardTitle>Team Members</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-3">
-                            <div className="flex items-center justify-between p-3 border rounded">
-                              <div>
-                                <p className="font-medium">
-                                  {project.lead_name}
-                                </p>
-                                <p className="text-sm text-gray-500">
-                                  {project.lead_email}
-                                </p>
-                              </div>
-                              <Badge>Lead</Badge>
+                    <TabsContent value="team" className="mt-0 overflow-visible">
+                      <div className="w-full overflow-visible">
+                        <div className="rounded-xl border border-gray-200 bg-white p-4 sm:p-6 overflow-visible">
+                          <h3 className="text-lg font-semibold text-gray-900">
+                            Team Members
+                          </h3>
+
+                          <div className="mt-5 space-y-4">
+                            {teamMembers.map((member) => {
+                              const emailKey = member.email.toLowerCase();
+                              const profile = teamProfileByEmail[emailKey];
+                              const title =
+                                member.displayName?.trim() || member.email;
+                              const subtitle =
+                                profile?.affiliation?.trim() ||
+                                (title.toLowerCase() === member.email.toLowerCase()
+                                  ? member.email
+                                  : null);
+
+                              return (
+                                <div
+                                  key={member.email}
+                                  className="flex items-center justify-between gap-4"
+                                >
+                                  <div className="flex items-center gap-4 min-w-0">
+                                    <Avatar className="h-14 w-14 shrink-0">
+                                      <AvatarImage
+                                        src={profile?.avatarUrl ?? undefined}
+                                        alt={title}
+                                      />
+                                      <AvatarFallback>
+                                        {getInitials(title)}
+                                      </AvatarFallback>
+                                    </Avatar>
+
+                                    <div className="min-w-0">
+                                      <div className="flex items-center gap-2 min-w-0">
+                                        <p className="font-semibold text-base text-black truncate">
+                                          {title}
+                                        </p>
+                                        {member.role === "lead" ? (
+                                          <Badge
+                                            variant="secondary"
+                                            className="bg-transparent border border-black/15 text-black rounded-full text-sm px-2.5 py-0.5"
+                                          >
+                                            Lead
+                                          </Badge>
+                                        ) : null}
+                                      </div>
+                                      {subtitle ? (
+                                        <p className="text-base text-black truncate">
+                                          {subtitle}
+                                        </p>
+                                      ) : null}
+                                    </div>
+                                  </div>
+
+                                  <Button className="h-9 rounded-full bg-blue-600 px-4 text-white hover:bg-blue-700">
+                                    Follow
+                                  </Button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {canEdit && isLead && (
+                          <div className="mt-8 rounded-xl border border-gray-200 bg-white p-4 sm:p-6 overflow-visible">
+                            <div className="flex items-center gap-2 mb-3">
+                              <UserPlus className="h-4 w-4 text-gray-500" />
+                              <h4 className="font-medium text-gray-900">
+                                Add team member
+                              </h4>
                             </div>
 
-                            {project.teammates?.map((teammate, index) => (
-                              <div
-                                key={index}
-                                className="flex items-center justify-between p-3 border rounded"
-                              >
-                                <div>
-                                  <p className="font-medium">{teammate}</p>
-                                  <p className="text-sm text-gray-500">
-                                    Team Member
-                                  </p>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <Badge variant="secondary">Member</Badge>
-                                  {canEdit && isLead && (
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() =>
-                                        handleRemoveTeammate(teammate)
-                                      }
-                                      disabled={isUpdating}
-                                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                    >
-                                      <X className="h-4 w-4" />
-                                    </Button>
-                                  )}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-
-                          {canEdit && isLead && (
-                            <div className="mt-6 pt-4 border-t">
-                              <div className="flex items-center gap-2 mb-3">
-                                <UserPlus className="h-4 w-4 text-gray-500" />
-                                <h4 className="font-medium text-gray-900">
-                                  Add Team Member
-                                </h4>
-                              </div>
-
+                            <div className="relative overflow-visible">
                               <UserSearchWithInvite
                                 allTags={participants.map(
                                   (p) =>
@@ -1707,26 +1813,22 @@ export default function ProjectPage() {
                                   });
 
                                   // Get list of participant emails for validation
-                                  const participantEmails = participants.map(
-                                    (p) => p.email.toLowerCase()
+                                  const participantEmails = participants.map((p) =>
+                                    p.email.toLowerCase()
                                   );
 
                                   // Only process emails that are actual event participants
                                   const validEmails = emails.filter((email) =>
-                                    participantEmails.includes(
-                                      email.toLowerCase()
-                                    )
+                                    participantEmails.includes(email.toLowerCase())
                                   );
 
                                   // Find newly added emails (only from valid participants)
-                                  const currentTeammates =
-                                    project?.teammates || [];
+                                  const currentTeammates = project?.teammates || [];
                                   const newEmails = validEmails.filter(
                                     (email) =>
                                       !currentTeammates.some(
                                         (t) =>
-                                          t.toLowerCase() ===
-                                          email.toLowerCase()
+                                          t.toLowerCase() === email.toLowerCase()
                                       )
                                   );
 
@@ -1734,9 +1836,7 @@ export default function ProjectPage() {
                                   const removedEmails = currentTeammates.filter(
                                     (email) =>
                                       !validEmails.some(
-                                        (e) =>
-                                          e.toLowerCase() ===
-                                          email.toLowerCase()
+                                        (e) => e.toLowerCase() === email.toLowerCase()
                                       )
                                   );
 
@@ -1754,32 +1854,30 @@ export default function ProjectPage() {
                                     );
                                   }
                                 }}
-                                initialTags={(project?.teammates || []).map(
-                                  (email) => {
-                                    const participant = participants.find(
-                                      (p) =>
-                                        p.email.toLowerCase() ===
-                                        email.toLowerCase()
-                                    );
-                                    return participant
-                                      ? `${participant.display_name || participant.email} (${participant.email})`
-                                      : email;
-                                  }
-                                )}
+                                initialTags={(project?.teammates || []).map((email) => {
+                                  const participant = participants.find(
+                                    (p) =>
+                                      p.email.toLowerCase() ===
+                                      email.toLowerCase()
+                                  );
+                                  return participant
+                                    ? `${participant.display_name || participant.email} (${participant.email})`
+                                    : email;
+                                })}
                                 projectId={projectId}
                                 enableInvite={true}
                               />
-
-                              <p className="text-xs text-gray-500 mt-3">
-                                Search for event participants to add them
-                                immediately, or send an invitation to users not
-                                yet registered. Invited users will be added to
-                                the team once they accept the invitation.
-                              </p>
                             </div>
-                          )}
-                        </CardContent>
-                      </Card>
+
+                            <p className="text-xs text-gray-500 mt-3">
+                              Search for event participants to add them immediately, or
+                              send an invitation to users not yet registered. Invited
+                              users will be added to the team once they accept the
+                              invitation.
+                            </p>
+                          </div>
+                        )}
+                      </div>
                     </TabsContent>
 
                     <TabsContent
@@ -1956,11 +2054,31 @@ export default function ProjectPage() {
                           <div className="space-y-6">
                             {/* Project Lead */}
                             <div className="flex gap-4 items-center">
-                              <div className="w-14 h-14 rounded-full bg-gray-300 flex-shrink-0"></div>
+                              <Avatar className="h-14 w-14 shrink-0">
+                                <AvatarImage
+                                  src={
+                                    teamProfileByEmail[
+                                      project.lead_email.toLowerCase()
+                                    ]?.avatarUrl ?? undefined
+                                  }
+                                  alt={
+                                    teamProfileByEmail[
+                                      project.lead_email.toLowerCase()
+                                    ]?.displayName ||
+                                    project.lead_name ||
+                                    project.lead_email
+                                  }
+                                />
+                                <AvatarFallback>
+                                  {getInitials(project.lead_name || project.lead_email)}
+                                </AvatarFallback>
+                              </Avatar>
                               <div>
                                 <div className="flex items-center gap-2">
                                   <p className="font-semibold text-base text-black">
-                                    {project.lead_name}
+                                    {teamProfileByEmail[
+                                      project.lead_email.toLowerCase()
+                                    ]?.displayName || project.lead_name}
                                   </p>
                                   <Badge
                                     variant="secondary"
@@ -1969,9 +2087,21 @@ export default function ProjectPage() {
                                     Lead
                                   </Badge>
                                 </div>
-                                <p className="text-base text-black">
-                                  {project.lead_email}
-                                </p>
+                                {teamProfileByEmail[
+                                  project.lead_email.toLowerCase()
+                                ]?.affiliation ? (
+                                  <p className="text-base text-black">
+                                    {
+                                      teamProfileByEmail[
+                                        project.lead_email.toLowerCase()
+                                      ]?.affiliation
+                                    }
+                                  </p>
+                                ) : (
+                                  <p className="text-base text-black">
+                                    {project.lead_email}
+                                  </p>
+                                )}
                               </div>
                             </div>
 
@@ -1983,14 +2113,41 @@ export default function ProjectPage() {
                                   key={index}
                                   className="flex gap-4 items-center"
                                 >
-                                  <div className="w-14 h-14 rounded-full bg-gray-300 flex-shrink-0"></div>
+                                  <Avatar className="h-14 w-14 shrink-0">
+                                    <AvatarImage
+                                      src={
+                                        teamProfileByEmail[
+                                          teammate.toLowerCase()
+                                        ]?.avatarUrl ?? undefined
+                                      }
+                                      alt={
+                                        teamProfileByEmail[
+                                          teammate.toLowerCase()
+                                        ]?.displayName || teammate
+                                      }
+                                    />
+                                    <AvatarFallback>
+                                      {getInitials(
+                                        teamProfileByEmail[teammate.toLowerCase()]
+                                          ?.displayName || teammate
+                                      )}
+                                    </AvatarFallback>
+                                  </Avatar>
                                   <div className="space-y-0">
                                     <p className="font-semibold text-base text-black">
-                                      {teammate}
+                                      {teamProfileByEmail[teammate.toLowerCase()]
+                                        ?.displayName || teammate}
                                     </p>
-                                    <p className="text-base text-black">
-                                      Student, Stanford
-                                    </p>
+                                    {teamProfileByEmail[teammate.toLowerCase()]
+                                      ?.affiliation ? (
+                                      <p className="text-base text-black">
+                                        {
+                                          teamProfileByEmail[
+                                            teammate.toLowerCase()
+                                          ]?.affiliation
+                                        }
+                                      </p>
+                                    ) : null}
                                   </div>
                                 </div>
                               ))}

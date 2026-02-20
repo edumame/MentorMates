@@ -5,7 +5,7 @@ import { defaultRules } from "@/lib/config/constants";
 import { z } from "zod";
 import type { Database, Json } from "@/lib/database.types";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
-
+import { randomUUID } from "crypto";
 export async function GET() {
   const supabase = await createSupabaseClient();
 
@@ -116,8 +116,39 @@ const eventSchema = z.object({
   event_blurb: z.string().optional(),
   submission_time_start: z.string().optional(),
   submission_time_cutoff: z.string().optional(),
+  participant_capacity: z.number().int().nonnegative().optional(),
   paid: z.boolean().optional(),
   stripe_price_id: z.string().optional(),
+  event_schedule: z.array(z.record(z.string(), z.unknown())).optional(),
+  event_resources: z
+    .array(
+      z.object({
+        name: z.string(),
+        link: z.string(),
+      })
+    )
+    .optional(),
+  faq: z.string().optional(),
+  tracks: z
+    .array(
+      z.object({
+        client_id: z.string().min(1),
+        name: z.string().min(1),
+        description: z.string().nullable().optional(),
+        scoring_criteria: z.record(z.string(), z.unknown()).optional(),
+      })
+    )
+    .optional(),
+  prizes: z
+    .array(
+      z.object({
+        track_client_id: z.string().min(1),
+        name: z.string().min(1),
+        description: z.string().optional(),
+        cover_image_url: z.string().url().nullable().optional(),
+      })
+    )
+    .optional(),
   rules: z
     .array(
       z.object({
@@ -188,8 +219,12 @@ export async function POST(req: Request) {
       event_blurb: event.event_blurb ?? null,
       submission_time_start: event.submission_time_start ?? null,
       submission_time_cutoff: event.submission_time_cutoff ?? null,
+      participant_capacity: event.participant_capacity ?? null,
       paid: event.paid ?? null,
       stripe_price_id: event.stripe_price_id ?? null,
+      event_schedule: (event.event_schedule as Json) ?? null,
+      event_resources: (event.event_resources as Json) ?? ([] as Json),
+      faq: event.faq ?? null,
       owner_id: user.id, // Set the creator as the owner
       approval_status: event.approval_status ?? ApprovalStatus.NotSubmitted, // Events default to not_submitted (visibility controls draft/private/public)
       featured: event.featured ?? false,
@@ -209,13 +244,97 @@ export async function POST(req: Request) {
       );
     }
 
-    let assignedCount = 0;
+    const { error: creatorRoleError } = await supabase
+      .from("user_event_roles")
+      .upsert(
+        {
+          user_id: user.id,
+          event_id: createdEvent.event_id,
+          role: EventRole.Organizer,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id,event_id" }
+      );
+
+    if (creatorRoleError) {
+      console.error("Error assigning creator as organizer:", creatorRoleError);
+      return NextResponse.json(
+        { error: "Event created but assigning creator role failed" },
+        { status: 500 }
+      );
+    }
+
+    const clientToDbTrackId = new Map<string, string>();
+    if (event.tracks && event.tracks.length > 0) {
+      const trackInserts: Database["public"]["Tables"]["event_tracks"]["Insert"][] =
+        event.tracks.map((track) => {
+          const trackId = randomUUID();
+          clientToDbTrackId.set(track.client_id, trackId);
+
+          return {
+            track_id: trackId,
+            event_id: createdEvent.event_id,
+            name: track.name,
+            description: track.description ?? null,
+            scoring_criteria: (track.scoring_criteria as Json) ?? null,
+            updated_at: new Date().toISOString(),
+          };
+        });
+
+      const { error: trackInsertError } = await supabase
+        .from("event_tracks")
+        .insert(trackInserts);
+
+      if (trackInsertError) {
+        console.error("Error creating tracks:", trackInsertError);
+        return NextResponse.json(
+          { error: "Event created but creating tracks failed" },
+          { status: 500 }
+        );
+      }
+    }
+
+    const skippedPrizes: string[] = [];
+    if (event.prizes && event.prizes.length > 0) {
+      const prizeInserts: Database["public"]["Tables"]["prizes"]["Insert"][] = [];
+
+      for (const prize of event.prizes) {
+        const dbTrackId = clientToDbTrackId.get(prize.track_client_id);
+        if (!dbTrackId) {
+          skippedPrizes.push(prize.track_client_id);
+          continue;
+        }
+
+        prizeInserts.push({
+          track_id: dbTrackId,
+          prize_amount: prize.name,
+          prize_description: prize.description ?? "",
+          updated_at: new Date().toISOString(),
+        });
+      }
+
+      if (prizeInserts.length > 0) {
+        const { error: prizeInsertError } = await supabase
+          .from("prizes")
+          .insert(prizeInserts);
+
+        if (prizeInsertError) {
+          console.error("Error creating prizes:", prizeInsertError);
+          return NextResponse.json(
+            { error: "Event created but creating prizes failed" },
+            { status: 500 }
+          );
+        }
+      }
+    }
+
+    let assignedCount = 1;
     const missingEmails: string[] = [];
 
     if (organizerEmails.length > 0) {
-      const normalizedEmails = organizerEmails.map((e) =>
+      const normalizedEmails = Array.from(new Set(organizerEmails.map((e) =>
         e.trim().toLowerCase()
-      );
+      )));
 
       // Fetch all users by email in one query
       const { data: usersByEmail, error: usersError } = await serviceSupabase
@@ -239,26 +358,30 @@ export async function POST(req: Request) {
       }
 
       if (usersByEmail && usersByEmail.length > 0) {
-        const upserts = usersByEmail.map((u) => ({
+        const upserts = usersByEmail
+          .filter((u) => u.uid !== user.id)
+          .map((u) => ({
           user_id: u.uid,
           event_id: createdEvent.event_id,
           role: EventRole.Organizer,
           updated_at: new Date().toISOString(),
         }));
 
-        const { error: upsertError } = await supabase
-          .from("user_event_roles")
-          .upsert(upserts, { onConflict: "user_id,event_id" });
+        if (upserts.length > 0) {
+          const { error: upsertError } = await supabase
+            .from("user_event_roles")
+            .upsert(upserts, { onConflict: "user_id,event_id" });
 
-        if (upsertError) {
-          console.error("Error assigning organizers:", upsertError);
-          return NextResponse.json(
-            { error: "Event created but assigning organizers failed" },
-            { status: 500 }
-          );
+          if (upsertError) {
+            console.error("Error assigning organizers:", upsertError);
+            return NextResponse.json(
+              { error: "Event created but assigning organizers failed" },
+              { status: 500 }
+            );
+          }
+
+          assignedCount += upserts.length;
         }
-
-        assignedCount = upserts.length;
       }
     }
 
@@ -267,6 +390,7 @@ export async function POST(req: Request) {
         event: createdEvent,
         organizersAssigned: assignedCount,
         missingOrganizerEmails: missingEmails,
+        skippedPrizeTrackIds: skippedPrizes,
       },
       { status: 201 }
     );

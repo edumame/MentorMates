@@ -6,9 +6,10 @@ import { EventsList } from "@/components/events/events-list";
 import { EventItem } from "@/lib/types";
 import { UI_TEXT } from "@/lib/config/constants";
 import { Button } from "@/components/ui/button";
+import { EventSearchInput } from "@/components/ui/event-search-input";
 import { useAuth } from "@/features/user/authentication/auth/AuthContext";
 import { useAdmin } from "@/lib/hooks/use-admin";
-import { Search, ChevronDown } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { CreateEventModal } from "@/components/events/create-event-modal";
 
 type SortOption = "date" | "name" | "type";
@@ -84,18 +85,12 @@ export function EventsPageClient({ eventsList }: { eventsList: EventItem[] }) {
         <div className="flex flex-col gap-4 flex-1">
           <div className="flex items-end justify-between gap-4">
             {/* Search Input */}
-            <div className="relative flex-1">
-              <div className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-[rgba(0,0,0,0.6)]">
-                <Search className="w-full h-full" strokeWidth={2} />
-              </div>
-              <input
-                type="text"
-                placeholder="Search by event or host title"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full h-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-12 py-2 text-xs sm:text-base font-normal text-black placeholder:text-[rgba(0,0,0,0.6)] focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
+            <EventSearchInput
+              wrapperClassName="flex-1"
+              placeholder="Search by event or host title"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
 
             <div className="flex items-center gap-4">
               {/* Sort By Dropdown */}
