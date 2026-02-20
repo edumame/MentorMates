@@ -155,41 +155,21 @@ export function NewProjectSubmissionFormSinglePage({
     if (!eventId) return;
 
     try {
-      const { data } = await supabase
-        .from("user_event_roles")
-        .select(
-          `
-          user_id,
-          profiles:user_id (
-            display_name,
-            email
-          )
-        `
-        )
-        .eq("event_id", eventId)
-        .overrideTypes<
-          {
-            user_id: string;
-            profiles: { display_name: string | null; email: string | null };
-          }[]
-        >();
+      const response = await fetch(
+        `/api/events/${eventId}/users?roles=participant&limit=500`
+      );
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error || "Failed to fetch participants");
+      }
 
-      const participantList: EventParticipant[] = (data || [])
-        .filter(
-          (role: {
-            user_id: string;
-            profiles: { display_name: string | null; email: string | null };
-          }) => role.profiles?.email
-        )
+      const participantList: EventParticipant[] = (payload.users || [])
+        .filter((user: { email: string }) => Boolean(user.email))
         .map(
-          (role: {
-            user_id: string;
-            profiles: { display_name: string | null; email: string | null };
-          }) => ({
-            user_id: role.user_id,
-            display_name:
-              role.profiles?.display_name || role.profiles?.email || "",
-            email: role.profiles?.email || "",
+          (user: { user_id: string; display_name: string; email: string }) => ({
+            user_id: user.user_id,
+            display_name: user.display_name || user.email || "",
+            email: user.email || "",
           })
         );
 

@@ -138,35 +138,28 @@ export function AssignTab({ eventId }: AssignTabProps) {
   });
 
   const fetchUsers = useCallback(async () => {
-    // Using supabase directly since there's no API endpoint for users by role
-    const { data: userRoles, error } = await supabase
-      .from("user_event_roles")
-      .select(
-        `
-        user_id,
-        role,
-        user_profiles:user_id (
-          display_name,
-          email
-        )
-      `
-      )
-      .eq("event_id", eventId)
-      .in("role", [EventRole.Judge, EventRole.Mentor, EventRole.Organizer]);
+    const response = await fetch(
+      `/api/events/${eventId}/users?roles=${EventRole.Judge},${EventRole.Mentor},${EventRole.Organizer}&limit=500`
+    );
+    const payload = await response.json();
+    if (!response.ok) {
+      throw new Error(payload.error || "Failed to fetch users");
+    }
 
-    if (error) throw error;
-
-    const users: User[] = (userRoles || []).map((ur) => {
-      const profile = Array.isArray(ur.user_profiles)
-        ? ur.user_profiles[0]
-        : ur.user_profiles;
-      return {
-        user_id: ur.user_id,
-        display_name: profile?.display_name || profile?.email?.split("@")[0] || "Unknown User",
-        email: profile?.email || "",
-        role: ur.role as EventRole,
-      };
-    });
+    const users: User[] = (payload.users || []).map(
+      (user: {
+        user_id: string;
+        role: EventRole;
+        display_name: string;
+        email: string;
+      }) => ({
+        user_id: user.user_id,
+        display_name:
+          user.display_name || user.email?.split("@")[0] || "Unknown User",
+        email: user.email || "",
+        role: user.role,
+      })
+    );
     
     if (includeOrganizers) {
       // Include organizers in both judges and mentors pools
@@ -187,67 +180,13 @@ export function AssignTab({ eventId }: AssignTabProps) {
   }, [eventId]);
 
   const fetchAssignments = useCallback(async () => {
-    // First get all project assignments for projects in this event
-    const { data: projectsInEvent } = await supabase
-      .from("projects")
-      .select("id")
-      .eq("event_id", eventId);
-
-    if (!projectsInEvent || projectsInEvent.length === 0) {
-      setAssignments([]);
-      return;
+    const response = await fetch(`/api/events/${eventId}/project-assignments`);
+    const payload = await response.json();
+    if (!response.ok) {
+      throw new Error(payload.error || "Failed to fetch assignments");
     }
 
-    const projectIds = projectsInEvent.map((p) => p.id);
-
-    const { data: assignmentData, error } = await supabase
-      .from("project_assignments")
-      .select(
-        `
-        id,
-        project_id,
-        user_id,
-        role,
-        projects:project_id (
-          id,
-          project_name,
-          lead_name
-        ),
-        user_profiles:user_id (
-          display_name,
-          email
-        )
-      `
-      )
-      .in("project_id", projectIds);
-
-    if (error) throw error;
-
-    const assignments: Assignment[] = (assignmentData || []).map((a) => {
-      const project = Array.isArray(a.projects) ? a.projects[0] : a.projects;
-      const profile = Array.isArray(a.user_profiles)
-        ? a.user_profiles[0]
-        : a.user_profiles;
-      return {
-        id: a.id,
-        project_id: a.project_id,
-        user_id: a.user_id,
-        role: a.role as EventRole,
-        project: {
-          id: project?.id || a.project_id,
-          project_name: project?.project_name || "Unknown Project",
-          lead_name: project?.lead_name || "Unknown Lead",
-        },
-        user: {
-          user_id: a.user_id,
-          display_name: profile?.display_name || profile?.email?.split("@")[0] || "Unknown User",
-          email: profile?.email || "",
-          role: a.role as EventRole,
-        },
-      };
-    });
-
-    setAssignments(assignments);
+    setAssignments(payload.assignments || []);
   }, [eventId]);
 
   const fetchData = useCallback(async () => {

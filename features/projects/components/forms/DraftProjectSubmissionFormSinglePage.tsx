@@ -196,35 +196,20 @@ export default function DraftProjectSubmissionFormSinglePage({
     if (!project?.event_id) return;
 
     try {
-      const { data } = await supabase
-        .from("user_event_roles")
-        .select(
-          `
-          user_id,
-          profiles:user_id (
-            display_name,
-            email
-          )
-        `
-        )
-        .eq("event_id", project.event_id)
-        .overrideTypes<
-          Array<{
-            user_id: string;
-            profiles: {
-              display_name: string | null;
-              email: string | null;
-            };
-          }>
-        >();
+      const response = await fetch(
+        `/api/events/${project.event_id}/users?roles=participant&limit=500`
+      );
+      const payload = await response.json();
+      if (!response.ok) {
+        return;
+      }
 
-      const participantList: EventParticipant[] = (data || [])
-        .filter((role) => role.profiles?.email)
-        .map((role) => ({
-          user_id: role.user_id,
-          display_name:
-            role.profiles?.display_name || role.profiles?.email || "",
-          email: role.profiles?.email || "",
+      const participantList: EventParticipant[] = (payload.users || [])
+        .filter((user: { email: string }) => Boolean(user.email))
+        .map((user: { user_id: string; display_name: string; email: string }) => ({
+          user_id: user.user_id,
+          display_name: user.display_name || user.email || "",
+          email: user.email || "",
         }));
 
       setParticipants(participantList);

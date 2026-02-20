@@ -277,18 +277,6 @@ function LoginContent({
         return;
       }
 
-      const { data: existingProfile } = await supabase
-        .from("user_profiles")
-        .select("*")
-        .eq("email", email)
-        .single();
-
-      if (existingProfile) {
-        setError("Email already in use. Please sign in instead.");
-        setLoading(false);
-        return;
-      }
-
       setLoading(false);
       router.push(`${cleanBaseUrl}/confirmation`);
       return;
@@ -535,12 +523,6 @@ function LoginContent({
 
 // login page
 export default function LoginPage() {
-  const router = useRouter();
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    params.get("mode") === "signup";
-  }, [router]);
-
   return (
     <div className="min-h-screen bg-white">
       <Suspense fallback={<div className="p-6">Loading…</div>}>

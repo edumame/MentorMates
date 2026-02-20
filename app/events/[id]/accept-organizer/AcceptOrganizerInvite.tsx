@@ -79,14 +79,8 @@ export function  AcceptOrganizerInvite({
     setIsLoading(true);
 
     try {
-      // Get user's email
-      const { data: userProfile } = await supabase
-        .from("user_profiles")
-        .select("email")
-        .eq("uid", user.id)
-        .single();
-
-      if (!userProfile) {
+      const userEmailFromAuth = user.email?.toLowerCase();
+      if (!userEmailFromAuth) {
         toast({
           title: "Error",
           description: "User profile not found",
@@ -95,7 +89,7 @@ export function  AcceptOrganizerInvite({
         return;
       }
 
-      const userEmail = userProfile.email.toLowerCase();
+      const userEmail = userEmailFromAuth;
 
       // If an invited email was specified, verify it matches
       if (invitedEmail && userEmail !== invitedEmail.toLowerCase()) {

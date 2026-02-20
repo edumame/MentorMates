@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { UUID } from "crypto";
 
 interface Track {
   id: string;
@@ -22,27 +21,7 @@ export function useProjectSubmissionData(eventId?: string) {
           setAvailableTracks([]);
           return;
         }
-        // Fetch user emails
-        const { data: userData, error: userError } = await supabase
-          .from("user_event_roles")
-          .select("user_id, user_profiles!user_id(email)")
-          .eq("role", "participant")
-          .eq("event_id", eventId)
-          .overrideTypes<
-            Array<{
-              user_id: UUID;
-              user_profiles: {
-                email: string;
-              };
-            }>
-          >();
-
-        if (userError) {
-          console.error("Error fetching user display names:", userError);
-        } else if (userData) {
-          const emails = userData.map((user) => user.user_profiles.email);
-          setAllUsers(emails);
-        }
+        setAllUsers([]);
 
         // Fetch event tracks
         const { data: trackData, error: trackError } = await supabase

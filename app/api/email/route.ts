@@ -5,6 +5,7 @@ import { getProjectTeammateEmailTemplate } from '@/lib/email_templates/project-t
 import { getFeedbackNotificationEmailTemplate } from '@/lib/email_templates/feedback-notification';
 import { getOrganizerCustomEmailTemplate } from '@/lib/email_templates/organizer-custom';
 import { createSupabaseClient } from '@/app/utils/supabase/server';
+import { createSupabaseServiceClient } from '@/lib/supabase/service';
 
 const transporter = nodemailer.createTransport({
   service: 'gmail',
@@ -15,7 +16,7 @@ const transporter = nodemailer.createTransport({
 });
 
 async function getTeammateEmails(emails: string[]) {
-  const supabase = await createSupabaseClient();
+  const supabase = createSupabaseServiceClient();
   if (!emails.length) return [];
   
   const { data, error } = await supabase

@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/lib/hooks/use-toast";
 import { EMAIL_TYPES } from "@/lib/email_templates/constants";
-import { supabase } from "@/lib/supabase";
 import {
   Table,
   TableBody,
@@ -40,40 +39,27 @@ export default function EmailDashboard({
   const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
+      const offset = currentPage * USERS_PER_PAGE;
+      const response = await fetch(
+        `/api/events/${eventId}/users?roles=participant&limit=${USERS_PER_PAGE}&offset=${offset}&includeCount=true`
+      );
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || "Failed to load users");
 
-      // First, get total count for pagination
-      const { count } = await supabase
-        .from("user_event_roles")
-        .select("user_id", { count: "exact", head: true })
-        .eq("event_id", eventId)
-        .eq("role", "participant");
+      const fetchedUsers: UserProfileWithEmail[] = (payload.users || []).map(
+        (user: {
+          uid: string;
+          display_name: string;
+          email: string;
+        }) => ({
+          uid: user.uid,
+          display_name: user.display_name || "Unknown User",
+          email: user.email || "",
+        })
+      );
 
-      setTotalPages(Math.ceil((count || 0) / USERS_PER_PAGE));
-
-      // Then fetch the current page of users
-      const { data: eventUsers, error } = await supabase
-        .from("user_event_roles")
-        .select(
-          `
-          user_profiles (
-            uid,
-            email,
-            display_name
-          )
-        `
-        )
-        .eq("event_id", eventId)
-        .eq("role", "participant")
-        .range(
-          currentPage * USERS_PER_PAGE,
-          (currentPage + 1) * USERS_PER_PAGE - 1
-        )
-        .order("created_at", { ascending: true })
-        .overrideTypes<{ user_profiles: UserProfileWithEmail }[]>();
-
-      if (error) throw error;
-
-      setUsers(eventUsers.map((user) => user.user_profiles));
+      setUsers(fetchedUsers);
+      setTotalPages(Math.ceil((payload.count || 0) / USERS_PER_PAGE));
     } catch (error) {
       console.error("Error fetching users:", error);
       toast({

@@ -100,19 +100,23 @@ export default function ProjectDashboardSection({
     }
 
     const fetchUsers = async () => {
-      const { data, error } = await supabase
-        .from("user_profiles")
-        .select("display_name");
+      const response = await fetch(
+        `/api/events/${eventId}/users?roles=participant,mentor,judge,organizer&limit=500`
+      );
+      const payload = await response.json();
 
-      if (error) {
-        console.error("Error fetching users:", error);
+      if (!response.ok) {
+        console.error("Error fetching users:", payload.error);
         return;
       }
 
-      if (data) {
-        const displayNames = data.map((user) => user.display_name);
-        setAvailableUsers(displayNames);
-      }
+      const users = payload.users as
+        | Array<{ display_name: string; email: string }>
+        | undefined;
+      const displayNames = (users || [])
+        .map((user) => user.display_name || user.email || "")
+        .filter(Boolean);
+      setAvailableUsers(displayNames);
     };
 
     fetchUsers();
