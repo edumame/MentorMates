@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import { ServiceWorkerRegistration } from "@/components/utils/ServiceWorkerRegistration";
 import { supabase } from "@/lib/supabase";
 import { Footer } from "@/components/layout/Footer";
-import { LandingHero } from "@/components/heroes/LandingHero";
+import { LandingPage } from "@/components/landing/landing-page";
 import posthog from "posthog-js";
 import { AuthHero } from "@/components/heroes/AuthHero";
 import { SidebarLayout } from "@/components/layout/SidebarLayout";
@@ -62,7 +62,7 @@ export default function HomePage() {
   if (!session) {
     return (
       <div className="min-h-screen w-full">
-        <LandingHero />
+        <LandingPage />
         <ServiceWorkerRegistration />
         <Footer />
       </div>
