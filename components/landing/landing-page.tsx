@@ -5,7 +5,6 @@ import Link from "next/link";
 import { ArrowRight, PlayCircle, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { BackgroundGrid } from "@/components/landing/background-grid";
 import { LogoCarousel } from "@/components/heroes/components/LogoCarousel";
 import { Customer } from "@/components/heroes/components/Customer";
 import { CTAJoin } from "@/components/layout/CTAJoin";
@@ -20,7 +19,7 @@ function ProductPill({ children }: { children: string }) {
 
 function LandingHero() {
   return (
-    <BackgroundGrid className="bg-white">
+    <div className="bg-white">
       <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-10 pt-24 pb-12 sm:pt-28 sm:pb-16">
         <div className="mx-auto max-w-4xl text-center">
           <h1 className="text-balance text-4xl sm:text-5xl md:text-6xl font-semibold tracking-[-0.06em] text-black">
@@ -60,7 +59,7 @@ function LandingHero() {
           </div>
         </div>
       </div>
-    </BackgroundGrid>
+    </div>
   );
 }
 
