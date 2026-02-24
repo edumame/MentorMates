@@ -44,23 +44,15 @@ export function Host() {
         {/* subtle grid background to match Figma */}
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0 z-0"
+          className="pointer-events-none absolute inset-0 -z-10 opacity-70"
           style={{
             backgroundImage:
-              [
-                "linear-gradient(to right, rgba(148,163,184,0.22) 1px, transparent 1px)",
-                "linear-gradient(to bottom, rgba(148,163,184,0.22) 1px, transparent 1px)",
-              ].join(", "),
-            backgroundSize: ["72px 72px", "72px 72px"].join(", "),
-            backgroundPosition: "center top",
-            WebkitMaskImage:
-              "linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.85) 50%, rgba(0,0,0,0.35) 75%, rgba(0,0,0,0) 100%)",
-            maskImage:
-              "linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.85) 50%, rgba(0,0,0,0.35) 75%, rgba(0,0,0,0) 100%)",
+              "linear-gradient(to right, rgba(209,213,219,0.35) 1px, transparent 1px), linear-gradient(to bottom, rgba(209,213,219,0.35) 1px, transparent 1px)",
+            backgroundSize: "56px 56px",
           }}
         />
 
-        <div className="relative z-10 max-w-6xl mx-auto text-center">
+        <div className="max-w-6xl mx-auto text-center">
           <h1 className="font-geist mx-auto max-w-[931px] text-[32px] sm:text-[40px] md:text-[56px] lg:text-[72px] font-semibold leading-[1.2] tracking-[-0.06em] text-black">
             Host High-Signal Hackathons
             <span className="block">That Sponsors Love</span>
