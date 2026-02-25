@@ -8,10 +8,12 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "test:intake-responses": "node --import tsx --test features/user/dashboards/dashboard/organizer/registration/intake-responses-utils.test.ts",
     "setup-db": "env-cmd -f .env.local tsx setup-db.ts",
     "prepare": "husky"
   },
   "dependencies": {
+    "@dnd-kit/react": "^0.3.2",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@hookform/resolvers": "^5.2.2",
@@ -127,13 +129,13 @@
     "eslint": "^8.57.1",
     "eslint-config-next": "15.5.0",
     "express": "^4.18.2",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.2.11",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.19",
     "ts-node": "^10.9.2",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.3",
-    "husky": "^9.1.7",
-    "lint-staged": "^15.2.11"
+    "typescript": "^5.9.3"
   },
   "packageManager": "pnpm@9.12.3+sha512.cce0f9de9c5a7c95bef944169cc5dfe8741abfb145078c0d508b868056848a87c81e626246cb60967cbd7fd29a6c062ef73ff840d96b3c86c40ac92cf4a813ee",
   "lint-staged": {

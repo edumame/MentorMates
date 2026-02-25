@@ -45,6 +45,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { TextFields } from "@mui/icons-material";
+import { ParticipantIntakeDialog } from "@/features/intake-forms/components/ParticipantIntakeDialog";
+import type {
+  IntakeFormAnswers,
+  IntakeFormSchema,
+} from "@/features/intake-forms/types";
 
 interface EventParticipant {
   user_id: string;
@@ -74,6 +79,11 @@ interface DraftProjectSubmissionFormProps {
   onProjectUpdate?: (project: Project) => void;
 }
 
+interface ActiveIntakeForm {
+  formVersionId: string;
+  schema: IntakeFormSchema;
+}
+
 export default function DraftProjectSubmissionFormSinglePage({
   projectId,
   session,
@@ -88,6 +98,9 @@ export default function DraftProjectSubmissionFormSinglePage({
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [activeIntakeForm, setActiveIntakeForm] =
+    useState<ActiveIntakeForm | null>(null);
+  const [showIntakeDialog, setShowIntakeDialog] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -638,6 +651,25 @@ export default function DraftProjectSubmissionFormSinglePage({
     }
 
     try {
+      if (project.event_id) {
+        const intakeResponse = await fetch(
+          `/api/events/${project.event_id}/intake-form?context=project_submission`,
+          { cache: "no-store" }
+        );
+
+        if (intakeResponse.ok) {
+          const intakeData = (await intakeResponse.json()) as {
+            form: ActiveIntakeForm | null;
+          };
+
+          if (intakeData.form?.formVersionId && intakeData.form.schema) {
+            setActiveIntakeForm(intakeData.form);
+            setShowIntakeDialog(true);
+            return;
+          }
+        }
+      }
+
       const { data } = await updateProjectClient(projectId, {
         submitted: true,
       });
@@ -659,6 +691,60 @@ export default function DraftProjectSubmissionFormSinglePage({
     }
   };
 
+  const handleIntakeSubmit = async (answers: IntakeFormAnswers) => {
+    if (!project.event_id || !activeIntakeForm?.formVersionId) {
+      toast({
+        title: "Error",
+        description: "Missing intake form metadata.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { data } = await updateProjectClient(projectId, {
+        submitted: true,
+      });
+
+      if (!data) {
+        throw new Error("Failed to publish project");
+      }
+
+      const intakeResponse = await fetch(
+        `/api/events/${project.event_id}/intake-form/submissions`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            context: "project_submission",
+            formVersionId: activeIntakeForm.formVersionId,
+            projectId,
+            answers,
+          }),
+        }
+      );
+
+      if (!intakeResponse.ok) {
+        const intakeError = await intakeResponse.json().catch(() => ({}));
+        throw new Error(intakeError.error || "Failed to submit intake form");
+      }
+
+      setProject(data);
+      setShowIntakeDialog(false);
+      toast({
+        title: "Project published",
+        description: "Your project and intake form are now submitted.",
+      });
+      router.push(`/projects/${projectId}`);
+    } catch {
+      toast({
+        title: "Error",
+        description: "Failed to publish project",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (!project || !canEdit) {
     return null;
   }
@@ -668,6 +754,14 @@ export default function DraftProjectSubmissionFormSinglePage({
 
   return (
     <>
+      {activeIntakeForm ? (
+        <ParticipantIntakeDialog
+          open={showIntakeDialog}
+          schema={activeIntakeForm.schema}
+          onClose={() => setShowIntakeDialog(false)}
+          onSubmit={handleIntakeSubmit}
+        />
+      ) : null}
       {/* Sticky Auto-save Banner */}
       <div className="sticky top-0 z-40 bg-sky-50 border-b border-[#d8d8d8]">
         <div className="mx-auto px-6 py-3.5 flex items-center justify-between flex-wrap">

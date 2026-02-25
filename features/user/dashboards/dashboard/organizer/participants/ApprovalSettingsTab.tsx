@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
 import { useToast } from "@/lib/hooks/use-toast";
 import { EventDetails } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
@@ -133,16 +132,13 @@ export function ApprovalSettingsTab({
         </p>
       </div>
 
-      <div className="space-y-4 p-4 border rounded-lg bg-card opacity-60">
-        <h3 className="text-lg font-semibold">
-          Custom Application Form{" "}
-          <span className="text-sm font-normal text-muted-foreground">
-            (Coming Soon)
-          </span>
-        </h3>
+      <div className="space-y-4 p-4 border rounded-lg bg-card">
+        <h3 className="text-lg font-semibold">Registration Questionnaire</h3>
         <p className="text-sm text-muted-foreground">
-          In a future update, you&apos;ll be able to create custom application
-          questions for participants to answer when requesting to join.
+          Questionnaire requirement is now automatic: participants must complete
+          it only when a published <strong>Registration Intake Form</strong>{" "}
+          exists in the Intake Forms tab. Deleting/unpublishing that form
+          removes the requirement.
         </p>
       </div>
     </div>
