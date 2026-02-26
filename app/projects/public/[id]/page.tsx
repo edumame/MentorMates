@@ -629,7 +629,7 @@ export default function PublicProjectPage() {
 
                       {/* Cover Image Display */}
                       {project.cover_image_url && (
-                        <div className="space-y-2">
+                        <div className="space-y-2 rounded-xl border border-black/10 p-3">
                           <div className="rounded-xl overflow-hidden">
                             <img
                               src={project.cover_image_url}
