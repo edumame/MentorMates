@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ProjectDescription } from "@/components/projects/ProjectDescription";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -101,6 +102,7 @@ export default function DraftProjectSubmissionFormSinglePage({
   const [activeIntakeForm, setActiveIntakeForm] =
     useState<ActiveIntakeForm | null>(null);
   const [showIntakeDialog, setShowIntakeDialog] = useState(false);
+  const [showDescriptionPreview, setShowDescriptionPreview] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -970,8 +972,32 @@ export default function DraftProjectSubmissionFormSinglePage({
                     className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-3 py-2 text-base resize-none"
                   />
                   <p className="text-base text-[#7f7f7f]">
-                    *This will show under the project overview section
+                    *This will show under the project overview section. Markdown supported.
                   </p>
+                  {formData.project_description.trim() ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setShowDescriptionPreview((prev) => !prev)
+                        }
+                        className="text-sm font-medium text-blue-600 hover:text-blue-700"
+                      >
+                        {showDescriptionPreview ? "Hide preview" : "Show preview"}
+                      </button>
+                      {showDescriptionPreview ? (
+                        <div className="rounded-xl border border-[rgba(0,0,0,0.12)] bg-white px-3 py-3">
+                          <p className="text-xs font-medium text-gray-500 mb-2">
+                            Preview
+                          </p>
+                          <ProjectDescription
+                            value={formData.project_description}
+                            className="text-base"
+                          />
+                        </div>
+                      ) : null}
+                    </>
+                  ) : null}
                 </div>
 
                 {/* Divider */}

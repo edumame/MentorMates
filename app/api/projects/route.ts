@@ -423,7 +423,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ project: transformedProject });
     }
 
-    // Handle projects by event (for organizers)
+    // Handle projects by event
     if (eventId) {
       // Check if user is organizer for this event
       const { data: userRole } = await supabase
@@ -433,17 +433,11 @@ export async function GET(request: NextRequest) {
         .eq("user_id", user.id)
         .single();
 
-      if (
-        !userRole ||
-        !canAccessRole(userRole.role as EventRole, EventRole.Organizer)
-      ) {
-        return NextResponse.json(
-          { error: "Insufficient permissions" },
-          { status: 403 }
-        );
-      }
+      const isOrganizer =
+        userRole &&
+        canAccessRole(userRole.role as EventRole, EventRole.Organizer);
 
-      // Organizer view - fetch all projects with track relationships
+      // Build query with track relationships
       const query = supabase
         .from("projects")
         .select(
@@ -461,7 +455,11 @@ export async function GET(request: NextRequest) {
         )
         .eq("event_id", eventId);
 
-      if (submitted) {
+      // Non-organizers can only see submitted projects
+      if (!isOrganizer) {
+        query.eq("submitted", true);
+      } else if (submitted) {
+        // Organizers can optionally filter by submitted
         query.eq("submitted", true);
       }
 

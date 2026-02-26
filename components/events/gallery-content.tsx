@@ -32,7 +32,7 @@ export function GalleryContent({
       setIsLoading(true);
       try {
         const response = await fetch(
-          `/api/projects?eventId=${eventId}&public=true`
+          `/api/projects?eventId=${eventId}`
         );
         if (!response.ok) {
           throw new Error("Failed to fetch projects");

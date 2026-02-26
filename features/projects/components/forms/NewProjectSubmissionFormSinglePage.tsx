@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ProjectDescription } from "@/components/projects/ProjectDescription";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -87,6 +88,7 @@ export function NewProjectSubmissionFormSinglePage({
   const [activeIntakeForm, setActiveIntakeForm] =
     useState<ActiveIntakeForm | null>(null);
   const [showIntakeDialog, setShowIntakeDialog] = useState(false);
+  const [showDescriptionPreview, setShowDescriptionPreview] = useState(false);
   const [pendingPublishPayload, setPendingPublishPayload] = useState<{
     projectId: string | null;
     projectName: string;
@@ -944,19 +946,46 @@ export function NewProjectSubmissionFormSinglePage({
                     <label className="text-base text-black font-normal">
                       Project Description
                     </label>
-                    <Textarea
-                      value={formData.projectDescription}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          projectDescription: e.target.value,
-                        }))
-                      }
-                      placeholder="Long description or markdown"
-                      rows={7}
-                      className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-3 py-2 text-base resize-none"
-                    />
-                  </div>
+                  <Textarea
+                    value={formData.projectDescription}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        projectDescription: e.target.value,
+                      }))
+                    }
+                    placeholder="Long description or markdown"
+                    rows={7}
+                    className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-3 py-2 text-base resize-none"
+                  />
+                  <p className="text-base text-[#7f7f7f]">
+                    Markdown supported: use headings, lists, links, and emphasis.
+                  </p>
+                  {formData.projectDescription.trim() ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setShowDescriptionPreview((prev) => !prev)
+                        }
+                        className="text-sm font-medium text-blue-600 hover:text-blue-700"
+                      >
+                        {showDescriptionPreview ? "Hide preview" : "Show preview"}
+                      </button>
+                      {showDescriptionPreview ? (
+                        <div className="rounded-xl border border-[rgba(0,0,0,0.12)] bg-white px-3 py-3">
+                          <p className="text-xs font-medium text-gray-500 mb-2">
+                            Preview
+                          </p>
+                          <ProjectDescription
+                            value={formData.projectDescription}
+                            className="text-base"
+                          />
+                        </div>
+                      ) : null}
+                    </>
+                  ) : null}
+                </div>
 
                   {/* Divider */}
                   <div className="border-t border-dashed border-gray-200" />

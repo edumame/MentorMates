@@ -38,6 +38,7 @@ import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { QRCodeSVG } from "qrcode.react";
 import { Input } from "@/components/ui/input";
+import { ProjectDescription } from "@/components/projects/ProjectDescription";
 
 //REFACTOR this to use the Project type from the lib/types.ts file
 interface Project {
@@ -415,9 +416,12 @@ export default function PublicProjectPage() {
                     {project.project_name}
                   </h1>
 
-                  <p className="text-base sm:text-lg text-gray-700 leading-relaxed">
-                    {project.project_description}
-                  </p>
+                  <ProjectDescription
+                    value={project.project_description}
+                    variant="header"
+                    truncateLines={4}
+                    className="text-base sm:text-lg"
+                  />
                 </div>
 
                 {/* Action Buttons for Project */}
@@ -555,9 +559,10 @@ export default function PublicProjectPage() {
                         <h2 className="text-3xl font-semibold text-black mb-6 tracking-tight">
                           About this project
                         </h2>
-                        <p className="text-base text-black leading-relaxed">
-                          {project.project_description}
-                        </p>
+                        <ProjectDescription
+                          value={project.project_description}
+                          className="text-base"
+                        />
                       </div>
 
                       {/* Cover Image Display */}
