@@ -504,9 +504,23 @@ export function NewProjectSubmissionFormSinglePage({
   const handleAdditionalMaterialsUpload = async (
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
+    const input = e.currentTarget;
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const publicUrl = await uploadAdditionalMaterialFile(file);
+    input.value = "";
+    if (!publicUrl) return;
+
+    setFormData((prev) => ({ ...prev, additionalMaterialsUrl: publicUrl }));
+
+    toast({
+      title: "Success",
+      description: "Additional materials uploaded successfully",
+    });
+  };
+
+  const uploadAdditionalMaterialFile = async (file: File) => {
     try {
       const fileExt = file.name.split(".").pop();
       const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
@@ -522,26 +536,44 @@ export function NewProjectSubmissionFormSinglePage({
           description: "Failed to upload file",
           variant: "destructive",
         });
-        return;
+        return null;
       }
 
       const {
         data: { publicUrl },
       } = supabase.storage.from("project-materials").getPublicUrl(filePath);
 
-      setFormData((prev) => ({ ...prev, additionalMaterialsUrl: publicUrl }));
-
-      toast({
-        title: "Success",
-        description: "Additional materials uploaded successfully",
-      });
+      return publicUrl;
     } catch {
       toast({
         title: "Error",
         description: "Failed to upload additional materials",
         variant: "destructive",
       });
+      return null;
     }
+  };
+
+  const handleAdditionalMaterialsExtraUpload = async (
+    index: number,
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const input = e.currentTarget;
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const publicUrl = await uploadAdditionalMaterialFile(file);
+    input.value = "";
+    if (!publicUrl) return;
+
+    setExtraMaterialsUrls((prev) =>
+      prev.map((item, itemIndex) => (itemIndex === index ? publicUrl : item))
+    );
+
+    toast({
+      title: "Success",
+      description: "Additional material link updated from upload",
+    });
   };
 
   const handleTrackToggle = (trackId: string, checked: boolean) => {
@@ -1162,6 +1194,18 @@ export function NewProjectSubmissionFormSinglePage({
                           placeholder="https://..."
                           className="h-11"
                         />
+                        <label className="bg-[rgba(0,0,0,0.05)] shadow-sm rounded-xl px-3 py-1 cursor-pointer shrink-0 h-11 inline-flex items-center">
+                          <input
+                            type="file"
+                            onChange={(e) =>
+                              handleAdditionalMaterialsExtraUpload(index, e)
+                            }
+                            className="hidden"
+                          />
+                          <span className="text-xs text-black font-normal">
+                            Upload
+                          </span>
+                        </label>
                         <Button
                           type="button"
                           variant="outline"
