@@ -22,10 +22,20 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Trash2, Plus, Shuffle, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Trash2,
+  Plus,
+  Shuffle,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  Loader2,
+} from "lucide-react";
 import { useToast } from "@/lib/hooks/use-toast";
 import { EventRole } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
+import { buildJudgeProjectPairs } from "./batch-assignments";
 import {
   AlertDialog,
   AlertDialogTrigger,
@@ -80,6 +90,13 @@ export function AssignTab({ eventId }: AssignTabProps) {
   const [showName, setShowName] = useState<boolean>(false);
   const [sortField, setSortField] = useState<SortField>("project_name");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+  const [selectedJudgeIds, setSelectedJudgeIds] = useState<Set<string>>(
+    new Set()
+  );
+  const [selectedProjectIds, setSelectedProjectIds] = useState<Set<string>>(
+    new Set()
+  );
+  const [batchAssigning, setBatchAssigning] = useState<boolean>(false);
   const { toast } = useToast();
 
   const handleSort = (field: SortField) => {
@@ -217,6 +234,32 @@ export function AssignTab({ eventId }: AssignTabProps) {
     }
   }, [includeOrganizers, loading, fetchUsers]);
 
+  useEffect(() => {
+    setSelectedProjectIds((previousSelection) => {
+      const currentProjectIds = new Set(projects.map((project) => project.id));
+      const validSelection = new Set(
+        [...previousSelection].filter((projectId) =>
+          currentProjectIds.has(projectId)
+        )
+      );
+      return validSelection.size === previousSelection.size
+        ? previousSelection
+        : validSelection;
+    });
+  }, [projects]);
+
+  useEffect(() => {
+    setSelectedJudgeIds((previousSelection) => {
+      const currentJudgeIds = new Set(judges.map((judge) => judge.user_id));
+      const validSelection = new Set(
+        [...previousSelection].filter((judgeId) => currentJudgeIds.has(judgeId))
+      );
+      return validSelection.size === previousSelection.size
+        ? previousSelection
+        : validSelection;
+    });
+  }, [judges]);
+
   const handleAutoAssign = async (role: EventRole) => {
     setAutoAssigning(true);
     try {
@@ -325,6 +368,138 @@ export function AssignTab({ eventId }: AssignTabProps) {
     return assignments.filter(
       (a) => a.project_id === projectId && a.role === role
     );
+  };
+
+  const toggleJudgeSelection = (judgeId: string, checked: boolean) => {
+    setSelectedJudgeIds((previousSelection) => {
+      const updatedSelection = new Set(previousSelection);
+      if (checked) {
+        updatedSelection.add(judgeId);
+      } else {
+        updatedSelection.delete(judgeId);
+      }
+      return updatedSelection;
+    });
+  };
+
+  const toggleProjectSelection = (projectId: string, checked: boolean) => {
+    setSelectedProjectIds((previousSelection) => {
+      const updatedSelection = new Set(previousSelection);
+      if (checked) {
+        updatedSelection.add(projectId);
+      } else {
+        updatedSelection.delete(projectId);
+      }
+      return updatedSelection;
+    });
+  };
+
+  const handleSelectAllProjects = (checked: boolean) => {
+    if (!checked) {
+      setSelectedProjectIds(new Set());
+      return;
+    }
+    setSelectedProjectIds(new Set(sortedProjects.map((project) => project.id)));
+  };
+
+  const handleClearBatchSelection = () => {
+    setSelectedJudgeIds(new Set());
+    setSelectedProjectIds(new Set());
+  };
+
+  const handleBatchAssignJudges = async () => {
+    const candidatePairs = buildJudgeProjectPairs(
+      selectedJudgeIds,
+      selectedProjectIds
+    );
+    if (candidatePairs.length === 0) {
+      toast({
+        title: "No selections",
+        description: "Select at least one judge and one project.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const existingJudgeAssignmentKeys = new Set(
+      assignments
+        .filter((assignment) => assignment.role === EventRole.Judge)
+        .map((assignment) => `${assignment.project_id}:${assignment.user_id}`)
+    );
+
+    const newPairs = candidatePairs.filter(
+      ({ projectId, judgeId }) =>
+        !existingJudgeAssignmentKeys.has(`${projectId}:${judgeId}`)
+    );
+
+    if (newPairs.length === 0) {
+      toast({
+        title: "No changes",
+        description:
+          "All selected judges are already assigned to the selected projects.",
+      });
+      return;
+    }
+
+    setBatchAssigning(true);
+    try {
+      const results = await Promise.allSettled(
+        newPairs.map(async ({ judgeId, projectId }) => {
+          const response = await fetch(`/api/roles/assign/${judgeId}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              projectId,
+              role: EventRole.Judge,
+              eventId,
+            }),
+          });
+
+          if (!response.ok) {
+            let errorMessage = "Error assigning role";
+            try {
+              const errorData = await response.json();
+              errorMessage = errorData?.error || errorMessage;
+            } catch {
+              // Best effort parse for failed assignment errors.
+            }
+            throw new Error(errorMessage);
+          }
+        })
+      );
+
+      const failedCount = results.filter(
+        (result) => result.status === "rejected"
+      ).length;
+      const successCount = newPairs.length - failedCount;
+
+      if (failedCount > 0) {
+        toast({
+          title: "Partial success",
+          description: `${successCount} assignments added, ${failedCount} failed.`,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Success",
+          description: `Assigned ${selectedJudgeIds.size} judge${selectedJudgeIds.size === 1 ? "" : "s"} to ${selectedProjectIds.size} project${selectedProjectIds.size === 1 ? "" : "s"}.`,
+        });
+      }
+
+      await fetchAssignments();
+      if (failedCount === 0) {
+        setSelectedProjectIds(new Set());
+      }
+    } catch (error) {
+      console.error("Error batch assigning judges:", error);
+      toast({
+        title: "Error",
+        description: "Failed to assign judges in bulk.",
+        variant: "destructive",
+      });
+    } finally {
+      setBatchAssigning(false);
+    }
   };
 
   if (loading) {
@@ -457,6 +632,81 @@ export function AssignTab({ eventId }: AssignTabProps) {
             </div>
           </div>
         </div>
+        <div className="space-y-4 p-4 border rounded-lg">
+          <h3 className="font-semibold">Batch Assign Judges</h3>
+          <p className="text-sm text-muted-foreground">
+            Pick one or more judges, then select projects in the table to assign
+            them in one action.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Select judges</Label>
+              <div className="max-h-48 overflow-y-auto rounded-md border p-3 space-y-2">
+                {judges.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No judges available to assign.
+                  </p>
+                ) : (
+                  judges.map((judge) => (
+                    <div
+                      key={judge.user_id}
+                      className="flex items-center gap-2"
+                    >
+                      <Checkbox
+                        id={`batch-judge-${judge.user_id}`}
+                        checked={selectedJudgeIds.has(judge.user_id)}
+                        onCheckedChange={(checked) =>
+                          toggleJudgeSelection(judge.user_id, checked === true)
+                        }
+                      />
+                      <Label
+                        htmlFor={`batch-judge-${judge.user_id}`}
+                        className="cursor-pointer text-sm font-normal"
+                      >
+                        {showName ? judge.display_name : judge.email}
+                      </Label>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+            <div className="space-y-3">
+              <div className="rounded-md border p-3 text-sm text-muted-foreground">
+                Selected judges: {selectedJudgeIds.size}
+                <br />
+                Selected projects: {selectedProjectIds.size}
+              </div>
+              <Button
+                className="w-full"
+                disabled={
+                  batchAssigning ||
+                  selectedJudgeIds.size === 0 ||
+                  selectedProjectIds.size === 0
+                }
+                onClick={handleBatchAssignJudges}
+              >
+                {batchAssigning ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Assigning...
+                  </>
+                ) : (
+                  "Assign selected judges to selected projects"
+                )}
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={handleClearBatchSelection}
+                disabled={
+                  selectedJudgeIds.size === 0 && selectedProjectIds.size === 0
+                }
+              >
+                Clear batch selections
+              </Button>
+            </div>
+          </div>
+        </div>
         {/* Assignment Table */}
         <div className="space-y-4">
           <h3 className="font-semibold">Current Assignments for Submitted Projects</h3>
@@ -469,6 +719,18 @@ export function AssignTab({ eventId }: AssignTabProps) {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-12">
+                    <Checkbox
+                      checked={
+                        sortedProjects.length > 0 &&
+                        selectedProjectIds.size === sortedProjects.length
+                      }
+                      onCheckedChange={(checked) =>
+                        handleSelectAllProjects(checked === true)
+                      }
+                      aria-label="Select all submitted projects for batch assignment"
+                    />
+                  </TableHead>
                   <TableHead>
                     <button
                       className="flex items-center hover:text-foreground"
@@ -529,6 +791,15 @@ export function AssignTab({ eventId }: AssignTabProps) {
 
                   return (
                     <TableRow key={project.id}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedProjectIds.has(project.id)}
+                          onCheckedChange={(checked) =>
+                            toggleProjectSelection(project.id, checked === true)
+                          }
+                          aria-label={`Select ${project.project_name} for batch assignment`}
+                        />
+                      </TableCell>
                       <TableCell className="font-medium">
                         {project.project_name}
                       </TableCell>
