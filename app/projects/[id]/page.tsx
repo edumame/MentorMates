@@ -63,6 +63,7 @@ import { useProjectLike } from "@/features/projects/hooks/use-project-like";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 import UserSearchWithInvite from "@/components/utils/UserSearchWithInvite";
 import { EditNote, Favorite } from "@mui/icons-material";
+import { ProjectDescription } from "@/components/projects/ProjectDescription";
 
 interface EventParticipant {
   user_id: string;
@@ -1231,17 +1232,24 @@ export default function ProjectPage() {
                       canEdit={canEdit}
                       isLoading={isUpdating}
                       multiline={true}
-                      displayClassName="text-lg text-gray-700 leading-relaxed"
+                      className="w-full"
+                      displayClassName="w-full"
                       renderDisplay={(value) => (
-                        <p className="text-lg text-gray-700 leading-relaxed hover:text-blue-600">
-                          {value}
-                        </p>
+                        <ProjectDescription
+                          value={value}
+                          variant="header"
+                          truncateLines={4}
+                          className="text-base sm:text-lg"
+                        />
                       )}
                     />
                   ) : (
-                    <p className="text-lg text-gray-700 leading-relaxed">
-                      {project.project_description}
-                    </p>
+                    <ProjectDescription
+                      value={project.project_description}
+                      variant="header"
+                      truncateLines={4}
+                      className="text-base sm:text-lg"
+                    />
                   )}
                 </div>
 
@@ -1433,17 +1441,17 @@ export default function ProjectPage() {
                               canEdit={canEdit}
                               isLoading={isUpdating}
                               multiline={true}
-                              displayClassName="text-base text-black leading-relaxed"
+                              className="w-full"
+                              displayClassName="w-full"
                               renderDisplay={(value) => (
-                                <p className="text-base text-black leading-relaxed hover:text-blue-600">
-                                  {value}
-                                </p>
+                                <ProjectDescription value={value} className="text-base" />
                               )}
                             />
                           ) : (
-                            <p className="text-base text-black leading-relaxed">
-                              {project.project_description}
-                            </p>
+                            <ProjectDescription
+                              value={project.project_description}
+                              className="text-base"
+                            />
                           )}
                         </div>
 

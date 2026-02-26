@@ -32,6 +32,7 @@ import { toast } from "@/lib/hooks/use-toast";
 import { Toaster } from "@/components/ui/toaster";
 import UserSearch from "@/components/utils/UserSearch";
 import { Card } from "@/components/ui/card";
+import { ProjectDescription } from "@/components/projects/ProjectDescription";
 import { Project, FeedbackItem } from "@/lib/types";
 import { fetchProjectById } from "@/features/projects/utils/projects";
 import { getFileNameFromUrl } from "@/lib/utils/file";
@@ -862,6 +863,20 @@ export default function ProjectDashboardSection({
                     }
                     rows={4}
                   />
+                  <p className="text-xs text-gray-500 mt-2">
+                    Markdown supported: use headings, lists, links, and emphasis.
+                  </p>
+                  {editedData?.project_description?.trim() ? (
+                    <div className="mt-3 rounded-lg border border-gray-200 bg-white p-3">
+                      <p className="text-xs font-medium text-gray-500 mb-2">
+                        Preview
+                      </p>
+                      <ProjectDescription
+                        value={editedData.project_description}
+                        className="text-sm"
+                      />
+                    </div>
+                  ) : null}
                 </div>
               </div>
             )}
