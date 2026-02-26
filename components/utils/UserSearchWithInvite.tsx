@@ -348,7 +348,7 @@ const UserSearchWithInvite = ({
       }
 
       const { token } = await response.json();
-      const claimUrl = `${process.env.NEXT_PUBLIC_APP_URL}/join-project?project=${projectId}&token=${token}`;
+      const claimUrl = `${process.env.NEXT_PUBLIC_APP_URL || window.location.origin}/join-project?project=${projectId}&token=${token}`;
 
       await navigator.clipboard.writeText(claimUrl);
       toast({
