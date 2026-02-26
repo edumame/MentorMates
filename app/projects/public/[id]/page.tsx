@@ -107,22 +107,14 @@ export default function PublicProjectPage() {
         .select("*")
         .eq("id", projectId)
         .eq("submitted", true)
+        .eq("private", false)
         .single();
 
       if (error) {
         // Error handled
+        setProject(null);
       } else {
-        // Ensure the project belongs to a public event.
-        const { data: eventMeta, error: eventMetaError } = await supabase
-          .from("events")
-          .select("visibility")
-          .eq("event_id", data.event_id)
-          .maybeSingle();
-
-        const isEventPublic =
-          !eventMetaError && eventMeta?.visibility === EventVisibility.Public;
-
-        setProject(isEventPublic ? data : null);
+        setProject(data);
       }
       
       setIsLoading(false);
