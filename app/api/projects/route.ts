@@ -33,6 +33,15 @@ type ArtifactResponseItem = {
   metadata?: Record<string, unknown> | null;
 };
 
+type OrganizerProjectRow = {
+  id: string;
+  project_tracks?: { track_id: string }[] | null;
+  project_url?: string | null;
+  additional_materials_url?: string | null;
+  video_url?: string | null;
+  [key: string]: unknown;
+};
+
 async function fetchArtifactsByProjectIds(
   supabase: Awaited<ReturnType<typeof createSupabaseClient>>,
   projectIds: string[]
@@ -563,28 +572,24 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      const transformedProjects = (projectsData || []).map(
-        (project: {
-          project_tracks?: { track_id: string }[];
-          [key: string]: unknown;
-        }) => ({
+      const transformedProjects: Array<
+        OrganizerProjectRow & { track_ids: string[] }
+      > = ((projectsData as OrganizerProjectRow[] | null) || []).map(
+        (project) => ({
           ...project,
-          track_ids:
-            project.project_tracks?.map(
-              (pt: { track_id: string }) => pt.track_id
-            ) || [],
+          track_ids: project.project_tracks?.map((pt) => pt.track_id) || [],
         })
       );
       const artifactMap = await fetchArtifactsByProjectIds(
         supabase,
-        transformedProjects.map((project) => project.id as string)
+        transformedProjects.map((project) => project.id)
       );
 
       const transformedProjectsWithArtifacts = transformedProjects.map(
         (project) => ({
           ...project,
           artifacts:
-            artifactMap.get(project.id as string) ||
+            artifactMap.get(project.id) ||
             buildArtifactsFromLegacy({
               project_url: (project as { project_url?: string | null })
                 .project_url,
