@@ -218,6 +218,8 @@ export function ProjectScoringForm({
     return <div>Loading existing scores...</div>;
   }
 
+  const finalistRecommendationId = `finalist_recommendation_${projectId}_${trackId}`;
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {criteria.map((criterion) => (
@@ -273,7 +275,7 @@ export function ProjectScoringForm({
       {finalistFeatureEnabled && (
         <div className="flex items-center gap-2 px-2">
           <Checkbox
-            id="finalist_recommendation"
+            id={finalistRecommendationId}
             checked={!!formData.finalist_recommendation}
             onCheckedChange={(checked) =>
               setFormData((prev) => ({
@@ -282,7 +284,7 @@ export function ProjectScoringForm({
               }))
             }
           />
-          <label htmlFor="finalist_recommendation" className="text-sm">
+          <label htmlFor={finalistRecommendationId} className="text-sm">
             Recommend as Finalist
           </label>
         </div>
