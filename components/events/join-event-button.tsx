@@ -122,8 +122,7 @@ export function JoinEventButton({
             role_labels,
             slug,
             participant_capacity,
-            require_participant_approval,
-            require_registration_questionnaire
+            require_participant_approval
           `
           )
           .eq("event_id", eventId)
