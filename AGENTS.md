@@ -66,3 +66,39 @@ FOR EACH STAGE OF REVIEW:
 - Number issues, then use letters for options.
 - When using AskUserQuestion, make sure each option clearly labels the issue number and option letter so the user doesn't get confused.
 - Make the recommended option always the 1st option.
+
+## Cursor Cloud specific instructions
+
+### Services overview
+
+**MentorMates** is a Next.js 15 application (hackathon mentorship platform). The main service is the Next.js app; there is also an optional Express.js worker in `worker/` for AI voice calls.
+
+### Running the dev server
+
+- `pnpm dev` starts the Next.js dev server on port 3000.
+- The `worker/` service is a separate Express.js app (`cd worker && pnpm dev`) only needed for AI voice call features.
+
+### Environment variables
+
+A `.env.local` file is required at the repo root. At minimum it needs placeholder values for:
+- `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (Supabase)
+- `RESEND_API_KEY` (Resend throws at module scope in several API routes if missing)
+- `NEXT_PUBLIC_STREAM_VIDEO_API_KEY`, `STREAM_VIDEO_SCRET_KEY`, `NEXT_PUBLIC_STREAM_CHAT_API_KEY`, `STREAM_CHAT_SECRET_KEY` (Stream SDKs throw at module scope if missing)
+- `OPENAI_API_KEY` (OpenAI client in webhook route throws at module scope if missing)
+
+Without these placeholder values, `pnpm build` will fail during the page data collection phase even though compilation succeeds.
+
+### Build gotcha: worker/ directory
+
+The `worker/` subdirectory has its own `package.json` with separate dependencies (e.g., `cors`, `@types/cors`). The root `tsconfig.json` includes `**/*.ts` which pulls in `worker/src/index.ts` during Next.js type checking. You must run `pnpm install` in `worker/` as well to avoid type errors during `pnpm build`.
+
+### Lint, test, build commands
+
+See `package.json` scripts. Key commands:
+- `pnpm lint` -- ESLint (exit 0 = pass; warnings are pre-existing)
+- `pnpm test` -- Jest unit tests. Two test suites have pre-existing config issues (a Playwright e2e file picked up by Jest, and a `node:test`-format file incompatible with Jest); all actual unit tests pass.
+- `pnpm build` -- Production build (requires `.env.local` with placeholders as described above)
+
+### Pre-commit hooks
+
+Husky runs `lint-staged` on pre-commit, which applies `eslint --fix` and `eslint` to staged `*.{ts,tsx,js,jsx}` files.
