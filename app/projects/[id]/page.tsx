@@ -2323,46 +2323,50 @@ export default function ProjectPage() {
                           <h3 className="text-lg font-semibold text-black tracking-tight mb-4">
                             Additional materials
                           </h3>
-                          {project.additional_materials_url ? (
-                            <a
-                              href={project.additional_materials_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              <Button
-                                variant="secondary"
-                                className="w-full bg-black/5 hover:bg-black/10 rounded-xl py-2.5 shadow-sm justify-center"
+                          <div className="space-y-2">
+                            {project.additional_materials_url ? (
+                              <a
+                                href={project.additional_materials_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block"
                               >
-                                <ArrowUpRight className="h-5 w-5 mr-1.5" />
-                                Pitch deck
-                              </Button>
-                            </a>
-                          ) : canEdit ? (
-                            <p className="text-sm text-gray-500 italic">
-                              No additional materials added yet. Add them in the
-                              settings below.
-                            </p>
-                          ) : (
-                            <p className="text-sm text-gray-500 italic">
-                              No additional materials available
-                            </p>
-                          )}
-                          {extraMaterialLinks.map((artifact, index) => (
-                            <a
-                              key={`${artifact.id || artifact.url}-material-${index}`}
-                              href={artifact.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              <Button
-                                variant="secondary"
-                                className="w-full bg-black/5 hover:bg-black/10 rounded-xl py-2.5 shadow-sm justify-center"
+                                <Button
+                                  variant="secondary"
+                                  className="w-full bg-black/5 hover:bg-black/10 rounded-xl py-2.5 shadow-sm justify-center"
+                                >
+                                  <ArrowUpRight className="h-5 w-5 mr-1.5" />
+                                  Pitch deck
+                                </Button>
+                              </a>
+                            ) : canEdit ? (
+                              <p className="text-sm text-gray-500 italic">
+                                No additional materials added yet. Add them in the
+                                settings below.
+                              </p>
+                            ) : (
+                              <p className="text-sm text-gray-500 italic">
+                                No additional materials available
+                              </p>
+                            )}
+                            {extraMaterialLinks.map((artifact, index) => (
+                              <a
+                                key={`${artifact.id || artifact.url}-material-${index}`}
+                                href={artifact.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block"
                               >
-                                <ArrowUpRight className="h-5 w-5 mr-1.5" />
-                                {artifact.label}
-                              </Button>
-                            </a>
-                          ))}
+                                <Button
+                                  variant="secondary"
+                                  className="w-full bg-black/5 hover:bg-black/10 rounded-xl py-2.5 shadow-sm justify-center"
+                                >
+                                  <ArrowUpRight className="h-5 w-5 mr-1.5" />
+                                  {artifact.label}
+                                </Button>
+                              </a>
+                            ))}
+                          </div>
                         </div>
                       )}
 
