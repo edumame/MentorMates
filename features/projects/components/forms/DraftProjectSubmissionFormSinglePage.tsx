@@ -22,8 +22,7 @@ import {
 } from "lucide-react";
 import { Session } from "@supabase/supabase-js";
 import { toast } from "@/lib/hooks/use-toast";
-import { Project, EventVisibility } from "@/lib/types";
-import { updateProjectClient } from "@/features/projects/client-actions/client-update";
+import { Project } from "@/lib/types";
 import { updateProjectTeamClient } from "@/features/projects/client-actions/client-update";
 import { deleteProjectClient } from "@/features/projects/client-actions/client-delete";
 import UserSearchWithInvite from "@/components/utils/UserSearchWithInvite";
@@ -111,6 +110,10 @@ export default function DraftProjectSubmissionFormSinglePage({
     cover_image_url: initialProject.cover_image_url || "",
     additional_materials_url: initialProject.additional_materials_url || "",
   });
+  const [extraMaterialsUrls, setExtraMaterialsUrls] = useState<string[]>([]);
+  const [savedExtraMaterialsUrls, setSavedExtraMaterialsUrls] = useState<
+    string[]
+  >([]);
 
   // Team management
   const [participants, setParticipants] = useState<EventParticipant[]>([]);
@@ -281,6 +284,57 @@ export default function DraftProjectSubmissionFormSinglePage({
     }
   }, [projectId]);
 
+  const normalizeExtraMaterialsUrls = useCallback((urls: string[]) => {
+    return urls.map((url) => url.trim()).filter((url) => url.length > 0);
+  }, []);
+
+  const buildArtifactsPayload = useCallback(() => {
+    const artifacts: Array<{
+      kind: "project_link" | "video_link" | "additional_material";
+      label: string;
+      url: string;
+      sort_order: number;
+      is_primary: boolean;
+    }> = [];
+
+    const appendArtifacts = (
+      kind: "project_link" | "video_link" | "additional_material",
+      primaryUrl: string,
+      extras: string[],
+      baseLabel: string
+    ) => {
+      const urls = [primaryUrl, ...extras]
+        .map((item) => item.trim())
+        .filter((item) => item.length > 0);
+
+      urls.forEach((url, index) => {
+        artifacts.push({
+          kind,
+          label: index === 0 ? baseLabel : `${baseLabel} ${index + 1}`,
+          url,
+          sort_order: index,
+          is_primary: index === 0,
+        });
+      });
+    };
+
+    appendArtifacts("project_link", formData.project_url, [], "Project Link");
+    appendArtifacts("video_link", formData.video_url, [], "Video Link");
+    appendArtifacts(
+      "additional_material",
+      formData.additional_materials_url,
+      extraMaterialsUrls,
+      "Additional Material"
+    );
+
+    return artifacts;
+  }, [
+    formData.project_url,
+    formData.video_url,
+    formData.additional_materials_url,
+    extraMaterialsUrls,
+  ]);
+
   // Effects
   useEffect(() => {
     if (project?.event_id) {
@@ -290,6 +344,46 @@ export default function DraftProjectSubmissionFormSinglePage({
       fetchProjectTracks();
     }
   }, [project?.event_id, fetchEventParticipants, fetchEventTracks, fetchProjectTracks]);
+
+  useEffect(() => {
+    const fetchAdditionalMaterialArtifacts = async () => {
+      const { data, error } = await supabase
+        .from("project_artifacts")
+        .select("url, sort_order, is_primary")
+        .eq("project_id", projectId)
+        .eq("kind", "additional_material")
+        .order("sort_order", { ascending: true });
+
+      if (error || !data || data.length === 0) {
+        setSavedExtraMaterialsUrls(
+          normalizeExtraMaterialsUrls(extraMaterialsUrls)
+        );
+        return;
+      }
+
+      const primary =
+        data.find((artifact) => artifact.is_primary) || data[0] || null;
+      const primaryUrl = primary?.url?.trim() || "";
+
+      if (primaryUrl) {
+        setFormData((prev) => ({
+          ...prev,
+          additional_materials_url: primaryUrl,
+        }));
+      }
+
+      const extras = data
+        .map((artifact) => artifact.url?.trim() || "")
+        .filter((url) => url.length > 0 && url !== primaryUrl);
+
+      setExtraMaterialsUrls(extras);
+      setSavedExtraMaterialsUrls(normalizeExtraMaterialsUrls(extras));
+    };
+
+    fetchAdditionalMaterialArtifacts();
+    // We only need this hydration once for the loaded draft project.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId, normalizeExtraMaterialsUrls]);
 
   useEffect(() => {
     fetchAvailableEvents();
@@ -310,7 +404,7 @@ export default function DraftProjectSubmissionFormSinglePage({
 
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formData]);
+  }, [formData, extraMaterialsUrls]);
 
   const handleAutoSave = async () => {
     if (isSaving) return;
@@ -323,24 +417,37 @@ export default function DraftProjectSubmissionFormSinglePage({
       formData.video_url !== (project.video_url || "") ||
       formData.cover_image_url !== (project.cover_image_url || "") ||
       formData.additional_materials_url !==
-        (project.additional_materials_url || "");
+        (project.additional_materials_url || "") ||
+      JSON.stringify(normalizeExtraMaterialsUrls(extraMaterialsUrls)) !==
+        JSON.stringify(savedExtraMaterialsUrls);
 
     if (!hasChanges) return;
 
     setIsSaving(true);
     try {
-      const { data } = await updateProjectClient(projectId, {
-        project_name: formData.project_name.trim() || undefined,
-        project_description: formData.project_description.trim() || undefined,
-        project_url: formData.project_url.trim() || undefined,
-        video_url: formData.video_url.trim() || null,
-        cover_image_url: formData.cover_image_url.trim() || undefined,
-        additional_materials_url:
-          formData.additional_materials_url.trim() || undefined,
+      const response = await fetch(`/api/projects/${projectId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          project_name: formData.project_name.trim() || undefined,
+          project_description: formData.project_description.trim() || undefined,
+          project_url: formData.project_url.trim() || undefined,
+          video_url: formData.video_url.trim() || null,
+          cover_image_url: formData.cover_image_url.trim() || undefined,
+          additional_materials_url:
+            formData.additional_materials_url.trim() || undefined,
+          artifacts: buildArtifactsPayload(),
+        }),
       });
 
-      if (data) {
-        setProject(data);
+      if (response.ok) {
+        const json = (await response.json()) as { project?: Project };
+        if (json.project) {
+          setProject(json.project);
+        }
+        setSavedExtraMaterialsUrls(
+          normalizeExtraMaterialsUrls(extraMaterialsUrls)
+        );
         setLastSaved(new Date());
       }
     } finally {
@@ -394,9 +501,23 @@ export default function DraftProjectSubmissionFormSinglePage({
   const handleAdditionalMaterialsUpload = async (
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
+    const input = e.currentTarget;
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const publicUrl = await uploadAdditionalMaterialFile(file);
+    input.value = "";
+    if (!publicUrl) return;
+
+    setFormData((prev) => ({ ...prev, additional_materials_url: publicUrl }));
+
+    toast({
+      title: "Success",
+      description: "Additional materials uploaded successfully",
+    });
+  };
+
+  const uploadAdditionalMaterialFile = async (file: File) => {
     try {
       const fileExt = file.name.split(".").pop();
       const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
@@ -412,26 +533,44 @@ export default function DraftProjectSubmissionFormSinglePage({
           description: "Failed to upload file",
           variant: "destructive",
         });
-        return;
+        return null;
       }
 
       const {
         data: { publicUrl },
       } = supabase.storage.from("project-materials").getPublicUrl(filePath);
 
-      setFormData((prev) => ({ ...prev, additional_materials_url: publicUrl }));
-
-      toast({
-        title: "Success",
-        description: "Additional materials uploaded successfully",
-      });
+      return publicUrl;
     } catch {
       toast({
         title: "Error",
         description: "Failed to upload additional materials",
         variant: "destructive",
       });
+      return null;
     }
+  };
+
+  const handleAdditionalMaterialsExtraUpload = async (
+    index: number,
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const input = e.currentTarget;
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const publicUrl = await uploadAdditionalMaterialFile(file);
+    input.value = "";
+    if (!publicUrl) return;
+
+    setExtraMaterialsUrls((prev) =>
+      prev.map((item, itemIndex) => (itemIndex === index ? publicUrl : item))
+    );
+
+    toast({
+      title: "Success",
+      description: "Additional material link updated from upload",
+    });
   };
 
   const handleTeammatesChange = async (emails: string[]) => {
@@ -630,6 +769,32 @@ export default function DraftProjectSubmissionFormSinglePage({
     }
   };
 
+  const publishProjectWithArtifacts = async (): Promise<Project | null> => {
+    const response = await fetch(`/api/projects/${projectId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        project_name: formData.project_name.trim() || undefined,
+        project_description: formData.project_description.trim() || undefined,
+        project_url: formData.project_url.trim() || undefined,
+        video_url: formData.video_url.trim() || null,
+        cover_image_url: formData.cover_image_url.trim() || undefined,
+        additional_materials_url:
+          formData.additional_materials_url.trim() || undefined,
+        artifacts: buildArtifactsPayload(),
+        submitted: true,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || "Failed to publish project");
+    }
+
+    const json = (await response.json()) as { project?: Project };
+    return json.project || null;
+  };
+
   const handlePublish = async () => {
     // Validate required fields
     if (!formData.project_name.trim()) {
@@ -670,9 +835,7 @@ export default function DraftProjectSubmissionFormSinglePage({
         }
       }
 
-      const { data } = await updateProjectClient(projectId, {
-        submitted: true,
-      });
+      const data = await publishProjectWithArtifacts();
 
       if (data) {
         setProject(data);
@@ -702,9 +865,7 @@ export default function DraftProjectSubmissionFormSinglePage({
     }
 
     try {
-      const { data } = await updateProjectClient(projectId, {
-        submitted: true,
-      });
+      const data = await publishProjectWithArtifacts();
 
       if (!data) {
         throw new Error("Failed to publish project");
@@ -1041,6 +1202,52 @@ export default function DraftProjectSubmissionFormSinglePage({
                       </span>
                     </label>
                   </div>
+                  {extraMaterialsUrls.map((url, index) => (
+                    <div key={`materials-extra-${index}`} className="flex gap-2">
+                      <Input
+                        value={url}
+                        onChange={(e) =>
+                          setExtraMaterialsUrls((prev) =>
+                            prev.map((item, itemIndex) =>
+                              itemIndex === index ? e.target.value : item
+                            )
+                          )
+                        }
+                        placeholder="https://..."
+                        className="h-11"
+                      />
+                      <label className="bg-[rgba(0,0,0,0.05)] shadow-sm rounded-xl px-3 py-1 cursor-pointer shrink-0 h-11 inline-flex items-center">
+                        <input
+                          type="file"
+                          onChange={(e) =>
+                            handleAdditionalMaterialsExtraUpload(index, e)
+                          }
+                          className="hidden"
+                        />
+                        <span className="text-xs text-black font-normal">
+                          Upload
+                        </span>
+                      </label>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() =>
+                          setExtraMaterialsUrls((prev) =>
+                            prev.filter((_, itemIndex) => itemIndex !== index)
+                          )
+                        }
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setExtraMaterialsUrls((prev) => [...prev, ""])}
+                  >
+                    Add another materials link
+                  </Button>
                   <p className="text-base text-[#7f7f7f]">
                     *Upload any additional documentation (Max 10MB)
                   </p>
