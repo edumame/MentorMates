@@ -22,6 +22,17 @@ type ArtifactRow = {
   metadata: Record<string, unknown> | null;
 };
 
+type ArtifactResponseItem = {
+  project_id?: string;
+  id?: string;
+  kind: "project_link" | "video_link" | "additional_material";
+  label: string;
+  url: string;
+  sort_order: number;
+  is_primary: boolean;
+  metadata?: Record<string, unknown> | null;
+};
+
 async function fetchArtifactsByProjectIds(
   supabase: Awaited<ReturnType<typeof createSupabaseClient>>,
   projectIds: string[]
@@ -454,7 +465,7 @@ export async function GET(request: NextRequest) {
       const artifactMap = await fetchArtifactsByProjectIds(supabase, [project.id]);
       (
         transformedProject as unknown as {
-          artifacts?: ArtifactRow[];
+          artifacts?: ArtifactResponseItem[];
         }
       ).artifacts =
         artifactMap.get(project.id) ||
