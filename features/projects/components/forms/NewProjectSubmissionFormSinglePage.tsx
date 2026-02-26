@@ -77,6 +77,8 @@ type PublishPayload = {
   }>;
 };
 
+type SubmissionAnswerPayloadItem = PublishPayload["submissionAnswers"][number];
+
 export function NewProjectSubmissionFormSinglePage({
   userEmail,
   leadName,
@@ -316,28 +318,33 @@ export function NewProjectSubmissionFormSinglePage({
     extraMaterialsUrls,
   ]);
 
-  const buildSubmissionAnswersPayload = useCallback(() => {
-    return submissionFields
-      .map((field) => {
-        const fieldType = submissionFieldTypeSchema.safeParse(field.field_type)
-          .success
-          ? field.field_type
-          : "short_text";
-        const value = submissionAnswers[field.id];
+  const buildSubmissionAnswersPayload = useCallback((): SubmissionAnswerPayloadItem[] => {
+    const answers: SubmissionAnswerPayloadItem[] = [];
 
-        if (fieldType === "multi_url") {
-          const urls = (Array.isArray(value) ? value : [])
-            .map((url) => (typeof url === "string" ? url.trim() : ""))
-            .filter((url) => url.length > 0);
-          if (urls.length === 0) return null;
-          return { eventSubmissionFieldId: field.id, answer: urls };
+    for (const field of submissionFields) {
+      const fieldType = submissionFieldTypeSchema.safeParse(field.field_type)
+        .success
+        ? field.field_type
+        : "short_text";
+      const value = submissionAnswers[field.id];
+
+      if (fieldType === "multi_url") {
+        const urls = (Array.isArray(value) ? value : [])
+          .map((url) => (typeof url === "string" ? url.trim() : ""))
+          .filter((url) => url.length > 0);
+        if (urls.length > 0) {
+          answers.push({ eventSubmissionFieldId: field.id, answer: urls });
         }
+        continue;
+      }
 
-        const textValue = typeof value === "string" ? value.trim() : "";
-        if (textValue.length === 0) return null;
-        return { eventSubmissionFieldId: field.id, answer: textValue };
-      })
-      .filter(Boolean);
+      const textValue = typeof value === "string" ? value.trim() : "";
+      if (textValue.length > 0) {
+        answers.push({ eventSubmissionFieldId: field.id, answer: textValue });
+      }
+    }
+
+    return answers;
   }, [submissionAnswers, submissionFields]);
 
   // Create a draft as soon as user starts typing (only once)
