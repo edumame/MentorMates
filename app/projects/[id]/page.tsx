@@ -62,6 +62,7 @@ import { useAdmin } from "@/lib/hooks/use-admin";
 import { useProjectLike } from "@/features/projects/hooks/use-project-like";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 import UserSearchWithInvite from "@/components/utils/UserSearchWithInvite";
+import { getDisplayFileNameFromUrl } from "@/lib/utils/file";
 import { EditNote, Favorite } from "@mui/icons-material";
 
 interface EventParticipant {
@@ -1506,8 +1507,14 @@ export default function ProjectPage() {
                                         displayClassName="text-blue-600 underline"
                                         renderDisplay={(value) =>
                                           value ? (
-                                            <span className="text-blue-600 hover:text-blue-800 cursor-pointer break-all">
-                                              {value}
+                                            <span className="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-800">
+                                              <LinkIcon className="h-4 w-4 shrink-0" />
+                                              <span className="truncate max-w-[320px]">
+                                                {getDisplayFileNameFromUrl(
+                                                  value,
+                                                  "cover-image"
+                                                )}
+                                              </span>
                                             </span>
                                           ) : (
                                             <span className="text-gray-400 italic">
@@ -1565,8 +1572,11 @@ export default function ProjectPage() {
                                         displayClassName="text-blue-600 underline"
                                         renderDisplay={(value) =>
                                           value ? (
-                                            <span className="text-blue-600 hover:text-blue-800 cursor-pointer break-all">
-                                              {value}
+                                            <span className="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-800">
+                                              <LinkIcon className="h-4 w-4 shrink-0" />
+                                              <span className="truncate max-w-[320px]">
+                                                {getDisplayFileNameFromUrl(value)}
+                                              </span>
                                             </span>
                                           ) : (
                                             <span className="text-gray-400 italic">

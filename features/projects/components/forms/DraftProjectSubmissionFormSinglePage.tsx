@@ -26,6 +26,10 @@ import { Project, EventVisibility } from "@/lib/types";
 import { updateProjectClient } from "@/features/projects/client-actions/client-update";
 import { updateProjectTeamClient } from "@/features/projects/client-actions/client-update";
 import { deleteProjectClient } from "@/features/projects/client-actions/client-delete";
+import {
+  createUploadedStorageFileName,
+  getDisplayFileNameFromUrl,
+} from "@/lib/utils/file";
 import UserSearchWithInvite from "@/components/utils/UserSearchWithInvite";
 import {
   AlertDialog,
@@ -111,6 +115,8 @@ export default function DraftProjectSubmissionFormSinglePage({
     cover_image_url: initialProject.cover_image_url || "",
     additional_materials_url: initialProject.additional_materials_url || "",
   });
+  const [isEditingCoverImageUrl, setIsEditingCoverImageUrl] = useState(false);
+  const [isEditingMaterialsUrl, setIsEditingMaterialsUrl] = useState(false);
 
   // Team management
   const [participants, setParticipants] = useState<EventParticipant[]>([]);
@@ -355,8 +361,7 @@ export default function DraftProjectSubmissionFormSinglePage({
     if (!file) return;
 
     try {
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const fileName = createUploadedStorageFileName(file.name);
       const filePath = `project-covers/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
@@ -377,6 +382,7 @@ export default function DraftProjectSubmissionFormSinglePage({
       } = supabase.storage.from("project-materials").getPublicUrl(filePath);
 
       setFormData((prev) => ({ ...prev, cover_image_url: publicUrl }));
+      setIsEditingCoverImageUrl(false);
 
       toast({
         title: "Success",
@@ -398,8 +404,7 @@ export default function DraftProjectSubmissionFormSinglePage({
     if (!file) return;
 
     try {
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const fileName = createUploadedStorageFileName(file.name);
       const filePath = `project-materials/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
@@ -420,6 +425,7 @@ export default function DraftProjectSubmissionFormSinglePage({
       } = supabase.storage.from("project-materials").getPublicUrl(filePath);
 
       setFormData((prev) => ({ ...prev, additional_materials_url: publicUrl }));
+      setIsEditingMaterialsUrl(false);
 
       toast({
         title: "Success",
@@ -982,19 +988,39 @@ export default function DraftProjectSubmissionFormSinglePage({
                   <label className="text-base text-black font-normal">
                     Cover image
                   </label>
-                  <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-3 py-2 flex items-center gap-3 h-11">
+                  <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-3 py-2 flex items-center gap-3 min-h-11">
                     <ImageIcon className="h-6 w-6 shrink-0" />
-                    <Input
-                      value={formData.cover_image_url}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          cover_image_url: e.target.value,
-                        }))
-                      }
-                      placeholder="https://www.mentormates.ai/projects/..."
-                      className="border-0 p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0 text-base truncate"
-                    />
+                    {isEditingCoverImageUrl || !formData.cover_image_url ? (
+                      <Input
+                        value={formData.cover_image_url}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            cover_image_url: e.target.value,
+                          }))
+                        }
+                        placeholder="https://www.mentormates.ai/projects/..."
+                        className="border-0 p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0 text-base truncate"
+                      />
+                    ) : (
+                      <span className="flex-1 text-base truncate text-[rgba(0,0,0,0.8)]">
+                        {getDisplayFileNameFromUrl(
+                          formData.cover_image_url,
+                          "cover-image"
+                        )}
+                      </span>
+                    )}
+                    {formData.cover_image_url && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setIsEditingCoverImageUrl((prev) => !prev)
+                        }
+                        className="text-xs text-[#4b89ef] hover:text-[#3d75d9] shrink-0"
+                      >
+                        {isEditingCoverImageUrl ? "Done" : "Edit URL"}
+                      </button>
+                    )}
                     <label className="bg-[rgba(0,0,0,0.05)] shadow-sm rounded-xl px-3 py-1 cursor-pointer shrink-0">
                       <input
                         type="file"
@@ -1003,7 +1029,7 @@ export default function DraftProjectSubmissionFormSinglePage({
                         className="hidden"
                       />
                       <span className="text-xs text-black font-normal">
-                        Upload
+                        {formData.cover_image_url ? "Replace" : "Upload"}
                       </span>
                     </label>
                   </div>
@@ -1017,19 +1043,36 @@ export default function DraftProjectSubmissionFormSinglePage({
                   <label className="text-base text-black font-normal">
                     Additional materials
                   </label>
-                  <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-3 py-2 flex items-center gap-3 h-11">
+                  <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-3 py-2 flex items-center gap-3 min-h-11">
                     <Paperclip className="h-6 w-6 shrink-0" />
-                    <Input
-                      value={formData.additional_materials_url}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          additional_materials_url: e.target.value,
-                        }))
-                      }
-                      placeholder="https://www.mentormates.ai/projects/..."
-                      className="border-0 p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0 text-base truncate"
-                    />
+                    {isEditingMaterialsUrl || !formData.additional_materials_url ? (
+                      <Input
+                        value={formData.additional_materials_url}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            additional_materials_url: e.target.value,
+                          }))
+                        }
+                        placeholder="https://www.mentormates.ai/projects/..."
+                        className="border-0 p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0 text-base truncate"
+                      />
+                    ) : (
+                      <span className="flex-1 text-base truncate text-[rgba(0,0,0,0.8)]">
+                        {getDisplayFileNameFromUrl(
+                          formData.additional_materials_url
+                        )}
+                      </span>
+                    )}
+                    {formData.additional_materials_url && (
+                      <button
+                        type="button"
+                        onClick={() => setIsEditingMaterialsUrl((prev) => !prev)}
+                        className="text-xs text-[#4b89ef] hover:text-[#3d75d9] shrink-0"
+                      >
+                        {isEditingMaterialsUrl ? "Done" : "Edit URL"}
+                      </button>
+                    )}
                     <label className="bg-[rgba(0,0,0,0.05)] shadow-sm rounded-xl px-3 py-1 cursor-pointer shrink-0">
                       <input
                         type="file"
@@ -1037,7 +1080,7 @@ export default function DraftProjectSubmissionFormSinglePage({
                         className="hidden"
                       />
                       <span className="text-xs text-black font-normal">
-                        Upload
+                        {formData.additional_materials_url ? "Replace" : "Upload"}
                       </span>
                     </label>
                   </div>
