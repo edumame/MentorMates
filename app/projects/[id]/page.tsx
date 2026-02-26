@@ -63,6 +63,7 @@ import { useProjectLike } from "@/features/projects/hooks/use-project-like";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 import UserSearchWithInvite from "@/components/utils/UserSearchWithInvite";
 import { EditNote, Favorite } from "@mui/icons-material";
+import { buildArtifactsFromLegacy } from "@/features/projects/utils/submission";
 
 interface EventParticipant {
   user_id: string;
@@ -124,6 +125,21 @@ export default function ProjectPage() {
   const [showFeedbackDialog, setShowFeedbackDialog] = useState(false);
 
   const [fetchComplete, setFetchComplete] = useState(false);
+
+  const setProjectWithArtifacts = useCallback((nextProject: Project) => {
+    const fallbackArtifacts = buildArtifactsFromLegacy({
+      project_url: nextProject.project_url,
+      video_url: nextProject.video_url,
+      additional_materials_url: nextProject.additional_materials_url,
+    });
+    setProject((prev) => ({
+      ...nextProject,
+      artifacts:
+        nextProject.artifacts ||
+        prev?.artifacts ||
+        fallbackArtifacts,
+    }));
+  }, []);
 
   // QR Code functionality
   const { handleCopyQR, handleDownloadQR } = useQRCodeActions(
@@ -278,7 +294,16 @@ export default function ProjectPage() {
       return;
     }
 
-    setProject(data);
+    const { data: artifactRows } = await supabase
+      .from("project_artifacts")
+      .select("id, project_id, kind, label, url, sort_order, is_primary, metadata")
+      .eq("project_id", projectId)
+      .order("sort_order", { ascending: true });
+
+    setProjectWithArtifacts({
+      ...(data as Project),
+      artifacts: artifactRows && artifactRows.length > 0 ? artifactRows : undefined,
+    });
 
     // Check if user can edit (is lead or teammate)
     if (session?.user?.email) {
@@ -309,7 +334,7 @@ export default function ProjectPage() {
         return false;
       }
 
-      setProject(data);
+      setProjectWithArtifacts(data as Project);
       toast({
         title: "Success",
         description: "Project title updated successfully",
@@ -345,7 +370,7 @@ export default function ProjectPage() {
         return false;
       }
 
-      setProject(data);
+      setProjectWithArtifacts(data as Project);
       toast({
         title: "Success",
         description: "Project description updated successfully",
@@ -401,7 +426,7 @@ export default function ProjectPage() {
         return false;
       }
 
-      setProject(data);
+      setProjectWithArtifacts(data as Project);
       toast({
         title: "Success",
         description: newUrl.trim()
@@ -460,7 +485,7 @@ export default function ProjectPage() {
         return false;
       }
 
-      setProject(data);
+      setProjectWithArtifacts(data as Project);
       toast({
         title: "Success",
         description: newUrl.trim()
@@ -517,7 +542,7 @@ export default function ProjectPage() {
         return false;
       }
 
-      setProject(data);
+      setProjectWithArtifacts(data as Project);
       toast({
         title: "Success",
         description: "Cover image uploaded and updated successfully",
@@ -575,7 +600,7 @@ export default function ProjectPage() {
         return false;
       }
 
-      setProject(data);
+      setProjectWithArtifacts(data as Project);
       toast({
         title: "Success",
         description: newUrl.trim()
@@ -634,7 +659,7 @@ export default function ProjectPage() {
         return false;
       }
 
-      setProject(data);
+      setProjectWithArtifacts(data as Project);
       toast({
         title: "Success",
         description: newUrl.trim()
@@ -693,7 +718,7 @@ export default function ProjectPage() {
         return false;
       }
 
-      setProject(data);
+      setProjectWithArtifacts(data as Project);
       toast({
         title: "Success",
         description: "Additional materials uploaded and updated successfully",
@@ -920,7 +945,7 @@ export default function ProjectPage() {
         return;
       }
 
-      setProject(data);
+      setProjectWithArtifacts(data as Project);
       toast({
         title: "Team member added",
         description: `${normalizedEmail} has been successfully added to the team`,
@@ -955,7 +980,7 @@ export default function ProjectPage() {
         return;
       }
 
-      setProject(data);
+      setProjectWithArtifacts(data as Project);
       toast({
         title: "Team member removed",
         description: `${teammateEmail} has been removed from the team`,
@@ -1016,7 +1041,7 @@ export default function ProjectPage() {
         return;
       }
 
-      setProject(data);
+      setProjectWithArtifacts(data as Project);
       toast({
         title: "Success",
         description: "Project linked to Contextus successfully",
@@ -1113,6 +1138,19 @@ export default function ProjectPage() {
         break;
     }
   };
+
+  const projectArtifacts = project.artifacts || [];
+  const extraProjectLinks = projectArtifacts.filter(
+    (artifact) => artifact.kind === "project_link" && artifact.url !== project.project_url
+  );
+  const extraVideoLinks = projectArtifacts.filter(
+    (artifact) => artifact.kind === "video_link" && artifact.url !== project.video_url
+  );
+  const extraMaterialLinks = projectArtifacts.filter(
+    (artifact) =>
+      artifact.kind === "additional_material" &&
+      artifact.url !== project.additional_materials_url
+  );
 
   return (
     <PageContainer>
@@ -1293,6 +1331,38 @@ export default function ProjectPage() {
                       </Button>
                     </a>
                   )}
+                  {extraProjectLinks.map((artifact, index) => (
+                    <a
+                      key={`${artifact.id || artifact.url}-project-${index}`}
+                      href={artifact.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Button
+                        variant="outline"
+                        className="rounded-xl px-4 sm:px-6 py-2.5 shadow-sm text-sm sm:text-base"
+                      >
+                        <LinkIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-1.5" />
+                        <span className="whitespace-nowrap">{artifact.label}</span>
+                      </Button>
+                    </a>
+                  ))}
+                  {extraVideoLinks.map((artifact, index) => (
+                    <a
+                      key={`${artifact.id || artifact.url}-video-${index}`}
+                      href={artifact.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Button
+                        variant="outline"
+                        className="rounded-xl px-4 sm:px-6 py-2.5 shadow-sm text-sm sm:text-base"
+                      >
+                        <Video className="h-4 w-4 sm:h-5 sm:w-5 mr-1.5" />
+                        <span className="whitespace-nowrap">{artifact.label}</span>
+                      </Button>
+                    </a>
+                  ))}
                 </div>
               </div>
 
@@ -2296,6 +2366,22 @@ export default function ProjectPage() {
                               No additional materials available
                             </p>
                           )}
+                          {extraMaterialLinks.map((artifact, index) => (
+                            <a
+                              key={`${artifact.id || artifact.url}-material-${index}`}
+                              href={artifact.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <Button
+                                variant="secondary"
+                                className="w-full bg-black/5 hover:bg-black/10 rounded-xl py-2.5 shadow-sm justify-center"
+                              >
+                                <ArrowUpRight className="h-5 w-5 mr-1.5" />
+                                {artifact.label}
+                              </Button>
+                            </a>
+                          ))}
                         </div>
                       )}
 

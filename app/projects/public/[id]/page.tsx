@@ -37,6 +37,7 @@ import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { QRCodeSVG } from "qrcode.react";
 import { Input } from "@/components/ui/input";
+import { buildArtifactsFromLegacy } from "@/features/projects/utils/submission";
 
 //REFACTOR this to use the Project type from the lib/types.ts file
 interface Project {
@@ -52,6 +53,14 @@ interface Project {
   cover_image_url: string | null;
   created_at: string;
   event_id: string;
+  artifacts?: Array<{
+    id?: string;
+    kind: "project_link" | "video_link" | "additional_material";
+    label: string;
+    url: string;
+    sort_order: number;
+    is_primary: boolean;
+  }>;
 }
 
 interface EventDetails {
@@ -120,7 +129,27 @@ export default function PublicProjectPage() {
         const isEventPublic =
           !eventMetaError && eventMeta?.visibility === EventVisibility.Public;
 
-        setProject(isEventPublic ? data : null);
+        if (!isEventPublic) {
+          setProject(null);
+        } else {
+          const { data: artifactRows } = await supabase
+            .from("project_artifacts")
+            .select("id, kind, label, url, sort_order, is_primary")
+            .eq("project_id", data.id)
+            .order("sort_order", { ascending: true });
+
+          setProject({
+            ...(data as Project),
+            artifacts:
+              artifactRows && artifactRows.length > 0
+                ? (artifactRows as Project["artifacts"])
+                : (buildArtifactsFromLegacy({
+                    project_url: data.project_url,
+                    video_url: data.video_url,
+                    additional_materials_url: data.additional_materials_url,
+                  }) as Project["artifacts"]),
+          });
+        }
       }
       
       setIsLoading(false);
@@ -324,6 +353,21 @@ export default function PublicProjectPage() {
     }
   };
 
+  const projectArtifacts = project?.artifacts || [];
+  const extraProjectLinks = projectArtifacts.filter(
+    (artifact) =>
+      artifact.kind === "project_link" && artifact.url !== project?.project_url
+  );
+  const extraVideoLinks = projectArtifacts.filter(
+    (artifact) =>
+      artifact.kind === "video_link" && artifact.url !== project?.video_url
+  );
+  const extraMaterialLinks = projectArtifacts.filter(
+    (artifact) =>
+      artifact.kind === "additional_material" &&
+      artifact.url !== project?.additional_materials_url
+  );
+
   return (
     <PageContainer>
       <Toaster />
@@ -440,6 +484,38 @@ export default function PublicProjectPage() {
                       </Button>
                     </a>
                   )}
+                  {extraProjectLinks.map((artifact, index) => (
+                    <a
+                      key={`${artifact.id || artifact.url}-project-${index}`}
+                      href={artifact.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Button
+                        variant="outline"
+                        className="rounded-xl px-6 py-2.5 shadow-sm"
+                      >
+                        <LinkIcon className="h-5 w-5 mr-1.5" />
+                        {artifact.label}
+                      </Button>
+                    </a>
+                  ))}
+                  {extraVideoLinks.map((artifact, index) => (
+                    <a
+                      key={`${artifact.id || artifact.url}-video-${index}`}
+                      href={artifact.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Button
+                        variant="outline"
+                        className="rounded-xl px-6 py-2.5 shadow-sm"
+                      >
+                        <VideoIcon className="h-5 w-5 mr-1.5" />
+                        {artifact.label}
+                      </Button>
+                    </a>
+                  ))}
                 </div>
               </div>
 
@@ -716,6 +792,22 @@ export default function PublicProjectPage() {
                             No additional materials available
                           </p>
                         )}
+                        {extraMaterialLinks.map((artifact, index) => (
+                          <a
+                            key={`${artifact.id || artifact.url}-material-${index}`}
+                            href={artifact.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <Button
+                              variant="secondary"
+                              className="w-full bg-black/5 hover:bg-black/10 rounded-xl py-2.5 shadow-sm justify-center"
+                            >
+                              <ArrowUpRight className="h-5 w-5 mr-1.5" />
+                              {artifact.label}
+                            </Button>
+                          </a>
+                        ))}
                       </div>
 
                       {/* Divider */}
