@@ -35,31 +35,18 @@ export function LogoCarousel({
     }: LogoCarouselProps) {
     return (
         <section
-        className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 py-8 sm:py-10 lg:py-12 overflow-hidden"
+        className="relative z-10 w-screen left-1/2 -translate-x-1/2 py-8 sm:py-10 lg:py-12 overflow-hidden"
         style={{ overflowX: "clip" }}
         >
-        {/* keep horizontal overflow clipped globally without touching vertical scroll */}
-        <style jsx global>{`
-            :where(html, body, #__next) { overflow-x: clip; }
-        `}</style>
-
-        <p className="text-center text-xs sm:text-sm lg:text-base text-gray-700 mb-6 sm:mb-8">
+        <p className="text-center text-xs sm:text-sm lg:text-base text-gray-700 mb-6 sm:mb-8 px-4">
             Trusted by top companies and innovative organizations
         </p>
 
-        {/* 
-            -mx-* cancels section padding to avoid edge artifacts causing overflow.
-            IMPORTANT: no `contain: size` here—only `layout paint`.
-            The min-h matches the logo heights so the wrapper never collapses even if inner tracks are absolute.
-        */}
+        {/* Full viewport width marquee — no max-width constraint */}
         <div
-            className="-mx-4 sm:-mx-6 lg:-mx-10 overflow-x-hidden"
-            style={{ overflowX: "clip", contain: "layout paint", isolation: "isolate" }}
+            className="w-full min-w-0 overflow-x-hidden min-h-10 sm:min-h-12 lg:min-h-16"
+            style={{ overflowX: "clip", contain: "layout paint" }}
         >
-            <div
-            className="w-[100vw] max-w-[100vw] min-w-0 overflow-x-hidden min-h-10 sm:min-h-12 lg:min-h-16"
-            style={{ overflowX: "clip" }}
-            >
             <LogoMarquee
                 logos={items ?? logos}
                 itemHeightClass={itemHeightClass}
@@ -70,7 +57,6 @@ export function LogoCarousel({
                 fade={fade}
                 pauseOnHover={pauseOnHover}
             />
-            </div>
         </div>
         </section>
     );

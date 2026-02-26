@@ -639,14 +639,22 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
           }
 
           if (participantIds.length > 0) {
-            const { data: users, error: usersError } = await supabase
-              .from("user_profiles")
-              .select("uid, display_name, email")
-              .in("uid", participantIds);
-            if (usersError) {
-              console.error("Error fetching participants for agent scores:", usersError);
+            const profilesResponse = await fetch(
+              `/api/events/${eventId}/profiles`,
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ userIds: participantIds }),
+              }
+            );
+            const profilesPayload = await profilesResponse.json();
+            if (!profilesResponse.ok) {
+              console.error(
+                "Error fetching participants for agent scores:",
+                profilesPayload.error
+              );
             } else {
-              const userRows = (users ?? []) as Array<{
+              const userRows = (profilesPayload.profiles ?? []) as Array<{
                 uid: string;
                 display_name: string | null;
                 email: string | null;

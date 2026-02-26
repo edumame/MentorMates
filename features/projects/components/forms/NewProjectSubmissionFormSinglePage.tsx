@@ -33,6 +33,11 @@ import { EventCard } from "@/components/events/event-card";
 import { Public, TextFields } from "@mui/icons-material";
 import Link from "next/link";
 import { submissionFieldTypeSchema } from "@/features/projects/utils/submission";
+import { ParticipantIntakeDialog } from "@/features/intake-forms/components/ParticipantIntakeDialog";
+import type {
+  IntakeFormAnswers,
+  IntakeFormSchema,
+} from "@/features/intake-forms/types";
 
 interface EventParticipant {
   user_id: string;
@@ -41,6 +46,36 @@ interface EventParticipant {
 }
 
 type SubmissionAnswerValue = string | string[];
+interface ActiveIntakeForm {
+  formVersionId: string;
+  schema: IntakeFormSchema;
+}
+
+type PublishPayload = {
+  projectId: string | null;
+  projectName: string;
+  leadName: string;
+  leadEmail: string;
+  projectDescription: string;
+  teammates: string[];
+  projectUrl: string;
+  coverImageUrl: string;
+  additionalMaterialsUrl: string;
+  eventId?: string;
+  trackIds: string[];
+  videoUrl: string;
+  artifacts: Array<{
+    kind: "project_link" | "video_link" | "additional_material";
+    label: string;
+    url: string;
+    sort_order: number;
+    is_primary: boolean;
+  }>;
+  submissionAnswers: Array<{
+    eventSubmissionFieldId: string;
+    answer: string | string[];
+  }>;
+};
 
 export function NewProjectSubmissionFormSinglePage({
   userEmail,
@@ -89,6 +124,11 @@ export function NewProjectSubmissionFormSinglePage({
   const [submissionAnswers, setSubmissionAnswers] = useState<
     Record<string, SubmissionAnswerValue>
   >({});
+  const [activeIntakeForm, setActiveIntakeForm] =
+    useState<ActiveIntakeForm | null>(null);
+  const [showIntakeDialog, setShowIntakeDialog] = useState(false);
+  const [pendingPublishPayload, setPendingPublishPayload] =
+    useState<PublishPayload | null>(null);
 
   // Load available tracks for the event (if any)
   const { availableTracks } = useProjectSubmissionData(eventId);
@@ -170,41 +210,21 @@ export function NewProjectSubmissionFormSinglePage({
     if (!eventId) return;
 
     try {
-      const { data } = await supabase
-        .from("user_event_roles")
-        .select(
-          `
-          user_id,
-          profiles:user_id (
-            display_name,
-            email
-          )
-        `
-        )
-        .eq("event_id", eventId)
-        .overrideTypes<
-          {
-            user_id: string;
-            profiles: { display_name: string | null; email: string | null };
-          }[]
-        >();
+      const response = await fetch(
+        `/api/events/${eventId}/users?roles=participant&limit=500`
+      );
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error || "Failed to fetch participants");
+      }
 
-      const participantList: EventParticipant[] = (data || [])
-        .filter(
-          (role: {
-            user_id: string;
-            profiles: { display_name: string | null; email: string | null };
-          }) => role.profiles?.email
-        )
+      const participantList: EventParticipant[] = (payload.users || [])
+        .filter((user: { email: string }) => Boolean(user.email))
         .map(
-          (role: {
-            user_id: string;
-            profiles: { display_name: string | null; email: string | null };
-          }) => ({
-            user_id: role.user_id,
-            display_name:
-              role.profiles?.display_name || role.profiles?.email || "",
-            email: role.profiles?.email || "",
+          (user: { user_id: string; display_name: string; email: string }) => ({
+            user_id: user.user_id,
+            display_name: user.display_name || user.email || "",
+            email: user.email || "",
           })
         );
 
@@ -590,25 +610,46 @@ export function NewProjectSubmissionFormSinglePage({
         participantEmails.includes(email.toLowerCase())
       );
 
+      const payload = {
+        projectId,
+        projectName: formData.projectName,
+        leadName: formData.leadName,
+        leadEmail: formData.leadEmail,
+        projectDescription: formData.projectDescription,
+        teammates: validTeammates,
+        projectUrl: formData.projectUrl,
+        coverImageUrl: formData.coverImageUrl,
+        additionalMaterialsUrl: formData.additionalMaterialsUrl,
+        eventId,
+        trackIds: selectedTrackIds,
+        videoUrl: formData.videoUrl,
+        artifacts: buildArtifactsPayload(),
+        submissionAnswers: buildSubmissionAnswersPayload(),
+      };
+
+      if (eventId) {
+        const intakeResponse = await fetch(
+          `/api/events/${eventId}/intake-form?context=project_submission`,
+          { cache: "no-store" }
+        );
+        if (intakeResponse.ok) {
+          const intakeData = (await intakeResponse.json()) as {
+            form: ActiveIntakeForm | null;
+          };
+          if (intakeData.form?.formVersionId && intakeData.form.schema) {
+            setActiveIntakeForm(intakeData.form);
+            setPendingPublishPayload(payload);
+            setShowIntakeDialog(true);
+            setIsSubmitting(false);
+            return;
+          }
+        }
+      }
+
       const response = await fetch("/api/projects/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          projectId,
-          projectName: formData.projectName,
-          leadName: formData.leadName,
-          leadEmail: formData.leadEmail,
-          projectDescription: formData.projectDescription,
-          teammates: validTeammates,
-          projectUrl: formData.projectUrl,
-          coverImageUrl: formData.coverImageUrl,
-          additionalMaterialsUrl: formData.additionalMaterialsUrl,
-          eventId,
-          trackIds: selectedTrackIds,
-          videoUrl: formData.videoUrl,
-          artifacts: buildArtifactsPayload(),
-          submissionAnswers: buildSubmissionAnswersPayload(),
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
@@ -656,6 +697,83 @@ export function NewProjectSubmissionFormSinglePage({
     Array.isArray(submissionAnswers[fieldId])
       ? (submissionAnswers[fieldId] as string[])
       : [""];
+  const handleIntakeSubmit = async (answers: IntakeFormAnswers) => {
+    if (!pendingPublishPayload) {
+      toast({
+        title: "Error",
+        description: "Missing project submission payload.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!eventId || !activeIntakeForm?.formVersionId) {
+      toast({
+        title: "Error",
+        description: "Missing intake form metadata.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+
+      const projectResponse = await fetch("/api/projects/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(pendingPublishPayload),
+      });
+
+      if (!projectResponse.ok) {
+        const errorData = await projectResponse.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to submit project");
+      }
+
+      const projectData = await projectResponse.json();
+      const submittedProjectId = projectData.data?.id || projectData.id;
+
+      const intakeResponse = await fetch(
+        `/api/events/${eventId}/intake-form/submissions`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            context: "project_submission",
+            formVersionId: activeIntakeForm.formVersionId,
+            projectId: submittedProjectId,
+            answers,
+          }),
+        }
+      );
+
+      if (!intakeResponse.ok) {
+        const intakeError = await intakeResponse.json().catch(() => ({}));
+        throw new Error(intakeError.error || "Failed to submit intake form");
+      }
+
+      toast({
+        title: "Project Successfully Shared!",
+        description:
+          "Your project and intake form have been submitted successfully.",
+      });
+      onProjectSubmitted?.();
+      setShowIntakeDialog(false);
+      setPendingPublishPayload(null);
+      router.push(`/projects/${submittedProjectId}`);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description:
+          error instanceof Error
+            ? error.message
+            : "There was an error sharing your project.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleDeleteDraft = async () => {
     setIsDeletingDraft(true);
@@ -734,6 +852,18 @@ export function NewProjectSubmissionFormSinglePage({
   return (
     <div className="bg-white mb-8">
       <Toaster />
+      {activeIntakeForm ? (
+        <ParticipantIntakeDialog
+          open={showIntakeDialog}
+          schema={activeIntakeForm.schema}
+          submitting={isSubmitting}
+          onClose={() => {
+            setShowIntakeDialog(false);
+            setPendingPublishPayload(null);
+          }}
+          onSubmit={handleIntakeSubmit}
+        />
+      ) : null}
 
       {/* Sticky Auto-save Banner */}
       <div className="sticky top-0 z-20 bg-sky-50 border-b border-[#d8d8d8]">

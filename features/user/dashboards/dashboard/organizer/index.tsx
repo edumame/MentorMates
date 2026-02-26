@@ -28,15 +28,12 @@ import {
 // Tab components
 import { SubmissionsTab } from "./submissions";
 import { ScoresTab } from "./scores";
-import { ParticipantsTab } from "./participants";
 import { EventTracksContainer } from "./tracks";
 import { AccessTab } from "./access";
-import { AssignTab } from "./assign";
-import { ProjectImport } from "./import/ProjectImportButton";
-import { EmailTab } from "./email";
 import { PricingTab } from "./pricing/PricingTab";
 import EmailDashboard from "./notifications/EmailDashboard";
 import { AgentsTab } from "./agents/AgentsTab";
+import { IntakeResponsesTab } from "./registration";
 // Overview sub-tab components
 import { BasicInfoTab } from "./details/BasicInfoTab";
 import { ContentTab } from "./details/ContentTab";
@@ -393,14 +390,7 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
               </TabsContent>
 
               <TabsContent value="registration" className="mt-0">
-                <div className="rounded-lg border bg-card p-6">
-                  <h3 className="text-lg font-semibold mb-4">
-                    Registration Settings
-                  </h3>
-                  <p className="text-gray-500">
-                    Registration configuration coming soon
-                  </p>
-                </div>
+                <IntakeResponsesTab eventId={eventId} />
               </TabsContent>
 
               <TabsContent value="project" className="mt-0">

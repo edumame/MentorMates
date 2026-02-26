@@ -122,6 +122,42 @@ export async function POST(request: Request) {
       }
     }
 
+    // Enforce registration questionnaire completion before participant join/request
+    // when there is an active published registration intake form.
+    if (role === EventRole.Participant) {
+      const { data: activeRegistrationBinding } = await supabase
+        .from("event_intake_form_bindings")
+        .select("form_version_id")
+        .eq("event_id", eventId)
+        .eq("context", "registration")
+        .eq("is_active", true)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (activeRegistrationBinding?.form_version_id) {
+        const { data: questionnaireSubmission } = await supabase
+          .from("intake_form_submissions")
+          .select("id")
+          .eq("event_id", eventId)
+          .eq("context", "registration")
+          .eq("submitter_user_id", userId)
+          .eq("status", "submitted")
+          .maybeSingle();
+
+        if (!questionnaireSubmission?.id) {
+          return NextResponse.json(
+            {
+              error:
+                "Please complete the registration questionnaire before joining this event.",
+              requires_registration_questionnaire: true,
+            },
+            { status: 412 }
+          );
+        }
+      }
+    }
+
     // Check if participant approval is required for this event and role
     if (role === EventRole.Participant && event?.require_participant_approval) {
       // Check if user has any existing approval request

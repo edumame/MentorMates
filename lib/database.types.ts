@@ -215,6 +215,7 @@ export type Database = {
             | Database["public"]["Enums"]["approval_status"]
             | null;
           rejection_reason: string | null;
+          require_registration_questionnaire: boolean | null;
         };
         Insert: {
           cover_image_url?: string | null;
@@ -246,6 +247,7 @@ export type Database = {
           approval_status?:
             | Database["public"]["Enums"]["approval_status"]
             | null;
+          require_registration_questionnaire?: boolean | null;
         };
         Update: {
           cover_image_url?: string | null;
@@ -277,6 +279,7 @@ export type Database = {
             | Database["public"]["Enums"]["approval_status"]
             | null;
           visibility?: Database["public"]["Enums"]["event_visibility"];
+          require_registration_questionnaire?: boolean | null;
         };
         Relationships: [
           {

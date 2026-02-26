@@ -29,6 +29,7 @@ import EmailDashboard from "@/features/user/dashboards/dashboard/organizer/notif
 import { EmailTab } from "@/features/user/dashboards/dashboard/organizer/email";
 import { ProjectImport } from "@/features/user/dashboards/dashboard/organizer/import/ProjectImportButton";
 import { AgentsTab } from "@/features/user/dashboards/dashboard/organizer/agents/AgentsTab";
+import { IntakeFormBuilder } from "@/features/intake-forms/components/IntakeFormBuilder";
 
 // Import sub-tab components for Overview
 import { BasicInfoTab } from "@/features/user/dashboards/dashboard/organizer/details/BasicInfoTab";
@@ -37,6 +38,7 @@ import { ScheduleTab } from "@/features/user/dashboards/dashboard/organizer/deta
 import { ResourcesTab } from "@/features/user/dashboards/dashboard/organizer/details/ResourcesTab";
 import { RulesTab } from "@/features/user/dashboards/dashboard/organizer/details/RulesTab";
 import { FAQTab } from "@/features/user/dashboards/dashboard/organizer/details/FAQTab";
+import { IntakeResponsesTab } from "@/features/user/dashboards/dashboard/organizer/registration";
 
 import { Button } from "@/components/ui/button";
 import { EventCard } from "@/components/events/event-card";
@@ -92,6 +94,8 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
     { value: "tracks", label: "Tracks & prizes" },
     { value: "assign", label: "Assign" },
     { value: "project-submission", label: "Project Submission" },
+    { value: "intake-forms", label: "Intake Forms" },
+    { value: "intake-responses", label: "Intake Responses" },
     { value: "live-scores", label: "Live Scores" },
     { value: "ticketing", label: "Ticketing" },
     { value: "notify", label: "Notify" },
@@ -769,6 +773,30 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                       <ProjectImport eventId={eventId} />
                     </div>
                   </div>
+                </TabsContent>
+
+                <TabsContent value="intake-forms" className="mt-0 w-full">
+                  <div className="space-y-6">
+                    <div>
+                      <h2 className="text-xl font-semibold mb-4 text-black">
+                        Project Submission Intake Form
+                      </h2>
+                      <IntakeFormBuilder
+                        eventId={eventId}
+                        context="project_submission"
+                      />
+                    </div>
+                    <div className="border-t border-[rgba(0,0,0,0.15)] pt-6">
+                      <h2 className="text-xl font-semibold mb-4 text-black">
+                        Registration Intake Form
+                      </h2>
+                      <IntakeFormBuilder eventId={eventId} context="registration" />
+                    </div>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="intake-responses" className="mt-0 w-full">
+                  <IntakeResponsesTab eventId={eventId} />
                 </TabsContent>
 
                 <TabsContent value="live-scores" className="mt-0 w-full">

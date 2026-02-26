@@ -1,4 +1,6 @@
 import type { Config } from "tailwindcss";
+import tailwindcssAnimate from "tailwindcss-animate";
+import typography from "@tailwindcss/typography";
 
 const config: Config = {
   darkMode: ["class"],
@@ -15,6 +17,22 @@ const config: Config = {
       fontFamily: {
         sans: ["Inter", "system-ui", "sans-serif"],
         geist: ["Geist", "Inter", "system-ui", "sans-serif"],
+      },
+      fontSize: {
+        "host-h2": [
+          "52px",
+          { lineHeight: "1.2", letterSpacing: "-0.06em" },
+        ],
+        "host-h6": [
+          "22px",
+          { lineHeight: "1.4", letterSpacing: "-0.06em" },
+        ],
+        "host-lg": ["18px", { lineHeight: "1.5" }],
+        "host-base": ["16px", { lineHeight: "1.5" }],
+        "host-sm": ["14px", { lineHeight: "20px" }],
+      },
+      maxWidth: {
+        host: "1280px",
       },
       /* Brand palette */
       colors: {
@@ -112,7 +130,7 @@ const config: Config = {
       },
     },
   },
-  plugins: [require("tailwindcss-animate"), require("@tailwindcss/typography")],
+  plugins: [tailwindcssAnimate, typography],
 };
 
 export default config;

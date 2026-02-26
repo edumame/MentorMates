@@ -1,4 +1,3 @@
-import { describe, expect, it } from "vitest";
 import {
   buildArtifactsFromLegacy,
   coerceSubmissionAnswerValue,
@@ -104,4 +103,3 @@ describe("submission adapters", () => {
     expect(coerceSubmissionAnswerValue("multi_url", "oops")).toEqual([]);
   });
 });
-

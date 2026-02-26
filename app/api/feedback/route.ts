@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
+import { createSupabaseServiceClient } from "@/lib/supabase/service";
 
 export async function GET(request: Request) {
   const supabase = await createSupabaseClient();
+  const serviceSupabase = createSupabaseServiceClient();
 
   const {
     data: { user },
@@ -98,7 +100,7 @@ export async function GET(request: Request) {
       ?.map((f) => f.mentor_id)
       .filter((id): id is string => !!id) || [];
 
-    const { data: mentorProfiles } = await supabase
+    const { data: mentorProfiles } = await serviceSupabase
       .from("user_profiles")
       .select("uid, profile_picture, first_name, last_name")
       .in("uid", mentorIds);
