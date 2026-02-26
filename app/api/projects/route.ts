@@ -450,7 +450,12 @@ export async function GET(request: NextRequest) {
           `
             *,
             project_tracks (
-              track_id
+              track_id,
+              event_tracks (
+                track_id,
+                name,
+                label
+              )
             )
           `
         )
@@ -472,7 +477,14 @@ export async function GET(request: NextRequest) {
 
       const transformedProjects = (projectsData || []).map(
         (project: {
-          project_tracks?: { track_id: string }[];
+          project_tracks?: {
+            track_id: string;
+            event_tracks?: {
+              track_id: string;
+              name?: string | null;
+              label?: string | null;
+            } | null;
+          }[];
           [key: string]: unknown;
         }) => ({
           ...project,
@@ -480,6 +492,10 @@ export async function GET(request: NextRequest) {
             project.project_tracks?.map(
               (pt: { track_id: string }) => pt.track_id
             ) || [],
+          tracks:
+            project.project_tracks
+              ?.map((pt) => pt.event_tracks)
+              .filter(Boolean) || [],
         })
       );
 

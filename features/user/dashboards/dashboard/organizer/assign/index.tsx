@@ -42,6 +42,13 @@ interface Project {
   id: string;
   project_name: string;
   lead_name: string;
+  tracks?: ProjectTrack[];
+}
+
+interface ProjectTrack {
+  track_id: string;
+  name?: string | null;
+  label?: string | null;
 }
 
 interface User {
@@ -530,7 +537,20 @@ export function AssignTab({ eventId }: AssignTabProps) {
                   return (
                     <TableRow key={project.id}>
                       <TableCell className="font-medium">
-                        {project.project_name}
+                        <div className="space-y-1">
+                          <div>{project.project_name}</div>
+                          <div className="flex flex-wrap gap-1">
+                            {(project.tracks || []).length > 0 ? (
+                              project.tracks?.map((track) => (
+                                <Badge key={track.track_id} variant="secondary">
+                                  {track.label || track.name || "Unnamed Track"}
+                                </Badge>
+                              ))
+                            ) : (
+                              <Badge variant="outline">No track</Badge>
+                            )}
+                          </div>
+                        </div>
                       </TableCell>
                       <TableCell>{project.lead_name}</TableCell>
                       <TableCell>
