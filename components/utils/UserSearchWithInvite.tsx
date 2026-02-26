@@ -329,18 +329,36 @@ const UserSearchWithInvite = ({
       return;
     }
 
-    const claimUrl = `${process.env.NEXT_PUBLIC_APP_URL}/join-project?project=${projectId}`;
-
     try {
+      // Generate JWT token for the invite link
+      const response = await fetch("/api/projects/generate-invite-token", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          projectId,
+          inviteeEmail: "",
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to generate invite link");
+      }
+
+      const { token } = await response.json();
+      const claimUrl = `${process.env.NEXT_PUBLIC_APP_URL}/join-project?project=${projectId}&token=${token}`;
+
       await navigator.clipboard.writeText(claimUrl);
       toast({
         title: "Link Copied!",
-        description: "Project invite link has been copied to your clipboard.",
+        description: "Secure project invite link has been copied to your clipboard. Link expires in 10 minutes.",
       });
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to copy link to clipboard",
+        description: error instanceof Error ? error.message : "Failed to copy link to clipboard",
         variant: "destructive",
       });
     }
