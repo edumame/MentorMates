@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -68,6 +68,7 @@ interface EventDetails {
 
 export default function PublicProjectPage() {
   const params = useParams();
+  const router = useRouter();
   const projectId = params.id as string;
 
   const [project, setProject] = useState<Project | null>(null);
@@ -319,6 +320,20 @@ export default function PublicProjectPage() {
     }
   };
 
+  const handleBack = () => {
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      router.back();
+      return;
+    }
+
+    if (eventDetails) {
+      router.push(`/events/${eventDetails.event_id}/overview`);
+      return;
+    }
+
+    router.push("/projects");
+  };
+
   return (
     <PageContainer>
       <Toaster />
@@ -329,15 +344,14 @@ export default function PublicProjectPage() {
             {/* Back Button */}
             {eventDetails && (
               <div className="mb-4">
-                <Link href={`/events/${eventDetails.event_id}/overview`}>
-                  <Button
-                    variant="ghost"
-                    className="text-gray-600 hover:text-gray-900 hover:bg-gray-100 px-3 py-2 -ml-3"
-                  >
-                    <ArrowLeft className="h-4 w-4 mr-2" />
-                    Back to {eventDetails.event_name}
-                  </Button>
-                </Link>
+                <Button
+                  variant="ghost"
+                  className="text-gray-600 hover:text-gray-900 hover:bg-gray-100 px-3 py-2 -ml-3"
+                  onClick={handleBack}
+                >
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Back to {eventDetails.event_name}
+                </Button>
               </div>
             )}
 
