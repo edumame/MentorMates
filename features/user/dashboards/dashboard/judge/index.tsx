@@ -247,6 +247,15 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
         judgeId={judgeId}
         trackId={trackId}
         finalistFeatureEnabled={finalistFeatureEnabled}
+        onScoreSaved={() => {
+          setScoredProjects((prev) => {
+            const updated = new Map(prev);
+            const existingTracks = new Set(updated.get(projectId) ?? []);
+            existingTracks.add(trackId);
+            updated.set(projectId, existingTracks);
+            return updated;
+          });
+        }}
       />
     );
   };

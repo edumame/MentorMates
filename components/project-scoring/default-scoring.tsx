@@ -28,6 +28,7 @@ interface DefaultScoringProps {
   judgeId: string;
   trackId: string;
   finalistFeatureEnabled?: boolean;
+  onScoreSaved?: () => void;
 }
 
 interface FormValues {
@@ -54,6 +55,7 @@ export function DefaultScoring({
   judgeId,
   trackId,
   finalistFeatureEnabled = false,
+  onScoreSaved,
 }: DefaultScoringProps) {
   const [loading, setLoading] = useState(true);
   const [project, setProject] = useState<Project | null>(null);
@@ -186,7 +188,7 @@ export function DefaultScoring({
         if (insertError) throw insertError;
       }
       setHasExistingScore(true);
-      window.location.reload();
+      onScoreSaved?.();
 
       toast({
         title: "Score submitted",
