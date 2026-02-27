@@ -13,10 +13,9 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { ArrowLeft, ArrowRight, Target, Trophy } from "lucide-react";
+import { ArrowLeft, ArrowRight, ChevronDown, Target } from "lucide-react";
 import Link from "next/link";
 import { LoadingScreen } from "@/components/ui/loading-screen";
-import { Progress } from "@/components/ui/progress";
 import {
   getNextProjectId,
   isProjectFullyScored,
@@ -63,6 +62,7 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
   const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(
     new Set()
   );
+  const [isNavigatorOpen, setIsNavigatorOpen] = useState(true);
   const [deckFilter, setDeckFilter] = useState<"pending" | "all">("pending");
   const [searchQuery, setSearchQuery] = useState("");
   const [finalistFeatureEnabled, setFinalistFeatureEnabled] = useState(false);
@@ -104,26 +104,11 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
     [filteredProjects, scoredProjects]
   );
 
-  const judgedProjects = useMemo(
-    () =>
-      filteredProjects.filter((project) =>
-        isProjectFullyScored(project, scoredProjects)
-      ),
-    [filteredProjects, scoredProjects]
-  );
-
   const visibleProjects = useMemo(
     () => (deckFilter === "all" ? filteredProjects : remainingProjects),
     [deckFilter, filteredProjects, remainingProjects]
   );
   const navigatorProjects = visibleProjects;
-
-  const completionPercentage = useMemo(() => {
-    if (projects.length === 0) {
-      return 0;
-    }
-    return Math.round((completedProjectCount / projects.length) * 100);
-  }, [projects.length, completedProjectCount]);
 
   const currentProject = useMemo(() => {
     if (visibleProjects.length === 0) {
@@ -177,13 +162,16 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
   );
 
   const markTrackAsScored = useCallback((projectId: string, trackId: string) => {
+    let updatedTrackIds = new Set<string>();
     setScoredProjects((prev) => {
       const updated = new Map(prev);
       const existingTracks = new Set(updated.get(projectId) ?? []);
       existingTracks.add(trackId);
       updated.set(projectId, existingTracks);
+      updatedTrackIds = existingTracks;
       return updated;
     });
+    return updatedTrackIds;
   }, []);
 
   const markTrackAsUnscored = useCallback(
@@ -203,6 +191,34 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
       });
     },
     []
+  );
+
+  const advanceAfterTrackSubmit = useCallback(
+    (project: Project, submittedTrackId: string) => {
+      const updatedTrackIds = markTrackAsScored(project.id, submittedTrackId);
+
+      const nextUnscoredTrackId = project.track_ids.find(
+        (trackId) => !updatedTrackIds.has(trackId)
+      );
+      if (nextUnscoredTrackId) {
+        setActiveTrackByProject((prev) => {
+          const updated = new Map(prev);
+          updated.set(project.id, nextUnscoredTrackId);
+          return updated;
+        });
+        return;
+      }
+
+      const currentIndex = visibleProjects.findIndex((p) => p.id === project.id);
+      const candidates = visibleProjects.filter((p) => p.id !== project.id);
+      if (candidates.length === 0) {
+        return;
+      }
+
+      const nextIndex = currentIndex >= 0 ? Math.min(currentIndex, candidates.length - 1) : 0;
+      setActiveProjectId(candidates[nextIndex].id);
+    },
+    [markTrackAsScored, visibleProjects]
   );
 
   const isInteractiveSwipeTarget = useCallback((target: EventTarget | null) => {
@@ -518,33 +534,6 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
   return (
     <div className="w-full px-4 pb-10 pt-6 md:px-8">
       <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-6">
-          <section className="rounded-3xl border border-[#D7E5FF] bg-gradient-to-r from-[#EEF4FF] via-[#F7FAFF] to-[#EEFBF4] p-5 md:p-6">
-            <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#4B89EF]">
-                  Judge Progress
-                </p>
-                <h2 className="mt-1 text-[28px] font-semibold leading-[1.2] tracking-[-0.05em] text-black">
-                  {completedProjectCount} of {projects.length} projects judged
-                </h2>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="inline-flex items-center gap-2 rounded-full border border-[#CCE5D6] bg-[#EDFAF2] px-4 py-2 text-sm font-medium text-[#196A3A]">
-                  <Trophy className="h-4 w-4" />
-                  {projects.length - completedProjectCount} left
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-4 space-y-2">
-              <Progress value={completionPercentage} className="h-2.5 bg-white/90" />
-              <p className="text-xs font-medium text-[rgba(0,0,0,0.55)]">
-                {completionPercentage}% complete
-              </p>
-            </div>
-          </section>
-
           <section className="rounded-2xl border border-[#E5E9F1] bg-white p-4 shadow-sm">
             <div className="flex flex-col gap-3 md:flex-row md:items-center">
               <EventSearchInput
@@ -621,12 +610,27 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                 <p className="text-sm font-semibold text-[rgba(0,0,0,0.82)]">
                   Project Navigator
                 </p>
-                <p className="text-xs text-[rgba(0,0,0,0.58)]">
-                  Showing {navigatorProjects.length} of {projects.length}
-                </p>
+                <div className="flex items-center gap-2">
+                  <p className="text-xs text-[rgba(0,0,0,0.58)]">
+                    Showing {navigatorProjects.length} of {projects.length}
+                  </p>
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1 rounded-md border border-[#D4DDEC] bg-white px-2 py-1 text-xs font-medium text-[rgba(0,0,0,0.68)] transition hover:bg-[#F5F8FD]"
+                    onClick={() => setIsNavigatorOpen((prev) => !prev)}
+                  >
+                    {isNavigatorOpen ? "Hide" : "Show"}
+                    <ChevronDown
+                      className={`h-3.5 w-3.5 transition-transform ${
+                        isNavigatorOpen ? "rotate-180" : ""
+                      }`}
+                    />
+                  </button>
+                </div>
               </div>
 
-              <div className="max-h-56 overflow-auto rounded-xl border border-[#E1E8F4] bg-[#FBFCFE]">
+              {isNavigatorOpen && (
+                <div className="max-h-56 overflow-auto rounded-xl border border-[#E1E8F4] bg-[#FBFCFE]">
                 {navigatorProjects.length === 0 && (
                   <div className="px-4 py-6 text-sm text-[rgba(0,0,0,0.6)]">
                     No projects in this filter.
@@ -682,7 +686,8 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                     </button>
                   );
                 })}
-              </div>
+                </div>
+              )}
             </section>
           )}
 
@@ -708,10 +713,6 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                 </Button>
               </div>
             </div>
-          )}
-
-          {deckFilter === "all" && judgedProjects.length > 0 && (
-            <p className="text-sm text-[rgba(0,0,0,0.62)]">Showing all assigned projects.</p>
           )}
 
           {currentProject && (
@@ -751,8 +752,13 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                       </Link>
                     </h3>
                   </div>
-                  <div className="rounded-full border border-[#E2E8F3] bg-[#F8FAFD] px-4 py-2 text-sm font-medium text-[rgba(0,0,0,0.72)]">
-                    Card {currentProjectIndex + 1} of {visibleProjects.length}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="rounded-full border border-[#E2E8F3] bg-[#F8FAFD] px-4 py-2 text-sm font-medium text-[rgba(0,0,0,0.72)]">
+                      Card {currentProjectIndex + 1} of {visibleProjects.length}
+                    </div>
+                    <div className="rounded-full border border-[#CCE5D6] bg-[#EDFAF2] px-3 py-1.5 text-xs font-semibold text-[#196A3A]">
+                      {completedProjectCount}/{projects.length} judged
+                    </div>
                   </div>
                 </div>
 
@@ -845,7 +851,7 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                                     finalistFeatureEnabled={finalistFeatureEnabled}
                                     hideProjectHeader
                                     onScoreSaved={() =>
-                                      markTrackAsScored(currentProject.id, trackId)
+                                      advanceAfterTrackSubmit(currentProject, trackId)
                                     }
                                     onScoreDeleted={() =>
                                       markTrackAsUnscored(currentProject.id, trackId)
