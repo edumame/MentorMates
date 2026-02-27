@@ -20,7 +20,7 @@ export function ProjectDescription({
   variant = "body",
   truncateLines,
   className,
-  expandLabel = "...",
+  expandLabel = "Show more",
   collapseLabel = "Show less",
 }: ProjectDescriptionProps) {
   const [isExpanded, setIsExpanded] = useState(false);
