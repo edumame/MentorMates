@@ -47,6 +47,8 @@ interface ScoreRow {
   track_id: string;
 }
 
+const CLOSED_TRACK_KEY = "__closed__";
+
 export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -84,16 +86,6 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
             .includes(normalizedSearchQuery)
       ),
     [projects, normalizedSearchQuery]
-  );
-
-  const completedProjectCount = useMemo(
-    () =>
-      projects.reduce(
-        (count, project) =>
-          count + (isProjectFullyScored(project, scoredProjects) ? 1 : 0),
-        0
-      ),
-    [projects, scoredProjects]
   );
 
   const remainingProjects = useMemo(
@@ -134,6 +126,9 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
       return null;
     }
     const selectedTrackId = activeTrackByProject.get(currentProject.id);
+    if (selectedTrackId === CLOSED_TRACK_KEY) {
+      return null;
+    }
     if (selectedTrackId && currentProject.track_ids.includes(selectedTrackId)) {
       return selectedTrackId;
     }
@@ -456,6 +451,9 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
         }
 
         const selectedTrack = updated.get(project.id);
+        if (selectedTrack === CLOSED_TRACK_KEY) {
+          return;
+        }
         if (!selectedTrack || !project.track_ids.includes(selectedTrack)) {
           updated.set(project.id, project.track_ids[0]);
           hasChanges = true;
@@ -502,10 +500,6 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
       ? truncateWithEllipsis(currentDescription, 240)
       : currentDescription || "No description provided.";
 
-  const currentProjectIsJudged = currentProject
-    ? isProjectFullyScored(currentProject, scoredProjects)
-    : false;
-
   const upcomingCards =
     currentProjectIndex >= 0
       ? visibleProjects.slice(currentProjectIndex + 1, currentProjectIndex + 3)
@@ -534,14 +528,14 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
   return (
     <div className="w-full px-4 pb-10 pt-6 md:px-8">
       <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-6">
-          <section className="rounded-2xl border border-[#E5E9F1] bg-white p-4 shadow-sm">
+          <section className="p-0">
             <div className="flex flex-col gap-3 md:flex-row md:items-center">
               <EventSearchInput
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
                 placeholder="Search project cards..."
                 wrapperClassName="flex-1"
-                inputClassName="h-11 text-sm"
+                inputClassName="h-10 text-sm"
                 rightAdornment={
                   searchQuery ? (
                     <button
@@ -556,10 +550,10 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
               />
 
               <div className="flex flex-wrap items-center gap-2" data-no-swipe="true">
-                <div className="inline-flex items-center rounded-xl border border-[#D6DEEC] bg-[#F5F8FD] p-1">
+                <div className="inline-flex h-10 items-center rounded-xl border border-[#D6DEEC] bg-[#F5F8FD] p-1">
                   <button
                     type="button"
-                    className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+                    className={`inline-flex h-8 items-center rounded-lg px-3 text-sm font-medium transition ${
                       deckFilter === "pending"
                         ? "bg-white text-[#19489A] shadow-sm"
                         : "text-[rgba(0,0,0,0.62)] hover:text-[rgba(0,0,0,0.82)]"
@@ -570,7 +564,7 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                   </button>
                   <button
                     type="button"
-                    className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+                    className={`inline-flex h-8 items-center rounded-lg px-3 text-sm font-medium transition ${
                       deckFilter === "all"
                         ? "bg-white text-[#19489A] shadow-sm"
                         : "text-[rgba(0,0,0,0.62)] hover:text-[rgba(0,0,0,0.82)]"
@@ -584,6 +578,7 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                   type="button"
                   variant="outline"
                   size="icon"
+                  className="h-10 w-10"
                   onClick={() => navigateCards(-1)}
                   disabled={visibleProjects.length <= 1}
                   aria-label="Previous project"
@@ -594,6 +589,7 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                   type="button"
                   variant="outline"
                   size="icon"
+                  className="h-10 w-10"
                   onClick={() => navigateCards(1)}
                   disabled={visibleProjects.length <= 1}
                   aria-label="Next project"
@@ -605,18 +601,22 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
           </section>
 
           {filteredProjects.length > 0 && (
-            <section className="rounded-2xl border border-[#E5E9F1] bg-white p-4 shadow-sm">
+            <section className="p-0">
               <div className="mb-3 flex items-center justify-between gap-3">
                 <p className="text-sm font-semibold text-[rgba(0,0,0,0.82)]">
                   Project Navigator
                 </p>
                 <div className="flex items-center gap-2">
-                  <p className="text-xs text-[rgba(0,0,0,0.58)]">
-                    Showing {navigatorProjects.length} of {projects.length}
-                  </p>
+                  {isNavigatorOpen && (
+                    <p className="text-xs text-[rgba(0,0,0,0.58)]">
+                      Showing {navigatorProjects.length} of {projects.length}
+                    </p>
+                  )}
                   <button
                     type="button"
-                    className="inline-flex items-center gap-1 rounded-md border border-[#D4DDEC] bg-white px-2 py-1 text-xs font-medium text-[rgba(0,0,0,0.68)] transition hover:bg-[#F5F8FD]"
+                    aria-expanded={isNavigatorOpen}
+                    aria-controls="judge-project-navigator-list"
+                    className="inline-flex h-8 items-center gap-1 rounded-md border border-[#D4DDEC] bg-white px-2.5 text-xs font-medium text-[rgba(0,0,0,0.68)] transition hover:bg-[#F5F8FD]"
                     onClick={() => setIsNavigatorOpen((prev) => !prev)}
                   >
                     {isNavigatorOpen ? "Hide" : "Show"}
@@ -630,7 +630,10 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
               </div>
 
               {isNavigatorOpen && (
-                <div className="max-h-56 overflow-auto rounded-xl border border-[#E1E8F4] bg-[#FBFCFE]">
+                <div
+                  id="judge-project-navigator-list"
+                  className="max-h-56 overflow-auto rounded-xl bg-[#FBFCFE]"
+                >
                 {navigatorProjects.length === 0 && (
                   <div className="px-4 py-6 text-sm text-[rgba(0,0,0,0.6)]">
                     No projects in this filter.
@@ -675,7 +678,7 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                         </p>
                       </div>
                       <span
-                        className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                        className={`inline-flex h-6 items-center rounded-full px-2.5 text-xs font-semibold ${
                           isJudged
                             ? "bg-[#E8F8EC] text-[#19703A]"
                             : "bg-[#FFF5E5] text-[#9A5C00]"
@@ -745,6 +748,8 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                     <h3 className="mt-1 text-[30px] font-semibold leading-[1.1] tracking-[-0.06em] text-black">
                       <Link
                         href={`/projects/public/${currentProject.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="underline-offset-4 hover:text-[#2E68CA] hover:underline"
                         data-no-swipe="true"
                       >
@@ -753,25 +758,10 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                     </h3>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <div className="rounded-full border border-[#E2E8F3] bg-[#F8FAFD] px-4 py-2 text-sm font-medium text-[rgba(0,0,0,0.72)]">
+                    <div className="inline-flex h-8 items-center rounded-full border border-[#E2E8F3] bg-[#F8FAFD] px-3 text-xs font-semibold text-[rgba(0,0,0,0.72)]">
                       Card {currentProjectIndex + 1} of {visibleProjects.length}
                     </div>
-                    <div className="rounded-full border border-[#CCE5D6] bg-[#EDFAF2] px-3 py-1.5 text-xs font-semibold text-[#196A3A]">
-                      {completedProjectCount}/{projects.length} judged
-                    </div>
                   </div>
-                </div>
-
-                <div className="mb-4 flex justify-end">
-                  <span
-                    className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                      currentProjectIsJudged
-                        ? "bg-[#E8F8EC] text-[#19703A]"
-                        : "bg-[#FFF5E5] text-[#9A5C00]"
-                    }`}
-                  >
-                    {currentProjectIsJudged ? "Judged" : "Pending"}
-                  </span>
                 </div>
 
                 <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
@@ -780,7 +770,7 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                       <p className="text-sm font-semibold text-[rgba(0,0,0,0.8)]">
                         Rubric
                       </p>
-                      <p className="rounded-full bg-[#EAF2FF] px-3 py-1 text-xs font-semibold text-[#2E68CA]">
+                      <p className="inline-flex h-7 items-center rounded-full bg-[#EAF2FF] px-3 text-xs font-semibold text-[#2E68CA]">
                         {currentTrackScoredCount}/{currentProject.track_ids.length} tracks completed
                       </p>
                     </div>
@@ -793,14 +783,14 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                       <Accordion
                         type="single"
                         collapsible
-                        value={currentTrackId || undefined}
+                        value={currentTrackId || ""}
                         onValueChange={(value) => {
-                          if (!value) {
-                            return;
-                          }
                           setActiveTrackByProject((prev) => {
                             const updated = new Map(prev);
-                            updated.set(currentProject.id, value);
+                            updated.set(
+                              currentProject.id,
+                              value || CLOSED_TRACK_KEY
+                            );
                             return updated;
                           });
                         }}
@@ -830,7 +820,7 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                                     {trackInfo?.name || "Track"}
                                   </span>
                                   <span
-                                    className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                                    className={`inline-flex h-6 items-center rounded-full px-2.5 text-xs font-semibold ${
                                       isScored
                                         ? "bg-[#E8F8EC] text-[#19703A]"
                                         : "bg-[#FFF5E5] text-[#9A5C00]"
@@ -917,6 +907,8 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                       <div className="flex flex-wrap gap-2 pt-2" data-no-swipe="true">
                         <Link
                           href={`/projects/public/${currentProject.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
                           className="inline-flex items-center rounded-full border border-[#D7DEEB] bg-white px-3 py-1.5 text-xs font-medium text-[rgba(0,0,0,0.72)] hover:border-[#AEB8CF]"
                         >
                           Project details
