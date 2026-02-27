@@ -10,6 +10,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Form, FormField, FormItem, FormLabel } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface DefaultScoringProps {
   projectId: string;
@@ -194,11 +205,6 @@ export function DefaultScoring({
   };
 
   const onDeleteScore = async () => {
-    const shouldDelete = window.confirm(
-      "Delete your score for this track? This cannot be undone."
-    );
-    if (!shouldDelete) return;
-
     setDeleting(true);
     try {
       const { error } = await supabase
@@ -315,14 +321,31 @@ export function DefaultScoring({
               {submitting ? "Submitting..." : "Submit Evaluation"}
             </Button>
             {hasExistingScore && (
-              <Button
-                type="button"
-                variant="destructive"
-                disabled={submitting || deleting}
-                onClick={onDeleteScore}
-              >
-                {deleting ? "Deleting..." : "Delete Evaluation"}
-              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    disabled={submitting || deleting}
+                  >
+                    {deleting ? "Deleting..." : "Delete Evaluation"}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Evaluation</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Delete your score for this track? This cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction type="button" onClick={onDeleteScore}>
+                      Delete Evaluation
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             )}
           </div>
         </form>

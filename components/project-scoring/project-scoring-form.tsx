@@ -9,6 +9,17 @@ import { supabase } from "@/lib/supabase";
 import { toast } from "@/lib/hooks/use-toast";
 import { PostgrestError } from "@supabase/supabase-js";
 import VoiceInput from "@/components/utils/VoiceInput";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface ProjectScoringFormProps {
   projectId: string;
@@ -221,11 +232,6 @@ export function ProjectScoringForm({
   };
 
   const handleDeleteScore = async () => {
-    const shouldDelete = window.confirm(
-      "Delete your score for this track? This cannot be undone."
-    );
-    if (!shouldDelete) return;
-
     setIsDeleting(true);
     try {
       const {
@@ -360,14 +366,31 @@ export function ProjectScoringForm({
           {isSubmitting ? "Submitting..." : "Submit Score"}
         </Button>
         {hasExistingScore && (
-          <Button
-            type="button"
-            variant="destructive"
-            disabled={isSubmitting || isDeleting || !trackId}
-            onClick={handleDeleteScore}
-          >
-            {isDeleting ? "Deleting..." : "Delete Score"}
-          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                type="button"
+                variant="destructive"
+                disabled={isSubmitting || isDeleting || !trackId}
+              >
+                {isDeleting ? "Deleting..." : "Delete Score"}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete Score</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Delete your score for this track? This cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction type="button" onClick={handleDeleteScore}>
+                  Delete Score
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         )}
       </div>
     </form>
