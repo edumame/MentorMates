@@ -37,7 +37,9 @@ export function ProjectScoringForm({
   finalistFeatureEnabled = false,
 }: ProjectScoringFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [hasExistingScore, setHasExistingScore] = useState(false);
   const [formData, setFormData] = useState<ScoreFormData>(() => {
     // Initialize scores with default values
     const initialScores: Record<string, number | string> = {};
@@ -65,7 +67,9 @@ export function ProjectScoringForm({
     setFormData({
       scores: initialScores,
       comments: "",
+      finalist_recommendation: false,
     });
+    setHasExistingScore(false);
 
     // Only fetch existing score if trackId is provided
     if (!trackId) {
@@ -106,6 +110,7 @@ export function ProjectScoringForm({
         }
 
         if (scoreData) {
+          setHasExistingScore(true);
           setFormData({
             scores: scoreData.scores,
             comments: scoreData.comments || "",
@@ -195,6 +200,7 @@ export function ProjectScoringForm({
       );
 
       if (error) throw error;
+      setHasExistingScore(true);
 
       toast({
         title: "Success",
@@ -211,6 +217,67 @@ export function ProjectScoringForm({
       });
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteScore = async () => {
+    const shouldDelete = window.confirm(
+      "Delete your score for this track? This cannot be undone."
+    );
+    if (!shouldDelete) return;
+
+    setIsDeleting(true);
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session) {
+        toast({
+          title: "Error",
+          description: "You must be logged in to delete scores",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const { error } = await supabase
+        .from("project_scores")
+        .delete()
+        .eq("project_id", projectId)
+        .eq("track_id", trackId)
+        .eq("judge_id", session.user.id);
+
+      if (error) throw error;
+
+      const resetScores: Record<string, number | string> = {};
+      criteria.forEach((criterion) => {
+        resetScores[criterion.id] = Math.floor(
+          ((criterion.max ?? defaultMax) + (criterion.min ?? defaultMin)) / 2
+        );
+      });
+
+      setFormData({
+        scores: resetScores,
+        comments: "",
+        finalist_recommendation: false,
+      });
+      setHasExistingScore(false);
+
+      toast({
+        title: "Score deleted",
+        description: "Your score for this project track has been removed.",
+      });
+      onScoreSubmitted();
+    } catch (error) {
+      console.error("Error deleting score:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete score. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -288,9 +355,21 @@ export function ProjectScoringForm({
         </div>
       )}
 
-      <Button type="submit" disabled={isSubmitting || !trackId}>
-        {isSubmitting ? "Submitting..." : "Submit Score"}
-      </Button>
+      <div className="flex flex-wrap gap-2">
+        <Button type="submit" disabled={isSubmitting || isDeleting || !trackId}>
+          {isSubmitting ? "Submitting..." : "Submit Score"}
+        </Button>
+        {hasExistingScore && (
+          <Button
+            type="button"
+            variant="destructive"
+            disabled={isSubmitting || isDeleting || !trackId}
+            onClick={handleDeleteScore}
+          >
+            {isDeleting ? "Deleting..." : "Delete Score"}
+          </Button>
+        )}
+      </div>
     </form>
   );
 }
