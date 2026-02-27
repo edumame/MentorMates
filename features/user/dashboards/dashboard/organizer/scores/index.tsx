@@ -1158,7 +1158,12 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
                                           </TableCell>
                                           <TableCell className="min-w-[150px] max-w-[200px]">
                                             <div className="break-words">
-                                              {score.projectName}
+                                              <Link
+                                                href={`/projects/public/${score.projectId}`}
+                                                className="text-blue-600 hover:text-blue-700 hover:underline"
+                                              >
+                                                {score.projectName}
+                                              </Link>
                                             </div>
                                           </TableCell>
                                           <TableCell className="min-w-[120px] max-w-[150px]">
@@ -1521,7 +1526,16 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
                                 </TableCell>
                                 <TableCell className="min-w-[220px]">
                                   <div className="break-words">
-                                    {row.projectName || "—"}
+                                    {row.projectId ? (
+                                      <Link
+                                        href={`/projects/public/${row.projectId}`}
+                                        className="text-blue-600 hover:text-blue-700 hover:underline"
+                                      >
+                                        {row.projectName || row.projectId}
+                                      </Link>
+                                    ) : (
+                                      row.projectName || "—"
+                                    )}
                                   </div>
                                 </TableCell>
                                 <TableCell className="min-w-[200px]">
