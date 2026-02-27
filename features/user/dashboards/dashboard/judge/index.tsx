@@ -7,6 +7,12 @@ import { Project, EventTrack } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { EventSearchInput } from "@/components/ui/event-search-input";
 import { DefaultScoring } from "@/components/project-scoring/default-scoring";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { ArrowLeft, ArrowRight, Target, Trophy } from "lucide-react";
 import Link from "next/link";
 import { LoadingScreen } from "@/components/ui/loading-screen";
@@ -110,6 +116,7 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
     () => (deckFilter === "all" ? filteredProjects : remainingProjects),
     [deckFilter, filteredProjects, remainingProjects]
   );
+  const navigatorProjects = visibleProjects;
 
   const completionPercentage = useMemo(() => {
     if (projects.length === 0) {
@@ -444,16 +451,6 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
   }, [filteredProjects]);
 
   useEffect(() => {
-    if (
-      deckFilter === "pending" &&
-      filteredProjects.length > 0 &&
-      remainingProjects.length === 0
-    ) {
-      setDeckFilter("all");
-    }
-  }, [deckFilter, filteredProjects.length, remainingProjects.length]);
-
-  useEffect(() => {
     const visibleIds = visibleProjects.map((project) => project.id);
 
     if (visibleIds.length === 0) {
@@ -530,9 +527,6 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                 <h2 className="mt-1 text-[28px] font-semibold leading-[1.2] tracking-[-0.05em] text-black">
                   {completedProjectCount} of {projects.length} projects judged
                 </h2>
-                <p className="mt-1 text-sm text-[rgba(0,0,0,0.65)]">
-                  Keep going. Every completed card moves you closer to the finish line.
-                </p>
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
@@ -559,25 +553,44 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                 placeholder="Search project cards..."
                 wrapperClassName="flex-1"
                 inputClassName="h-11 text-sm"
+                rightAdornment={
+                  searchQuery ? (
+                    <button
+                      type="button"
+                      className="rounded-md px-2 py-1 text-xs font-medium text-[rgba(0,0,0,0.55)] transition hover:bg-[#EEF3FC] hover:text-[rgba(0,0,0,0.8)]"
+                      onClick={() => setSearchQuery("")}
+                    >
+                      Clear
+                    </button>
+                  ) : undefined
+                }
               />
 
               <div className="flex flex-wrap items-center gap-2" data-no-swipe="true">
-                <Button
-                  type="button"
-                  variant={deckFilter === "pending" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setDeckFilter("pending")}
-                >
-                  Pending ({remainingProjects.length})
-                </Button>
-                <Button
-                  type="button"
-                  variant={deckFilter === "all" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setDeckFilter("all")}
-                >
-                  All ({filteredProjects.length})
-                </Button>
+                <div className="inline-flex items-center rounded-xl border border-[#D6DEEC] bg-[#F5F8FD] p-1">
+                  <button
+                    type="button"
+                    className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+                      deckFilter === "pending"
+                        ? "bg-white text-[#19489A] shadow-sm"
+                        : "text-[rgba(0,0,0,0.62)] hover:text-[rgba(0,0,0,0.82)]"
+                    }`}
+                    onClick={() => setDeckFilter("pending")}
+                  >
+                    Pending ({remainingProjects.length})
+                  </button>
+                  <button
+                    type="button"
+                    className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+                      deckFilter === "all"
+                        ? "bg-white text-[#19489A] shadow-sm"
+                        : "text-[rgba(0,0,0,0.62)] hover:text-[rgba(0,0,0,0.82)]"
+                    }`}
+                    onClick={() => setDeckFilter("all")}
+                  >
+                    All ({filteredProjects.length})
+                  </button>
+                </div>
                 <Button
                   type="button"
                   variant="outline"
@@ -601,6 +614,77 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
               </div>
             </div>
           </section>
+
+          {filteredProjects.length > 0 && (
+            <section className="rounded-2xl border border-[#E5E9F1] bg-white p-4 shadow-sm">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <p className="text-sm font-semibold text-[rgba(0,0,0,0.82)]">
+                  Project Navigator
+                </p>
+                <p className="text-xs text-[rgba(0,0,0,0.58)]">
+                  Showing {navigatorProjects.length} of {projects.length}
+                </p>
+              </div>
+
+              <div className="max-h-56 overflow-auto rounded-xl border border-[#E1E8F4] bg-[#FBFCFE]">
+                {navigatorProjects.length === 0 && (
+                  <div className="px-4 py-6 text-sm text-[rgba(0,0,0,0.6)]">
+                    No projects in this filter.
+                    {deckFilter === "pending" && (
+                      <button
+                        type="button"
+                        className="ml-2 font-semibold text-[#2E68CA] hover:underline"
+                        onClick={() => setDeckFilter("all")}
+                      >
+                        Switch to All
+                      </button>
+                    )}
+                  </div>
+                )}
+                {navigatorProjects.map((project, index) => {
+                  const isJudged = isProjectFullyScored(project, scoredProjects);
+                  const scoredTrackCount = scoredProjects.get(project.id)?.size || 0;
+                  const isActive = currentProject?.id === project.id;
+                  return (
+                    <button
+                      key={project.id}
+                      type="button"
+                      className={`flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left transition ${
+                        index !== navigatorProjects.length - 1
+                          ? "border-b border-[#E7EDF8]"
+                          : ""
+                      } ${
+                        isActive
+                          ? "bg-[#EAF2FF]"
+                          : "bg-transparent hover:bg-[#F2F6FD]"
+                      }`}
+                      onClick={() => {
+                        setActiveProjectId(project.id);
+                      }}
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-[rgba(0,0,0,0.84)]">
+                          {project.project_name}
+                        </p>
+                        <p className="text-xs text-[rgba(0,0,0,0.52)]">
+                          Tracks scored {scoredTrackCount}/{project.track_ids.length}
+                        </p>
+                      </div>
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                          isJudged
+                            ? "bg-[#E8F8EC] text-[#19703A]"
+                            : "bg-[#FFF5E5] text-[#9A5C00]"
+                        }`}
+                      >
+                        {isJudged ? "Judged" : "Pending"}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          )}
 
           {filteredProjects.length === 0 && (
             <div className="rounded-2xl border border-dashed border-[#D7DCE4] bg-[#FAFBFD] px-6 py-10 text-center text-sm text-[rgba(0,0,0,0.65)]">
@@ -627,9 +711,7 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
           )}
 
           {deckFilter === "all" && judgedProjects.length > 0 && (
-            <p className="text-sm text-[rgba(0,0,0,0.62)]">
-              Viewing all projects, including {judgedProjects.length} already judged.
-            </p>
+            <p className="text-sm text-[rgba(0,0,0,0.62)]">Showing all assigned projects.</p>
           )}
 
           {currentProject && (
@@ -659,9 +741,6 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
               >
                 <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#6B7485]">
-                      Swipe Deck
-                    </p>
                     <h3 className="mt-1 text-[30px] font-semibold leading-[1.1] tracking-[-0.06em] text-black">
                       <Link
                         href={`/projects/public/${currentProject.id}`}
@@ -700,69 +779,84 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                       </p>
                     </div>
 
-                    <div className="mb-5 flex flex-wrap gap-2">
-                      {currentProject.track_ids.map((trackId) => {
-                        const trackInfo = eventTracks.find(
-                          (track) => track.track_id === trackId
-                        );
-                        const isScored =
-                          scoredProjects.get(currentProject.id)?.has(trackId) ||
-                          false;
-                        const isSelected = currentTrackId === trackId;
-
-                        return (
-                          <button
-                            key={trackId}
-                            type="button"
-                            data-no-swipe="true"
-                            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
-                              isSelected
-                                ? "border-[#2E68CA] bg-[#EAF2FF] text-[#1E4FA3]"
-                                : "border-[#D7DEEB] bg-white text-[rgba(0,0,0,0.72)] hover:border-[#BFC9DD]"
-                            }`}
-                            onClick={() =>
-                              setActiveTrackByProject((prev) => {
-                                const updated = new Map(prev);
-                                updated.set(currentProject.id, trackId);
-                                return updated;
-                              })
-                            }
-                          >
-                            <span>{trackInfo?.name || "Track"}</span>
-                            <span
-                              className={`rounded-full px-2 py-0.5 text-[11px] ${
-                                isScored
-                                  ? "bg-[#E8F8EC] text-[#19703A]"
-                                  : "bg-[#FFF5E5] text-[#9A5C00]"
-                              }`}
-                            >
-                              {isScored ? "Scored" : "Pending"}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    {currentTrackId ? (
-                      <DefaultScoring
-                        key={`${currentProject.id}-${currentTrackId}`}
-                        projectId={currentProject.id}
-                        eventId={eventId}
-                        judgeId={judgeId}
-                        trackId={currentTrackId}
-                        finalistFeatureEnabled={finalistFeatureEnabled}
-                        hideProjectHeader
-                        onScoreSaved={() =>
-                          markTrackAsScored(currentProject.id, currentTrackId)
-                        }
-                        onScoreDeleted={() =>
-                          markTrackAsUnscored(currentProject.id, currentTrackId)
-                        }
-                      />
-                    ) : (
+                    {currentProject.track_ids.length === 0 ? (
                       <p className="text-sm text-yellow-700">
                         This project has no track assigned yet.
                       </p>
+                    ) : (
+                      <Accordion
+                        type="single"
+                        collapsible
+                        value={currentTrackId || undefined}
+                        onValueChange={(value) => {
+                          if (!value) {
+                            return;
+                          }
+                          setActiveTrackByProject((prev) => {
+                            const updated = new Map(prev);
+                            updated.set(currentProject.id, value);
+                            return updated;
+                          });
+                        }}
+                        className="space-y-3"
+                      >
+                        {currentProject.track_ids.map((trackId) => {
+                          const trackInfo = eventTracks.find(
+                            (track) => track.track_id === trackId
+                          );
+                          const isScored =
+                            scoredProjects.get(currentProject.id)?.has(trackId) ||
+                            false;
+                          const isOpen = currentTrackId === trackId;
+
+                          return (
+                            <AccordionItem
+                              key={trackId}
+                              value={trackId}
+                              className="rounded-xl border border-[#D8E1F0] bg-white px-4 data-[state=open]:border-[#BFD2F4]"
+                            >
+                              <AccordionTrigger
+                                data-no-swipe="true"
+                                className="py-3 hover:no-underline"
+                              >
+                                <div className="flex w-full items-center justify-between gap-2 pr-3 text-left">
+                                  <span className="font-medium text-[rgba(0,0,0,0.8)]">
+                                    {trackInfo?.name || "Track"}
+                                  </span>
+                                  <span
+                                    className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                                      isScored
+                                        ? "bg-[#E8F8EC] text-[#19703A]"
+                                        : "bg-[#FFF5E5] text-[#9A5C00]"
+                                    }`}
+                                  >
+                                    {isScored ? "Scored" : "Pending"}
+                                  </span>
+                                </div>
+                              </AccordionTrigger>
+                              <AccordionContent className="pb-3">
+                                {isOpen && (
+                                  <DefaultScoring
+                                    key={`${currentProject.id}-${trackId}`}
+                                    projectId={currentProject.id}
+                                    eventId={eventId}
+                                    judgeId={judgeId}
+                                    trackId={trackId}
+                                    finalistFeatureEnabled={finalistFeatureEnabled}
+                                    hideProjectHeader
+                                    onScoreSaved={() =>
+                                      markTrackAsScored(currentProject.id, trackId)
+                                    }
+                                    onScoreDeleted={() =>
+                                      markTrackAsUnscored(currentProject.id, trackId)
+                                    }
+                                  />
+                                )}
+                              </AccordionContent>
+                            </AccordionItem>
+                          );
+                        })}
+                      </Accordion>
                     )}
                   </section>
 
@@ -855,7 +949,7 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                           ? "w-8 bg-[#2E68CA]"
                           : "w-2 bg-[#D5DEED]"
                       } ${
-                        index === 9 && remainingProjects.length > 10
+                        index === 9 && visibleProjects.length > 10
                           ? "opacity-60"
                           : ""
                       }`}
