@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Form, FormField, FormItem, FormLabel } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
+import Link from "next/link";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -271,7 +272,14 @@ export function DefaultScoring({
   return (
     <div className="p-4 space-y-6">
       <div>
-        <h2 className="text-xl font-bold">{project.project_name}</h2>
+        <h2 className="text-xl font-bold">
+          <Link
+            href={`/projects/public/${project.id}`}
+            className="text-blue-600 hover:text-blue-700 hover:underline"
+          >
+            {project.project_name}
+          </Link>
+        </h2>
         <p className="text-gray-600">{project.project_description}</p>
       </div>
 
