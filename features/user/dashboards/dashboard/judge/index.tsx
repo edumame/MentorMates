@@ -255,6 +255,15 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
             updated.set(projectId, existingTracks);
             return updated;
           });
+          setShowScoringComponents((prev) => {
+            const updated = new Map(prev);
+            for (const key of updated.keys()) {
+              if (key.startsWith(`${projectId}-`)) {
+                updated.set(key, false);
+              }
+            }
+            return updated;
+          });
         }}
       />
     );
