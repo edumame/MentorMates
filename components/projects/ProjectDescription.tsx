@@ -1,6 +1,6 @@
 "use client";
 
-import { CSSProperties, useEffect, useRef, useState } from "react";
+import { CSSProperties, useCallback, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { customMarkdownComponents } from "@/components/markdown/custom-components";
 import { markdownRehypePlugins } from "@/components/markdown/plugins";
@@ -27,11 +27,7 @@ export function ProjectDescription({
   const [isTruncated, setIsTruncated] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    setIsExpanded(false);
-  }, [truncateLines, value]);
-
-  useEffect(() => {
+  const measureTruncation = useCallback(() => {
     if (!contentRef.current || typeof truncateLines !== "number") {
       setIsTruncated(false);
       return;
@@ -39,23 +35,49 @@ export function ProjectDescription({
 
     const element = contentRef.current;
     const originalStyle = element.style.cssText;
+    const computedStyle = getComputedStyle(element);
+    const parsedLineHeight = Number.parseFloat(computedStyle.lineHeight);
+    const parsedFontSize = Number.parseFloat(computedStyle.fontSize);
+    const lineHeight = Number.isFinite(parsedLineHeight)
+      ? parsedLineHeight
+      : Number.isFinite(parsedFontSize)
+        ? parsedFontSize * 1.4
+        : 20;
 
     element.style.removeProperty("display");
     element.style.removeProperty("-webkit-box-orient");
     element.style.removeProperty("-webkit-line-clamp");
     element.style.removeProperty("overflow");
     const fullHeight = element.scrollHeight;
-
-    element.style.setProperty("display", "-webkit-box");
-    element.style.setProperty("-webkit-box-orient", "vertical");
-    element.style.setProperty("-webkit-line-clamp", String(truncateLines));
-    element.style.setProperty("overflow", "hidden");
-    const clampedHeight = element.clientHeight;
-
     element.style.cssText = originalStyle;
 
-    setIsTruncated(fullHeight > clampedHeight + 1);
+    const maxCollapsedHeight = lineHeight * truncateLines;
+    setIsTruncated(fullHeight > maxCollapsedHeight + 1);
+  }, [truncateLines]);
+
+  useEffect(() => {
+    setIsExpanded(false);
   }, [truncateLines, value]);
+
+  useEffect(() => {
+    measureTruncation();
+  }, [measureTruncation, value]);
+
+  useEffect(() => {
+    if (!contentRef.current || typeof truncateLines !== "number") {
+      return;
+    }
+
+    const element = contentRef.current;
+    const observer = new ResizeObserver(() => {
+      measureTruncation();
+    });
+    observer.observe(element);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [measureTruncation, truncateLines, value]);
 
   if (!value?.trim()) {
     return null;
