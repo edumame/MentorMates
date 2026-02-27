@@ -10,6 +10,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Form, FormField, FormItem, FormLabel } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface DefaultScoringProps {
   projectId: string;
@@ -26,6 +37,18 @@ interface FormValues {
   finalist_recommendation?: boolean;
 }
 
+function getDefaultScores(criteria: ScoringCriterion[]): Record<string, number | string> {
+  const defaultScores: Record<string, number | string> = {};
+  criteria.forEach((criterion) => {
+    if (criterion.type === "multiplechoice") {
+      defaultScores[criterion.id] = "";
+    } else {
+      defaultScores[criterion.id] = criterion.min || 1;
+    }
+  });
+  return defaultScores;
+}
+
 export function DefaultScoring({
   projectId,
   eventId,
@@ -38,6 +61,8 @@ export function DefaultScoring({
   const [project, setProject] = useState<Project | null>(null);
   const [criteria, setCriteria] = useState<ScoringCriterion[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [hasExistingScore, setHasExistingScore] = useState(false);
   const { toast } = useToast();
 
   const form = useForm<FormValues>({
@@ -71,19 +96,15 @@ export function DefaultScoring({
         if (trackError) throw trackError;
 
         if (trackData?.scoring_criteria?.criteria) {
-          setCriteria(trackData.scoring_criteria.criteria);
-          
-          // Initialize form with default values
-          const defaultScores: Record<string, number | string> = {};
-          trackData.scoring_criteria.criteria.forEach((criterion: ScoringCriterion) => {
-            if (criterion.type === "multiplechoice") {
-              defaultScores[criterion.id] = "";
-            } else {
-              defaultScores[criterion.id] = criterion.min || 1;
-            }
+          const trackCriteria = trackData.scoring_criteria
+            .criteria as ScoringCriterion[];
+          setCriteria(trackCriteria);
+
+          form.reset({
+            scores: getDefaultScores(trackCriteria),
+            comments: "",
+            finalist_recommendation: false,
           });
-          
-          form.reset({ scores: defaultScores, comments: "" });
         }
 
         // Check if this project has already been scored by this judge
@@ -97,11 +118,14 @@ export function DefaultScoring({
 
         if (!scoreError && existingScore) {
           // Pre-fill the form with existing scores
+          setHasExistingScore(true);
           form.reset({
             scores: existingScore.scores,
             comments: existingScore.comments || "",
             finalist_recommendation: !!existingScore.finalist_recommendation,
           });
+        } else {
+          setHasExistingScore(false);
         }
       } catch (error) {
         console.error("Error fetching data:", error);
@@ -130,11 +154,9 @@ export function DefaultScoring({
         .eq("project_id", projectId)
         .eq("track_id", trackId)
         .eq("judge_id", judgeId)
-        .single();
+        .maybeSingle();
 
-      if (checkError && checkError.code !== "PGRST116") {
-        throw checkError;
-      }
+      if (checkError) throw checkError;
 
       if (existingScore) {
         // Update existing score
@@ -165,6 +187,7 @@ export function DefaultScoring({
 
         if (insertError) throw insertError;
       }
+      setHasExistingScore(true);
       onScoreSaved?.();
 
       toast({
@@ -180,6 +203,42 @@ export function DefaultScoring({
       });
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const onDeleteScore = async () => {
+    setDeleting(true);
+    try {
+      const { error } = await supabase
+        .from("project_scores")
+        .delete()
+        .eq("project_id", projectId)
+        .eq("track_id", trackId)
+        .eq("judge_id", judgeId);
+
+      if (error) throw error;
+
+      form.reset({
+        scores: getDefaultScores(criteria),
+        comments: "",
+        finalist_recommendation: false,
+      });
+      setHasExistingScore(false);
+      window.location.reload();
+
+      toast({
+        title: "Score deleted",
+        description: "Your evaluation was removed successfully.",
+      });
+    } catch (error) {
+      console.error("Error deleting score:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete your evaluation",
+        variant: "destructive",
+      });
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -259,9 +318,38 @@ export function DefaultScoring({
             </div>
           )}
 
-          <Button type="submit" disabled={submitting}>
-            {submitting ? "Submitting..." : "Submit Evaluation"}
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button type="submit" disabled={submitting || deleting}>
+              {submitting ? "Submitting..." : "Submit Evaluation"}
+            </Button>
+            {hasExistingScore && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    disabled={submitting || deleting}
+                  >
+                    {deleting ? "Deleting..." : "Delete Evaluation"}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Evaluation</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Delete your score for this track? This cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction type="button" onClick={onDeleteScore}>
+                      Delete Evaluation
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+          </div>
         </form>
       </Form>
     </div>
