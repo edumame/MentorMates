@@ -49,6 +49,15 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
   const getTrackKey = (projectId: string, trackId: string) =>
     `${projectId}-${trackId}`;
 
+  const toggleTrackScoring = (projectId: string, trackId: string) => {
+    setShowScoringComponents((prev) => {
+      const newMap = new Map(prev);
+      const key = getTrackKey(projectId, trackId);
+      newMap.set(key, !prev.get(key));
+      return newMap;
+    });
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -308,79 +317,107 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                 <p>No projects match your search.</p>
               ) : (
                 <div className="space-y-4">
-                  {filteredProjects.map((project) => (
-                    <div key={project.id} className="border rounded-lg p-4">
-                      <div className="flex justify-between items-center mb-4">
-                        <h3 className="text-lg font-semibold">
-                          <Link href={`/projects/public/${project.id}`} className="text-blue-500 hover:text-blue-600">
-                            {project.project_name}
-                          </Link>
-                        </h3>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() =>
-                              project.track_ids.forEach((trackId) =>
+                  {filteredProjects.map((project) => {
+                    const hasAnyTrackOpen = project.track_ids.some((trackId) =>
+                      showScoringComponents.get(getTrackKey(project.id, trackId))
+                    );
+
+                    return (
+                      <div key={project.id} className="border rounded-lg p-4">
+                        <div className="flex justify-between items-center mb-4">
+                          <h3 className="text-lg font-semibold">
+                            <Link
+                              href={`/projects/public/${project.id}`}
+                              className="text-blue-500 hover:text-blue-600"
+                            >
+                              {project.project_name}
+                            </Link>
+                          </h3>
+                          <div className="flex gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
                                 setShowScoringComponents((prev) => {
                                   const newMap = new Map(prev);
-                                  newMap.set(
-                                    getTrackKey(project.id, trackId),
-                                    !prev.get(getTrackKey(project.id, trackId))
-                                  );
+                                  const nextVisibility = !hasAnyTrackOpen;
+
+                                  project.track_ids.forEach((trackId) => {
+                                    newMap.set(
+                                      getTrackKey(project.id, trackId),
+                                      nextVisibility
+                                    );
+                                  });
+
                                   return newMap;
                                 })
-                              )
-                            }
-                          >
-                            {showScoringComponents.get(
-                              getTrackKey(project.id, project.track_ids[0])
-                            ) ? (
-                              <>
-                                <ChevronUp className="h-4 w-4 mr-1" />
-                                Hide Scoring
-                              </>
-                            ) : (
-                              <>
-                                <ChevronDown className="h-4 w-4 mr-1" />
-                                Show Scoring
-                              </>
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                      {project.track_ids.map((trackId) => {
-                        const trackInfo = eventTracks.find(
-                          (t) => t.track_id === trackId
-                        );
-                        const isScored = scoredProjects
-                          .get(project.id)
-                          ?.has(trackId);
-
-                        return (
-                          <div key={trackId} className="mb-4">
-                            <div className="flex items-center gap-2 mb-2">
-                              <h4 className="font-medium">
-                                {trackInfo?.name || "Unknown Track"}
-                              </h4>
-                              <span
-                                className={`px-2 py-1 text-xs rounded-full ${
-                                  isScored
-                                    ? "bg-green-100 text-green-800"
-                                    : "bg-yellow-100 text-yellow-800"
-                                }`}
-                              >
-                                {isScored ? "Scored" : "Not Scored"}
-                              </span>
-                            </div>
-                            {showScoringComponents.get(
-                              getTrackKey(project.id, trackId)
-                            ) && getScoringComponent(project.id, trackId)}
+                              }
+                            >
+                              {hasAnyTrackOpen ? (
+                                <>
+                                  <ChevronUp className="h-4 w-4 mr-1" />
+                                  Hide Scoring
+                                </>
+                              ) : (
+                                <>
+                                  <ChevronDown className="h-4 w-4 mr-1" />
+                                  Show Scoring
+                                </>
+                              )}
+                            </Button>
                           </div>
-                        );
-                      })}
-                    </div>
-                  ))}
+                        </div>
+                        {project.track_ids.map((trackId) => {
+                          const trackInfo = eventTracks.find(
+                            (t) => t.track_id === trackId
+                          );
+                          const isScored = scoredProjects
+                            .get(project.id)
+                            ?.has(trackId);
+                          const isTrackOpen = !!showScoringComponents.get(
+                            getTrackKey(project.id, trackId)
+                          );
+
+                          return (
+                            <div key={trackId} className="mb-4">
+                              <button
+                                type="button"
+                                className="w-full flex items-center justify-between gap-2 mb-2 text-left hover:opacity-90"
+                                onClick={() =>
+                                  toggleTrackScoring(project.id, trackId)
+                                }
+                              >
+                                <div className="flex items-center gap-2">
+                                  <h4 className="font-medium">
+                                    {trackInfo?.name || "Unknown Track"}
+                                  </h4>
+                                  <span
+                                    className={`px-2 py-1 text-xs rounded-full ${
+                                      isScored
+                                        ? "bg-green-100 text-green-800"
+                                        : "bg-yellow-100 text-yellow-800"
+                                    }`}
+                                  >
+                                    {isScored ? "Scored" : "Not Scored"}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  {isTrackOpen ? (
+                                    <ChevronUp className="h-4 w-4" />
+                                  ) : (
+                                    <ChevronDown className="h-4 w-4" />
+                                  )}
+                                </div>
+                              </button>
+                              {isTrackOpen &&
+                                getScoringComponent(project.id, trackId)}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
