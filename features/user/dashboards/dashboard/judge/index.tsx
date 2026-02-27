@@ -7,9 +7,8 @@ import { Project, EventTrack } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { EventSearchInput } from "@/components/ui/event-search-input";
 import { DefaultScoring } from "@/components/project-scoring/default-scoring";
-import { ArrowLeft, ArrowRight, Flame, Target, Trophy } from "lucide-react";
+import { ArrowLeft, ArrowRight, Target, Trophy } from "lucide-react";
 import Link from "next/link";
-import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 import { LoadingScreen } from "@/components/ui/loading-screen";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -58,9 +57,10 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
   const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(
     new Set()
   );
+  const [deckFilter, setDeckFilter] = useState<"pending" | "all">("pending");
   const [searchQuery, setSearchQuery] = useState("");
   const [finalistFeatureEnabled, setFinalistFeatureEnabled] = useState(false);
-  const previousRemainingIdsRef = useRef<string[]>([]);
+  const previousVisibleIdsRef = useRef<string[]>([]);
   const swipeStartXRef = useRef<number | null>(null);
   const swipeEnabledRef = useRef(false);
 
@@ -98,6 +98,19 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
     [filteredProjects, scoredProjects]
   );
 
+  const judgedProjects = useMemo(
+    () =>
+      filteredProjects.filter((project) =>
+        isProjectFullyScored(project, scoredProjects)
+      ),
+    [filteredProjects, scoredProjects]
+  );
+
+  const visibleProjects = useMemo(
+    () => (deckFilter === "all" ? filteredProjects : remainingProjects),
+    [deckFilter, filteredProjects, remainingProjects]
+  );
+
   const completionPercentage = useMemo(() => {
     if (projects.length === 0) {
       return 0;
@@ -106,23 +119,23 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
   }, [projects.length, completedProjectCount]);
 
   const currentProject = useMemo(() => {
-    if (remainingProjects.length === 0) {
+    if (visibleProjects.length === 0) {
       return null;
     }
     return (
-      remainingProjects.find((project) => project.id === activeProjectId) ||
-      remainingProjects[0]
+      visibleProjects.find((project) => project.id === activeProjectId) ||
+      visibleProjects[0]
     );
-  }, [remainingProjects, activeProjectId]);
+  }, [visibleProjects, activeProjectId]);
 
   const currentProjectIndex = useMemo(() => {
     if (!currentProject) {
       return -1;
     }
-    return remainingProjects.findIndex(
+    return visibleProjects.findIndex(
       (project) => project.id === currentProject.id
     );
-  }, [remainingProjects, currentProject]);
+  }, [visibleProjects, currentProject]);
 
   const currentTrackId = useMemo(() => {
     if (!currentProject || currentProject.track_ids.length === 0) {
@@ -145,7 +158,7 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
   const navigateCards = useCallback(
     (direction: 1 | -1) => {
       const nextProjectId = getNextProjectId(
-        remainingProjects,
+        visibleProjects,
         activeProjectId,
         direction
       );
@@ -153,7 +166,7 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
         setActiveProjectId(nextProjectId);
       }
     },
-    [remainingProjects, activeProjectId]
+    [visibleProjects, activeProjectId]
   );
 
   const markTrackAsScored = useCallback((projectId: string, trackId: string) => {
@@ -431,30 +444,40 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
   }, [filteredProjects]);
 
   useEffect(() => {
-    const remainingIds = remainingProjects.map((project) => project.id);
+    if (
+      deckFilter === "pending" &&
+      filteredProjects.length > 0 &&
+      remainingProjects.length === 0
+    ) {
+      setDeckFilter("all");
+    }
+  }, [deckFilter, filteredProjects.length, remainingProjects.length]);
 
-    if (remainingIds.length === 0) {
+  useEffect(() => {
+    const visibleIds = visibleProjects.map((project) => project.id);
+
+    if (visibleIds.length === 0) {
       if (activeProjectId !== null) {
         setActiveProjectId(null);
       }
-      previousRemainingIdsRef.current = remainingIds;
+      previousVisibleIdsRef.current = visibleIds;
       return;
     }
 
-    if (activeProjectId && remainingIds.includes(activeProjectId)) {
-      previousRemainingIdsRef.current = remainingIds;
+    if (activeProjectId && visibleIds.includes(activeProjectId)) {
+      previousVisibleIdsRef.current = visibleIds;
       return;
     }
 
-    const previousIds = previousRemainingIdsRef.current;
+    const previousIds = previousVisibleIdsRef.current;
     const previousIndex = activeProjectId ? previousIds.indexOf(activeProjectId) : -1;
     const fallbackIndex = previousIndex >= 0
-      ? Math.min(previousIndex, remainingIds.length - 1)
+      ? Math.min(previousIndex, visibleIds.length - 1)
       : 0;
 
-    setActiveProjectId(remainingIds[fallbackIndex]);
-    previousRemainingIdsRef.current = remainingIds;
-  }, [remainingProjects, activeProjectId]);
+    setActiveProjectId(visibleIds[fallbackIndex]);
+    previousVisibleIdsRef.current = visibleIds;
+  }, [visibleProjects, activeProjectId]);
 
   const currentDescription = currentProject?.project_description?.trim() || "";
   const currentDescriptionIsExpanded =
@@ -466,12 +489,14 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
       ? truncateWithEllipsis(currentDescription, 240)
       : currentDescription || "No description provided.";
 
+  const currentProjectIsJudged = currentProject
+    ? isProjectFullyScored(currentProject, scoredProjects)
+    : false;
+
   const upcomingCards =
     currentProjectIndex >= 0
-      ? remainingProjects.slice(currentProjectIndex + 1, currentProjectIndex + 3)
+      ? visibleProjects.slice(currentProjectIndex + 1, currentProjectIndex + 3)
       : [];
-
-  const estimatedXp = completedProjectCount * 25;
 
   if (isLoading) {
     return <LoadingScreen message="Loading projects..." />;
@@ -479,26 +504,23 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
 
   if (projects.length === 0) {
     return (
-      <PageContainer>
-        <PageContent className="px-4 pb-10 pt-8 md:px-8">
-          <div className="mx-auto flex max-w-[900px] flex-col items-center gap-6 rounded-3xl border border-dashed border-[#D7DCE4] bg-[#F8FAFD] px-8 py-16 text-center">
-            <Target className="h-10 w-10 text-[#4B89EF]" />
-            <h2 className="text-[28px] font-semibold leading-[1.3] tracking-[-0.04em] text-black">
-              No projects assigned yet
-            </h2>
-            <p className="max-w-[540px] text-[15px] text-[rgba(0,0,0,0.68)]">
-              Once organizers assign you projects, they will appear here as a swipeable judging deck.
-            </p>
-          </div>
-        </PageContent>
-      </PageContainer>
+      <div className="w-full px-4 pb-10 pt-8 md:px-8">
+        <div className="mx-auto flex max-w-[900px] flex-col items-center gap-6 rounded-3xl border border-dashed border-[#D7DCE4] bg-[#F8FAFD] px-8 py-16 text-center">
+          <Target className="h-10 w-10 text-[#4B89EF]" />
+          <h2 className="text-[28px] font-semibold leading-[1.3] tracking-[-0.04em] text-black">
+            No projects assigned yet
+          </h2>
+          <p className="max-w-[540px] text-[15px] text-[rgba(0,0,0,0.68)]">
+            Once organizers assign you projects, they will appear here as a swipeable judging deck.
+          </p>
+        </div>
+      </div>
     );
   }
 
   return (
-    <PageContainer>
-      <PageContent className="px-4 pb-10 pt-6 md:px-8">
-        <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-6">
+    <div className="w-full px-4 pb-10 pt-6 md:px-8">
+      <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-6">
           <section className="rounded-3xl border border-[#D7E5FF] bg-gradient-to-r from-[#EEF4FF] via-[#F7FAFF] to-[#EEFBF4] p-5 md:p-6">
             <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
               <div>
@@ -514,10 +536,6 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                <div className="inline-flex items-center gap-2 rounded-full border border-[#FFD88A] bg-[#FFF7E3] px-4 py-2 text-sm font-medium text-[#9A5C00]">
-                  <Flame className="h-4 w-4" />
-                  {estimatedXp} XP
-                </div>
                 <div className="inline-flex items-center gap-2 rounded-full border border-[#CCE5D6] bg-[#EDFAF2] px-4 py-2 text-sm font-medium text-[#196A3A]">
                   <Trophy className="h-4 w-4" />
                   {projects.length - completedProjectCount} left
@@ -543,13 +561,29 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                 inputClassName="h-11 text-sm"
               />
 
-              <div className="flex items-center gap-2" data-no-swipe="true">
+              <div className="flex flex-wrap items-center gap-2" data-no-swipe="true">
+                <Button
+                  type="button"
+                  variant={deckFilter === "pending" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setDeckFilter("pending")}
+                >
+                  Pending ({remainingProjects.length})
+                </Button>
+                <Button
+                  type="button"
+                  variant={deckFilter === "all" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setDeckFilter("all")}
+                >
+                  All ({filteredProjects.length})
+                </Button>
                 <Button
                   type="button"
                   variant="outline"
                   size="icon"
                   onClick={() => navigateCards(-1)}
-                  disabled={remainingProjects.length <= 1}
+                  disabled={visibleProjects.length <= 1}
                   aria-label="Previous project"
                 >
                   <ArrowLeft className="h-4 w-4" />
@@ -559,7 +593,7 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                   variant="outline"
                   size="icon"
                   onClick={() => navigateCards(1)}
-                  disabled={remainingProjects.length <= 1}
+                  disabled={visibleProjects.length <= 1}
                   aria-label="Next project"
                 >
                   <ArrowRight className="h-4 w-4" />
@@ -574,7 +608,9 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
             </div>
           )}
 
-          {filteredProjects.length > 0 && remainingProjects.length === 0 && (
+          {filteredProjects.length > 0 &&
+            deckFilter === "pending" &&
+            remainingProjects.length === 0 && (
             <div className="rounded-2xl border border-[#D7E5FF] bg-[#F5F9FF] px-6 py-10 text-center">
               <h3 className="text-2xl font-semibold tracking-[-0.03em] text-black">
                 You&apos;re done judging this set
@@ -582,7 +618,18 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
               <p className="mt-2 text-sm text-[rgba(0,0,0,0.65)]">
                 Every project in this view has already been scored.
               </p>
+              <div className="mt-4">
+                <Button type="button" onClick={() => setDeckFilter("all")}>
+                  View Judged Projects
+                </Button>
+              </div>
             </div>
+          )}
+
+          {deckFilter === "all" && judgedProjects.length > 0 && (
+            <p className="text-sm text-[rgba(0,0,0,0.62)]">
+              Viewing all projects, including {judgedProjects.length} already judged.
+            </p>
           )}
 
           {currentProject && (
@@ -626,8 +673,20 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                     </h3>
                   </div>
                   <div className="rounded-full border border-[#E2E8F3] bg-[#F8FAFD] px-4 py-2 text-sm font-medium text-[rgba(0,0,0,0.72)]">
-                    Card {currentProjectIndex + 1} of {remainingProjects.length}
+                    Card {currentProjectIndex + 1} of {visibleProjects.length}
                   </div>
+                </div>
+
+                <div className="mb-4 flex justify-end">
+                  <span
+                    className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                      currentProjectIsJudged
+                        ? "bg-[#E8F8EC] text-[#19703A]"
+                        : "bg-[#FFF5E5] text-[#9A5C00]"
+                    }`}
+                  >
+                    {currentProjectIsJudged ? "Judged" : "Pending"}
+                  </span>
                 </div>
 
                 <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
@@ -788,7 +847,7 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                 </div>
 
                 <div className="mt-5 flex items-center justify-center gap-2">
-                  {remainingProjects.slice(0, 10).map((project, index) => (
+                  {visibleProjects.slice(0, 10).map((project, index) => (
                     <span
                       key={project.id}
                       className={`h-1.5 rounded-full transition-all ${
@@ -809,8 +868,7 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
               </div>
             </div>
           )}
-        </div>
-      </PageContent>
-    </PageContainer>
+      </div>
+    </div>
   );
 }
