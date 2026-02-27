@@ -47,8 +47,6 @@ interface ScoreRow {
   track_id: string;
 }
 
-const CLOSED_TRACK_KEY = "__closed__";
-
 export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -58,8 +56,8 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
   >(new Map());
   const [judgeId, setJudgeId] = useState<string>("");
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
-  const [activeTrackByProject, setActiveTrackByProject] = useState<
-    Map<string, string>
+  const [openTracksByProject, setOpenTracksByProject] = useState<
+    Map<string, string[]>
   >(new Map());
   const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(
     new Set()
@@ -101,6 +99,12 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
     [deckFilter, filteredProjects, remainingProjects]
   );
   const navigatorProjects = visibleProjects;
+  const judgedProjectsCount = useMemo(
+    () =>
+      projects.filter((project) => isProjectFullyScored(project, scoredProjects))
+        .length,
+    [projects, scoredProjects]
+  );
 
   const currentProject = useMemo(() => {
     if (visibleProjects.length === 0) {
@@ -121,19 +125,20 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
     );
   }, [visibleProjects, currentProject]);
 
-  const currentTrackId = useMemo(() => {
+  const currentOpenTrackIds = useMemo(() => {
     if (!currentProject || currentProject.track_ids.length === 0) {
-      return null;
+      return [];
     }
-    const selectedTrackId = activeTrackByProject.get(currentProject.id);
-    if (selectedTrackId === CLOSED_TRACK_KEY) {
-      return null;
+
+    const selectedTrackIds = openTracksByProject.get(currentProject.id);
+    if (selectedTrackIds) {
+      return selectedTrackIds.filter((trackId) =>
+        currentProject.track_ids.includes(trackId)
+      );
     }
-    if (selectedTrackId && currentProject.track_ids.includes(selectedTrackId)) {
-      return selectedTrackId;
-    }
-    return currentProject.track_ids[0];
-  }, [currentProject, activeTrackByProject]);
+
+    return [currentProject.track_ids[0]];
+  }, [currentProject, openTracksByProject]);
 
   const currentTrackScoredCount = useMemo(() => {
     if (!currentProject) {
@@ -196,9 +201,12 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
         (trackId) => !updatedTrackIds.has(trackId)
       );
       if (nextUnscoredTrackId) {
-        setActiveTrackByProject((prev) => {
+        setOpenTracksByProject((prev) => {
           const updated = new Map(prev);
-          updated.set(project.id, nextUnscoredTrackId);
+          const existingTrackIds = updated.get(project.id) ?? [];
+          if (!existingTrackIds.includes(nextUnscoredTrackId)) {
+            updated.set(project.id, [...existingTrackIds, nextUnscoredTrackId]);
+          }
           return updated;
         });
         return;
@@ -441,21 +449,33 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
   }, [eventId]);
 
   useEffect(() => {
-    setActiveTrackByProject((prev) => {
+    setOpenTracksByProject((prev) => {
       const updated = new Map(prev);
       let hasChanges = false;
 
       filteredProjects.forEach((project) => {
         if (project.track_ids.length === 0) {
+          if (updated.has(project.id)) {
+            updated.delete(project.id);
+            hasChanges = true;
+          }
           return;
         }
 
-        const selectedTrack = updated.get(project.id);
-        if (selectedTrack === CLOSED_TRACK_KEY) {
+        const openTrackIds = updated.get(project.id);
+        if (!openTrackIds) {
           return;
         }
-        if (!selectedTrack || !project.track_ids.includes(selectedTrack)) {
-          updated.set(project.id, project.track_ids[0]);
+
+        const sanitizedTrackIds = openTrackIds.filter((trackId) =>
+          project.track_ids.includes(trackId)
+        );
+        const isUnchanged =
+          sanitizedTrackIds.length === openTrackIds.length &&
+          sanitizedTrackIds.every((trackId, index) => trackId === openTrackIds[index]);
+
+        if (!isUnchanged) {
+          updated.set(project.id, sanitizedTrackIds);
           hasChanges = true;
         }
       });
@@ -607,6 +627,9 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                   Project Navigator
                 </p>
                 <div className="flex items-center gap-2">
+                  <p className="inline-flex h-7 items-center rounded-full bg-[#E8F8EC] px-2.5 text-xs font-semibold text-[#19703A]">
+                    Judged {judgedProjectsCount}/{projects.length}
+                  </p>
                   {isNavigatorOpen && (
                     <p className="text-xs text-[rgba(0,0,0,0.58)]">
                       Showing {navigatorProjects.length} of {projects.length}
@@ -781,16 +804,12 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                       </p>
                     ) : (
                       <Accordion
-                        type="single"
-                        collapsible
-                        value={currentTrackId || ""}
+                        type="multiple"
+                        value={currentOpenTrackIds}
                         onValueChange={(value) => {
-                          setActiveTrackByProject((prev) => {
+                          setOpenTracksByProject((prev) => {
                             const updated = new Map(prev);
-                            updated.set(
-                              currentProject.id,
-                              value || CLOSED_TRACK_KEY
-                            );
+                            updated.set(currentProject.id, value);
                             return updated;
                           });
                         }}
@@ -803,7 +822,7 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                           const isScored =
                             scoredProjects.get(currentProject.id)?.has(trackId) ||
                             false;
-                          const isOpen = currentTrackId === trackId;
+                          const isOpen = currentOpenTrackIds.includes(trackId);
 
                           return (
                             <AccordionItem
