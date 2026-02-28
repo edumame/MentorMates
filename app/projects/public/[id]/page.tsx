@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ import {
   Loader,
   MapPin,
   ArrowUpRight,
+  ArrowLeft,
   Video as VideoIcon,
   Download,
   Copy,
@@ -38,6 +39,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { QRCodeSVG } from "qrcode.react";
 import { Input } from "@/components/ui/input";
 import { buildArtifactsFromLegacy } from "@/features/projects/utils/submission";
+import { ProjectDescription } from "@/components/projects/ProjectDescription";
 
 //REFACTOR this to use the Project type from the lib/types.ts file
 interface Project {
@@ -75,6 +77,7 @@ interface EventDetails {
 
 export default function PublicProjectPage() {
   const params = useParams();
+  const router = useRouter();
   const projectId = params.id as string;
 
   const [project, setProject] = useState<Project | null>(null);
@@ -84,6 +87,7 @@ export default function PublicProjectPage() {
   const [isCheckingJudgeStatus, setIsCheckingJudgeStatus] = useState(false);
   const [projectTracks, setProjectTracks] = useState<EventTrack[]>([]);
   const [selectedTrackId, setSelectedTrackId] = useState<string>("");
+  const [viewAllTracks, setViewAllTracks] = useState<boolean>(false);
   const [eventDetails, setEventDetails] = useState<EventDetails | null>(null);
   const [finalistFeatureEnabled, setFinalistFeatureEnabled] =
     useState<boolean>(false);
@@ -114,10 +118,12 @@ export default function PublicProjectPage() {
         .select("*")
         .eq("id", projectId)
         .eq("submitted", true)
+        .eq("private", false)
         .single();
 
       if (error) {
         // Error handled
+        setProject(null);
       } else {
         // Ensure the project belongs to a public event.
         const { data: eventMeta, error: eventMetaError } = await supabase
@@ -368,6 +374,19 @@ export default function PublicProjectPage() {
       artifact.url !== project?.additional_materials_url
   );
   const extraActionLinks = [...extraProjectLinks, ...extraVideoLinks];
+  const handleBack = () => {
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      router.back();
+      return;
+    }
+
+    if (eventDetails) {
+      router.push(`/events/${eventDetails.event_id}/overview`);
+      return;
+    }
+
+    router.push("/projects");
+  };
 
   return (
     <PageContainer>
@@ -376,6 +395,20 @@ export default function PublicProjectPage() {
         {/* Header Section */}
         <div className="bg-gradient-to-b from-blue-50/45 to-white border-b border-gray-200">
           <div className="container mx-auto px-5 sm:px-8 pt-6 sm:pt-8 pb-0">
+            {/* Back Button */}
+            {eventDetails && (
+              <div className="mb-4">
+                <Button
+                  variant="ghost"
+                  className="text-gray-600 hover:text-gray-900 hover:bg-gray-100 px-3 py-2 -ml-3"
+                  onClick={handleBack}
+                >
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Back to {eventDetails.event_name}
+                </Button>
+              </div>
+            )}
+
             {/* Top Actions Bar */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 sm:mb-6 gap-3 sm:gap-0">
               {/* Metadata Badges */}
@@ -451,9 +484,12 @@ export default function PublicProjectPage() {
                     {project.project_name}
                   </h1>
 
-                  <p className="text-base sm:text-lg text-gray-700 leading-relaxed">
-                    {project.project_description}
-                  </p>
+                  <ProjectDescription
+                    value={project.project_description}
+                    variant="header"
+                    truncateLines={4}
+                    className="text-base sm:text-lg"
+                  />
                 </div>
 
                 {/* Action Buttons for Project */}
@@ -623,9 +659,10 @@ export default function PublicProjectPage() {
                         <h2 className="text-3xl font-semibold text-black mb-6 tracking-tight">
                           About this project
                         </h2>
-                        <p className="text-base text-black leading-relaxed">
-                          {project.project_description}
-                        </p>
+                        <ProjectDescription
+                          value={project.project_description}
+                          className="text-base"
+                        />
                       </div>
 
                       {/* Cover Image Display */}
@@ -1052,68 +1089,138 @@ export default function PublicProjectPage() {
                           </div>
                         ) : (
                           <div className="space-y-6">
-                            {/* Track Selection */}
+                            {/* Track Selection and View All Toggle */}
                             {projectTracks.length > 1 && (
-                              <div className="space-y-2 mt-4">
-                                <label className="text-sm font-medium text-gray-700">
-                                  Select Track to Score:
-                                </label>
-                                <select
-                                  value={selectedTrackId}
-                                  onChange={(e) =>
-                                    setSelectedTrackId(e.target.value)
-                                  }
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-sm"
-                                >
-                                  {projectTracks.map((track) => (
-                                    <option
-                                      key={track.track_id}
-                                      value={track.track_id}
-                                    >
-                                      {track.name}
-                                    </option>
-                                  ))}
-                                </select>
-                              </div>
-                            )}
-
-                            {/* Track Info */}
-                            {selectedTrack && (
-                              <div className="p-4 bg-blue-50 rounded-lg mt-4">
-                                <h4 className="font-medium text-gray-900 mb-1">
-                                  {selectedTrack.name}
-                                </h4>
-                                {selectedTrack.description && (
-                                  <p className="text-sm text-gray-600">
-                                    {selectedTrack.description}
-                                  </p>
+                              <div className="space-y-4 mt-4">
+                                <div className="flex items-center justify-between">
+                                  <label className="text-sm font-medium text-gray-700">
+                                    Select Track to Score:
+                                  </label>
+                                  <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                      type="checkbox"
+                                      checked={viewAllTracks}
+                                      onChange={(e) =>
+                                        setViewAllTracks(e.target.checked)
+                                      }
+                                      className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                                    />
+                                    <span className="text-sm font-medium text-gray-700">
+                                      View All Tracks
+                                    </span>
+                                  </label>
+                                </div>
+                                {!viewAllTracks && (
+                                  <select
+                                    value={selectedTrackId}
+                                    onChange={(e) =>
+                                      setSelectedTrackId(e.target.value)
+                                    }
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-sm"
+                                  >
+                                    {projectTracks.map((track) => (
+                                      <option
+                                        key={track.track_id}
+                                        value={track.track_id}
+                                      >
+                                        {track.name}
+                                      </option>
+                                    ))}
+                                  </select>
                                 )}
                               </div>
                             )}
 
-                            {/* Scoring Form */}
-                            {selectedTrack && selectedTrack.scoring_criteria ? (
-                              <ProjectScoringForm
-                                projectId={project.id}
-                                trackId={selectedTrackId}
-                                criteria={
-                                  (
-                                    selectedTrack.scoring_criteria as TrackScoringConfig
-                                  ).criteria
-                                }
-                                onScoreSubmitted={handleScoreSubmitted}
-                                finalistFeatureEnabled={finalistFeatureEnabled}
-                              />
-                            ) : (
-                              <div className="text-center py-8">
-                                <p className="text-yellow-600 mb-2">
-                                  Scoring criteria not configured for this
-                                  track.
-                                </p>
-                                <p className="text-sm text-gray-500">
-                                  Contact the event organizer to set up scoring
-                                  criteria.
-                                </p>
+                            {/* Single Track View */}
+                            {!viewAllTracks && selectedTrack && (
+                              <>
+                                {/* Track Info */}
+                                <div className="p-4 bg-blue-50 rounded-lg mt-4">
+                                  <h4 className="font-medium text-gray-900 mb-1">
+                                    {selectedTrack.name}
+                                  </h4>
+                                  {selectedTrack.description && (
+                                    <p className="text-sm text-gray-600">
+                                      {selectedTrack.description}
+                                    </p>
+                                  )}
+                                </div>
+
+                                {/* Scoring Form */}
+                                {selectedTrack.scoring_criteria ? (
+                                  <ProjectScoringForm
+                                    projectId={project.id}
+                                    trackId={selectedTrackId}
+                                    criteria={
+                                      (
+                                        selectedTrack.scoring_criteria as TrackScoringConfig
+                                      ).criteria
+                                    }
+                                    onScoreSubmitted={handleScoreSubmitted}
+                                    finalistFeatureEnabled={finalistFeatureEnabled}
+                                  />
+                                ) : (
+                                  <div className="text-center py-8">
+                                    <p className="text-yellow-600 mb-2">
+                                      Scoring criteria not configured for this
+                                      track.
+                                    </p>
+                                    <p className="text-sm text-gray-500">
+                                      Contact the event organizer to set up scoring
+                                      criteria.
+                                    </p>
+                                  </div>
+                                )}
+                              </>
+                            )}
+
+                            {/* All Tracks View */}
+                            {viewAllTracks && (
+                              <div className="space-y-6 mt-4">
+                                {projectTracks.map((track) => (
+                                  <div
+                                    key={track.track_id}
+                                    className="border border-purple-200 rounded-lg p-6 bg-white"
+                                  >
+                                    {/* Track Header */}
+                                    <div className="p-4 bg-blue-50 rounded-lg mb-4">
+                                      <h4 className="font-medium text-gray-900 mb-1">
+                                        {track.name}
+                                      </h4>
+                                      {track.description && (
+                                        <p className="text-sm text-gray-600">
+                                          {track.description}
+                                        </p>
+                                      )}
+                                    </div>
+
+                                    {/* Scoring Form */}
+                                    {track.scoring_criteria ? (
+                                      <ProjectScoringForm
+                                        projectId={project.id}
+                                        trackId={track.track_id}
+                                        criteria={
+                                          (
+                                            track.scoring_criteria as TrackScoringConfig
+                                          ).criteria
+                                        }
+                                        onScoreSubmitted={handleScoreSubmitted}
+                                        finalistFeatureEnabled={finalistFeatureEnabled}
+                                      />
+                                    ) : (
+                                      <div className="text-center py-8">
+                                        <p className="text-yellow-600 mb-2">
+                                          Scoring criteria not configured for this
+                                          track.
+                                        </p>
+                                        <p className="text-sm text-gray-500">
+                                          Contact the event organizer to set up
+                                          scoring criteria.
+                                        </p>
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
                               </div>
                             )}
                           </div>

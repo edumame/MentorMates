@@ -126,7 +126,6 @@ export type EventItem = {
   approval_status?: ApprovalStatus; // Approval status: not_submitted, submitted, approved, or rejected. Featured is controlled separately via the featured boolean field.
   created_at?: string; // Timestamp when event was created
   require_participant_approval?: boolean; // Whether participants need approval to join
-  require_registration_questionnaire?: boolean; // Whether participants must complete intake questionnaire before join
 };
 
 export interface EventApprovalLog {

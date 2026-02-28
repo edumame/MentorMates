@@ -215,7 +215,7 @@ export type Database = {
             | Database["public"]["Enums"]["approval_status"]
             | null;
           rejection_reason: string | null;
-          require_registration_questionnaire: boolean | null;
+          require_participant_approval: boolean | null;
         };
         Insert: {
           cover_image_url?: string | null;
