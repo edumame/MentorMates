@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import { Prize, Project } from "@/lib/types";
+import { buildArtifactsFromLegacy } from "@/features/projects/utils/submission";
 
 // TODO: This file is a mess and needs to be refactored to backend api logic.
 /**
@@ -29,6 +30,7 @@ export async function fetchProjectById(
         project_description,
         teammates,
         project_url,
+        video_url,
         additional_materials_url,
         cover_image_url,
         event_id,
@@ -62,6 +64,20 @@ export async function fetchProjectById(
       return null;
     }
 
+    const [{ data: artifactRows }, { data: answerRows }] = await Promise.all([
+      supabase
+        .from("project_artifacts")
+        .select(
+          "id, project_id, kind, label, url, sort_order, is_primary, metadata"
+        )
+        .eq("project_id", projectId)
+        .order("sort_order", { ascending: true }),
+      supabase
+        .from("project_submission_answers")
+        .select("id, project_id, event_submission_field_id, answer")
+        .eq("project_id", projectId),
+    ]);
+
     const project: Project = {
       id: data.id,
       project_name: data.project_name,
@@ -70,8 +86,23 @@ export async function fetchProjectById(
       project_description: data.project_description,
       teammates: data.teammates,
       project_url: data.project_url,
+      video_url: data.video_url,
       additional_materials_url: data.additional_materials_url,
       cover_image_url: data.cover_image_url,
+      artifacts:
+        artifactRows && artifactRows.length > 0
+          ? artifactRows
+          : buildArtifactsFromLegacy({
+              project_url: data.project_url,
+              video_url: data.video_url,
+              additional_materials_url: data.additional_materials_url,
+            }),
+      submission_answers: (answerRows || []).map((answer) => ({
+        id: answer.id,
+        project_id: answer.project_id,
+        event_submission_field_id: answer.event_submission_field_id,
+        answer: answer.answer as string | string[],
+      })),
       event_id: data.event_id,
       contextus_project_id: (data as unknown as { contextus_project_id?: string }).contextus_project_id,
       tracks:

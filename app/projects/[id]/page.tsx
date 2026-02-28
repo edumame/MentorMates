@@ -63,6 +63,7 @@ import { useProjectLike } from "@/features/projects/hooks/use-project-like";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 import UserSearchWithInvite from "@/components/utils/UserSearchWithInvite";
 import { EditNote, Favorite } from "@mui/icons-material";
+import { buildArtifactsFromLegacy } from "@/features/projects/utils/submission";
 import { ProjectDescription } from "@/components/projects/ProjectDescription";
 
 interface EventParticipant {
@@ -125,6 +126,21 @@ export default function ProjectPage() {
   const [showFeedbackDialog, setShowFeedbackDialog] = useState(false);
 
   const [fetchComplete, setFetchComplete] = useState(false);
+
+  const setProjectWithArtifacts = useCallback((nextProject: Project) => {
+    const fallbackArtifacts = buildArtifactsFromLegacy({
+      project_url: nextProject.project_url,
+      video_url: nextProject.video_url,
+      additional_materials_url: nextProject.additional_materials_url,
+    });
+    setProject((prev) => ({
+      ...nextProject,
+      artifacts:
+        nextProject.artifacts ||
+        prev?.artifacts ||
+        fallbackArtifacts,
+    }));
+  }, []);
 
   // QR Code functionality
   const { handleCopyQR, handleDownloadQR } = useQRCodeActions(
@@ -279,7 +295,16 @@ export default function ProjectPage() {
       return;
     }
 
-    setProject(data);
+    const { data: artifactRows } = await supabase
+      .from("project_artifacts")
+      .select("id, project_id, kind, label, url, sort_order, is_primary, metadata")
+      .eq("project_id", projectId)
+      .order("sort_order", { ascending: true });
+
+    setProjectWithArtifacts({
+      ...(data as Project),
+      artifacts: artifactRows && artifactRows.length > 0 ? artifactRows : undefined,
+    });
 
     // Check if user can edit (is lead or teammate)
     if (session?.user?.email) {
@@ -310,7 +335,7 @@ export default function ProjectPage() {
         return false;
       }
 
-      setProject(data);
+      setProjectWithArtifacts(data as Project);
       toast({
         title: "Success",
         description: "Project title updated successfully",
@@ -346,7 +371,7 @@ export default function ProjectPage() {
         return false;
       }
 
-      setProject(data);
+      setProjectWithArtifacts(data as Project);
       toast({
         title: "Success",
         description: "Project description updated successfully",
@@ -402,7 +427,7 @@ export default function ProjectPage() {
         return false;
       }
 
-      setProject(data);
+      setProjectWithArtifacts(data as Project);
       toast({
         title: "Success",
         description: newUrl.trim()
@@ -461,7 +486,7 @@ export default function ProjectPage() {
         return false;
       }
 
-      setProject(data);
+      setProjectWithArtifacts(data as Project);
       toast({
         title: "Success",
         description: newUrl.trim()
@@ -518,7 +543,7 @@ export default function ProjectPage() {
         return false;
       }
 
-      setProject(data);
+      setProjectWithArtifacts(data as Project);
       toast({
         title: "Success",
         description: "Cover image uploaded and updated successfully",
@@ -576,7 +601,7 @@ export default function ProjectPage() {
         return false;
       }
 
-      setProject(data);
+      setProjectWithArtifacts(data as Project);
       toast({
         title: "Success",
         description: newUrl.trim()
@@ -635,7 +660,7 @@ export default function ProjectPage() {
         return false;
       }
 
-      setProject(data);
+      setProjectWithArtifacts(data as Project);
       toast({
         title: "Success",
         description: newUrl.trim()
@@ -694,7 +719,7 @@ export default function ProjectPage() {
         return false;
       }
 
-      setProject(data);
+      setProjectWithArtifacts(data as Project);
       toast({
         title: "Success",
         description: "Additional materials uploaded and updated successfully",
@@ -902,7 +927,7 @@ export default function ProjectPage() {
         return;
       }
 
-      setProject(data);
+      setProjectWithArtifacts(data as Project);
       toast({
         title: "Team member added",
         description: `${normalizedEmail} has been successfully added to the team`,
@@ -937,7 +962,7 @@ export default function ProjectPage() {
         return;
       }
 
-      setProject(data);
+      setProjectWithArtifacts(data as Project);
       toast({
         title: "Team member removed",
         description: `${teammateEmail} has been removed from the team`,
@@ -998,7 +1023,7 @@ export default function ProjectPage() {
         return;
       }
 
-      setProject(data);
+      setProjectWithArtifacts(data as Project);
       toast({
         title: "Success",
         description: "Project linked to Contextus successfully",
@@ -1095,6 +1120,20 @@ export default function ProjectPage() {
         break;
     }
   };
+
+  const projectArtifacts = project.artifacts || [];
+  const extraProjectLinks = projectArtifacts.filter(
+    (artifact) => artifact.kind === "project_link" && artifact.url !== project.project_url
+  );
+  const extraVideoLinks = projectArtifacts.filter(
+    (artifact) => artifact.kind === "video_link" && artifact.url !== project.video_url
+  );
+  const extraMaterialLinks = projectArtifacts.filter(
+    (artifact) =>
+      artifact.kind === "additional_material" &&
+      artifact.url !== project.additional_materials_url
+  );
+  const extraActionLinks = [...extraProjectLinks, ...extraVideoLinks];
 
   return (
     <PageContainer>
@@ -1282,6 +1321,38 @@ export default function ProjectPage() {
                       </Button>
                     </a>
                   )}
+                  {extraProjectLinks.map((artifact, index) => (
+                    <a
+                      key={`${artifact.id || artifact.url}-project-${index}`}
+                      href={artifact.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Button
+                        variant="outline"
+                        className="rounded-xl px-4 sm:px-6 py-2.5 shadow-sm text-sm sm:text-base"
+                      >
+                        <LinkIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-1.5" />
+                        <span className="whitespace-nowrap">{artifact.label}</span>
+                      </Button>
+                    </a>
+                  ))}
+                  {extraVideoLinks.map((artifact, index) => (
+                    <a
+                      key={`${artifact.id || artifact.url}-video-${index}`}
+                      href={artifact.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Button
+                        variant="outline"
+                        className="rounded-xl px-4 sm:px-6 py-2.5 shadow-sm text-sm sm:text-base"
+                      >
+                        <Video className="h-4 w-4 sm:h-5 sm:w-5 mr-1.5" />
+                        <span className="whitespace-nowrap">{artifact.label}</span>
+                      </Button>
+                    </a>
+                  ))}
                 </div>
               </div>
 
@@ -1457,7 +1528,7 @@ export default function ProjectPage() {
 
                         {/* Cover Image Display */}
                         {project.cover_image_url && (
-                          <div className="space-y-2">
+                          <div className="space-y-2 rounded-xl border border-black/10 p-3">
                             <div className="rounded-xl overflow-hidden">
                               <img
                                 src={project.cover_image_url}
@@ -1649,6 +1720,41 @@ export default function ProjectPage() {
                                         Visit
                                       </Button>
                                     </a>
+                                  )}
+                                </div>
+
+                                <div className="mt-3 space-y-2">
+                                  <label className="text-xs font-medium text-gray-600 block">
+                                    Additional Project Links:
+                                  </label>
+                                  {extraProjectLinks.length > 0 ? (
+                                    extraProjectLinks.map((artifact, index) => (
+                                      <div
+                                        key={`${artifact.id || artifact.url}-settings-project-${index}`}
+                                        className="flex gap-2"
+                                      >
+                                        <Input
+                                          value={artifact.url}
+                                          readOnly
+                                          className="text-sm"
+                                        />
+                                        <a
+                                          href={artifact.url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="flex-shrink-0"
+                                        >
+                                          <Button variant="outline" size="sm">
+                                            <ExternalLink className="h-4 w-4 mr-1" />
+                                            Open
+                                          </Button>
+                                        </a>
+                                      </div>
+                                    ))
+                                  ) : (
+                                    <p className="text-xs text-gray-500 italic">
+                                      No additional project links
+                                    </p>
                                   )}
                                 </div>
                               </div>
@@ -2255,36 +2361,95 @@ export default function ProjectPage() {
                         <div className="border-t border-gray-200"></div>
                       )}
 
+                      {/* Additional links */}
+                      {activeTab === "overview" && (
+                        <div className="space-y-4">
+                          <h3 className="text-lg font-semibold text-black tracking-tight mb-4">
+                            Additional links
+                          </h3>
+                          <div className="space-y-2">
+                            {extraActionLinks.length > 0 ? (
+                              extraActionLinks.map((artifact, index) => (
+                                <a
+                                  key={`${artifact.id || artifact.url}-extra-link-${index}`}
+                                  href={artifact.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="block"
+                                >
+                                  <Button
+                                    variant="secondary"
+                                    className="w-full bg-black/5 hover:bg-black/10 rounded-xl py-2.5 shadow-sm justify-center"
+                                  >
+                                    <ArrowUpRight className="h-5 w-5 mr-1.5" />
+                                    {artifact.label}
+                                  </Button>
+                                </a>
+                              ))
+                            ) : (
+                              <p className="text-sm text-gray-500 italic">
+                                No additional links available
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Divider */}
+                      {activeTab === "overview" && (
+                        <div className="border-t border-gray-200"></div>
+                      )}
+
                       {/* Additional materials */}
                       {activeTab === "overview" && (
                         <div className="space-y-4">
                           <h3 className="text-lg font-semibold text-black tracking-tight mb-4">
                             Additional materials
                           </h3>
-                          {project.additional_materials_url ? (
-                            <a
-                              href={project.additional_materials_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              <Button
-                                variant="secondary"
-                                className="w-full bg-black/5 hover:bg-black/10 rounded-xl py-2.5 shadow-sm justify-center"
+                          <div className="space-y-2">
+                            {project.additional_materials_url ? (
+                              <a
+                                href={project.additional_materials_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block"
                               >
-                                <ArrowUpRight className="h-5 w-5 mr-1.5" />
-                                Pitch deck
-                              </Button>
-                            </a>
-                          ) : canEdit ? (
-                            <p className="text-sm text-gray-500 italic">
-                              No additional materials added yet. Add them in the
-                              settings below.
-                            </p>
-                          ) : (
-                            <p className="text-sm text-gray-500 italic">
-                              No additional materials available
-                            </p>
-                          )}
+                                <Button
+                                  variant="secondary"
+                                  className="w-full bg-black/5 hover:bg-black/10 rounded-xl py-2.5 shadow-sm justify-center"
+                                >
+                                  <ArrowUpRight className="h-5 w-5 mr-1.5" />
+                                  Pitch deck
+                                </Button>
+                              </a>
+                            ) : canEdit ? (
+                              <p className="text-sm text-gray-500 italic">
+                                No additional materials added yet. Add them in the
+                                settings below.
+                              </p>
+                            ) : (
+                              <p className="text-sm text-gray-500 italic">
+                                No additional materials available
+                              </p>
+                            )}
+                            {extraMaterialLinks.map((artifact, index) => (
+                              <a
+                                key={`${artifact.id || artifact.url}-material-${index}`}
+                                href={artifact.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block"
+                              >
+                                <Button
+                                  variant="secondary"
+                                  className="w-full bg-black/5 hover:bg-black/10 rounded-xl py-2.5 shadow-sm justify-center"
+                                >
+                                  <ArrowUpRight className="h-5 w-5 mr-1.5" />
+                                  {artifact.label}
+                                </Button>
+                              </a>
+                            ))}
+                          </div>
                         </div>
                       )}
 

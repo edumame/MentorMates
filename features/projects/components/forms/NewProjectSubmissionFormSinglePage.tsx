@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
@@ -24,11 +24,16 @@ import { toast } from "@/lib/hooks/use-toast";
 import { Toaster } from "@/components/ui/toaster";
 import UserSearchWithInvite from "@/components/utils/UserSearchWithInvite";
 import { useAdmin } from "@/lib/hooks/use-admin";
-import { EventDetails, EventVisibility } from "@/lib/types";
+import {
+  EventDetails,
+  EventSubmissionField,
+  EventVisibility,
+} from "@/lib/types";
 import { useProjectSubmissionData } from "@/features/projects/components/forms/hooks/useProjectSubmissionData";
 import { EventCard } from "@/components/events/event-card";
 import { Public, TextFields } from "@mui/icons-material";
 import Link from "next/link";
+import { submissionFieldTypeSchema } from "@/features/projects/utils/submission";
 import { ParticipantIntakeDialog } from "@/features/intake-forms/components/ParticipantIntakeDialog";
 import type {
   IntakeFormAnswers,
@@ -41,10 +46,39 @@ interface EventParticipant {
   email: string;
 }
 
+type SubmissionAnswerValue = string | string[];
 interface ActiveIntakeForm {
   formVersionId: string;
   schema: IntakeFormSchema;
 }
+
+type PublishPayload = {
+  projectId: string | null;
+  projectName: string;
+  leadName: string;
+  leadEmail: string;
+  projectDescription: string;
+  teammates: string[];
+  projectUrl: string;
+  coverImageUrl: string;
+  additionalMaterialsUrl: string;
+  eventId?: string;
+  trackIds: string[];
+  videoUrl: string;
+  artifacts: Array<{
+    kind: "project_link" | "video_link" | "additional_material";
+    label: string;
+    url: string;
+    sort_order: number;
+    is_primary: boolean;
+  }>;
+  submissionAnswers: Array<{
+    eventSubmissionFieldId: string;
+    answer: string | string[];
+  }>;
+};
+
+type SubmissionAnswerPayloadItem = PublishPayload["submissionAnswers"][number];
 
 export function NewProjectSubmissionFormSinglePage({
   userEmail,
@@ -75,7 +109,6 @@ export function NewProjectSubmissionFormSinglePage({
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isPrefilling, setIsPrefilling] = useState(false);
   const [eventDetails, setEventDetails] = useState<EventDetails | null>(null);
   const [participants, setParticipants] = useState<EventParticipant[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -85,24 +118,21 @@ export function NewProjectSubmissionFormSinglePage({
   );
   const [showVisibilityDropdown, setShowVisibilityDropdown] = useState(false);
   const [isDeletingDraft, setIsDeletingDraft] = useState(false);
+  const [extraProjectUrls, setExtraProjectUrls] = useState<string[]>([]);
+  const [extraVideoUrls, setExtraVideoUrls] = useState<string[]>([]);
+  const [extraMaterialsUrls, setExtraMaterialsUrls] = useState<string[]>([]);
+  const [submissionFields, setSubmissionFields] = useState<EventSubmissionField[]>(
+    []
+  );
+  const [showDescriptionPreview, setShowDescriptionPreview] = useState(false);
+  const [submissionAnswers, setSubmissionAnswers] = useState<
+    Record<string, SubmissionAnswerValue>
+  >({});
   const [activeIntakeForm, setActiveIntakeForm] =
     useState<ActiveIntakeForm | null>(null);
   const [showIntakeDialog, setShowIntakeDialog] = useState(false);
-  const [showDescriptionPreview, setShowDescriptionPreview] = useState(false);
-  const [pendingPublishPayload, setPendingPublishPayload] = useState<{
-    projectId: string | null;
-    projectName: string;
-    leadName: string;
-    leadEmail: string;
-    projectDescription: string;
-    teammates: string[];
-    projectUrl: string;
-    coverImageUrl: string;
-    additionalMaterialsUrl: string;
-    eventId?: string;
-    trackIds: string[];
-    videoUrl: string;
-  } | null>(null);
+  const [pendingPublishPayload, setPendingPublishPayload] =
+    useState<PublishPayload | null>(null);
 
   // Load available tracks for the event (if any)
   const { availableTracks } = useProjectSubmissionData(eventId);
@@ -214,6 +244,111 @@ export function NewProjectSubmissionFormSinglePage({
     }
   }, [eventId, fetchEventParticipants]);
 
+  useEffect(() => {
+    const fetchSubmissionFields = async () => {
+      if (!eventId) return;
+      try {
+        const response = await fetch(`/api/events/${eventId}/submission-fields`);
+        if (!response.ok) return;
+        const json = (await response.json()) as {
+          fields?: EventSubmissionField[];
+        };
+        setSubmissionFields(
+          (json.fields || [])
+            .filter((field) => field.is_active)
+            .sort((a, b) => a.sort_order - b.sort_order)
+        );
+      } catch {
+        // Non-blocking
+      }
+    };
+
+    fetchSubmissionFields();
+  }, [eventId]);
+
+  const buildArtifactsPayload = useCallback(() => {
+    const artifacts: Array<{
+      kind: "project_link" | "video_link" | "additional_material";
+      label: string;
+      url: string;
+      sort_order: number;
+      is_primary: boolean;
+    }> = [];
+
+    const appendArtifacts = (
+      kind: "project_link" | "video_link" | "additional_material",
+      primaryUrl: string,
+      extras: string[],
+      baseLabel: string
+    ) => {
+      const urls = [primaryUrl, ...extras]
+        .map((item) => item.trim())
+        .filter((item) => item.length > 0);
+
+      urls.forEach((url, index) => {
+        artifacts.push({
+          kind,
+          label: index === 0 ? baseLabel : `${baseLabel} ${index + 1}`,
+          url,
+          sort_order: index,
+          is_primary: index === 0,
+        });
+      });
+    };
+
+    appendArtifacts(
+      "project_link",
+      formData.projectUrl,
+      extraProjectUrls,
+      "Project Link"
+    );
+    appendArtifacts("video_link", formData.videoUrl, extraVideoUrls, "Video Link");
+    appendArtifacts(
+      "additional_material",
+      formData.additionalMaterialsUrl,
+      extraMaterialsUrls,
+      "Additional Material"
+    );
+
+    return artifacts;
+  }, [
+    formData.projectUrl,
+    formData.videoUrl,
+    formData.additionalMaterialsUrl,
+    extraProjectUrls,
+    extraVideoUrls,
+    extraMaterialsUrls,
+  ]);
+
+  const buildSubmissionAnswersPayload = useCallback((): SubmissionAnswerPayloadItem[] => {
+    const answers: SubmissionAnswerPayloadItem[] = [];
+
+    for (const field of submissionFields) {
+      const fieldType = submissionFieldTypeSchema.safeParse(field.field_type)
+        .success
+        ? field.field_type
+        : "short_text";
+      const value = submissionAnswers[field.id];
+
+      if (fieldType === "multi_url") {
+        const urls = (Array.isArray(value) ? value : [])
+          .map((url) => (typeof url === "string" ? url.trim() : ""))
+          .filter((url) => url.length > 0);
+        if (urls.length > 0) {
+          answers.push({ eventSubmissionFieldId: field.id, answer: urls });
+        }
+        continue;
+      }
+
+      const textValue = typeof value === "string" ? value.trim() : "";
+      if (textValue.length > 0) {
+        answers.push({ eventSubmissionFieldId: field.id, answer: textValue });
+      }
+    }
+
+    return answers;
+  }, [submissionAnswers, submissionFields]);
+
   // Create a draft as soon as user starts typing (only once)
   useEffect(() => {
     const hasContent =
@@ -278,7 +413,16 @@ export function NewProjectSubmissionFormSinglePage({
     }, 2000);
 
     return () => clearTimeout(timer);
-  }, [formData, projectId, isLoading]);
+  }, [
+    formData,
+    projectId,
+    isLoading,
+    extraProjectUrls,
+    extraVideoUrls,
+    extraMaterialsUrls,
+    submissionAnswers,
+    submissionFields,
+  ]);
 
   const handleAutoSave = async () => {
     if (!projectId || isLoading || isSaving) return;
@@ -303,6 +447,8 @@ export function NewProjectSubmissionFormSinglePage({
         lead_name: formData.leadName,
         lead_email: formData.leadEmail,
         teammates: validTeammates,
+        artifacts: buildArtifactsPayload(),
+        submission_answers: buildSubmissionAnswersPayload(),
       };
 
       const resp = await fetch(`/api/projects/${projectId}`, {
@@ -367,9 +513,23 @@ export function NewProjectSubmissionFormSinglePage({
   const handleAdditionalMaterialsUpload = async (
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
+    const input = e.currentTarget;
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const publicUrl = await uploadAdditionalMaterialFile(file);
+    input.value = "";
+    if (!publicUrl) return;
+
+    setFormData((prev) => ({ ...prev, additionalMaterialsUrl: publicUrl }));
+
+    toast({
+      title: "Success",
+      description: "Additional materials uploaded successfully",
+    });
+  };
+
+  const uploadAdditionalMaterialFile = async (file: File) => {
     try {
       const fileExt = file.name.split(".").pop();
       const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
@@ -385,26 +545,44 @@ export function NewProjectSubmissionFormSinglePage({
           description: "Failed to upload file",
           variant: "destructive",
         });
-        return;
+        return null;
       }
 
       const {
         data: { publicUrl },
       } = supabase.storage.from("project-materials").getPublicUrl(filePath);
 
-      setFormData((prev) => ({ ...prev, additionalMaterialsUrl: publicUrl }));
-
-      toast({
-        title: "Success",
-        description: "Additional materials uploaded successfully",
-      });
+      return publicUrl;
     } catch {
       toast({
         title: "Error",
         description: "Failed to upload additional materials",
         variant: "destructive",
       });
+      return null;
     }
+  };
+
+  const handleAdditionalMaterialsExtraUpload = async (
+    index: number,
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const input = e.currentTarget;
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const publicUrl = await uploadAdditionalMaterialFile(file);
+    input.value = "";
+    if (!publicUrl) return;
+
+    setExtraMaterialsUrls((prev) =>
+      prev.map((item, itemIndex) => (itemIndex === index ? publicUrl : item))
+    );
+
+    toast({
+      title: "Success",
+      description: "Additional material link updated from upload",
+    });
   };
 
   const handleTrackToggle = (trackId: string, checked: boolean) => {
@@ -420,62 +598,6 @@ export function NewProjectSubmissionFormSinglePage({
       return emailMatch ? emailMatch[1] : tag;
     });
     setFormData((prev) => ({ ...prev, teammates: emails }));
-  };
-
-  // Prefill via Contextus
-  const handlePrefill = async () => {
-    if (!isAdmin) {
-      toast({
-        title: "Access Denied",
-        description:
-          "Only administrators can use the Contextus prefill feature.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsPrefilling(true);
-    try {
-      const resp = await fetch("/api/contextus/prefill", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(
-          projectId ? { projectId } : { eventId, leadEmail: formData.leadEmail }
-        ),
-      });
-      if (!resp.ok) {
-        const err = await resp.json().catch(() => ({}));
-        throw new Error(err.error || `Prefill failed: ${resp.status}`);
-      }
-      const json = await resp.json();
-      const data = json?.data || {};
-
-      setFormData((prev) => ({
-        ...prev,
-        projectName: data.projectName || prev.projectName,
-        projectDescription: data.projectDescription || prev.projectDescription,
-        teammates: Array.isArray(data.teammates)
-          ? data.teammates
-          : prev.teammates,
-        projectUrl: data.projectUrl || prev.projectUrl,
-        videoUrl: data.videoUrl || prev.videoUrl,
-      }));
-
-      toast({
-        title: "Form Prefilled",
-        description:
-          "Imported details from Contextus. Review and adjust as needed.",
-      });
-    } catch (error) {
-      toast({
-        title: "Prefill Error",
-        description:
-          error instanceof Error ? error.message : "Unable to prefill.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsPrefilling(false);
-    }
   };
 
   // Submit
@@ -503,6 +625,24 @@ export function NewProjectSubmissionFormSinglePage({
       return;
     }
 
+    const missingRequiredField = submissionFields.find((field) => {
+      if (!field.required) return false;
+      const value = submissionAnswers[field.id];
+      if (field.field_type === "multi_url") {
+        return !Array.isArray(value) || value.every((url) => !url.trim());
+      }
+      return typeof value !== "string" || value.trim().length === 0;
+    });
+    if (missingRequiredField) {
+      toast({
+        title: "Missing required answer",
+        description: `Please answer "${missingRequiredField.label}" before publishing.`,
+        variant: "destructive",
+      });
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
       // Filter out invited users (those not in the participants list)
       // Only submit teammates who are actual event participants
@@ -524,6 +664,8 @@ export function NewProjectSubmissionFormSinglePage({
         eventId,
         trackIds: selectedTrackIds,
         videoUrl: formData.videoUrl,
+        artifacts: buildArtifactsPayload(),
+        submissionAnswers: buildSubmissionAnswersPayload(),
       };
 
       if (eventId) {
@@ -587,6 +729,15 @@ export function NewProjectSubmissionFormSinglePage({
     }
   };
 
+  const getAnswerText = (fieldId: string) =>
+    typeof submissionAnswers[fieldId] === "string"
+      ? (submissionAnswers[fieldId] as string)
+      : "";
+
+  const getAnswerUrls = (fieldId: string) =>
+    Array.isArray(submissionAnswers[fieldId])
+      ? (submissionAnswers[fieldId] as string[])
+      : [""];
   const handleIntakeSubmit = async (answers: IntakeFormAnswers) => {
     if (!pendingPublishPayload) {
       toast({
@@ -898,27 +1049,6 @@ export function NewProjectSubmissionFormSinglePage({
                   </p>
                 </div>
 
-                {/* {isAdmin && (
-                  <Button
-                    variant="secondary"
-                    className="flex items-center gap-2"
-                    onClick={handlePrefill}
-                    disabled={isPrefilling}
-                  >
-                    {isPrefilling ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Prefilling...
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="h-4 w-4" />
-                        Fill out this form for me
-                      </>
-                    )}
-                  </Button>
-                )} */}
-
                 <div className="space-y-4">
                   {/* Project Name */}
                   <div className="space-y-2">
@@ -1086,6 +1216,54 @@ export function NewProjectSubmissionFormSinglePage({
                         </span>
                       </label>
                     </div>
+                    {extraMaterialsUrls.map((url, index) => (
+                      <div key={`materials-extra-${index}`} className="flex gap-2">
+                        <Input
+                          value={url}
+                          onChange={(e) =>
+                            setExtraMaterialsUrls((prev) =>
+                              prev.map((item, itemIndex) =>
+                                itemIndex === index ? e.target.value : item
+                              )
+                            )
+                          }
+                          placeholder="https://..."
+                          className="h-11"
+                        />
+                        <label className="bg-[rgba(0,0,0,0.05)] shadow-sm rounded-xl px-3 py-1 cursor-pointer shrink-0 h-11 inline-flex items-center">
+                          <input
+                            type="file"
+                            onChange={(e) =>
+                              handleAdditionalMaterialsExtraUpload(index, e)
+                            }
+                            className="hidden"
+                          />
+                          <span className="text-xs text-black font-normal">
+                            Upload
+                          </span>
+                        </label>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() =>
+                            setExtraMaterialsUrls((prev) =>
+                              prev.filter((_, itemIndex) => itemIndex !== index)
+                            )
+                          }
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    ))}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() =>
+                        setExtraMaterialsUrls((prev) => [...prev, ""])
+                      }
+                    >
+                      Add another materials link
+                    </Button>
                     <p className="text-base text-[#7f7f7f]">
                       Upload any additional documentation (Max 10MB).
                     </p>
@@ -1110,6 +1288,40 @@ export function NewProjectSubmissionFormSinglePage({
                         className="border-0 p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0 text-base text-[rgba(0,0,0,0.6)]"
                       />
                     </div>
+                    {extraProjectUrls.map((url, index) => (
+                      <div key={`project-link-extra-${index}`} className="flex gap-2">
+                        <Input
+                          value={url}
+                          onChange={(e) =>
+                            setExtraProjectUrls((prev) =>
+                              prev.map((item, itemIndex) =>
+                                itemIndex === index ? e.target.value : item
+                              )
+                            )
+                          }
+                          placeholder="https://..."
+                          className="h-11"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() =>
+                            setExtraProjectUrls((prev) =>
+                              prev.filter((_, itemIndex) => itemIndex !== index)
+                            )
+                          }
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    ))}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setExtraProjectUrls((prev) => [...prev, ""])}
+                    >
+                      Add another project link
+                    </Button>
                   </div>
 
                   {/* Video Link */}
@@ -1131,7 +1343,134 @@ export function NewProjectSubmissionFormSinglePage({
                         className="border-0 p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0 text-base text-[rgba(0,0,0,0.6)]"
                       />
                     </div>
+                    {extraVideoUrls.map((url, index) => (
+                      <div key={`video-link-extra-${index}`} className="flex gap-2">
+                        <Input
+                          value={url}
+                          onChange={(e) =>
+                            setExtraVideoUrls((prev) =>
+                              prev.map((item, itemIndex) =>
+                                itemIndex === index ? e.target.value : item
+                              )
+                            )
+                          }
+                          placeholder="https://..."
+                          className="h-11"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() =>
+                            setExtraVideoUrls((prev) =>
+                              prev.filter((_, itemIndex) => itemIndex !== index)
+                            )
+                          }
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    ))}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setExtraVideoUrls((prev) => [...prev, ""])}
+                    >
+                      Add another video link
+                    </Button>
                   </div>
+
+                  {submissionFields.length > 0 && (
+                    <div className="space-y-4 border border-[rgba(0,0,0,0.1)] rounded-xl p-4">
+                      <p className="text-base font-medium text-black">
+                        Organizer questions
+                      </p>
+                      {submissionFields.map((field) => (
+                        <div key={field.id} className="space-y-2">
+                          <label className="text-sm font-medium text-black">
+                            {field.label}
+                            {field.required ? " *" : ""}
+                          </label>
+                          {field.description && (
+                            <p className="text-xs text-[#7f7f7f]">
+                              {field.description}
+                            </p>
+                          )}
+                          {field.field_type === "long_text" ? (
+                            <Textarea
+                              value={getAnswerText(field.id)}
+                              onChange={(e) =>
+                                setSubmissionAnswers((prev) => ({
+                                  ...prev,
+                                  [field.id]: e.target.value,
+                                }))
+                              }
+                              placeholder={field.placeholder || ""}
+                              rows={4}
+                            />
+                          ) : field.field_type === "multi_url" ? (
+                            <div className="space-y-2">
+                              {getAnswerUrls(field.id).map((url, index) => (
+                                <div key={`${field.id}-${index}`} className="flex gap-2">
+                                  <Input
+                                    value={url}
+                                    onChange={(e) =>
+                                      setSubmissionAnswers((prev) => {
+                                        const urls = getAnswerUrls(field.id);
+                                        urls[index] = e.target.value;
+                                        return { ...prev, [field.id]: [...urls] };
+                                      })
+                                    }
+                                    placeholder={field.placeholder || "https://..."}
+                                  />
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() =>
+                                      setSubmissionAnswers((prev) => {
+                                        const urls = getAnswerUrls(field.id).filter(
+                                          (_, urlIndex) => urlIndex !== index
+                                        );
+                                        return {
+                                          ...prev,
+                                          [field.id]: urls.length > 0 ? urls : [""],
+                                        };
+                                      })
+                                    }
+                                  >
+                                    Remove
+                                  </Button>
+                                </div>
+                              ))}
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() =>
+                                  setSubmissionAnswers((prev) => ({
+                                    ...prev,
+                                    [field.id]: [...getAnswerUrls(field.id), ""],
+                                  }))
+                                }
+                              >
+                                Add another link
+                              </Button>
+                            </div>
+                          ) : (
+                            <Input
+                              type={field.field_type === "url" ? "url" : "text"}
+                              value={getAnswerText(field.id)}
+                              onChange={(e) =>
+                                setSubmissionAnswers((prev) => ({
+                                  ...prev,
+                                  [field.id]: e.target.value,
+                                }))
+                              }
+                              placeholder={field.placeholder || ""}
+                            />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
                   {/* Divider */}
                   <div className="border-t border-dashed border-gray-200" />

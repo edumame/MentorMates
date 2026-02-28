@@ -38,6 +38,7 @@ import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { QRCodeSVG } from "qrcode.react";
 import { Input } from "@/components/ui/input";
+import { buildArtifactsFromLegacy } from "@/features/projects/utils/submission";
 import { ProjectDescription } from "@/components/projects/ProjectDescription";
 
 //REFACTOR this to use the Project type from the lib/types.ts file
@@ -54,6 +55,14 @@ interface Project {
   cover_image_url: string | null;
   created_at: string;
   event_id: string;
+  artifacts?: Array<{
+    id?: string;
+    kind: "project_link" | "video_link" | "additional_material";
+    label: string;
+    url: string;
+    sort_order: number;
+    is_primary: boolean;
+  }>;
 }
 
 interface EventDetails {
@@ -116,7 +125,37 @@ export default function PublicProjectPage() {
         // Error handled
         setProject(null);
       } else {
-        setProject(data);
+        // Ensure the project belongs to a public event.
+        const { data: eventMeta, error: eventMetaError } = await supabase
+          .from("events")
+          .select("visibility")
+          .eq("event_id", data.event_id)
+          .maybeSingle();
+
+        const isEventPublic =
+          !eventMetaError && eventMeta?.visibility === EventVisibility.Public;
+
+        if (!isEventPublic) {
+          setProject(null);
+        } else {
+          const { data: artifactRows } = await supabase
+            .from("project_artifacts")
+            .select("id, kind, label, url, sort_order, is_primary")
+            .eq("project_id", data.id)
+            .order("sort_order", { ascending: true });
+
+          setProject({
+            ...(data as Project),
+            artifacts:
+              artifactRows && artifactRows.length > 0
+                ? (artifactRows as Project["artifacts"])
+                : (buildArtifactsFromLegacy({
+                    project_url: data.project_url,
+                    video_url: data.video_url,
+                    additional_materials_url: data.additional_materials_url,
+                  }) as Project["artifacts"]),
+          });
+        }
       }
       
       setIsLoading(false);
@@ -320,6 +359,21 @@ export default function PublicProjectPage() {
     }
   };
 
+  const projectArtifacts = project?.artifacts || [];
+  const extraProjectLinks = projectArtifacts.filter(
+    (artifact) =>
+      artifact.kind === "project_link" && artifact.url !== project?.project_url
+  );
+  const extraVideoLinks = projectArtifacts.filter(
+    (artifact) =>
+      artifact.kind === "video_link" && artifact.url !== project?.video_url
+  );
+  const extraMaterialLinks = projectArtifacts.filter(
+    (artifact) =>
+      artifact.kind === "additional_material" &&
+      artifact.url !== project?.additional_materials_url
+  );
+  const extraActionLinks = [...extraProjectLinks, ...extraVideoLinks];
   const handleBack = () => {
     if (typeof window !== "undefined" && window.history.length > 1) {
       router.back();
@@ -467,6 +521,38 @@ export default function PublicProjectPage() {
                       </Button>
                     </a>
                   )}
+                  {extraProjectLinks.map((artifact, index) => (
+                    <a
+                      key={`${artifact.id || artifact.url}-project-${index}`}
+                      href={artifact.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Button
+                        variant="outline"
+                        className="rounded-xl px-6 py-2.5 shadow-sm"
+                      >
+                        <LinkIcon className="h-5 w-5 mr-1.5" />
+                        {artifact.label}
+                      </Button>
+                    </a>
+                  ))}
+                  {extraVideoLinks.map((artifact, index) => (
+                    <a
+                      key={`${artifact.id || artifact.url}-video-${index}`}
+                      href={artifact.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Button
+                        variant="outline"
+                        className="rounded-xl px-6 py-2.5 shadow-sm"
+                      >
+                        <VideoIcon className="h-5 w-5 mr-1.5" />
+                        {artifact.label}
+                      </Button>
+                    </a>
+                  ))}
                 </div>
               </div>
 
@@ -581,7 +667,7 @@ export default function PublicProjectPage() {
 
                       {/* Cover Image Display */}
                       {project.cover_image_url && (
-                        <div className="space-y-2">
+                        <div className="space-y-2 rounded-xl border border-black/10 p-3">
                           <div className="rounded-xl overflow-hidden">
                             <img
                               src={project.cover_image_url}
@@ -720,30 +806,85 @@ export default function PublicProjectPage() {
                       {/* Divider */}
                       <div className="border-t border-gray-200"></div>
 
+                      {/* Additional links */}
+                      <div className="space-y-4">
+                        <h3 className="text-lg font-semibold text-black tracking-tight">
+                          Additional links
+                        </h3>
+                        <div className="space-y-2">
+                          {extraActionLinks.length > 0 ? (
+                            extraActionLinks.map((artifact, index) => (
+                              <a
+                                key={`${artifact.id || artifact.url}-extra-link-${index}`}
+                                href={artifact.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block"
+                              >
+                                <Button
+                                  variant="secondary"
+                                  className="w-full bg-black/5 hover:bg-black/10 rounded-xl py-2.5 shadow-sm justify-center"
+                                >
+                                  <ArrowUpRight className="h-5 w-5 mr-1.5" />
+                                  {artifact.label}
+                                </Button>
+                              </a>
+                            ))
+                          ) : (
+                            <p className="text-sm text-gray-500 italic">
+                              No additional links available
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Divider */}
+                      <div className="border-t border-gray-200"></div>
+
                       {/* Additional materials */}
                       <div className="space-y-4">
                         <h3 className="text-lg font-semibold text-black tracking-tight">
                           Additional materials
                         </h3>
-                        {project.additional_materials_url ? (
-                          <a
-                            href={project.additional_materials_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            <Button
-                              variant="secondary"
-                              className="w-full bg-black/5 hover:bg-black/10 rounded-xl py-2.5 shadow-sm justify-center"
+                        <div className="space-y-2">
+                          {project.additional_materials_url ? (
+                            <a
+                              href={project.additional_materials_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="block"
                             >
-                              <ArrowUpRight className="h-5 w-5 mr-1.5" />
-                              View Materials
-                            </Button>
-                          </a>
-                        ) : (
-                          <p className="text-sm text-gray-500 italic">
-                            No additional materials available
-                          </p>
-                        )}
+                              <Button
+                                variant="secondary"
+                                className="w-full bg-black/5 hover:bg-black/10 rounded-xl py-2.5 shadow-sm justify-center"
+                              >
+                                <ArrowUpRight className="h-5 w-5 mr-1.5" />
+                                View Materials
+                              </Button>
+                            </a>
+                          ) : (
+                            <p className="text-sm text-gray-500 italic">
+                              No additional materials available
+                            </p>
+                          )}
+                          {extraMaterialLinks.map((artifact, index) => (
+                            <a
+                              key={`${artifact.id || artifact.url}-material-${index}`}
+                              href={artifact.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="block"
+                            >
+                              <Button
+                                variant="secondary"
+                                className="w-full bg-black/5 hover:bg-black/10 rounded-xl py-2.5 shadow-sm justify-center"
+                              >
+                                <ArrowUpRight className="h-5 w-5 mr-1.5" />
+                                {artifact.label}
+                              </Button>
+                            </a>
+                          ))}
+                        </div>
                       </div>
 
                       {/* Divider */}
