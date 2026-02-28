@@ -298,14 +298,6 @@ export default function DraftProjectSubmissionFormSinglePage({
 
   const buildArtifactsPayload = useCallback(() => {
 
-    console.log("buildArtifactsPayload", {
-      projectUrl: formData.project_url,
-      videoUrl: formData.video_url,
-      additionalMaterialsUrl: formData.additional_materials_url,
-      extraProjectUrls,
-      extraVideoUrls,
-      extraMaterialsUrls,
-    });
     return buildDraftArtifactsPayload({
       projectUrl: formData.project_url,
       videoUrl: formData.video_url,

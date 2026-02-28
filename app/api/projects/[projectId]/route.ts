@@ -120,13 +120,9 @@ export async function PATCH(
       ? body.artifacts
       : fallbackArtifactsFromLinks();
 
-    console.log("artifactsInput", artifactsInput);
-
     const normalizedArtifacts = hasArtifactsPayload
       ? normalizeProjectArtifacts(artifactsInput)
       : null;
-
-    console.log("normalizedArtifacts", normalizedArtifacts);
 
     // Validate event_id change if provided
     if (body.event_id !== undefined) {
@@ -244,7 +240,6 @@ export async function PATCH(
       }
 
       if (normalizedArtifacts.length > 0) {
-        console.log("inserting artifacts", normalizedArtifacts);
         const { error: insertArtifactsError } = await supabase
           .from("project_artifacts")
           .insert(
