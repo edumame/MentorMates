@@ -124,6 +124,7 @@ export function NewProjectSubmissionFormSinglePage({
   const [submissionFields, setSubmissionFields] = useState<EventSubmissionField[]>(
     []
   );
+  const [showDescriptionPreview, setShowDescriptionPreview] = useState(false);
   const [submissionAnswers, setSubmissionAnswers] = useState<
     Record<string, SubmissionAnswerValue>
   >({});
