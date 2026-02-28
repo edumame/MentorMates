@@ -1132,6 +1132,7 @@ export default function ProjectPage() {
       artifact.kind === "additional_material" &&
       artifact.url !== project.additional_materials_url
   );
+  const extraActionLinks = [...extraProjectLinks, ...extraVideoLinks];
 
   return (
     <PageContainer>
@@ -1711,6 +1712,41 @@ export default function ProjectPage() {
                                         Visit
                                       </Button>
                                     </a>
+                                  )}
+                                </div>
+
+                                <div className="mt-3 space-y-2">
+                                  <label className="text-xs font-medium text-gray-600 block">
+                                    Additional Project Links:
+                                  </label>
+                                  {extraProjectLinks.length > 0 ? (
+                                    extraProjectLinks.map((artifact, index) => (
+                                      <div
+                                        key={`${artifact.id || artifact.url}-settings-project-${index}`}
+                                        className="flex gap-2"
+                                      >
+                                        <Input
+                                          value={artifact.url}
+                                          readOnly
+                                          className="text-sm"
+                                        />
+                                        <a
+                                          href={artifact.url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="flex-shrink-0"
+                                        >
+                                          <Button variant="outline" size="sm">
+                                            <ExternalLink className="h-4 w-4 mr-1" />
+                                            Open
+                                          </Button>
+                                        </a>
+                                      </div>
+                                    ))
+                                  ) : (
+                                    <p className="text-xs text-gray-500 italic">
+                                      No additional project links
+                                    </p>
                                   )}
                                 </div>
                               </div>
@@ -2309,6 +2345,45 @@ export default function ProjectPage() {
                               </CardContent>
                             </Card>
                           </Link>
+                        </div>
+                      )}
+
+                      {/* Divider */}
+                      {activeTab === "overview" && (
+                        <div className="border-t border-gray-200"></div>
+                      )}
+
+                      {/* Additional links */}
+                      {activeTab === "overview" && (
+                        <div className="space-y-4">
+                          <h3 className="text-lg font-semibold text-black tracking-tight mb-4">
+                            Additional links
+                          </h3>
+                          <div className="space-y-2">
+                            {extraActionLinks.length > 0 ? (
+                              extraActionLinks.map((artifact, index) => (
+                                <a
+                                  key={`${artifact.id || artifact.url}-extra-link-${index}`}
+                                  href={artifact.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="block"
+                                >
+                                  <Button
+                                    variant="secondary"
+                                    className="w-full bg-black/5 hover:bg-black/10 rounded-xl py-2.5 shadow-sm justify-center"
+                                  >
+                                    <ArrowUpRight className="h-5 w-5 mr-1.5" />
+                                    {artifact.label}
+                                  </Button>
+                                </a>
+                              ))
+                            ) : (
+                              <p className="text-sm text-gray-500 italic">
+                                No additional links available
+                              </p>
+                            )}
+                          </div>
                         </div>
                       )}
 

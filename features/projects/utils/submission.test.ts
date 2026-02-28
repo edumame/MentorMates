@@ -37,6 +37,33 @@ describe("submission adapters", () => {
     expect(artifacts.map((item) => item.sort_order)).toEqual([0, 1, 2]);
   });
 
+  it("keeps multiple artifacts of the same kind even if urls are non-http", () => {
+    const artifacts = normalizeProjectArtifacts([
+      {
+        kind: "project_link",
+        label: "Repo",
+        url: "github.com/org/repo",
+      },
+      {
+        kind: "project_link",
+        label: "Live",
+        url: "demo.local/path",
+      },
+      {
+        kind: "project_link",
+        label: "Docs",
+        url: "docs.local",
+      },
+    ]);
+
+    expect(artifacts).toHaveLength(3);
+    expect(artifacts.filter((item) => item.kind === "project_link")).toHaveLength(
+      3
+    );
+    expect(artifacts.map((item) => item.sort_order)).toEqual([0, 1, 2]);
+    expect(artifacts.filter((item) => item.is_primary)).toHaveLength(1);
+  });
+
   it("derives legacy fields from canonical artifacts", () => {
     const artifacts = normalizeProjectArtifacts([
       {

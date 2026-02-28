@@ -45,6 +45,12 @@ import {
 } from "@/components/ui/select";
 import { TextFields } from "@mui/icons-material";
 import { ParticipantIntakeDialog } from "@/features/intake-forms/components/ParticipantIntakeDialog";
+import {
+  buildDraftArtifactsPayload,
+  hasDraftUrlListChanged,
+  normalizeDraftUrls,
+  splitPrimaryAndExtrasFromArtifacts,
+} from "@/features/projects/components/forms/utils/draftProjectArtifacts";
 import type {
   IntakeFormAnswers,
   IntakeFormSchema,
@@ -110,7 +116,13 @@ export default function DraftProjectSubmissionFormSinglePage({
     cover_image_url: initialProject.cover_image_url || "",
     additional_materials_url: initialProject.additional_materials_url || "",
   });
+  const [extraProjectUrls, setExtraProjectUrls] = useState<string[]>([]);
+  const [extraVideoUrls, setExtraVideoUrls] = useState<string[]>([]);
   const [extraMaterialsUrls, setExtraMaterialsUrls] = useState<string[]>([]);
+  const [savedExtraProjectUrls, setSavedExtraProjectUrls] = useState<string[]>(
+    []
+  );
+  const [savedExtraVideoUrls, setSavedExtraVideoUrls] = useState<string[]>([]);
   const [savedExtraMaterialsUrls, setSavedExtraMaterialsUrls] = useState<
     string[]
   >([]);
@@ -284,54 +296,30 @@ export default function DraftProjectSubmissionFormSinglePage({
     }
   }, [projectId]);
 
-  const normalizeExtraMaterialsUrls = useCallback((urls: string[]) => {
-    return urls.map((url) => url.trim()).filter((url) => url.length > 0);
-  }, []);
-
   const buildArtifactsPayload = useCallback(() => {
-    const artifacts: Array<{
-      kind: "project_link" | "video_link" | "additional_material";
-      label: string;
-      url: string;
-      sort_order: number;
-      is_primary: boolean;
-    }> = [];
 
-    const appendArtifacts = (
-      kind: "project_link" | "video_link" | "additional_material",
-      primaryUrl: string,
-      extras: string[],
-      baseLabel: string
-    ) => {
-      const urls = [primaryUrl, ...extras]
-        .map((item) => item.trim())
-        .filter((item) => item.length > 0);
-
-      urls.forEach((url, index) => {
-        artifacts.push({
-          kind,
-          label: index === 0 ? baseLabel : `${baseLabel} ${index + 1}`,
-          url,
-          sort_order: index,
-          is_primary: index === 0,
-        });
-      });
-    };
-
-    appendArtifacts("project_link", formData.project_url, [], "Project Link");
-    appendArtifacts("video_link", formData.video_url, [], "Video Link");
-    appendArtifacts(
-      "additional_material",
-      formData.additional_materials_url,
+    console.log("buildArtifactsPayload", {
+      projectUrl: formData.project_url,
+      videoUrl: formData.video_url,
+      additionalMaterialsUrl: formData.additional_materials_url,
+      extraProjectUrls,
+      extraVideoUrls,
       extraMaterialsUrls,
-      "Additional Material"
-    );
-
-    return artifacts;
+    });
+    return buildDraftArtifactsPayload({
+      projectUrl: formData.project_url,
+      videoUrl: formData.video_url,
+      additionalMaterialsUrl: formData.additional_materials_url,
+      extraProjectUrls,
+      extraVideoUrls,
+      extraMaterialsUrls,
+    });
   }, [
     formData.project_url,
     formData.video_url,
     formData.additional_materials_url,
+    extraProjectUrls,
+    extraVideoUrls,
     extraMaterialsUrls,
   ]);
 
@@ -346,44 +334,50 @@ export default function DraftProjectSubmissionFormSinglePage({
   }, [project?.event_id, fetchEventParticipants, fetchEventTracks, fetchProjectTracks]);
 
   useEffect(() => {
-    const fetchAdditionalMaterialArtifacts = async () => {
+    const fetchArtifactByKind = async (
+      kind: "project_link" | "video_link" | "additional_material"
+    ) => {
       const { data, error } = await supabase
         .from("project_artifacts")
         .select("url, sort_order, is_primary")
         .eq("project_id", projectId)
-        .eq("kind", "additional_material")
+        .eq("kind", kind)
         .order("sort_order", { ascending: true });
 
       if (error || !data || data.length === 0) {
-        setSavedExtraMaterialsUrls(
-          normalizeExtraMaterialsUrls(extraMaterialsUrls)
-        );
-        return;
+        return { primaryUrl: "", extraUrls: [] };
       }
 
-      const primary =
-        data.find((artifact) => artifact.is_primary) || data[0] || null;
-      const primaryUrl = primary?.url?.trim() || "";
-
-      if (primaryUrl) {
-        setFormData((prev) => ({
-          ...prev,
-          additional_materials_url: primaryUrl,
-        }));
-      }
-
-      const extras = data
-        .map((artifact) => artifact.url?.trim() || "")
-        .filter((url) => url.length > 0 && url !== primaryUrl);
-
-      setExtraMaterialsUrls(extras);
-      setSavedExtraMaterialsUrls(normalizeExtraMaterialsUrls(extras));
+      return splitPrimaryAndExtrasFromArtifacts(data);
     };
 
-    fetchAdditionalMaterialArtifacts();
+    const fetchArtifacts = async () => {
+      const [projectLinks, videoLinks, materialLinks] = await Promise.all([
+        fetchArtifactByKind("project_link"),
+        fetchArtifactByKind("video_link"),
+        fetchArtifactByKind("additional_material"),
+      ]);
+
+      setFormData((prev) => ({
+        ...prev,
+        project_url: projectLinks.primaryUrl || prev.project_url,
+        video_url: videoLinks.primaryUrl || prev.video_url,
+        additional_materials_url:
+          materialLinks.primaryUrl || prev.additional_materials_url,
+      }));
+
+      setExtraProjectUrls(projectLinks.extraUrls);
+      setExtraVideoUrls(videoLinks.extraUrls);
+      setExtraMaterialsUrls(materialLinks.extraUrls);
+      setSavedExtraProjectUrls(normalizeDraftUrls(projectLinks.extraUrls));
+      setSavedExtraVideoUrls(normalizeDraftUrls(videoLinks.extraUrls));
+      setSavedExtraMaterialsUrls(normalizeDraftUrls(materialLinks.extraUrls));
+    };
+
+    fetchArtifacts();
     // We only need this hydration once for the loaded draft project.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId, normalizeExtraMaterialsUrls]);
+  }, [projectId]);
 
   useEffect(() => {
     fetchAvailableEvents();
@@ -404,7 +398,7 @@ export default function DraftProjectSubmissionFormSinglePage({
 
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formData, extraMaterialsUrls]);
+  }, [formData, extraProjectUrls, extraVideoUrls, extraMaterialsUrls]);
 
   const handleAutoSave = async () => {
     if (isSaving) return;
@@ -418,8 +412,9 @@ export default function DraftProjectSubmissionFormSinglePage({
       formData.cover_image_url !== (project.cover_image_url || "") ||
       formData.additional_materials_url !==
         (project.additional_materials_url || "") ||
-      JSON.stringify(normalizeExtraMaterialsUrls(extraMaterialsUrls)) !==
-        JSON.stringify(savedExtraMaterialsUrls);
+      hasDraftUrlListChanged(extraProjectUrls, savedExtraProjectUrls) ||
+      hasDraftUrlListChanged(extraVideoUrls, savedExtraVideoUrls) ||
+      hasDraftUrlListChanged(extraMaterialsUrls, savedExtraMaterialsUrls);
 
     if (!hasChanges) return;
 
@@ -436,6 +431,9 @@ export default function DraftProjectSubmissionFormSinglePage({
           cover_image_url: formData.cover_image_url.trim() || undefined,
           additional_materials_url:
             formData.additional_materials_url.trim() || undefined,
+          extra_project_urls: normalizeDraftUrls(extraProjectUrls),
+          extra_video_urls: normalizeDraftUrls(extraVideoUrls),
+          extra_materials_urls: normalizeDraftUrls(extraMaterialsUrls),
           artifacts: buildArtifactsPayload(),
         }),
       });
@@ -445,9 +443,9 @@ export default function DraftProjectSubmissionFormSinglePage({
         if (json.project) {
           setProject(json.project);
         }
-        setSavedExtraMaterialsUrls(
-          normalizeExtraMaterialsUrls(extraMaterialsUrls)
-        );
+        setSavedExtraProjectUrls(normalizeDraftUrls(extraProjectUrls));
+        setSavedExtraVideoUrls(normalizeDraftUrls(extraVideoUrls));
+        setSavedExtraMaterialsUrls(normalizeDraftUrls(extraMaterialsUrls));
         setLastSaved(new Date());
       }
     } finally {
@@ -781,6 +779,9 @@ export default function DraftProjectSubmissionFormSinglePage({
         cover_image_url: formData.cover_image_url.trim() || undefined,
         additional_materials_url:
           formData.additional_materials_url.trim() || undefined,
+        extra_project_urls: normalizeDraftUrls(extraProjectUrls),
+        extra_video_urls: normalizeDraftUrls(extraVideoUrls),
+        extra_materials_urls: normalizeDraftUrls(extraMaterialsUrls),
         artifacts: buildArtifactsPayload(),
         submitted: true,
       }),
@@ -1272,6 +1273,40 @@ export default function DraftProjectSubmissionFormSinglePage({
                       className="border-0 p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0 text-base text-[rgba(0,0,0,0.6)]"
                     />
                   </div>
+                  {extraProjectUrls.map((url, index) => (
+                    <div key={`project-link-extra-${index}`} className="flex gap-2">
+                      <Input
+                        value={url}
+                        onChange={(e) =>
+                          setExtraProjectUrls((prev) =>
+                            prev.map((item, itemIndex) =>
+                              itemIndex === index ? e.target.value : item
+                            )
+                          )
+                        }
+                        placeholder="https://..."
+                        className="h-11"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() =>
+                          setExtraProjectUrls((prev) =>
+                            prev.filter((_, itemIndex) => itemIndex !== index)
+                          )
+                        }
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setExtraProjectUrls((prev) => [...prev, ""])}
+                  >
+                    Add another project link
+                  </Button>
                 </div>
 
                 {/* Video Link */}
@@ -1293,6 +1328,40 @@ export default function DraftProjectSubmissionFormSinglePage({
                       className="border-0 p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0 text-base text-[rgba(0,0,0,0.6)]"
                     />
                   </div>
+                  {extraVideoUrls.map((url, index) => (
+                    <div key={`video-link-extra-${index}`} className="flex gap-2">
+                      <Input
+                        value={url}
+                        onChange={(e) =>
+                          setExtraVideoUrls((prev) =>
+                            prev.map((item, itemIndex) =>
+                              itemIndex === index ? e.target.value : item
+                            )
+                          )
+                        }
+                        placeholder="https://..."
+                        className="h-11"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() =>
+                          setExtraVideoUrls((prev) =>
+                            prev.filter((_, itemIndex) => itemIndex !== index)
+                          )
+                        }
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setExtraVideoUrls((prev) => [...prev, ""])}
+                  >
+                    Add another video link
+                  </Button>
                 </div>
 
                 {/* Divider */}

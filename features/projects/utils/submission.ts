@@ -30,10 +30,10 @@ export type ProjectArtifactRecord = {
 };
 
 const artifactInputSchema = z.object({
-  id: z.string().uuid().optional(),
+  id: z.string().optional(),
   kind: z.enum(PROJECT_ARTIFACT_KINDS),
   label: z.string().optional(),
-  url: z.string().url(),
+  url: z.string().trim().min(1),
   sort_order: z.number().int().nonnegative().optional(),
   is_primary: z.boolean().optional(),
   metadata: z.record(z.unknown()).nullable().optional(),
@@ -212,4 +212,3 @@ export function coerceSubmissionAnswerValue(
   if (typeof value !== "string") return null;
   return value.trim();
 }
-

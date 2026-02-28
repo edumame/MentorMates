@@ -367,6 +367,7 @@ export default function PublicProjectPage() {
       artifact.kind === "additional_material" &&
       artifact.url !== project?.additional_materials_url
   );
+  const extraActionLinks = [...extraProjectLinks, ...extraVideoLinks];
 
   return (
     <PageContainer>
@@ -764,6 +765,41 @@ export default function PublicProjectPage() {
                           </Link>
                         </div>
                       )}
+
+                      {/* Divider */}
+                      <div className="border-t border-gray-200"></div>
+
+                      {/* Additional links */}
+                      <div className="space-y-4">
+                        <h3 className="text-lg font-semibold text-black tracking-tight">
+                          Additional links
+                        </h3>
+                        <div className="space-y-2">
+                          {extraActionLinks.length > 0 ? (
+                            extraActionLinks.map((artifact, index) => (
+                              <a
+                                key={`${artifact.id || artifact.url}-extra-link-${index}`}
+                                href={artifact.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block"
+                              >
+                                <Button
+                                  variant="secondary"
+                                  className="w-full bg-black/5 hover:bg-black/10 rounded-xl py-2.5 shadow-sm justify-center"
+                                >
+                                  <ArrowUpRight className="h-5 w-5 mr-1.5" />
+                                  {artifact.label}
+                                </Button>
+                              </a>
+                            ))
+                          ) : (
+                            <p className="text-sm text-gray-500 italic">
+                              No additional links available
+                            </p>
+                          )}
+                        </div>
+                      </div>
 
                       {/* Divider */}
                       <div className="border-t border-gray-200"></div>

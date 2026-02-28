@@ -28,10 +28,105 @@ export async function PATCH(
         ? body.submission_answers
         : body.submissionAnswers;
 
-    const hasArtifactsPayload = "artifacts" in body;
+    const normalizeExtraUrls = (value: unknown): string[] => {
+      if (!Array.isArray(value)) return [];
+      return value
+        .map((item) => (typeof item === "string" ? item.trim() : ""))
+        .filter((item) => item.length > 0);
+    };
+
+    const extraProjectUrls = normalizeExtraUrls(
+      body.extra_project_urls ?? body.extraProjectUrls
+    );
+    const extraVideoUrls = normalizeExtraUrls(
+      body.extra_video_urls ?? body.extraVideoUrls
+    );
+    const extraMaterialsUrls = normalizeExtraUrls(
+      body.extra_materials_urls ?? body.extraMaterialsUrls
+    );
+
+    const hasExtraUrlPayload =
+      extraProjectUrls.length > 0 ||
+      extraVideoUrls.length > 0 ||
+      extraMaterialsUrls.length > 0;
+    const hasArtifactsPayload = "artifacts" in body || hasExtraUrlPayload;
+
+    const appendArtifactsFromUrls = (
+      artifacts: Array<{
+        kind: "project_link" | "video_link" | "additional_material";
+        label: string;
+        url: string;
+        sort_order: number;
+        is_primary: boolean;
+      }>,
+      kind: "project_link" | "video_link" | "additional_material",
+      primaryUrl: unknown,
+      extras: string[],
+      baseLabel: string
+    ) => {
+      const urls = [
+        typeof primaryUrl === "string" ? primaryUrl : "",
+        ...extras,
+      ]
+        .map((item) => item.trim())
+        .filter((item) => item.length > 0);
+
+      urls.forEach((url, index) => {
+        artifacts.push({
+          kind,
+          label: index === 0 ? baseLabel : `${baseLabel} ${index + 1}`,
+          url,
+          sort_order: index,
+          is_primary: index === 0,
+        });
+      });
+    };
+
+    const fallbackArtifactsFromLinks = () => {
+      const artifacts: Array<{
+        kind: "project_link" | "video_link" | "additional_material";
+        label: string;
+        url: string;
+        sort_order: number;
+        is_primary: boolean;
+      }> = [];
+
+      appendArtifactsFromUrls(
+        artifacts,
+        "project_link",
+        body.project_url,
+        extraProjectUrls,
+        "Project Link"
+      );
+      appendArtifactsFromUrls(
+        artifacts,
+        "video_link",
+        body.video_url,
+        extraVideoUrls,
+        "Video Link"
+      );
+      appendArtifactsFromUrls(
+        artifacts,
+        "additional_material",
+        body.additional_materials_url,
+        extraMaterialsUrls,
+        "Additional Material"
+      );
+
+      return artifacts;
+    };
+
+    const artifactsInput = Array.isArray(body.artifacts)
+      ? body.artifacts
+      : fallbackArtifactsFromLinks();
+
+    console.log("artifactsInput", artifactsInput);
+
     const normalizedArtifacts = hasArtifactsPayload
-      ? normalizeProjectArtifacts(body.artifacts)
+      ? normalizeProjectArtifacts(artifactsInput)
       : null;
+
+    console.log("normalizedArtifacts", normalizedArtifacts);
 
     // Validate event_id change if provided
     if (body.event_id !== undefined) {
@@ -149,6 +244,7 @@ export async function PATCH(
       }
 
       if (normalizedArtifacts.length > 0) {
+        console.log("inserting artifacts", normalizedArtifacts);
         const { error: insertArtifactsError } = await supabase
           .from("project_artifacts")
           .insert(
