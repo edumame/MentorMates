@@ -1,8 +1,21 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ComponentProps } from "react";
-import { DragDropProvider } from "@dnd-kit/react";
-import { useSortable } from "@dnd-kit/react/sortable";
+import { useEffect, useMemo, useState } from "react";
+import {
+  DndContext,
+  PointerSensor,
+  TouchSensor,
+  closestCenter,
+  type DragEndEvent,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import {
   Copy,
   GripVertical,
@@ -172,9 +185,17 @@ function QuestionCard({
   onDuplicate: () => void;
   onDelete: () => void;
 }) {
-  const { ref, handleRef, isDragSource, isDropTarget } = useSortable({
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+    isOver,
+  } = useSortable({
     id: field.id,
-    index,
   });
 
   const selectableShowIfFields = allFields.filter((item) => item.id !== field.id);
@@ -183,25 +204,31 @@ function QuestionCard({
 
   return (
     <Card
-      ref={(node) => ref(node)}
+      ref={setNodeRef}
       onClick={onSelect}
       className={cn(
         "relative overflow-hidden rounded-xl border border-black/10 bg-white shadow-sm transition",
         selected && "ring-2 ring-[#4c8bf5]/40",
-        isDragSource && "opacity-75",
-        isDropTarget && "ring-2 ring-[#4c8bf5]/60"
+        isDragging && "opacity-75",
+        isOver && "ring-2 ring-[#4c8bf5]/60"
       )}
+      style={{
+        transform: transform != null ? CSS.Transform.toString(transform) : undefined,
+        transition,
+      }}
     >
       {selected ? <div className="absolute left-0 top-0 h-full w-1 bg-[#4c8bf5]" /> : null}
 
       <CardContent className="space-y-4 p-5">
         <div className="flex items-start gap-3">
           <button
-            ref={(node) => handleRef(node)}
+            ref={setActivatorNodeRef}
             type="button"
             onClick={(event) => event.stopPropagation()}
             className="mt-1 rounded p-1 text-black/45 hover:bg-black/5 hover:text-black/70"
             aria-label="Drag question"
+            {...attributes}
+            {...listeners}
           >
             <GripVertical className="h-4 w-4" />
           </button>
@@ -425,6 +452,11 @@ export function IntakeFormBuilder({
   const [newFieldType, setNewFieldType] = useState<IntakeFieldType>("single_select");
   const [lastPublished, setLastPublished] = useState<LastPublishedState>(null);
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } })
+  );
+
   const selectedField = useMemo(
     () => schema.fields.find((field) => field.id === selectedFieldId) ?? null,
     [schema.fields, selectedFieldId]
@@ -523,19 +555,19 @@ export function IntakeFormBuilder({
     });
   }
 
-  const reorderFields: NonNullable<
-    ComponentProps<typeof DragDropProvider>["onDragEnd"]
-  > = (event) => {
-    if (event.canceled) return;
+  const reorderFields = (event: DragEndEvent) => {
+    const sourceId = event.active.id;
+    const targetId = event.over?.id;
 
-    const sourceId = event.operation.source?.id;
-    const targetId = event.operation.target?.id;
-
-    if (!sourceId || !targetId || sourceId === targetId) return;
+    if (!targetId || sourceId === targetId) return;
 
     setSchema((current) => {
-      const fromIndex = current.fields.findIndex((field) => field.id === sourceId);
-      const toIndex = current.fields.findIndex((field) => field.id === targetId);
+      const fromIndex = current.fields.findIndex(
+        (field) => field.id === String(sourceId)
+      );
+      const toIndex = current.fields.findIndex(
+        (field) => field.id === String(targetId)
+      );
 
       if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) return current;
 
@@ -724,23 +756,32 @@ export function IntakeFormBuilder({
             </CardContent>
           </Card>
         ) : (
-          <DragDropProvider onDragEnd={reorderFields}>
-            <div className="space-y-3">
-              {schema.fields.map((field, index) => (
-                <QuestionCard
-                  key={field.id}
-                  field={field}
-                  index={index}
-                  allFields={schema.fields}
-                  selected={selectedField?.id === field.id}
-                  onSelect={() => setSelectedFieldId(field.id)}
-                  onUpdate={(patch) => updateField(field.id, patch)}
-                  onDuplicate={() => duplicateField(field.id)}
-                  onDelete={() => removeField(field.id)}
-                />
-              ))}
-            </div>
-          </DragDropProvider>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={reorderFields}
+          >
+            <SortableContext
+              items={schema.fields.map((field) => field.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="space-y-3">
+                {schema.fields.map((field, index) => (
+                  <QuestionCard
+                    key={field.id}
+                    field={field}
+                    index={index}
+                    allFields={schema.fields}
+                    selected={selectedField?.id === field.id}
+                    onSelect={() => setSelectedFieldId(field.id)}
+                    onUpdate={(patch) => updateField(field.id, patch)}
+                    onDuplicate={() => duplicateField(field.id)}
+                    onDelete={() => removeField(field.id)}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
         )}
       </div>
 
