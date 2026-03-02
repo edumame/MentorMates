@@ -37,20 +37,20 @@ export function RoleBanner({
     const isViewingAsOtherRole = activeRole !== actualRole;
 
     if (isViewingAsOtherRole) {
-      return `You are viewing this ${eventType} as ${roleLabel.toLowerCase()}`;
+      return `You are viewing this ${eventType} as ${roleLabel}`;
     }
 
     switch (activeRole) {
       case "participant":
-        return `You are participating in this ${eventType} as a ${roleLabel.toLowerCase()}`;
+        return `You are participating in this ${eventType} as a ${roleLabel}`;
       case "mentor":
-        return `You are participating in this ${eventType} as a ${roleLabel.toLowerCase()}`;
+        return `You are participating in this ${eventType} as a ${roleLabel}`;
       case "judge":
-        return `You are participating in this ${eventType} as a ${roleLabel.toLowerCase()}`;
+        return `You are participating in this ${eventType} as a ${roleLabel}`;
       case "organizer":
-        return `You are viewing this ${eventType} as ${roleLabel.toLowerCase()}`;
+        return `You are viewing this ${eventType} as ${roleLabel}`;
       case "admin":
-        return `You are viewing this ${eventType} as an ${roleLabel.toLowerCase()}`;
+        return `You are viewing this ${eventType} as an ${roleLabel}`;
       default:
         return `You are viewing this ${eventType}`;
     }
@@ -71,7 +71,7 @@ export function RoleBanner({
               <DropdownMenu>
                 <DropdownMenuTrigger className="flex items-center gap-1 text-[#4c4c4c] hover:text-black transition-colors">
                   <span className="font-medium tracking-[-0.06em] leading-[1.4] underline text-black/[0.6]">
-                    View as {getRoleLabel(activeRole, eventRoleLabels).toLowerCase()}
+                    View as {getRoleLabel(activeRole, eventRoleLabels)}
                   </span>
                   <ChevronDown className="h-5 w-5" />
                 </DropdownMenuTrigger>
