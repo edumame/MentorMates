@@ -262,6 +262,11 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
             updated.set(projectId, existingTracks);
             return updated;
           });
+          setShowScoringComponents((prev) => {
+            const updated = new Map(prev);
+            updated.set(getTrackKey(projectId, trackId), false);
+            return updated;
+          });
         }}
       />
     );
