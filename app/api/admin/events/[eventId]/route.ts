@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
+import { EventVisibility } from "@/lib/types";
 
 const updateEventStatusSchema = z.object({
   featured: z.boolean().optional(),
@@ -52,6 +53,10 @@ export async function PATCH(
     if (featured !== undefined) updateData.featured = featured;
     if (approval_status !== undefined) {
       updateData.approval_status = approval_status;
+
+      if (approval_status === "approved") {
+        updateData.visibility = EventVisibility.Public;
+      }
       
       // If status is being set to rejected, require rejection_reason
       if (approval_status === "rejected" && !rejection_reason) {
