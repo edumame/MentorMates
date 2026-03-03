@@ -58,12 +58,19 @@ import { FileUpload } from "@/components/db/fileUpload";
 import { ImageUpload } from "@/components/db/imageUpload";
 import { VideoEmbed, canEmbed } from "@/components/utils";
 import { createContextusProject } from "@/lib/integrations/contextus";
-import { useAdmin } from "@/lib/hooks/use-admin";
 import { useProjectLike } from "@/features/projects/hooks/use-project-like";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 import UserSearchWithInvite from "@/components/utils/UserSearchWithInvite";
 import { EditNote, Favorite } from "@mui/icons-material";
 import { ProjectDescription } from "@/components/projects/ProjectDescription";
+import {
+  buildTeamMembers,
+  buildTeamProfileByEmail,
+  getInitials,
+  getPublicProjectShareUrl,
+  getTeamProfileEmails,
+  type TeamProfileByEmail,
+} from "@/features/projects/utils/team-members";
 
 interface EventParticipant {
   user_id: string;
@@ -86,8 +93,8 @@ export default function ProjectPage() {
   const params = useParams();
   const router = useRouter();
   const projectId = params.id as string;
-  const isAdmin = useAdmin();
   const [session, setSession] = useState<Session | null>(null);
+  const [sessionLoaded, setSessionLoaded] = useState(false);
   const [project, setProject] = useState<Project | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [canEdit, setCanEdit] = useState(false);
@@ -100,16 +107,8 @@ export default function ProjectPage() {
   // Participant search state
   const [participants, setParticipants] = useState<EventParticipant[]>([]);
   const [isLoadingParticipants, setIsLoadingParticipants] = useState(false);
-  const [teamProfileByEmail, setTeamProfileByEmail] = useState<
-    Record<
-      string,
-      {
-        displayName: string | null;
-        avatarUrl: string | null;
-        affiliation: string | null;
-      }
-    >
-  >({});
+  const [teamProfileByEmail, setTeamProfileByEmail] =
+    useState<TeamProfileByEmail>({});
 
   // Event details state
   const [eventDetails, setEventDetails] = useState<EventDetails | null>(null);
@@ -158,17 +157,16 @@ export default function ProjectPage() {
         data: { session },
       } = await supabase.auth.getSession();
       setSession(session);
-      setIsLoading(false);
+      setSessionLoaded(true);
     };
 
     getSession();
   }, []);
 
   useEffect(() => {
-    if (session?.user?.email) {
-      fetchProject();
-    }
-  }, [session, projectId]);
+    if (!sessionLoaded) return;
+    fetchProject();
+  }, [sessionLoaded, projectId]);
 
   // Fetch event details and feedback count when project is loaded
   useEffect(() => {
@@ -779,25 +777,11 @@ export default function ProjectPage() {
     }
   }, [project?.event_id, fetchEventParticipants]);
 
-  const getInitials = useCallback((value: string) => {
-    const trimmed = value.trim();
-    if (!trimmed) return "?";
-    const parts = trimmed.split(/\s+/).filter(Boolean);
-    const first = parts[0]?.[0] ?? "";
-    const last = parts.length > 1 ? parts[parts.length - 1]?.[0] ?? "" : "";
-    const initials = (first + last).toUpperCase();
-    return initials || trimmed.slice(0, 2).toUpperCase();
-  }, []);
-
   // Load team profile info for team members (from user_profiles)
   useEffect(() => {
     if (!project) return;
 
-    const emails = Array.from(
-      new Set([project.lead_email, ...(project.teammates ?? [])])
-    )
-      .filter(Boolean)
-      .map((e) => String(e).toLowerCase());
+    const emails = getTeamProfileEmails(project);
 
     if (emails.length === 0) return;
 
@@ -810,25 +794,7 @@ export default function ProjectPage() {
           .in("email", emails);
 
         if (error || !alive) return;
-
-        const map: Record<
-          string,
-          {
-            displayName: string | null;
-            avatarUrl: string | null;
-            affiliation: string | null;
-          }
-        > = {};
-        for (const row of data ?? []) {
-          const email = row.email?.toLowerCase();
-          if (!email) continue;
-          map[email] = {
-            displayName: row.display_name?.trim() || null,
-            avatarUrl: row.avatar_url?.trim() || null,
-            affiliation: row.affiliation?.trim() || null,
-          };
-        }
-        setTeamProfileByEmail(map);
+        setTeamProfileByEmail(buildTeamProfileByEmail(data));
       } catch {
         // ignore
       }
@@ -1046,28 +1012,12 @@ export default function ProjectPage() {
 
   const isLead =
     session?.user?.email?.toLowerCase() === project.lead_email?.toLowerCase();
-  const totalMembers = (project.teammates?.length || 0) + 1;
-  const teamMembers = [
-    {
-      email: project.lead_email,
-      displayName:
-        teamProfileByEmail[project.lead_email.toLowerCase()]?.displayName ||
-        project.lead_name,
-      role: "lead" as const,
-    },
-    ...(project.teammates ?? []).map((email) => ({
-      email,
-      displayName:
-        teamProfileByEmail[email.toLowerCase()]?.displayName ||
-        participants.find((p) => p.email.toLowerCase() === email.toLowerCase())
-          ?.display_name || email,
-      role: "member" as const,
-    })),
-  ];
-
-  const feedbackUrl = `${
-    typeof window !== "undefined" ? window.location.origin : ""
-  }/projects/public/${project.id}`;
+  const teamMembers = buildTeamMembers(project, teamProfileByEmail, participants);
+  const totalMembers = teamMembers.length;
+  const feedbackUrl = getPublicProjectShareUrl(
+    typeof window !== "undefined" ? window.location.origin : "",
+    project.id
+  );
 
   const handleShare = (platform: string) => {
     switch (platform) {
@@ -2060,105 +2010,42 @@ export default function ProjectPage() {
                             Meet the team
                           </h3>
                           <div className="space-y-6">
-                            {/* Project Lead */}
-                            <div className="flex gap-4 items-center">
-                              <Avatar className="h-14 w-14 shrink-0">
-                                <AvatarImage
-                                  src={
-                                    teamProfileByEmail[
-                                      project.lead_email.toLowerCase()
-                                    ]?.avatarUrl ?? undefined
-                                  }
-                                  alt={
-                                    teamProfileByEmail[
-                                      project.lead_email.toLowerCase()
-                                    ]?.displayName ||
-                                    project.lead_name ||
-                                    project.lead_email
-                                  }
-                                />
-                                <AvatarFallback>
-                                  {getInitials(project.lead_name || project.lead_email)}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div>
-                                <div className="flex items-center gap-2">
-                                  <p className="font-semibold text-base text-black">
-                                    {teamProfileByEmail[
-                                      project.lead_email.toLowerCase()
-                                    ]?.displayName || project.lead_name}
-                                  </p>
-                                  <Badge
-                                    variant="secondary"
-                                    className="bg-transparent border border-black/15 text-black rounded-full text-sm px-2.5 py-0.5"
-                                  >
-                                    Lead
-                                  </Badge>
-                                </div>
-                                {teamProfileByEmail[
-                                  project.lead_email.toLowerCase()
-                                ]?.affiliation ? (
-                                  <p className="text-base text-black">
-                                    {
-                                      teamProfileByEmail[
-                                        project.lead_email.toLowerCase()
-                                      ]?.affiliation
-                                    }
-                                  </p>
-                                ) : (
-                                  <p className="text-base text-black">
-                                    {project.lead_email}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Team Members */}
-                            {project.teammates
-                              ?.slice(0, 1)
-                              .map((teammate, index) => (
-                                <div
-                                  key={index}
-                                  className="flex gap-4 items-center"
-                                >
-                                  <Avatar className="h-14 w-14 shrink-0">
-                                    <AvatarImage
-                                      src={
-                                        teamProfileByEmail[
-                                          teammate.toLowerCase()
-                                        ]?.avatarUrl ?? undefined
-                                      }
-                                      alt={
-                                        teamProfileByEmail[
-                                          teammate.toLowerCase()
-                                        ]?.displayName || teammate
-                                      }
-                                    />
-                                    <AvatarFallback>
-                                      {getInitials(
-                                        teamProfileByEmail[teammate.toLowerCase()]
-                                          ?.displayName || teammate
-                                      )}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                  <div className="space-y-0">
-                                    <p className="font-semibold text-base text-black">
-                                      {teamProfileByEmail[teammate.toLowerCase()]
-                                        ?.displayName || teammate}
+                            {teamMembers.slice(0, 2).map((member) => (
+                              <div
+                                key={member.email}
+                                className="flex gap-4 items-center"
+                              >
+                                <Avatar className="h-14 w-14 shrink-0">
+                                  <AvatarImage
+                                    src={member.avatarUrl ?? undefined}
+                                    alt={member.displayName}
+                                  />
+                                  <AvatarFallback>
+                                    {getInitials(member.displayName)}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div className="space-y-0 min-w-0">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <p className="font-semibold text-base text-black truncate">
+                                      {member.displayName}
                                     </p>
-                                    {teamProfileByEmail[teammate.toLowerCase()]
-                                      ?.affiliation ? (
-                                      <p className="text-base text-black">
-                                        {
-                                          teamProfileByEmail[
-                                            teammate.toLowerCase()
-                                          ]?.affiliation
-                                        }
-                                      </p>
+                                    {member.role === "lead" ? (
+                                      <Badge
+                                        variant="secondary"
+                                        className="bg-transparent border border-black/15 text-black rounded-full text-sm px-2.5 py-0.5"
+                                      >
+                                        Lead
+                                      </Badge>
                                     ) : null}
                                   </div>
+                                  {member.subtitle ? (
+                                    <p className="text-base text-black truncate">
+                                      {member.subtitle}
+                                    </p>
+                                  ) : null}
                                 </div>
-                              ))}
+                              </div>
+                            ))}
                           </div>
                         </div>
                       )}

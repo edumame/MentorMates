@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Users,
   Calendar,
@@ -31,7 +32,7 @@ import { useProjectLike } from "@/features/projects/hooks/use-project-like";
 import { toast } from "@/lib/hooks/use-toast";
 import { Toaster } from "@/components/ui/toaster";
 import { ProjectScoringForm } from "@/components/project-scoring/project-scoring-form";
-import { EventRole, EventTrack, EventVisibility, TrackScoringConfig } from "@/lib/types";
+import { EventRole, EventTrack, TrackScoringConfig } from "@/lib/types";
 import { VideoEmbed, canEmbed } from "@/components/utils";
 import { canAccessRole } from "@/features/user/roles/roles";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
@@ -39,6 +40,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { QRCodeSVG } from "qrcode.react";
 import { Input } from "@/components/ui/input";
 import { ProjectDescription } from "@/components/projects/ProjectDescription";
+import {
+  buildTeamMembers,
+  buildTeamProfileByEmail,
+  getInitials,
+  getPublicProjectShareUrl,
+  getTeamProfileEmails,
+  type TeamProfileByEmail,
+} from "@/features/projects/utils/team-members";
 
 //REFACTOR this to use the Project type from the lib/types.ts file
 interface Project {
@@ -68,6 +77,7 @@ interface EventDetails {
 
 export default function PublicProjectPage() {
   const params = useParams();
+  const router = useRouter();
   const projectId = params.id as string;
 
   const [project, setProject] = useState<Project | null>(null);
@@ -81,8 +91,11 @@ export default function PublicProjectPage() {
   const [eventDetails, setEventDetails] = useState<EventDetails | null>(null);
   const [finalistFeatureEnabled, setFinalistFeatureEnabled] =
     useState<boolean>(false);
+  const [feedbackCount, setFeedbackCount] = useState(0);
   const [activeTab, setActiveTab] = useState("overview");
   const [showFeedbackDialog, setShowFeedbackDialog] = useState(false);
+  const [teamProfileByEmail, setTeamProfileByEmail] =
+    useState<TeamProfileByEmail>({});
 
   // QR Code functionality
   const { handleCopyQR, handleDownloadQR } = useQRCodeActions(
@@ -95,8 +108,19 @@ export default function PublicProjectPage() {
     liked,
     count: likesCount,
     isLoading: likeIsLoading,
+    error: likeError,
     toggleLike,
   } = useProjectLike(projectId);
+
+  useEffect(() => {
+    if (likeError === "unauthorized") {
+      toast({
+        title: "Sign in required",
+        description: "Please log in to like projects.",
+      });
+      router.push(`/login?returnUrl=/projects/public/${projectId}`);
+    }
+  }, [likeError, router, projectId]);
 
   useEffect(() => {
     const fetchProject = async () => {
@@ -125,23 +149,28 @@ export default function PublicProjectPage() {
     fetchProject();
   }, [projectId]);
 
-  // Fetch event details when project is loaded
+  // Fetch event details and feedback count when project is loaded
   useEffect(() => {
-    const fetchEventDetails = async () => {
-      if (!project?.event_id) return;
+    const fetchEventDetailsAndFeedback = async () => {
+      if (!project?.event_id || !project?.id) return;
 
       try {
-        const { data: eventData, error } = await supabase
-          .from("events")
-          .select(
-            "event_id, event_name, slug, event_date, location, cover_image_url, finalist_recommendation_enabled"
-          )
-          .eq("event_id", project.event_id)
-          .single();
+        const [eventResult, feedbackResult] = await Promise.all([
+          supabase
+            .from("events")
+            .select(
+              "event_id, event_name, slug, event_date, location, cover_image_url, finalist_recommendation_enabled"
+            )
+            .eq("event_id", project.event_id)
+            .single(),
+          supabase
+            .from("feedback")
+            .select("id", { count: "exact", head: true })
+            .eq("project_id", project.id),
+        ]);
 
-        if (error) {
-          // Error handled
-        } else if (eventData) {
+        if (!eventResult.error && eventResult.data) {
+          const eventData = eventResult.data;
           setEventDetails({
             event_id: eventData.event_id,
             event_name: eventData.event_name,
@@ -155,13 +184,44 @@ export default function PublicProjectPage() {
             !!eventData.finalist_recommendation_enabled
           );
         }
+
+        if (!feedbackResult.error) {
+          setFeedbackCount(feedbackResult.count || 0);
+        }
       } catch (error) {
         // Error handled
       }
     };
 
-    fetchEventDetails();
-  }, [project?.event_id]);
+    fetchEventDetailsAndFeedback();
+  }, [project?.event_id, project?.id]);
+
+  // Load team profile info for team members (from user_profiles)
+  useEffect(() => {
+    if (!project) return;
+
+    const emails = getTeamProfileEmails(project);
+    if (emails.length === 0) return;
+
+    let alive = true;
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from("user_profiles")
+          .select("email, affiliation, avatar_url, display_name")
+          .in("email", emails);
+
+        if (error || !alive) return;
+        setTeamProfileByEmail(buildTeamProfileByEmail(data));
+      } catch {
+        // ignore profile loading failures on public pages
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [project]);
 
   // Check if user is a judge for this event
   useEffect(() => {
@@ -287,8 +347,12 @@ export default function PublicProjectPage() {
     );
   }
 
-  const totalMembers = (project.teammates?.length || 0) + 1;
-  const feedbackUrl = typeof window !== "undefined" ? window.location.href : "";
+  const teamMembers = buildTeamMembers(project, teamProfileByEmail);
+  const totalMembers = teamMembers.length;
+  const feedbackUrl = getPublicProjectShareUrl(
+    typeof window !== "undefined" ? window.location.origin : "",
+    project.id
+  );
   const selectedTrack = projectTracks.find(
     (track) => track.track_id === selectedTrackId
   );
@@ -527,9 +591,15 @@ export default function PublicProjectPage() {
                 </TabsTrigger>
                 <TabsTrigger
                   value="feedback"
-                  className="shadow-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2"
+                  className="shadow-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[#4b89ef] rounded-none bg-transparent pb-2 flex items-center gap-2"
                 >
                   Feedback
+                  <Badge
+                    variant="secondary"
+                    className="bg-white border border-black/15 text-black rounded-full text-xs"
+                  >
+                    {feedbackCount}
+                  </Badge>
                 </TabsTrigger>
                 {isJudge && (
                   <TabsTrigger
@@ -597,43 +667,42 @@ export default function PublicProjectPage() {
                           Meet the team
                         </h3>
                         <div className="space-y-6">
-                          {/* Project Lead */}
-                          <div className="flex gap-4 items-center">
-                            <div className="w-14 h-14 rounded-full bg-gray-300 flex-shrink-0"></div>
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <p className="font-semibold text-base text-black">
-                                  {project.lead_name}
-                                </p>
-                                <Badge
-                                  variant="secondary"
-                                  className="bg-transparent border border-black/15 text-black rounded-full text-sm px-2.5 py-0.5"
-                                >
-                                  Lead
-                                </Badge>
-                              </div>
-                              <p className="text-base text-black">
-                                {project.lead_email}
-                              </p>
-                            </div>
-                          </div>
-
-                          {/* Team Members */}
-                          {project.teammates
-                            ?.slice(0, 1)
-                            .map((teammate, index) => (
-                              <div
-                                key={index}
-                                className="flex gap-4 items-center"
-                              >
-                                <div className="w-14 h-14 rounded-full bg-gray-300 flex-shrink-0"></div>
-                                <div className="space-y-0">
-                                  <p className="font-semibold text-base text-black">
-                                    {teammate}
+                          {teamMembers.slice(0, 2).map((member) => (
+                            <div
+                              key={member.email}
+                              className="flex gap-4 items-center"
+                            >
+                              <Avatar className="h-14 w-14 shrink-0">
+                                <AvatarImage
+                                  src={member.avatarUrl ?? undefined}
+                                  alt={member.displayName}
+                                />
+                                <AvatarFallback>
+                                  {getInitials(member.displayName)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="space-y-0 min-w-0">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <p className="font-semibold text-base text-black truncate">
+                                    {member.displayName}
                                   </p>
+                                  {member.role === "lead" ? (
+                                    <Badge
+                                      variant="secondary"
+                                      className="bg-transparent border border-black/15 text-black rounded-full text-sm px-2.5 py-0.5"
+                                    >
+                                      Lead
+                                    </Badge>
+                                  ) : null}
                                 </div>
+                                {member.subtitle ? (
+                                  <p className="text-base text-black truncate">
+                                    {member.subtitle}
+                                  </p>
+                                ) : null}
                               </div>
-                            ))}
+                            </div>
+                          ))}
                         </div>
                       </div>
 
@@ -827,29 +896,36 @@ export default function PublicProjectPage() {
                       <CardTitle>Team Members</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between p-3 border rounded">
-                          <div>
-                            <p className="font-medium">{project.lead_name}</p>
-                            <p className="text-sm text-gray-500">
-                              {project.lead_email}
-                            </p>
-                          </div>
-                          <Badge>Lead</Badge>
-                        </div>
-
-                        {project.teammates?.map((teammate, index) => (
+                      <div className="space-y-4">
+                        {teamMembers.map((member) => (
                           <div
-                            key={index}
-                            className="flex items-center justify-between p-3 border rounded"
+                            key={member.email}
+                            className="flex items-center justify-between gap-4 p-3 border rounded"
                           >
-                            <div>
-                              <p className="font-medium">{teammate}</p>
-                              <p className="text-sm text-gray-500">
-                                Team Member
-                              </p>
+                            <div className="flex items-center gap-3 min-w-0">
+                              <Avatar className="h-12 w-12 shrink-0">
+                                <AvatarImage
+                                  src={member.avatarUrl ?? undefined}
+                                  alt={member.displayName}
+                                />
+                                <AvatarFallback>
+                                  {getInitials(member.displayName)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="min-w-0">
+                                <p className="font-medium truncate">
+                                  {member.displayName}
+                                </p>
+                                {member.subtitle ? (
+                                  <p className="text-sm text-gray-500 truncate">
+                                    {member.subtitle}
+                                  </p>
+                                ) : null}
+                              </div>
                             </div>
-                            <Badge variant="secondary">Member</Badge>
+                            <Badge variant={member.role === "lead" ? "default" : "secondary"}>
+                              {member.role === "lead" ? "Lead" : "Member"}
+                            </Badge>
                           </div>
                         ))}
                       </div>
