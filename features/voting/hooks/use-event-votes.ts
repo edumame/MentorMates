@@ -11,6 +11,10 @@ interface UseEventVotesResult {
   remainingVotes: number;
   // Maximum votes allowed per user
   maxVotes: number;
+  // Whether current user can cast popular votes
+  canVote: boolean;
+  // Reason voting is blocked (if blocked)
+  blockedReason: string | null;
   // Loading state
   isLoading: boolean;
   // Error message
@@ -34,6 +38,8 @@ export function useEventVotes(eventId: string): UseEventVotesResult {
   const [userVotes, setUserVotes] = useState<string[]>([]);
   const [remainingVotes, setRemainingVotes] = useState(0);
   const [maxVotes, setMaxVotes] = useState(3);
+  const [canVote, setCanVote] = useState(false);
+  const [blockedReason, setBlockedReason] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -52,6 +58,8 @@ export function useEventVotes(eventId: string): UseEventVotesResult {
       setUserVotes(data.userVotes || []);
       setRemainingVotes(data.remainingVotes ?? 0);
       setMaxVotes(data.maxVotes ?? 3);
+      setCanVote(Boolean(data.canVote));
+      setBlockedReason(data.blockedReason ?? null);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -77,6 +85,12 @@ export function useEventVotes(eventId: string): UseEventVotesResult {
     async (projectId: string): Promise<boolean> => {
       if (!eventId || !projectId) return false;
       if (hasVoted(projectId)) return false;
+
+      if (!canVote) {
+        setError(blockedReason || "You cannot vote in this event");
+        return false;
+      }
+
       if (remainingVotes <= 0) {
         setError(`You can only vote for ${maxVotes} projects`);
         return false;
@@ -91,6 +105,12 @@ export function useEventVotes(eventId: string): UseEventVotesResult {
 
         if (res.status === 401) {
           setError("Please sign in to vote");
+          return false;
+        }
+
+        if (res.status === 403) {
+          const data = await res.json();
+          setError(data.error || "You cannot vote in this event");
           return false;
         }
 
@@ -116,13 +136,18 @@ export function useEventVotes(eventId: string): UseEventVotesResult {
         return false;
       }
     },
-    [eventId, hasVoted, remainingVotes, maxVotes, refresh]
+    [eventId, hasVoted, canVote, blockedReason, remainingVotes, maxVotes, refresh]
   );
 
   const unvote = useCallback(
     async (projectId: string): Promise<boolean> => {
       if (!eventId || !projectId) return false;
       if (!hasVoted(projectId)) return false;
+
+      if (!canVote) {
+        setError(blockedReason || "You cannot vote in this event");
+        return false;
+      }
 
       try {
         const res = await fetch(`/api/events/${eventId}/votes`, {
@@ -133,6 +158,12 @@ export function useEventVotes(eventId: string): UseEventVotesResult {
 
         if (res.status === 401) {
           setError("Please sign in to manage votes");
+          return false;
+        }
+
+        if (res.status === 403) {
+          const data = await res.json();
+          setError(data.error || "You cannot vote in this event");
           return false;
         }
 
@@ -158,7 +189,7 @@ export function useEventVotes(eventId: string): UseEventVotesResult {
         return false;
       }
     },
-    [eventId, hasVoted, refresh]
+    [eventId, hasVoted, canVote, blockedReason, refresh]
   );
 
   const toggleVote = useCallback(
@@ -177,6 +208,8 @@ export function useEventVotes(eventId: string): UseEventVotesResult {
     userVotes,
     remainingVotes,
     maxVotes,
+    canVote,
+    blockedReason,
     isLoading,
     error,
     hasVoted,
