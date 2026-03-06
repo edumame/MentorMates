@@ -29,7 +29,7 @@ export function VoteButton({
     e.preventDefault();
     e.stopPropagation();
     
-    if (isLoading || disabled) return;
+    if (isLoading || disabled || !canVote) return;
     
     setIsLoading(true);
     try {
@@ -39,7 +39,7 @@ export function VoteButton({
     }
   };
 
-  const isDisabled = disabled || isLoading || (!hasVoted && !canVote);
+  const isDisabled = disabled || isLoading || !canVote;
 
   return (
     <Button
@@ -50,8 +50,8 @@ export function VoteButton({
       className={`
         transition-all duration-200
         ${hasVoted 
-          ? "bg-purple-600 hover:bg-purple-700 text-white" 
-          : "hover:border-purple-400 hover:text-purple-600"
+          ? "bg-[#4B89EF] hover:bg-[#3E7EEA] text-white border-[#4B89EF]" 
+          : "border-[rgba(0,0,0,0.15)] hover:border-[#4B89EF] hover:text-[#4B89EF]"
         }
         ${isDisabled && !hasVoted ? "opacity-50 cursor-not-allowed" : ""}
       `}

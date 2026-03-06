@@ -258,6 +258,51 @@ export interface EventDetails extends EventItem {
   } | null;
 }
 
+export type ProjectArtifactKind =
+  | "project_link"
+  | "video_link"
+  | "additional_material";
+
+export interface ProjectArtifact {
+  id?: string;
+  project_id?: string;
+  kind: ProjectArtifactKind;
+  label: string;
+  url: string;
+  sort_order: number;
+  is_primary: boolean;
+  metadata?: Record<string, unknown> | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export type SubmissionFieldType = "short_text" | "long_text" | "url" | "multi_url";
+
+export interface EventSubmissionField {
+  id: string;
+  event_id: string;
+  key: string;
+  label: string;
+  description?: string | null;
+  placeholder?: string | null;
+  field_type: SubmissionFieldType;
+  required: boolean;
+  sort_order: number;
+  is_active: boolean;
+  options?: unknown;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface ProjectSubmissionAnswer {
+  id: string;
+  project_id: string;
+  event_submission_field_id: string;
+  answer: string | string[];
+  created_at?: string;
+  updated_at?: string;
+}
+
 // Project Types
 export interface Project {
   id: string;
@@ -274,6 +319,8 @@ export interface Project {
   video_url?: string | null;
   additional_materials_url?: string;
   cover_image_url?: string;
+  artifacts?: ProjectArtifact[];
+  submission_answers?: ProjectSubmissionAnswer[];
   event_name?: string;
   prizes_won?: Prize[];
   contextus_project_id?: string;
@@ -360,6 +407,7 @@ export interface SupabaseProjectData {
   project_description: string;
   teammates: string[];
   project_url?: string;
+  video_url?: string | null;
   additional_materials_url?: string;
   cover_image_url?: string;
   event_id: string;
@@ -407,6 +455,7 @@ export interface ProjectFromDatabase {
   project_description: string;
   teammates: string[];
   project_url?: string;
+  video_url?: string | null;
   additional_materials_url?: string;
   cover_image_url?: string;
   event_id: string;

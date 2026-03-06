@@ -1,6 +1,13 @@
 import { NextResponse } from "next/server";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { createContextusProject } from "@/lib/integrations/contextus";
+import {
+	buildArtifactsFromLegacy,
+	coerceSubmissionAnswerValue,
+	deriveLegacySubmissionFieldsFromArtifacts,
+	normalizeProjectArtifacts,
+	submissionAnswerInputSchema,
+} from "@/features/projects/utils/submission";
 
 export async function POST(request: Request) {
 	const supabase = await createSupabaseClient();
@@ -11,34 +18,51 @@ export async function POST(request: Request) {
 			return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 		}
 
-		const body = await request.json();
-		const {
-			projectId,
-			projectName,
-			leadName,
-			leadEmail,
-			projectDescription,
-			teammates,
-			projectUrl,
-			coverImageUrl,
-			additionalMaterialsUrl,
-			eventId,
-			trackIds,
-			videoUrl,
-		} = body as {
-			projectId?: string;
-			projectName?: string;
-			leadName?: string;
-			leadEmail?: string;
-			projectDescription?: string;
-			teammates?: string[];
-			projectUrl?: string;
-			coverImageUrl?: string;
-			additionalMaterialsUrl?: string;
-			eventId?: string;
-			trackIds?: string[];
-			videoUrl?: string;
-		};
+			const body = await request.json();
+			const {
+				projectId,
+				projectName,
+				leadName,
+				leadEmail,
+				projectDescription,
+				teammates,
+				projectUrl,
+				coverImageUrl,
+				additionalMaterialsUrl,
+				eventId,
+				trackIds,
+				videoUrl,
+				artifacts,
+				submissionAnswers,
+			} = body as {
+				projectId?: string;
+				projectName?: string;
+				leadName?: string;
+				leadEmail?: string;
+				projectDescription?: string;
+				teammates?: string[];
+				projectUrl?: string;
+				coverImageUrl?: string;
+				additionalMaterialsUrl?: string;
+				eventId?: string;
+				trackIds?: string[];
+				videoUrl?: string;
+				artifacts?: unknown;
+				submissionAnswers?: unknown;
+			};
+
+			const normalizedArtifacts = normalizeProjectArtifacts(artifacts);
+			const compatibilityArtifacts =
+				normalizedArtifacts.length > 0
+					? normalizedArtifacts
+					: buildArtifactsFromLegacy({
+							project_url: projectUrl ?? null,
+							video_url: videoUrl ?? null,
+							additional_materials_url: additionalMaterialsUrl ?? null,
+						});
+
+			const legacyFields =
+				deriveLegacySubmissionFieldsFromArtifacts(compatibilityArtifacts);
 
 		// If eventId provided, validate event and submission window; otherwise skip
 		let eventData: { submission_time_start: string; submission_time_cutoff: string } | null = null;
@@ -127,20 +151,20 @@ export async function POST(request: Request) {
 		if (!finalProjectId) {
 			const { data: project, error: projectError } = await supabase
 				.from("projects")
-				.insert({
-					project_name: projectName,
-					lead_name: leadName,
-					lead_email: leadEmail,
-					project_description: projectDescription,
-					teammates: teammates || [],
-					project_url: projectUrl || null,
-					cover_image_url: coverImageUrl || null,
-					additional_materials_url: additionalMaterialsUrl || null,
-					event_id: eventId || null,
-					video_url: videoUrl || null,
-					submitted: true,
-					submitted_at: new Date().toISOString(),
-				})
+					.insert({
+						project_name: projectName,
+						lead_name: leadName,
+						lead_email: leadEmail,
+						project_description: projectDescription,
+						teammates: teammates || [],
+						project_url: legacyFields.project_url,
+						cover_image_url: coverImageUrl || null,
+						additional_materials_url: legacyFields.additional_materials_url,
+						event_id: eventId || null,
+						video_url: legacyFields.video_url,
+						submitted: true,
+						submitted_at: new Date().toISOString(),
+					})
 				.select()
 				.single();
 			if (projectError) {
@@ -151,19 +175,19 @@ export async function POST(request: Request) {
 		} else {
 			const { error: updateError } = await supabase
 				.from("projects")
-				.update({
-					project_name: projectName,
-					lead_name: leadName,
-					lead_email: leadEmail,
-					project_description: projectDescription,
-					teammates: teammates || [],
-					project_url: projectUrl || null,
-					cover_image_url: coverImageUrl || null,
-					additional_materials_url: additionalMaterialsUrl || null,
-					video_url: videoUrl || null,
-					submitted: true,
-					submitted_at: new Date().toISOString(),
-				})
+					.update({
+						project_name: projectName,
+						lead_name: leadName,
+						lead_email: leadEmail,
+						project_description: projectDescription,
+						teammates: teammates || [],
+						project_url: legacyFields.project_url,
+						cover_image_url: coverImageUrl || null,
+						additional_materials_url: legacyFields.additional_materials_url,
+						video_url: legacyFields.video_url,
+						submitted: true,
+						submitted_at: new Date().toISOString(),
+					})
 				.eq("id", finalProjectId);
 			if (updateError) {
 				return NextResponse.json({ error: "Failed to update project" }, { status: 500 });
@@ -174,8 +198,129 @@ export async function POST(request: Request) {
 				.select()
 				.eq("id", finalProjectId)
 				.single();
-			projectData = updatedProject as typeof projectData;
-		}
+				projectData = updatedProject as typeof projectData;
+			}
+
+			// Canonical artifacts: replace current rows with latest payload.
+			const { error: deleteArtifactsError } = await supabase
+				.from("project_artifacts")
+				.delete()
+				.eq("project_id", finalProjectId!);
+			if (deleteArtifactsError) {
+				return NextResponse.json({ error: "Failed to update project artifacts" }, { status: 500 });
+			}
+
+			if (compatibilityArtifacts.length > 0) {
+				const { error: insertArtifactsError } = await supabase.from("project_artifacts").insert(
+					compatibilityArtifacts.map((artifact) => ({
+						project_id: finalProjectId!,
+						kind: artifact.kind,
+						label: artifact.label,
+						url: artifact.url,
+						sort_order: artifact.sort_order,
+						is_primary: artifact.is_primary,
+						metadata: artifact.metadata,
+					}))
+				);
+				if (insertArtifactsError) {
+					return NextResponse.json({ error: "Failed to save project artifacts" }, { status: 500 });
+				}
+			}
+
+			if (submissionAnswers !== undefined) {
+				const parsedAnswers = Array.isArray(submissionAnswers)
+					? submissionAnswers
+							.map((item) => submissionAnswerInputSchema.safeParse(item))
+							.filter((item) => item.success)
+							.map((item) => item.data)
+					: [];
+
+				const answerFieldIds = [
+					...new Set(parsedAnswers.map((answer) => answer.eventSubmissionFieldId)),
+				];
+				let normalizedAnswers: Array<{
+					project_id: string;
+					event_submission_field_id: string;
+					answer: string | string[];
+				}> = [];
+
+				if (answerFieldIds.length > 0) {
+					const projectEventId = projectData?.event_id || eventId || null;
+					if (!projectEventId) {
+						return NextResponse.json(
+							{ error: "Submission answers require the project to belong to an event" },
+							{ status: 400 }
+						);
+					}
+
+					const { data: fieldRows, error: fieldQueryError } = await supabase
+						.from("event_submission_fields")
+						.select("id, event_id, field_type")
+						.in("id", answerFieldIds)
+						.eq("event_id", projectEventId);
+
+					if (
+						fieldQueryError ||
+						!fieldRows ||
+						fieldRows.length !== answerFieldIds.length
+					) {
+						return NextResponse.json(
+							{ error: "Invalid submission field IDs" },
+							{ status: 400 }
+						);
+					}
+
+					const fieldById = new Map(
+						fieldRows.map((field) => [
+							field.id,
+							field.field_type as "short_text" | "long_text" | "url" | "multi_url",
+						])
+					);
+
+					normalizedAnswers = parsedAnswers
+						.map((answer) => {
+							const fieldType = fieldById.get(answer.eventSubmissionFieldId);
+							if (!fieldType) return null;
+							const coerced = coerceSubmissionAnswerValue(fieldType, answer.answer);
+							if (coerced === null) return null;
+							if (typeof coerced === "string" && coerced.length === 0) return null;
+							if (Array.isArray(coerced) && coerced.length === 0) return null;
+							return {
+								project_id: finalProjectId!,
+								event_submission_field_id: answer.eventSubmissionFieldId,
+								answer: coerced,
+							};
+						})
+						.filter(Boolean) as Array<{
+						project_id: string;
+						event_submission_field_id: string;
+						answer: string | string[];
+					}>;
+				}
+
+				const { error: deleteAnswersError } = await supabase
+					.from("project_submission_answers")
+					.delete()
+					.eq("project_id", finalProjectId!);
+				if (deleteAnswersError) {
+					return NextResponse.json(
+						{ error: "Failed to update submission answers" },
+						{ status: 500 }
+					);
+				}
+
+				if (normalizedAnswers.length > 0) {
+					const { error: insertAnswersError } = await supabase
+						.from("project_submission_answers")
+						.insert(normalizedAnswers);
+					if (insertAnswersError) {
+						return NextResponse.json(
+							{ error: "Failed to save submission answers" },
+							{ status: 500 }
+						);
+					}
+				}
+			}
 
 		// Manage track relationships only when event context exists
 		if (eventId && trackIds && trackIds.length > 0) {
@@ -204,16 +349,16 @@ export async function POST(request: Request) {
 				const label = projectName || leadName || "Project";
 				const contextusPayload = {
 					label,
-					metadata: {
+						metadata: {
 						mentor_mates_project_id: finalProjectId!,
 						team_lead_name: leadName as string,
 						team_lead_email: leadEmail as string,
 						...(eventId ? { event_id: eventId } : {}),
-					},
-					artifacts: projectUrl
-						? { type: "link", title: "Project Repository", url: projectUrl }
-						: { type: "doc", title: projectDescription ? projectDescription.slice(0, 100) : "Project" },
-				};
+						},
+						artifacts: legacyFields.project_url
+							? { type: "link", title: "Project Repository", url: legacyFields.project_url }
+							: { type: "doc", title: projectDescription ? projectDescription.slice(0, 100) : "Project" },
+					};
 				contextusId = await createContextusProject(contextusPayload);
 			} catch (contextusError) {
 				console.error("Error creating Contextus project:", contextusError);
