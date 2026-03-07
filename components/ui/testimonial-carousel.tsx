@@ -108,27 +108,27 @@ export function TestimonialPanelMobile() {
   const t = TESTIMONIALS[index];
 
   return (
-    <section className="lg:hidden mt-6">
-      <div className="bg-sky-50 rounded-3xl px-6 py-10 text-center">
+    <section className="lg:hidden mt-6 px-4 pb-6">
+      <div className="bg-sky-50 rounded-3xl px-5 py-6 text-center">
         <Stars />
-        <blockquote className="mt-4 text-base leading-7 text-slate-800">
+        <blockquote className="mt-3 text-sm leading-6 text-slate-800">
           <span
             dangerouslySetInnerHTML={{ __html: `&ldquo;${t.quote}&rdquo;` }}
           />
         </blockquote>
 
-        <div className="mt-6 flex flex-col items-center gap-2">
+        <div className="mt-4 flex flex-col items-center gap-1.5">
           <Image
             src={t.avatar}
             alt={t.author}
-            width={56}
-            height={56}
+            width={40}
+            height={40}
             className="rounded-full border border-slate-300"
           />
           <div className="text-sm font-semibold text-slate-900">{t.author}</div>
           <div className="text-xs text-slate-600 max-w-xs">{t.title}</div>
           {t.logo ? (
-            <div className="mt-2">
+            <div className="mt-1">
               <Image
                 src={t.logo}
                 alt="logo"
@@ -140,7 +140,7 @@ export function TestimonialPanelMobile() {
           ) : null}
         </div>
 
-        <div className="mt-8 flex items-center justify-center gap-8">
+        <div className="mt-4 flex items-center justify-center gap-8">
           <button
             onClick={prev}
             aria-label="Previous"
