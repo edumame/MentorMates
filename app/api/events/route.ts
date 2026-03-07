@@ -222,7 +222,7 @@ export async function POST(req: Request) {
       participant_capacity: event.participant_capacity ?? null,
       paid: event.paid ?? null,
       stripe_price_id: event.stripe_price_id ?? null,
-      event_schedule: (event.event_schedule as Json) ?? null,
+      ...(event.event_schedule ? { event_schedule: event.event_schedule as Json } : {}),
       event_resources: (event.event_resources as Json) ?? ([] as Json),
       faq: event.faq ?? null,
       owner_id: user.id, // Set the creator as the owner
