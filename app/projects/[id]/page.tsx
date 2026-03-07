@@ -10,6 +10,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Users,
@@ -83,6 +90,14 @@ interface EventDetails {
   cover_image_url?: string;
 }
 
+interface JoinedHackathonOption {
+  event_id: string;
+  event_name: string;
+  event_date: string | null;
+  location: string | null;
+  slug: string | null;
+}
+
 export default function ProjectPage() {
   const params = useParams();
   const router = useRouter();
@@ -115,6 +130,12 @@ export default function ProjectPage() {
   // Event details state
   const [eventDetails, setEventDetails] = useState<EventDetails | null>(null);
   const [feedbackCount, setFeedbackCount] = useState(0);
+  const [joinedHackathons, setJoinedHackathons] = useState<JoinedHackathonOption[]>(
+    []
+  );
+  const [selectedHackathonId, setSelectedHackathonId] = useState("");
+  const [isLoadingJoinedHackathons, setIsLoadingJoinedHackathons] =
+    useState(false);
 
   // Contextus ID state
   const [showContextusId, setShowContextusId] = useState(false);
@@ -126,6 +147,8 @@ export default function ProjectPage() {
   const [showFeedbackDialog, setShowFeedbackDialog] = useState(false);
 
   const [fetchComplete, setFetchComplete] = useState(false);
+  const isLead =
+    session?.user?.email?.toLowerCase() === project?.lead_email?.toLowerCase();
 
   const setProjectWithArtifacts = useCallback((nextProject: Project) => {
     const fallbackArtifacts = buildArtifactsFromLegacy({
@@ -189,7 +212,12 @@ export default function ProjectPage() {
   // Fetch event details and feedback count when project is loaded
   useEffect(() => {
     const fetchEventDetailsAndFeedback = async () => {
-      if (!project?.event_id || !project?.id) return;
+      if (!project?.id) return;
+
+      if (!project.event_id) {
+        setEventDetails(null);
+        return;
+      }
 
       try {
         const [eventResult, feedbackResult] = await Promise.all([
@@ -234,10 +262,67 @@ export default function ProjectPage() {
   }, [project?.event_id, project?.id]);
 
   useEffect(() => {
+    const fetchJoinedHackathons = async () => {
+      if (
+        !session?.user?.id ||
+        !isLead ||
+        !project?.lead_email ||
+        project.event_id
+      ) {
+        setJoinedHackathons([]);
+        setSelectedHackathonId("");
+        return;
+      }
+
+      setIsLoadingJoinedHackathons(true);
+      try {
+        const { data, error } = await supabase
+          .from("events")
+          .select(
+            "event_id, event_name, event_date, location, slug, user_event_roles!inner(user_id)"
+          )
+          .eq("user_event_roles.user_id", session.user.id)
+          .order("event_date", { ascending: true });
+
+        if (error) {
+          throw error;
+        }
+
+        const options = ((data as JoinedHackathonOption[] | null) || []).map(
+          (event) => ({
+            event_id: event.event_id,
+            event_name: event.event_name,
+            event_date: event.event_date,
+            location: event.location,
+            slug: event.slug,
+          })
+        );
+
+        setJoinedHackathons(options);
+        setSelectedHackathonId((currentValue) => {
+          if (currentValue && options.some((event) => event.event_id === currentValue)) {
+            return currentValue;
+          }
+          return options[0]?.event_id || "";
+        });
+      } catch (error) {
+        console.error("Error fetching joined hackathons:", error);
+        setJoinedHackathons([]);
+        setSelectedHackathonId("");
+      } finally {
+        setIsLoadingJoinedHackathons(false);
+      }
+    };
+
+    void fetchJoinedHackathons();
+  }, [isLead, project?.event_id, project?.lead_email, session?.user?.id]);
+
+  useEffect(() => {
     let isMounted = true;
 
     const checkEventTracks = async () => {
       if (!project?.event_id) {
+        setHasEventTracks(false);
         return;
       }
 
@@ -769,8 +854,57 @@ export default function ProjectPage() {
     }
   };
 
+  const handleAssignHackathon = async () => {
+    if (!selectedHackathonId) {
+      toast({
+        title: "Select a hackathon",
+        description: "Choose one of your joined hackathons before assigning.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsUpdating(true);
+    try {
+      const response = await fetch(`/api/projects/${projectId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ event_id: selectedHackathonId }),
+      });
+
+      const payload = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        project?: Project;
+      };
+
+      if (!response.ok || !payload.project) {
+        throw new Error(payload.error || "Failed to assign project to hackathon");
+      }
+
+      setProjectWithArtifacts(payload.project);
+      toast({
+        title: "Hackathon assigned",
+        description: "Your project is now linked to the selected hackathon.",
+      });
+    } catch (error) {
+      toast({
+        title: "Assignment failed",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to assign project to a hackathon.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
   const fetchEventParticipants = useCallback(async () => {
-    if (!project?.event_id) return;
+    if (!project?.event_id) {
+      setParticipants([]);
+      return;
+    }
 
     setIsLoadingParticipants(true);
     try {
@@ -1069,8 +1203,6 @@ export default function ProjectPage() {
     );
   }
 
-  const isLead =
-    session?.user?.email?.toLowerCase() === project.lead_email?.toLowerCase();
   const totalMembers = (project.teammates?.length || 0) + 1;
   const teamMembers = [
     {
@@ -2275,86 +2407,169 @@ export default function ProjectPage() {
                       )}
 
                       {/* Submitted to Event */}
-                      {activeTab === "overview" && eventDetails && (
-                        <div className="space-y-4">
-                          <h3 className="text-lg font-bold text-black tracking-tight">
-                            Submitted to
-                          </h3>
-                          <Link
-                            href={`/events/${eventDetails.event_id}/overview`}
-                          >
-                            <Card className="border border-black/15 rounded-xl overflow-hidden hover:shadow-lg">
-                              <div className="relative">
-                                {eventDetails.cover_image_url ? (
-                                  <img
-                                    src={eventDetails.cover_image_url}
-                                    alt={eventDetails.event_name}
-                                    className="w-full h-[180px] object-cover"
-                                  />
-                                ) : (
-                                  <div className="w-full h-[180px] bg-gradient-to-br from-orange-400 via-blue-500 to-purple-600"></div>
-                                )}
-                                {eventDetails.start_date && (
-                                  <div className="absolute top-4 right-4 bg-white border border-gray-300 rounded-xl py-3 px-1 text-center w-28">
-                                    <p className="text-sm text-black">
-                                      {new Date(
-                                        eventDetails.start_date
-                                      ).toLocaleDateString("en-US", {
-                                        weekday: "short",
-                                      })}
-                                    </p>
-                                    <p className="text-4xl font-semibold text-black tracking-tight leading-none">
-                                      {new Date(
-                                        eventDetails.start_date
-                                      ).getDate()}
-                                    </p>
-                                    <p className="text-sm text-black">
-                                      {new Date(
-                                        eventDetails.start_date
-                                      ).toLocaleDateString("en-US", {
-                                        month: "short",
-                                        year: "numeric",
-                                      })}
-                                    </p>
+                      {activeTab === "overview" &&
+                        (eventDetails || (isLead && !project.event_id)) && (
+                          <div className="space-y-4">
+                            <h3 className="text-lg font-bold text-black tracking-tight">
+                              {eventDetails ? "Submitted to" : "Assign to a hackathon"}
+                            </h3>
+
+                            {eventDetails ? (
+                              <Link
+                                href={`/events/${eventDetails.event_id}/overview`}
+                              >
+                                <Card className="border border-black/15 rounded-xl overflow-hidden hover:shadow-lg">
+                                  <div className="relative">
+                                    {eventDetails.cover_image_url ? (
+                                      <img
+                                        src={eventDetails.cover_image_url}
+                                        alt={eventDetails.event_name}
+                                        className="w-full h-[180px] object-cover"
+                                      />
+                                    ) : (
+                                      <div className="w-full h-[180px] bg-gradient-to-br from-orange-400 via-blue-500 to-purple-600"></div>
+                                    )}
+                                    {eventDetails.start_date && (
+                                      <div className="absolute top-4 right-4 bg-white border border-gray-300 rounded-xl py-3 px-1 text-center w-28">
+                                        <p className="text-sm text-black">
+                                          {new Date(
+                                            eventDetails.start_date
+                                          ).toLocaleDateString("en-US", {
+                                            weekday: "short",
+                                          })}
+                                        </p>
+                                        <p className="text-4xl font-semibold text-black tracking-tight leading-none">
+                                          {new Date(
+                                            eventDetails.start_date
+                                          ).getDate()}
+                                        </p>
+                                        <p className="text-sm text-black">
+                                          {new Date(
+                                            eventDetails.start_date
+                                          ).toLocaleDateString("en-US", {
+                                            month: "short",
+                                            year: "numeric",
+                                          })}
+                                        </p>
+                                      </div>
+                                    )}
                                   </div>
-                                )}
-                              </div>
-                              <CardContent className="p-6 space-y-4">
-                                <div className="flex gap-1 flex-wrap">
-                                  <Badge
-                                    variant="secondary"
-                                    className="bg-transparent border border-black/15 text-black rounded-full font-semibold"
-                                  >
-                                    {eventDetails.event_type || "Hackathon"}
-                                  </Badge>
-                                  <Badge
-                                    variant="secondary"
-                                    className="bg-transparent border border-black/15 text-black rounded-full font-semibold"
-                                  >
-                                    Paid event
-                                  </Badge>
-                                </div>
-                                <div className="space-y-2">
-                                  <h4 className="text-2xl font-semibold text-black tracking-tight">
-                                    {eventDetails.event_name}
-                                  </h4>
-                                  <div className="flex items-center gap-1 text-sm">
-                                    <MapPin className="h-4 w-4 text-black" />
-                                    <span className="text-black text-center">
-                                      {eventDetails.location || "Online"}
-                                    </span>
-                                  </div>
-                                </div>
-                                <p className="text-base text-black leading-relaxed">
-                                  Lorem ipsum dolor sit amet, consectetur
-                                  adipiscing elit. Suspendisse varius enim in
-                                  eros.
-                                </p>
-                              </CardContent>
-                            </Card>
-                          </Link>
-                        </div>
-                      )}
+                                  <CardContent className="p-6 space-y-4">
+                                    <div className="flex gap-1 flex-wrap">
+                                      <Badge
+                                        variant="secondary"
+                                        className="bg-transparent border border-black/15 text-black rounded-full font-semibold"
+                                      >
+                                        {eventDetails.event_type || "Hackathon"}
+                                      </Badge>
+                                      <Badge
+                                        variant="secondary"
+                                        className="bg-transparent border border-black/15 text-black rounded-full font-semibold"
+                                      >
+                                        Paid event
+                                      </Badge>
+                                    </div>
+                                    <div className="space-y-2">
+                                      <h4 className="text-2xl font-semibold text-black tracking-tight">
+                                        {eventDetails.event_name}
+                                      </h4>
+                                      <div className="flex items-center gap-1 text-sm">
+                                        <MapPin className="h-4 w-4 text-black" />
+                                        <span className="text-black text-center">
+                                          {eventDetails.location || "Online"}
+                                        </span>
+                                      </div>
+                                    </div>
+                                    <p className="text-base text-black leading-relaxed">
+                                      Lorem ipsum dolor sit amet, consectetur
+                                      adipiscing elit. Suspendisse varius enim in
+                                      eros.
+                                    </p>
+                                  </CardContent>
+                                </Card>
+                              </Link>
+                            ) : (
+                              <Card className="border border-black/15 rounded-xl">
+                                <CardContent className="p-6 space-y-4">
+                                  <p className="text-sm text-gray-600">
+                                    Pick one of the hackathons you have already joined
+                                    to attach this project to it. Once assigned, the
+                                    project will use that hackathon&apos;s submission
+                                    rules and tracks.
+                                  </p>
+
+                                  {isLoadingJoinedHackathons ? (
+                                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                                      <Loader className="h-4 w-4 animate-spin" />
+                                      Loading your hackathons...
+                                    </div>
+                                  ) : joinedHackathons.length > 0 ? (
+                                    <div className="space-y-4">
+                                      <div className="space-y-2">
+                                        <p className="text-sm font-medium text-black">
+                                          Select a hackathon
+                                        </p>
+                                        <Select
+                                          value={selectedHackathonId}
+                                          onValueChange={setSelectedHackathonId}
+                                        >
+                                          <SelectTrigger>
+                                            <SelectValue placeholder="Choose a hackathon" />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            {joinedHackathons.map((hackathon) => (
+                                              <SelectItem
+                                                key={hackathon.event_id}
+                                                value={hackathon.event_id}
+                                              >
+                                                {hackathon.event_name}
+                                                {hackathon.event_date
+                                                  ? ` - ${new Date(
+                                                      hackathon.event_date
+                                                    ).toLocaleDateString("en-US", {
+                                                      month: "short",
+                                                      day: "numeric",
+                                                      year: "numeric",
+                                                    })}`
+                                                  : ""}
+                                              </SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                      </div>
+
+                                      <Button
+                                        onClick={handleAssignHackathon}
+                                        disabled={!selectedHackathonId || isUpdating}
+                                        className="w-full"
+                                      >
+                                        {isUpdating ? (
+                                          <>
+                                            <Loader className="mr-2 h-4 w-4 animate-spin" />
+                                            Assigning...
+                                          </>
+                                        ) : (
+                                          "Assign project to selected hackathon"
+                                        )}
+                                      </Button>
+                                    </div>
+                                  ) : (
+                                    <div className="space-y-3">
+                                      <p className="text-sm text-gray-600">
+                                        You have not joined any hackathons yet, so
+                                        there is nothing available to assign this
+                                        project to.
+                                      </p>
+                                      <Button asChild variant="outline">
+                                        <Link href="/events">Browse hackathons</Link>
+                                      </Button>
+                                    </div>
+                                  )}
+                                </CardContent>
+                              </Card>
+                            )}
+                          </div>
+                        )}
 
                       {/* Divider */}
                       {activeTab === "overview" && (

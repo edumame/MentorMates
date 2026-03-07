@@ -7,6 +7,38 @@ import {
   submissionAnswerInputSchema,
 } from "@/features/projects/utils/submission";
 
+async function hasUserJoinedEvent(
+  supabase: Awaited<ReturnType<typeof createSupabaseClient>>,
+  userId: string,
+  eventId: string
+) {
+  const [{ data: roleRow }, { data: ticketRow }, { data: paymentRow }] =
+    await Promise.all([
+      supabase
+        .from("user_event_roles")
+        .select("role")
+        .eq("user_id", userId)
+        .eq("event_id", eventId)
+        .maybeSingle(),
+      supabase
+        .from("event_tickets")
+        .select("ticket_status")
+        .eq("assigned_to_user_id", userId)
+        .eq("event_id", eventId)
+        .in("ticket_status", ["assigned", "used"])
+        .maybeSingle(),
+      supabase
+        .from("user_event_payments")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("event_id", eventId)
+        .eq("payment_status", "paid")
+        .maybeSingle(),
+    ]);
+
+  return Boolean(roleRow || ticketRow || paymentRow);
+}
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ projectId: string }> }
@@ -124,8 +156,59 @@ export async function PATCH(
       ? normalizeProjectArtifacts(artifactsInput)
       : null;
 
-    // Validate event_id change if provided
+    const { data: existingProject, error: existingProjectError } = await supabase
+      .from("projects")
+      .select("id, event_id, lead_email")
+      .eq("id", projectId)
+      .single();
+
+    if (existingProjectError || !existingProject) {
+      return NextResponse.json({ error: "Project not found" }, { status: 404 });
+    }
+
+    // Validate event assignment if provided
     if (body.event_id !== undefined) {
+      if (typeof body.event_id !== "string" || body.event_id.trim().length === 0) {
+        return NextResponse.json(
+          { error: "A valid hackathon is required" },
+          { status: 400 }
+        );
+      }
+
+      body.event_id = body.event_id.trim();
+      const isChangingEvent = body.event_id !== existingProject.event_id;
+
+      if (isChangingEvent) {
+        const isProjectLead =
+          existingProject.lead_email?.toLowerCase() === user.email?.toLowerCase();
+
+        if (!isProjectLead) {
+          return NextResponse.json(
+            { error: "Only the project lead can assign a project to a hackathon" },
+            { status: 403 }
+          );
+        }
+
+        if (existingProject.event_id) {
+          return NextResponse.json(
+            { error: "This project is already assigned to a hackathon" },
+            { status: 400 }
+          );
+        }
+
+        const hasJoined = await hasUserJoinedEvent(
+          supabase,
+          user.id,
+          body.event_id
+        );
+        if (!hasJoined) {
+          return NextResponse.json(
+            { error: "You can only assign projects to hackathons you have joined" },
+            { status: 403 }
+          );
+        }
+      }
+
       const { data: eventData, error: eventError } = await supabase
         .from("events")
         .select("event_id, event_name, submission_time_start, submission_time_cutoff")
@@ -193,16 +276,6 @@ export async function PATCH(
       updateData.project_url = legacyFields.project_url;
       updateData.video_url = legacyFields.video_url;
       updateData.additional_materials_url = legacyFields.additional_materials_url;
-    }
-
-    const { data: existingProject, error: existingProjectError } = await supabase
-      .from("projects")
-      .select("id, event_id")
-      .eq("id", projectId)
-      .single();
-
-    if (existingProjectError || !existingProject) {
-      return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
     if (
