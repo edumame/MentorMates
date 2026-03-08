@@ -13,7 +13,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { ArrowLeft, ArrowRight, ChevronDown, ChevronLeft, ChevronRight, Target } from "lucide-react";
+import { ArrowLeft, ArrowRight, ChevronDown, Target } from "lucide-react";
 import Link from "next/link";
 import { LoadingScreen } from "@/components/ui/loading-screen";
 import {
@@ -742,19 +742,8 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
           )}
 
           {currentProject && (
-            <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
-              <div className="relative flex items-start gap-3">
-                <button
-                  type="button"
-                  className="sticky top-1/2 z-20 hidden -translate-y-1/2 items-center justify-center rounded-full border border-[#D8E1F0] bg-white p-2 shadow-md transition-colors hover:bg-[#F5F8FD] disabled:opacity-40 lg:flex"
-                  onClick={() => navigateCards(-1)}
-                  disabled={visibleProjects.length <= 1}
-                  aria-label="Previous project"
-                >
-                  <ChevronLeft className="h-5 w-5 text-[rgba(0,0,0,0.6)]" />
-                </button>
-
-                <div className="relative min-w-0 flex-1">
+            <>
+              <div className="relative">
                 {upcomingCards.map((project, index) => (
                   <div
                     key={project.id}
@@ -799,85 +788,176 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                     </div>
                   </div>
 
-                  <div className="min-w-0 space-y-4">
-                    <div className="overflow-hidden rounded-2xl bg-white">
-                      {currentProject.cover_image_url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={currentProject.cover_image_url}
-                          alt={`${currentProject.project_name} cover`}
-                          className="h-[240px] w-full object-cover md:h-[280px]"
-                        />
-                      ) : (
-                        <div className="flex h-[240px] w-full flex-col items-center justify-center gap-3 bg-gradient-to-br from-[#EEF4FF] via-[#F5F9FF] to-[#EDF9F3] text-[rgba(0,0,0,0.6)] md:h-[280px]">
-                          <Target className="h-8 w-8 text-[#4B89EF]" />
-                          <p className="text-sm font-medium">No project image uploaded</p>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="space-y-3">
-                      <h4 className="text-sm font-semibold uppercase tracking-[0.14em] text-[rgba(0,0,0,0.5)]">
-                        Snapshot
-                      </h4>
-                      <p className="break-words text-sm leading-6 text-[rgba(0,0,0,0.78)]">
-                        {displayDescription}
-                      </p>
-                      {shouldTruncateDescription && (
-                        <button
-                          type="button"
-                          data-no-swipe="true"
-                          className="text-sm font-semibold text-[#2E68CA] hover:underline"
-                          onClick={() =>
-                            setExpandedDescriptions((prev) => {
-                              if (!currentProject) {
-                                return prev;
-                              }
-                              const updated = new Set(prev);
-                              if (updated.has(currentProject.id)) {
-                                updated.delete(currentProject.id);
-                              } else {
-                                updated.add(currentProject.id);
-                              }
-                              return updated;
-                            })
-                          }
-                        >
-                          {currentDescriptionIsExpanded ? "Show less" : "Show more"}
-                        </button>
-                      )}
-
-                      <div className="flex flex-wrap gap-2 pt-2" data-no-swipe="true">
-                        <Link
-                          href={`/projects/public/${currentProject.id}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center rounded-full border border-[#D7DEEB] bg-white px-3 py-1.5 text-xs font-medium text-[rgba(0,0,0,0.72)] hover:border-[#AEB8CF]"
-                        >
-                          Project details
-                        </Link>
-                        {currentProject.project_url && (
-                          <Link
-                            href={currentProject.project_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center rounded-full border border-[#D7DEEB] bg-white px-3 py-1.5 text-xs font-medium text-[rgba(0,0,0,0.72)] hover:border-[#AEB8CF]"
-                          >
-                            Live demo
-                          </Link>
-                        )}
-                        {currentProject.video_url && (
-                          <Link
-                            href={currentProject.video_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center rounded-full border border-[#D7DEEB] bg-white px-3 py-1.5 text-xs font-medium text-[rgba(0,0,0,0.72)] hover:border-[#AEB8CF]"
-                          >
-                            Video pitch
-                          </Link>
+                  <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
+                    {/* Snapshot — shown in both mobile & desktop inside the card */}
+                    <section className="order-1 min-w-0 space-y-4 lg:order-2">
+                      <div className="overflow-hidden rounded-2xl bg-white">
+                        {currentProject.cover_image_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={currentProject.cover_image_url}
+                            alt={`${currentProject.project_name} cover`}
+                            className="h-[240px] w-full object-cover md:h-[280px]"
+                          />
+                        ) : (
+                          <div className="flex h-[240px] w-full flex-col items-center justify-center gap-3 bg-gradient-to-br from-[#EEF4FF] via-[#F5F9FF] to-[#EDF9F3] text-[rgba(0,0,0,0.6)] md:h-[280px]">
+                            <Target className="h-8 w-8 text-[#4B89EF]" />
+                            <p className="text-sm font-medium">No project image uploaded</p>
+                          </div>
                         )}
                       </div>
-                    </div>
+
+                      <div className="space-y-3">
+                        <h4 className="text-sm font-semibold uppercase tracking-[0.14em] text-[rgba(0,0,0,0.5)]">
+                          Snapshot
+                        </h4>
+                        <p className="break-words text-sm leading-6 text-[rgba(0,0,0,0.78)]">
+                          {displayDescription}
+                        </p>
+                        {shouldTruncateDescription && (
+                          <button
+                            type="button"
+                            data-no-swipe="true"
+                            className="text-sm font-semibold text-[#2E68CA] hover:underline"
+                            onClick={() =>
+                              setExpandedDescriptions((prev) => {
+                                if (!currentProject) {
+                                  return prev;
+                                }
+                                const updated = new Set(prev);
+                                if (updated.has(currentProject.id)) {
+                                  updated.delete(currentProject.id);
+                                } else {
+                                  updated.add(currentProject.id);
+                                }
+                                return updated;
+                              })
+                            }
+                          >
+                            {currentDescriptionIsExpanded ? "Show less" : "Show more"}
+                          </button>
+                        )}
+
+                        <div className="flex flex-wrap gap-2 pt-2" data-no-swipe="true">
+                          <Link
+                            href={`/projects/public/${currentProject.id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center rounded-full border border-[#D7DEEB] bg-white px-3 py-1.5 text-xs font-medium text-[rgba(0,0,0,0.72)] hover:border-[#AEB8CF]"
+                          >
+                            Project details
+                          </Link>
+                          {currentProject.project_url && (
+                            <Link
+                              href={currentProject.project_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center rounded-full border border-[#D7DEEB] bg-white px-3 py-1.5 text-xs font-medium text-[rgba(0,0,0,0.72)] hover:border-[#AEB8CF]"
+                            >
+                              Live demo
+                            </Link>
+                          )}
+                          {currentProject.video_url && (
+                            <Link
+                              href={currentProject.video_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center rounded-full border border-[#D7DEEB] bg-white px-3 py-1.5 text-xs font-medium text-[rgba(0,0,0,0.72)] hover:border-[#AEB8CF]"
+                            >
+                              Video pitch
+                            </Link>
+                          )}
+                        </div>
+                      </div>
+                    </section>
+
+                    {/* Rubric — desktop only (inside card) */}
+                    <section className="order-2 hidden space-y-4 lg:order-1 lg:block">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-sm font-semibold text-[rgba(0,0,0,0.8)]">
+                          Rubric
+                        </p>
+                        <p className="inline-flex h-7 items-center rounded-full bg-[#EAF2FF] px-3 text-xs font-semibold text-[#2E68CA]">
+                          {currentTrackScoredCount}/{currentProject.track_ids.length} tracks completed
+                        </p>
+                      </div>
+
+                      {currentProject.track_ids.length === 0 ? (
+                        <p className="text-sm text-yellow-700">
+                          This project has no track assigned yet.
+                        </p>
+                      ) : (
+                        <Accordion
+                          type="multiple"
+                          value={currentOpenTrackIds}
+                          onValueChange={(value) => {
+                            setOpenTracksByProject((prev) => {
+                              const updated = new Map(prev);
+                              updated.set(currentProject.id, value);
+                              return updated;
+                            });
+                          }}
+                          className="space-y-3"
+                        >
+                          {currentProject.track_ids.map((trackId) => {
+                            const trackInfo = eventTracks.find(
+                              (track) => track.track_id === trackId
+                            );
+                            const isScored =
+                              scoredProjects.get(currentProject.id)?.has(trackId) ||
+                              false;
+                            const isOpen = currentOpenTrackIds.includes(trackId);
+
+                            return (
+                              <AccordionItem
+                                key={trackId}
+                                value={trackId}
+                                className="rounded-xl border border-[#D8E1F0] bg-white px-4 data-[state=open]:border-[#BFD2F4]"
+                              >
+                                <AccordionTrigger
+                                  data-no-swipe="true"
+                                  className="py-3 hover:no-underline"
+                                >
+                                  <div className="flex w-full items-center justify-between gap-2 pr-3 text-left">
+                                    <span className="font-medium text-[rgba(0,0,0,0.8)]">
+                                      {trackInfo?.name || "Track"}
+                                    </span>
+                                    <span
+                                      className={`inline-flex h-6 items-center rounded-full px-2.5 text-xs font-semibold ${
+                                        isScored
+                                          ? "bg-[#E8F8EC] text-[#19703A]"
+                                          : "bg-[#FFF5E5] text-[#9A5C00]"
+                                      }`}
+                                    >
+                                      {isScored ? "Scored" : "Pending"}
+                                    </span>
+                                  </div>
+                                </AccordionTrigger>
+                                <AccordionContent className="pb-3">
+                                  {isOpen && (
+                                    <DefaultScoring
+                                      key={`${currentProject.id}-${trackId}`}
+                                      projectId={currentProject.id}
+                                      eventId={eventId}
+                                      judgeId={judgeId}
+                                      trackId={trackId}
+                                      finalistFeatureEnabled={finalistFeatureEnabled}
+                                      hideProjectHeader
+                                      onScoreSaved={() =>
+                                        advanceAfterTrackSubmit(currentProject, trackId)
+                                      }
+                                      onScoreDeleted={() =>
+                                        markTrackAsUnscored(currentProject.id, trackId)
+                                      }
+                                    />
+                                  )}
+                                </AccordionContent>
+                              </AccordionItem>
+                            );
+                          })}
+                        </Accordion>
+                      )}
+                    </section>
                   </div>
 
                   <div className="mt-5 flex items-center justify-center gap-2">
@@ -900,20 +980,10 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                     Swipe left or right on open card areas to move between projects.
                   </p>
                 </div>
-                </div>
-
-                <button
-                  type="button"
-                  className="sticky top-1/2 z-20 hidden -translate-y-1/2 items-center justify-center rounded-full border border-[#D8E1F0] bg-white p-2 shadow-md transition-colors hover:bg-[#F5F8FD] disabled:opacity-40 lg:flex"
-                  onClick={() => navigateCards(1)}
-                  disabled={visibleProjects.length <= 1}
-                  aria-label="Next project"
-                >
-                  <ChevronRight className="h-5 w-5 text-[rgba(0,0,0,0.6)]" />
-                </button>
               </div>
 
-              <section className="space-y-4">
+              {/* Rubric — mobile only (outside card) */}
+              <section className="mt-6 space-y-4 lg:hidden">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-sm font-semibold text-[rgba(0,0,0,0.8)]">
                     Rubric
@@ -977,7 +1047,7 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                           <AccordionContent className="pb-3">
                             {isOpen && (
                               <DefaultScoring
-                                key={`${currentProject.id}-${trackId}`}
+                                key={`${currentProject.id}-${trackId}-mobile`}
                                 projectId={currentProject.id}
                                 eventId={eventId}
                                 judgeId={judgeId}
@@ -999,7 +1069,7 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                   </Accordion>
                 )}
               </section>
-            </div>
+            </>
           )}
       </div>
     </div>
