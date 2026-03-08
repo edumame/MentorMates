@@ -200,7 +200,33 @@ export function AssignTab({ eventId }: AssignTabProps) {
     const response = await fetch(`/api/projects?eventId=${eventId}&submitted=true`);
     if (!response.ok) throw new Error("Failed to fetch projects");
     const data = await response.json();
-    setProjects(data.projects || []);
+    
+    // Transform the projects to extract tracks from project_tracks
+    const transformedProjects = (data.projects || []).map((project: {
+      id: string;
+      project_name: string;
+      lead_name: string;
+      project_tracks?: Array<{
+        track_id: string;
+        event_tracks?: {
+          track_id: string;
+          name: string | null;
+          label: string | null;
+        };
+      }>;
+      [key: string]: unknown;
+    }) => ({
+      ...project,
+      tracks: project.project_tracks
+        ?.map((pt): ProjectTrack | null => pt.event_tracks ? {
+          track_id: pt.event_tracks.track_id,
+          name: pt.event_tracks.name,
+          label: pt.event_tracks.label,
+        } : null)
+        .filter((track): track is ProjectTrack => track !== null) || [],
+    }));
+    
+    setProjects(transformedProjects);
   }, [eventId]);
 
   const fetchAssignments = useCallback(async () => {
@@ -803,7 +829,7 @@ export function AssignTab({ eventId }: AssignTabProps) {
                           checked={selectedProjectIds.has(project.id)}
                           onCheckedChange={(checked) =>
                             toggleProjectSelection(project.id, checked === true)
-                          }
+                          } 
                           aria-label={`Select ${project.project_name} for batch assignment`}
                         />
                       </TableCell>
@@ -813,7 +839,7 @@ export function AssignTab({ eventId }: AssignTabProps) {
                           <div className="flex flex-wrap gap-1">
                             {(project.tracks || []).length > 0 ? (
                               project.tracks?.map((track) => (
-                                <Badge key={track.track_id} variant="secondary">
+                                <Badge key={track.track_id} variant="outline">
                                   {track.label || track.name || "Unnamed Track"}
                                 </Badge>
                               ))
