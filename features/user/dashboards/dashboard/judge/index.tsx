@@ -742,140 +742,53 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
           )}
 
           {currentProject && (
-            <div className="relative min-h-[640px]">
-              {upcomingCards.map((project, index) => (
+            <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
+              <div className="relative min-h-[400px] lg:min-h-[640px]">
+                {upcomingCards.map((project, index) => (
+                  <div
+                    key={project.id}
+                    className={`pointer-events-none absolute inset-0 z-0 rounded-3xl border border-[#DDE4F0] bg-[#F8FAFE] px-5 py-5 shadow-sm ${
+                      index === 0
+                        ? "translate-y-3 scale-[0.985]"
+                        : "translate-y-6 scale-[0.97]"
+                    }`}
+                  >
+                    <p className="truncate text-sm font-medium text-[rgba(0,0,0,0.45)]">
+                      {project.project_name}
+                    </p>
+                  </div>
+                ))}
+
                 <div
-                  key={project.id}
-                  className={`pointer-events-none absolute inset-0 z-0 rounded-3xl border border-[#DDE4F0] bg-[#F8FAFE] px-5 py-5 shadow-sm ${
-                    index === 0
-                      ? "translate-y-3 scale-[0.985]"
-                      : "translate-y-6 scale-[0.97]"
-                  }`}
+                  className="relative z-10 rounded-3xl border border-[#DDE4F0] bg-white p-4 shadow-xl md:p-6"
+                  style={{ touchAction: "pan-y" }}
+                  onPointerDown={handleCardPointerDown}
+                  onPointerUp={handleCardPointerUp}
+                  onPointerCancel={resetSwipeState}
+                  onPointerLeave={resetSwipeState}
                 >
-                  <p className="truncate text-sm font-medium text-[rgba(0,0,0,0.45)]">
-                    {project.project_name}
-                  </p>
-                </div>
-              ))}
-
-              <div
-                className="relative z-10 rounded-3xl border border-[#DDE4F0] bg-white p-4 shadow-xl md:p-6"
-                style={{ touchAction: "pan-y" }}
-                onPointerDown={handleCardPointerDown}
-                onPointerUp={handleCardPointerUp}
-                onPointerCancel={resetSwipeState}
-                onPointerLeave={resetSwipeState}
-              >
-                <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <h3 className="mt-1 text-[30px] font-semibold leading-[1.1] tracking-[-0.06em] text-black">
-                      <Link
-                        href={`/projects/public/${currentProject.id}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="underline-offset-4 hover:text-[#2E68CA] hover:underline"
-                        data-no-swipe="true"
-                      >
-                        {currentProject.project_name}
-                      </Link>
-                    </h3>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <div className="inline-flex h-8 items-center rounded-full border border-[#E2E8F3] bg-[#F8FAFD] px-3 text-xs font-semibold text-[rgba(0,0,0,0.72)]">
-                      Card {currentProjectIndex + 1} of {visibleProjects.length}
+                  <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h3 className="mt-1 text-[30px] font-semibold leading-[1.1] tracking-[-0.06em] text-black">
+                        <Link
+                          href={`/projects/public/${currentProject.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="underline-offset-4 hover:text-[#2E68CA] hover:underline"
+                          data-no-swipe="true"
+                        >
+                          {currentProject.project_name}
+                        </Link>
+                      </h3>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="inline-flex h-8 items-center rounded-full border border-[#E2E8F3] bg-[#F8FAFD] px-3 text-xs font-semibold text-[rgba(0,0,0,0.72)]">
+                        Card {currentProjectIndex + 1} of {visibleProjects.length}
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
-                  <section className="order-2 space-y-4 lg:order-1">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="text-sm font-semibold text-[rgba(0,0,0,0.8)]">
-                        Rubric
-                      </p>
-                      <p className="inline-flex h-7 items-center rounded-full bg-[#EAF2FF] px-3 text-xs font-semibold text-[#2E68CA]">
-                        {currentTrackScoredCount}/{currentProject.track_ids.length} tracks completed
-                      </p>
-                    </div>
-
-                    {currentProject.track_ids.length === 0 ? (
-                      <p className="text-sm text-yellow-700">
-                        This project has no track assigned yet.
-                      </p>
-                    ) : (
-                      <Accordion
-                        type="multiple"
-                        value={currentOpenTrackIds}
-                        onValueChange={(value) => {
-                          setOpenTracksByProject((prev) => {
-                            const updated = new Map(prev);
-                            updated.set(currentProject.id, value);
-                            return updated;
-                          });
-                        }}
-                        className="space-y-3"
-                      >
-                        {currentProject.track_ids.map((trackId) => {
-                          const trackInfo = eventTracks.find(
-                            (track) => track.track_id === trackId
-                          );
-                          const isScored =
-                            scoredProjects.get(currentProject.id)?.has(trackId) ||
-                            false;
-                          const isOpen = currentOpenTrackIds.includes(trackId);
-
-                          return (
-                            <AccordionItem
-                              key={trackId}
-                              value={trackId}
-                              className="rounded-xl border border-[#D8E1F0] bg-white px-4 data-[state=open]:border-[#BFD2F4]"
-                            >
-                              <AccordionTrigger
-                                data-no-swipe="true"
-                                className="py-3 hover:no-underline"
-                              >
-                                <div className="flex w-full items-center justify-between gap-2 pr-3 text-left">
-                                  <span className="font-medium text-[rgba(0,0,0,0.8)]">
-                                    {trackInfo?.name || "Track"}
-                                  </span>
-                                  <span
-                                    className={`inline-flex h-6 items-center rounded-full px-2.5 text-xs font-semibold ${
-                                      isScored
-                                        ? "bg-[#E8F8EC] text-[#19703A]"
-                                        : "bg-[#FFF5E5] text-[#9A5C00]"
-                                    }`}
-                                  >
-                                    {isScored ? "Scored" : "Pending"}
-                                  </span>
-                                </div>
-                              </AccordionTrigger>
-                              <AccordionContent className="pb-3">
-                                {isOpen && (
-                                  <DefaultScoring
-                                    key={`${currentProject.id}-${trackId}`}
-                                    projectId={currentProject.id}
-                                    eventId={eventId}
-                                    judgeId={judgeId}
-                                    trackId={trackId}
-                                    finalistFeatureEnabled={finalistFeatureEnabled}
-                                    hideProjectHeader
-                                    onScoreSaved={() =>
-                                      advanceAfterTrackSubmit(currentProject, trackId)
-                                    }
-                                    onScoreDeleted={() =>
-                                      markTrackAsUnscored(currentProject.id, trackId)
-                                    }
-                                  />
-                                )}
-                              </AccordionContent>
-                            </AccordionItem>
-                          );
-                        })}
-                      </Accordion>
-                    )}
-                  </section>
-
-                  <section className="order-1 min-w-0 space-y-4 lg:order-2">
+                  <div className="min-w-0 space-y-4">
                     <div className="overflow-hidden rounded-2xl bg-white">
                       {currentProject.cover_image_url ? (
                         // eslint-disable-next-line @next/next/no-img-element
@@ -954,29 +867,116 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                         )}
                       </div>
                     </div>
-                  </section>
+                  </div>
+
+                  <div className="mt-5 flex items-center justify-center gap-2">
+                    {visibleProjects.slice(0, 10).map((project, index) => (
+                      <span
+                        key={project.id}
+                        className={`h-1.5 rounded-full transition-all ${
+                          project.id === currentProject.id
+                            ? "w-8 bg-[#2E68CA]"
+                            : "w-2 bg-[#D5DEED]"
+                        } ${
+                          index === 9 && visibleProjects.length > 10
+                            ? "opacity-60"
+                            : ""
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <p className="mt-2 text-center text-xs text-[rgba(0,0,0,0.52)]">
+                    Swipe left or right on open card areas to move between projects.
+                  </p>
+                </div>
+              </div>
+
+              <section className="space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-[rgba(0,0,0,0.8)]">
+                    Rubric
+                  </p>
+                  <p className="inline-flex h-7 items-center rounded-full bg-[#EAF2FF] px-3 text-xs font-semibold text-[#2E68CA]">
+                    {currentTrackScoredCount}/{currentProject.track_ids.length} tracks completed
+                  </p>
                 </div>
 
-                <div className="mt-5 flex items-center justify-center gap-2">
-                  {visibleProjects.slice(0, 10).map((project, index) => (
-                    <span
-                      key={project.id}
-                      className={`h-1.5 rounded-full transition-all ${
-                        project.id === currentProject.id
-                          ? "w-8 bg-[#2E68CA]"
-                          : "w-2 bg-[#D5DEED]"
-                      } ${
-                        index === 9 && visibleProjects.length > 10
-                          ? "opacity-60"
-                          : ""
-                      }`}
-                    />
-                  ))}
-                </div>
-                <p className="mt-2 text-center text-xs text-[rgba(0,0,0,0.52)]">
-                  Swipe left or right on open card areas to move between projects.
-                </p>
-              </div>
+                {currentProject.track_ids.length === 0 ? (
+                  <p className="text-sm text-yellow-700">
+                    This project has no track assigned yet.
+                  </p>
+                ) : (
+                  <Accordion
+                    type="multiple"
+                    value={currentOpenTrackIds}
+                    onValueChange={(value) => {
+                      setOpenTracksByProject((prev) => {
+                        const updated = new Map(prev);
+                        updated.set(currentProject.id, value);
+                        return updated;
+                      });
+                    }}
+                    className="space-y-3"
+                  >
+                    {currentProject.track_ids.map((trackId) => {
+                      const trackInfo = eventTracks.find(
+                        (track) => track.track_id === trackId
+                      );
+                      const isScored =
+                        scoredProjects.get(currentProject.id)?.has(trackId) ||
+                        false;
+                      const isOpen = currentOpenTrackIds.includes(trackId);
+
+                      return (
+                        <AccordionItem
+                          key={trackId}
+                          value={trackId}
+                          className="rounded-xl border border-[#D8E1F0] bg-white px-4 data-[state=open]:border-[#BFD2F4]"
+                        >
+                          <AccordionTrigger
+                            data-no-swipe="true"
+                            className="py-3 hover:no-underline"
+                          >
+                            <div className="flex w-full items-center justify-between gap-2 pr-3 text-left">
+                              <span className="font-medium text-[rgba(0,0,0,0.8)]">
+                                {trackInfo?.name || "Track"}
+                              </span>
+                              <span
+                                className={`inline-flex h-6 items-center rounded-full px-2.5 text-xs font-semibold ${
+                                  isScored
+                                    ? "bg-[#E8F8EC] text-[#19703A]"
+                                    : "bg-[#FFF5E5] text-[#9A5C00]"
+                                }`}
+                              >
+                                {isScored ? "Scored" : "Pending"}
+                              </span>
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent className="pb-3">
+                            {isOpen && (
+                              <DefaultScoring
+                                key={`${currentProject.id}-${trackId}`}
+                                projectId={currentProject.id}
+                                eventId={eventId}
+                                judgeId={judgeId}
+                                trackId={trackId}
+                                finalistFeatureEnabled={finalistFeatureEnabled}
+                                hideProjectHeader
+                                onScoreSaved={() =>
+                                  advanceAfterTrackSubmit(currentProject, trackId)
+                                }
+                                onScoreDeleted={() =>
+                                  markTrackAsUnscored(currentProject.id, trackId)
+                                }
+                              />
+                            )}
+                          </AccordionContent>
+                        </AccordionItem>
+                      );
+                    })}
+                  </Accordion>
+                )}
+              </section>
             </div>
           )}
       </div>
