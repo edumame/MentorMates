@@ -161,6 +161,18 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
     [visibleProjects, activeProjectId]
   );
 
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "ArrowLeft") {
+        navigateCards(-1);
+      } else if (event.key === "ArrowRight") {
+        navigateCards(1);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [navigateCards]);
+
   const markTrackAsScored = useCallback((projectId: string, trackId: string) => {
     let updatedTrackIds = new Set<string>();
     setScoredProjects((prev) => {
@@ -976,8 +988,11 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                       />
                     ))}
                   </div>
-                  <p className="mt-2 text-center text-xs text-[rgba(0,0,0,0.52)]">
-                    Swipe left or right on open card areas to move between projects.
+                  <p className="mt-2 text-center text-xs text-[rgba(0,0,0,0.52)] lg:hidden">
+                    Swipe left or right to move between projects.
+                  </p>
+                  <p className="mt-2 hidden text-center text-xs text-[rgba(0,0,0,0.52)] lg:block">
+                    Use arrow keys or swipe to move between projects.
                   </p>
                 </div>
               </div>
