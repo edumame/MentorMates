@@ -810,7 +810,7 @@ export function BasicInfoTab({
                     event_schedule: imported.event_schedule ?? event.event_schedule,
                     rules: imported.rules ?? event.rules,
                     event_resources: imported.event_resources ?? event.event_resources,
-                    faq: imported.faq ?? event.faq,
+                    faq: imported.faqs ?? imported.faq ?? event.faq,
                   } as typeof event;
                   if (Array.isArray(imported.tracks) && imported.tracks.length > 0) {
                     const newTracks = imported.tracks.map((t: ImportedTrack) => {

@@ -372,22 +372,20 @@ export function EventPageContent({
       )}
 
       {/* FAQ */}
-      {event.faq && (
+      {Array.isArray(event.faq) && event.faq.length > 0 && (
         <>
           <div className="flex flex-col pb-4 pt-5 px-0 w-full max-w-full">
             <h2 className="font-semibold text-[22px] leading-[1.4] text-black tracking-[-0.06em]">
-              Award Ceremony
+              FAQ
             </h2>
           </div>
-          <div className="flex flex-col pb-4 pt-0 px-0 w-full max-w-full">
-            <div className="prose prose-blue max-w-full w-full break-words">
-              <ReactMarkdown
-                rehypePlugins={markdownRehypePlugins}
-                components={customMarkdownComponents}
-              >
-                {event.faq}
-              </ReactMarkdown>
-            </div>
+          <div className="flex flex-col pb-4 pt-0 px-0 w-full max-w-full space-y-4">
+            {event.faq.map((item: { question: string; answer: string }, index: number) => (
+              <div key={index}>
+                <p className="font-semibold text-base text-black">{item.question}</p>
+                <p className="mt-1 text-base text-gray-600">{item.answer}</p>
+              </div>
+            ))}
           </div>
         </>
       )}

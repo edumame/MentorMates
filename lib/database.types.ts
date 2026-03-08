@@ -196,7 +196,7 @@ export type Database = {
           event_prizes: Json | null;
           event_resources: Json | null;
           event_schedule: Json | null;
-          faq: string | null;
+          faq: Json | null;
           location: string | null;
           owner_id: string | null;
           paid: boolean | null;
@@ -229,7 +229,7 @@ export type Database = {
           event_prizes?: Json | null;
           event_resources?: Json | null;
           event_schedule?: Json | null;
-          faq?: string | null;
+          faq?: Json | null;
           location?: string | null;
           owner_id?: string | null;
           paid?: boolean | null;
@@ -261,7 +261,7 @@ export type Database = {
           event_prizes?: Json | null;
           event_resources?: Json | null;
           event_schedule?: Json | null;
-          faq?: string | null;
+          faq?: Json | null;
           location?: string | null;
           owner_id?: string | null;
           paid?: boolean | null;
