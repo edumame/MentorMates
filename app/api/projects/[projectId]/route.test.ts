@@ -17,19 +17,8 @@ globalThis.TextDecoder = TextDecoder as typeof globalThis.TextDecoder;
 globalThis.ReadableStream = ReadableStream as typeof globalThis.ReadableStream;
 globalThis.TransformStream = TransformStream as typeof globalThis.TransformStream;
 globalThis.WritableStream = WritableStream as typeof globalThis.WritableStream;
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const edgeRuntimeFetch = require("next/dist/compiled/@edge-runtime/primitives/fetch");
-const Headers = edgeRuntimeFetch.Headers as typeof globalThis.Headers;
-const Request = edgeRuntimeFetch.Request as typeof globalThis.Request;
-const Response = edgeRuntimeFetch.Response as typeof globalThis.Response;
 
-globalThis.Headers = Headers as typeof globalThis.Headers;
-globalThis.Request = Request as typeof globalThis.Request;
-globalThis.Response = Response as typeof globalThis.Response;
-
-// Import after polyfilling the web request primitives Next expects.
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { PATCH } = require("./route");
+let PATCH: typeof import("./route").PATCH;
 
 describe("PATCH /api/projects/[projectId]", () => {
   const buildProjectLookup = (eventId: string | null) => ({
@@ -75,6 +64,22 @@ describe("PATCH /api/projects/[projectId]", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  beforeAll(async () => {
+    const edgeRuntimeFetch = await import(
+      "next/dist/compiled/@edge-runtime/primitives/fetch"
+    );
+
+    globalThis.Headers =
+      edgeRuntimeFetch.Headers as typeof globalThis.Headers;
+    globalThis.Request =
+      edgeRuntimeFetch.Request as typeof globalThis.Request;
+    globalThis.Response =
+      edgeRuntimeFetch.Response as typeof globalThis.Response;
+
+    // Import after polyfilling the web request primitives Next expects.
+    ({ PATCH } = await import("./route"));
   });
 
   it("rejects assigning a project to a hackathon the user has not joined", async () => {
