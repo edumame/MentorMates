@@ -788,8 +788,8 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                 </div>
 
                 <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
-                  <section className="rounded-2xl border border-[#E4EAF4] bg-[#FCFDFF] p-4 md:p-5">
-                    <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                  <section className="order-2 space-y-4 lg:order-1">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
                       <p className="text-sm font-semibold text-[rgba(0,0,0,0.8)]">
                         Rubric
                       </p>
@@ -875,8 +875,8 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                     )}
                   </section>
 
-                  <section className="rounded-2xl border border-[#E4EAF4] bg-[#F8FBFF] p-4 md:p-5">
-                    <div className="mb-4 overflow-hidden rounded-2xl border border-[#DCE6F7] bg-white">
+                  <section className="order-1 space-y-4 lg:order-2">
+                    <div className="overflow-hidden rounded-2xl bg-white">
                       {currentProject.cover_image_url ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
