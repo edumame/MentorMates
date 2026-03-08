@@ -13,7 +13,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { ArrowLeft, ArrowRight, ChevronDown, Target } from "lucide-react";
+import { ArrowLeft, ArrowRight, ChevronDown, ChevronLeft, ChevronRight, Target } from "lucide-react";
 import Link from "next/link";
 import { LoadingScreen } from "@/components/ui/loading-screen";
 import {
@@ -743,7 +743,18 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
 
           {currentProject && (
             <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
-              <div className="relative min-h-[400px] lg:min-h-[640px]">
+              <div className="relative flex items-start gap-3">
+                <button
+                  type="button"
+                  className="sticky top-1/2 z-20 hidden -translate-y-1/2 items-center justify-center rounded-full border border-[#D8E1F0] bg-white p-2 shadow-md transition-colors hover:bg-[#F5F8FD] disabled:opacity-40 lg:flex"
+                  onClick={() => navigateCards(-1)}
+                  disabled={visibleProjects.length <= 1}
+                  aria-label="Previous project"
+                >
+                  <ChevronLeft className="h-5 w-5 text-[rgba(0,0,0,0.6)]" />
+                </button>
+
+                <div className="relative min-w-0 flex-1">
                 {upcomingCards.map((project, index) => (
                   <div
                     key={project.id}
@@ -889,6 +900,17 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                     Swipe left or right on open card areas to move between projects.
                   </p>
                 </div>
+                </div>
+
+                <button
+                  type="button"
+                  className="sticky top-1/2 z-20 hidden -translate-y-1/2 items-center justify-center rounded-full border border-[#D8E1F0] bg-white p-2 shadow-md transition-colors hover:bg-[#F5F8FD] disabled:opacity-40 lg:flex"
+                  onClick={() => navigateCards(1)}
+                  disabled={visibleProjects.length <= 1}
+                  aria-label="Next project"
+                >
+                  <ChevronRight className="h-5 w-5 text-[rgba(0,0,0,0.6)]" />
+                </button>
               </div>
 
               <section className="space-y-4">
