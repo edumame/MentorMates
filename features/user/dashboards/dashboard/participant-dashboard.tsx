@@ -121,7 +121,7 @@ export function ParticipantDashboard({ eventId, canCreateProjects = true }: Part
   useEffect(() => {
     const fetchEventPaywall = async () => {
       const { data, error } = await supabase
-        .from("events")
+        .from("event_paid_content")
         .select("paywall_content")
         .eq("event_id", eventId)
         .maybeSingle();

@@ -114,6 +114,7 @@ const eventSchema = z.object({
   cover_image_url: z.string().url().optional(),
   event_description: z.string().optional(),
   event_blurb: z.string().optional(),
+  paywall_content: z.string().optional(),
   submission_time_start: z.string().optional(),
   submission_time_cutoff: z.string().optional(),
   participant_capacity: z.number().int().nonnegative().optional(),
@@ -242,6 +243,25 @@ export async function POST(req: Request) {
         { error: "Failed to create event" },
         { status: 500 }
       );
+    }
+
+    let paidContentWarning: string | null = null;
+    if (event.paywall_content && event.paywall_content.trim().length > 0) {
+      const { error: contentError } = await supabase
+        .from("event_paid_content")
+        .upsert(
+          {
+            event_id: createdEvent.event_id,
+            paywall_content: event.paywall_content,
+          },
+          { onConflict: "event_id" }
+        );
+
+      if (contentError) {
+        console.error("Error saving paid content:", contentError);
+        paidContentWarning =
+          "Event created, but exclusive content could not be saved. You can add it from the organizer dashboard.";
+      }
     }
 
     const { error: creatorRoleError } = await supabase
@@ -391,6 +411,7 @@ export async function POST(req: Request) {
         organizersAssigned: assignedCount,
         missingOrganizerEmails: missingEmails,
         skippedPrizeTrackIds: skippedPrizes,
+        ...(paidContentWarning ? { paidContentWarning } : {}),
       },
       { status: 201 }
     );

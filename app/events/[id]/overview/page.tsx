@@ -36,7 +36,6 @@ export default async function EventOverviewPage({ params }: PageProps) {
     event_schedule,
     event_prizes,
     event_resources,
-    paywall_content,
     participant_capacity,
     cover_image_url,
     slug,
@@ -113,8 +112,14 @@ export default async function EventOverviewPage({ params }: PageProps) {
 
   let hasJoined = false;
   let userRole: EventRole | null = null;
+  let paywallContent: string | null = null;
 
   if (user) {
+    const { data: joined } = await supabase.rpc("user_has_joined_event", {
+      p_event_id: eventData.event_id,
+      p_user_id: user.id,
+    });
+
     const { data: userEventRole } = await supabase
       .from("user_event_roles")
       .select("role")
@@ -122,9 +127,19 @@ export default async function EventOverviewPage({ params }: PageProps) {
       .eq("event_id", eventData.event_id)
       .maybeSingle();
 
-    hasJoined = !!userEventRole;
+    hasJoined = !!joined;
     userRole = (userEventRole?.role as EventRole) || null;
+
+    const { data: paidContentRow } = await supabase
+      .from("event_paid_content")
+      .select("paywall_content")
+      .eq("event_id", eventData.event_id)
+      .maybeSingle();
+
+    paywallContent = paidContentRow?.paywall_content ?? null;
   }
+
+  typedEvent.paywall_content = paywallContent ?? undefined;
 
   return (
     <EventPageLayout

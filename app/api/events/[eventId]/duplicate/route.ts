@@ -140,6 +140,23 @@ export async function POST(
       );
     }
 
+    // Copy paid content from source event when present.
+    const { data: sourcePaidContent } = await supabase
+      .from("event_paid_content")
+      .select("paywall_content")
+      .eq("event_id", eventId)
+      .maybeSingle();
+
+    if (sourcePaidContent?.paywall_content?.trim()) {
+      await supabase.from("event_paid_content").upsert(
+        {
+          event_id: createdEvent.event_id,
+          paywall_content: sourcePaidContent.paywall_content,
+        },
+        { onConflict: "event_id" }
+      );
+    }
+
     // 5) Ensure the current user is an organizer of the new event
     await supabase.from("user_event_roles").upsert(
       {

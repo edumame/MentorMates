@@ -30,8 +30,38 @@ export function ContentTab({
   const [savingLessons, setSavingLessons] = useState(false);
   const [savingContent, setSavingContent] = useState(false);
   const [loadingLessons, setLoadingLessons] = useState(false);
+  const [loadingContent, setLoadingContent] = useState(false);
   const [uploadingImages, setUploadingImages] = useState<Record<number, boolean>>({});
   const { toast } = useToast();
+
+  // Fetch paywalled content from dedicated table
+  useEffect(() => {
+    async function fetchPaidContent() {
+      setLoadingContent(true);
+      try {
+        const { data, error } = await supabase
+          .from("event_paid_content")
+          .select("paywall_content")
+          .eq("event_id", event.event_id)
+          .maybeSingle();
+
+        if (error) {
+          console.error("Error fetching event paid content:", error);
+          return;
+        }
+
+        setEvent((prev) =>
+          prev ? { ...prev, paywall_content: data?.paywall_content ?? "" } : prev
+        );
+      } catch (err) {
+        console.error("Exception fetching paid content:", err);
+      } finally {
+        setLoadingContent(false);
+      }
+    }
+
+    fetchPaidContent();
+  }, [event.event_id, setEvent]);
 
   // Fetch lessons from database when component mounts
   useEffect(() => {
@@ -47,7 +77,9 @@ export function ContentTab({
           console.error("Error fetching lessons:", error);
         } else {
           // Update event with fetched lessons
-          setEvent({ ...event, event_lessons: (lessonsData || []) as Lesson[] });
+          setEvent((prev) =>
+            prev ? { ...prev, event_lessons: (lessonsData || []) as Lesson[] } : prev
+          );
         }
       } catch (err) {
         console.error("Exception fetching lessons:", err);
@@ -57,7 +89,7 @@ export function ContentTab({
     }
 
     fetchLessons();
-  }, [event.event_id]); // Only re-fetch when event_id changes
+  }, [event.event_id, setEvent]); // Only re-fetch when event_id changes
 
   const addLesson = () => {
     const newLesson: Lesson = {
@@ -144,14 +176,34 @@ export function ContentTab({
     if (isArchived) return;
     try {
       setSavingContent(true);
-      const { error } = await supabase
-        .from("events")
-        .update({ paywall_content: event.paywall_content })
-        .eq("event_id", event.event_id);
+      const content = event.paywall_content || "";
+      const hasMeaningfulContent = content.trim().length > 0;
 
-      if (error) {
-        console.error("Error saving content:", error);
-        throw new Error(`Failed to save content: ${error.message}`);
+      if (hasMeaningfulContent) {
+        const { error } = await supabase
+          .from("event_paid_content")
+          .upsert(
+            {
+              event_id: event.event_id,
+              paywall_content: content,
+            },
+            { onConflict: "event_id" }
+          );
+
+        if (error) {
+          console.error("Error saving content:", error);
+          throw new Error(`Failed to save content: ${error.message}`);
+        }
+      } else {
+        const { error } = await supabase
+          .from("event_paid_content")
+          .delete()
+          .eq("event_id", event.event_id);
+
+        if (error) {
+          console.error("Error clearing content:", error);
+          throw new Error(`Failed to clear content: ${error.message}`);
+        }
       }
 
       toast({
@@ -266,13 +318,16 @@ export function ContentTab({
             <Textarea
               id="paywall_content"
               value={event.paywall_content || ""}
-              disabled={isArchived}
+              disabled={isArchived || loadingContent}
               onChange={(e) =>
                 setEvent({ ...event, paywall_content: e.target.value })
               }
               placeholder="Add content (markdown supported)"
               className="min-h-[300px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] p-3 focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none resize-y"
             />
+            {loadingContent && (
+              <p className="text-xs text-gray-500 mt-2">Loading saved content...</p>
+            )}
             <p className="text-xs text-gray-500 italic mt-2">
               *This content is visible only to participants who have joined the event.
             </p>
