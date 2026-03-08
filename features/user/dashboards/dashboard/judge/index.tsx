@@ -875,7 +875,7 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                     )}
                   </section>
 
-                  <section className="order-1 space-y-4 lg:order-2">
+                  <section className="order-1 min-w-0 space-y-4 lg:order-2">
                     <div className="overflow-hidden rounded-2xl bg-white">
                       {currentProject.cover_image_url ? (
                         // eslint-disable-next-line @next/next/no-img-element
@@ -896,7 +896,7 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                       <h4 className="text-sm font-semibold uppercase tracking-[0.14em] text-[rgba(0,0,0,0.5)]">
                         Snapshot
                       </h4>
-                      <p className="text-sm leading-6 text-[rgba(0,0,0,0.78)]">
+                      <p className="break-words text-sm leading-6 text-[rgba(0,0,0,0.78)]">
                         {displayDescription}
                       </p>
                       {shouldTruncateDescription && (
