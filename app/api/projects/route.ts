@@ -9,6 +9,67 @@ import {
 } from "@/lib/types";
 import { canAccessRole } from "@/features/user/roles/roles";
 import { createContextusProject } from "@/lib/integrations/contextus";
+import { buildArtifactsFromLegacy } from "@/features/projects/utils/submission";
+
+type ArtifactRow = {
+  project_id: string;
+  id: string;
+  kind: "project_link" | "video_link" | "additional_material";
+  label: string;
+  url: string;
+  sort_order: number;
+  is_primary: boolean;
+  metadata: Record<string, unknown> | null;
+};
+
+type ArtifactResponseItem = {
+  project_id?: string;
+  id?: string;
+  kind: "project_link" | "video_link" | "additional_material";
+  label: string;
+  url: string;
+  sort_order: number;
+  is_primary: boolean;
+  metadata?: Record<string, unknown> | null;
+};
+
+type OrganizerProjectRow = {
+  id: string;
+  project_tracks?: { track_id: string }[] | null;
+  project_url?: string | null;
+  additional_materials_url?: string | null;
+  video_url?: string | null;
+  [key: string]: unknown;
+};
+
+async function fetchArtifactsByProjectIds(
+  supabase: Awaited<ReturnType<typeof createSupabaseClient>>,
+  projectIds: string[]
+) {
+  if (projectIds.length === 0) {
+    return new Map<string, ArtifactRow[]>();
+  }
+
+  const { data, error } = await supabase
+    .from("project_artifacts")
+    .select(
+      "id, project_id, kind, label, url, sort_order, is_primary, metadata"
+    )
+    .in("project_id", projectIds)
+    .order("sort_order", { ascending: true });
+
+  if (error || !data) {
+    return new Map<string, ArtifactRow[]>();
+  }
+
+  const map = new Map<string, ArtifactRow[]>();
+  for (const row of data as ArtifactRow[]) {
+    const existing = map.get(row.project_id) || [];
+    existing.push(row);
+    map.set(row.project_id, existing);
+  }
+  return map;
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -39,6 +100,7 @@ export async function GET(request: NextRequest) {
             project_description,
             teammates,
             project_url,
+            video_url,
             additional_materials_url,
             cover_image_url,
             event_id,
@@ -82,6 +144,14 @@ export async function GET(request: NextRequest) {
         if (eventMetaError || eventMeta?.visibility !== "public") {
           return NextResponse.json({ error: "Project not found" }, { status: 404 });
         }
+        const artifactMap = await fetchArtifactsByProjectIds(supabase, [project.id]);
+        const fallbackArtifacts = buildArtifactsFromLegacy({
+          project_url: project.project_url,
+          additional_materials_url: project.additional_materials_url,
+          video_url: (
+            project as unknown as { video_url?: string | null }
+          ).video_url,
+        });
 
         const transformedProject = {
           id: project.id,
@@ -106,6 +176,7 @@ export async function GET(request: NextRequest) {
               ?.map((pt) => pt.event_tracks?.track_id)
               .filter(Boolean) || [],
           created_at: project.created_at,
+          artifacts: artifactMap.get(project.id) || fallbackArtifacts,
         };
 
         return NextResponse.json({ project: transformedProject });
@@ -169,6 +240,7 @@ export async function GET(request: NextRequest) {
           project_description,
           teammates,
           project_url,
+          video_url,
           additional_materials_url,
           cover_image_url,
           event_id,
@@ -214,6 +286,7 @@ export async function GET(request: NextRequest) {
         project_description: item.project_description,
         teammates: item.teammates,
         project_url: item.project_url,
+        video_url: item.video_url,
         additional_materials_url: item.additional_materials_url,
         cover_image_url: item.cover_image_url,
         event_id: item.event_id,
@@ -232,9 +305,24 @@ export async function GET(request: NextRequest) {
         created_at: item.created_at,
       }));
 
+      const artifactMap = await fetchArtifactsByProjectIds(
+        supabase,
+        projects.map((project) => project.id)
+      );
+      const projectsWithArtifacts = projects.map((project) => ({
+        ...project,
+        artifacts:
+          artifactMap.get(project.id) ||
+          buildArtifactsFromLegacy({
+            project_url: project.project_url,
+            additional_materials_url: project.additional_materials_url,
+            video_url: (project as { video_url?: string | null }).video_url,
+          }),
+      }));
+
       // Fetch prizes for all projects
-      if (projects.length > 0) {
-        const projectIds = projects.map((p) => p.id);
+      if (projectsWithArtifacts.length > 0) {
+        const projectIds = projectsWithArtifacts.map((p) => p.id);
         const { data: prizesData } = await supabase
           .from("prizes")
           .select(
@@ -284,7 +372,7 @@ export async function GET(request: NextRequest) {
             }
           });
 
-          projects.forEach(
+          projectsWithArtifacts.forEach(
             (project: { id: string; [key: string]: unknown }) => {
               (project as unknown as ProjectWithPrizes).prizes_won =
                 (prizesByProject[project.id] || []) as Prize[];
@@ -293,7 +381,7 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      return NextResponse.json({ projects });
+      return NextResponse.json({ projects: projectsWithArtifacts });
     }
 
     // For all other requests, require authentication
@@ -318,6 +406,7 @@ export async function GET(request: NextRequest) {
           project_description,
           teammates,
           project_url,
+          video_url,
           additional_materials_url,
           cover_image_url,
           event_id,
@@ -363,6 +452,7 @@ export async function GET(request: NextRequest) {
         project_description: project.project_description,
         teammates: project.teammates,
         project_url: project.project_url,
+        video_url: (project as unknown as { video_url?: string | null }).video_url,
         additional_materials_url: project.additional_materials_url,
         cover_image_url: project.cover_image_url,
         event_id: project.event_id,
@@ -381,6 +471,18 @@ export async function GET(request: NextRequest) {
             .filter(Boolean) || [],
         created_at: project.created_at,
       };
+      const artifactMap = await fetchArtifactsByProjectIds(supabase, [project.id]);
+      (
+        transformedProject as unknown as {
+          artifacts?: ArtifactResponseItem[];
+        }
+      ).artifacts =
+        artifactMap.get(project.id) ||
+        buildArtifactsFromLegacy({
+          project_url: project.project_url,
+          additional_materials_url: project.additional_materials_url,
+          video_url: (project as unknown as { video_url?: string | null }).video_url,
+        });
 
       // Fetch prizes for this project by starting from prize_winners
       const { data: prizeWinnersData } = await supabase
@@ -473,31 +575,36 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      const transformedProjects = (projectsData || []).map(
-        (project: {
-          project_tracks?: {
-            track_id: string;
-            event_tracks?: {
-              track_id: string;
-              name?: string | null;
-              label?: string | null;
-            } | null;
-          }[];
-          [key: string]: unknown;
-        }) => ({
+      const transformedProjects: Array<
+        OrganizerProjectRow & { track_ids: string[] }
+      > = ((projectsData as OrganizerProjectRow[] | null) || []).map(
+        (project) => ({
           ...project,
-          track_ids:
-            project.project_tracks?.map(
-              (pt: { track_id: string }) => pt.track_id
-            ) || [],
-          tracks:
-            project.project_tracks
-              ?.map((pt) => pt.event_tracks)
-              .filter(Boolean) || [],
+          track_ids: project.project_tracks?.map((pt) => pt.track_id) || [],
+        })
+      );
+      const artifactMap = await fetchArtifactsByProjectIds(
+        supabase,
+        transformedProjects.map((project) => project.id)
+      );
+
+      const transformedProjectsWithArtifacts = transformedProjects.map(
+        (project) => ({
+          ...project,
+          artifacts:
+            artifactMap.get(project.id) ||
+            buildArtifactsFromLegacy({
+              project_url: (project as { project_url?: string | null })
+                .project_url,
+              additional_materials_url: (
+                project as { additional_materials_url?: string | null }
+              ).additional_materials_url,
+              video_url: (project as { video_url?: string | null }).video_url,
+            }),
         })
       );
 
-      return NextResponse.json({ projects: transformedProjects });
+      return NextResponse.json({ projects: transformedProjectsWithArtifacts });
     }
 
     // If no specific parameters, return error

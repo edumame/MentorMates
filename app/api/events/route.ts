@@ -128,7 +128,14 @@ const eventSchema = z.object({
       })
     )
     .optional(),
-  faq: z.string().optional(),
+  faq: z
+    .array(
+      z.object({
+        question: z.string(),
+        answer: z.string(),
+      })
+    )
+    .optional(),
   tracks: z
     .array(
       z.object({
@@ -222,9 +229,9 @@ export async function POST(req: Request) {
       participant_capacity: event.participant_capacity ?? null,
       paid: event.paid ?? null,
       stripe_price_id: event.stripe_price_id ?? null,
-      event_schedule: (event.event_schedule as Json) ?? null,
+      ...(event.event_schedule ? { event_schedule: event.event_schedule as Json } : {}),
       event_resources: (event.event_resources as Json) ?? ([] as Json),
-      faq: event.faq ?? null,
+      faq: (event.faq as Json) ?? null,
       owner_id: user.id, // Set the creator as the owner
       approval_status: event.approval_status ?? ApprovalStatus.NotSubmitted, // Events default to not_submitted (visibility controls draft/private/public)
       featured: event.featured ?? false,

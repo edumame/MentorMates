@@ -194,9 +194,9 @@ export default function OnboardingPage() {
   return (
     <div className="min-h-screen grid lg:grid-cols-2">
       {/* LEFT: form column */}
-      <main className="flex flex-col h-screen">
-        <div className="flex-1 flex items-start lg:items-center justify-center px-6 pt-8 lg:pt-0 overflow-y-auto">
-          <div className="w-full max-w-sm py-4">
+      <main className="flex flex-col lg:h-screen">
+        <div className="flex-1 flex items-start lg:items-center justify-center px-6 py-8 lg:pt-0 overflow-y-auto">
+          <div className="w-full max-w-sm pb-4">
             <StepHeader />
             <Form {...form}>
               <form className="space-y-6" onSubmit={form.handleSubmit(handleSubmit)}>
@@ -600,7 +600,9 @@ export default function OnboardingPage() {
             </Form>
           </div>
         </div>
-        <TestimonialPanelMobile />
+        <div className="lg:hidden">
+          <TestimonialPanelMobile />
+        </div>
         <div className="px-6 pb-6 hidden lg:block">
           <div className="text-xs text-slate-500 text-center lg:text-left">
             © 2025 MentorMates

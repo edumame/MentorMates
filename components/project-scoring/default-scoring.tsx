@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { useToast } from "@/lib/hooks/use-toast";
 import { ScoringCriterion, Project } from "@/lib/types";
 import { QuestionFactory } from "./question-types/question-factory";
+import { getDefaultScores } from "./scoring-defaults";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -39,18 +40,6 @@ interface FormValues {
   scores: Record<string, number | string>;
   comments: string;
   finalist_recommendation?: boolean;
-}
-
-function getDefaultScores(criteria: ScoringCriterion[]): Record<string, number | string> {
-  const defaultScores: Record<string, number | string> = {};
-  criteria.forEach((criterion) => {
-    if (criterion.type === "multiplechoice") {
-      defaultScores[criterion.id] = "";
-    } else {
-      defaultScores[criterion.id] = criterion.min || 1;
-    }
-  });
-  return defaultScores;
 }
 
 export function DefaultScoring({

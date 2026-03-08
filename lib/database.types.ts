@@ -196,7 +196,7 @@ export type Database = {
           event_prizes: Json | null;
           event_resources: Json | null;
           event_schedule: Json | null;
-          faq: string | null;
+          faq: Json | null;
           location: string | null;
           owner_id: string | null;
           paid: boolean | null;
@@ -229,7 +229,7 @@ export type Database = {
           event_prizes?: Json | null;
           event_resources?: Json | null;
           event_schedule?: Json | null;
-          faq?: string | null;
+          faq?: Json | null;
           location?: string | null;
           owner_id?: string | null;
           paid?: boolean | null;
@@ -261,7 +261,7 @@ export type Database = {
           event_prizes?: Json | null;
           event_resources?: Json | null;
           event_schedule?: Json | null;
-          faq?: string | null;
+          faq?: Json | null;
           location?: string | null;
           owner_id?: string | null;
           paid?: boolean | null;
@@ -686,6 +686,151 @@ export type Database = {
           },
         ];
       };
+      project_artifacts: {
+        Row: {
+          created_at: string;
+          id: string;
+          is_primary: boolean;
+          kind: Database["public"]["Enums"]["project_artifact_kind"];
+          label: string;
+          metadata: Json | null;
+          project_id: string;
+          sort_order: number;
+          updated_at: string;
+          url: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          is_primary?: boolean;
+          kind: Database["public"]["Enums"]["project_artifact_kind"];
+          label: string;
+          metadata?: Json | null;
+          project_id: string;
+          sort_order?: number;
+          updated_at?: string;
+          url: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          is_primary?: boolean;
+          kind?: Database["public"]["Enums"]["project_artifact_kind"];
+          label?: string;
+          metadata?: Json | null;
+          project_id?: string;
+          sort_order?: number;
+          updated_at?: string;
+          url?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "project_artifacts_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "projects";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      event_submission_fields: {
+        Row: {
+          created_at: string;
+          description: string | null;
+          event_id: string;
+          field_type: Database["public"]["Enums"]["submission_field_type"];
+          id: string;
+          is_active: boolean;
+          key: string;
+          label: string;
+          options: Json;
+          placeholder: string | null;
+          required: boolean;
+          sort_order: number;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          description?: string | null;
+          event_id: string;
+          field_type?: Database["public"]["Enums"]["submission_field_type"];
+          id?: string;
+          is_active?: boolean;
+          key: string;
+          label: string;
+          options?: Json;
+          placeholder?: string | null;
+          required?: boolean;
+          sort_order?: number;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          description?: string | null;
+          event_id?: string;
+          field_type?: Database["public"]["Enums"]["submission_field_type"];
+          id?: string;
+          is_active?: boolean;
+          key?: string;
+          label?: string;
+          options?: Json;
+          placeholder?: string | null;
+          required?: boolean;
+          sort_order?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "event_submission_fields_event_id_fkey";
+            columns: ["event_id"];
+            isOneToOne: false;
+            referencedRelation: "events";
+            referencedColumns: ["event_id"];
+          },
+        ];
+      };
+      project_submission_answers: {
+        Row: {
+          answer: Json;
+          created_at: string;
+          event_submission_field_id: string;
+          id: string;
+          project_id: string;
+          updated_at: string;
+        };
+        Insert: {
+          answer: Json;
+          created_at?: string;
+          event_submission_field_id: string;
+          id?: string;
+          project_id: string;
+          updated_at?: string;
+        };
+        Update: {
+          answer?: Json;
+          created_at?: string;
+          event_submission_field_id?: string;
+          id?: string;
+          project_id?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "project_submission_answers_event_submission_field_id_fkey";
+            columns: ["event_submission_field_id"];
+            isOneToOne: false;
+            referencedRelation: "event_submission_fields";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "project_submission_answers_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "projects";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       projects: {
         Row: {
           additional_materials_url: string | null;
@@ -1090,6 +1235,11 @@ export type Database = {
         | "draft"
         | "archived";
       payment_status: "processing" | "paid" | "canceled" | "refunded";
+      project_artifact_kind:
+        | "project_link"
+        | "video_link"
+        | "additional_material";
+      submission_field_type: "short_text" | "long_text" | "url" | "multi_url";
       ticket_status_enum: "unassigned" | "assigned" | "used" | "transferred";
     };
     CompositeTypes: {

@@ -37,7 +37,7 @@ export function ScoringConfigForm({
   const [config, setConfig] = useState<EventScoringConfig>(
     initialConfig || {
       tracks: {},
-      defaultMin: 1,
+      defaultMin: 0,
       defaultMax: 10,
       defaultWeight: 1,
     }

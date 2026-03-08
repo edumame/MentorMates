@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ApprovalLog } from "@/components/events/approval-log";
-import { EventItem, ApprovalStatus } from "@/lib/types";
+import { EventItem, ApprovalStatus, EventVisibility } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -198,6 +198,9 @@ export default function AdminPage() {
         prevEvents.map((event) => {
           if (event.event_id === eventId) {
             const updated = { ...event, [field]: value };
+            if (field === "approval_status" && value === ApprovalStatus.Approved) {
+              updated.visibility = EventVisibility.Public;
+            }
             if (field === "approval_status" && value === ApprovalStatus.Rejected && rejectionReason) {
               (updated as EventItem & { rejection_reason?: string }).rejection_reason = rejectionReason;
             } else if (field === "approval_status" && value !== ApprovalStatus.Rejected) {

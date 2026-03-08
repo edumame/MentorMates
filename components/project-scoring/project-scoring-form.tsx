@@ -43,7 +43,7 @@ export function ProjectScoringForm({
   trackId,
   criteria,
   onScoreSubmitted,
-  defaultMin = 1,
+  defaultMin = 0,
   defaultMax = 10,
   finalistFeatureEnabled = false,
 }: ProjectScoringFormProps) {

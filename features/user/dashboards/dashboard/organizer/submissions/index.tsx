@@ -28,6 +28,7 @@ import Link from "next/link";
 import { Loader2, Trash2, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { useToast } from "@/lib/hooks/use-toast";
 import { Checkbox } from "@/components/ui/checkbox";
+import { SubmissionFieldsSettings } from "./SubmissionFieldsSettings";
 
 interface ProjectData {
   id: string;
@@ -379,62 +380,64 @@ export function SubmissionsTab({ eventId }: SubmissionsTabProps) {
   }, [eventId]);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Project Submissions</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h3 className="text-lg font-medium">Project Submissions</h3>
-            <div className="flex gap-2">
-              {selectedProjects.size > 0 && (
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button
-                      variant="destructive"
-                      disabled={isBulkDeleting}
-                    >
-                      {isBulkDeleting ? (
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      ) : (
-                        <Trash2 className="h-4 w-4 mr-2" />
-                      )}
-                      Delete Selected ({selectedProjects.size})
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Delete {selectedProjects.size} Projects</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Are you sure you want to delete {selectedProjects.size} selected project{selectedProjects.size > 1 ? "s" : ""}?
-                        This action cannot be undone. All project data, tracks, and
-                        associated feedback will be permanently removed.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={handleBulkDelete}
-                        className="bg-red-600 hover:bg-red-700"
+    <div className="space-y-6">
+      <SubmissionFieldsSettings eventId={eventId} />
+      <Card>
+        <CardHeader>
+          <CardTitle>Project Submissions</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-medium">Project Submissions</h3>
+              <div className="flex gap-2">
+                {selectedProjects.size > 0 && (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="destructive"
+                        disabled={isBulkDeleting}
                       >
-                        Delete {selectedProjects.size} Projects
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              )}
-              <Button disabled={loading} onClick={exportSubmissions}>Export Submissions</Button>
-              <Button disabled={loading} onClick={exportFeedback} variant="outline">
-                Export Feedback
-              </Button>
+                        {isBulkDeleting ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        ) : (
+                          <Trash2 className="h-4 w-4 mr-2" />
+                        )}
+                        Delete Selected ({selectedProjects.size})
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete {selectedProjects.size} Projects</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Are you sure you want to delete {selectedProjects.size} selected project{selectedProjects.size > 1 ? "s" : ""}?
+                          This action cannot be undone. All project data, tracks, and
+                          associated feedback will be permanently removed.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={handleBulkDelete}
+                          className="bg-red-600 hover:bg-red-700"
+                        >
+                          Delete {selectedProjects.size} Projects
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
+                <Button disabled={loading} onClick={exportSubmissions}>Export Submissions</Button>
+                <Button disabled={loading} onClick={exportFeedback} variant="outline">
+                  Export Feedback
+                </Button>
+              </div>
             </div>
-          </div>
 
-          {loading ? (
-            <Loader2 className="h-4 w-4 animate-spin text-blue-900" />
-          ) : (
-            <Table>
+            {loading ? (
+              <Loader2 className="h-4 w-4 animate-spin text-blue-900" />
+            ) : (
+              <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-12">
@@ -567,10 +570,11 @@ export function SubmissionsTab({ eventId }: SubmissionsTabProps) {
                   </TableRow>
                 ))}
               </TableBody>
-            </Table>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+              </Table>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
