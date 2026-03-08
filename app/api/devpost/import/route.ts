@@ -61,6 +61,7 @@ const EventImportSchema = z.object({
   event_name: z.string().optional(),
   event_date: z.string().optional(),
   location: z.string().optional(),
+  cover_image_url: z.string().url().optional(),
   event_blurb: z.string().optional(),
   event_description: z.string().optional(),
   submission_time_start: z.string().optional(),
@@ -68,7 +69,10 @@ const EventImportSchema = z.object({
   event_schedule: z.array(ScheduleDaySchema).optional(),
   rules: z.array(RuleSectionSchema).optional(),
   event_resources: z.array(ResourceSchema).optional(),
-  faq: z.string().optional(),
+  faqs: z.array(z.object({
+    question: z.string(),
+    answer: z.string(),
+  })).optional(),
   tracks: z.array(TrackImportSchema).optional(),
 });
 
@@ -215,6 +219,7 @@ export async function POST(req: Request) {
   "event_name"?: string,
   "event_date"?: string,                 // Prefer YYYY-MM-DD if determinable
   "location"?: string,
+  "cover_image_url"?: string,            // URL of the main event banner/cover image/hero image (full absolute URL)
   "event_blurb"?: string,                // 1-2 sentence summary
   "event_description"?: string,          // Markdown combining About/What to Build/What to Submit/etc
   "submission_time_start"?: string,      // ISO 8601 when available
@@ -228,8 +233,8 @@ export async function POST(req: Request) {
     }>
   }>,
   "rules"?: Array<{ "title": string, "items": string[] }>,
-  "event_resources"?: Array<{ "name": string, "link": string }>
-  "faq"?: string,                        // markdown FAQ if present
+  "event_resources"?: Array<{ "name": string, "link": string }>,
+  "faqs"?: Array<{ "question": string, "answer": string }>,
   "tracks"?: Array<{
     "name": string,
     "description"?: string,

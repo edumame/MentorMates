@@ -244,7 +244,7 @@ export interface EventDetails extends EventItem {
   rules: Rule[];
   event_tracks?: EventTrack[];
   role_labels?: Record<string, string>;
-  faq?: string; // Optional markdown FAQ content
+  faq?: { question: string; answer: string }[]; // Structured FAQ items
   submission_time_start?: string; // Submission window start time
   submission_time_cutoff?: string; // Submission window end time
   sponsorship_tiers?: {
