@@ -178,6 +178,7 @@ export async function PATCH(
       "teammates",
       "video_url",
       "event_id",
+      "submitted",
     ];
 
     const updateData: Record<string, unknown> = {};
