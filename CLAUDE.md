@@ -5,7 +5,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Development Commands
 
 Essential commands for development:
-- `npm run dev` - Start development server on localhost:3000
+- `npm run dev` - Start development server on localhost:3000 (run from repo root; `package.json` is in `MentorMates/`)
+
+### Local login (bypass Google OAuth)
+
+Google OAuth is not required for local development. Use **email/password** on the login page:
+
+1. Open **http://localhost:3000/login**
+2. Use **Sign In** (or **Sign Up** if you don’t have an account).
+3. Enter any email and password (e.g. `dev@local.test` / `password123`).
+4. Sign up creates the user in Supabase; sign in then redirects into the app.
+
+Ensure `.env.local` has `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` pointing to your Supabase project (local or hosted). Email confirmation is disabled in Supabase config, so sign-up works immediately.
 - `npm run build` - Build production version
 - `npm run start` - Start production server
 - `npm run lint` - Run ESLint checks

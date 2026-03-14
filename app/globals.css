@@ -66,6 +66,15 @@ body {
     /* Layout */
     --radius: 0.5rem;
 
+    /* Design tokens (Figma / MentorMates) */
+    --Color-Pattens-Blue-Lighter: #F7FAFE;
+    --text-text-primary: #18181B;
+    --Text-Sizes-Heading-5: 28px;
+    --Color-Scheme-1-Accent: #4B89EF;
+    --Color-Neutral-Darkest: #000;
+    --Opacity-Neutral-Darkest-60: rgba(0, 0, 0, 0.60);
+    --Text-Sizes-Text-Regular: 16px;
+
     /* Sidebar (light) – same scheme */
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 0 0% 10%;
