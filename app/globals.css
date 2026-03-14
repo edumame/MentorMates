@@ -72,6 +72,9 @@ body {
     --Text-Sizes-Heading-5: 28px;
     --Color-Scheme-1-Accent: #4B89EF;
     --Color-Neutral-Darkest: #000;
+    --Color-Neutral: #7F7F7F;
+    --Color-Neutral-Lightest: #F2F2F2;
+    --Opacity-Neutral-Darkest-5: rgba(0, 0, 0, 0.05);
     --Opacity-Neutral-Darkest-60: rgba(0, 0, 0, 0.60);
     --Text-Sizes-Text-Regular: 16px;
 

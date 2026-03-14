@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Download, Paperclip } from "lucide-react";
+import { Paperclip } from "lucide-react";
 import { useToast } from "@/lib/hooks/use-toast";
 
 type CreateEventModalView = "options" | "ai" | "devpost";
@@ -170,13 +170,15 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
   };
 
   // ---------------------------------------------------------------------------
-  // VIEWS
+  // VIEWS（统一宽高，切换 options / AI / DevPost 时 dialog 尺寸不变）
   // ---------------------------------------------------------------------------
+  const dialogSizeClass =
+    "flex w-[998px] h-[590px] flex-col lg:flex-row bg-white rounded-3xl overflow-hidden shadow-[0_18px_45px_rgba(15,23,42,0.18)]";
 
   const renderOptions = () => (
-    <div className="flex w-full flex-col lg:flex-row bg-white rounded-3xl overflow-hidden shadow-[0_18px_45px_rgba(15,23,42,0.18)]">
+    <div className={dialogSizeClass}>
       {/* Left panel – 50% on lg; padding-top & padding-left 24px per design */}
-      <div className="w-full lg:w-1/2 pt-6 pl-6 pr-6 pb-6 lg:pt-6 lg:pl-6 lg:pr-12 lg:pb-12">
+      <div className="w-full lg:w-1/2 pt-6 pl-6 pr-6 pb-6 lg:pt-6 lg:pl-6 lg:pr-6 lg:pb-12">
         <DialogTitle className="sr-only">Create event</DialogTitle>
 
         <h2
@@ -336,18 +338,38 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
   );
 
   const renderAiView = () => (
-    <div className="flex w-full flex-col lg:flex-row bg-white rounded-3xl overflow-hidden shadow-[0_18px_45px_rgba(15,23,42,0.18)]">
-      {/* Left – 50% on lg, middle content centered, buttons bottom-right */}
-      <div className="w-full lg:w-1/2 px-8 py-8 lg:px-10 lg:py-10 flex flex-col min-h-[520px]">
-        {/* Top: title only */}
-        <h2 className="text-2xl font-semibold text-gray-900">Start with AI</h2>
+    <div className={dialogSizeClass}>
+      {/* Left – 50% on lg，与 options 同 padding，标题与「Create new event」对齐 */}
+      <div className="w-full lg:w-1/2 pt-6 pl-6 pr-6 pb-6 lg:pt-6 lg:pl-6 lg:pr-6 lg:pb-12 flex flex-col min-h-[520px]">
+        <h2
+          className="font-geist font-semibold mb-8"
+          style={{
+            color: "var(--text-text-primary, #18181B)",
+            fontFamily: "Geist, Inter, system-ui, sans-serif",
+            fontSize: "var(--Text-Sizes-Heading-5, 28px)",
+            fontStyle: "normal",
+            fontWeight: 600,
+            lineHeight: "140%",
+            letterSpacing: "-1.68px",
+          }}
+        >
+          Start with AI
+        </h2>
 
         {/* Middle: description + box centered vertically */}
         <div className="flex-1 flex items-center">
           <div className="mt-6 w-full">
             <div className="flex items-center gap-2 mb-3">
               <StartWithAiIcon />
-              <span className="text-sm font-medium text-[#4B89EF]">
+              <span
+                className="font-inter font-normal text-[#4B89EF]"
+                style={{
+                  fontFamily: "Inter, system-ui, sans-serif",
+                  fontSize: "var(--Text-Sizes-Text-Regular, 16px)",
+                  fontStyle: "normal",
+                  fontWeight: 400,
+                }}
+              >
                 Generate or fill with AI.
               </span>
             </div>
@@ -355,18 +377,24 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
               value={aiText}
               onChange={(e) => setAiText(e.target.value)}
               placeholder="Paste event details or a short brief here."
-              className="min-h-[180px] w-full border-gray-300 rounded-xl text-sm resize-none"
+              className="font-inter font-normal min-h-[180px] w-full border-gray-300 rounded-xl resize-none"
+              style={{
+                fontFamily: "Inter, system-ui, sans-serif",
+                fontSize: "var(--Text-Sizes-Text-Regular, 16px)",
+                fontStyle: "normal",
+                fontWeight: 400,
+              }}
             />
           </div>
         </div>
 
         {/* Bottom: buttons */}
-        <div className="mt-6 flex items-center justify-end gap-3">
+        <div className="mt-6 flex items-center justify-end gap-[6px]">
           <Button
-            variant="secondary"
+            variant="back"
             type="button"
             onClick={() => setView("options")}
-            className="min-w-[90px] bg-gray-100 text-gray-700 hover:bg-gray-200"
+            className="min-w-[90px]"
           >
             Back
           </Button>
@@ -385,11 +413,21 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
   );
 
   const renderDevpostView = () => (
-    <div className="flex w-full flex-col lg:flex-row bg-white rounded-3xl overflow-hidden shadow-[0_18px_45px_rgba(15,23,42,0.18)]">
-      {/* Left – 50% on lg, middle content centered, buttons bottom-right */}
-      <div className="w-full lg:w-1/2 px-8 py-8 lg:px-10 lg:py-10 flex flex-col min-h-[520px]">
-        {/* Top: title only */}
-        <h2 className="text-[20px] font-semibold tracking-tight">
+    <div className={dialogSizeClass}>
+      {/* Left – 与 options / AI 同 padding，标题样式一致 */}
+      <div className="w-full lg:w-1/2 pt-6 pl-6 pr-6 pb-6 lg:pt-6 lg:pl-6 lg:pr-6 lg:pb-12 flex flex-col min-h-[520px]">
+        <h2
+          className="font-geist font-semibold mb-8"
+          style={{
+            color: "var(--text-text-primary, #18181B)",
+            fontFamily: "Geist, Inter, system-ui, sans-serif",
+            fontSize: "var(--Text-Sizes-Heading-5, 28px)",
+            fontStyle: "normal",
+            fontWeight: 600,
+            lineHeight: "140%",
+            letterSpacing: "-1.68px",
+          }}
+        >
           Import from DevPost
         </h2>
 
@@ -411,16 +449,26 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
                 className="pl-9 h-11 rounded-xl text-sm"
               />
             </div>
-            <p className="text-xs text-muted-foreground italic">
+            <p
+              className="font-inter font-normal"
+              style={{
+                color: "var(--Color-Neutral, #7F7F7F)",
+                fontSize: "var(--Text-Sizes-Text-Regular, 16px)",
+                fontStyle: "normal",
+                fontWeight: 400,
+                lineHeight: "150%",
+              }}
+            >
               *It takes about 1–2 minutes to finish parsing. Please wait
             </p>
           </div>
         </div>
 
         {/* Bottom: buttons */}
-        <div className="flex items-center justify-end gap-3 pt-6">
+        <div className="flex items-center justify-end gap-[6px] pt-6">
           <Button
-            variant="secondary"
+            variant="back"
+            type="button"
             onClick={() => setView("options")}
             className="min-w-[90px]"
           >
@@ -429,10 +477,9 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
           <Button
             onClick={handleDevpostSubmit}
             disabled={devpostLoading}
-            className="min-w-[120px] inline-flex items-center gap-2"
+            className="min-w-[120px] py-2.5 px-6"
           >
             {devpostLoading ? "Importing..." : "Create event"}
-            {!devpostLoading && <Download className="h-4 w-4" />}
           </Button>
         </div>
       </div>
@@ -443,7 +490,7 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
 
   return (
     <Dialog open={open} onOpenChange={closeModal}>
-      <DialogContent className="max-w-5xl w-full border-none bg-transparent p-0 shadow-none [&>button]:text-white [&>button]:hover:opacity-100 [&>button]:opacity-90">
+      <DialogContent className="w-auto max-w-[min(998px,calc(100vw-2rem))] border-none bg-transparent p-0 shadow-none [&>button]:text-white [&>button]:hover:opacity-100 [&>button]:opacity-90">
         {view === "options" && renderOptions()}
         {view === "ai" && renderAiView()}
         {view === "devpost" && renderDevpostView()}
