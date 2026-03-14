@@ -70,7 +70,7 @@ export default function HomePage() {
   }
 
   return (
-    <SidebarLayout>
+    <SidebarLayout showLogoInSidebar>
       <AuthHero />
       <ServiceWorkerRegistration />
     </SidebarLayout>

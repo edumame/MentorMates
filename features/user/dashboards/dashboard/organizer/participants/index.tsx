@@ -349,14 +349,17 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
                 <div>Loading participants...</div>
               ) : (
                 <>
-                  <div className="rounded-lg border bg-card">
+                  <div
+                    className="flex items-start self-stretch rounded-[16px] border border-[var(--Color-Scheme-1-Border,rgba(0,0,0,0.15))] bg-[var(--Color-White,#FFF)]"
+                    style={{ borderWidth: "var(--Stroke-Border-Width, 1px)" }}
+                  >
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Name</TableHead>
+                          <TableHead className="pl-6">Name</TableHead>
                           <TableHead>Email</TableHead>
                           <TableHead>Role</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
+                          <TableHead className="text-right pr-6">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -374,7 +377,7 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
                                 : "cursor-default"
                             }
                           >
-                            <TableCell>{participant.display_name}</TableCell>
+                            <TableCell className="pl-6">{participant.display_name}</TableCell>
                             <TableCell>{participant.email}</TableCell>
                             <TableCell onClick={(e) => e.stopPropagation()}>
                               {!participant.user_id.startsWith("project-") ? (
@@ -398,7 +401,7 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
                                 <span className="capitalize">{participant.role}</span>
                               )}
                             </TableCell>
-                            <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                            <TableCell className="text-right pr-6" onClick={(e) => e.stopPropagation()}>
                               {!participant.user_id.startsWith("project-") && (
                                 <Button
                                   variant="ghost"
@@ -423,9 +426,13 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
                       size="default"
                       onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                       disabled={clampedCurrentPage === 1}
-                      className="min-w-[110px]"
+                      className="min-w-[110px] flex justify-center items-center gap-1.5 py-2.5 px-6 rounded-[12px] bg-[var(--Opacity-Neutral-Darkest-5,rgba(0,0,0,0.05))] border-0 text-foreground hover:bg-[var(--Opacity-Neutral-Darkest-5,rgba(0,0,0,0.05))] hover:opacity-90"
+                      style={{
+                        boxShadow:
+                          "0 0 0 1px var(--Opacity-Neutral-Darkest-5, rgba(0,0,0,0.05)) inset, 0 -2px 1px 0 var(--Opacity-Neutral-Darkest-5, rgba(0,0,0,0.05)) inset, 0 1px 2px 0 var(--Opacity-Neutral-Darkest-5, rgba(0,0,0,0.05))",
+                      }}
                     >
-                      <ChevronLeft className="mr-2 h-4 w-4" />
+                      <ChevronLeft className="h-4 w-4" />
                       Prev
                     </Button>
 
@@ -463,10 +470,14 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
                       size="default"
                       onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                       disabled={clampedCurrentPage === totalPages}
-                      className="min-w-[110px]"
+                      className="min-w-[110px] flex justify-center items-center gap-1.5 py-2.5 px-6 rounded-[12px] bg-[var(--Opacity-Neutral-Darkest-5,rgba(0,0,0,0.05))] border-0 text-foreground hover:bg-[var(--Opacity-Neutral-Darkest-5,rgba(0,0,0,0.05))] hover:opacity-90"
+                      style={{
+                        boxShadow:
+                          "0 0 0 1px var(--Opacity-Neutral-Darkest-5, rgba(0,0,0,0.05)) inset, 0 -2px 1px 0 var(--Opacity-Neutral-Darkest-5, rgba(0,0,0,0.05)) inset, 0 1px 2px 0 var(--Opacity-Neutral-Darkest-5, rgba(0,0,0,0.05))",
+                      }}
                     >
                       Next
-                      <ChevronRight className="ml-2 h-4 w-4" />
+                      <ChevronRight className="h-4 w-4" />
                     </Button>
                   </div>
                 </>

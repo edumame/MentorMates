@@ -156,6 +156,7 @@ export function Featured() {
           setIsFeatured(showingFeatured);
         }
       } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return;
         console.error(err);
         if (alive) setError("Failed to load events");
       } finally {

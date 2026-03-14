@@ -27,7 +27,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link
@@ -35,24 +35,26 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=optional"
         />
       </head>
-      <body className={inter.className}>
-        <Providers>
-          <AuthContextProvider>
-            <LayoutConfigProvider>
-              <ConditionalAnnouncement />
-              <ConditionalNavbar />
-              <AuthProvider>
-                <ConditionalLayout>
-                  {process.env.NODE_ENV === "development" && (
-                    <StagewiseToolbarWrapper />
-                  )}
-                  {children}
-                </ConditionalLayout>
-              </AuthProvider>
-              <FloatingSupportButton />
-            </LayoutConfigProvider>
-          </AuthContextProvider>
-        </Providers>
+      <body className={inter.className} suppressHydrationWarning>
+        <div id="__next" suppressHydrationWarning>
+          <Providers>
+            <AuthContextProvider>
+              <LayoutConfigProvider>
+                <ConditionalAnnouncement />
+                <ConditionalNavbar />
+                <AuthProvider>
+                  <ConditionalLayout>
+                    {process.env.NODE_ENV === "development" && (
+                      <StagewiseToolbarWrapper />
+                    )}
+                    {children}
+                  </ConditionalLayout>
+                </AuthProvider>
+                <FloatingSupportButton />
+              </LayoutConfigProvider>
+            </AuthContextProvider>
+          </Providers>
+        </div>
       </body>
     </html>
   );

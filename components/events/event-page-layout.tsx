@@ -80,7 +80,8 @@ export async function EventPageLayout({
 
   return (
     <ActiveRoleProvider initialRole={userRole}>
-      <div className="flex flex-col w-full" style={{ maxWidth: "100vw" }}>
+      {/* 仅做 flex 链，视觉上的“右侧区域”由 SidebarLayout 提供（100dvh + 左边框 + 左上圆角） */}
+      <div className="flex flex-col w-full flex-1 min-h-0" style={{ maxWidth: "100vw" }}>
         {userRole ? (
           <EventPageClientWrapper
             userRole={userRole}

@@ -102,7 +102,7 @@ export function InviteOrganizersTab({ eventId, isArchived }: InviteOrganizersTab
   };
 
   return (
-    <div className="space-y-4 p-4 border rounded-lg bg-card">
+    <div className="space-y-4 p-4 border rounded-[var(--Radius-Large,16px)] bg-card">
       <h3 className="text-lg font-semibold">Invite Organizers</h3>
       <div className="flex gap-2">
         <Input

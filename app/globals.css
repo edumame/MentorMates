@@ -65,6 +65,7 @@ body {
 
     /* Layout */
     --radius: 0.5rem;
+    --Radius-Large: 16px;
 
     /* Design tokens (Figma / MentorMates) */
     --Color-Pattens-Blue-Lighter: #F7FAFE;

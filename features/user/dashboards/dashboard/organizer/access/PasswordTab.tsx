@@ -108,18 +108,22 @@ export function PasswordTab({
             onChange={(e) => handlePasswordChange(role, e.target.value)}
             placeholder={`Set ${label.toLowerCase()} password`}
             disabled={isArchived}
-            className="flex-1 min-w-0"
+            className="flex-1 min-w-0 rounded-[12px]"
           />
           <Button
             onClick={() => handleSetPassword(role)}
             disabled={isLoading || !rolePasswords[role] || isArchived}
             variant="outline"
-            className="shrink-0 bg-[#4B89EF] text-white border border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] hover:bg-[#3E7EEA] shadow-none [box-shadow:none]"
+            className="shrink-0 flex justify-center items-center gap-2 py-2.5 px-6 rounded-[12px] bg-[var(--Color-Jacksons-Purple,#4B89EF)] text-white hover:bg-[#3E7EEA] border-0"
+            style={{
+              boxShadow:
+                "0 32px 24px 0 rgba(255, 255, 255, 0.05) inset, 0 2px 1px 0 rgba(255, 255, 255, 0.25) inset, 0 0 0 1px var(--Opacity-Neutral-Darkest-15, rgba(0, 0, 0, 0.15)) inset, 0 -2px 1px 0 rgba(0, 0, 0, 0.2) inset, 0 1px 2px 0 var(--Opacity-Neutral-Darkest-5, rgba(0, 0, 0, 0.05))",
+            }}
           >
             Save
           </Button>
         </div>
-        <p className="text-xs text-gray-500 italic">
+        <p className="text-xs text-gray-500">
           This password will be used by {label.toLowerCase()}s to join the
           event.
         </p>
@@ -129,7 +133,7 @@ export function PasswordTab({
 
   return (
     <div className="flex flex-col">
-      <div className="space-y-6 p-5 rounded-lg bg-card border border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))]">
+      <div className="space-y-6 p-5 rounded-[var(--Radius-Large,16px)] bg-card border border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))]">
         <h3
           className="font-geist font-semibold leading-[140%] text-[var(--Color-Scheme-1-Text,#000)]"
           style={{

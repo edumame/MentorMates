@@ -373,7 +373,10 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
         setScoringConfig(scoreConfig);
       }
     } catch (error) {
-      console.error("Error fetching event:", error);
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      const message = error instanceof Error ? error.message : String(error);
+      const code = error && typeof error === "object" && "code" in error ? (error as { code?: string }).code : undefined;
+      console.error("Error fetching event:", message, code ?? "");
       toast({
         title: "Error",
         description: "Failed to load event details",
@@ -545,10 +548,11 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
   }
 
   return (
-    <div className="w-full overflow-x-hidden">
-      <div className="w-full flex flex-col lg:min-h-[calc(100vh-88px)] lg:h-[calc(100vh-88px)] lg:overflow-hidden bg-white">
-        <div className="px-4 sm:px-6 lg:px-10 py-4 sm:py-6 lg:py-8 w-full flex flex-col pb-20 lg:pb-4 lg:flex-1 lg:min-h-0 overflow-x-hidden">
-          {/* Header with title and action buttons */}
+    <div className="w-full overflow-x-hidden flex flex-col flex-1 min-h-0">
+      <div className="w-full flex flex-col flex-1 min-h-0">
+        {/* 头部 + Tabs 固定，仅下方内容区滚动；背景由右侧 100dvh 区域统一提供 */}
+        <div className="px-4 sm:px-6 lg:px-10 pt-0 w-full flex flex-col flex-1 min-h-0 overflow-x-hidden">
+          {/* Header with title, action buttons, and notification+avatar (below left nav) */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 flex-shrink-0">
             <div className="flex items-center gap-2">
               <h1
@@ -558,7 +562,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
               </h1>
               {event.visibility && (
                 <Badge
-                  className={`font-sans font-normal text-[11px] leading-[1.5] ${
+                  className={`ml-1 font-sans font-normal text-[11px] leading-[1.5] ${
                     event.visibility === EventVisibility.Draft
                       ? "bg-orange-500/20 hover:bg-orange-500/20 text-black border-none"
                       : event.visibility === EventVisibility.Public
@@ -586,7 +590,8 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
               </Badge>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto items-center sm:items-stretch">
+              {/* Profile lives in left nav (SideNav) below Notification */}
               {/* Submit for Approval Button - Only show for private events that haven't been submitted or were rejected */}
               {event.visibility === EventVisibility.Private &&
                 (event.approval_status === ApprovalStatus.NotSubmitted ||
@@ -710,13 +715,14 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
             onValueChange={(value) => {
               if (value !== "advanced-settings") setActiveTab(value);
             }}
-            className="flex flex-col lg:flex-1 lg:min-h-0"
+            className="flex flex-col flex-1 min-h-0 w-full min-w-full"
           >
-            <div
-              className="w-full overflow-x-auto no-scrollbar -mx-4 sm:-mx-6 lg:-mx-10 px-4 sm:px-6 lg:px-10 mb-[24px] flex-shrink-0"
-              style={{ WebkitOverflowScrolling: "touch" }}
-            >
-              <TabsList className="flex h-auto gap-4 sm:gap-6 items-center border-b border-[#d2d7e7] p-0 justify-start bg-transparent rounded-none flex-nowrap w-full">
+            <div className="w-full min-w-full -mx-4 sm:-mx-6 lg:-mx-10 px-4 sm:px-6 lg:px-10 mb-[24px] flex-shrink-0 flex flex-col">
+              <div
+                className="overflow-x-auto no-scrollbar min-w-0"
+                style={{ WebkitOverflowScrolling: "touch" }}
+              >
+                <TabsList className="flex h-auto gap-4 sm:gap-6 items-center p-0 justify-start bg-transparent rounded-none flex-nowrap w-full min-w-full border-0 shadow-none">
                 {mainTabs.map((tab) =>
                   tab.value === "advanced-settings" ? (
                     <DropdownMenu key={tab.value}>
@@ -761,10 +767,16 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                   )
                 )}
               </TabsList>
+              </div>
+              {/* Full-width line: extend right to match content area (Export CSV etc.) */}
+              <div
+                className="border-b border-[#d2d7e7] shrink-0 w-[calc(100%+2rem)] -mr-4 sm:w-[calc(100%+3rem)] sm:-mr-6 lg:w-[calc(100%+5rem)] lg:-mr-10"
+                aria-hidden
+              />
             </div>
 
             {tabsValue === "access" && event && (
-              <div className="w-full pl-0 pr-4 sm:pr-6 lg:pr-10 mb-[24px] flex-shrink-0 flex flex-col items-start gap-0">
+              <div className="w-full pl-0 pr-4 sm:pr-6 lg:pr-10 mb-0 flex-shrink-0 flex flex-col items-start gap-0">
                 <Tabs
                   value={accessSubTab}
                   onValueChange={(v) => setActiveSubTab(v)}
@@ -777,72 +789,74 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                       <TabsList className="inline-flex h-auto gap-0 bg-transparent p-0 justify-start items-center flex-nowrap min-w-max border-0 shadow-none rounded-none">
                         <TabsTrigger
                           value="password"
-                          className="min-w-[140px] px-4 py-2.5 rounded-[100px] text-base leading-[1.5] font-normal text-[var(--Color-Scheme-1-Text,#000)] border border-transparent data-[state=active]:font-medium data-[state=active]:bg-white data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none flex-shrink-0"
+                          className="min-w-[140px] px-3 py-2.5 rounded-[100px] text-base leading-[1.5] font-normal text-[var(--Color-Scheme-1-Text,#000)] border border-transparent data-[state=active]:font-medium data-[state=active]:bg-white data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none flex-shrink-0"
                         >
                           Password
                         </TabsTrigger>
                         <TabsTrigger
                           value="role-labels"
-                          className="min-w-[140px] px-4 py-2.5 rounded-[100px] text-base leading-[1.5] font-normal text-[var(--Color-Scheme-1-Text,#000)] border border-transparent data-[state=active]:font-medium data-[state=active]:bg-white data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none flex-shrink-0"
+                          className="min-w-[140px] px-3 py-2.5 rounded-[100px] text-base leading-[1.5] font-normal text-[var(--Color-Scheme-1-Text,#000)] border border-transparent data-[state=active]:font-medium data-[state=active]:bg-white data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none flex-shrink-0"
                         >
                           Role Labels
                         </TabsTrigger>
                         <TabsTrigger
                           value="invite-organizers"
-                          className="min-w-[140px] px-4 py-2.5 rounded-[100px] text-base leading-[1.5] font-normal text-[var(--Color-Scheme-1-Text,#000)] border border-transparent data-[state=active]:font-medium data-[state=active]:bg-white data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none flex-shrink-0"
+                          className="min-w-[140px] px-3 py-2.5 rounded-[100px] text-base leading-[1.5] font-normal text-[var(--Color-Scheme-1-Text,#000)] border border-transparent data-[state=active]:font-medium data-[state=active]:bg-white data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none flex-shrink-0"
                         >
                           Invite Organizers
                         </TabsTrigger>
                       </TabsList>
                     </div>
-                    <div className="mt-6 flex items-center justify-start">
-                      <Select
-                        value={event.visibility || ""}
-                        onValueChange={(value) =>
-                          handleAccessVisibilityChange(value as EventVisibility)
-                        }
-                        disabled={event.visibility === "archived"}
-                      >
-                        <SelectTrigger className="flex w-[142px] h-11 items-center gap-2 rounded-[12px] border border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] bg-[var(--Color-White,#FFF)] px-3 py-2 text-base font-normal leading-[1.5] text-[var(--Color-Scheme-1-Text,#000)] shadow-none">
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="24"
-                            height="24"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            className="h-5 w-5 shrink-0"
-                            aria-hidden
-                          >
-                            <path
-                              d="M12.0086 22.1487C10.6052 22.1487 9.28823 21.8831 8.05756 21.3517C6.8269 20.8204 5.75056 20.0938 4.82856 19.1718C3.90656 18.2498 3.1799 17.1731 2.64856 15.9417C2.11723 14.7104 1.85156 13.3923 1.85156 11.9875C1.85156 10.5828 2.11723 9.2645 2.64856 8.0325C3.1799 6.80067 3.90623 5.72783 4.82756 4.814C5.7489 3.9 6.8254 3.1765 8.05706 2.6435C9.28873 2.11033 10.6071 1.84375 12.0123 1.84375C13.4173 1.84375 14.7361 2.11017 15.9686 2.643C17.2009 3.17583 18.2738 3.89892 19.1873 4.81225C20.101 5.72558 20.8242 6.79958 21.3571 8.03425C21.8901 9.26892 22.1566 10.5883 22.1566 11.9925C22.1566 13.3965 21.89 14.7137 21.3568 15.9442C20.8238 17.1749 20.1003 18.2495 19.1863 19.168C18.2725 20.0863 17.1986 20.8127 15.9646 21.3472C14.7306 21.8816 13.4119 22.1487 12.0086 22.1487ZM12.0011 20.4455C14.3062 20.4455 16.2663 19.6552 17.8813 18.0745C19.4963 16.4938 20.3396 14.5743 20.4113 12.316C20.4113 12.2733 20.4123 12.2374 20.4143 12.2082C20.4163 12.1792 20.4173 12.1467 20.4173 12.1107C20.2935 12.4962 20.0621 12.8159 19.7233 13.0697C19.3846 13.3234 18.9899 13.4502 18.5391 13.4502H16.5691C16.0042 13.4502 15.5207 13.249 15.1186 12.8465C14.7164 12.4438 14.5153 11.9598 14.5153 11.3945V10.3667H10.4076V8.35125C10.4076 7.78225 10.6089 7.29725 11.0116 6.89625C11.4141 6.49542 11.898 6.295 12.4633 6.295H13.4913V5.745C13.4913 5.457 13.6068 5.10633 13.8378 4.693C14.0688 4.27983 14.3319 4.0395 14.6271 3.972C14.2144 3.8445 13.79 3.74283 13.3538 3.667C12.9178 3.591 12.4676 3.553 12.0033 3.553C9.66381 3.553 7.67081 4.3715 6.02431 6.0085C4.37798 7.64533 3.55481 9.64225 3.55481 11.9992C3.55481 12.0152 3.55581 12.0302 3.55781 12.044C3.55981 12.058 3.56081 12.073 3.56081 12.089H7.03581C8.16765 12.089 9.13523 12.4906 9.93856 13.2937C10.7419 14.0971 11.1436 15.0637 11.1436 16.1935V17.2205H8.06581V19.5047C8.65631 19.8039 9.2819 20.0355 9.94256 20.1995C10.6034 20.3635 11.2896 20.4455 12.0011 20.4455Z"
-                              fill="currentColor"
-                            />
-                          </svg>
-                          <SelectValue placeholder="Select visibility" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value={EventVisibility.Private}>
-                            Private
-                          </SelectItem>
-                          <SelectItem value={EventVisibility.Draft}>
-                            Draft
-                          </SelectItem>
-                          {event.approval_status === ApprovalStatus.Approved && (
-                            <SelectItem value={EventVisibility.Public}>
-                              Public
+                    {accessSubTab === "password" && (
+                      <div className="mt-[24px] flex items-center justify-start">
+                        <Select
+                          value={event.visibility || ""}
+                          onValueChange={(value) =>
+                            handleAccessVisibilityChange(value as EventVisibility)
+                          }
+                          disabled={event.visibility === "archived"}
+                        >
+                          <SelectTrigger className="flex w-[142px] h-11 items-center gap-2 rounded-[12px] border border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] bg-[var(--Color-White,#FFF)] px-3 py-2 text-base font-normal leading-[1.5] text-[var(--Color-Scheme-1-Text,#000)] shadow-none">
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              width="24"
+                              height="24"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              className="h-5 w-5 shrink-0"
+                              aria-hidden
+                            >
+                              <path
+                                d="M12.0086 22.1487C10.6052 22.1487 9.28823 21.8831 8.05756 21.3517C6.8269 20.8204 5.75056 20.0938 4.82856 19.1718C3.90656 18.2498 3.1799 17.1731 2.64856 15.9417C2.11723 14.7104 1.85156 13.3923 1.85156 11.9875C1.85156 10.5828 2.11723 9.2645 2.64856 8.0325C3.1799 6.80067 3.90623 5.72783 4.82756 4.814C5.7489 3.9 6.8254 3.1765 8.05706 2.6435C9.28873 2.11033 10.6071 1.84375 12.0123 1.84375C13.4173 1.84375 14.7361 2.11017 15.9686 2.643C17.2009 3.17583 18.2738 3.89892 19.1873 4.81225C20.101 5.72558 20.8242 6.79958 21.3571 8.03425C21.8901 9.26892 22.1566 10.5883 22.1566 11.9925C22.1566 13.3965 21.89 14.7137 21.3568 15.9442C20.8238 17.1749 20.1003 18.2495 19.1863 19.168C18.2725 20.0863 17.1986 20.8127 15.9646 21.3472C14.7306 21.8816 13.4119 22.1487 12.0086 22.1487ZM12.0011 20.4455C14.3062 20.4455 16.2663 19.6552 17.8813 18.0745C19.4963 16.4938 20.3396 14.5743 20.4113 12.316C20.4113 12.2733 20.4123 12.2374 20.4143 12.2082C20.4163 12.1792 20.4173 12.1467 20.4173 12.1107C20.2935 12.4962 20.0621 12.8159 19.7233 13.0697C19.3846 13.3234 18.9899 13.4502 18.5391 13.4502H16.5691C16.0042 13.4502 15.5207 13.249 15.1186 12.8465C14.7164 12.4438 14.5153 11.9598 14.5153 11.3945V10.3667H10.4076V8.35125C10.4076 7.78225 10.6089 7.29725 11.0116 6.89625C11.4141 6.49542 11.898 6.295 12.4633 6.295H13.4913V5.745C13.4913 5.457 13.6068 5.10633 13.8378 4.693C14.0688 4.27983 14.3319 4.0395 14.6271 3.972C14.2144 3.8445 13.79 3.74283 13.3538 3.667C12.9178 3.591 12.4676 3.553 12.0033 3.553C9.66381 3.553 7.67081 4.3715 6.02431 6.0085C4.37798 7.64533 3.55481 9.64225 3.55481 11.9992C3.55481 12.0152 3.55581 12.0302 3.55781 12.044C3.55981 12.058 3.56081 12.073 3.56081 12.089H7.03581C8.16765 12.089 9.13523 12.4906 9.93856 13.2937C10.7419 14.0971 11.1436 15.0637 11.1436 16.1935V17.2205H8.06581V19.5047C8.65631 19.8039 9.2819 20.0355 9.94256 20.1995C10.6034 20.3635 11.2896 20.4455 12.0011 20.4455Z"
+                                fill="currentColor"
+                              />
+                            </svg>
+                            <SelectValue placeholder="Select visibility" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value={EventVisibility.Private}>
+                              Private
                             </SelectItem>
-                          )}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                            <SelectItem value={EventVisibility.Draft}>
+                              Draft
+                            </SelectItem>
+                            {event.approval_status === ApprovalStatus.Approved && (
+                              <SelectItem value={EventVisibility.Public}>
+                                Public
+                              </SelectItem>
+                            )}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
                   </div>
                 </Tabs>
               </div>
             )}
 
-            {/* Content Area - Scrollable on Desktop */}
+            {/* Content Area - 仅此区域滚动，头部与 Tabs 固定 */}
             <div
-              className="flex flex-col lg:flex-row gap-6 lg:gap-12 items-start w-full lg:flex-1 lg:min-h-0 lg:overflow-auto no-scrollbar"
+              className="flex flex-col lg:flex-row gap-6 lg:gap-12 items-start w-full flex-1 min-h-0 overflow-y-auto no-scrollbar"
               style={{
                 opacity: isPending ? 0.4 : 1,
                 transition: "opacity 150ms",
@@ -1025,14 +1039,16 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
 
                 <TabsContent value="access" className="mt-0 w-full">
                   {event && (
-                    <AccessTab
-                      eventId={eventId}
-                      event={event}
-                      setEvent={setEvent}
-                      saving={saving}
-                      setSaving={setSaving}
-                      activeSubTab={accessSubTab}
-                    />
+                    <div className="mt-[24px]">
+                      <AccessTab
+                        eventId={eventId}
+                        event={event}
+                        setEvent={setEvent}
+                        saving={saving}
+                        setSaving={setSaving}
+                        activeSubTab={accessSubTab}
+                      />
+                    </div>
                   )}
                 </TabsContent>
 

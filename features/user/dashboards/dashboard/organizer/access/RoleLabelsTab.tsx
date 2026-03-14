@@ -87,12 +87,25 @@ export function RoleLabelsTab({
     setRoleLabels(DEFAULT_ROLE_LABELS);
   };
 
+  const roleDotColor: Record<string, string> = {
+    [EventRole.Participant]: "bg-blue-500",
+    [EventRole.Judge]: "bg-orange-500",
+    [EventRole.Mentor]: "bg-rose-600",
+    [EventRole.Organizer]: "bg-teal-600",
+  };
+
   return (
-    <div className="self-stretch">
-      <div
-        className="flex flex-col items-start gap-6 self-stretch p-4 rounded-[var(--Radius-Large,16px)] border border-[var(--Color-Scheme-1-Border,rgba(0,0,0,0.15))] bg-[#FFF]"
-      >
-        <h3 className="text-lg font-semibold">Customize Role Labels</h3>
+    <div className="flex flex-col">
+      <div className="space-y-6 p-5 rounded-[var(--Radius-Large,16px)] bg-card border border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))]">
+        <h3
+          className="font-geist font-semibold leading-[140%] text-[var(--Color-Scheme-1-Text,#000)]"
+          style={{
+            fontSize: "var(--Text-Sizes-Heading-6, 22px)",
+            letterSpacing: "-1.32px",
+          }}
+        >
+          Customize Role Labels
+        </h3>
         <p className="text-sm text-gray-500">
           Customize how roles are labeled throughout the platform. For example,
           you can change &quot;Judge&quot; to &quot;Investor&quot; for a demo
@@ -106,13 +119,21 @@ export function RoleLabelsTab({
                 <label className="text-sm font-medium" htmlFor={`role-${role}`}>
                   {getRoleLabel(role)} Label
                 </label>
-                <Input
-                  id={`role-${role}`}
-                  value={roleLabels[role.toString()] ?? ""}
-                  onChange={(e) => handleLabelChange(role.toString(), e.target.value)}
-                  placeholder={`Custom label for ${getRoleLabel(role)}`}
-                  disabled={isArchived}
-                />
+                <div
+                  className={`flex items-center gap-2 rounded-[12px] border border-input bg-background px-3 py-2 ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 ${isArchived ? "opacity-60" : ""}`}
+                >
+                  <span
+                    className={`h-2.5 w-2.5 shrink-0 rounded-full ${roleDotColor[role] ?? "bg-gray-400"}`}
+                  />
+                  <Input
+                    id={`role-${role}`}
+                    value={roleLabels[role.toString()] ?? ""}
+                    onChange={(e) => handleLabelChange(role.toString(), e.target.value)}
+                    placeholder={`Custom label for ${getRoleLabel(role)}`}
+                    disabled={isArchived}
+                    className="flex-1 border-0 bg-transparent p-0 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 rounded-none h-auto min-h-0"
+                  />
+                </div>
                 <p className="text-xs text-muted-foreground">
                   Default: {getRoleLabel(role)}
                 </p>

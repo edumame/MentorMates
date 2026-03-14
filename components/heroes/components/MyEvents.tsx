@@ -379,7 +379,10 @@ export function MyEvents() {
       ) : (
         <div className="flex flex-col sm:grid sm:grid-cols-2 lg:grid-cols-3 min-[1064px]:grid-cols-[repeat(auto-fit,minmax(320px,1fr))] gap-5 sm:auto-rows-fr">
           {filteredAndSortedEvents.map((e) => (
-            <div key={e.id} className="relative w-full max-w-[420px] mx-auto">
+            <div
+              key={e.id}
+              className={`relative w-full max-w-[420px] ${filteredAndSortedEvents.length === 1 ? "" : "mx-auto"}`}
+            >
               <EventCard event={toEventItem(e)} />
               {e.roleLabel && (
                 <div className="absolute top-3 left-3 z-10">

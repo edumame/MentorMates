@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import ProjectBoard from "@/features/projects/components/displays/ProjectBoard/ProjectBoard";
 import { DiscordCTA } from "@/components/ui/discord-cta";
 import { Footer } from "@/components/layout/Footer";
-import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 import { EventVisibility, Project, ProjectBoardContext } from "@/lib/types";
 
 const DEFAULT_PUBLIC_EVENT_SLUG = "mentormateshackathon";
@@ -156,8 +155,8 @@ export function PublicProjectsGallery() {
   );
 
   return (
-    <PageContainer showBorder={false}>
-      <PageContent className="pt-[24px] pb-8">
+    <>
+      <div className="pt-[24px] pb-8">
         <div className="mx-auto w-full max-w-10xl px-4 md:px-10 lg:px-24 flex flex-col gap-8">
           <div className="flex flex-col items-center text-center gap-3 pt-6">
             <h1 className="text-[28px] sm:text-[36px] font-semibold tracking-[-0.06em] text-black">
@@ -228,9 +227,9 @@ export function PublicProjectsGallery() {
             <DiscordCTA variant="default" />
           </div>
         </div>
-      </PageContent>
+      </div>
       <Footer />
-    </PageContainer>
+    </>
   );
 }
 

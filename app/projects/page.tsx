@@ -10,7 +10,6 @@ import { Project, ProjectBoardContext } from "@/lib/types";
 import { DiscordCTA } from "@/components/ui/discord-cta";
 import { Footer } from "@/components/layout/Footer";
 import { useAuth } from "@/features/user/authentication/auth/AuthContext";
-import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 import { Search } from "lucide-react";
 import { PublicProjectsGallery } from "@/features/projects/components/displays/PublicProjectsGallery/PublicProjectsGallery";
 import { EventSearchInput } from "@/components/ui/event-search-input";
@@ -91,17 +90,17 @@ export default function ProjectsPage() {
 
   if (isAuthLoading) {
     return (
-      <PageContainer showBorder={false}>
+      <>
         <Toaster />
-        <PageContent className="pt-[24px] pb-8">
+        <div className="pt-[24px] pb-8">
           <div className="container mx-auto px-5 sm:px-8">
             <div className="flex items-center justify-center py-24">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto" />
             </div>
           </div>
-        </PageContent>
+        </div>
         <Footer />
-      </PageContainer>
+      </>
     );
   }
 
@@ -110,9 +109,9 @@ export default function ProjectsPage() {
   }
 
   return (
-    <PageContainer showBorder={isAuthenticated}>
+    <>
       <Toaster />
-      <PageContent className="pt-[24px] pb-8">
+      <div className="pt-[24px] pb-8">
         <div className="flex flex-col gap-[24px] px-[32px]">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-[8px]">
@@ -240,8 +239,8 @@ export default function ProjectsPage() {
             </>
           )}
         </div>
-      </PageContent>
+      </div>
       <Footer />
-    </PageContainer>
+    </>
   );
 }

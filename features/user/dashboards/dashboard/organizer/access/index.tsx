@@ -36,7 +36,7 @@ export function AccessTab({
 
   return (
     <Card className="border-0 shadow-none bg-transparent">
-      <CardHeader>
+      <CardHeader className="p-0 pb-0">
         {isArchived && (
           <div className="mt-2 py-4">
             <Alert className="border-orange-200 bg-orange-50">
