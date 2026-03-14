@@ -444,7 +444,7 @@ export default function ProjectDashboardSection({
                   </Button>
                   <Button
                     onClick={() => setShowDeleteDialog(true)}
-                    variant="destructive"
+                    variant="delete"
                     size="icon"
                     className="h-9 w-9"
                   >

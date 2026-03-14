@@ -395,7 +395,7 @@ export function SubmissionsTab({ eventId }: SubmissionsTabProps) {
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button
-                        variant="destructive"
+                        variant="delete"
                         disabled={isBulkDeleting}
                       >
                         {isBulkDeleting ? (

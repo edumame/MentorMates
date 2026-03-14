@@ -25,6 +25,12 @@ const buttonVariants = cva(
           "hover:bg-[rgba(0,0,0,0.07)]",
         destructive:
           "bg-destructive text-destructive-foreground hover:bg-destructive/90 ",
+        /** Delete 按钮：设计稿样式，红底白字，可复用于删除操作 */
+        delete:
+          "rounded-[12px] py-2.5 px-6 gap-1.5 text-white font-normal text-[16px] min-h-[40px] "
+          + "bg-[var(--red-red-600,#DC2626)] "
+          + "[box-shadow:0_0_0_1px_var(--Opacity-Neutral-Darkest-5,rgba(0,0,0,0.05))_inset,0_-2px_1px_0_var(--Opacity-Neutral-Darkest-5,rgba(0,0,0,0.05))_inset,0_1px_2px_0_var(--Opacity-Neutral-Darkest-5,rgba(0,0,0,0.05))] "
+          + "hover:bg-[#B91C1C] hover:[box-shadow:0_0_0_1px_rgba(0,0,0,0.08)_inset,0_-2px_1px_0_rgba(0,0,0,0.08)_inset,0_1px_2px_0_rgba(0,0,0,0.08)]",
         outline:
           "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
         secondary:

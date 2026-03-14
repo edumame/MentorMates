@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/lib/hooks/use-toast";
@@ -87,8 +88,10 @@ export function RoleLabelsTab({
   };
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-4 p-4 border rounded-lg bg-card">
+    <div className="self-stretch">
+      <div
+        className="flex flex-col items-start gap-6 self-stretch p-4 rounded-[var(--Radius-Large,16px)] border border-[var(--Color-Scheme-1-Border,rgba(0,0,0,0.15))] bg-[#FFF]"
+      >
         <h3 className="text-lg font-semibold">Customize Role Labels</h3>
         <p className="text-sm text-gray-500">
           Customize how roles are labeled throughout the platform. For example,
@@ -118,8 +121,14 @@ export function RoleLabelsTab({
         </div>
 
         <div className="flex gap-4 justify-end">
-          <Button variant="outline" onClick={resetToDefaults} disabled={saving || isArchived}>
-            Reset to Defaults
+          <Button
+            variant="defaultGray"
+            className="gap-1.5 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium"
+            onClick={resetToDefaults}
+            disabled={saving || isArchived}
+          >
+            <RotateCcw className="w-4 h-4" />
+            <span>Reset to Defaults</span>
           </Button>
           <Button onClick={handleSaveLabels} disabled={saving || isArchived}>
             {saving ? "Saving..." : "Save Labels"}

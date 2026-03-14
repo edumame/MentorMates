@@ -15,6 +15,7 @@ import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { ApprovalRequestsTab } from "./ApprovalRequestsTab";
 import { ApprovalSettingsTab } from "./ApprovalSettingsTab";
+import { AssignTab } from "../assign";
 
 interface UserEventRoleWithProfile {
   user_id: string;
@@ -278,55 +279,63 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
     }
   };
 
+  const [topSection, setTopSection] = useState<"registration" | "assign-roles">("registration");
   const [activeTab, setActiveTab] = useState("list");
 
   return (
-    <Card className="border-0 bg-transparent shadow-none">
-      <CardHeader className="flex flex-row items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="rounded-full">
-            Registration{" "}
-            <Badge variant="secondary" className="ml-2 rounded-full">
-              {participants.length}
-            </Badge>
-          </Button>
+    <Card className="border-0 bg-transparent shadow-none px-0">
+      <CardHeader className="flex flex-row items-center justify-between gap-3 px-0 pt-0 pb-6">
+        <Tabs value={topSection} onValueChange={(v) => setTopSection(v as "registration" | "assign-roles")} className="w-auto">
+          <TabsList className="flex h-auto gap-2 p-0 bg-transparent border-0 shadow-none rounded-none">
+            <TabsTrigger
+              value="registration"
+              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-[100px] text-base leading-[1.5] text-[var(--Color-Scheme-1-Text,#000)] font-normal border border-transparent bg-transparent data-[state=active]:font-medium data-[state=active]:bg-[var(--Color-Scheme-1-Foreground,#FFF)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none"
+            >
+              Registration
+              <Badge variant="secondary" className="rounded-full font-normal text-sm text-[var(--Color-Neutral,#737373)] bg-transparent border-0 px-0 hover:bg-transparent">
+                {participants.length}
+              </Badge>
+            </TabsTrigger>
+            <TabsTrigger
+              value="assign-roles"
+              className="flex items-center justify-center px-4 py-2.5 rounded-[100px] text-base leading-[1.5] text-[var(--Color-Scheme-1-Text,#000)] font-normal border border-transparent bg-transparent data-[state=active]:font-medium data-[state=active]:bg-[var(--Color-Scheme-1-Foreground,#FFF)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none"
+            >
+              Assign Roles
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
 
-          <Button
-            variant="ghost"
-            size="sm"
-            className="rounded-full text-muted-foreground"
-            type="button"
-          >
-            Assign Roles
-          </Button>
-        </div>
+        {topSection === "registration" && (
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={handleCopyEmails}
+              variant="outline"
+              size="sm"
+              className="flex h-11 items-center px-5 py-2 rounded-[var(--Radius-Medium,12px)] border border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] bg-[var(--Color-Scheme-1-Foreground,#FFF)] text-[var(--Color-Scheme-1-Text,#000)] font-normal text-base leading-[1.5]"
+              type="button"
+            >
+              <Copy className="h-4 w-4 mr-2" />
+              Copy emails
+            </Button>
 
-        <div className="flex items-center gap-2">
-          <Button
-            onClick={handleCopyEmails}
-            variant="outline"
-            size="sm"
-            className="rounded-full"
-            type="button"
-          >
-            <Copy className="h-4 w-4 mr-2" />
-            Copy emails
-          </Button>
-
-          <Button
-            onClick={handleExportCSV}
-            variant="outline"
-            size="sm"
-            className="rounded-full"
-            type="button"
-          >
-            <Download className="h-4 w-4 mr-2" />
-            Export CSV
-          </Button>
-        </div>
+            <Button
+              onClick={handleExportCSV}
+              variant="outline"
+              size="sm"
+              className="flex h-11 items-center px-5 py-2 rounded-[var(--Radius-Medium,12px)] border border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] bg-[var(--Color-Scheme-1-Foreground,#FFF)] text-[var(--Color-Scheme-1-Text,#000)] font-normal text-base leading-[1.5]"
+              type="button"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Export CSV
+            </Button>
+          </div>
+        )}
       </CardHeader>
 
-      <CardContent>
+      <CardContent className="px-0">
+        {topSection === "assign-roles" ? (
+          <AssignTab eventId={eventId} />
+        ) : (
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="list">Participant List</TabsTrigger>
@@ -478,6 +487,7 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
             />
           </TabsContent>
         </Tabs>
+        )}
       </CardContent>
     </Card>
   );
