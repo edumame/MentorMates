@@ -38,7 +38,9 @@ export default function HomePage() {
           .select();
 
         if (error) {
-          console.error("Error syncing profile:", error);
+          const msg = error.message ?? String(error);
+          const code = (error as { code?: string }).code;
+          console.error("Error syncing profile:", code ? `[${code}] ${msg}` : msg);
         }
 
         posthog.identify(user.id, {
