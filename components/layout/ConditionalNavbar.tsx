@@ -10,13 +10,14 @@ const AUTH_ROUTE_PREFIXES = ["/login", "/signup", "/auth"];
 export function ConditionalNavbar() {
   const pathname = usePathname();
   const { showNavbar } = useLayoutConfig();
-  const { isLoading } = useAuth();
+  const { session, isLoading } = useAuth();
 
-  // 首页始终显示顶栏 Navbar（MentorMates logo）；其余页面一律不显示顶栏，由各页 / SideNav 自行布局
+  // 仅首页且未登录时显示顶栏 Navbar；Home 标签页（登录后首页）及其余页面不显示顶栏，由 SideNav 布局
   const isHomepage = pathname === "/";
   if (isHomepage) {
     if (isLoading) return null;
-    return <Navbar />;
+    if (!session) return <Navbar />;
+    return null;
   }
 
   // 非首页：登录后不显示顶栏（只用 SideNav），未登录也不显示；认证相关路由不显示
