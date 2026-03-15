@@ -114,6 +114,7 @@ export function InviteOrganizersTab({ eventId, isArchived }: InviteOrganizersTab
           disabled={loading || isArchived}
           aria-label="Organizer email address"
           maxLength={254}
+          className="rounded-[12px]"
         />
         <Button onClick={handleInvite} disabled={loading || !email.trim() || isArchived}>
           {loading ? "Inviting..." : "Invite"}
