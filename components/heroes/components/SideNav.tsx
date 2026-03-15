@@ -288,9 +288,9 @@ export function SideNav({ showLogoAtTop }: SideNavProps = {}) {
                   </button>
                 </PopoverTrigger>
                 <PopoverContent
-                  side="right"
+                  side="top"
                   align="start"
-                  alignOffset={-20}
+                  sideOffset={8}
                   className="w-[420px] p-0 bg-white border border-[rgba(0,0,0,0.15)] rounded-xl"
                 >
                   <NotificationPopoverContent />
