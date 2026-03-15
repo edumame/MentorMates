@@ -21,12 +21,11 @@ export function ConditionalNavbar() {
           pathname === p || pathname.startsWith(`${p}/`)
         );
 
-  // 2) 与 Manage Event 一致：这些路由用左侧 SideNav + 右侧内容区，顶栏不显示，logo 在侧栏顶部
-  const sidebarOnlyRoutes = ["/", "/learn", "/projects", "/feedback", "/agents"];
+  // 2) 与 Manage Event 一致：这些路由用左侧 SideNav + 右侧内容区，顶栏不显示，logo 在侧栏顶部（首页 / 保留顶栏 Navbar）
+  const sidebarOnlyRoutes = ["/learn", "/projects", "/feedback", "/agents"];
   const isSidebarOnlyRoute =
-    pathname === "/" ||
     pathname?.startsWith("/events") ||
-    sidebarOnlyRoutes.some((r) => r !== "/" && pathname?.startsWith(r));
+    sidebarOnlyRoutes.some((r) => pathname?.startsWith(r));
   if (isSidebarOnlyRoute) {
     return null;
   }
