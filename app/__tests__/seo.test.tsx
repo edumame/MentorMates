@@ -121,6 +121,50 @@ describe("SEO: Structured data component", () => {
   });
 });
 
+// ─── Server-rendered landing page ───
+describe("SEO: Server-rendered landing page", () => {
+  it("page.tsx is a server component (no 'use client')", () => {
+    const pageSrc = fs.readFileSync(
+      path.join(process.cwd(), "app", "page.tsx"),
+      "utf-8",
+    );
+    expect(pageSrc).not.toContain('"use client"');
+  });
+
+  it("page.tsx renders LandingHero content in the server response", () => {
+    const pageSrc = fs.readFileSync(
+      path.join(process.cwd(), "app", "page.tsx"),
+      "utf-8",
+    );
+    expect(pageSrc).toContain("LandingHero");
+    expect(pageSrc).toContain("Footer");
+  });
+
+  it("Build component is a server component", () => {
+    const src = fs.readFileSync(
+      path.join(process.cwd(), "components", "heroes", "components", "Build.tsx"),
+      "utf-8",
+    );
+    expect(src).not.toContain('"use client"');
+  });
+
+  it("Customer component is a server component", () => {
+    const src = fs.readFileSync(
+      path.join(process.cwd(), "components", "heroes", "components", "Customer.tsx"),
+      "utf-8",
+    );
+    expect(src).not.toContain('"use client"');
+  });
+
+  it("CTAJoin component is a server component", () => {
+    const src = fs.readFileSync(
+      path.join(process.cwd(), "components", "layout", "CTAJoin.tsx"),
+      "utf-8",
+    );
+    expect(src).not.toContain('"use client"');
+  });
+});
+
 // ─── Layout markup ───
 describe("SEO: Layout markup", () => {
   it("does not have duplicate viewport meta tag in layout.tsx", () => {
