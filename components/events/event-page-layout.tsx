@@ -104,7 +104,6 @@ export async function EventPageLayout({
                   projectCount={projectCount || 0}
                   showTicketsTab={(paid && hasJoined) || false}
                   showParticipantsTab={hasJoined}
-                  userRole={userRole}
                 />
 
                 {/* Main Content */}

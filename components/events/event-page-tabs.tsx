@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useAuth } from "@/features/user/authentication/auth/AuthContext";
+import { useActiveRole } from "./ActiveRoleContext";
 import { EventRole } from "@/lib/types";
 
 interface EventPageTabsProps {
@@ -11,7 +12,6 @@ interface EventPageTabsProps {
   projectCount?: number;
   showTicketsTab?: boolean;
   showParticipantsTab?: boolean;
-  userRole?: EventRole | null;
 }
 
 export function EventPageTabs({
@@ -20,14 +20,14 @@ export function EventPageTabs({
   projectCount,
   showTicketsTab,
   showParticipantsTab = true,
-  userRole,
 }: EventPageTabsProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { isAuthenticated } = useAuth();
+  const { activeRole } = useActiveRole();
 
   // Judges only need the Overview tab — the scoring UI is embedded there
-  const isJudge = userRole === EventRole.Judge;
+  const isJudge = activeRole === EventRole.Judge;
 
   const tabs: Array<{
     name: string;
