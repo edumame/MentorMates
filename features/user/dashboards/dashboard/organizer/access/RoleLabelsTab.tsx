@@ -156,7 +156,7 @@ export function RoleLabelsTab({
           </Button>
         </div>
 
-        <div className="rounded-md bg-blue-50 p-4">
+        <div className="rounded-[12px] bg-blue-50 p-4">
           <div className="flex">
             <div className="flex-shrink-0">
               <svg

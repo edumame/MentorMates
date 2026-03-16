@@ -87,8 +87,8 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
   const [submittingForApproval, setSubmittingForApproval] = useState(false);
   const [isPending, startTransition] = useTransition();
 
-  // Use URL as single source of truth for tab state
-  const activeTab = searchParams.get("tab") || "overview";
+  // Use URL as single source of truth for tab state (default to Registration)
+  const activeTab = searchParams.get("tab") || "participants";
   const activeSubTab = searchParams.get("subtab") || "basics";
 
   const basicInfoSaveHandlerRef = useRef<null | (() => Promise<void> | void)>(
@@ -971,18 +971,30 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                   {activeTab === "intake-forms" && (
                     <div className="space-y-6">
                       <div>
-                        <h2 className="text-xl font-semibold mb-4 text-black">
-                          Project Submission Intake Form
-                        </h2>
+                        <h2
+                        className="font-geist text-xl font-semibold mb-4 text-black"
+                        style={{
+                          fontFamily:
+                            "var(--font-geist-sans), Inter, system-ui, sans-serif",
+                        }}
+                      >
+                        Project Submission Intake Form
+                      </h2>
                         <IntakeFormBuilder
                           eventId={eventId}
                           context="project_submission"
                         />
                       </div>
                       <div className="border-t border-[rgba(0,0,0,0.15)] pt-6">
-                        <h2 className="text-xl font-semibold mb-4 text-black">
-                          Registration Intake Form
-                        </h2>
+                        <h2
+                        className="font-geist text-xl font-semibold mb-4 text-black"
+                        style={{
+                          fontFamily:
+                            "var(--font-geist-sans), Inter, system-ui, sans-serif",
+                        }}
+                      >
+                        Registration Intake Form
+                      </h2>
                         <IntakeFormBuilder eventId={eventId} context="registration" />
                       </div>
                     </div>
@@ -1000,7 +1012,24 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                       />
                     ) : (
                       <div className="text-center py-12">
-                        <p className="text-lg text-gray-500">
+                        <p className="text-lg text-gray-500 inline-flex items-center justify-center gap-2">
+                          <svg
+                            className="shrink-0 text-gray-500"
+                            width="24"
+                            height="24"
+                            viewBox="0 0 40 40"
+                            fill="none"
+                            xmlns="http://www.w3.org/2000/svg"
+                            aria-hidden
+                          >
+                            <path
+                              d="M21.6654 8.33398V11.6673M21.6654 28.334V31.6673M21.6654 18.334V21.6673M3.33203 15.0007C4.65811 15.0007 5.92988 15.5274 6.86756 16.4651C7.80525 17.4028 8.33203 18.6746 8.33203 20.0007C8.33203 21.3267 7.80525 22.5985 6.86756 23.5362C5.92988 24.4739 4.65811 25.0007 3.33203 25.0007V28.334C3.33203 29.218 3.68322 30.0659 4.30834 30.691C4.93346 31.3161 5.78131 31.6673 6.66536 31.6673H33.332C34.2161 31.6673 35.0639 31.3161 35.6891 30.691C36.3142 30.0659 36.6654 29.218 36.6654 28.334V25.0007C35.3393 25.0007 34.0675 24.4739 33.1298 23.5362C32.1921 22.5985 31.6654 21.3267 31.6654 20.0007C31.6654 18.6746 32.1921 17.4028 33.1298 16.4651C34.0675 15.5274 35.3393 15.0007 36.6654 15.0007V11.6673C36.6654 10.7833 36.3142 9.93542 35.6891 9.31029C35.0639 8.68517 34.2161 8.33398 33.332 8.33398H6.66536C5.78131 8.33398 4.93346 8.68517 4.30834 9.31029C3.68322 9.93542 3.33203 10.7833 3.33203 11.6673V15.0007Z"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
                           Only admins can access ticketing settings
                         </p>
                       </div>
@@ -1013,9 +1042,15 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                         eventName={event.event_name}
                       />
                       <div className="border-t border-[rgba(0,0,0,0.15)] pt-6">
-                        <h2 className="text-xl font-semibold mb-4 text-black">
-                          Email Event Participants
-                        </h2>
+                        <h2
+                        className="font-geist text-2xl font-semibold mb-4 text-black"
+                        style={{
+                          fontFamily:
+                            "var(--font-geist-sans), Inter, system-ui, sans-serif",
+                        }}
+                      >
+                        Email Event Participants
+                      </h2>
                         <EmailTab eventId={eventId} />
                       </div>
                     </div>

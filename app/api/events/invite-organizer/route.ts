@@ -7,7 +7,11 @@ import { getOrganizerInvitationEmailTemplate } from '@/lib/email_templates/organ
 import { canAccessRole } from '@/features/user/roles/roles';
 import { createSupabaseServiceClient } from '@/lib/supabase/service';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+function getResend(): Resend | null {
+  const key = process.env.RESEND_API_KEY;
+  if (!key) return null;
+  return new Resend(key);
+}
 
 export async function POST(request: Request) {
   // TODO: Consider implementing rate limiting to prevent invite spam
@@ -100,35 +104,45 @@ export async function POST(request: Request) {
     }
 
     // Send invitation email for existing user
-    try {
-      const emailTemplate = getOrganizerInvitationEmailTemplate(
-        eventData.event_name,
-        eventId,
-        inviterName,
-        eventData.slug,
-        false // isNewUser
-      );
+    const resend = getResend();
+    if (resend) {
+      try {
+        const emailTemplate = getOrganizerInvitationEmailTemplate(
+          eventData.event_name,
+          eventId,
+          inviterName,
+          eventData.slug,
+          false // isNewUser
+        );
 
-      const { error: emailError } = await resend.emails.send({
-        from: NOTIFICATIONS_EMAIL_FROM,
-        to: email.trim(),
-        subject: emailTemplate.subject,
-        html: emailTemplate.html,
-      });
+        const { error: emailError } = await resend.emails.send({
+          from: NOTIFICATIONS_EMAIL_FROM,
+          to: email.trim(),
+          subject: emailTemplate.subject,
+          html: emailTemplate.html,
+        });
 
-      if (emailError) {
-        console.error('Failed to send organizer invitation email:', emailError);
-        // Don't fail the entire request if email fails, but log it
+        if (emailError) {
+          console.error('Failed to send organizer invitation email:', emailError);
+          // Don't fail the entire request if email fails, but log it
+        }
+      } catch (emailError) {
+        console.error('Error sending organizer invitation email:', emailError);
+        // Don't fail the entire request if email fails
       }
-    } catch (emailError) {
-      console.error('Error sending organizer invitation email:', emailError);
-      // Don't fail the entire request if email fails
     }
 
     return NextResponse.json({ success: true, userExists: true });
   }
 
   // User doesn't exist - send magic link invite
+  const resend = getResend();
+  if (!resend) {
+    return NextResponse.json(
+      { error: 'Email is not configured (RESEND_API_KEY missing)' },
+      { status: 503 }
+    );
+  }
   try {
     const acceptUrl = `${process.env.NEXT_PUBLIC_APP_URL}/events/${eventData.slug || eventId}/accept-organizer?email=${encodeURIComponent(email.trim())}`;
 

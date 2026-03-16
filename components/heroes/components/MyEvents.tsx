@@ -234,7 +234,7 @@ export function MyEvents() {
   return (
     <section className="w-full">
       <div className="flex justify-between items-center mb-3 flex-wrap gap-4">
-        <h2 className="text-2xl font-semibold">My events</h2>
+        <h2 className="text-2xl font-semibold font-geist tracking-[-0.06em]">My events</h2>
         
         {/* Search and Sort Section */}
         {!loading && !error && events.length > 0 && (

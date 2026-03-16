@@ -169,7 +169,7 @@ export default function ProjectsPage() {
               <button
                 onClick={() => setFilterType("all")}
                 className={`px-4 py-2 text-sm font-medium rounded-lg transition-all border border-transparent ${filterType === "all"
-                  ? "bg-white border !border-[rgba(0,0,0,0.15)] text-black font-semibold"
+                  ? "bg-[var(--Color-Pattens-Blue-Lightest,#FBFCFE)] border !border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] text-black font-semibold"
                   : "text-black hover:text-black/80"
                   }`}
               >
@@ -178,7 +178,7 @@ export default function ProjectsPage() {
               <button
                 onClick={() => setFilterType("public")}
                 className={`px-4 py-2 text-sm font-medium rounded-lg transition-all border border-transparent ${filterType === "public"
-                  ? "bg-white border !border-[rgba(0,0,0,0.15)] text-black font-semibold"
+                  ? "bg-[var(--Color-Pattens-Blue-Lightest,#FBFCFE)] border !border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] text-black font-semibold"
                   : "text-black hover:text-black/80"
                   }`}
               >
@@ -187,7 +187,7 @@ export default function ProjectsPage() {
               <button
                 onClick={() => setFilterType("mine")}
                 className={`px-4 py-2 text-sm font-medium rounded-lg transition-all border border-transparent ${filterType === "mine"
-                  ? "bg-white border !border-[rgba(0,0,0,0.15)] text-black font-semibold"
+                  ? "bg-[var(--Color-Pattens-Blue-Lightest,#FBFCFE)] border !border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] text-black font-semibold"
                   : "text-black hover:text-black/80"
                   }`}
               >

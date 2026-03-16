@@ -337,10 +337,25 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
           <AssignTab eventId={eventId} />
         ) : (
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="list">Participant List</TabsTrigger>
-            <TabsTrigger value="approval-requests">Approval Requests</TabsTrigger>
-            <TabsTrigger value="approval-settings">Approval Settings</TabsTrigger>
+          <TabsList className="font-inter grid w-full grid-cols-3 h-auto p-1 gap-0 rounded-xl bg-white border border-[rgba(0,0,0,0.15)] text-muted-foreground">
+            <TabsTrigger
+              value="list"
+              className="rounded-lg px-4 py-2 text-sm font-medium text-black border border-transparent transition-all data-[state=active]:bg-[var(--Color-Pattens-Blue-Lightest,#FBFCFE)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:font-semibold data-[state=active]:shadow-none hover:text-black/80"
+            >
+              Participant List
+            </TabsTrigger>
+            <TabsTrigger
+              value="approval-requests"
+              className="rounded-lg px-4 py-2 text-sm font-medium text-black border border-transparent transition-all data-[state=active]:bg-[var(--Color-Pattens-Blue-Lightest,#FBFCFE)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:font-semibold data-[state=active]:shadow-none hover:text-black/80"
+            >
+              Approval Requests
+            </TabsTrigger>
+            <TabsTrigger
+              value="approval-settings"
+              className="rounded-lg px-4 py-2 text-sm font-medium text-black border border-transparent transition-all data-[state=active]:bg-[var(--Color-Pattens-Blue-Lightest,#FBFCFE)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:font-semibold data-[state=active]:shadow-none hover:text-black/80"
+            >
+              Approval Settings
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="list" className="mt-6">

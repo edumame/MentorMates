@@ -327,7 +327,9 @@ export function SideNav({ showLogoAtTop }: SideNavProps = {}) {
                 aria-label="Account menu"
                 className="w-full h-[64px] flex items-center gap-4 px-3 self-stretch rounded-xl border border-[#E9EAEB] bg-white text-left hover:bg-gray-50/80 transition-colors"
               >
-                <Avatar className="h-[40px] w-[40px] shrink-0">
+                <Avatar
+                className="h-[40px] w-[40px] shrink-0 border-[0.714px] border-[var(--Color-Neutral-Lighter,#D8D8D8)]"
+              >
                   <AvatarImage src={session.user.user_metadata?.avatar_url} />
                   <AvatarFallback className="text-sm font-medium text-[#181d27]">
                     {session.user.email?.charAt(0).toUpperCase()}

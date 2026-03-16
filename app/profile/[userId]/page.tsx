@@ -569,7 +569,7 @@ export default function ProfilePage() {
   // Loading state - show skeleton UI while fetching profile
   if (isLoading) {
     return (
-      <PageContainer showBorder={true}>
+      <PageContainer showBorder={false}>
         <PageContent>
           <div className="flex flex-col w-full animate-pulse">
             {/* Cover Image Skeleton */}
@@ -604,7 +604,7 @@ export default function ProfilePage() {
             </div>
 
             {/* Tabs Skeleton */}
-            <div className="border-b border-gray-100 px-6">
+            <div className="px-6">
               <div className="flex gap-6 py-3">
                 <div className="h-6 w-20 bg-gray-200 rounded" />
                 <div className="h-6 w-16 bg-gray-200 rounded" />
@@ -612,7 +612,7 @@ export default function ProfilePage() {
             </div>
 
             {/* Content Skeleton */}
-            <div className="p-6">
+            <div className="p-6 border-0">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {[1, 2, 3].map((i) => (
                   <div
@@ -636,7 +636,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <PageContainer showBorder={true}>
+    <PageContainer showBorder={false}>
       <PageContent>
         <Toaster />
 
@@ -944,7 +944,7 @@ export default function ProfilePage() {
           </div>
 
           {/* Tabs Section */}
-          <div className="border-b border-gray-100 px-6">
+          <div className="px-6">
             <div className="flex gap-6">
               <button
                 onClick={() => setActiveTab(PROFILE_TABS.PROJECTS)}
@@ -976,7 +976,7 @@ export default function ProfilePage() {
           </div>
 
           {/* Content Section */}
-          <div className="p-6">
+          <div className="p-6 border-0">
             {activeTab === PROFILE_TABS.PROJECTS && (
               <div>
                 {isLoading ? (
