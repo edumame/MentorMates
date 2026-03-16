@@ -188,6 +188,31 @@ export async function POST(request: Request) {
         sent: successCount,
         failed: failureCount 
       });
+    } else if (type === 'event_approval_request') {
+      const { eventName, organizerName, organizerEmail, eventDate, location, eventId } = data;
+
+      if (!eventName || !organizerEmail || !eventId) {
+        return NextResponse.json(
+          { error: 'Missing required fields for event approval request' },
+          { status: 400 }
+        );
+      }
+
+      const { sendEventApprovalNotification } = await import('@/lib/email/send-event-approval-notification');
+      const result = await sendEventApprovalNotification({
+        eventName,
+        organizerName: organizerName || 'Unknown',
+        organizerEmail,
+        eventDate: eventDate || 'TBD',
+        location: location || 'TBD',
+        eventId,
+      });
+
+      return NextResponse.json({
+        success: true,
+        sent: result.sent,
+        failed: result.failed,
+      });
     } else {
       return NextResponse.json(
         { error: 'Invalid email type' },
