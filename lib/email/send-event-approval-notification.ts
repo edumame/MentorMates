@@ -1,8 +1,9 @@
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 import {
   getEventApprovalRequestEmailTemplate,
   EventApprovalRequestEmailData,
 } from "@/lib/email_templates/event-approval-request";
+import { NOTIFICATIONS_EMAIL_FROM } from "@/lib/email_templates/constants";
 
 const APPROVAL_NOTIFICATION_RECIPIENTS = [
   "admin@mentormates.ai",
@@ -13,20 +14,18 @@ const APPROVAL_NOTIFICATION_RECIPIENTS = [
 export async function sendEventApprovalNotification(
   data: EventApprovalRequestEmailData
 ): Promise<{ sent: number; failed: number }> {
-  const transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_APP_PASSWORD,
-    },
-  });
+  if (!process.env.RESEND_API_KEY) {
+    console.error("RESEND_API_KEY is not set — skipping approval notification emails");
+    return { sent: 0, failed: APPROVAL_NOTIFICATION_RECIPIENTS.length };
+  }
 
+  const resend = new Resend(process.env.RESEND_API_KEY);
   const { subject, html } = getEventApprovalRequestEmailTemplate(data);
 
   const results = await Promise.allSettled(
     APPROVAL_NOTIFICATION_RECIPIENTS.map((to) =>
-      transporter.sendMail({
-        from: process.env.EMAIL_USER,
+      resend.emails.send({
+        from: NOTIFICATIONS_EMAIL_FROM,
         to,
         subject,
         html,
