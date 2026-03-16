@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useAuth } from "@/features/user/authentication/auth/AuthContext";
+import { useActiveRole } from "./ActiveRoleContext";
+import { EventRole } from "@/lib/types";
 
 interface EventPageTabsProps {
   eventId: string;
@@ -22,6 +24,10 @@ export function EventPageTabs({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { isAuthenticated } = useAuth();
+  const { activeRole } = useActiveRole();
+
+  // Judges only need the Overview tab — the scoring UI is embedded there
+  const isJudge = activeRole === EventRole.Judge;
 
   const tabs: Array<{
     name: string;
@@ -29,10 +35,13 @@ export function EventPageTabs({
     badge?: number | null;
   }> = [
     { name: "Overview", path: `/events/${eventId}/overview` },
-    { name: "Schedule", path: `/events/${eventId}/schedule`, badge: null },
   ];
 
-  if (showParticipantsTab) {
+  if (!isJudge) {
+    tabs.push({ name: "Schedule", path: `/events/${eventId}/schedule`, badge: null });
+  }
+
+  if (!isJudge && showParticipantsTab) {
     tabs.push({
       name: "Participants",
       path: `/events/${eventId}/participants`,
@@ -40,21 +49,23 @@ export function EventPageTabs({
     });
   }
 
-  tabs.push({
-    name: "Projects",
-    path: `/events/${eventId}/gallery`,
-    badge: projectCount,
-  });
+  if (!isJudge) {
+    tabs.push({
+      name: "Projects",
+      path: `/events/${eventId}/gallery`,
+      badge: projectCount,
+    });
 
-  tabs.push({
-    name: "Voting",
-    path: `/events/${eventId}/voting`,
-  });
+    tabs.push({
+      name: "Voting",
+      path: `/events/${eventId}/voting`,
+    });
 
-  tabs.push({ name: "FAQs", path: `/events/${eventId}/faqs` });
-  // { name: "Gallery", path: `/events/${eventId}/gallery` }, // TODO: Add back when image upload functionality is ready
+    tabs.push({ name: "FAQs", path: `/events/${eventId}/faqs` });
+    // { name: "Gallery", path: `/events/${eventId}/gallery` }, // TODO: Add back when image upload functionality is ready
+  }
 
-  if (showTicketsTab) {
+  if (!isJudge && showTicketsTab) {
     tabs.push({ name: "Tickets", path: `/events/${eventId}/tickets` });
   }
 
