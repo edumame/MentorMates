@@ -44,6 +44,10 @@ export const submissionFieldTypeSchema = z.enum([
   "long_text",
   "url",
   "multi_url",
+  "file",
+  "select",
+  "multi_select",
+  "checkbox",
 ]);
 
 export type SubmissionFieldType = z.infer<typeof submissionFieldTypeSchema>;
