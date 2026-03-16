@@ -182,14 +182,40 @@ describe("submission field type mapping", () => {
   });
 
   describe("DEFAULT_SUBMISSION_FIELDS", () => {
-    it("contains project_name and project_description", () => {
-      expect(DEFAULT_SUBMISSION_FIELDS).toHaveLength(2);
-      expect(DEFAULT_SUBMISSION_FIELDS[0].id).toBe("project_name");
-      expect(DEFAULT_SUBMISSION_FIELDS[1].id).toBe("project_description");
+    it("contains all standard fields", () => {
+      expect(DEFAULT_SUBMISSION_FIELDS).toHaveLength(6);
+      const ids = DEFAULT_SUBMISSION_FIELDS.map((f) => f.id);
+      expect(ids).toEqual([
+        "project_name",
+        "project_description",
+        "project_url",
+        "video_url",
+        "cover_image",
+        "additional_materials",
+      ]);
     });
 
-    it("marks both defaults as required", () => {
-      expect(DEFAULT_SUBMISSION_FIELDS.every((f) => f.required)).toBe(true);
+    it("marks only project_name and project_description as required", () => {
+      const required = DEFAULT_SUBMISSION_FIELDS.filter((f) => f.required);
+      expect(required).toHaveLength(2);
+      expect(required.map((f) => f.id)).toEqual([
+        "project_name",
+        "project_description",
+      ]);
+    });
+
+    it("sets correct types for each field", () => {
+      const typeMap = Object.fromEntries(
+        DEFAULT_SUBMISSION_FIELDS.map((f) => [f.id, f.type])
+      );
+      expect(typeMap).toEqual({
+        project_name: "text",
+        project_description: "textarea",
+        project_url: "url",
+        video_url: "url",
+        cover_image: "file",
+        additional_materials: "url",
+      });
     });
   });
 });

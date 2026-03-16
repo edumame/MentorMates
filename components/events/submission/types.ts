@@ -73,6 +73,38 @@ export const DEFAULT_SUBMISSION_FIELDS: SubmissionField[] = [
     placeholder: "Long description or markdown",
     helperText: "Markdown supported: use headings, lists, links, and emphasis.",
   },
+  {
+    id: "project_url",
+    label: "Project URL",
+    type: "url",
+    required: false,
+    placeholder: "https://github.com/your-project",
+    helperText: "Link to your project repo, demo, or live site.",
+  },
+  {
+    id: "video_url",
+    label: "Demo Video",
+    type: "url",
+    required: false,
+    placeholder: "https://youtube.com/watch?v=...",
+    helperText: "Link to a short demo video of your project.",
+  },
+  {
+    id: "cover_image",
+    label: "Cover Image",
+    type: "file",
+    required: false,
+    placeholder: "Upload a cover image for your project",
+  },
+  {
+    id: "additional_materials",
+    label: "Additional Materials",
+    type: "url",
+    required: false,
+    placeholder: "https://...",
+    helperText: "Slide deck, design files, or other supporting materials.",
+    multiple: true,
+  },
 ];
 
 /** Convert a SubmissionField array → API payload for PUT /api/events/[eventId]/submission-fields */
