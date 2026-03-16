@@ -156,7 +156,7 @@ export async function POST(req: Request) {
         notes: "Event submitted for approval",
       });
 
-      // Send email notification to admins (fire-and-forget so it doesn't block the response)
+      // Send email notification to admins via Resend (fire-and-forget)
       sendEventApprovalNotification({
         eventName: updatedEvent.event_name || "Untitled Event",
         organizerName: user.user_metadata?.full_name || user.email || "Unknown",
@@ -373,7 +373,7 @@ export async function POST(req: Request) {
       notes: "Event submitted for approval",
     });
 
-    // Send email notification to admins (fire-and-forget so it doesn't block the response)
+    // Send email notification to admins via Resend (fire-and-forget)
     sendEventApprovalNotification({
       eventName: createdEvent.event_name || "Untitled Event",
       organizerName: user.user_metadata?.full_name || user.email || "Unknown",

@@ -4,7 +4,6 @@ import { getProjectSubmissionEmailTemplate } from '@/lib/email_templates/project
 import { getProjectTeammateEmailTemplate } from '@/lib/email_templates/project-teammate';
 import { getFeedbackNotificationEmailTemplate } from '@/lib/email_templates/feedback-notification';
 import { getOrganizerCustomEmailTemplate } from '@/lib/email_templates/organizer-custom';
-import { getEventApprovalRequestEmailTemplate, EventApprovalRequestEmailData } from '@/lib/email_templates/event-approval-request';
 import { createSupabaseClient } from '@/app/utils/supabase/server';
 import { createSupabaseServiceClient } from '@/lib/supabase/service';
 
@@ -190,7 +189,7 @@ export async function POST(request: Request) {
         failed: failureCount 
       });
     } else if (type === 'event_approval_request') {
-      const { eventName, organizerName, organizerEmail, eventDate, location, eventId } = data as EventApprovalRequestEmailData;
+      const { eventName, organizerName, organizerEmail, eventDate, location, eventId } = data;
 
       if (!eventName || !organizerEmail || !eventId) {
         return NextResponse.json(
@@ -199,7 +198,8 @@ export async function POST(request: Request) {
         );
       }
 
-      const emailTemplate = getEventApprovalRequestEmailTemplate({
+      const { sendEventApprovalNotification } = await import('@/lib/email/send-event-approval-notification');
+      const result = await sendEventApprovalNotification({
         eventName,
         organizerName: organizerName || 'Unknown',
         organizerEmail,
@@ -208,29 +208,10 @@ export async function POST(request: Request) {
         eventId,
       });
 
-      const adminRecipients = [
-        'admin@mentormates.ai',
-        'chinatchinat123@gmail.com',
-        'jefferyjzhou@gmail.com',
-      ];
-
-      const results = await Promise.all(
-        adminRecipients.map(email =>
-          sendEmail(email, emailTemplate.subject, emailTemplate.html)
-        )
-      );
-
-      const successCount = results.filter(Boolean).length;
-      const failureCount = results.length - successCount;
-
-      if (failureCount > 0) {
-        console.warn(`Failed to send ${failureCount} out of ${results.length} approval request emails`);
-      }
-
       return NextResponse.json({
         success: true,
-        sent: successCount,
-        failed: failureCount,
+        sent: result.sent,
+        failed: result.failed,
       });
     } else {
       return NextResponse.json(
