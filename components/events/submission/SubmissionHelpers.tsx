@@ -14,7 +14,10 @@ import type { SubmissionField } from "./types";
 
 // ── Constants ──────────────────────────────────────────────────────────
 
-export const FIELD_TYPE_OPTIONS: { value: SubmissionField["type"]; label: string }[] = [
+export const FIELD_TYPE_OPTIONS: {
+  value: SubmissionField["type"];
+  label: string;
+}[] = [
   { value: "text", label: "Short Text" },
   { value: "textarea", label: "Long Text" },
   { value: "url", label: "URL" },
@@ -35,7 +38,7 @@ export const FIELD_TYPE_ICONS: Record<SubmissionField["type"], LucideIcon> = {
 };
 
 /** Fields that are always present and cannot be removed */
-export const LOCKED_FIELD_IDS = ["project_name", "project_description"];
+export const LOCKED_FIELD_IDS = ["project_name"];
 
 /** All built-in template field IDs (includes locked + removable) */
 export const TEMPLATE_FIELD_IDS = [

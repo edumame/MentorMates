@@ -4,25 +4,10 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { ProjectDescription } from "@/components/projects/ProjectDescription";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import {
-  Loader2,
-  CalendarClock,
-  ThumbsUp,
-  MessageSquarePlus,
-  MoreHorizontal,
-  ImageIcon,
-  Paperclip,
-  Github,
-  Youtube,
-  ExternalLink,
-} from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "@/lib/hooks/use-toast";
 import { Toaster } from "@/components/ui/toaster";
-import UserSearchWithInvite from "@/components/utils/UserSearchWithInvite";
 import { useAdmin } from "@/lib/hooks/use-admin";
 import {
   EventDetails,
@@ -30,11 +15,11 @@ import {
   EventVisibility,
 } from "@/lib/types";
 import { useProjectSubmissionData } from "@/features/projects/components/forms/hooks/useProjectSubmissionData";
-import { EventCard } from "@/components/events/event-card";
-import { Public, TextFields } from "@mui/icons-material";
-import Link from "next/link";
+import { Public } from "@mui/icons-material";
 import { submissionFieldTypeSchema } from "@/features/projects/utils/submission";
+import { createProjectSubmissionPublishSchema } from "@/features/projects/components/forms/schema/ProjectSubmissionSchema";
 import { ParticipantIntakeDialog } from "@/features/intake-forms/components/ParticipantIntakeDialog";
+import { ProjectSubmissionFormEngine } from "@/features/projects/components/forms/components/ProjectSubmissionFormEngine";
 import type {
   IntakeFormAnswers,
   IntakeFormSchema,
@@ -47,6 +32,14 @@ interface EventParticipant {
 }
 
 type SubmissionAnswerValue = string | string[];
+const BUILT_IN_SUBMISSION_FIELD_KEYS = new Set([
+  "project_name",
+  "project_description",
+  "project_url",
+  "video_url",
+  "cover_image",
+  "additional_materials",
+]);
 interface ActiveIntakeForm {
   formVersionId: string;
   schema: IntakeFormSchema;
@@ -59,12 +52,12 @@ type PublishPayload = {
   leadEmail: string;
   projectDescription: string;
   teammates: string[];
-  projectUrl: string;
-  coverImageUrl: string;
-  additionalMaterialsUrl: string;
+  projectUrl: string | null;
+  coverImageUrl: string | null;
+  additionalMaterialsUrl: string | null;
   eventId?: string;
   trackIds: string[];
-  videoUrl: string;
+  videoUrl: string | null;
   artifacts: Array<{
     kind: "project_link" | "video_link" | "additional_material";
     label: string;
@@ -104,7 +97,7 @@ export function NewProjectSubmissionFormSinglePage({
   // State
   const [projectId, setProjectId] = useState<string | null>(null);
   const [contextusId, setContextusId] = useState<string | null>(
-    initialContextusId ?? null
+    initialContextusId ?? null,
   );
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
@@ -114,16 +107,16 @@ export function NewProjectSubmissionFormSinglePage({
   const [isLoading, setIsLoading] = useState(true);
   const [selectedTrackIds, setSelectedTrackIds] = useState<string[]>([]);
   const [visibility, setVisibility] = useState<EventVisibility>(
-    EventVisibility.Public
+    EventVisibility.Public,
   );
   const [showVisibilityDropdown, setShowVisibilityDropdown] = useState(false);
   const [isDeletingDraft, setIsDeletingDraft] = useState(false);
   const [extraProjectUrls, setExtraProjectUrls] = useState<string[]>([]);
   const [extraVideoUrls, setExtraVideoUrls] = useState<string[]>([]);
   const [extraMaterialsUrls, setExtraMaterialsUrls] = useState<string[]>([]);
-  const [submissionFields, setSubmissionFields] = useState<EventSubmissionField[]>(
-    []
-  );
+  const [submissionFields, setSubmissionFields] = useState<
+    EventSubmissionField[]
+  >([]);
   const [showDescriptionPreview, setShowDescriptionPreview] = useState(false);
   const [submissionAnswers, setSubmissionAnswers] = useState<
     Record<string, SubmissionAnswerValue>
@@ -190,7 +183,7 @@ export function NewProjectSubmissionFormSinglePage({
           const { data, error } = await supabase
             .from("events")
             .select(
-              "event_id, event_name, slug, event_date, location, cover_image_url, paid, event_description"
+              "event_id, event_name, slug, event_date, location, cover_image_url, paid, event_description",
             )
             .eq("event_id", eventId)
             .single();
@@ -215,7 +208,7 @@ export function NewProjectSubmissionFormSinglePage({
 
     try {
       const response = await fetch(
-        `/api/events/${eventId}/users?roles=participant&limit=500`
+        `/api/events/${eventId}/users?roles=participant&limit=500`,
       );
       const payload = await response.json();
       if (!response.ok) {
@@ -229,7 +222,7 @@ export function NewProjectSubmissionFormSinglePage({
             user_id: user.user_id,
             display_name: user.display_name || user.email || "",
             email: user.email || "",
-          })
+          }),
         );
 
       setParticipants(participantList);
@@ -248,7 +241,9 @@ export function NewProjectSubmissionFormSinglePage({
     const fetchSubmissionFields = async () => {
       if (!eventId) return;
       try {
-        const response = await fetch(`/api/events/${eventId}/submission-fields`);
+        const response = await fetch(
+          `/api/events/${eventId}/submission-fields`,
+        );
         if (!response.ok) return;
         const json = (await response.json()) as {
           fields?: EventSubmissionField[];
@@ -256,7 +251,7 @@ export function NewProjectSubmissionFormSinglePage({
         setSubmissionFields(
           (json.fields || [])
             .filter((field) => field.is_active)
-            .sort((a, b) => a.sort_order - b.sort_order)
+            .sort((a, b) => a.sort_order - b.sort_order),
         );
       } catch {
         // Non-blocking
@@ -267,6 +262,10 @@ export function NewProjectSubmissionFormSinglePage({
   }, [eventId]);
 
   const buildArtifactsPayload = useCallback(() => {
+    const hasField = (key: string) =>
+      submissionFields.length === 0 ||
+      submissionFields.some((field) => field.key === key);
+
     const artifacts: Array<{
       kind: "project_link" | "video_link" | "additional_material";
       label: string;
@@ -279,7 +278,7 @@ export function NewProjectSubmissionFormSinglePage({
       kind: "project_link" | "video_link" | "additional_material",
       primaryUrl: string,
       extras: string[],
-      baseLabel: string
+      baseLabel: string,
     ) => {
       const urls = [primaryUrl, ...extras]
         .map((item) => item.trim())
@@ -298,16 +297,21 @@ export function NewProjectSubmissionFormSinglePage({
 
     appendArtifacts(
       "project_link",
-      formData.projectUrl,
-      extraProjectUrls,
-      "Project Link"
+      hasField("project_url") ? formData.projectUrl : "",
+      hasField("project_url") ? extraProjectUrls : [],
+      "Project Link",
     );
-    appendArtifacts("video_link", formData.videoUrl, extraVideoUrls, "Video Link");
+    appendArtifacts(
+      "video_link",
+      hasField("video_url") ? formData.videoUrl : "",
+      hasField("video_url") ? extraVideoUrls : [],
+      "Video Link",
+    );
     appendArtifacts(
       "additional_material",
-      formData.additionalMaterialsUrl,
-      extraMaterialsUrls,
-      "Additional Material"
+      hasField("additional_materials") ? formData.additionalMaterialsUrl : "",
+      hasField("additional_materials") ? extraMaterialsUrls : [],
+      "Additional Material",
     );
 
     return artifacts;
@@ -318,36 +322,42 @@ export function NewProjectSubmissionFormSinglePage({
     extraProjectUrls,
     extraVideoUrls,
     extraMaterialsUrls,
+    submissionFields,
   ]);
 
-  const buildSubmissionAnswersPayload = useCallback((): SubmissionAnswerPayloadItem[] => {
-    const answers: SubmissionAnswerPayloadItem[] = [];
+  const buildSubmissionAnswersPayload =
+    useCallback((): SubmissionAnswerPayloadItem[] => {
+      const answers: SubmissionAnswerPayloadItem[] = [];
 
-    for (const field of submissionFields) {
-      const fieldType = submissionFieldTypeSchema.safeParse(field.field_type)
-        .success
-        ? field.field_type
-        : "short_text";
-      const value = submissionAnswers[field.id];
-
-      if (fieldType === "multi_url") {
-        const urls = (Array.isArray(value) ? value : [])
-          .map((url) => (typeof url === "string" ? url.trim() : ""))
-          .filter((url) => url.length > 0);
-        if (urls.length > 0) {
-          answers.push({ eventSubmissionFieldId: field.id, answer: urls });
+      for (const field of submissionFields) {
+        if (BUILT_IN_SUBMISSION_FIELD_KEYS.has(field.key)) {
+          continue;
         }
-        continue;
+
+        const fieldType = submissionFieldTypeSchema.safeParse(field.field_type)
+          .success
+          ? field.field_type
+          : "short_text";
+        const value = submissionAnswers[field.id];
+
+        if (fieldType === "multi_url") {
+          const urls = (Array.isArray(value) ? value : [])
+            .map((url) => (typeof url === "string" ? url.trim() : ""))
+            .filter((url) => url.length > 0);
+          if (urls.length > 0) {
+            answers.push({ eventSubmissionFieldId: field.id, answer: urls });
+          }
+          continue;
+        }
+
+        const textValue = typeof value === "string" ? value.trim() : "";
+        if (textValue.length > 0) {
+          answers.push({ eventSubmissionFieldId: field.id, answer: textValue });
+        }
       }
 
-      const textValue = typeof value === "string" ? value.trim() : "";
-      if (textValue.length > 0) {
-        answers.push({ eventSubmissionFieldId: field.id, answer: textValue });
-      }
-    }
-
-    return answers;
-  }, [submissionAnswers, submissionFields]);
+      return answers;
+    }, [submissionAnswers, submissionFields]);
 
   // Create a draft as soon as user starts typing (only once)
   useEffect(() => {
@@ -427,23 +437,34 @@ export function NewProjectSubmissionFormSinglePage({
   const handleAutoSave = async () => {
     if (!projectId || isLoading || isSaving) return;
 
+    const hasField = (key: string) =>
+      submissionFields.length === 0 ||
+      submissionFields.some((field) => field.key === key);
+
     setIsSaving(true);
     try {
       // Filter out invited users (those not in the participants list)
       // Only save teammates who are actual event participants
       const participantEmails = participants.map((p) => p.email.toLowerCase());
       const validTeammates = formData.teammates.filter((email) =>
-        participantEmails.includes(email.toLowerCase())
+        participantEmails.includes(email.toLowerCase()),
       );
 
       const payload: Record<string, unknown> = {
         project_name: formData.projectName.trim() || undefined,
         project_description: formData.projectDescription.trim() || undefined,
-        project_url: formData.projectUrl.trim() || undefined,
-        video_url: formData.videoUrl.trim() || null,
-        cover_image_url: formData.coverImageUrl.trim() || undefined,
-        additional_materials_url:
-          formData.additionalMaterialsUrl.trim() || undefined,
+        project_url: hasField("project_url")
+          ? formData.projectUrl.trim() || null
+          : null,
+        video_url: hasField("video_url")
+          ? formData.videoUrl.trim() || null
+          : null,
+        cover_image_url: hasField("cover_image")
+          ? formData.coverImageUrl.trim() || null
+          : null,
+        additional_materials_url: hasField("additional_materials")
+          ? formData.additionalMaterialsUrl.trim() || null
+          : null,
         lead_name: formData.leadName,
         lead_email: formData.leadEmail,
         teammates: validTeammates,
@@ -468,7 +489,7 @@ export function NewProjectSubmissionFormSinglePage({
   };
 
   const handleCoverImageUpload = async (
-    e: React.ChangeEvent<HTMLInputElement>
+    e: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -511,7 +532,7 @@ export function NewProjectSubmissionFormSinglePage({
   };
 
   const handleAdditionalMaterialsUpload = async (
-    e: React.ChangeEvent<HTMLInputElement>
+    e: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const input = e.currentTarget;
     const file = e.target.files?.[0];
@@ -565,7 +586,7 @@ export function NewProjectSubmissionFormSinglePage({
 
   const handleAdditionalMaterialsExtraUpload = async (
     index: number,
-    e: React.ChangeEvent<HTMLInputElement>
+    e: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const input = e.currentTarget;
     const file = e.target.files?.[0];
@@ -576,7 +597,7 @@ export function NewProjectSubmissionFormSinglePage({
     if (!publicUrl) return;
 
     setExtraMaterialsUrls((prev) =>
-      prev.map((item, itemIndex) => (itemIndex === index ? publicUrl : item))
+      prev.map((item, itemIndex) => (itemIndex === index ? publicUrl : item)),
     );
 
     toast({
@@ -587,7 +608,7 @@ export function NewProjectSubmissionFormSinglePage({
 
   const handleTrackToggle = (trackId: string, checked: boolean) => {
     setSelectedTrackIds((prev) =>
-      checked ? [...prev, trackId] : prev.filter((id) => id !== trackId)
+      checked ? [...prev, trackId] : prev.filter((id) => id !== trackId),
     );
   };
 
@@ -604,39 +625,24 @@ export function NewProjectSubmissionFormSinglePage({
   const handlePublish = async () => {
     setIsSubmitting(true);
 
-    if (formData.projectName.trim().length < 2) {
-      toast({
-        title: "Invalid Project Name",
-        description: "Project name must be at least 2 characters long.",
-        variant: "destructive",
-      });
-      setIsSubmitting(false);
-      return;
-    }
-
-    if (formData.projectDescription.trim().length < 10) {
-      toast({
-        title: "Insufficient Project Description",
-        description:
-          "Please provide a more detailed project description (minimum 10 characters).",
-        variant: "destructive",
-      });
-      setIsSubmitting(false);
-      return;
-    }
-
-    const missingRequiredField = submissionFields.find((field) => {
-      if (!field.required) return false;
-      const value = submissionAnswers[field.id];
-      if (field.field_type === "multi_url") {
-        return !Array.isArray(value) || value.every((url) => !url.trim());
-      }
-      return typeof value !== "string" || value.trim().length === 0;
+    const validation = createProjectSubmissionPublishSchema(
+      submissionFields,
+    ).safeParse({
+      projectName: formData.projectName,
+      projectDescription: formData.projectDescription,
+      projectUrl: formData.projectUrl,
+      videoUrl: formData.videoUrl,
+      coverImageUrl: formData.coverImageUrl,
+      additionalMaterialsUrl: formData.additionalMaterialsUrl,
+      submissionAnswers,
     });
-    if (missingRequiredField) {
+
+    if (!validation.success) {
       toast({
-        title: "Missing required answer",
-        description: `Please answer "${missingRequiredField.label}" before publishing.`,
+        title: "Missing required information",
+        description:
+          validation.error.issues[0]?.message ||
+          "Please complete the required submission fields before publishing.",
         variant: "destructive",
       });
       setIsSubmitting(false);
@@ -644,11 +650,15 @@ export function NewProjectSubmissionFormSinglePage({
     }
 
     try {
+      const hasField = (key: string) =>
+        submissionFields.length === 0 ||
+        submissionFields.some((field) => field.key === key);
+
       // Filter out invited users (those not in the participants list)
       // Only submit teammates who are actual event participants
       const participantEmails = participants.map((p) => p.email.toLowerCase());
       const validTeammates = formData.teammates.filter((email) =>
-        participantEmails.includes(email.toLowerCase())
+        participantEmails.includes(email.toLowerCase()),
       );
 
       const payload = {
@@ -658,12 +668,14 @@ export function NewProjectSubmissionFormSinglePage({
         leadEmail: formData.leadEmail,
         projectDescription: formData.projectDescription,
         teammates: validTeammates,
-        projectUrl: formData.projectUrl,
-        coverImageUrl: formData.coverImageUrl,
-        additionalMaterialsUrl: formData.additionalMaterialsUrl,
+        projectUrl: hasField("project_url") ? formData.projectUrl : null,
+        coverImageUrl: hasField("cover_image") ? formData.coverImageUrl : null,
+        additionalMaterialsUrl: hasField("additional_materials")
+          ? formData.additionalMaterialsUrl
+          : null,
         eventId,
         trackIds: selectedTrackIds,
-        videoUrl: formData.videoUrl,
+        videoUrl: hasField("video_url") ? formData.videoUrl : null,
         artifacts: buildArtifactsPayload(),
         submissionAnswers: buildSubmissionAnswersPayload(),
       };
@@ -671,7 +683,7 @@ export function NewProjectSubmissionFormSinglePage({
       if (eventId) {
         const intakeResponse = await fetch(
           `/api/events/${eventId}/intake-form?context=project_submission`,
-          { cache: "no-store" }
+          { cache: "no-store" },
         );
         if (intakeResponse.ok) {
           const intakeData = (await intakeResponse.json()) as {
@@ -729,15 +741,6 @@ export function NewProjectSubmissionFormSinglePage({
     }
   };
 
-  const getAnswerText = (fieldId: string) =>
-    typeof submissionAnswers[fieldId] === "string"
-      ? (submissionAnswers[fieldId] as string)
-      : "";
-
-  const getAnswerUrls = (fieldId: string) =>
-    Array.isArray(submissionAnswers[fieldId])
-      ? (submissionAnswers[fieldId] as string[])
-      : [""];
   const handleIntakeSubmit = async (answers: IntakeFormAnswers) => {
     if (!pendingPublishPayload) {
       toast({
@@ -785,7 +788,7 @@ export function NewProjectSubmissionFormSinglePage({
             projectId: submittedProjectId,
             answers,
           }),
-        }
+        },
       );
 
       if (!intakeResponse.ok) {
@@ -828,7 +831,7 @@ export function NewProjectSubmissionFormSinglePage({
           ? `/events/${eventDetails.slug}/overview`
           : eventId
             ? `/events/${eventId}/overview`
-            : `/projects`
+            : `/projects`,
       );
       setIsDeletingDraft(false);
       return;
@@ -850,7 +853,7 @@ export function NewProjectSubmissionFormSinglePage({
           ? `/events/${eventDetails.slug}/overview`
           : eventId
             ? `/events/${eventId}/overview`
-            : `/projects`
+            : `/projects`,
       );
     } catch (error) {
       console.error(error);
@@ -946,12 +949,12 @@ export function NewProjectSubmissionFormSinglePage({
         </div>
       </div>
 
-      {/* Wrapper without top border */}
       <div className="overflow-visible">
-        {/* Main Content */}
         <div className="bg-gradient-to-br from-blue-100/45 via-transparent to-transparent">
-          <div className="px-8 py-6 min-h-[800px]">
-            <div className="flex items-center justify-between mb-6 flex-wrap gap-2 sm:gap-0">
+          <ProjectSubmissionFormEngine
+            title="Create your project"
+            description="Start building your project with automatic saving as you go. Share when you're ready!"
+            toolbarLeading={
               <div className="relative">
                 <button
                   onClick={() =>
@@ -977,7 +980,6 @@ export function NewProjectSubmissionFormSinglePage({
                     />
                   </svg>
                 </button>
-
                 {showVisibilityDropdown && (
                   <div className="absolute top-full py-1.5 px-1 mt-2 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] shadow-lg z-10 w-[160px] overflow-hidden">
                     {[EventVisibility.Public, EventVisibility.Private].map(
@@ -992,12 +994,14 @@ export function NewProjectSubmissionFormSinglePage({
                         >
                           {vis.charAt(0).toUpperCase() + vis.slice(1)}
                         </button>
-                      )
+                      ),
                     )}
                   </div>
                 )}
               </div>
-              <div className="flex items-center gap-1 justify-end">
+            }
+            actions={
+              <>
                 <Button
                   variant="secondary"
                   onClick={() =>
@@ -1006,7 +1010,7 @@ export function NewProjectSubmissionFormSinglePage({
                         ? `/events/${eventDetails.slug}/overview`
                         : eventId
                           ? `/events/${eventId}/overview`
-                          : `/projects`
+                          : `/projects`,
                     )
                   }
                   className="bg-[#f2f2f2] hover:bg-[#e8e8e8] text-black rounded-xl px-6 py-2.5 shadow-sm font-medium"
@@ -1034,617 +1038,128 @@ export function NewProjectSubmissionFormSinglePage({
                     "Publish project"
                   )}
                 </Button>
-              </div>
-            </div>
-            <div className="flex justify-between gap-[50px] sm:gap-[85px] flex-wrap-reverse sm:flex-nowrap">
-              {/* Left Side - Form */}
-              <div className="flex-1 space-y-6">
-                <div className="space-y-1">
-                  <h1 className="text-[28px] font-semibold text-black tracking-[-0.06em] leading-[1.4]">
-                    Create your project
-                  </h1>
-                  <p className="text-base text-black">
-                    Start building your project with automatic saving as you go.
-                    Share when you&apos;re ready!
-                  </p>
-                </div>
-
-                <div className="space-y-4">
-                  {/* Project Name */}
-                  <div className="space-y-2">
-                    <label className="text-base text-black font-normal">
-                      Project name
-                    </label>
-                    <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-3 py-2 flex items-center gap-3 h-11">
-                      <TextFields className="h-6 w-6 shrink-0" />
-                      <Input
-                        value={formData.projectName}
-                        onChange={(e) =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            projectName: e.target.value,
-                          }))
-                        }
-                        placeholder="Short description shown in the preview card"
-                        className="border-0 p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0 text-base"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Project Description */}
-                  <div className="space-y-2">
-                    <label className="text-base text-black font-normal">
-                      Project Description
-                    </label>
-                  <Textarea
-                    value={formData.projectDescription}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        projectDescription: e.target.value,
-                      }))
-                    }
-                    placeholder="Long description or markdown"
-                    rows={7}
-                    className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-3 py-2 text-base resize-none"
-                  />
-                  <p className="text-base text-[#7f7f7f]">
-                    Markdown supported: use headings, lists, links, and emphasis.
-                  </p>
-                  {formData.projectDescription.trim() ? (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setShowDescriptionPreview((prev) => !prev)
-                        }
-                        className="text-sm font-medium text-blue-600 hover:text-blue-700"
-                      >
-                        {showDescriptionPreview ? "Hide preview" : "Show preview"}
-                      </button>
-                      {showDescriptionPreview ? (
-                        <div className="rounded-xl border border-[rgba(0,0,0,0.12)] bg-white px-3 py-3">
-                          <p className="text-xs font-medium text-gray-500 mb-2">
-                            Preview
-                          </p>
-                          <ProjectDescription
-                            value={formData.projectDescription}
-                            className="text-base"
-                          />
-                        </div>
-                      ) : null}
-                    </>
-                  ) : null}
-                </div>
-
-                  {/* Divider */}
-                  <div className="border-t border-dashed border-gray-200" />
-
-                  {/* Tracks Selection (if event has tracks) */}
-                  {eventId && availableTracks && availableTracks.length > 0 && (
-                    <div className="space-y-2">
-                      <label className="text-base text-black font-normal">
-                        Select tracks
-                      </label>
-                      <div className="space-y-2">
-                        {availableTracks.map((track) => (
-                          <label
-                            key={track.id}
-                            className="flex items-center gap-2"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={selectedTrackIds.includes(track.id)}
-                              onChange={(e) =>
-                                handleTrackToggle(track.id, e.target.checked)
-                              }
-                              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                            />
-                            <span className="text-sm text-black">
-                              {track.name}
-                            </span>
-                          </label>
-                        ))}
-                      </div>
-                      <p className="text-sm text-[#7f7f7f]">
-                        Choose the tracks your project should compete in.
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Cover Image */}
-                  <div className="space-y-2">
-                    <label className="text-base text-black font-normal">
-                      Cover image url
-                    </label>
-                    <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-3 py-2 flex items-center gap-3 h-11">
-                      <ImageIcon className="h-6 w-6 shrink-0" />
-                      <Input
-                        value={formData.coverImageUrl}
-                        onChange={(e) =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            coverImageUrl: e.target.value,
-                          }))
-                        }
-                        placeholder="https://..."
-                        className="border-0 p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0 text-base truncate"
-                      />
-                      <label className="bg-[rgba(0,0,0,0.05)] shadow-sm rounded-xl px-3 py-1 cursor-pointer shrink-0">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleCoverImageUpload}
-                          className="hidden"
-                        />
-                        <span className="text-xs text-black font-normal">
-                          Upload
-                        </span>
-                      </label>
-                    </div>
-                    <p className="text-base text-[#7f7f7f]">
-                      Upload an image to showcase your project (Max 10MB).
-                    </p>
-                  </div>
-
-                  {/* Additional Materials */}
-                  <div className="space-y-2">
-                    <label className="text-base text-black font-normal">
-                      Additional materials
-                    </label>
-                    <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-3 py-2 flex items-center gap-3 h-11">
-                      <Paperclip className="h-6 w-6 shrink-0" />
-                      <Input
-                        value={formData.additionalMaterialsUrl}
-                        onChange={(e) =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            additionalMaterialsUrl: e.target.value,
-                          }))
-                        }
-                        placeholder="https://..."
-                        className="border-0 p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0 text-base truncate"
-                      />
-                      <label className="bg-[rgba(0,0,0,0.05)] shadow-sm rounded-xl px-3 py-1 cursor-pointer shrink-0">
-                        <input
-                          type="file"
-                          onChange={handleAdditionalMaterialsUpload}
-                          className="hidden"
-                        />
-                        <span className="text-xs text-black font-normal">
-                          Upload
-                        </span>
-                      </label>
-                    </div>
-                    {extraMaterialsUrls.map((url, index) => (
-                      <div key={`materials-extra-${index}`} className="flex gap-2">
-                        <Input
-                          value={url}
-                          onChange={(e) =>
-                            setExtraMaterialsUrls((prev) =>
-                              prev.map((item, itemIndex) =>
-                                itemIndex === index ? e.target.value : item
-                              )
-                            )
-                          }
-                          placeholder="https://..."
-                          className="h-11"
-                        />
-                        <label className="bg-[rgba(0,0,0,0.05)] shadow-sm rounded-xl px-3 py-1 cursor-pointer shrink-0 h-11 inline-flex items-center">
-                          <input
-                            type="file"
-                            onChange={(e) =>
-                              handleAdditionalMaterialsExtraUpload(index, e)
-                            }
-                            className="hidden"
-                          />
-                          <span className="text-xs text-black font-normal">
-                            Upload
-                          </span>
-                        </label>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() =>
-                            setExtraMaterialsUrls((prev) =>
-                              prev.filter((_, itemIndex) => itemIndex !== index)
-                            )
-                          }
-                        >
-                          Remove
-                        </Button>
-                      </div>
-                    ))}
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() =>
-                        setExtraMaterialsUrls((prev) => [...prev, ""])
-                      }
-                    >
-                      Add another materials link
-                    </Button>
-                    <p className="text-base text-[#7f7f7f]">
-                      Upload any additional documentation (Max 10MB).
-                    </p>
-                  </div>
-
-                  {/* GitHub or Live Link */}
-                  <div className="space-y-2">
-                    <label className="text-base text-black font-normal">
-                      GitHub or live link (Optional)
-                    </label>
-                    <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-3 py-2 flex items-center gap-3 h-11">
-                      <Github className="h-6 w-6 shrink-0" />
-                      <Input
-                        value={formData.projectUrl}
-                        onChange={(e) =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            projectUrl: e.target.value,
-                          }))
-                        }
-                        placeholder="https://..."
-                        className="border-0 p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0 text-base text-[rgba(0,0,0,0.6)]"
-                      />
-                    </div>
-                    {extraProjectUrls.map((url, index) => (
-                      <div key={`project-link-extra-${index}`} className="flex gap-2">
-                        <Input
-                          value={url}
-                          onChange={(e) =>
-                            setExtraProjectUrls((prev) =>
-                              prev.map((item, itemIndex) =>
-                                itemIndex === index ? e.target.value : item
-                              )
-                            )
-                          }
-                          placeholder="https://..."
-                          className="h-11"
-                        />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() =>
-                            setExtraProjectUrls((prev) =>
-                              prev.filter((_, itemIndex) => itemIndex !== index)
-                            )
-                          }
-                        >
-                          Remove
-                        </Button>
-                      </div>
-                    ))}
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setExtraProjectUrls((prev) => [...prev, ""])}
-                    >
-                      Add another project link
-                    </Button>
-                  </div>
-
-                  {/* Video Link */}
-                  <div className="space-y-2">
-                    <label className="text-base text-black font-normal">
-                      Video link (Optional)
-                    </label>
-                    <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-3 py-2 flex items-center gap-3 h-11">
-                      <Youtube className="h-6 w-6 shrink-0" />
-                      <Input
-                        value={formData.videoUrl}
-                        onChange={(e) =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            videoUrl: e.target.value,
-                          }))
-                        }
-                        placeholder="https://..."
-                        className="border-0 p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0 text-base text-[rgba(0,0,0,0.6)]"
-                      />
-                    </div>
-                    {extraVideoUrls.map((url, index) => (
-                      <div key={`video-link-extra-${index}`} className="flex gap-2">
-                        <Input
-                          value={url}
-                          onChange={(e) =>
-                            setExtraVideoUrls((prev) =>
-                              prev.map((item, itemIndex) =>
-                                itemIndex === index ? e.target.value : item
-                              )
-                            )
-                          }
-                          placeholder="https://..."
-                          className="h-11"
-                        />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() =>
-                            setExtraVideoUrls((prev) =>
-                              prev.filter((_, itemIndex) => itemIndex !== index)
-                            )
-                          }
-                        >
-                          Remove
-                        </Button>
-                      </div>
-                    ))}
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setExtraVideoUrls((prev) => [...prev, ""])}
-                    >
-                      Add another video link
-                    </Button>
-                  </div>
-
-                  {submissionFields.length > 0 && (
-                    <div className="space-y-4 border border-[rgba(0,0,0,0.1)] rounded-xl p-4">
-                      <p className="text-base font-medium text-black">
-                        Organizer questions
-                      </p>
-                      {submissionFields.map((field) => (
-                        <div key={field.id} className="space-y-2">
-                          <label className="text-sm font-medium text-black">
-                            {field.label}
-                            {field.required ? " *" : ""}
-                          </label>
-                          {field.description && (
-                            <p className="text-xs text-[#7f7f7f]">
-                              {field.description}
-                            </p>
-                          )}
-                          {field.field_type === "long_text" ? (
-                            <Textarea
-                              value={getAnswerText(field.id)}
-                              onChange={(e) =>
-                                setSubmissionAnswers((prev) => ({
-                                  ...prev,
-                                  [field.id]: e.target.value,
-                                }))
-                              }
-                              placeholder={field.placeholder || ""}
-                              rows={4}
-                            />
-                          ) : field.field_type === "multi_url" ? (
-                            <div className="space-y-2">
-                              {getAnswerUrls(field.id).map((url, index) => (
-                                <div key={`${field.id}-${index}`} className="flex gap-2">
-                                  <Input
-                                    value={url}
-                                    onChange={(e) =>
-                                      setSubmissionAnswers((prev) => {
-                                        const urls = getAnswerUrls(field.id);
-                                        urls[index] = e.target.value;
-                                        return { ...prev, [field.id]: [...urls] };
-                                      })
-                                    }
-                                    placeholder={field.placeholder || "https://..."}
-                                  />
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={() =>
-                                      setSubmissionAnswers((prev) => {
-                                        const urls = getAnswerUrls(field.id).filter(
-                                          (_, urlIndex) => urlIndex !== index
-                                        );
-                                        return {
-                                          ...prev,
-                                          [field.id]: urls.length > 0 ? urls : [""],
-                                        };
-                                      })
-                                    }
-                                  >
-                                    Remove
-                                  </Button>
-                                </div>
-                              ))}
-                              <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() =>
-                                  setSubmissionAnswers((prev) => ({
-                                    ...prev,
-                                    [field.id]: [...getAnswerUrls(field.id), ""],
-                                  }))
-                                }
-                              >
-                                Add another link
-                              </Button>
-                            </div>
-                          ) : (
-                            <Input
-                              type={field.field_type === "url" ? "url" : "text"}
-                              value={getAnswerText(field.id)}
-                              onChange={(e) =>
-                                setSubmissionAnswers((prev) => ({
-                                  ...prev,
-                                  [field.id]: e.target.value,
-                                }))
-                              }
-                              placeholder={field.placeholder || ""}
-                            />
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Divider */}
-                  <div className="border-t border-dashed border-gray-200" />
-
-                  {/* Add Teammates */}
-                  <div className="space-y-2">
-                    <label className="text-base text-black font-normal">
-                      Add teammates (Optional)
-                    </label>
-                    <div className="border border-gray-200 rounded-xl">
-                      <div className="pt-2 px-3 border-b border-gray-200">
-                        <UserSearchWithInvite
-                          allTags={participants.map((p) =>
-                            p.display_name && p.display_name !== p.email
-                              ? `${p.display_name} (${p.email})`
-                              : p.email
-                          )}
-                          onTagsChange={handleTeammatesChange}
-                          initialTags={formData.teammates.map((email) => {
-                            const participant = participants.find(
-                              (p) => p.email === email
-                            );
-                            return participant?.display_name &&
-                              participant.display_name !== email
-                              ? `${participant.display_name} (${email})`
-                              : email;
-                          })}
-                          projectId={projectId || undefined}
-                          enableInvite={true}
-                          enableMailIcon={true}
-                          inputStyle="pure"
-                          placeholder="Enter your teammates' emails. Press Enter or comma to add each."
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Spacer to ensure dropdown visibility */}
-                </div>
-              </div>
-
-              {/* Right Side - Preview & Actions */}
-              <div className="space-y-3">
-                {/* Preview Card */}
-                <div className="space-y-3">
-                  <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl overflow-hidden w-full sm:w-[339px]">
-                    {/* Cover Image */}
-                    <div className="aspect-[339/220] relative">
-                      {formData.coverImageUrl ? (
-                        <img
-                          src={formData.coverImageUrl}
-                          alt="Cover"
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-gray-200 to-gray-300" />
-                      )}
-                    </div>
-
-                    {/* Content */}
-                    <div className="p-6 space-y-3">
-                      <div className="space-y-4">
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2">
-                            <h3 className="text-[22px] font-semibold text-black tracking-[-0.06em] leading-[1.4]">
-                              {formData.projectName || "Relief Map"}
-                            </h3>
-                            <Badge
-                              variant="secondary"
-                              className="bg-white border border-[rgba(0,0,0,0.15)] text-black rounded-full text-sm"
-                            >
-                              Draft
-                            </Badge>
-                            <Badge
-                              variant="secondary"
-                              className="bg-white border border-[rgba(0,0,0,0.15)] text-black rounded-full text-sm"
-                            >
-                              Owner
-                            </Badge>
-                          </div>
-                          <p className="text-base text-black line-clamp-2">
-                            {formData.projectDescription ||
-                              "Join the community and enter weekly raffles for free conference tickets and VIP upgrades, plus free credits for top AI and SaaS tools."}
-                          </p>
-                        </div>
-
-                        {/* Metadata */}
-                        <div className="flex items-center gap-3">
-                          <div className="flex items-center gap-1">
-                            <CalendarClock className="h-5 w-5 text-[#575d65]" />
-                            <span className="text-sm text-[#575d65]">
-                              {new Date().toLocaleDateString("en-US", {
-                                month: "short",
-                                day: "numeric",
-                                year: "numeric",
-                              })}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <ThumbsUp className="h-5 w-5 text-[#575d65]" />
-                            <span className="text-sm text-[#575d65]">36</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <MessageSquarePlus className="h-5 w-5 text-[#575d65]" />
-                            <span className="text-sm text-[#575d65]">2</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Team & Menu */}
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center -space-x-2">
-                          {[...Array(Math.min(totalMembers, 4))].map((_, i) => (
-                            <div
-                              key={i}
-                              className="w-10 h-10 rounded-full bg-gray-300 border-2 border-white"
-                            />
-                          ))}
-                        </div>
-                        <MoreHorizontal className="h-6 w-6 text-[#7f7f7f]" />
-                      </div>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={handlePreviewClick}
-                    disabled={!projectId}
-                    title={
-                      projectId
-                        ? "Open project preview in a new tab"
-                        : "Preview available after draft is created"
-                    }
-                    className="flex items-center gap-1 justify-center text-[#7f7f7f] hover:text-black transition-colors w-full disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <span className="text-base">Preview project page</span>
-                    <ExternalLink className="h-4.5 w-4.5" />
-                  </button>
-                </div>
-
-                {/* Submitted to - Only show if event exists */}
-                {eventDetails && (
-                  <>
-                    <div className="border-t border-gray-200" />
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-bold text-black tracking-tight">
-                        Submitted to
-                      </h3>
-                      <div className="w-[339px]">
-                        <Link
-                          href={`/events/${eventDetails.event_id}/overview`}
-                        >
-                          <EventCard
-                            event={{
-                              event_id: eventDetails.event_id,
-                              slug: eventDetails.slug,
-                              event_name: eventDetails.event_name,
-                              event_date: eventDetails.event_date,
-                              location: eventDetails.location || "Online",
-                              cover_image_url: eventDetails.cover_image_url,
-                              paid: eventDetails.paid,
-                              event_blurb:
-                                eventDetails.event_blurb ||
-                                eventDetails.event_description,
-                              event_description: eventDetails.event_description,
-                            }}
-                          />
-                        </Link>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
+              </>
+            }
+            formData={formData}
+            onFormDataChange={(updates) =>
+              setFormData((prev) => ({ ...prev, ...updates }))
+            }
+            tracks={availableTracks.map((track) => ({
+              id: track.id,
+              name: track.name,
+            }))}
+            selectedTrackIds={selectedTrackIds}
+            onTrackToggle={handleTrackToggle}
+            tracksHelpText="Choose the tracks your project should compete in."
+            showDescriptionPreview={showDescriptionPreview}
+            onToggleDescriptionPreview={() =>
+              setShowDescriptionPreview((prev) => !prev)
+            }
+            onCoverImageUpload={handleCoverImageUpload}
+            onAdditionalMaterialsUpload={handleAdditionalMaterialsUpload}
+            onAdditionalMaterialsExtraUpload={
+              handleAdditionalMaterialsExtraUpload
+            }
+            extraProjectUrls={extraProjectUrls}
+            onExtraProjectUrlChange={(index, value) =>
+              setExtraProjectUrls((prev) =>
+                prev.map((item, itemIndex) =>
+                  itemIndex === index ? value : item,
+                ),
+              )
+            }
+            onAddProjectUrl={() => setExtraProjectUrls((prev) => [...prev, ""])}
+            onRemoveProjectUrl={(index) =>
+              setExtraProjectUrls((prev) =>
+                prev.filter((_, itemIndex) => itemIndex !== index),
+              )
+            }
+            extraVideoUrls={extraVideoUrls}
+            onExtraVideoUrlChange={(index, value) =>
+              setExtraVideoUrls((prev) =>
+                prev.map((item, itemIndex) =>
+                  itemIndex === index ? value : item,
+                ),
+              )
+            }
+            onAddVideoUrl={() => setExtraVideoUrls((prev) => [...prev, ""])}
+            onRemoveVideoUrl={(index) =>
+              setExtraVideoUrls((prev) =>
+                prev.filter((_, itemIndex) => itemIndex !== index),
+              )
+            }
+            extraMaterialsUrls={extraMaterialsUrls}
+            onExtraMaterialsUrlChange={(index, value) =>
+              setExtraMaterialsUrls((prev) =>
+                prev.map((item, itemIndex) =>
+                  itemIndex === index ? value : item,
+                ),
+              )
+            }
+            onAddMaterialsUrl={() =>
+              setExtraMaterialsUrls((prev) => [...prev, ""])
+            }
+            onRemoveMaterialsUrl={(index) =>
+              setExtraMaterialsUrls((prev) =>
+                prev.filter((_, itemIndex) => itemIndex !== index),
+              )
+            }
+            submissionFields={submissionFields}
+            submissionAnswers={submissionAnswers}
+            onSubmissionAnswerChange={(fieldId, value) =>
+              setSubmissionAnswers((prev) => ({ ...prev, [fieldId]: value }))
+            }
+            teammateTagOptions={participants.map((p) =>
+              p.display_name && p.display_name !== p.email
+                ? `${p.display_name} (${p.email})`
+                : p.email,
+            )}
+            teammateInitialTags={formData.teammates.map((email) => {
+              const participant = participants.find((p) => p.email === email);
+              return participant?.display_name &&
+                participant.display_name !== email
+                ? `${participant.display_name} (${email})`
+                : email;
+            })}
+            onTeammatesChange={handleTeammatesChange}
+            projectId={projectId || undefined}
+            previewStatusBadge={
+              <Badge
+                variant="secondary"
+                className="bg-white border border-[rgba(0,0,0,0.15)] text-black rounded-full text-sm"
+              >
+                Draft
+              </Badge>
+            }
+            previewRoleBadge={
+              <Badge
+                variant="secondary"
+                className="bg-white border border-[rgba(0,0,0,0.15)] text-black rounded-full text-sm"
+              >
+                Owner
+              </Badge>
+            }
+            previewDateText={new Date().toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            })}
+            totalMembers={totalMembers}
+            onPreviewClick={handlePreviewClick}
+            previewEnabled={Boolean(projectId)}
+            previewDisabledTitle={
+              projectId
+                ? "Open project preview in a new tab"
+                : "Preview available after draft is created"
+            }
+            eventDetails={eventDetails}
+            eventHref={
+              eventDetails
+                ? `/events/${eventDetails.event_id}/overview`
+                : undefined
+            }
+            showCalendarClock={true}
+          />
         </div>
       </div>
     </div>

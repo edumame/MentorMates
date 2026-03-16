@@ -22,14 +22,13 @@ import { ParticipantsTab } from "@/features/user/dashboards/dashboard/organizer/
 import { AccessTab } from "@/features/user/dashboards/dashboard/organizer/access";
 import { EventTracksContainer } from "@/features/user/dashboards/dashboard/organizer/tracks";
 import { AssignTab } from "@/features/user/dashboards/dashboard/organizer/assign";
-import { SubmissionsTab } from "@/features/user/dashboards/dashboard/organizer/submissions";
 import { ScoresTab } from "@/features/user/dashboards/dashboard/organizer/scores";
 import { PricingTab } from "@/features/user/dashboards/dashboard/organizer/pricing/PricingTab";
 import EmailDashboard from "@/features/user/dashboards/dashboard/organizer/notifications/EmailDashboard";
 import { EmailTab } from "@/features/user/dashboards/dashboard/organizer/email";
-import { ProjectImport } from "@/features/user/dashboards/dashboard/organizer/import/ProjectImportButton";
 import { AgentsTab } from "@/features/user/dashboards/dashboard/organizer/agents/AgentsTab";
 import { IntakeFormBuilder } from "@/features/intake-forms/components/IntakeFormBuilder";
+import { ProjectSubmissionFlow } from "@/components/events/submission/ProjectSubmissionFlow";
 
 // Import sub-tab components for Overview
 import { BasicInfoTab } from "@/features/user/dashboards/dashboard/organizer/details/BasicInfoTab";
@@ -68,7 +67,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
   const [saving, setSaving] = useState(false);
   const [event, setEvent] = useState<EventDetails | null>(null);
   const [scoringConfig, setScoringConfig] = useState<EventScoringConfig | null>(
-    null
+    null,
   );
   const [deleting, setDeleting] = useState(false);
   const [archiving, setArchiving] = useState(false);
@@ -80,7 +79,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
   const activeSubTab = searchParams.get("subtab") || "basics";
 
   const basicInfoSaveHandlerRef = useRef<null | (() => Promise<void> | void)>(
-    null
+    null,
   );
 
   const [participantCount, setParticipantCount] = useState<number>(0);
@@ -192,7 +191,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
               prize_description
             )
           )
-        `
+        `,
         )
         .eq("event_id", eventId)
         .single();
@@ -231,7 +230,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                   max: criterion.max || 10,
                   type: criterion.type || "numeric",
                   options: criterion.options || [],
-                })
+                }),
               ),
             };
           }
@@ -343,7 +342,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
     } catch (error) {
       console.error(
         `Error ${event.visibility === EventVisibility.Archived ? "unarchiving" : "archiving"} event:`,
-        error
+        error,
       );
       toast({
         title: "Error",
@@ -384,7 +383,8 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
 
       toast({
         title: "Success",
-        description: "Event submitted for approval. An admin will review it soon.",
+        description:
+          "Event submitted for approval. An admin will review it soon.",
       });
 
       // Refresh the page to update any cached data
@@ -456,7 +456,8 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                         : "bg-gray-500/20 text-black border-none text-xs sm:text-sm"
                 }`}
               >
-                {event.approval_status?.replace(/_/g, ' ').toUpperCase() || "NOT SUBMITTED"}
+                {event.approval_status?.replace(/_/g, " ").toUpperCase() ||
+                  "NOT SUBMITTED"}
               </Badge>
             </div>
 
@@ -489,38 +490,37 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                       variant="defaultGray"
                       className="gap-1.5 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium flex-1 sm:flex-none"
                       disabled={
-                        archiving || event.visibility === EventVisibility.Archived
+                        archiving ||
+                        event.visibility === EventVisibility.Archived
                       }
                     >
                       <Archive className="w-4 h-4" />
-                      <span>
-                        {archiving ? "Archiving..." : "Archive"}
-                      </span>
+                      <span>{archiving ? "Archiving..." : "Archive"}</span>
                     </Button>
                   </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>
-                      {event.visibility === EventVisibility.Archived
-                        ? "Unarchive this event?"
-                        : "Archive this event?"}
-                    </AlertDialogTitle>
-                    <AlertDialogDescription>
-                      {event.visibility === EventVisibility.Archived
-                        ? "This will make the event editable again and change its visibility to private. You can change the visibility afterwards if needed."
-                        : "Archived events are hidden from non-organizers and the public, and cannot be edited by organizers. You can unarchive it later if needed."}
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleArchiveToggle}>
-                      {event.visibility === EventVisibility.Archived
-                        ? "Confirm Unarchive"
-                        : "Confirm Archive"}
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>
+                        {event.visibility === EventVisibility.Archived
+                          ? "Unarchive this event?"
+                          : "Archive this event?"}
+                      </AlertDialogTitle>
+                      <AlertDialogDescription>
+                        {event.visibility === EventVisibility.Archived
+                          ? "This will make the event editable again and change its visibility to private. You can change the visibility afterwards if needed."
+                          : "Archived events are hidden from non-organizers and the public, and cannot be edited by organizers. You can unarchive it later if needed."}
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleArchiveToggle}>
+                        {event.visibility === EventVisibility.Archived
+                          ? "Confirm Unarchive"
+                          : "Confirm Archive"}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
 
                 {/* Delete Event Dialog */}
                 <AlertDialog>
@@ -534,26 +534,26 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                       <span>Delete</span>
                     </Button>
                   </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Delete this event?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This will permanently remove the event and related data
-                      (tickets, payments, tracks, feedback). This cannot be
-                      undone.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      className="bg-red-600 hover:bg-red-700 text-white"
-                      onClick={handleDelete}
-                    >
-                      Confirm Delete
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete this event?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will permanently remove the event and related data
+                        (tickets, payments, tracks, feedback). This cannot be
+                        undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        className="bg-red-600 hover:bg-red-700 text-white"
+                        onClick={handleDelete}
+                      >
+                        Confirm Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
 
                 {/* Update Event (Save Changes) */}
                 {activeTab === "overview" && activeSubTab === "basics" && (
@@ -723,8 +723,8 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                 {/* Other Main Tabs */}
                 <TabsContent value="participants" className="mt-0 w-full">
                   {event && (
-                    <ParticipantsTab 
-                      eventId={eventId} 
+                    <ParticipantsTab
+                      eventId={eventId}
                       event={event}
                       setEvent={setEvent}
                       isArchived={event.visibility === "archived"}
@@ -764,15 +764,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                 </TabsContent>
 
                 <TabsContent value="project-submission" className="mt-0 w-full">
-                  <div className="space-y-6">
-                    <SubmissionsTab eventId={eventId} />
-                    <div className="border-t border-[rgba(0,0,0,0.15)] pt-6">
-                      <h2 className="text-xl font-semibold mb-4 text-black">
-                        Import Projects
-                      </h2>
-                      <ProjectImport eventId={eventId} />
-                    </div>
-                  </div>
+                  <ProjectSubmissionFlow eventId={eventId} />
                 </TabsContent>
 
                 <TabsContent value="intake-forms" className="mt-0 w-full">
@@ -790,7 +782,10 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                       <h2 className="text-xl font-semibold mb-4 text-black">
                         Registration Intake Form
                       </h2>
-                      <IntakeFormBuilder eventId={eventId} context="registration" />
+                      <IntakeFormBuilder
+                        eventId={eventId}
+                        context="registration"
+                      />
                     </div>
                   </div>
                 </TabsContent>

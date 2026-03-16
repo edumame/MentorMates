@@ -27,31 +27,43 @@ interface SubmissionEditorProps {
 
 const INITIAL_MESSAGE: ChatMessage = {
   role: "assistant",
-  text: "I can help you customize your submission form. Try things like:\n\n\u2022 \"Add a question asking about tech stack used\"\n\u2022 \"Make the video link required\"\n\u2022 \"Remove the additional materials field\"\n\u2022 \"Add a multi-select for project categories\"",
+  text: 'I can help you customize your submission form. Try things like:\n\n\u2022 "Add a question asking about tech stack used"\n\u2022 "Make the video link required"\n\u2022 "Remove the additional materials field"\n\u2022 "Add a multi-select for project categories"',
 };
 
 export function SubmissionEditor({ fields, onChange }: SubmissionEditorProps) {
   const [editingFieldId, setEditingFieldId] = useState<string | null>(null);
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() => {
-    if (typeof window === "undefined") return [INITIAL_MESSAGE];
-    try {
-      const stored = localStorage.getItem(CHAT_STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored) as ChatMessage[];
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch { /* ignore */ }
-    return [INITIAL_MESSAGE];
-  });
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
+    INITIAL_MESSAGE,
+  ]);
+  const hasLoadedChatHistory = useRef(false);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const isInitialMount = useRef(true);
 
   useEffect(() => {
     try {
+      const stored = localStorage.getItem(CHAT_STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored) as ChatMessage[];
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setChatMessages(parsed);
+        }
+      }
+    } catch {
+      // ignore
+    } finally {
+      hasLoadedChatHistory.current = true;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!hasLoadedChatHistory.current) return;
+    try {
       localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(chatMessages));
-    } catch { /* ignore */ }
+    } catch {
+      // ignore
+    }
   }, [chatMessages]);
 
   useEffect(() => {
@@ -59,7 +71,10 @@ export function SubmissionEditor({ fields, onChange }: SubmissionEditorProps) {
       isInitialMount.current = false;
       return;
     }
-    chatContainerRef.current?.scrollTo({ top: chatContainerRef.current.scrollHeight, behavior: "smooth" });
+    chatContainerRef.current?.scrollTo({
+      top: chatContainerRef.current.scrollHeight,
+      behavior: "smooth",
+    });
   }, [chatMessages]);
 
   const updateField = (id: string, changes: Partial<SubmissionField>) => {
@@ -89,54 +104,60 @@ export function SubmissionEditor({ fields, onChange }: SubmissionEditorProps) {
     if (editingFieldId === id) setEditingFieldId(null);
   };
 
-  const handleChatSubmit = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault();
-    const text = chatInput.trim();
-    if (!text || chatLoading) return;
+  const handleChatSubmit = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      const text = chatInput.trim();
+      if (!text || chatLoading) return;
 
-    setChatInput("");
-    setChatMessages((prev) => [...prev, { role: "user", text }]);
-    setChatLoading(true);
+      setChatInput("");
+      setChatMessages((prev) => [...prev, { role: "user", text }]);
+      setChatLoading(true);
 
-    try {
-      const res = await fetch("/api/events/ai-chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: text,
-          event: { submission_fields: fields },
-          history: chatMessages,
-          context: "submission",
-        }),
-      });
+      try {
+        const res = await fetch("/api/events/ai-chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            message: text,
+            event: { submission_fields: fields },
+            history: chatMessages,
+            context: "submission",
+          }),
+        });
 
-      const data = await res.json();
+        const data = await res.json();
 
-      if (!res.ok) {
+        if (!res.ok) {
+          setChatMessages((prev) => [
+            ...prev,
+            { role: "assistant", text: data.error || "Something went wrong." },
+          ]);
+          return;
+        }
+
         setChatMessages((prev) => [
           ...prev,
-          { role: "assistant", text: data.error || "Something went wrong." },
+          { role: "assistant", text: data.reply },
         ]);
-        return;
-      }
 
-      setChatMessages((prev) => [
-        ...prev,
-        { role: "assistant", text: data.reply },
-      ]);
-
-      if (data.patch?.submission_fields && Array.isArray(data.patch.submission_fields)) {
-        onChange(data.patch.submission_fields);
+        if (
+          data.patch?.submission_fields &&
+          Array.isArray(data.patch.submission_fields)
+        ) {
+          onChange(data.patch.submission_fields);
+        }
+      } catch {
+        setChatMessages((prev) => [
+          ...prev,
+          { role: "assistant", text: "Network error. Please try again." },
+        ]);
+      } finally {
+        setChatLoading(false);
       }
-    } catch {
-      setChatMessages((prev) => [
-        ...prev,
-        { role: "assistant", text: "Network error. Please try again." },
-      ]);
-    } finally {
-      setChatLoading(false);
-    }
-  }, [chatInput, chatLoading, chatMessages, fields, onChange]);
+    },
+    [chatInput, chatLoading, chatMessages, fields, onChange],
+  );
 
   return (
     <div className="flex gap-6 items-start">
@@ -149,7 +170,9 @@ export function SubmissionEditor({ fields, onChange }: SubmissionEditorProps) {
                 Submission Form
               </h1>
               <p className="text-base text-[#7f7f7f]">
-                Configure the fields participants will fill out when submitting their project. Click any field to edit it, or use the + buttons to add new questions.
+                Configure the fields participants will fill out when submitting
+                their project. Click any field to edit it, or use the + buttons
+                to add new questions.
               </p>
             </div>
 
@@ -166,9 +189,7 @@ export function SubmissionEditor({ fields, onChange }: SubmissionEditorProps) {
 
                     {idx > 0 &&
                       !isLocked &&
-                      LOCKED_FIELD_IDS.includes(
-                        fields[idx - 1]?.id ?? ""
-                      ) && (
+                      LOCKED_FIELD_IDS.includes(fields[idx - 1]?.id ?? "") && (
                         <div className="border-t border-dashed border-gray-200 mb-4" />
                       )}
 
@@ -219,9 +240,7 @@ export function SubmissionEditor({ fields, onChange }: SubmissionEditorProps) {
                       {isEditing ? (
                         <FieldEditor
                           field={field}
-                          onUpdate={(changes) =>
-                            updateField(field.id, changes)
-                          }
+                          onUpdate={(changes) => updateField(field.id, changes)}
                           onClose={() => setEditingFieldId(null)}
                         />
                       ) : (
@@ -232,9 +251,7 @@ export function SubmissionEditor({ fields, onChange }: SubmissionEditorProps) {
                 );
               })}
 
-              <AddFieldDivider
-                onClick={() => addFieldAt(fields.length)}
-              />
+              <AddFieldDivider onClick={() => addFieldAt(fields.length)} />
             </div>
           </div>
         </div>
@@ -260,7 +277,10 @@ export function SubmissionEditor({ fields, onChange }: SubmissionEditorProps) {
               </div>
             </div>
 
-            <div ref={chatContainerRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+            <div
+              ref={chatContainerRef}
+              className="flex-1 overflow-y-auto px-4 py-4 space-y-4"
+            >
               {chatMessages.map((msg, i) => (
                 <div
                   key={i}
@@ -283,9 +303,24 @@ export function SubmissionEditor({ fields, onChange }: SubmissionEditorProps) {
                 <div className="flex justify-start">
                   <div className="bg-gray-100 rounded-xl rounded-bl-sm px-3.5 py-2.5 text-sm text-gray-400">
                     <span className="inline-flex gap-1">
-                      <span className="animate-bounce" style={{ animationDelay: "0ms" }}>.</span>
-                      <span className="animate-bounce" style={{ animationDelay: "150ms" }}>.</span>
-                      <span className="animate-bounce" style={{ animationDelay: "300ms" }}>.</span>
+                      <span
+                        className="animate-bounce"
+                        style={{ animationDelay: "0ms" }}
+                      >
+                        .
+                      </span>
+                      <span
+                        className="animate-bounce"
+                        style={{ animationDelay: "150ms" }}
+                      >
+                        .
+                      </span>
+                      <span
+                        className="animate-bounce"
+                        style={{ animationDelay: "300ms" }}
+                      >
+                        .
+                      </span>
                     </span>
                   </div>
                 </div>
@@ -429,8 +464,32 @@ function FieldEditor({
   onUpdate: (changes: Partial<SubmissionField>) => void;
   onClose: () => void;
 }) {
-  const showOptions =
-    field.type === "select" || field.type === "multi_select";
+  const showOptions = field.type === "select" || field.type === "multi_select";
+  const optionValues =
+    showOptions && field.options && field.options.length > 0
+      ? field.options
+      : [""];
+
+  const updateOption = (index: number, value: string) => {
+    onUpdate({
+      options: optionValues.map((option, optionIndex) =>
+        optionIndex === index ? value : option,
+      ),
+    });
+  };
+
+  const addOption = () => {
+    onUpdate({ options: [...optionValues, ""] });
+  };
+
+  const removeOption = (index: number) => {
+    onUpdate({
+      options:
+        optionValues.length > 1
+          ? optionValues.filter((_, optionIndex) => optionIndex !== index)
+          : [""],
+    });
+  };
 
   return (
     <div className="space-y-4">
@@ -502,22 +561,36 @@ function FieldEditor({
 
         {showOptions && (
           <div className="space-y-1.5 sm:col-span-2">
-            <label className="text-xs font-medium text-gray-600">
-              Options (one per line)
-            </label>
-            <textarea
-              value={(field.options || []).join("\n")}
-              onChange={(e) =>
-                onUpdate({
-                  options: e.target.value
-                    .split("\n")
-                    .filter((o) => o.trim()),
-                })
-              }
-              placeholder={"Option 1\nOption 2\nOption 3"}
-              rows={4}
-              className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none resize-y focus:border-[#4B89EF] focus:ring-1 focus:ring-[#4B89EF]"
-            />
+            <label className="text-xs font-medium text-gray-600">Options</label>
+            <div className="space-y-2">
+              {optionValues.map((option, index) => (
+                <div key={`${field.id}-option-${index}`} className="flex gap-2">
+                  <input
+                    type="text"
+                    value={option}
+                    onChange={(e) => updateOption(index, e.target.value)}
+                    placeholder={`Option ${index + 1}`}
+                    className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm outline-none focus:border-[#4B89EF] focus:ring-1 focus:ring-[#4B89EF]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeOption(index)}
+                    disabled={optionValues.length === 1}
+                    className="rounded-lg border border-gray-200 px-3 text-sm text-gray-500 transition-colors hover:border-red-200 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={addOption}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[#4B89EF]/20 bg-blue-50 px-3 py-2 text-sm font-medium text-[#4B89EF] transition-colors hover:bg-blue-100"
+              >
+                <Plus className="size-3.5" />
+                Add option
+              </button>
+            </div>
           </div>
         )}
 
@@ -542,10 +615,7 @@ function FieldEditor({
                   value={field.maxFiles ?? 5}
                   onChange={(e) =>
                     onUpdate({
-                      maxFiles: Math.max(
-                        2,
-                        parseInt(e.target.value, 10) || 5
-                      ),
+                      maxFiles: Math.max(2, parseInt(e.target.value, 10) || 5),
                     })
                   }
                   className="w-16 h-8 rounded-md border border-gray-200 bg-white px-2 text-xs text-center outline-none focus:border-[#4B89EF]"

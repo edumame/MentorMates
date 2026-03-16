@@ -381,7 +381,6 @@ export function SubmissionsTab({ eventId }: SubmissionsTabProps) {
 
   return (
     <div className="space-y-6">
-      <SubmissionFieldsSettings eventId={eventId} />
       <Card>
         <CardHeader>
           <CardTitle>Project Submissions</CardTitle>

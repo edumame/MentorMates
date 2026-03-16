@@ -8,7 +8,14 @@
 export interface SubmissionField {
   id: string;
   label: string;
-  type: "text" | "textarea" | "url" | "file" | "select" | "multi_select" | "checkbox";
+  type:
+    | "text"
+    | "textarea"
+    | "url"
+    | "file"
+    | "select"
+    | "multi_select"
+    | "checkbox";
   required: boolean;
   placeholder: string;
   helperText?: string;
@@ -62,7 +69,7 @@ export const DEFAULT_SUBMISSION_FIELDS: SubmissionField[] = [
     id: "project_name",
     label: "Project name",
     type: "text",
-    required: true,
+    required: false,
     placeholder: "Short description shown in the preview card",
   },
   {
@@ -107,6 +114,8 @@ export const DEFAULT_SUBMISSION_FIELDS: SubmissionField[] = [
   },
 ];
 
+const REQUIRED_DEFAULT_FIELD_IDS = ["project_name"];
+
 /** Convert a SubmissionField array → API payload for PUT /api/events/[eventId]/submission-fields */
 export function fieldsToApiPayload(fields: SubmissionField[]) {
   return fields.map((field, index) => ({
@@ -132,7 +141,7 @@ export function apiFieldsToEditor(
     field_type: string;
     required: boolean;
     options?: unknown;
-  }>
+  }>,
 ): SubmissionField[] {
   return apiFields.map((f) => ({
     id: f.key,
@@ -141,6 +150,42 @@ export function apiFieldsToEditor(
     required: f.required,
     placeholder: f.placeholder || "",
     helperText: f.description || undefined,
-    options: Array.isArray(f.options) && f.options.length > 0 ? f.options : undefined,
+    options:
+      Array.isArray(f.options) && f.options.length > 0 ? f.options : undefined,
   }));
+}
+
+export function mergeWithDefaultSubmissionFields(
+  fields: SubmissionField[],
+): SubmissionField[] {
+  const fieldById = new Map(fields.map((field) => [field.id, field]));
+  const requiredDefaults = DEFAULT_SUBMISSION_FIELDS.filter((field) =>
+    REQUIRED_DEFAULT_FIELD_IDS.includes(field.id),
+  ).map((defaultField) => {
+    const existingField = fieldById.get(defaultField.id);
+    return existingField
+      ? {
+          ...defaultField,
+          ...existingField,
+          options: existingField.options
+            ? [...existingField.options]
+            : defaultField.options
+              ? [...defaultField.options]
+              : undefined,
+        }
+      : {
+          ...defaultField,
+          options: defaultField.options ? [...defaultField.options] : undefined,
+        };
+  });
+
+  const requiredIds = new Set(requiredDefaults.map((field) => field.id));
+  const eventSpecificFields = fields
+    .filter((field) => !requiredIds.has(field.id))
+    .map((field) => ({
+      ...field,
+      options: field.options ? [...field.options] : undefined,
+    }));
+
+  return [...requiredDefaults, ...eventSpecificFields];
 }

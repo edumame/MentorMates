@@ -4,29 +4,13 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { ProjectDescription } from "@/components/projects/ProjectDescription";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import {
-  Loader2,
-  Image as ImageIcon,
-  Paperclip,
-  Github,
-  Youtube,
-  Trash2,
-  ExternalLink,
-  ThumbsUp,
-  MessageSquarePlus,
-  Calendar,
-  MoreHorizontal,
-} from "lucide-react";
+import { Loader2, Trash2 } from "lucide-react";
 import { Session } from "@supabase/supabase-js";
 import { toast } from "@/lib/hooks/use-toast";
-import { Project } from "@/lib/types";
+import { EventSubmissionField, Project } from "@/lib/types";
 import { updateProjectTeamClient } from "@/features/projects/client-actions/client-update";
 import { deleteProjectClient } from "@/features/projects/client-actions/client-delete";
-import UserSearchWithInvite from "@/components/utils/UserSearchWithInvite";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -44,14 +28,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { TextFields } from "@mui/icons-material";
 import { ParticipantIntakeDialog } from "@/features/intake-forms/components/ParticipantIntakeDialog";
+import { ProjectSubmissionFormEngine } from "@/features/projects/components/forms/components/ProjectSubmissionFormEngine";
 import {
   buildDraftArtifactsPayload,
   hasDraftUrlListChanged,
   normalizeDraftUrls,
   splitPrimaryAndExtrasFromArtifacts,
 } from "@/features/projects/components/forms/utils/draftProjectArtifacts";
+import { submissionFieldTypeSchema } from "@/features/projects/utils/submission";
+import { createProjectSubmissionPublishSchema } from "@/features/projects/components/forms/schema/ProjectSubmissionSchema";
 import type {
   IntakeFormAnswers,
   IntakeFormSchema,
@@ -90,6 +76,20 @@ interface ActiveIntakeForm {
   schema: IntakeFormSchema;
 }
 
+type SubmissionAnswerValue = string | string[];
+const BUILT_IN_SUBMISSION_FIELD_KEYS = new Set([
+  "project_name",
+  "project_description",
+  "project_url",
+  "video_url",
+  "cover_image",
+  "additional_materials",
+]);
+type SubmissionAnswerPayloadItem = {
+  eventSubmissionFieldId: string;
+  answer: string | string[];
+};
+
 export default function DraftProjectSubmissionFormSinglePage({
   projectId,
   session,
@@ -108,6 +108,19 @@ export default function DraftProjectSubmissionFormSinglePage({
     useState<ActiveIntakeForm | null>(null);
   const [showIntakeDialog, setShowIntakeDialog] = useState(false);
   const [showDescriptionPreview, setShowDescriptionPreview] = useState(false);
+  const [submissionFields, setSubmissionFields] = useState<
+    EventSubmissionField[]
+  >([]);
+  const [submissionAnswers, setSubmissionAnswers] = useState<
+    Record<string, SubmissionAnswerValue>
+  >(() =>
+    Object.fromEntries(
+      (initialProject.submission_answers || []).map((answer) => [
+        answer.event_submission_field_id,
+        answer.answer,
+      ]),
+    ),
+  );
 
   // Form state
   const [formData, setFormData] = useState({
@@ -122,7 +135,7 @@ export default function DraftProjectSubmissionFormSinglePage({
   const [extraVideoUrls, setExtraVideoUrls] = useState<string[]>([]);
   const [extraMaterialsUrls, setExtraMaterialsUrls] = useState<string[]>([]);
   const [savedExtraProjectUrls, setSavedExtraProjectUrls] = useState<string[]>(
-    []
+    [],
   );
   const [savedExtraVideoUrls, setSavedExtraVideoUrls] = useState<string[]>([]);
   const [savedExtraMaterialsUrls, setSavedExtraMaterialsUrls] = useState<
@@ -135,7 +148,7 @@ export default function DraftProjectSubmissionFormSinglePage({
   // Event selection
   const [availableEvents, setAvailableEvents] = useState<EventOption[]>([]);
   const [selectedEventId, setSelectedEventId] = useState<string>(
-    initialProject.event_id
+    initialProject.event_id,
   );
   const [isLoadingEvents, setIsLoadingEvents] = useState(false);
 
@@ -166,7 +179,7 @@ export default function DraftProjectSubmissionFormSinglePage({
             event_date,
             visibility
           )
-        `
+        `,
         )
         .eq("user_id", session.user.id);
 
@@ -188,9 +201,7 @@ export default function DraftProjectSubmissionFormSinglePage({
           } | null;
 
           // Only include public and private events
-          return (
-            event
-          );
+          return event;
         })
         .map((role) => {
           const event = role.events as unknown as {
@@ -211,7 +222,7 @@ export default function DraftProjectSubmissionFormSinglePage({
         })
         .sort(
           (a, b) =>
-            new Date(b.event_date).getTime() - new Date(a.event_date).getTime()
+            new Date(b.event_date).getTime() - new Date(a.event_date).getTime(),
         );
 
       setAvailableEvents(events);
@@ -227,7 +238,7 @@ export default function DraftProjectSubmissionFormSinglePage({
 
     try {
       const response = await fetch(
-        `/api/events/${project.event_id}/users?roles=participant&limit=500`
+        `/api/events/${project.event_id}/users?roles=participant&limit=500`,
       );
       const payload = await response.json();
       if (!response.ok) {
@@ -236,11 +247,13 @@ export default function DraftProjectSubmissionFormSinglePage({
 
       const participantList: EventParticipant[] = (payload.users || [])
         .filter((user: { email: string }) => Boolean(user.email))
-        .map((user: { user_id: string; display_name: string; email: string }) => ({
-          user_id: user.user_id,
-          display_name: user.display_name || user.email || "",
-          email: user.email || "",
-        }));
+        .map(
+          (user: { user_id: string; display_name: string; email: string }) => ({
+            user_id: user.user_id,
+            display_name: user.display_name || user.email || "",
+            email: user.email || "",
+          }),
+        );
 
       setParticipants(participantList);
     } catch {
@@ -299,14 +312,21 @@ export default function DraftProjectSubmissionFormSinglePage({
   }, [projectId]);
 
   const buildArtifactsPayload = useCallback(() => {
+    const hasField = (key: string) =>
+      submissionFields.length === 0 ||
+      submissionFields.some((field) => field.key === key);
 
     return buildDraftArtifactsPayload({
-      projectUrl: formData.project_url,
-      videoUrl: formData.video_url,
-      additionalMaterialsUrl: formData.additional_materials_url,
-      extraProjectUrls,
-      extraVideoUrls,
-      extraMaterialsUrls,
+      projectUrl: hasField("project_url") ? formData.project_url : "",
+      videoUrl: hasField("video_url") ? formData.video_url : "",
+      additionalMaterialsUrl: hasField("additional_materials")
+        ? formData.additional_materials_url
+        : "",
+      extraProjectUrls: hasField("project_url") ? extraProjectUrls : [],
+      extraVideoUrls: hasField("video_url") ? extraVideoUrls : [],
+      extraMaterialsUrls: hasField("additional_materials")
+        ? extraMaterialsUrls
+        : [],
     });
   }, [
     formData.project_url,
@@ -315,7 +335,91 @@ export default function DraftProjectSubmissionFormSinglePage({
     extraProjectUrls,
     extraVideoUrls,
     extraMaterialsUrls,
+    submissionFields,
   ]);
+
+  const buildSubmissionAnswersPayload =
+    useCallback((): SubmissionAnswerPayloadItem[] => {
+      return submissionFields.reduce<SubmissionAnswerPayloadItem[]>(
+        (answers, field) => {
+          if (BUILT_IN_SUBMISSION_FIELD_KEYS.has(field.key)) {
+            return answers;
+          }
+
+          const fieldType = submissionFieldTypeSchema.safeParse(
+            field.field_type,
+          ).success
+            ? field.field_type
+            : "short_text";
+          const value = submissionAnswers[field.id];
+
+          if (fieldType === "multi_url") {
+            const urls = (Array.isArray(value) ? value : [])
+              .map((url) => (typeof url === "string" ? url.trim() : ""))
+              .filter((url) => url.length > 0);
+
+            if (urls.length > 0) {
+              answers.push({ eventSubmissionFieldId: field.id, answer: urls });
+            }
+
+            return answers;
+          }
+
+          const textValue = typeof value === "string" ? value.trim() : "";
+          if (textValue.length > 0) {
+            answers.push({
+              eventSubmissionFieldId: field.id,
+              answer: textValue,
+            });
+          }
+
+          return answers;
+        },
+        [],
+      );
+    }, [submissionAnswers, submissionFields]);
+
+  const getSavedSubmissionAnswersPayload =
+    useCallback((): SubmissionAnswerPayloadItem[] => {
+      return submissionFields.reduce<SubmissionAnswerPayloadItem[]>(
+        (answers, field) => {
+          const existingAnswer = project.submission_answers?.find(
+            (answer) => answer.event_submission_field_id === field.id,
+          );
+
+          if (!existingAnswer) {
+            return answers;
+          }
+
+          if (Array.isArray(existingAnswer.answer)) {
+            const urls = existingAnswer.answer
+              .map((url) => (typeof url === "string" ? url.trim() : ""))
+              .filter((url) => url.length > 0);
+
+            if (urls.length > 0) {
+              answers.push({ eventSubmissionFieldId: field.id, answer: urls });
+            }
+
+            return answers;
+          }
+
+          const textValue =
+            typeof existingAnswer.answer === "string"
+              ? existingAnswer.answer.trim()
+              : "";
+
+          if (textValue.length > 0) {
+            answers.push({
+              eventSubmissionFieldId: field.id,
+              answer: textValue,
+            });
+          }
+
+          return answers;
+        },
+        [],
+      );
+    }, [project.submission_answers, submissionFields]);
 
   // Effects
   useEffect(() => {
@@ -325,11 +429,16 @@ export default function DraftProjectSubmissionFormSinglePage({
       fetchEventTracks(project.event_id);
       fetchProjectTracks();
     }
-  }, [project?.event_id, fetchEventParticipants, fetchEventTracks, fetchProjectTracks]);
+  }, [
+    project?.event_id,
+    fetchEventParticipants,
+    fetchEventTracks,
+    fetchProjectTracks,
+  ]);
 
   useEffect(() => {
     const fetchArtifactByKind = async (
-      kind: "project_link" | "video_link" | "additional_material"
+      kind: "project_link" | "video_link" | "additional_material",
     ) => {
       const { data, error } = await supabase
         .from("project_artifacts")
@@ -378,6 +487,66 @@ export default function DraftProjectSubmissionFormSinglePage({
   }, [fetchAvailableEvents]);
 
   useEffect(() => {
+    const fetchSubmissionFields = async () => {
+      if (!project.event_id) {
+        setSubmissionFields([]);
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          `/api/events/${project.event_id}/submission-fields`,
+        );
+        if (!response.ok) {
+          setSubmissionFields([]);
+          return;
+        }
+
+        const json = (await response.json()) as {
+          fields?: EventSubmissionField[];
+        };
+        setSubmissionFields(
+          (json.fields || [])
+            .filter((field) => field.is_active)
+            .sort((a, b) => a.sort_order - b.sort_order),
+        );
+      } catch {
+        setSubmissionFields([]);
+      }
+    };
+
+    fetchSubmissionFields();
+  }, [project.event_id]);
+
+  useEffect(() => {
+    const fetchSubmissionAnswers = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("project_submission_answers")
+          .select("event_submission_field_id, answer")
+          .eq("project_id", projectId);
+
+        if (error) {
+          return;
+        }
+
+        setSubmissionAnswers(
+          Object.fromEntries(
+            (data || []).map((answer) => [
+              answer.event_submission_field_id,
+              answer.answer as SubmissionAnswerValue,
+            ]),
+          ),
+        );
+      } catch {
+        // Silent fail; form stays editable without answers.
+      }
+    };
+
+    fetchSubmissionAnswers();
+  }, [projectId]);
+
+  useEffect(() => {
     // Update parent component when project changes
     if (onProjectUpdate) {
       onProjectUpdate(project);
@@ -392,10 +561,21 @@ export default function DraftProjectSubmissionFormSinglePage({
 
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formData, extraProjectUrls, extraVideoUrls, extraMaterialsUrls]);
+  }, [
+    formData,
+    extraProjectUrls,
+    extraVideoUrls,
+    extraMaterialsUrls,
+    submissionAnswers,
+    submissionFields,
+  ]);
 
   const handleAutoSave = async () => {
     if (isSaving) return;
+
+    const hasField = (key: string) =>
+      submissionFields.length === 0 ||
+      submissionFields.some((field) => field.key === key);
 
     // Check if anything changed
     const hasChanges =
@@ -408,7 +588,9 @@ export default function DraftProjectSubmissionFormSinglePage({
         (project.additional_materials_url || "") ||
       hasDraftUrlListChanged(extraProjectUrls, savedExtraProjectUrls) ||
       hasDraftUrlListChanged(extraVideoUrls, savedExtraVideoUrls) ||
-      hasDraftUrlListChanged(extraMaterialsUrls, savedExtraMaterialsUrls);
+      hasDraftUrlListChanged(extraMaterialsUrls, savedExtraMaterialsUrls) ||
+      JSON.stringify(buildSubmissionAnswersPayload()) !==
+        JSON.stringify(getSavedSubmissionAnswersPayload());
 
     if (!hasChanges) return;
 
@@ -420,22 +602,51 @@ export default function DraftProjectSubmissionFormSinglePage({
         body: JSON.stringify({
           project_name: formData.project_name.trim() || undefined,
           project_description: formData.project_description.trim() || undefined,
-          project_url: formData.project_url.trim() || undefined,
-          video_url: formData.video_url.trim() || null,
-          cover_image_url: formData.cover_image_url.trim() || undefined,
-          additional_materials_url:
-            formData.additional_materials_url.trim() || undefined,
-          extra_project_urls: normalizeDraftUrls(extraProjectUrls),
-          extra_video_urls: normalizeDraftUrls(extraVideoUrls),
-          extra_materials_urls: normalizeDraftUrls(extraMaterialsUrls),
+          project_url: hasField("project_url")
+            ? formData.project_url.trim() || null
+            : null,
+          video_url: hasField("video_url")
+            ? formData.video_url.trim() || null
+            : null,
+          cover_image_url: hasField("cover_image")
+            ? formData.cover_image_url.trim() || null
+            : null,
+          additional_materials_url: hasField("additional_materials")
+            ? formData.additional_materials_url.trim() || null
+            : null,
+          extra_project_urls: hasField("project_url")
+            ? normalizeDraftUrls(extraProjectUrls)
+            : [],
+          extra_video_urls: hasField("video_url")
+            ? normalizeDraftUrls(extraVideoUrls)
+            : [],
+          extra_materials_urls: hasField("additional_materials")
+            ? normalizeDraftUrls(extraMaterialsUrls)
+            : [],
           artifacts: buildArtifactsPayload(),
+          submission_answers: buildSubmissionAnswersPayload(),
         }),
       });
 
       if (response.ok) {
         const json = (await response.json()) as { project?: Project };
         if (json.project) {
-          setProject(json.project);
+          setProject({
+            ...json.project,
+            submission_answers: buildSubmissionAnswersPayload().map(
+              (answer) => ({
+                id:
+                  project.submission_answers?.find(
+                    (saved) =>
+                      saved.event_submission_field_id ===
+                      answer.eventSubmissionFieldId,
+                  )?.id || "",
+                project_id: projectId,
+                event_submission_field_id: answer.eventSubmissionFieldId,
+                answer: answer.answer,
+              }),
+            ),
+          });
         }
         setSavedExtraProjectUrls(normalizeDraftUrls(extraProjectUrls));
         setSavedExtraVideoUrls(normalizeDraftUrls(extraVideoUrls));
@@ -448,7 +659,7 @@ export default function DraftProjectSubmissionFormSinglePage({
   };
 
   const handleCoverImageUpload = async (
-    e: React.ChangeEvent<HTMLInputElement>
+    e: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -491,7 +702,7 @@ export default function DraftProjectSubmissionFormSinglePage({
   };
 
   const handleAdditionalMaterialsUpload = async (
-    e: React.ChangeEvent<HTMLInputElement>
+    e: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const input = e.currentTarget;
     const file = e.target.files?.[0];
@@ -545,7 +756,7 @@ export default function DraftProjectSubmissionFormSinglePage({
 
   const handleAdditionalMaterialsExtraUpload = async (
     index: number,
-    e: React.ChangeEvent<HTMLInputElement>
+    e: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const input = e.currentTarget;
     const file = e.target.files?.[0];
@@ -556,7 +767,7 @@ export default function DraftProjectSubmissionFormSinglePage({
     if (!publicUrl) return;
 
     setExtraMaterialsUrls((prev) =>
-      prev.map((item, itemIndex) => (itemIndex === index ? publicUrl : item))
+      prev.map((item, itemIndex) => (itemIndex === index ? publicUrl : item)),
     );
 
     toast({
@@ -571,13 +782,13 @@ export default function DraftProjectSubmissionFormSinglePage({
     try {
       // Filter out the lead email
       const validEmails = emails.filter(
-        (email) => email.toLowerCase() !== project.lead_email?.toLowerCase()
+        (email) => email.toLowerCase() !== project.lead_email?.toLowerCase(),
       );
 
       const { data } = await updateProjectTeamClient(projectId, validEmails);
 
       if (data) {
-        setProject(data);
+        setProject({ ...data, submission_answers: project.submission_answers });
       }
     } catch {
       toast({
@@ -592,15 +803,15 @@ export default function DraftProjectSubmissionFormSinglePage({
     try {
       const currentTeammates = project?.teammates || [];
       const updatedTeammates = currentTeammates.filter(
-        (email) => email !== teammateEmail
+        (email) => email !== teammateEmail,
       );
       const { data } = await updateProjectTeamClient(
         projectId,
-        updatedTeammates
+        updatedTeammates,
       );
 
       if (data) {
-        setProject(data);
+        setProject({ ...data, submission_answers: project.submission_answers });
         toast({
           title: "Team member removed",
           description: `${teammateEmail} has been removed from the team`,
@@ -620,7 +831,7 @@ export default function DraftProjectSubmissionFormSinglePage({
 
     // Validate submission time before updating
     const selectedEvent = availableEvents.find(
-      (e) => e.event_id === newEventId
+      (e) => e.event_id === newEventId,
     );
 
     if (!selectedEvent) {
@@ -659,7 +870,7 @@ export default function DraftProjectSubmissionFormSinglePage({
       const response = await fetch(`/api/projects/${projectId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ event_id: newEventId }),
+        body: JSON.stringify({ event_id: newEventId, submission_answers: [] }),
       });
 
       const result = await response.json();
@@ -674,7 +885,12 @@ export default function DraftProjectSubmissionFormSinglePage({
       }
 
       setSelectedEventId(newEventId);
-      setProject({ ...project, event_id: newEventId });
+      setProject({
+        ...project,
+        event_id: newEventId,
+        submission_answers: [],
+      });
+      setSubmissionAnswers({});
 
       toast({
         title: "Event Updated",
@@ -684,7 +900,12 @@ export default function DraftProjectSubmissionFormSinglePage({
       // Refresh participants and tracks for new event
       fetchEventParticipants();
       fetchEventTracks(newEventId);
-      
+
+      await supabase
+        .from("project_tracks")
+        .delete()
+        .eq("project_id", projectId);
+
       // Clear selected tracks when event changes
       setSelectedTrackIds([]);
     } catch {
@@ -762,21 +983,39 @@ export default function DraftProjectSubmissionFormSinglePage({
   };
 
   const publishProjectWithArtifacts = async (): Promise<Project | null> => {
+    const hasField = (key: string) =>
+      submissionFields.length === 0 ||
+      submissionFields.some((field) => field.key === key);
+
     const response = await fetch(`/api/projects/${projectId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         project_name: formData.project_name.trim() || undefined,
         project_description: formData.project_description.trim() || undefined,
-        project_url: formData.project_url.trim() || undefined,
-        video_url: formData.video_url.trim() || null,
-        cover_image_url: formData.cover_image_url.trim() || undefined,
-        additional_materials_url:
-          formData.additional_materials_url.trim() || undefined,
-        extra_project_urls: normalizeDraftUrls(extraProjectUrls),
-        extra_video_urls: normalizeDraftUrls(extraVideoUrls),
-        extra_materials_urls: normalizeDraftUrls(extraMaterialsUrls),
+        project_url: hasField("project_url")
+          ? formData.project_url.trim() || null
+          : null,
+        video_url: hasField("video_url")
+          ? formData.video_url.trim() || null
+          : null,
+        cover_image_url: hasField("cover_image")
+          ? formData.cover_image_url.trim() || null
+          : null,
+        additional_materials_url: hasField("additional_materials")
+          ? formData.additional_materials_url.trim() || null
+          : null,
+        extra_project_urls: hasField("project_url")
+          ? normalizeDraftUrls(extraProjectUrls)
+          : [],
+        extra_video_urls: hasField("video_url")
+          ? normalizeDraftUrls(extraVideoUrls)
+          : [],
+        extra_materials_urls: hasField("additional_materials")
+          ? normalizeDraftUrls(extraMaterialsUrls)
+          : [],
         artifacts: buildArtifactsPayload(),
+        submission_answers: buildSubmissionAnswersPayload(),
         submitted: true,
       }),
     });
@@ -791,20 +1030,24 @@ export default function DraftProjectSubmissionFormSinglePage({
   };
 
   const handlePublish = async () => {
-    // Validate required fields
-    if (!formData.project_name.trim()) {
-      toast({
-        title: "Missing Information",
-        description: "Project name is required",
-        variant: "destructive",
-      });
-      return;
-    }
+    const validation = createProjectSubmissionPublishSchema(
+      submissionFields,
+    ).safeParse({
+      projectName: formData.project_name,
+      projectDescription: formData.project_description,
+      projectUrl: formData.project_url,
+      videoUrl: formData.video_url,
+      coverImageUrl: formData.cover_image_url,
+      additionalMaterialsUrl: formData.additional_materials_url,
+      submissionAnswers,
+    });
 
-    if (!formData.project_description.trim()) {
+    if (!validation.success) {
       toast({
-        title: "Missing Information",
-        description: "Project description is required",
+        title: "Missing required information",
+        description:
+          validation.error.issues[0]?.message ||
+          "Please complete the required submission fields before publishing.",
         variant: "destructive",
       });
       return;
@@ -814,7 +1057,7 @@ export default function DraftProjectSubmissionFormSinglePage({
       if (project.event_id) {
         const intakeResponse = await fetch(
           `/api/events/${project.event_id}/intake-form?context=project_submission`,
-          { cache: "no-store" }
+          { cache: "no-store" },
         );
 
         if (intakeResponse.ok) {
@@ -833,7 +1076,20 @@ export default function DraftProjectSubmissionFormSinglePage({
       const data = await publishProjectWithArtifacts();
 
       if (data) {
-        setProject(data);
+        setProject({
+          ...data,
+          submission_answers: buildSubmissionAnswersPayload().map((answer) => ({
+            id:
+              project.submission_answers?.find(
+                (saved) =>
+                  saved.event_submission_field_id ===
+                  answer.eventSubmissionFieldId,
+              )?.id || "",
+            project_id: projectId,
+            event_submission_field_id: answer.eventSubmissionFieldId,
+            answer: answer.answer,
+          })),
+        });
         toast({
           title: "Project published",
           description: "Your project is now public",
@@ -877,7 +1133,7 @@ export default function DraftProjectSubmissionFormSinglePage({
             projectId,
             answers,
           }),
-        }
+        },
       );
 
       if (!intakeResponse.ok) {
@@ -885,7 +1141,20 @@ export default function DraftProjectSubmissionFormSinglePage({
         throw new Error(intakeError.error || "Failed to submit intake form");
       }
 
-      setProject(data);
+      setProject({
+        ...data,
+        submission_answers: buildSubmissionAnswersPayload().map((answer) => ({
+          id:
+            project.submission_answers?.find(
+              (saved) =>
+                saved.event_submission_field_id ===
+                answer.eventSubmissionFieldId,
+            )?.id || "",
+          project_id: projectId,
+          event_submission_field_id: answer.eventSubmissionFieldId,
+          answer: answer.answer,
+        })),
+      });
       setShowIntakeDialog(false);
       toast({
         title: "Project published",
@@ -958,627 +1227,291 @@ export default function DraftProjectSubmissionFormSinglePage({
         </div>
       </div>
 
-      {/* Main Content */}
       <div className="bg-gradient-to-br from-blue-100/45 via-transparent to-transparent">
-        <div className="mx-auto px-8 py-6 min-h-[800px]">
-          <div className="flex gap-[50px] sm:gap-[85px] items-start justify-between flex-wrap-reverse sm:flex-nowrap">
-            {/* Left Side - Form */}
-            <div className="flex-1 space-y-6">
-              <div className="space-y-1">
-                <h1 className="text-[28px] font-semibold text-black tracking-[-0.06em] leading-[1.4]">
-                  Edit your project
-                </h1>
-              </div>
-
-              <div className="space-y-4">
-                {/* Project Name */}
-                <div className="space-y-2">
-                  <label className="text-base text-black font-normal">
-                    Project name
-                  </label>
-                  <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-3 py-2 flex items-center gap-3 h-11">
-                    <TextFields className="h-6 w-6 shrink-0" />
-                    <Input
-                      value={formData.project_name}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          project_name: e.target.value,
-                        }))
-                      }
-                      placeholder="Snapdragon AI: Multilingual Translator"
-                      className="border-0 p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0 text-base"
-                    />
-                  </div>
-                </div>
-
-                {/* Event Selection */}
-                <div className="space-y-2">
-                  <label className="text-base text-black font-normal">
-                    Submit to Event
-                  </label>
-                  <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl">
-                    <Select
-                      value={selectedEventId}
-                      onValueChange={handleEventChange}
-                      disabled={isLoadingEvents}
-                    >
-                      <SelectTrigger className="border-0 h-11 focus:ring-0 focus:ring-offset-0">
-                        <SelectValue placeholder="Select an event" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableEvents.map((event) => {
-                          const now = new Date();
-                          const submissionStart = new Date(
-                            event.submission_time_start
-                          );
-                          const submissionCutoff = new Date(
-                            event.submission_time_cutoff
-                          );
-                          const isOpen =
-                            now >= submissionStart && now <= submissionCutoff;
-                          const isPast = now > submissionCutoff;
-                          const isFuture = now < submissionStart;
-                          const noSubmissionWindow =
-                            !event.submission_time_start ||
-                            !event.submission_time_cutoff;
-
-                          return (
-                            <SelectItem
-                              key={event.event_id}
-                              value={event.event_id}
-                              disabled={!isOpen}
-                            >
-                              <div className="flex items-center gap-2">
-                                <span>{event.event_name}</span>
-                                {isOpen && (
-                                  <Badge className="bg-green-100 text-green-800 text-xs">
-                                    Open
-                                  </Badge>
-                                )}
-                                {isPast && (
-                                  <Badge className="bg-red-100 text-red-600 text-xs">
-                                    Closed
-                                  </Badge>
-                                )}
-                                {isFuture && (
-                                  <Badge className="bg-blue-100 text-blue-800 text-xs">
-                                    Opens {submissionStart.toLocaleDateString()}
-                                  </Badge>
-                                )}
-                                {noSubmissionWindow && (
-                                  <Badge className="bg-gray-100 text-gray-600 text-xs">
-                                    Submissions not open
-                                  </Badge>
-                                )}
-                              </div>
-                            </SelectItem>
-                          );
-                        })}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <p className="text-base text-[#7f7f7f]">
-                    *You can only submit to events with open submission windows
-                  </p>
-                </div>
-
-                {/* Track Selection */}
-                {availableTracks.length > 0 && (
-                  <div className="space-y-2">
-                    <label className="text-base text-black font-normal">
-                      Select tracks (Optional)
-                    </label>
-                    <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl p-4 space-y-3">
-                      {isLoadingTracks ? (
-                        <div className="flex items-center justify-center py-4">
-                          <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
-                        </div>
-                      ) : (
-                        availableTracks.map((track) => (
-                          <label
-                            key={track.track_id}
-                            className="flex items-start gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={selectedTrackIds.includes(track.track_id)}
-                              onChange={(e) =>
-                                handleTrackToggle(track.track_id, e.target.checked)
-                              }
-                              className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                            />
-                            <div className="flex-1">
-                              <span className="text-base text-black font-medium">
-                                {track.name}
-                              </span>
-                              {track.description && (
-                                <p className="text-sm text-[#7f7f7f] mt-0.5">
-                                  {track.description}
-                                </p>
-                              )}
-                            </div>
-                          </label>
-                        ))
-                      )}
-                    </div>
-                    <p className="text-base text-[#7f7f7f]">
-                      *Choose the tracks your project should compete in
-                    </p>
-                  </div>
-                )}
-
-                {/* Project Description */}
-                <div className="space-y-2">
-                  <label className="text-base text-black font-normal">
-                    Project Description
-                  </label>
-                  <Textarea
-                    value={formData.project_description}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        project_description: e.target.value,
-                      }))
-                    }
-                    placeholder="Describe your project..."
-                    rows={7}
-                    className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-3 py-2 text-base resize-none"
-                  />
-                  <p className="text-base text-[#7f7f7f]">
-                    *This will show under the project overview section. Markdown supported.
-                  </p>
-                  {formData.project_description.trim() ? (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setShowDescriptionPreview((prev) => !prev)
-                        }
-                        className="text-sm font-medium text-blue-600 hover:text-blue-700"
-                      >
-                        {showDescriptionPreview ? "Hide preview" : "Show preview"}
-                      </button>
-                      {showDescriptionPreview ? (
-                        <div className="rounded-xl border border-[rgba(0,0,0,0.12)] bg-white px-3 py-3">
-                          <p className="text-xs font-medium text-gray-500 mb-2">
-                            Preview
-                          </p>
-                          <ProjectDescription
-                            value={formData.project_description}
-                            className="text-base"
-                          />
-                        </div>
-                      ) : null}
-                    </>
-                  ) : null}
-                </div>
-
-                {/* Divider */}
-                <div className="border-t border-dashed border-gray-200" />
-
-                {/* Cover Image */}
-                <div className="space-y-2">
-                  <label className="text-base text-black font-normal">
-                    Cover image
-                  </label>
-                  <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-3 py-2 flex items-center gap-3 h-11">
-                    <ImageIcon className="h-6 w-6 shrink-0" />
-                    <Input
-                      value={formData.cover_image_url}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          cover_image_url: e.target.value,
-                        }))
-                      }
-                      placeholder="https://www.mentormates.ai/projects/..."
-                      className="border-0 p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0 text-base truncate"
-                    />
-                    <label className="bg-[rgba(0,0,0,0.05)] shadow-sm rounded-xl px-3 py-1 cursor-pointer shrink-0">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleCoverImageUpload}
-                        className="hidden"
-                      />
-                      <span className="text-xs text-black font-normal">
-                        Upload
-                      </span>
-                    </label>
-                  </div>
-                  <p className="text-base text-[#7f7f7f]">
-                    *Upload an image to showcase your project (Max 10MB)
-                  </p>
-                </div>
-
-                {/* Additional Materials */}
-                <div className="space-y-2">
-                  <label className="text-base text-black font-normal">
-                    Additional materials
-                  </label>
-                  <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-3 py-2 flex items-center gap-3 h-11">
-                    <Paperclip className="h-6 w-6 shrink-0" />
-                    <Input
-                      value={formData.additional_materials_url}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          additional_materials_url: e.target.value,
-                        }))
-                      }
-                      placeholder="https://www.mentormates.ai/projects/..."
-                      className="border-0 p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0 text-base truncate"
-                    />
-                    <label className="bg-[rgba(0,0,0,0.05)] shadow-sm rounded-xl px-3 py-1 cursor-pointer shrink-0">
-                      <input
-                        type="file"
-                        onChange={handleAdditionalMaterialsUpload}
-                        className="hidden"
-                      />
-                      <span className="text-xs text-black font-normal">
-                        Upload
-                      </span>
-                    </label>
-                  </div>
-                  {extraMaterialsUrls.map((url, index) => (
-                    <div key={`materials-extra-${index}`} className="flex gap-2">
-                      <Input
-                        value={url}
-                        onChange={(e) =>
-                          setExtraMaterialsUrls((prev) =>
-                            prev.map((item, itemIndex) =>
-                              itemIndex === index ? e.target.value : item
-                            )
-                          )
-                        }
-                        placeholder="https://..."
-                        className="h-11"
-                      />
-                      <label className="bg-[rgba(0,0,0,0.05)] shadow-sm rounded-xl px-3 py-1 cursor-pointer shrink-0 h-11 inline-flex items-center">
-                        <input
-                          type="file"
-                          onChange={(e) =>
-                            handleAdditionalMaterialsExtraUpload(index, e)
-                          }
-                          className="hidden"
-                        />
-                        <span className="text-xs text-black font-normal">
-                          Upload
-                        </span>
-                      </label>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() =>
-                          setExtraMaterialsUrls((prev) =>
-                            prev.filter((_, itemIndex) => itemIndex !== index)
-                          )
-                        }
-                      >
-                        Remove
-                      </Button>
-                    </div>
-                  ))}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setExtraMaterialsUrls((prev) => [...prev, ""])}
-                  >
-                    Add another materials link
-                  </Button>
-                  <p className="text-base text-[#7f7f7f]">
-                    *Upload any additional documentation (Max 10MB)
-                  </p>
-                </div>
-
-                {/* GitHub or Live Link */}
-                <div className="space-y-2">
-                  <label className="text-base text-black font-normal">
-                    GitHub or live link (Optional)
-                  </label>
-                  <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-3 py-2 flex items-center gap-3 h-11">
-                    <Github className="h-6 w-6 shrink-0" />
-                    <Input
-                      value={formData.project_url}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          project_url: e.target.value,
-                        }))
-                      }
-                      placeholder="https://..."
-                      className="border-0 p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0 text-base text-[rgba(0,0,0,0.6)]"
-                    />
-                  </div>
-                  {extraProjectUrls.map((url, index) => (
-                    <div key={`project-link-extra-${index}`} className="flex gap-2">
-                      <Input
-                        value={url}
-                        onChange={(e) =>
-                          setExtraProjectUrls((prev) =>
-                            prev.map((item, itemIndex) =>
-                              itemIndex === index ? e.target.value : item
-                            )
-                          )
-                        }
-                        placeholder="https://..."
-                        className="h-11"
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() =>
-                          setExtraProjectUrls((prev) =>
-                            prev.filter((_, itemIndex) => itemIndex !== index)
-                          )
-                        }
-                      >
-                        Remove
-                      </Button>
-                    </div>
-                  ))}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setExtraProjectUrls((prev) => [...prev, ""])}
-                  >
-                    Add another project link
-                  </Button>
-                </div>
-
-                {/* Video Link */}
-                <div className="space-y-2">
-                  <label className="text-base text-black font-normal">
-                    Video link (Optional)
-                  </label>
-                  <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-3 py-2 flex items-center gap-3 h-11">
-                    <Youtube className="h-6 w-6 shrink-0" />
-                    <Input
-                      value={formData.video_url}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          video_url: e.target.value,
-                        }))
-                      }
-                      placeholder="https://..."
-                      className="border-0 p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0 text-base text-[rgba(0,0,0,0.6)]"
-                    />
-                  </div>
-                  {extraVideoUrls.map((url, index) => (
-                    <div key={`video-link-extra-${index}`} className="flex gap-2">
-                      <Input
-                        value={url}
-                        onChange={(e) =>
-                          setExtraVideoUrls((prev) =>
-                            prev.map((item, itemIndex) =>
-                              itemIndex === index ? e.target.value : item
-                            )
-                          )
-                        }
-                        placeholder="https://..."
-                        className="h-11"
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() =>
-                          setExtraVideoUrls((prev) =>
-                            prev.filter((_, itemIndex) => itemIndex !== index)
-                          )
-                        }
-                      >
-                        Remove
-                      </Button>
-                    </div>
-                  ))}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setExtraVideoUrls((prev) => [...prev, ""])}
-                  >
-                    Add another video link
-                  </Button>
-                </div>
-
-                {/* Divider */}
-                <div className="border-t border-dashed border-gray-200" />
-
-                {/* Add Teammates */}
-                <div className="space-y-2">
-                  <label className="text-base text-black font-normal mb-2">
-                    Add teammates (Optional)
-                  </label>
-                  <div className="border border-gray-200 rounded-xl">
-                    <div className="pt-2 px-3 border-b border-gray-200">
-                      <UserSearchWithInvite
-                        allTags={participants.map((p) => p.email)}
-                        onTagsChange={handleTeammatesChange}
-                        initialTags={project.teammates || []}
-                        projectId={projectId}
-                        enableInvite={true}
-                        enableMailIcon={true}
-                        inputStyle="pure"
-                        placeholder="Enter your teammates' emails. Press Enter or comma to add each."
-                      />
-                    </div>
-                    {/* Team Members List */}
-                    <div className="border-b last:border-b-0 border-gray-200 space-y-4 mt-3 p-3">
-                      {/* Lead */}
-                      <div className="flex items-center gap-4">
-                        <div className="w-14 h-14 rounded-full bg-gray-300 shrink-0" />
-                        <div className="space-y-0">
-                          <div className="flex items-center gap-1">
-                            <p className="text-base font-semibold text-black">
-                              {project.lead_name}
-                            </p>
-                            <Badge
-                              variant="secondary"
-                              className="bg-transparent border border-[rgba(0,0,0,0.15)] text-black rounded-full text-sm font-semibold"
-                            >
-                              Lead
-                            </Badge>
-                          </div>
-                          <p className="text-base text-black">
-                            {project.lead_email}
-                          </p>
-                        </div>
-                      </div>
-
-                      {project.teammates && project.teammates.length > 0 && (
-                        <>
-                          <div className="border-t border-dashed border-gray-200" />
-                          {project.teammates.map((teammate, index) => (
-                            <div
-                              key={index}
-                              className="flex items-center gap-4 border-b last:border-b-0 border-gray-200 py-4 !m-0"
-                            >
-                              <div className="w-14 h-14 rounded-full bg-gray-300 shrink-0" />
-                              <div className="flex-1">
-                                <p className="text-base font-semibold text-black">
-                                  {teammate}
-                                </p>
-                                <p className="text-base text-black">
-                                  {teammate}
-                                </p>
-                              </div>
-                              {isLead && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleRemoveTeammate(teammate)}
-                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                >
-                                  Remove
-                                </Button>
-                              )}
-                            </div>
-                          ))}
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Right Side - Preview & Actions */}
-            <div className="space-y-6">
-              {/* Action Buttons */}
-              <div className="flex items-center gap-1 justify-end">
-                {isLead && (
-                  <Button
-                    onClick={() => setShowDeleteDialog(true)}
-                    className="bg-red-600 hover:bg-red-700 text-white rounded-xl px-6 py-2.5 shadow-sm font-medium"
-                  >
-                    <Trash2 className="h-6 w-6 mr-1.5" />
-                    Delete
-                  </Button>
-                )}
+        <ProjectSubmissionFormEngine
+          title="Edit your project"
+          actions={
+            <>
+              {isLead ? (
                 <Button
-                  onClick={handlePublish}
-                  className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-6 py-2.5 shadow-sm font-medium"
+                  onClick={() => setShowDeleteDialog(true)}
+                  className="bg-red-600 hover:bg-red-700 text-white rounded-xl px-6 py-2.5 shadow-sm font-medium"
                 >
-                  Publish project
+                  <Trash2 className="h-6 w-6 mr-1.5" />
+                  Delete
                 </Button>
-              </div>
-
-              {/* Preview Card */}
-              <div className="space-y-3 flex flex-col justify-center">
-                <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl overflow-hidden w-full sm:w-[339px]">
-                  {/* Cover Image */}
-                  <div className="aspect-[339/220] relative">
-                    {formData.cover_image_url ? (
-                      <img
-                        src={formData.cover_image_url}
-                        alt="Cover"
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-orange-400 via-blue-500 to-purple-600" />
-                    )}
-                  </div>
-
-                  {/* Content */}
-                  <div className="p-6 space-y-3">
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <h3 className="text-[22px] font-semibold text-black tracking-[-0.06em] leading-[1.4]">
-                            {formData.project_name || "Relief Map"}
-                          </h3>
-                          <Badge
-                            variant="secondary"
-                            className="bg-white border border-[rgba(0,0,0,0.15)] text-black rounded-full text-sm"
-                          >
-                            <Loader2 className="h-4.5 w-4.5 mr-1" />
-                            Public
-                          </Badge>
-                          <Badge
-                            variant="secondary"
-                            className="bg-white border border-[rgba(0,0,0,0.15)] text-black rounded-full text-sm"
-                          >
-                            Owner
-                          </Badge>
-                        </div>
-                        <p className="text-base text-black line-clamp-2">
-                          {formData.project_description ||
-                            "Join the community and enter weekly raffles for free conference tickets and VIP upgrades, plus free credits for top AI and SaaS tools."}
-                        </p>
-                      </div>
-
-                      {/* Metadata */}
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-1">
-                          <Calendar className="h-5 w-5 text-[#575d65]" />
-                          <span className="text-sm text-[#575d65]">
-                            11 Jan 2025
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <ThumbsUp className="h-5 w-5 text-[#575d65]" />
-                          <span className="text-sm text-[#575d65]">36</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <MessageSquarePlus className="h-5 w-5 text-[#575d65]" />
-                          <span className="text-sm text-[#575d65]">2</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Team & Menu */}
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center -space-x-2">
-                        {[...Array(Math.min(totalMembers, 4))].map((_, i) => (
-                          <div
-                            key={i}
-                            className="w-10 h-10 rounded-full bg-gray-300 border-2 border-white"
-                          />
-                        ))}
-                      </div>
-                      <MoreHorizontal className="h-6 w-6 text-[#7f7f7f]" />
-                    </div>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() =>
-                    window.open(
-                      `/projects/${projectId}`,
-                      "_blank",
-                      "noopener,noreferrer"
-                    )
-                  }
-                  className="flex items-center gap-1 justify-center text-[#7f7f7f] hover:text-black transition-colors"
+              ) : null}
+              <Button
+                onClick={handlePublish}
+                className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-6 py-2.5 shadow-sm font-medium"
+              >
+                Publish project
+              </Button>
+            </>
+          }
+          formData={{
+            projectName: formData.project_name,
+            projectDescription: formData.project_description,
+            teammates: project.teammates || [],
+            projectUrl: formData.project_url,
+            videoUrl: formData.video_url,
+            coverImageUrl: formData.cover_image_url,
+            additionalMaterialsUrl: formData.additional_materials_url,
+          }}
+          onFormDataChange={(updates) =>
+            setFormData((prev) => ({
+              ...prev,
+              ...(updates.projectName !== undefined
+                ? { project_name: updates.projectName }
+                : {}),
+              ...(updates.projectDescription !== undefined
+                ? { project_description: updates.projectDescription }
+                : {}),
+              ...(updates.projectUrl !== undefined
+                ? { project_url: updates.projectUrl }
+                : {}),
+              ...(updates.videoUrl !== undefined
+                ? { video_url: updates.videoUrl }
+                : {}),
+              ...(updates.coverImageUrl !== undefined
+                ? { cover_image_url: updates.coverImageUrl }
+                : {}),
+              ...(updates.additionalMaterialsUrl !== undefined
+                ? { additional_materials_url: updates.additionalMaterialsUrl }
+                : {}),
+            }))
+          }
+          eventSelectionSection={
+            <div className="space-y-2">
+              <label className="text-base text-black font-normal">
+                Submit to Event
+              </label>
+              <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl">
+                <Select
+                  value={selectedEventId}
+                  onValueChange={handleEventChange}
+                  disabled={isLoadingEvents}
                 >
-                  <span className="text-base">Preview project page</span>
-                  <ExternalLink className="h-4.5 w-4.5" />
-                </button>
+                  <SelectTrigger className="border-0 h-11 focus:ring-0 focus:ring-offset-0">
+                    <SelectValue placeholder="Select an event" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableEvents.map((event) => {
+                      const now = new Date();
+                      const submissionStart = new Date(
+                        event.submission_time_start,
+                      );
+                      const submissionCutoff = new Date(
+                        event.submission_time_cutoff,
+                      );
+                      const isOpen =
+                        now >= submissionStart && now <= submissionCutoff;
+                      const isPast = now > submissionCutoff;
+                      const isFuture = now < submissionStart;
+                      const noSubmissionWindow =
+                        !event.submission_time_start ||
+                        !event.submission_time_cutoff;
+
+                      return (
+                        <SelectItem
+                          key={event.event_id}
+                          value={event.event_id}
+                          disabled={!isOpen}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span>{event.event_name}</span>
+                            {isOpen ? (
+                              <Badge className="bg-green-100 text-green-800 text-xs">
+                                Open
+                              </Badge>
+                            ) : null}
+                            {isPast ? (
+                              <Badge className="bg-red-100 text-red-600 text-xs">
+                                Closed
+                              </Badge>
+                            ) : null}
+                            {isFuture ? (
+                              <Badge className="bg-blue-100 text-blue-800 text-xs">
+                                Opens {submissionStart.toLocaleDateString()}
+                              </Badge>
+                            ) : null}
+                            {noSubmissionWindow ? (
+                              <Badge className="bg-gray-100 text-gray-600 text-xs">
+                                Submissions not open
+                              </Badge>
+                            ) : null}
+                          </div>
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
               </div>
+              <p className="text-base text-[#7f7f7f]">
+                You can only submit to events with open submission windows.
+              </p>
             </div>
-          </div>
-        </div>
+          }
+          tracks={availableTracks.map((track) => ({
+            id: track.track_id,
+            name: track.name,
+            description: track.description,
+          }))}
+          selectedTrackIds={selectedTrackIds}
+          isLoadingTracks={isLoadingTracks}
+          onTrackToggle={handleTrackToggle}
+          tracksLabel="Select tracks (Optional)"
+          tracksHelpText="Choose the tracks your project should compete in."
+          showDescriptionPreview={showDescriptionPreview}
+          onToggleDescriptionPreview={() =>
+            setShowDescriptionPreview((prev) => !prev)
+          }
+          onCoverImageUpload={handleCoverImageUpload}
+          onAdditionalMaterialsUpload={handleAdditionalMaterialsUpload}
+          onAdditionalMaterialsExtraUpload={
+            handleAdditionalMaterialsExtraUpload
+          }
+          extraProjectUrls={extraProjectUrls}
+          onExtraProjectUrlChange={(index, value) =>
+            setExtraProjectUrls((prev) =>
+              prev.map((item, itemIndex) =>
+                itemIndex === index ? value : item,
+              ),
+            )
+          }
+          onAddProjectUrl={() => setExtraProjectUrls((prev) => [...prev, ""])}
+          onRemoveProjectUrl={(index) =>
+            setExtraProjectUrls((prev) =>
+              prev.filter((_, itemIndex) => itemIndex !== index),
+            )
+          }
+          extraVideoUrls={extraVideoUrls}
+          onExtraVideoUrlChange={(index, value) =>
+            setExtraVideoUrls((prev) =>
+              prev.map((item, itemIndex) =>
+                itemIndex === index ? value : item,
+              ),
+            )
+          }
+          onAddVideoUrl={() => setExtraVideoUrls((prev) => [...prev, ""])}
+          onRemoveVideoUrl={(index) =>
+            setExtraVideoUrls((prev) =>
+              prev.filter((_, itemIndex) => itemIndex !== index),
+            )
+          }
+          extraMaterialsUrls={extraMaterialsUrls}
+          onExtraMaterialsUrlChange={(index, value) =>
+            setExtraMaterialsUrls((prev) =>
+              prev.map((item, itemIndex) =>
+                itemIndex === index ? value : item,
+              ),
+            )
+          }
+          onAddMaterialsUrl={() =>
+            setExtraMaterialsUrls((prev) => [...prev, ""])
+          }
+          onRemoveMaterialsUrl={(index) =>
+            setExtraMaterialsUrls((prev) =>
+              prev.filter((_, itemIndex) => itemIndex !== index),
+            )
+          }
+          submissionFields={submissionFields}
+          submissionAnswers={submissionAnswers}
+          onSubmissionAnswerChange={(fieldId, value) =>
+            setSubmissionAnswers((prev) => ({ ...prev, [fieldId]: value }))
+          }
+          teammateTagOptions={participants.map((p) => p.email)}
+          teammateInitialTags={project.teammates || []}
+          onTeammatesChange={handleTeammatesChange}
+          projectId={projectId}
+          teammateList={
+            <div className="border-b last:border-b-0 border-gray-200 space-y-4 mt-3 p-3">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-full bg-gray-300 shrink-0" />
+                <div className="space-y-0">
+                  <div className="flex items-center gap-1">
+                    <p className="text-base font-semibold text-black">
+                      {project.lead_name}
+                    </p>
+                    <Badge
+                      variant="secondary"
+                      className="bg-transparent border border-[rgba(0,0,0,0.15)] text-black rounded-full text-sm font-semibold"
+                    >
+                      Lead
+                    </Badge>
+                  </div>
+                  <p className="text-base text-black">{project.lead_email}</p>
+                </div>
+              </div>
+
+              {project.teammates && project.teammates.length > 0 ? (
+                <>
+                  <div className="border-t border-dashed border-gray-200" />
+                  {project.teammates.map((teammate, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center gap-4 border-b last:border-b-0 border-gray-200 py-4 !m-0"
+                    >
+                      <div className="w-14 h-14 rounded-full bg-gray-300 shrink-0" />
+                      <div className="flex-1">
+                        <p className="text-base font-semibold text-black">
+                          {teammate}
+                        </p>
+                        <p className="text-base text-black">{teammate}</p>
+                      </div>
+                      {isLead ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemoveTeammate(teammate)}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          Remove
+                        </Button>
+                      ) : null}
+                    </div>
+                  ))}
+                </>
+              ) : null}
+            </div>
+          }
+          previewStatusBadge={
+            <Badge
+              variant="secondary"
+              className="bg-white border border-[rgba(0,0,0,0.15)] text-black rounded-full text-sm"
+            >
+              <Loader2 className="h-4.5 w-4.5 mr-1" />
+              Public
+            </Badge>
+          }
+          previewRoleBadge={
+            <Badge
+              variant="secondary"
+              className="bg-white border border-[rgba(0,0,0,0.15)] text-black rounded-full text-sm"
+            >
+              Owner
+            </Badge>
+          }
+          previewDateText={new Date(project.created_at).toLocaleDateString(
+            "en-US",
+            {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            },
+          )}
+          previewCoverFallbackClassName="bg-gradient-to-br from-orange-400 via-blue-500 to-purple-600"
+          totalMembers={totalMembers}
+          onPreviewClick={() =>
+            window.open(
+              `/projects/${projectId}`,
+              "_blank",
+              "noopener,noreferrer",
+            )
+          }
+          previewEnabled={true}
+          previewDisabledTitle="Open project preview in a new tab"
+        />
       </div>
 
       {/* Delete Confirmation Dialog */}
