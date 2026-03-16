@@ -276,7 +276,7 @@ export interface ProjectArtifact {
   updated_at?: string;
 }
 
-export type SubmissionFieldType = "short_text" | "long_text" | "url" | "multi_url";
+export type SubmissionFieldType = "short_text" | "long_text" | "url" | "multi_url" | "select" | "multi_select";
 
 export interface EventSubmissionField {
   id: string;
