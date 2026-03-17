@@ -326,7 +326,12 @@ export function ScoringConfigForm({
       <div className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="text-sm font-medium text-gray-900">Default Min Score</label>
+            <label
+              className="font-sans font-normal leading-[150%] text-[var(--Color-Scheme-1-Text,#000)]"
+              style={{ fontSize: "var(--Text-Sizes-Text-Regular, 16px)" }}
+            >
+              Default Min Score
+            </label>
             <Input
               type="number"
               value={config.defaultMin}
@@ -342,7 +347,12 @@ export function ScoringConfigForm({
             />
           </div>
           <div>
-            <label className="text-sm font-medium text-gray-900">Default Max Score</label>
+            <label
+              className="font-sans font-normal leading-[150%] text-[var(--Color-Scheme-1-Text,#000)]"
+              style={{ fontSize: "var(--Text-Sizes-Text-Regular, 16px)" }}
+            >
+              Default Max Score
+            </label>
             <Input
               type="number"
               value={config.defaultMax}
@@ -358,7 +368,12 @@ export function ScoringConfigForm({
             />
           </div>
           <div>
-            <label className="text-sm font-medium text-gray-900">Default Weight</label>
+            <label
+              className="font-sans font-normal leading-[150%] text-[var(--Color-Scheme-1-Text,#000)]"
+              style={{ fontSize: "var(--Text-Sizes-Text-Regular, 16px)" }}
+            >
+              Default Weight
+            </label>
             <Input
               type="number"
               value={config.defaultWeight}
@@ -407,7 +422,10 @@ export function ScoringConfigForm({
 
               <div className="space-y-4">
                 {track.criteria.map((criterion, index) => (
-                  <div key={criterion.id} className="space-y-3 rounded-xl border border-gray-200 p-4">
+                  <div
+                    key={criterion.id}
+                    className="flex flex-col items-start gap-4 self-stretch rounded-xl border border-gray-200 p-4"
+                  >
                     <div className="flex items-start gap-4">
                       <div className="flex-1 space-y-4">
                         <div>
@@ -620,19 +638,23 @@ export function ScoringConfigForm({
         ))}
       </div>
 
-      <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-4">
         <Button
           type="button"
-          variant="outline"
+          variant="defaultGray"
           onClick={addTrack}
-          className="w-full rounded-xl"
+          className="gap-1.5 shrink-0 px-3"
           disabled={isArchived}
         >
-          <PlusIcon className="h-4 w-4 mr-2" />
+          <PlusIcon className="h-4 w-4" />
           Add new track
         </Button>
 
-        <Button type="submit" disabled={isSubmitting || isArchived} className="w-full">
+        <Button
+          type="submit"
+          disabled={isSubmitting || isArchived}
+          className="px-3 shrink-0"
+        >
           {isSubmitting ? "Saving..." : "Save Scoring Configuration"}
         </Button>
       </div>

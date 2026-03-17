@@ -332,7 +332,7 @@ export function DefaultScoring({
                 <AlertDialogTrigger asChild>
                   <Button
                     type="button"
-                    variant="destructive"
+                    variant="delete"
                     disabled={submitting || deleting}
                   >
                     {deleting ? "Deleting..." : "Delete Evaluation"}

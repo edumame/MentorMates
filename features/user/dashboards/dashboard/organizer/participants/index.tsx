@@ -15,6 +15,7 @@ import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { ApprovalRequestsTab } from "./ApprovalRequestsTab";
 import { ApprovalSettingsTab } from "./ApprovalSettingsTab";
+import { AssignTab } from "../assign";
 
 interface UserEventRoleWithProfile {
   user_id: string;
@@ -278,60 +279,83 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
     }
   };
 
+  const [topSection, setTopSection] = useState<"registration" | "assign-roles">("registration");
   const [activeTab, setActiveTab] = useState("list");
 
   return (
-    <Card className="border-0 bg-transparent shadow-none">
-      <CardHeader className="flex flex-row items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="rounded-full">
-            Registration{" "}
-            <Badge variant="secondary" className="ml-2 rounded-full">
-              {participants.length}
-            </Badge>
-          </Button>
+    <Card className="border-0 bg-transparent shadow-none px-0">
+      <CardHeader className="flex flex-row items-center justify-between gap-3 px-0 pt-0 pb-6">
+        <Tabs value={topSection} onValueChange={(v) => setTopSection(v as "registration" | "assign-roles")} className="w-auto">
+          <TabsList className="flex h-auto gap-2 p-0 bg-transparent border-0 shadow-none rounded-none">
+            <TabsTrigger
+              value="registration"
+              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-[100px] text-base leading-[1.5] text-[var(--Color-Scheme-1-Text,#000)] font-normal border border-transparent bg-transparent data-[state=active]:font-medium data-[state=active]:bg-[var(--Color-Scheme-1-Foreground,#FFF)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none"
+            >
+              Registration
+              <Badge variant="secondary" className="rounded-full font-normal text-sm text-[var(--Color-Neutral,#737373)] bg-transparent border-0 px-0 hover:bg-transparent">
+                {participants.length}
+              </Badge>
+            </TabsTrigger>
+            <TabsTrigger
+              value="assign-roles"
+              className="flex items-center justify-center px-4 py-2.5 rounded-[100px] text-base leading-[1.5] text-[var(--Color-Scheme-1-Text,#000)] font-normal border border-transparent bg-transparent data-[state=active]:font-medium data-[state=active]:bg-[var(--Color-Scheme-1-Foreground,#FFF)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none"
+            >
+              Assign Roles
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
 
-          <Button
-            variant="ghost"
-            size="sm"
-            className="rounded-full text-muted-foreground"
-            type="button"
-          >
-            Assign Roles
-          </Button>
-        </div>
+        {topSection === "registration" && (
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={handleCopyEmails}
+              variant="outline"
+              size="sm"
+              className="flex h-11 items-center px-5 py-2 rounded-[var(--Radius-Medium,12px)] border border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] bg-[var(--Color-Scheme-1-Foreground,#FFF)] text-[var(--Color-Scheme-1-Text,#000)] font-normal text-base leading-[1.5]"
+              type="button"
+            >
+              <Copy className="h-4 w-4 mr-2" />
+              Copy emails
+            </Button>
 
-        <div className="flex items-center gap-2">
-          <Button
-            onClick={handleCopyEmails}
-            variant="outline"
-            size="sm"
-            className="rounded-full"
-            type="button"
-          >
-            <Copy className="h-4 w-4 mr-2" />
-            Copy emails
-          </Button>
-
-          <Button
-            onClick={handleExportCSV}
-            variant="outline"
-            size="sm"
-            className="rounded-full"
-            type="button"
-          >
-            <Download className="h-4 w-4 mr-2" />
-            Export CSV
-          </Button>
-        </div>
+            <Button
+              onClick={handleExportCSV}
+              variant="outline"
+              size="sm"
+              className="flex h-11 items-center px-5 py-2 rounded-[var(--Radius-Medium,12px)] border border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] bg-[var(--Color-Scheme-1-Foreground,#FFF)] text-[var(--Color-Scheme-1-Text,#000)] font-normal text-base leading-[1.5]"
+              type="button"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Export CSV
+            </Button>
+          </div>
+        )}
       </CardHeader>
 
-      <CardContent>
+      <CardContent className="px-0">
+        {topSection === "assign-roles" ? (
+          <AssignTab eventId={eventId} />
+        ) : (
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="list">Participant List</TabsTrigger>
-            <TabsTrigger value="approval-requests">Approval Requests</TabsTrigger>
-            <TabsTrigger value="approval-settings">Approval Settings</TabsTrigger>
+          <TabsList className="font-inter grid w-full grid-cols-3 h-auto p-1 gap-0 rounded-xl bg-white border border-[rgba(0,0,0,0.15)] text-muted-foreground">
+            <TabsTrigger
+              value="list"
+              className="rounded-lg px-4 py-2 text-sm font-medium text-black border border-transparent transition-all data-[state=active]:bg-[var(--Color-Pattens-Blue-Lightest,#FBFCFE)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:font-semibold data-[state=active]:shadow-none hover:text-black/80"
+            >
+              Participant List
+            </TabsTrigger>
+            <TabsTrigger
+              value="approval-requests"
+              className="rounded-lg px-4 py-2 text-sm font-medium text-black border border-transparent transition-all data-[state=active]:bg-[var(--Color-Pattens-Blue-Lightest,#FBFCFE)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:font-semibold data-[state=active]:shadow-none hover:text-black/80"
+            >
+              Approval Requests
+            </TabsTrigger>
+            <TabsTrigger
+              value="approval-settings"
+              className="rounded-lg px-4 py-2 text-sm font-medium text-black border border-transparent transition-all data-[state=active]:bg-[var(--Color-Pattens-Blue-Lightest,#FBFCFE)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:font-semibold data-[state=active]:shadow-none hover:text-black/80"
+            >
+              Approval Settings
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="list" className="mt-6">
@@ -340,14 +364,17 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
                 <div>Loading participants...</div>
               ) : (
                 <>
-                  <div className="rounded-lg border bg-card">
+                  <div
+                    className="flex items-start self-stretch rounded-[16px] border border-[var(--Color-Scheme-1-Border,rgba(0,0,0,0.15))] bg-[var(--Color-White,#FFF)]"
+                    style={{ borderWidth: "var(--Stroke-Border-Width, 1px)" }}
+                  >
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Name</TableHead>
+                          <TableHead className="pl-6">Name</TableHead>
                           <TableHead>Email</TableHead>
                           <TableHead>Role</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
+                          <TableHead className="text-right pr-6">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -365,7 +392,7 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
                                 : "cursor-default"
                             }
                           >
-                            <TableCell>{participant.display_name}</TableCell>
+                            <TableCell className="pl-6">{participant.display_name}</TableCell>
                             <TableCell>{participant.email}</TableCell>
                             <TableCell onClick={(e) => e.stopPropagation()}>
                               {!participant.user_id.startsWith("project-") ? (
@@ -389,7 +416,7 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
                                 <span className="capitalize">{participant.role}</span>
                               )}
                             </TableCell>
-                            <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                            <TableCell className="text-right pr-6" onClick={(e) => e.stopPropagation()}>
                               {!participant.user_id.startsWith("project-") && (
                                 <Button
                                   variant="ghost"
@@ -414,9 +441,13 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
                       size="default"
                       onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                       disabled={clampedCurrentPage === 1}
-                      className="min-w-[110px]"
+                      className="min-w-[110px] flex justify-center items-center gap-1.5 py-2.5 px-6 rounded-[12px] bg-[var(--Opacity-Neutral-Darkest-5,rgba(0,0,0,0.05))] border-0 text-foreground hover:bg-[var(--Opacity-Neutral-Darkest-5,rgba(0,0,0,0.05))] hover:opacity-90"
+                      style={{
+                        boxShadow:
+                          "0 0 0 1px var(--Opacity-Neutral-Darkest-5, rgba(0,0,0,0.05)) inset, 0 -2px 1px 0 var(--Opacity-Neutral-Darkest-5, rgba(0,0,0,0.05)) inset, 0 1px 2px 0 var(--Opacity-Neutral-Darkest-5, rgba(0,0,0,0.05))",
+                      }}
                     >
-                      <ChevronLeft className="mr-2 h-4 w-4" />
+                      <ChevronLeft className="h-4 w-4" />
                       Prev
                     </Button>
 
@@ -454,10 +485,14 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
                       size="default"
                       onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                       disabled={clampedCurrentPage === totalPages}
-                      className="min-w-[110px]"
+                      className="min-w-[110px] flex justify-center items-center gap-1.5 py-2.5 px-6 rounded-[12px] bg-[var(--Opacity-Neutral-Darkest-5,rgba(0,0,0,0.05))] border-0 text-foreground hover:bg-[var(--Opacity-Neutral-Darkest-5,rgba(0,0,0,0.05))] hover:opacity-90"
+                      style={{
+                        boxShadow:
+                          "0 0 0 1px var(--Opacity-Neutral-Darkest-5, rgba(0,0,0,0.05)) inset, 0 -2px 1px 0 var(--Opacity-Neutral-Darkest-5, rgba(0,0,0,0.05)) inset, 0 1px 2px 0 var(--Opacity-Neutral-Darkest-5, rgba(0,0,0,0.05))",
+                      }}
                     >
                       Next
-                      <ChevronRight className="ml-2 h-4 w-4" />
+                      <ChevronRight className="h-4 w-4" />
                     </Button>
                   </div>
                 </>
@@ -478,6 +513,7 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
             />
           </TabsContent>
         </Tabs>
+        )}
       </CardContent>
     </Card>
   );

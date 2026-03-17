@@ -52,21 +52,20 @@ export function EventTracksContainer({
       )}
 
       <Tabs value={activeSubTab} onValueChange={setActiveSubTab}>
-        {/* Sub tabs like Figma (simple pill switch) */}
-        <TabsList className="inline-flex h-9 items-center justify-center rounded-full bg-white p-1 ring-1 ring-black/10">
-            <TabsTrigger
-              value="tracks"
-            className="rounded-full px-3.5 text-xs sm:text-sm data-[state=active]:bg-gray-100 data-[state=active]:shadow-none"
-            >
-              Tracks &amp; scoring
-            </TabsTrigger>
-            <TabsTrigger
-              value="prizes"
-            className="rounded-full px-3.5 text-xs sm:text-sm data-[state=active]:bg-gray-100 data-[state=active]:shadow-none"
-            >
-              Prizes
-            </TabsTrigger>
-          </TabsList>
+        <TabsList className="flex h-auto gap-2 p-0 justify-start bg-transparent border-0 shadow-none rounded-none">
+          <TabsTrigger
+            value="tracks"
+            className="flex items-center justify-center px-4 py-2.5 rounded-[100px] text-base leading-[1.5] text-[var(--Color-Scheme-1-Text,#000)] font-normal border border-transparent bg-transparent data-[state=active]:font-medium data-[state=active]:bg-[var(--Color-Scheme-1-Foreground,#FFF)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none"
+          >
+            Tracks &amp; scoring
+          </TabsTrigger>
+          <TabsTrigger
+            value="prizes"
+            className="flex items-center justify-center px-4 py-2.5 rounded-[100px] text-base leading-[1.5] text-[var(--Color-Scheme-1-Text,#000)] font-normal border border-transparent bg-transparent data-[state=active]:font-medium data-[state=active]:bg-[var(--Color-Scheme-1-Foreground,#FFF)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none"
+          >
+            Prizes
+          </TabsTrigger>
+        </TabsList>
 
         {/* Tracks */}
         <TabsContent value="tracks" className="mt-4">

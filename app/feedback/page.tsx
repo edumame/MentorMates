@@ -20,7 +20,6 @@ import {
   DialogTitle,
   DialogClose,
 } from "@/components/ui/dialog";
-import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 
 interface FeedbackItem {
   id: string;
@@ -124,9 +123,8 @@ export default function FeedbackPage() {
   };
 
   return (
-    <PageContainer>
-      <PageContent className="pt-[24px] pb-8">
-        <div className="flex flex-col gap-[24px] px-[32px]">
+    <div className="pt-[24px] pb-8">
+      <div className="flex flex-col gap-[24px] px-[32px]">
           {/* Header */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-[8px]">
@@ -562,7 +560,6 @@ export default function FeedbackPage() {
             )}
           </DialogContent>
         </Dialog>
-      </PageContent>
-    </PageContainer>
+    </div>
   );
 }

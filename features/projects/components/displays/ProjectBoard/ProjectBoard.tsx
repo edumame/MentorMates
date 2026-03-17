@@ -68,7 +68,7 @@ const ProjectBoard = ({
           className="mx-auto w-full"
         >
           {projectList.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="flex flex-col sm:grid sm:grid-cols-2 lg:grid-cols-3 min-[1064px]:grid-cols-[repeat(auto-fit,minmax(320px,1fr))] gap-5 sm:auto-rows-fr">
               {projectList.map((project) => {
                 const projectUrl =
                   projectBoardContext === ProjectBoardContext.MyProjects
@@ -81,10 +81,10 @@ const ProjectBoard = ({
                   <Link
                     href={projectUrl}
                     key={project.id}
-                    className="block group"
+                    className="block group w-full max-w-[420px] mx-auto sm:mx-0"
                   >
                     <Card
-                      className={`bg-white rounded-2xl overflow-hidden relative flex flex-col h-full hover:shadow-xl transition-all duration-300 border border-gray-100 ${
+                      className={`bg-white rounded-[12px] overflow-hidden relative flex flex-col h-full hover:shadow-xl transition-all duration-300 border border-gray-100 ${
                         project.prizes_won && project.prizes_won.length > 0
                           ? "ring-2 ring-yellow-400"
                           : ""
@@ -104,8 +104,8 @@ const ProjectBoard = ({
                         </div>
                       )}
 
-                      {/* Thumbnail Section */}
-                      <div className="relative w-full aspect-[16/9] md:aspect-[4/3] bg-gradient-to-br from-blue-100 via-purple-50 to-pink-100 overflow-hidden">
+                      {/* Thumbnail Section - same aspect as event card (335/223) */}
+                      <div className="relative w-full aspect-[335/223] bg-gradient-to-br from-blue-100 via-purple-50 to-pink-100 overflow-hidden">
                         <img
                           src={
                             project.cover_image_url || "/img/placeholder.png"
@@ -138,8 +138,8 @@ const ProjectBoard = ({
                         </div>
                       </div>
 
-                      {/* Content Section */}
-                      <div className="p-5 flex-1 flex flex-col bg-white">
+                      {/* Content Section - padding aligned with event card */}
+                      <div className="px-6 py-4 flex-1 flex flex-col bg-white">
                         {/* Project Title */}
                         <h3 className="font-bold text-gray-900 text-xl leading-tight mb-2 line-clamp-2">
                           {project.project_name || "Project"}

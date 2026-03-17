@@ -433,6 +433,7 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
                   setEvent={setEvent}
                   saving={saving}
                   setSaving={setSaving}
+                  activeSubTab="password"
                 />
               </TabsContent>
 

@@ -569,7 +569,7 @@ export default function ProfilePage() {
   // Loading state - show skeleton UI while fetching profile
   if (isLoading) {
     return (
-      <PageContainer showBorder={true}>
+      <PageContainer showBorder={false}>
         <PageContent>
           <div className="flex flex-col w-full animate-pulse">
             {/* Cover Image Skeleton */}
@@ -580,7 +580,7 @@ export default function ProfilePage() {
               className="relative px-6 md:px-8 pb-6"
               style={{
                 background:
-                  "linear-gradient(182deg, rgb(219, 234, 254) 0%, rgba(255, 255, 255, 0) 60%), linear-gradient(90deg, rgb(255, 255, 255) 0%, rgb(255, 255, 255) 100%)",
+                  "linear-gradient(90deg, #559DFB 0%, #FD9FA4 100%)",
               }}
             >
               <div className="flex flex-col md:flex-row gap-4 md:gap-6 items-start md:items-end">
@@ -604,7 +604,7 @@ export default function ProfilePage() {
             </div>
 
             {/* Tabs Skeleton */}
-            <div className="border-b border-gray-100 px-6">
+            <div className="px-6">
               <div className="flex gap-6 py-3">
                 <div className="h-6 w-20 bg-gray-200 rounded" />
                 <div className="h-6 w-16 bg-gray-200 rounded" />
@@ -612,7 +612,7 @@ export default function ProfilePage() {
             </div>
 
             {/* Content Skeleton */}
-            <div className="p-6">
+            <div className="p-6 border-0">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {[1, 2, 3].map((i) => (
                   <div
@@ -636,7 +636,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <PageContainer showBorder={true}>
+    <PageContainer showBorder={false}>
       <PageContent>
         <Toaster />
 
@@ -645,14 +645,21 @@ export default function ProfilePage() {
           {/* Cover Image Section */}
           <div className="relative h-[200px] md:h-[240px] w-full rounded-tl-2xl overflow-hidden">
             {userProfile?.cover_image_url ? (
-              <img
-                src={userProfile.cover_image_url}
-                alt="Cover"
-                className="w-full h-full object-cover"
+              <div
+                className="w-full h-full"
+                style={{
+                  background:
+                    `url(${userProfile.cover_image_url}) center / cover no-repeat, linear-gradient(90deg, #559DFB 0%, #FD9FA4 100%)`,
+                }}
               />
             ) : (
               // Default gradient cover when no image
-              <div className="w-full h-full bg-gradient-to-br from-gray-800 via-gray-900 to-black" />
+              <div
+                className="w-full h-full"
+                style={{
+                  background: "linear-gradient(90deg, #559DFB 0%, #FD9FA4 100%)",
+                }}
+              />
             )}
           </div>
 
@@ -661,7 +668,7 @@ export default function ProfilePage() {
             className="relative px-6 md:px-8 pb-6"
             style={{
               background:
-                "linear-gradient(182deg, rgb(219, 234, 254) 0%, rgba(255, 255, 255, 0) 60%), linear-gradient(90deg, rgb(255, 255, 255) 0%, rgb(255, 255, 255) 100%)",
+                "linear-gradient(90deg, #559DFB 0%, #FD9FA4 100%)",
             }}
           >
             {/* Avatar and Info Row */}
@@ -944,7 +951,7 @@ export default function ProfilePage() {
           </div>
 
           {/* Tabs Section */}
-          <div className="border-b border-gray-100 px-6">
+          <div className="px-6">
             <div className="flex gap-6">
               <button
                 onClick={() => setActiveTab(PROFILE_TABS.PROJECTS)}
@@ -976,7 +983,7 @@ export default function ProfilePage() {
           </div>
 
           {/* Content Section */}
-          <div className="p-6">
+          <div className="p-6 border-0">
             {activeTab === PROFILE_TABS.PROJECTS && (
               <div>
                 {isLoading ? (

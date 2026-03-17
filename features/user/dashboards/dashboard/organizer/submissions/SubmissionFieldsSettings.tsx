@@ -329,7 +329,8 @@ export function SubmissionFieldsSettings({
             <div className="flex flex-wrap gap-2">
               <Button
                 type="button"
-                variant="outline"
+                variant="defaultGray"
+                className="gap-1.5 px-3"
                 onClick={() => setFields((prev) => [...prev, emptyField()])}
               >
                 Add question

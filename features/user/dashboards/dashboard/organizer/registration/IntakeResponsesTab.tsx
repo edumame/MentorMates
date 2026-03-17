@@ -214,16 +214,29 @@ export function IntakeResponsesTab({ eventId }: { eventId: string }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">Intake Responses</CardTitle>
+        <CardTitle
+        className="font-geist font-semibold leading-[140%] tracking-[-1.32px] text-[var(--Color-Scheme-1-Text,#000)]"
+        style={{ fontSize: "var(--Text-Sizes-Heading-6, 22px)" }}
+      >
+        Intake Responses
+      </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <Tabs
           value={context}
           onValueChange={(value) => setContext(value as IntakeFormContext)}
         >
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="registration">Registration</TabsTrigger>
-            <TabsTrigger value="project_submission">
+          <TabsList className="flex h-auto gap-2 p-0 justify-start bg-transparent border-0 shadow-none rounded-none mb-6">
+            <TabsTrigger
+              value="registration"
+              className="flex items-center justify-center px-4 py-2.5 rounded-[100px] text-base leading-[1.5] text-[var(--Color-Scheme-1-Text,#000)] font-normal border border-transparent bg-transparent data-[state=active]:font-medium data-[state=active]:bg-[var(--Color-Scheme-1-Foreground,#FFF)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none"
+            >
+              Registration
+            </TabsTrigger>
+            <TabsTrigger
+              value="project_submission"
+              className="flex items-center justify-center px-4 py-2.5 rounded-[100px] text-base leading-[1.5] text-[var(--Color-Scheme-1-Text,#000)] font-normal border border-transparent bg-transparent data-[state=active]:font-medium data-[state=active]:bg-[var(--Color-Scheme-1-Foreground,#FFF)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none"
+            >
               Project Submission
             </TabsTrigger>
           </TabsList>

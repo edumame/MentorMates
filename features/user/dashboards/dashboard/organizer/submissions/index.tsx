@@ -395,7 +395,7 @@ export function SubmissionsTab({ eventId }: SubmissionsTabProps) {
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button
-                        variant="destructive"
+                        variant="delete"
                         disabled={isBulkDeleting}
                       >
                         {isBulkDeleting ? (
@@ -427,8 +427,8 @@ export function SubmissionsTab({ eventId }: SubmissionsTabProps) {
                     </AlertDialogContent>
                   </AlertDialog>
                 )}
-                <Button disabled={loading} onClick={exportSubmissions}>Export Submissions</Button>
-                <Button disabled={loading} onClick={exportFeedback} variant="outline">
+                <Button disabled={loading} onClick={exportSubmissions} className="rounded-[12px]">Export Submissions</Button>
+                <Button disabled={loading} onClick={exportFeedback} variant="outline" className="rounded-[12px]">
                   Export Feedback
                 </Button>
               </div>

@@ -370,7 +370,7 @@ export function ProjectScoringForm({
             <AlertDialogTrigger asChild>
               <Button
                 type="button"
-                variant="destructive"
+                variant="delete"
                 disabled={isSubmitting || isDeleting || !trackId}
               >
                 {isDeleting ? "Deleting..." : "Delete Score"}
