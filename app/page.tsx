@@ -1,7 +1,14 @@
+"use client";
+
 import { ServiceWorkerRegistration } from "@/components/utils/ServiceWorkerRegistration";
 import { Footer } from "@/components/layout/Footer";
 import { LandingHero } from "@/components/heroes/LandingHero";
-import { HomePageClient } from "./HomePageClient";
+import { SidebarLayout } from "@/components/layout/SidebarLayout";
+import { AuthHero } from "@/components/heroes/AuthHero";
+import { useAuth } from "@/features/user/authentication/auth/AuthContext";
+import { useEffect, useRef } from "react";
+import posthog from "posthog-js";
+import { supabase } from "@/lib/supabase";
 
 /**
  * Server component — the landing page content (LandingHero, Footer) is
