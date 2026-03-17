@@ -1,5 +1,3 @@
-"use client";
-
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Group, Build as BuildIcon, Mediation } from "@mui/icons-material";

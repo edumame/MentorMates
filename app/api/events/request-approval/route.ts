@@ -6,6 +6,7 @@ import { z } from "zod";
 import type { Database, Json } from "@/lib/database.types";
 import { randomUUID } from "crypto";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import { sendEventApprovalNotification } from "@/lib/email/send-event-approval-notification";
 
 const eventSchema = z.object({
   event_name: z.string().min(3, "Event name must be at least 3 characters"),
@@ -154,6 +155,16 @@ export async function POST(req: Request) {
         admin_user_id: user.id,
         notes: "Event submitted for approval",
       });
+
+      // Send email notification to admins via Resend (fire-and-forget)
+      sendEventApprovalNotification({
+        eventName: updatedEvent.event_name || "Untitled Event",
+        organizerName: user.user_metadata?.full_name || user.email || "Unknown",
+        organizerEmail: user.email || "",
+        eventDate: updatedEvent.event_date || "TBD",
+        location: updatedEvent.location || "TBD",
+        eventId: updatedEvent.slug || updatedEvent.event_id,
+      }).catch((err) => console.error("Failed to send approval notification email:", err));
 
       return NextResponse.json(
         {
@@ -361,6 +372,16 @@ export async function POST(req: Request) {
       admin_user_id: user.id,
       notes: "Event submitted for approval",
     });
+
+    // Send email notification to admins via Resend (fire-and-forget)
+    sendEventApprovalNotification({
+      eventName: createdEvent.event_name || "Untitled Event",
+      organizerName: user.user_metadata?.full_name || user.email || "Unknown",
+      organizerEmail: user.email || "",
+      eventDate: createdEvent.event_date || "TBD",
+      location: createdEvent.location || "TBD",
+      eventId: createdEvent.slug || createdEvent.event_id,
+    }).catch((err) => console.error("Failed to send approval notification email:", err));
 
     return NextResponse.json(
       {

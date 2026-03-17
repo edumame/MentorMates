@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { GeistSans } from "geist/font/sans";
 import "./globals.css";
@@ -11,16 +10,15 @@ import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
 import { LayoutConfigProvider } from "@/components/layout/LayoutConfigProvider";
 import { ConditionalAnnouncement } from "@/components/layout/ConditionalAnnouncement";
 import { FloatingSupportButton } from "@/components/layout/FloatingSupportButton";
+import { JsonLd } from "./JsonLd";
+import { seoMetadata } from "./seo-metadata";
 
 const inter = Inter({
   subsets: ["latin"],
   display: "optional",
 });
 
-export const metadata: Metadata = {
-  title: "MentorMates",
-  description: "Connecting mentors and students in hackathons",
-};
+export const metadata = seoMetadata;
 
 export default function RootLayout({
   children,
@@ -30,7 +28,6 @@ export default function RootLayout({
   return (
     <html lang="en" className={GeistSans.variable} suppressHydrationWarning>
       <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link
           rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=optional"

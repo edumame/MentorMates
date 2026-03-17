@@ -1,15 +1,16 @@
-"use client";
-
-import { useEffect, useRef } from "react";
 import { ServiceWorkerRegistration } from "@/components/utils/ServiceWorkerRegistration";
-import { supabase } from "@/lib/supabase";
 import { Footer } from "@/components/layout/Footer";
 import { LandingHero } from "@/components/heroes/LandingHero";
-import posthog from "posthog-js";
-import { AuthHero } from "@/components/heroes/AuthHero";
-import { SidebarLayout } from "@/components/layout/SidebarLayout";
-import { useAuth } from "@/features/user/authentication/auth/AuthContext";
+import { HomePageClient } from "./HomePageClient";
 
+/**
+ * Server component — the landing page content (LandingHero, Footer) is
+ * rendered as static HTML at build time, making it visible to search
+ * engine crawlers in the initial response.
+ *
+ * HomePageClient wraps the content and swaps it for the auth dashboard
+ * when a user is logged in (client-side only).
+ */
 export default function HomePage() {
   // Use the shared auth context instead of managing own state
   const { session, isLoading } = useAuth();

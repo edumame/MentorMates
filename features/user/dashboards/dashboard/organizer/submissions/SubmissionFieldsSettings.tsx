@@ -27,6 +27,7 @@ type EditableField = {
   field_type: SubmissionFieldType;
   required: boolean;
   is_active: boolean;
+  options: string[];
 };
 
 interface SubmissionFieldsSettingsProps {
@@ -49,6 +50,7 @@ const emptyField = (): EditableField => ({
   field_type: "short_text",
   required: false,
   is_active: true,
+  options: [],
 });
 
 export function SubmissionFieldsSettings({
@@ -79,6 +81,7 @@ export function SubmissionFieldsSettings({
           field_type: field.field_type,
           required: field.required,
           is_active: field.is_active,
+          options: Array.isArray(field.options) ? field.options as string[] : [],
         }));
         setFields(mapped);
       } catch (error) {
@@ -128,6 +131,7 @@ export function SubmissionFieldsSettings({
           required: field.required,
           is_active: field.is_active,
           sort_order: index,
+          options: field.options.length > 0 ? field.options : undefined,
         })),
       };
 
@@ -161,6 +165,7 @@ export function SubmissionFieldsSettings({
           field_type: field.field_type,
           required: field.required,
           is_active: field.is_active,
+          options: Array.isArray(field.options) ? field.options as string[] : [],
         }))
       );
 
@@ -269,6 +274,21 @@ export function SubmissionFieldsSettings({
                     }
                     placeholder="Placeholder text (optional)"
                   />
+                  {(field.field_type === "select" || field.field_type === "multi_select") && (
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Options (one per line)</Label>
+                      <Textarea
+                        value={field.options.join("\n")}
+                        onChange={(e) =>
+                          updateField(index, {
+                            options: e.target.value.split("\n").filter((o) => o.trim()),
+                          })
+                        }
+                        placeholder={"Option 1\nOption 2\nOption 3"}
+                        rows={3}
+                      />
+                    </div>
+                  )}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-center">
                     <div className="sm:col-span-2">
                       <Select
@@ -285,6 +305,10 @@ export function SubmissionFieldsSettings({
                           <SelectItem value="long_text">Long Text</SelectItem>
                           <SelectItem value="url">Single URL</SelectItem>
                           <SelectItem value="multi_url">Multiple URLs</SelectItem>
+                          <SelectItem value="file">File Upload</SelectItem>
+                          <SelectItem value="select">Single Choice</SelectItem>
+                          <SelectItem value="multi_select">Multi Select</SelectItem>
+                          <SelectItem value="checkbox">Checkbox</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
