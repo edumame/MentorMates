@@ -357,7 +357,7 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
                     lineHeight: "150%",
                   }}
                 >
-                  Paste any hackathon event link
+                  Paste any event link
                 </p>
               </div>
             </div>
@@ -541,7 +541,7 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
         <div className="flex-1 flex items-center">
           <div className="mt-6 w-full space-y-2">
             <p className="text-sm text-gray-700">
-              Paste any hackathon event link and we&apos;ll handle the rest.
+              Paste any event link and we&apos;ll handle the rest.
             </p>
 
             <div className="relative mt-2">
