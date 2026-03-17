@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Download, Paperclip, Globe } from "lucide-react";
+import { Paperclip, Globe } from "lucide-react";
 import { useToast } from "@/lib/hooks/use-toast";
 
 type CreateEventModalView = "options" | "ai" | "devpost" | "import";
@@ -73,9 +73,7 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
   const [aiLoading, setAiLoading] = useState(false);
 
   const [devpostUrl, setDevpostUrl] = useState("");
-  const [devpostLoading, setDevpostLoading] = useState(false);
   const [importUrl, setImportUrl] = useState("");
-  const [importLoading, setImportLoading] = useState(false);
 
   const closeModal = useCallback(
     (nextOpen: boolean) => {
@@ -85,8 +83,8 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
         setDevpostUrl("");
         setImportUrl("");
         setAiLoading(false);
-        setDevpostLoading(false);
-        setImportLoading(false);
+
+
       }
       onOpenChange(nextOpen);
     },
@@ -138,7 +136,7 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
     }
   };
 
-  const handleDevpostSubmit = async () => {
+  const handleDevpostSubmit = () => {
     if (!devpostUrl.trim()) {
       toast({
         title: "Add DevPost URL",
@@ -146,34 +144,12 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
       });
       return;
     }
-    setDevpostLoading(true);
-    try {
-      const res = await fetch("/api/events/import/devpost", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: devpostUrl.trim() }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data?.error || "Failed to import from DevPost");
-      }
-      persistPrefillAndNavigate(data?.import || {});
-    } catch (error) {
-      console.error(error);
-      toast({
-        title: "Import failed",
-        description:
-          error instanceof Error
-            ? error.message
-            : "Unable to import from DevPost.",
-        variant: "destructive",
-      });
-    } finally {
-      setDevpostLoading(false);
-    }
+    // Navigate to wizard with URL — the wizard's scrape bar handles the rest
+    closeModal(false);
+    router.push(`/events/new?url=${encodeURIComponent(devpostUrl.trim())}`);
   };
 
-  const handleUrlImport = async () => {
+  const handleUrlImport = () => {
     if (!importUrl.trim()) {
       toast({
         title: "Add event URL",
@@ -181,30 +157,9 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
       });
       return;
     }
-    setImportLoading(true);
-    try {
-      const res = await fetch("/api/events/import/scrape", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: importUrl.trim() }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data?.error || "Failed to import event");
-      }
-      persistPrefillAndNavigate(data?.import || {});
-    } catch (error) {
-      toast({
-        title: "Import failed",
-        description:
-          error instanceof Error
-            ? error.message
-            : "Unable to import event.",
-        variant: "destructive",
-      });
-    } finally {
-      setImportLoading(false);
-    }
+    // Navigate to wizard with URL — the wizard's scrape bar handles the rest
+    closeModal(false);
+    router.push(`/events/new?url=${encodeURIComponent(importUrl.trim())}`);
   };
 
   // ---------------------------------------------------------------------------
@@ -508,10 +463,10 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
           </Button>
           <Button
             onClick={handleDevpostSubmit}
-            disabled={devpostLoading}
+            disabled={false}
             className="min-w-[120px] py-2.5 px-6"
           >
-            {devpostLoading ? "Importing..." : "Create event"}
+            {"Import event"}
           </Button>
         </div>
       </div>
@@ -581,10 +536,10 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
           </Button>
           <Button
             onClick={handleUrlImport}
-            disabled={importLoading}
+            disabled={false}
             className="min-w-[120px] py-2.5 px-6"
           >
-            {importLoading ? "Importing..." : "Import event"}
+            {"Import event"}
           </Button>
         </div>
       </div>
