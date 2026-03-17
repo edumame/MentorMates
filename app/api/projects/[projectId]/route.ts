@@ -1,11 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
+import type {
+  EventSubmissionField,
+  Project,
+  ProjectSubmissionAnswer,
+} from "@/lib/types";
 import {
+  buildArtifactsFromLegacy,
   coerceSubmissionAnswerValue,
   deriveLegacySubmissionFieldsFromArtifacts,
   normalizeProjectArtifacts,
   submissionAnswerInputSchema,
 } from "@/features/projects/utils/submission";
+import {
+  applyEffectiveSubmissionToProject,
+  buildNullLegacyProjectPayload,
+} from "@/features/projects/utils/effectiveSubmission";
 
 export async function PATCH(
   request: NextRequest,
@@ -188,14 +198,6 @@ export async function PATCH(
       }
     }
 
-    if (normalizedArtifacts) {
-      const legacyFields =
-        deriveLegacySubmissionFieldsFromArtifacts(normalizedArtifacts);
-      updateData.project_url = legacyFields.project_url;
-      updateData.video_url = legacyFields.video_url;
-      updateData.additional_materials_url = legacyFields.additional_materials_url;
-    }
-
     const { data: existingProject, error: existingProjectError } = await supabase
       .from("projects")
       .select("id, event_id")
@@ -204,6 +206,39 @@ export async function PATCH(
 
     if (existingProjectError || !existingProject) {
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
+    }
+
+    const projectEventId = (body.event_id || existingProject.event_id) as
+      | string
+      | null;
+    const { data: configuredSubmissionFields, error: configuredSubmissionFieldsError } =
+      projectEventId
+        ? await supabase
+            .from("event_submission_fields")
+            .select("id, event_id, key, field_type, is_active")
+            .eq("event_id", projectEventId)
+            .eq("is_active", true)
+            .order("sort_order", { ascending: true })
+        : { data: [], error: null };
+
+    if (configuredSubmissionFieldsError) {
+      return NextResponse.json(
+        { error: "Failed to fetch submission field configuration" },
+        { status: 500 }
+      );
+    }
+
+    const hasConfiguredSubmissionFields =
+      (configuredSubmissionFields || []).length > 0;
+
+    if (hasConfiguredSubmissionFields) {
+      Object.assign(updateData, buildNullLegacyProjectPayload());
+    } else if (normalizedArtifacts) {
+      const legacyFields =
+        deriveLegacySubmissionFieldsFromArtifacts(normalizedArtifacts);
+      updateData.project_url = legacyFields.project_url;
+      updateData.video_url = legacyFields.video_url;
+      updateData.additional_materials_url = legacyFields.additional_materials_url;
     }
 
     if (
@@ -228,7 +263,7 @@ export async function PATCH(
       }
     }
 
-    if (normalizedArtifacts) {
+    if (normalizedArtifacts && !hasConfiguredSubmissionFields) {
       const { error: deleteArtifactsError } = await supabase
         .from("project_artifacts")
         .delete()
@@ -263,7 +298,7 @@ export async function PATCH(
       }
     }
 
-    if (incomingAnswersRaw !== undefined) {
+    if (incomingAnswersRaw !== undefined || hasConfiguredSubmissionFields) {
       const parsedAnswers = Array.isArray(incomingAnswersRaw)
         ? incomingAnswersRaw
             .map((item) => submissionAnswerInputSchema.safeParse(item))
@@ -281,9 +316,6 @@ export async function PATCH(
       }> = [];
 
       if (answerFieldIds.length > 0) {
-        const projectEventId = (body.event_id || existingProject.event_id) as
-          | string
-          | null;
         if (!projectEventId) {
           return NextResponse.json(
             { error: "Submission answers require the project to belong to an event" },
@@ -291,25 +323,27 @@ export async function PATCH(
           );
         }
 
-        const { data: fieldRows, error: fieldQueryError } = await supabase
-          .from("event_submission_fields")
-          .select("id, event_id, field_type")
-          .in("id", answerFieldIds)
-          .eq("event_id", projectEventId);
+        const fieldById = new Map(
+          (configuredSubmissionFields || []).map((field) => [
+            field.id,
+            field.field_type as
+              | "short_text"
+              | "long_text"
+              | "url"
+              | "multi_url"
+              | "file"
+              | "select"
+              | "multi_select"
+              | "checkbox",
+          ])
+        );
 
-        if (fieldQueryError || !fieldRows || fieldRows.length !== answerFieldIds.length) {
+        if (answerFieldIds.some((fieldId) => !fieldById.has(fieldId))) {
           return NextResponse.json(
             { error: "Invalid submission field IDs" },
             { status: 400 }
           );
         }
-
-        const fieldById = new Map(
-          fieldRows.map((field) => [
-            field.id,
-            field.field_type as "short_text" | "long_text" | "url" | "multi_url",
-          ])
-        );
 
         normalizedAnswers = parsedAnswers
           .map((answer) => {
@@ -362,7 +396,44 @@ export async function PATCH(
       .eq("id", projectId)
       .single();
 
-    return NextResponse.json({ success: true, project: updatedProject });
+    const [artifactRows, answerRows] = await Promise.all([
+      hasConfiguredSubmissionFields
+        ? Promise.resolve([])
+        : supabase
+            .from("project_artifacts")
+            .select(
+              "id, project_id, kind, label, url, sort_order, is_primary, metadata"
+            )
+            .eq("project_id", projectId)
+            .order("sort_order", { ascending: true })
+            .then((result) => result.data || []),
+      supabase
+        .from("project_submission_answers")
+        .select("id, project_id, event_submission_field_id, answer")
+        .eq("project_id", projectId)
+        .then((result) => result.data || []),
+    ]);
+
+    return NextResponse.json({
+      success: true,
+      project: updatedProject
+        ? applyEffectiveSubmissionToProject(
+            updatedProject,
+            (configuredSubmissionFields || []) as EventSubmissionField[],
+            answerRows as ProjectSubmissionAnswer[],
+            hasConfiguredSubmissionFields
+              ? undefined
+              : artifactRows.length > 0
+                ? (artifactRows as Project["artifacts"])
+                : buildArtifactsFromLegacy({
+                    project_url: updatedProject.project_url,
+                    video_url: updatedProject.video_url,
+                    additional_materials_url:
+                      updatedProject.additional_materials_url,
+                  })
+          )
+        : null,
+    });
   } catch (error) {
     console.error("Error updating project:", error);
     return NextResponse.json(

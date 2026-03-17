@@ -35,29 +35,29 @@ export default function ProjectEditPage() {
   const fetchProject = useCallback(async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("projects")
-        .select("*")
-        .eq("id", projectId)
-        .single();
+      const response = await fetch(`/api/projects?projectId=${projectId}`);
+      const payload = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        project?: Project;
+      };
 
-      if (error) {
+      if (!response.ok || !payload.project) {
         toast({
           title: "Error",
-          description: "Failed to load project",
+          description: payload.error || "Failed to load project",
           variant: "destructive",
         });
         router.push("/projects");
         return;
       }
 
-      setProject(data);
+      setProject(payload.project);
 
       // Check if user can edit
       if (session?.user?.email) {
         const userEmail = session.user.email;
-        const isLead = data.lead_email === userEmail;
-        const isTeammate = data.teammates?.includes(userEmail);
+        const isLead = payload.project.lead_email === userEmail;
+        const isTeammate = payload.project.teammates?.includes(userEmail);
         const canEditProject = isLead || isTeammate;
 
         if (!canEditProject) {

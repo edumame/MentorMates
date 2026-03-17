@@ -75,6 +75,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ReactMarkdown from "react-markdown";
+import {
+  SubmissionStep,
+  DEFAULT_SUBMISSION_FIELDS,
+  fieldsToApiPayload,
+  type SubmissionField,
+} from "@/components/events/submission";
 
 export default function NewEventPage() {
   const router = useRouter();
@@ -97,6 +103,9 @@ export default function NewEventPage() {
   const [showApprovalModal, setShowApprovalModal] = useState(false);
   const [createdEventId, setCreatedEventId] = useState<string | null>(null);
   const [createdEventSlug, setCreatedEventSlug] = useState<string | null>(null);
+  const [submissionFields, setSubmissionFields] = useState<SubmissionField[]>(
+    [...DEFAULT_SUBMISSION_FIELDS]
+  );
   const [isNavigating, setIsNavigating] = useState(false);
 
   // Get user's timezone as default
@@ -635,6 +644,22 @@ export default function NewEventPage() {
         setTracks(importedTracks);
       }
 
+      // Import submission fields
+      if (Array.isArray(parsed.submission_fields) && parsed.submission_fields.length > 0) {
+        const importedFields: SubmissionField[] = parsed.submission_fields.map(
+          (f: { id?: string; label?: string; type?: string; required?: boolean; placeholder?: string; helperText?: string; options?: string[] }) => ({
+            id: f.id || `field_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+            label: f.label || "",
+            type: (f.type || "text") as SubmissionField["type"],
+            required: f.required ?? false,
+            placeholder: f.placeholder || "",
+            helperText: f.helperText,
+            options: f.options,
+          })
+        );
+        setSubmissionFields(importedFields);
+      }
+
       toast({
         title: "Imported event details",
         description: "Review and customize before publishing.",
@@ -645,6 +670,19 @@ export default function NewEventPage() {
       window.localStorage.removeItem("mentorMates-event-prefill");
     }
   }, [toast]);
+
+  const saveSubmissionFields = async (eventId: string) => {
+    try {
+      const payload = { fields: fieldsToApiPayload(submissionFields) };
+      await fetch(`/api/events/${eventId}/submission-fields`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+    } catch {
+      // Non-critical: event still created, fields can be configured later
+    }
+  };
 
   const handleCreate = async () => {
     if (!form.event_name || !form.event_date || !form.location) {
@@ -679,6 +717,7 @@ export default function NewEventPage() {
         });
         return;
       }
+      await saveSubmissionFields(data.event.event_id);
       toast({
         title: "Event saved as draft",
         description: `${data.event.event_name} has been saved as a draft.`,
@@ -729,6 +768,7 @@ export default function NewEventPage() {
         return;
       }
       
+      await saveSubmissionFields(data.event.event_id);
       // Store event ID and slug, then show approval modal
       setCreatedEventId(data.event.event_id);
       setCreatedEventSlug(data.event.slug || null);
@@ -782,6 +822,7 @@ export default function NewEventPage() {
         return;
       }
       
+      await saveSubmissionFields(data.event.event_id);
       // Store event ID and slug, then navigate to event page
       setCreatedEventId(data.event.event_id);
       setCreatedEventSlug(data.event.slug || null);
@@ -1164,6 +1205,13 @@ export default function NewEventPage() {
                           style={{ fontFamily: "Inter, sans-serif" }}
                         >
                           Gallery
+                        </TabsTrigger>
+                        <TabsTrigger
+                          value="submission"
+                          className="px-4 py-2.5 rounded-[100px] text-sm leading-normal font-normal text-black border border-transparent data-[state=active]:font-medium data-[state=active]:bg-white data-[state=active]:border-[rgba(0,0,0,0.15)] flex-shrink-0"
+                          style={{ fontFamily: "Inter, sans-serif" }}
+                        >
+                          Submission
                         </TabsTrigger>
                       </TabsList>
                     </div>
@@ -3203,6 +3251,16 @@ export default function NewEventPage() {
                               </Button>
                             </div>
                           )}
+                        </TabsContent>
+
+                        <TabsContent
+                          value="submission"
+                          className="mt-0 overflow-x-hidden px-2"
+                        >
+                          <SubmissionStep
+                            fields={submissionFields}
+                            onChange={setSubmissionFields}
+                          />
                         </TabsContent>
                       </div>
 

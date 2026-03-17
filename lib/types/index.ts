@@ -276,7 +276,7 @@ export interface ProjectArtifact {
   updated_at?: string;
 }
 
-export type SubmissionFieldType = "short_text" | "long_text" | "url" | "multi_url" | "select" | "multi_select";
+export type SubmissionFieldType = "short_text" | "long_text" | "url" | "multi_url" | "file" | "select" | "multi_select" | "checkbox";
 
 export interface EventSubmissionField {
   id: string;
@@ -321,6 +321,9 @@ export interface Project {
   cover_image_url?: string;
   artifacts?: ProjectArtifact[];
   submission_answers?: ProjectSubmissionAnswer[];
+  submission_fields?: EventSubmissionField[];
+  submission_values?: Record<string, string | string[]>;
+  has_submission_field_config?: boolean;
   event_name?: string;
   prizes_won?: Prize[];
   contextus_project_id?: string;

@@ -31,39 +31,21 @@ import { useProjectLike } from "@/features/projects/hooks/use-project-like";
 import { toast } from "@/lib/hooks/use-toast";
 import { Toaster } from "@/components/ui/toaster";
 import { ProjectScoringForm } from "@/components/project-scoring/project-scoring-form";
-import { EventRole, EventTrack, EventVisibility, TrackScoringConfig } from "@/lib/types";
+import {
+  EventRole,
+  EventTrack,
+  EventVisibility,
+  Project,
+  TrackScoringConfig,
+} from "@/lib/types";
 import { VideoEmbed, canEmbed } from "@/components/utils";
 import { canAccessRole } from "@/features/user/roles/roles";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { QRCodeSVG } from "qrcode.react";
 import { Input } from "@/components/ui/input";
-import { buildArtifactsFromLegacy } from "@/features/projects/utils/submission";
 import { ProjectDescription } from "@/components/projects/ProjectDescription";
-
-//REFACTOR this to use the Project type from the lib/types.ts file
-interface Project {
-  id: string;
-  project_name: string;
-  project_description: string;
-  lead_name: string;
-  lead_email: string;
-  teammates: string[];
-  project_url: string | null;
-  video_url: string | null;
-  additional_materials_url: string | null;
-  cover_image_url: string | null;
-  created_at: string;
-  event_id: string;
-  artifacts?: Array<{
-    id?: string;
-    kind: "project_link" | "video_link" | "additional_material";
-    label: string;
-    url: string;
-    sort_order: number;
-    is_primary: boolean;
-  }>;
-}
+import { ProjectSubmissionDetails } from "@/features/projects/components/displays/ProjectSubmissionDetails";
 
 interface EventDetails {
   event_id: string;
@@ -112,24 +94,21 @@ export default function PublicProjectPage() {
     const fetchProject = async () => {
       setIsLoading(true);
       setFetchComplete(false);
-      
-      const { data, error } = await supabase
-        .from("projects")
-        .select("*")
-        .eq("id", projectId)
-        .eq("submitted", true)
-        .eq("private", false)
-        .single();
 
-      if (error) {
-        // Error handled
+      const response = await fetch(`/api/projects?public=true&projectId=${projectId}`);
+      const payload = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        project?: Project;
+      };
+
+      if (!response.ok || !payload.project) {
         setProject(null);
       } else {
         // Ensure the project belongs to a public event.
         const { data: eventMeta, error: eventMetaError } = await supabase
           .from("events")
           .select("visibility")
-          .eq("event_id", data.event_id)
+          .eq("event_id", payload.project.event_id)
           .maybeSingle();
 
         const isEventPublic =
@@ -138,23 +117,7 @@ export default function PublicProjectPage() {
         if (!isEventPublic) {
           setProject(null);
         } else {
-          const { data: artifactRows } = await supabase
-            .from("project_artifacts")
-            .select("id, kind, label, url, sort_order, is_primary")
-            .eq("project_id", data.id)
-            .order("sort_order", { ascending: true });
-
-          setProject({
-            ...(data as Project),
-            artifacts:
-              artifactRows && artifactRows.length > 0
-                ? (artifactRows as Project["artifacts"])
-                : (buildArtifactsFromLegacy({
-                    project_url: data.project_url,
-                    video_url: data.video_url,
-                    additional_materials_url: data.additional_materials_url,
-                  }) as Project["artifacts"]),
-          });
+          setProject(payload.project);
         }
       }
       
@@ -664,6 +627,8 @@ export default function PublicProjectPage() {
                           className="text-base"
                         />
                       </div>
+
+                      <ProjectSubmissionDetails project={project} />
 
                       {/* Cover Image Display */}
                       {project.cover_image_url && (

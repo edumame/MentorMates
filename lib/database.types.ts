@@ -1239,7 +1239,7 @@ export type Database = {
         | "project_link"
         | "video_link"
         | "additional_material";
-      submission_field_type: "short_text" | "long_text" | "url" | "multi_url";
+      submission_field_type: "short_text" | "long_text" | "url" | "multi_url" | "file" | "select" | "multi_select" | "checkbox";
       ticket_status_enum: "unassigned" | "assigned" | "used" | "transferred";
     };
     CompositeTypes: {
