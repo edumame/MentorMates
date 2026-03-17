@@ -521,9 +521,20 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
   );
 
   const renderImportView = () => (
-    <div className="flex w-full flex-col lg:flex-row bg-white rounded-3xl overflow-hidden shadow-[0_18px_45px_rgba(15,23,42,0.18)]">
-      <div className="w-full lg:w-1/2 px-8 py-8 lg:px-10 lg:py-10 flex flex-col min-h-[520px]">
-        <h2 className="text-[20px] font-semibold tracking-tight">
+    <div className={dialogSizeClass}>
+      <div className="w-full lg:w-1/2 pt-6 pl-6 pr-6 pb-6 lg:pt-6 lg:pl-6 lg:pr-6 lg:pb-12 flex flex-col min-h-[520px]">
+        <h2
+          className="font-geist font-semibold mb-8"
+          style={{
+            color: "var(--text-text-primary, #18181B)",
+            fontFamily: "Geist, Inter, system-ui, sans-serif",
+            fontSize: "var(--Text-Sizes-Heading-5, 28px)",
+            fontStyle: "normal",
+            fontWeight: 600,
+            lineHeight: "140%",
+            letterSpacing: "-1.68px",
+          }}
+        >
           Import from URL
         </h2>
 
@@ -544,15 +555,25 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
                 className="pl-9 h-11 rounded-xl text-sm"
               />
             </div>
-            <p className="text-xs text-muted-foreground italic">
+            <p
+              className="font-inter font-normal"
+              style={{
+                color: "var(--Color-Neutral, #7F7F7F)",
+                fontSize: "var(--Text-Sizes-Text-Regular, 16px)",
+                fontStyle: "normal",
+                fontWeight: 400,
+                lineHeight: "150%",
+              }}
+            >
               *It takes about 1-2 minutes to finish parsing. Please wait.
             </p>
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-3 pt-6">
+        <div className="flex items-center justify-end gap-[6px] pt-6">
           <Button
-            variant="secondary"
+            variant="back"
+            type="button"
             onClick={() => setView("options")}
             className="min-w-[90px]"
           >
@@ -561,10 +582,9 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
           <Button
             onClick={handleUrlImport}
             disabled={importLoading}
-            className="min-w-[120px] inline-flex items-center gap-2"
+            className="min-w-[120px] py-2.5 px-6"
           >
             {importLoading ? "Importing..." : "Import event"}
-            {!importLoading && <Download className="h-4 w-4" />}
           </Button>
         </div>
       </div>
