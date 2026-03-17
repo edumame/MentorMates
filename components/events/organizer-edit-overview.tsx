@@ -96,12 +96,13 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
   );
 
   const [participantCount, setParticipantCount] = useState<number>(0);
+  const [projectCount, setProjectCount] = useState<number>(0);
   const [isAdmin, setIsAdmin] = useState(false);
 
   // Primary tabs in the bar (Advanced Settings is a dropdown)
   const mainTabs = [
-    { value: "participants", label: "Registration", badge: participantCount },
-    { value: "project", label: "Project" },
+    { value: "participants", label: "People", badge: participantCount },
+    { value: "project", label: "Projects", badge: projectCount },
     { value: "access", label: "Access" },
     { value: "tracks", label: "Tracks & Prizes" },
     { value: "advanced-settings", label: "Advanced Settings" },
@@ -266,6 +267,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
   useEffect(() => {
     fetchEvent();
     fetchParticipantCount();
+    fetchProjectCount();
     checkAdminStatus();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventId]);
@@ -297,6 +299,19 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
       setParticipantCount(count || 0);
     } catch (error) {
       console.error("Error fetching participant count:", error);
+    }
+  };
+
+  const fetchProjectCount = async () => {
+    try {
+      const { count } = await supabase
+        .from("projects")
+        .select("*", { count: "exact", head: true })
+        .eq("event_id", eventId);
+
+      setProjectCount(count || 0);
+    } catch (error) {
+      console.error("Error fetching project count:", error);
     }
   };
 
@@ -755,11 +770,13 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                     <TabsTrigger
                       key={tab.value}
                       value={tab.value}
-                      className="px-0 py-2 text-base font-normal leading-[1.5] text-[var(--Color-Scheme-1-Text,#000)] border-b-2 border-transparent data-[state=active]:font-medium data-[state=active]:text-[var(--Color-Scheme-1-Text,#000)] data-[state=active]:text-base data-[state=active]:leading-[1.5] data-[state=active]:border-[#4b89ef] data-[state=active]:shadow-none data-[state=active]:bg-transparent rounded-none bg-transparent shadow-none outline-none ring-0 border-x-0 border-t-0 whitespace-nowrap flex-shrink-0 flex items-center gap-2"
+                      className="px-0 py-2 text-base font-normal leading-[1.5] text-[var(--Color-Scheme-1-Text,#000)] border-b-2 border-transparent data-[state=active]:font-medium data-[state=active]:text-[var(--Color-Scheme-1-Text,#000)] data-[state=active]:text-base data-[state=active]:leading-[1.5] data-[state=active]:border-[#4b89ef] data-[state=active]:shadow-none data-[state=active]:bg-transparent rounded-none bg-transparent shadow-none outline-none ring-0 border-x-0 border-t-0 whitespace-nowrap flex-shrink-0 flex items-start gap-3"
                     >
                       {tab.label}
-                      {tab.badge !== undefined && tab.badge > 0 && (
-                        <span className="bg-white border border-[rgba(0,0,0,0.15)] px-2 py-0 rounded-full text-[12px] font-normal">
+                      {tab.badge !== undefined && (
+                        <span
+                          className="inline-flex items-center font-normal text-[12px] text-[var(--Color-Scheme-1-Text,#000)] rounded-[50px] border border-[var(--Color-Scheme-1-Border,rgba(0,0,0,0.15))] bg-white py-0 px-2"
+                        >
                           {tab.badge}
                         </span>
                       )}
