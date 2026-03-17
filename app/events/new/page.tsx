@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useRef, useState, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { EventVisibility, ApprovalStatus } from "@/lib/types";
@@ -62,6 +62,24 @@ function NewEventPageInner() {
   const [createdEventId, setCreatedEventId] = useState<string | null>(null);
   const [createdEventSlug, setCreatedEventSlug] = useState<string | null>(null);
   const [isNavigating, setIsNavigating] = useState(false);
+
+  // ── Set bg-gray-50 on the scrollable parent (SidebarLayout's <main>) ──
+  const containerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    // Walk up to the nearest scrollable ancestor (the <main> from SidebarLayout)
+    let parent = el.parentElement;
+    while (parent && parent !== document.body) {
+      const style = getComputedStyle(parent);
+      if (style.overflow === "auto" || style.overflowY === "auto") {
+        parent.style.backgroundColor = "#f9fafb"; // gray-50
+        const target = parent;
+        return () => { target.style.backgroundColor = ""; };
+      }
+      parent = parent.parentElement;
+    }
+  }, []);
 
   // ── Auth check ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -303,7 +321,7 @@ function NewEventPageInner() {
 
   // ── Render ──────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div ref={containerRef} className="bg-gray-50">
       {/* Header with save/publish buttons */}
       <div className="sticky top-0 z-20 border-b border-gray-200 bg-white">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-3 py-3 sm:px-6 sm:py-4">
