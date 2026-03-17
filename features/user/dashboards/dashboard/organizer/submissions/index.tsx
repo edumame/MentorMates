@@ -276,37 +276,17 @@ export function SubmissionsTab({ eventId }: SubmissionsTabProps) {
   useEffect(() => {
     async function fetchProjects() {
       try {
-        const { data, error } = await supabase
-          .from("projects")
-          .select(
-            `
-            id,
-            project_name,
-            lead_name,
-            lead_email,
-            project_description,
-            project_url,
-            teammates,
-            submitted,
-            created_at,
-            project_tracks (
-              event_tracks (
-                track_id,
-                name
-              )
-            ),
-            feedback (
-              feedback_text,
-              mentor_name,
-              mentor_email
-            )
-          `
-          )
-          .eq("event_id", eventId)
-          .overrideTypes<ProjectData[]>();
+        const response = await fetch(`/api/projects?eventId=${eventId}`);
+        const payload = (await response.json().catch(() => ({}))) as {
+          projects?: ProjectData[];
+          error?: string;
+        };
 
-        if (error) throw error;
-        setProjects((data as ProjectData[]) || []);
+        if (!response.ok) {
+          throw new Error(payload.error || "Failed to fetch projects");
+        }
+
+        setProjects(payload.projects || []);
       } catch (error) {
         console.error("Error fetching projects:", error);
       } finally {
@@ -333,40 +313,19 @@ export function SubmissionsTab({ eventId }: SubmissionsTabProps) {
               current.filter((p) => p.id !== payload.old.id)
             );
           } else {
-            const { data, error } = await supabase
-              .from("projects")
-              .select(
-                `
-                id,
-                project_name,
-                lead_name,
-                lead_email,
-                project_description,
-                project_url,
-                teammates,
-                submitted,
-                created_at,
-                project_tracks (
-                  event_tracks (
-                    track_id,
-                    name
-                  )
-                ),
-                feedback (
-                  feedback_text,
-                  mentor_name,
-                  mentor_email
-                )
-              `
-              )
-              .eq("id", payload.new.id)
-              .single()
-              .overrideTypes<ProjectData>();
+            const response = await fetch(
+              `/api/projects?projectId=${payload.new.id}`
+            );
+            const json = (await response.json().catch(() => ({}))) as {
+              project?: ProjectData;
+            };
 
-            if (!error && data) {
+            if (response.ok && json.project) {
               setProjects((current) => {
-                const newProjects = current.filter((p) => p.id !== data.id);
-                return [...newProjects, data as ProjectData];
+                const newProjects = current.filter(
+                  (project) => project.id !== json.project?.id
+                );
+                return [...newProjects, json.project as ProjectData];
               });
             }
           }

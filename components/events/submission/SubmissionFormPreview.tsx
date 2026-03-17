@@ -172,7 +172,16 @@ export function SubmissionFormPreview({ fields }: SubmissionFormPreviewProps) {
                     ) : field.type === "select" ? (
                       <>
                         <div className="space-y-2">
-                          {(field.options || ["Option 1", "Option 2"]).map(
+                          {(
+                            (field.options || [])
+                              .map((option) => option.trim())
+                              .filter((option) => option.length > 0)
+                              .length > 0
+                              ? (field.options || [])
+                                  .map((option) => option.trim())
+                                  .filter((option) => option.length > 0)
+                              : ["Option 1", "Option 2"]
+                          ).map(
                             (opt, i) => (
                               <label
                                 key={i}
@@ -198,7 +207,16 @@ export function SubmissionFormPreview({ fields }: SubmissionFormPreviewProps) {
                       </>
                     ) : field.type === "multi_select" ? (
                       <div className="space-y-2">
-                        {(field.options || ["Option 1", "Option 2"]).map(
+                        {(
+                          (field.options || [])
+                            .map((option) => option.trim())
+                            .filter((option) => option.length > 0)
+                            .length > 0
+                            ? (field.options || [])
+                                .map((option) => option.trim())
+                                .filter((option) => option.length > 0)
+                            : ["Option 1", "Option 2"]
+                        ).map(
                           (opt, i) => (
                             <label
                               key={i}
@@ -222,7 +240,11 @@ export function SubmissionFormPreview({ fields }: SubmissionFormPreviewProps) {
                           className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                         />
                         <span className="text-base text-black">
-                          {field.placeholder || "Yes"}
+                          {(field.options || [])
+                            .map((option) => option.trim())
+                            .filter((option) => option.length > 0)[0] ||
+                            field.placeholder ||
+                            "Yes"}
                         </span>
                       </label>
                     ) : (

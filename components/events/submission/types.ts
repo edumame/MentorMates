@@ -46,7 +46,14 @@ const DB_TO_EDITOR: Record<string, string> = {
 };
 
 /** Convert editor field type → DB submission_field_type. */
-export function editorTypeToDb(editorType: SubmissionField["type"]): string {
+export function editorTypeToDb(
+  editorType: SubmissionField["type"],
+  multiple?: boolean
+): string {
+  if (editorType === "url" && multiple) {
+    return "multi_url";
+  }
+
   return EDITOR_TO_DB[editorType] ?? "short_text";
 }
 
@@ -107,6 +114,13 @@ export const DEFAULT_SUBMISSION_FIELDS: SubmissionField[] = [
   },
 ];
 
+export function createSubmissionTemplateFields(): SubmissionField[] {
+  return DEFAULT_SUBMISSION_FIELDS.map((field) => ({
+    ...field,
+    options: field.options ? [...field.options] : undefined,
+  }));
+}
+
 /** Convert a SubmissionField array → API payload for PUT /api/events/[eventId]/submission-fields */
 export function fieldsToApiPayload(fields: SubmissionField[]) {
   return fields.map((field, index) => ({
@@ -114,11 +128,13 @@ export function fieldsToApiPayload(fields: SubmissionField[]) {
     label: field.label,
     description: field.helperText || null,
     placeholder: field.placeholder || null,
-    field_type: editorTypeToDb(field.type),
+    field_type: editorTypeToDb(field.type, field.multiple),
     required: field.required,
     is_active: true,
     sort_order: index,
-    options: field.options ?? [],
+    options: (field.options || [])
+      .map((option) => option.trim())
+      .filter((option) => option.length > 0),
   }));
 }
 
@@ -142,5 +158,6 @@ export function apiFieldsToEditor(
     placeholder: f.placeholder || "",
     helperText: f.description || undefined,
     options: Array.isArray(f.options) && f.options.length > 0 ? f.options : undefined,
+    multiple: f.field_type === "multi_url",
   }));
 }

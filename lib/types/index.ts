@@ -321,6 +321,9 @@ export interface Project {
   cover_image_url?: string;
   artifacts?: ProjectArtifact[];
   submission_answers?: ProjectSubmissionAnswer[];
+  submission_fields?: EventSubmissionField[];
+  submission_values?: Record<string, string | string[]>;
+  has_submission_field_config?: boolean;
   event_name?: string;
   prizes_won?: Prize[];
   contextus_project_id?: string;

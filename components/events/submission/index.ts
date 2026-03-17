@@ -11,6 +11,7 @@ export {
   type SubmissionField,
   type ChatMessage,
   DEFAULT_SUBMISSION_FIELDS,
+  createSubmissionTemplateFields,
   editorTypeToDb,
   dbTypeToEditor,
   fieldsToApiPayload,

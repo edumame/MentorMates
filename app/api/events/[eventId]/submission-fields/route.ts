@@ -19,6 +19,7 @@ const fieldInputSchema = z.object({
   field_type: submissionFieldTypeSchema,
   required: z.boolean().default(false),
   is_active: z.boolean().optional(),
+  options: z.array(z.string().trim().min(1)).optional(),
 });
 
 const bodySchema = z.object({
@@ -172,6 +173,7 @@ export async function PUT(
         required: field.required,
         is_active: field.is_active ?? true,
         sort_order: index,
+        options: field.options ?? [],
       };
     });
 
@@ -182,6 +184,7 @@ export async function PUT(
       .eq("event_id", eventId);
 
     if (deactivateError) {
+      console.error("Failed to update submission field state:", deactivateError);
       return NextResponse.json(
         { error: "Failed to update submission field state" },
         { status: 500 }
@@ -195,7 +198,9 @@ export async function PUT(
         .upsert(fields, { onConflict: "event_id,key" });
 
       if (upsertError) {
+        console.error("Failed to save submission fields:", upsertError);
         return NextResponse.json(
+      
           { error: "Failed to save submission fields" },
           { status: 500 }
         );

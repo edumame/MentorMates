@@ -8,6 +8,9 @@ import {
 	normalizeProjectArtifacts,
 	submissionAnswerInputSchema,
 } from "@/features/projects/utils/submission";
+import {
+	buildNullLegacyProjectPayload,
+} from "@/features/projects/utils/effectiveSubmission";
 
 export async function POST(request: Request) {
 	const supabase = await createSupabaseClient();
@@ -103,11 +106,11 @@ export async function POST(request: Request) {
 			}
 		}
 
-		// Validate track ids only when event context exists
-		let validTrackIds: string[] = [];
-		if (eventId && trackIds && trackIds.length > 0) {
-			const { data: validTracks, error: trackError } = await supabase
-				.from("event_tracks")
+			// Validate track ids only when event context exists
+			let validTrackIds: string[] = [];
+			if (eventId && trackIds && trackIds.length > 0) {
+				const { data: validTracks, error: trackError } = await supabase
+					.from("event_tracks")
 				.select("track_id")
 				.eq("event_id", eventId)
 				.in("track_id", trackIds);
@@ -124,10 +127,43 @@ export async function POST(request: Request) {
 					{ error: `Invalid track IDs: ${invalidTracks.join(", ")}` },
 					{ status: 400 }
 				);
+				}
 			}
-		}
 
-		// Create or update the project
+			const { data: configuredSubmissionFields, error: configuredSubmissionFieldsError } =
+				eventId
+					? await supabase
+							.from("event_submission_fields")
+							.select("id, event_id, key, field_type, is_active")
+							.eq("event_id", eventId)
+							.eq("is_active", true)
+							.order("sort_order", { ascending: true })
+					: { data: [], error: null };
+
+			if (configuredSubmissionFieldsError) {
+				return NextResponse.json(
+					{ error: "Failed to fetch submission field configuration" },
+					{ status: 500 }
+				);
+			}
+
+			const hasConfiguredSubmissionFields =
+				(configuredSubmissionFields || []).length > 0;
+
+			const parsedAnswers = Array.isArray(submissionAnswers)
+				? submissionAnswers
+						.map((item) => submissionAnswerInputSchema.safeParse(item))
+						.filter((item) => item.success)
+						.map((item) => item.data)
+				: [];
+
+			const normalizedSubmissionAnswers: Array<{
+				project_id: string;
+				event_submission_field_id: string;
+				answer: string | string[];
+			}> = [];
+
+			// Create or update the project
 		let finalProjectId = projectId as string | undefined;
 		let projectData:
 			| {
@@ -149,22 +185,26 @@ export async function POST(request: Request) {
 			| undefined;
 
 		if (!finalProjectId) {
-			const { data: project, error: projectError } = await supabase
-				.from("projects")
-					.insert({
-						project_name: projectName,
-						lead_name: leadName,
-						lead_email: leadEmail,
-						project_description: projectDescription,
-						teammates: teammates || [],
-						project_url: legacyFields.project_url,
-						cover_image_url: coverImageUrl || null,
-						additional_materials_url: legacyFields.additional_materials_url,
-						event_id: eventId || null,
-						video_url: legacyFields.video_url,
-						submitted: true,
-						submitted_at: new Date().toISOString(),
-					})
+				const { data: project, error: projectError } = await supabase
+					.from("projects")
+						.insert({
+							...(hasConfiguredSubmissionFields
+								? buildNullLegacyProjectPayload()
+								: {
+										project_name: projectName,
+										project_description: projectDescription,
+										project_url: legacyFields.project_url,
+										cover_image_url: coverImageUrl || null,
+										additional_materials_url: legacyFields.additional_materials_url,
+										video_url: legacyFields.video_url,
+									}),
+							lead_name: leadName,
+							lead_email: leadEmail,
+							teammates: teammates || [],
+							event_id: eventId || null,
+							submitted: true,
+							submitted_at: new Date().toISOString(),
+						})
 				.select()
 				.single();
 			if (projectError) {
@@ -173,21 +213,25 @@ export async function POST(request: Request) {
 			finalProjectId = project.id;
 			projectData = project;
 		} else {
-			const { error: updateError } = await supabase
-				.from("projects")
-					.update({
-						project_name: projectName,
-						lead_name: leadName,
-						lead_email: leadEmail,
-						project_description: projectDescription,
-						teammates: teammates || [],
-						project_url: legacyFields.project_url,
-						cover_image_url: coverImageUrl || null,
-						additional_materials_url: legacyFields.additional_materials_url,
-						video_url: legacyFields.video_url,
-						submitted: true,
-						submitted_at: new Date().toISOString(),
-					})
+				const { error: updateError } = await supabase
+					.from("projects")
+						.update({
+							...(hasConfiguredSubmissionFields
+								? buildNullLegacyProjectPayload()
+								: {
+										project_name: projectName,
+										project_description: projectDescription,
+										project_url: legacyFields.project_url,
+										cover_image_url: coverImageUrl || null,
+										additional_materials_url: legacyFields.additional_materials_url,
+										video_url: legacyFields.video_url,
+									}),
+							lead_name: leadName,
+							lead_email: leadEmail,
+							teammates: teammates || [],
+							submitted: true,
+							submitted_at: new Date().toISOString(),
+						})
 				.eq("id", finalProjectId);
 			if (updateError) {
 				return NextResponse.json({ error: "Failed to update project" }, { status: 500 });
@@ -201,50 +245,35 @@ export async function POST(request: Request) {
 				projectData = updatedProject as typeof projectData;
 			}
 
-			// Canonical artifacts: replace current rows with latest payload.
-			const { error: deleteArtifactsError } = await supabase
-				.from("project_artifacts")
-				.delete()
-				.eq("project_id", finalProjectId!);
-			if (deleteArtifactsError) {
-				return NextResponse.json({ error: "Failed to update project artifacts" }, { status: 500 });
-			}
+				if (!hasConfiguredSubmissionFields) {
+					// Legacy artifacts are only maintained for events without a configured submission schema.
+					const { error: deleteArtifactsError } = await supabase
+						.from("project_artifacts")
+						.delete()
+						.eq("project_id", finalProjectId!);
+					if (deleteArtifactsError) {
+						return NextResponse.json({ error: "Failed to update project artifacts" }, { status: 500 });
+					}
 
-			if (compatibilityArtifacts.length > 0) {
-				const { error: insertArtifactsError } = await supabase.from("project_artifacts").insert(
-					compatibilityArtifacts.map((artifact) => ({
-						project_id: finalProjectId!,
-						kind: artifact.kind,
-						label: artifact.label,
-						url: artifact.url,
-						sort_order: artifact.sort_order,
-						is_primary: artifact.is_primary,
-						metadata: artifact.metadata,
-					}))
-				);
-				if (insertArtifactsError) {
-					return NextResponse.json({ error: "Failed to save project artifacts" }, { status: 500 });
+					if (compatibilityArtifacts.length > 0) {
+						const { error: insertArtifactsError } = await supabase.from("project_artifacts").insert(
+							compatibilityArtifacts.map((artifact) => ({
+								project_id: finalProjectId!,
+								kind: artifact.kind,
+								label: artifact.label,
+								url: artifact.url,
+								sort_order: artifact.sort_order,
+								is_primary: artifact.is_primary,
+								metadata: artifact.metadata,
+							}))
+						);
+						if (insertArtifactsError) {
+							return NextResponse.json({ error: "Failed to save project artifacts" }, { status: 500 });
+						}
+					}
 				}
-			}
 
-			if (submissionAnswers !== undefined) {
-				const parsedAnswers = Array.isArray(submissionAnswers)
-					? submissionAnswers
-							.map((item) => submissionAnswerInputSchema.safeParse(item))
-							.filter((item) => item.success)
-							.map((item) => item.data)
-					: [];
-
-				const answerFieldIds = [
-					...new Set(parsedAnswers.map((answer) => answer.eventSubmissionFieldId)),
-				];
-				let normalizedAnswers: Array<{
-					project_id: string;
-					event_submission_field_id: string;
-					answer: string | string[];
-				}> = [];
-
-				if (answerFieldIds.length > 0) {
+				if (hasConfiguredSubmissionFields) {
 					const projectEventId = projectData?.event_id || eventId || null;
 					if (!projectEventId) {
 						return NextResponse.json(
@@ -253,74 +282,80 @@ export async function POST(request: Request) {
 						);
 					}
 
-					const { data: fieldRows, error: fieldQueryError } = await supabase
-						.from("event_submission_fields")
-						.select("id, event_id, field_type")
-						.in("id", answerFieldIds)
-						.eq("event_id", projectEventId);
+					const fieldById = new Map(
+						(configuredSubmissionFields || []).map((field) => [
+							field.id,
+							field.field_type as
+								| "short_text"
+								| "long_text"
+								| "url"
+								| "multi_url"
+								| "file"
+								| "select"
+								| "multi_select"
+								| "checkbox",
+						])
+					);
 
-					if (
-						fieldQueryError ||
-						!fieldRows ||
-						fieldRows.length !== answerFieldIds.length
-					) {
+					const answerFieldIds = [
+						...new Set(parsedAnswers.map((answer) => answer.eventSubmissionFieldId)),
+					];
+					if (answerFieldIds.some((fieldId) => !fieldById.has(fieldId))) {
 						return NextResponse.json(
 							{ error: "Invalid submission field IDs" },
 							{ status: 400 }
 						);
 					}
 
-					const fieldById = new Map(
-						fieldRows.map((field) => [
-							field.id,
-							field.field_type as "short_text" | "long_text" | "url" | "multi_url",
-						])
-					);
+					for (const answer of parsedAnswers) {
+						const fieldType = fieldById.get(answer.eventSubmissionFieldId);
+						if (!fieldType) {
+							continue;
+						}
 
-					normalizedAnswers = parsedAnswers
-						.map((answer) => {
-							const fieldType = fieldById.get(answer.eventSubmissionFieldId);
-							if (!fieldType) return null;
-							const coerced = coerceSubmissionAnswerValue(fieldType, answer.answer);
-							if (coerced === null) return null;
-							if (typeof coerced === "string" && coerced.length === 0) return null;
-							if (Array.isArray(coerced) && coerced.length === 0) return null;
-							return {
-								project_id: finalProjectId!,
-								event_submission_field_id: answer.eventSubmissionFieldId,
-								answer: coerced,
-							};
-						})
-						.filter(Boolean) as Array<{
-						project_id: string;
-						event_submission_field_id: string;
-						answer: string | string[];
-					}>;
+						const coerced = coerceSubmissionAnswerValue(fieldType, answer.answer);
+						if (coerced === null) {
+							continue;
+						}
+						if (typeof coerced === "string" && coerced.length === 0) {
+							continue;
+						}
+						if (Array.isArray(coerced) && coerced.length === 0) {
+							continue;
+						}
+
+						normalizedSubmissionAnswers.push({
+							project_id: finalProjectId!,
+							event_submission_field_id: answer.eventSubmissionFieldId,
+							answer: coerced,
+						});
+					}
 				}
 
-				const { error: deleteAnswersError } = await supabase
-					.from("project_submission_answers")
-					.delete()
-					.eq("project_id", finalProjectId!);
-				if (deleteAnswersError) {
-					return NextResponse.json(
-						{ error: "Failed to update submission answers" },
-						{ status: 500 }
-					);
-				}
-
-				if (normalizedAnswers.length > 0) {
-					const { error: insertAnswersError } = await supabase
+				if (submissionAnswers !== undefined || hasConfiguredSubmissionFields) {
+					const { error: deleteAnswersError } = await supabase
 						.from("project_submission_answers")
-						.insert(normalizedAnswers);
-					if (insertAnswersError) {
+						.delete()
+						.eq("project_id", finalProjectId!);
+					if (deleteAnswersError) {
 						return NextResponse.json(
-							{ error: "Failed to save submission answers" },
+							{ error: "Failed to update submission answers" },
 							{ status: 500 }
 						);
 					}
+
+					if (normalizedSubmissionAnswers.length > 0) {
+						const { error: insertAnswersError } = await supabase
+							.from("project_submission_answers")
+							.insert(normalizedSubmissionAnswers);
+						if (insertAnswersError) {
+							return NextResponse.json(
+								{ error: "Failed to save submission answers" },
+								{ status: 500 }
+							);
+						}
+					}
 				}
-			}
 
 		// Manage track relationships only when event context exists
 		if (eventId && trackIds && trackIds.length > 0) {

@@ -12,6 +12,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import type { SubmissionField, ChatMessage } from "./types";
+import { createSubmissionTemplateFields } from "./types";
 import {
   FIELD_TYPE_OPTIONS,
   FIELD_TYPE_ICONS,
@@ -31,6 +32,8 @@ const INITIAL_MESSAGE: ChatMessage = {
 };
 
 export function SubmissionEditor({ fields, onChange }: SubmissionEditorProps) {
+  const editorFields =
+    fields.length > 0 ? fields : createSubmissionTemplateFields();
   const [editingFieldId, setEditingFieldId] = useState<string | null>(null);
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
@@ -63,7 +66,7 @@ export function SubmissionEditor({ fields, onChange }: SubmissionEditorProps) {
   }, [chatMessages]);
 
   const updateField = (id: string, changes: Partial<SubmissionField>) => {
-    onChange(fields.map((f) => (f.id === id ? { ...f, ...changes } : f)));
+    onChange(editorFields.map((f) => (f.id === id ? { ...f, ...changes } : f)));
   };
 
   const addFieldAt = (position?: number) => {
@@ -74,7 +77,7 @@ export function SubmissionEditor({ fields, onChange }: SubmissionEditorProps) {
       required: false,
       placeholder: "",
     };
-    const updated = [...fields];
+    const updated = [...editorFields];
     if (position !== undefined) {
       updated.splice(position, 0, newField);
     } else {
@@ -85,7 +88,7 @@ export function SubmissionEditor({ fields, onChange }: SubmissionEditorProps) {
   };
 
   const removeField = (id: string) => {
-    onChange(fields.filter((f) => f.id !== id));
+    onChange(editorFields.filter((f) => f.id !== id));
     if (editingFieldId === id) setEditingFieldId(null);
   };
 
@@ -104,7 +107,7 @@ export function SubmissionEditor({ fields, onChange }: SubmissionEditorProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: text,
-          event: { submission_fields: fields },
+          event: { submission_fields: editorFields },
           history: chatMessages,
           context: "submission",
         }),
@@ -136,7 +139,7 @@ export function SubmissionEditor({ fields, onChange }: SubmissionEditorProps) {
     } finally {
       setChatLoading(false);
     }
-  }, [chatInput, chatLoading, chatMessages, fields, onChange]);
+  }, [chatInput, chatLoading, chatMessages, editorFields, onChange]);
 
   return (
     <div className="flex gap-6 items-start">
@@ -154,7 +157,7 @@ export function SubmissionEditor({ fields, onChange }: SubmissionEditorProps) {
             </div>
 
             <div className="space-y-0">
-              {fields.map((field, idx) => {
+              {editorFields.map((field, idx) => {
                 const isLocked = LOCKED_FIELD_IDS.includes(field.id);
                 const isEditing = editingFieldId === field.id;
 
@@ -167,7 +170,7 @@ export function SubmissionEditor({ fields, onChange }: SubmissionEditorProps) {
                     {idx > 0 &&
                       !isLocked &&
                       LOCKED_FIELD_IDS.includes(
-                        fields[idx - 1]?.id ?? ""
+                        editorFields[idx - 1]?.id ?? ""
                       ) && (
                         <div className="border-t border-dashed border-gray-200 mb-4" />
                       )}
@@ -233,7 +236,7 @@ export function SubmissionEditor({ fields, onChange }: SubmissionEditorProps) {
               })}
 
               <AddFieldDivider
-                onClick={() => addFieldAt(fields.length)}
+                onClick={() => addFieldAt(editorFields.length)}
               />
             </div>
           </div>
@@ -332,6 +335,9 @@ function FieldDisplay({
 }) {
   const FieldIcon = FIELD_TYPE_ICONS[field.type];
   const isOptional = !field.required && !isLocked;
+  const displayOptions = (field.options || [])
+    .map((option) => option.trim())
+    .filter((option) => option.length > 0);
 
   return (
     <div className="space-y-2">
@@ -370,7 +376,10 @@ function FieldDisplay({
         </div>
       ) : field.type === "select" || field.type === "multi_select" ? (
         <div className="space-y-2">
-          {(field.options || ["Option 1", "Option 2"]).map((opt, i) => (
+          {(displayOptions.length > 0
+            ? displayOptions
+            : ["Option 1", "Option 2"]
+          ).map((opt, i) => (
             <label key={i} className="flex items-center gap-2">
               <input
                 type={field.type === "select" ? "radio" : "checkbox"}
@@ -389,7 +398,7 @@ function FieldDisplay({
             className="h-4 w-4 rounded border-gray-300 text-blue-600"
           />
           <span className="text-base text-[rgba(0,0,0,0.35)]">
-            {field.placeholder || "Yes"}
+            {displayOptions[0] || field.placeholder || "Yes"}
           </span>
         </label>
       ) : field.type === "url" && field.multiple ? (
@@ -430,7 +439,30 @@ function FieldEditor({
   onClose: () => void;
 }) {
   const showOptions =
-    field.type === "select" || field.type === "multi_select";
+    field.type === "select" ||
+    field.type === "multi_select" ||
+    field.type === "checkbox";
+  const optionValues = field.options || [];
+
+  const updateOptionAt = (index: number, value: string) => {
+    const nextOptions = [...optionValues];
+    nextOptions[index] = value;
+    onUpdate({ options: nextOptions });
+  };
+
+  const addOption = () => {
+    if (field.type === "checkbox") {
+      onUpdate({ options: [""] });
+      return;
+    }
+
+    onUpdate({ options: [...optionValues, ""] });
+  };
+
+  const removeOptionAt = (index: number) => {
+    const nextOptions = optionValues.filter((_, currentIndex) => currentIndex !== index);
+    onUpdate({ options: nextOptions });
+  };
 
   return (
     <div className="space-y-4">
@@ -461,9 +493,29 @@ function FieldEditor({
           <label className="text-xs font-medium text-gray-600">Type</label>
           <select
             value={field.type}
-            onChange={(e) =>
-              onUpdate({ type: e.target.value as SubmissionField["type"] })
-            }
+            onChange={(e) => {
+              const nextType = e.target.value as SubmissionField["type"];
+              const nextOptions =
+                nextType === "select" || nextType === "multi_select"
+                  ? optionValues.length > 0
+                    ? optionValues
+                    : ["Option 1", "Option 2"]
+                  : nextType === "checkbox"
+                    ? optionValues.length > 0
+                      ? [optionValues[0]]
+                      : ["Yes"]
+                    : undefined;
+
+              onUpdate({
+                type: nextType,
+                options: nextOptions,
+                multiple:
+                  nextType === "url" || nextType === "file"
+                    ? field.multiple
+                    : undefined,
+                maxFiles: nextType === "file" ? field.maxFiles : undefined,
+              });
+            }}
             className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm outline-none focus:border-[#4B89EF] focus:ring-1 focus:ring-[#4B89EF]"
           >
             {FIELD_TYPE_OPTIONS.map((opt) => (
@@ -503,21 +555,47 @@ function FieldEditor({
         {showOptions && (
           <div className="space-y-1.5 sm:col-span-2">
             <label className="text-xs font-medium text-gray-600">
-              Options (one per line)
+              {field.type === "checkbox" ? "Checkbox label" : "Options"}
             </label>
-            <textarea
-              value={(field.options || []).join("\n")}
-              onChange={(e) =>
-                onUpdate({
-                  options: e.target.value
-                    .split("\n")
-                    .filter((o) => o.trim()),
-                })
-              }
-              placeholder={"Option 1\nOption 2\nOption 3"}
-              rows={4}
-              className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none resize-y focus:border-[#4B89EF] focus:ring-1 focus:ring-[#4B89EF]"
-            />
+            <div className="space-y-2">
+              {(optionValues.length > 0 ? optionValues : [""]).map(
+                (option, index) => (
+                  <div key={`${field.id}-option-${index}`} className="flex gap-2">
+                    <input
+                      type="text"
+                      value={option}
+                      onChange={(e) => updateOptionAt(index, e.target.value)}
+                      placeholder={
+                        field.type === "checkbox"
+                          ? "Yes"
+                          : `Option ${index + 1}`
+                      }
+                      className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm outline-none focus:border-[#4B89EF] focus:ring-1 focus:ring-[#4B89EF]"
+                    />
+                    {(field.type !== "checkbox" || optionValues.length > 0) && (
+                      <button
+                        type="button"
+                        onClick={() => removeOptionAt(index)}
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:border-red-200 hover:text-red-500"
+                        aria-label={`Remove option ${index + 1}`}
+                      >
+                        <Trash2 className="size-4" />
+                      </button>
+                    )}
+                  </div>
+                )
+              )}
+              {field.type !== "checkbox" && (
+                <button
+                  type="button"
+                  onClick={addOption}
+                  className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 hover:border-[#4B89EF]/30 hover:text-[#4B89EF]"
+                >
+                  <Plus className="size-4" />
+                  Add option
+                </button>
+              )}
+            </div>
           </div>
         )}
 

@@ -4,6 +4,7 @@ import {
   fieldsToApiPayload,
   apiFieldsToEditor,
   DEFAULT_SUBMISSION_FIELDS,
+  createSubmissionTemplateFields,
   type SubmissionField,
 } from "./types";
 
@@ -19,6 +20,7 @@ describe("submission field type mapping", () => {
 
     it("passes through direct-match types unchanged", () => {
       expect(editorTypeToDb("url")).toBe("url");
+      expect(editorTypeToDb("url", true)).toBe("multi_url");
       expect(editorTypeToDb("file")).toBe("file");
       expect(editorTypeToDb("select")).toBe("select");
       expect(editorTypeToDb("multi_select")).toBe("multi_select");
@@ -75,11 +77,19 @@ describe("submission field type mapping", () => {
           placeholder: "",
           options: ["React", "Next.js", "Python"],
         },
+        {
+          id: "terms_ack",
+          label: "Acknowledge terms",
+          type: "checkbox",
+          required: true,
+          placeholder: "",
+          options: ["I agree to the submission rules"],
+        },
       ];
 
       const payload = fieldsToApiPayload(fields);
 
-      expect(payload).toHaveLength(2);
+      expect(payload).toHaveLength(3);
       expect(payload[0]).toEqual({
         key: "project_name",
         label: "Project name",
@@ -101,6 +111,17 @@ describe("submission field type mapping", () => {
         is_active: true,
         sort_order: 1,
         options: ["React", "Next.js", "Python"],
+      });
+      expect(payload[2]).toEqual({
+        key: "terms_ack",
+        label: "Acknowledge terms",
+        description: null,
+        placeholder: null,
+        field_type: "checkbox",
+        required: true,
+        is_active: true,
+        sort_order: 2,
+        options: ["I agree to the submission rules"],
       });
     });
 
@@ -130,11 +151,20 @@ describe("submission field type mapping", () => {
           required: false,
           options: ["AI", "Web3"],
         },
+        {
+          key: "additional_materials",
+          label: "Additional Materials",
+          description: "Support links",
+          placeholder: "https://...",
+          field_type: "multi_url",
+          required: false,
+          options: [],
+        },
       ];
 
       const fields = apiFieldsToEditor(apiFields);
 
-      expect(fields).toHaveLength(2);
+      expect(fields).toHaveLength(3);
       expect(fields[0]).toEqual({
         id: "project_name",
         label: "Project name",
@@ -143,6 +173,7 @@ describe("submission field type mapping", () => {
         placeholder: "Enter name",
         helperText: "A helper",
         options: undefined,
+        multiple: false,
       });
       expect(fields[1]).toEqual({
         id: "categories",
@@ -152,6 +183,17 @@ describe("submission field type mapping", () => {
         placeholder: "",
         helperText: undefined,
         options: ["AI", "Web3"],
+        multiple: false,
+      });
+      expect(fields[2]).toEqual({
+        id: "additional_materials",
+        label: "Additional Materials",
+        type: "url",
+        required: false,
+        placeholder: "https://...",
+        helperText: "Support links",
+        options: undefined,
+        multiple: true,
       });
     });
 
@@ -216,6 +258,14 @@ describe("submission field type mapping", () => {
         cover_image: "file",
         additional_materials: "url",
       });
+    });
+
+    it("creates a fresh editable template copy", () => {
+      const template = createSubmissionTemplateFields();
+
+      expect(template).toEqual(DEFAULT_SUBMISSION_FIELDS);
+      expect(template).not.toBe(DEFAULT_SUBMISSION_FIELDS);
+      expect(template[0]).not.toBe(DEFAULT_SUBMISSION_FIELDS[0]);
     });
   });
 });

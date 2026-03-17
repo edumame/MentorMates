@@ -121,6 +121,16 @@ describe("submission adapters", () => {
     expect(coerceSubmissionAnswerValue("short_text", "  hello ")).toBe("hello");
     expect(coerceSubmissionAnswerValue("short_text", 42)).toBeNull();
     expect(
+      coerceSubmissionAnswerValue("multi_select", [
+        " Next.js ",
+        "",
+        "Supabase",
+      ])
+    ).toEqual(["Next.js", "Supabase"]);
+    expect(coerceSubmissionAnswerValue("checkbox", true)).toBe("true");
+    expect(coerceSubmissionAnswerValue("checkbox", false)).toBe("");
+    expect(coerceSubmissionAnswerValue("checkbox", "true")).toBe("true");
+    expect(
       coerceSubmissionAnswerValue("multi_url", [
         " https://one.example ",
         " ",
