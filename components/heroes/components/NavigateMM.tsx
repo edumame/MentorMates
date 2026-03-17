@@ -10,7 +10,7 @@ export function NavigateMM({ onClose }: NavigateMMProps) {
   return (
     <div className="w-full rounded-[16px] p-4 border border-solid border-[rgba(0,0,0,0.15)] bg-white relative">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-semibold">Navigate roles in MentorMates</h1>
+        <h1 className="text-2xl font-semibold font-geist tracking-[-0.06em]">Navigate roles in MentorMates</h1>
 
         {/* Make the close icon a real, accessible button */}
         <button

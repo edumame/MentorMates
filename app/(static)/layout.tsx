@@ -12,7 +12,7 @@ export default function StaticLayout({
     <div className="min-h-screen">
       <ConditionalNavbar />
       <div className="pt-2">
-        <SidebarLayout>
+        <SidebarLayout showLogoInSidebar>
           <StaticPageFrame>{children}</StaticPageFrame>
         </SidebarLayout>
       </div>

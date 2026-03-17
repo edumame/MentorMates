@@ -317,7 +317,7 @@ export function BasicInfoTab({
         className="font-semibold text-[36px] leading-[1.3] tracking-[-2.16px] mb-6 w-full min-w-0 bg-transparent border-none outline-none focus:ring-0 p-0 disabled:opacity-50"
         style={{
           color: event.event_name ? "#000000" : "#d8d8d8",
-          fontFamily: "Geist, sans-serif",
+          fontFamily: "Inter, system-ui, sans-serif",
         }}
       />
 
@@ -938,7 +938,7 @@ export function BasicInfoTab({
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button
-                  variant="destructive"
+                  variant="delete"
                   disabled={deleting}
                   className="shrink-0 whitespace-nowrap w-full sm:w-auto"
                 >

@@ -1,10 +1,35 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import React, { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/app/utils/supabase/client";
-import { Bot } from "lucide-react";
+import { supabase } from "@/lib/supabase";
+import type { Session } from "@supabase/supabase-js";
+import { Bot, ChevronsUpDown } from "lucide-react";
+import { NotificationsNone } from "@mui/icons-material";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  useNotificationData,
+  NotificationPopoverContent,
+} from "@/components/layout/NotificationPopoverContent";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { useAdmin } from "@/lib/hooks/use-admin";
+import posthog from "posthog-js";
+import type { UserProfile } from "@/lib/types";
 
 const HomeIcon = (
   <svg
@@ -141,22 +166,66 @@ const data = [
 ];
 
 const bottomLinksBase = [
+  {
+    name: "Notification",
+    href: null as string | null,
+    icon: <NotificationsNone className="h-6 w-6" />,
+  },
   { name: "Support", href: "/support", icon: SupportIcon },
-  { name: "Profile", href: "/profile", icon: ProfileIcon },
 ];
 
-export function SideNav() {
+interface ExtendedUserProfile extends UserProfile {
+  onboarding_metadata: Record<string, unknown> | null;
+}
+
+interface SideNavProps {
+  /** When true, show MentorMates logo at top of sidebar (e.g. event pages with no top header) */
+  showLogoAtTop?: boolean;
+}
+
+export function SideNav({ showLogoAtTop }: SideNavProps = {}) {
+  const router = useRouter();
   const [userId, setUserId] = useState<string | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [userProfile, setUserProfile] = useState<ExtendedUserProfile | null>(null);
   const pathname = usePathname();
+  const { needsProfileCompletion } = useNotificationData();
+  const isAdmin = useAdmin();
 
   useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const client = createClient();
+    client.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
       setUserId(session?.user?.id ?? null);
     });
+    const {
+      data: { subscription },
+    } = client.auth.onAuthStateChange((_, s) => {
+      setSession(s);
+      setUserId(s?.user?.id ?? null);
+    });
+    return () => subscription.unsubscribe();
   }, []);
 
-  const profileHref = userId ? `/profile/${userId}` : "/profile";
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      const { data } = await supabase
+        .from("user_profiles")
+        .select("*")
+        .eq("uid", session?.user?.id)
+        .single();
+      setUserProfile(data);
+    };
+    if (session) fetchUserProfile();
+  }, [session]);
+
+  const handleSignOut = async () => {
+    localStorage.removeItem("returnUrl");
+    await supabase.auth.signOut();
+    posthog.reset();
+    router.push("/");
+    window.location.reload();
+  };
 
   // Helper to determine if path is active
   const isActive = (href: string) => {
@@ -169,7 +238,18 @@ export function SideNav() {
 
   return (
     <div className="w-[270px] h-full flex flex-col justify-between">
-      <div className="flex flex-col gap-2 p-4">
+      <div className="flex flex-col gap-2 p-4 mt-[6px]">
+        {showLogoAtTop && (
+          <Link href="/" className="flex items-center gap-2 p-2 mb-2 rounded-md hover:opacity-90">
+            <Image
+              src="/mentormate.png"
+              alt="MentorMates"
+              width={200}
+              height={40}
+              className="object-contain"
+            />
+          </Link>
+        )}
         {data.map((item) => (
           <Link
             href={item.href}
@@ -188,12 +268,38 @@ export function SideNav() {
           </Link>
         ))}
       </div>
-      <div className="flex flex-col gap-2 mt-8 p-4">
-        {[...bottomLinksBase].map((item) => {
-          const href = item.name === "Profile" ? profileHref : item.href;
-          const active = isActive(
-            item.name === "Profile" ? "/profile" : item.href
-          );
+      <div className="flex flex-col gap-2 mt-8 p-4 mt-auto">
+        {bottomLinksBase.map((item) => {
+          if (item.name === "Notification" && item.href === null) {
+            return (
+              <Popover key={item.name}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex items-center gap-2 w-full p-2 rounded-md transition hover:bg-blue-100/50 text-left relative"
+                  >
+                    <span className="relative">
+                      <NotificationsNone className="h-6 w-6" />
+                      {needsProfileCompletion && (
+                        <span className="absolute top-0 right-0 h-2 w-2 bg-red-500 rounded-full" />
+                      )}
+                    </span>
+                    {item.name}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent
+                  side="top"
+                  align="start"
+                  sideOffset={8}
+                  className="w-[420px] p-0 bg-white border border-[rgba(0,0,0,0.15)] rounded-xl"
+                >
+                  <NotificationPopoverContent />
+                </PopoverContent>
+              </Popover>
+            );
+          }
+          const href = item.href!;
+          const active = isActive(href);
           return (
             <Link
               href={href}
@@ -212,6 +318,105 @@ export function SideNav() {
             </Link>
           );
         })}
+        {/* Profile card 在 Support 下面，图一样式：32px 圆角、#E9EAEB 边框；有 session 才显示完整卡片 */}
+        {session && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                aria-label="Account menu"
+                className="w-full h-[64px] flex items-center gap-4 px-3 self-stretch rounded-xl border border-[#E9EAEB] bg-white text-left hover:bg-gray-50/80 transition-colors"
+              >
+                <Avatar
+                className="h-[40px] w-[40px] shrink-0 border-[0.714px] border-[var(--Color-Neutral-Lighter,#D8D8D8)]"
+              >
+                  <AvatarImage src={session.user.user_metadata?.avatar_url} />
+                  <AvatarFallback className="text-sm font-medium text-[#181d27]">
+                    {session.user.email?.charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0 flex flex-col items-start gap-0 overflow-hidden">
+                  <p className="text-sm font-semibold text-[#181d27] leading-5 truncate w-full">
+                    {session.user.user_metadata?.full_name ||
+                      session.user.user_metadata?.name ||
+                      session.user.email?.split("@")[0]}
+                  </p>
+                  <p
+                    className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap font-sans text-xs font-normal leading-[20px] text-[#535862]"
+                    style={{ fontFamily: "var(--Font-family-font-family-body, Inter)", fontSize: "12px", lineHeight: "var(--Line-height-text-sm, 20px)" }}
+                  >
+                    {session.user.email}
+                  </p>
+                </div>
+                <div className="shrink-0 flex items-center justify-center w-8 h-8 rounded-md p-1.5">
+                  <ChevronsUpDown className="h-5 w-5 text-[#535862]" />
+                </div>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" side="top" className="min-w-[220px]">
+              <div className="p-3">
+                <div className="px-2 pb-3">
+                  <div className="flex items-center gap-2">
+                    <p className="text-xl font-bold leading-tight">
+                      {session.user.user_metadata?.full_name ||
+                        session.user.user_metadata?.name ||
+                        session.user.email?.split("@")[0]}
+                    </p>
+                    {isAdmin && (
+                      <span className="text-sm rounded-full bg-blue-100 text-blue-700 px-3 py-0.5">
+                        Admin
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-base text-gray-700 mt-1">{session.user.email}</p>
+                  {!userProfile?.onboarding_metadata ? (
+                    <Button
+                      variant="defaultGray"
+                      onClick={() => router.push("/onboarding")}
+                      className="mt-4 w-full text-base"
+                    >
+                      Set up profile
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="defaultGray"
+                      onClick={() => router.push(`/profile/${session?.user?.id}`)}
+                      className="mt-4 w-full text-base"
+                    >
+                      View profile
+                    </Button>
+                  )}
+                </div>
+                <DropdownMenuSeparator />
+                <div className="py-1">
+                  <DropdownMenuItem onSelect={() => router.push("/help")}>
+                    Support
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => router.push("/blog")}>
+                    Blog
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onSelect={() => void handleSignOut()}
+                    className="text-red-600 hover:bg-red-50"
+                  >
+                    Log out
+                  </DropdownMenuItem>
+                </div>
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+        {!session && (
+          <Link
+            href="/login"
+            className="w-full h-[64px] flex items-center gap-4 px-3 rounded-xl border border-[#E9EAEB] bg-white text-[#181d27] text-sm font-medium hover:bg-gray-50/80 transition-colors"
+          >
+            <span className="flex h-[40px] w-[40px] shrink-0 items-center justify-center rounded-full bg-gray-200 text-gray-500">
+              ?
+            </span>
+            <span>Log in</span>
+          </Link>
+        )}
       </div>
     </div>
   );

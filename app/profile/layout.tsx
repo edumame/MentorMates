@@ -8,7 +8,7 @@ export default function ProfileLayout({
 }) {
   return (
     <div className="flex-1 bg-gray-50">
-      <SidebarLayout>{children}</SidebarLayout>
+      <SidebarLayout showLogoInSidebar>{children}</SidebarLayout>
     </div>
   );
 }

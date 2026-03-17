@@ -102,7 +102,7 @@ export function InviteOrganizersTab({ eventId, isArchived }: InviteOrganizersTab
   };
 
   return (
-    <div className="space-y-4 p-4 border rounded-lg bg-card">
+    <div className="space-y-4 p-4 border rounded-[var(--Radius-Large,16px)] bg-card">
       <h3 className="text-lg font-semibold">Invite Organizers</h3>
       <div className="flex gap-2">
         <Input
@@ -114,6 +114,7 @@ export function InviteOrganizersTab({ eventId, isArchived }: InviteOrganizersTab
           disabled={loading || isArchived}
           aria-label="Organizer email address"
           maxLength={254}
+          className="rounded-[12px]"
         />
         <Button onClick={handleInvite} disabled={loading || !email.trim() || isArchived}>
           {loading ? "Inviting..." : "Invite"}

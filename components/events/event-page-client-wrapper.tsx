@@ -136,7 +136,7 @@ export function EventPageClientWrapper({
   const currentRole = activeRole || userRole;
   if (currentRole === EventRole.Organizer || currentRole === EventRole.Admin) {
     return (
-      <>
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
         <RoleBanner
           actualRole={userRole}
           activeRole={currentRole}
@@ -145,7 +145,9 @@ export function EventPageClientWrapper({
           onCancelRegistration={handleCancelRegistration}
           eventRoleLabels={eventRoleLabels}
         />
-        <OrganizerEditOverview eventId={eventId} />
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <OrganizerEditOverview eventId={eventId} />
+        </div>
 
         <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
           <AlertDialogContent>
@@ -167,7 +169,7 @@ export function EventPageClientWrapper({
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-      </>
+      </div>
     );
   }
 

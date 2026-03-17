@@ -137,7 +137,10 @@ export function TracksTab({
     <div className="space-y-4">
       <div className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6">
         <div className="space-y-1">
-          <h2 className="text-base font-semibold text-gray-900">
+          <h2
+            className="font-geist font-semibold leading-[140%] tracking-[-1.32px] text-[var(--Color-Scheme-1-Text,#000)]"
+            style={{ fontSize: "var(--Text-Sizes-Heading-6, 22px)" }}
+          >
             Tracks &amp; Scoring
           </h2>
           <p className="text-sm text-gray-600">

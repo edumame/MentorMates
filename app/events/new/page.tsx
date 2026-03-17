@@ -1030,12 +1030,11 @@ export default function NewEventPage() {
   const previewDate = formatDateForPreview(form.event_date);
 
   return (
-    <div className="w-full overflow-x-hidden">
-      <div className="w-full flex flex-col lg:min-h-[calc(100vh-88px)] lg:h-[calc(100vh-88px)] lg:overflow-hidden lg:rounded-tl-2xl lg:border-t lg:border-l lg:border-[#D8D8D8] bg-white">
-        <div className="px-4 sm:px-6 lg:px-10 py-4 sm:py-6 lg:py-8 w-full flex flex-col pb-20 lg:pb-4 lg:flex-1 lg:min-h-0 overflow-x-hidden">
+    <div className="flex-1 flex flex-col min-h-0 overflow-auto pt-0">
+      <div className="px-4 sm:px-6 lg:px-10 py-4 sm:py-6 lg:py-8 w-full flex flex-col pb-20 lg:pb-4 flex-1 min-h-0">
           {/* Header */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 flex-shrink-0">
-            <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">
+            <h1 className="text-3xl sm:text-4xl font-semibold text-gray-900 font-geist tracking-[-0.06em]">
               Create event
             </h1>
 
@@ -1046,7 +1045,7 @@ export default function NewEventPage() {
                 <Button
                   variant="defaultGray"
                   onClick={() => router.back()}
-                  className="text-[16px] font-medium flex-1 sm:flex-none"
+                  className="text-[16px] font-medium flex-1 sm:flex-none rounded-[12px]"
                 >
                   Cancel
                 </Button>
@@ -1057,7 +1056,7 @@ export default function NewEventPage() {
                     handleCreate();
                   }}
                   disabled={creating}
-                  className="text-[16px] font-medium flex-1 sm:flex-none border border-[rgba(0,0,0,0.15)] bg-white"
+                  className="text-[16px] font-medium flex-1 sm:flex-none border border-[rgba(0,0,0,0.15)] bg-white rounded-[12px]"
                 >
                   {creating ? "Saving..." : "Save Draft"}
                 </Button>
@@ -1067,7 +1066,7 @@ export default function NewEventPage() {
                     <DropdownMenuTrigger asChild>
                       <Button
                         disabled={creating}
-                        className="text-[16px] font-medium flex-1 sm:flex-none bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white"
+                        className="text-[16px] font-medium flex-1 sm:flex-none bg-[#4b89ef] hover:bg-[#4b89ef]/90 text-white rounded-[12px]"
                       >
                         {creating ? "Publishing..." : "Publish Event"}
                         <ChevronDown className="ml-2 h-4 w-4" />
@@ -4611,7 +4610,6 @@ export default function NewEventPage() {
               </div>
             </div>
           </Tabs>
-        </div>
       </div>
 
       {/* Request Public Event Modal */}

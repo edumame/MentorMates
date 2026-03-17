@@ -3,7 +3,6 @@ import { EventsPageClient } from "@/components/eventsPageClient";
 import { createSupabaseClient } from "../utils/supabase/server";
 import { EventRole, EventVisibility, ApprovalStatus } from "@/lib/types";
 import { DiscordCTA } from "@/components/ui/discord-cta";
-import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 
 export const dynamic = "force-dynamic";
 
@@ -100,8 +99,8 @@ export default async function EventsPage() {
   const eventsList = events || [];
 
   return (
-    <PageContainer showBorder={isAuthenticated}>
-      <PageContent className="pt-[24px] pb-8">
+    <>
+      <div className="pt-[24px] pb-8">
         <div className={
             isAuthenticated
               ? "flex flex-col gap-[24px] px-[32px]"
@@ -117,8 +116,8 @@ export default async function EventsPage() {
             </div>
           </div>
         </div>
-      </PageContent>
+      </div>
       <Footer />
-    </PageContainer>
+    </>
   );
 }

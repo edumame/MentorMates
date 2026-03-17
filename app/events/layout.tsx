@@ -6,11 +6,5 @@ export default function EventsLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return (
-    <div className="flex-1 bg-white">
-      <div>
-        <SidebarLayout>{children}</SidebarLayout>
-      </div>
-    </div>
-  );
+  return <SidebarLayout showLogoInSidebar>{children}</SidebarLayout>;
 }

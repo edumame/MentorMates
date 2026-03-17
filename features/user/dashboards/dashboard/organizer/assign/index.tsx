@@ -570,7 +570,7 @@ export function AssignTab({ eventId }: AssignTabProps) {
           </div>
 
           {/* Show Name/Email Toggle */}
-          <div className="flex items-center space-x-2 pb-2 border-b">
+          <div className="flex items-center space-x-2 pb-2">
             <Switch
               id="show-name"
               checked={showName}

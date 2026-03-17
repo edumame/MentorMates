@@ -1,5 +1,4 @@
 import { createSupabaseClient } from "@/app/utils/supabase/server";
-import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 import { MeetingIdView, MeetingIdViewError, MeetingIdViewLoading } from "@/modules/meetings/ui/views/meeting-id-view";
 import { getQueryClient, trpc } from "@/trpc/server";
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
@@ -27,9 +26,8 @@ const Page = async ({ params }: Props) => {
   void queryClient.prefetchQuery(trpc.meetings.getOne.queryOptions({ id: meetingId }));
 
   return (
-    <PageContainer>
-          <PageContent className="pt-[24px] pb-8">
-            <div className="flex flex-col gap-[24px] px-[32px]">
+    <div className="pt-[24px] pb-8">
+      <div className="flex flex-col gap-[24px] px-[32px]">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-[8px]">
                   <h1 className="text-[20px] sm:text-[28px] font-semibold leading-[1.4] tracking-[-0.06em] text-black">
@@ -44,9 +42,8 @@ const Page = async ({ params }: Props) => {
                   </ErrorBoundary>
                 </Suspense>
               </HydrationBoundary>
-            </div>
-        </PageContent>
-    </PageContainer>
+      </div>
+    </div>
   )
 }
 
