@@ -29,6 +29,7 @@ import { Loader2, Trash2, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { useToast } from "@/lib/hooks/use-toast";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SubmissionFieldsSettings } from "./SubmissionFieldsSettings";
+import { buildSubmissionExportRows } from "./export";
 
 interface ProjectData {
   id: string;
@@ -54,6 +55,17 @@ interface ProjectData {
     mentor_name: string;
     mentor_email: string;
   }[];
+  artifacts?: {
+    kind: "project_link" | "video_link" | "additional_material";
+    label?: string;
+    url: string;
+    is_primary?: boolean;
+  }[];
+  submission_fields?: {
+    key: string;
+    label: string;
+  }[];
+  submission_values?: Record<string, string | string[]>;
 }
 
 interface SubmissionsTabProps {
@@ -206,26 +218,8 @@ export function SubmissionsTab({ eventId }: SubmissionsTabProps) {
   };
 
   const exportSubmissions = async () => {
-    const data = projects;
-
-    if (data) {
-      const csv = Papa.unparse(
-        data?.map((project) => ({
-          "Project Name": project.project_name,
-          "Lead Name": project.lead_name,
-          "Lead Email": project.lead_email,
-          Description: project.project_description,
-          "Project URL": project.project_url,
-          "Team Members": project.teammates.join(", "),
-          "Tracks":
-            project.project_tracks
-              ?.map((pt) => pt.event_tracks?.name)
-              .filter(Boolean)
-              .join(", ") || "No tracks",
-          "Submitted": project.submitted,
-          "Created At": project.created_at,
-        }))
-      );
+    if (projects.length > 0) {
+      const csv = Papa.unparse(buildSubmissionExportRows(projects));
 
       const blob = new Blob([csv], { type: "text/csv" });
       const url = window.URL.createObjectURL(blob);
