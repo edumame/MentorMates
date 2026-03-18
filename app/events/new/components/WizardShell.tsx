@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import type { WizardEventData } from "@/lib/types/wizard";
 import { applyScrapedData } from "@/lib/types/wizard";
+import { extractScrapedImportPayload } from "./scrape-import";
 
 const STEPS = [
   { id: 0, name: "Details", icon: FileText },
@@ -47,21 +48,23 @@ export function WizardShell({ event, setEvent, children }: WizardShellProps) {
       if (!url.trim()) return;
       setScraping(true);
       setScrapeError(null);
+      setScraped(false);
 
       try {
-        const res = await fetch("/api/scrape", {
+        const res = await fetch("/api/events/import/scrape", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ url: url.trim(), browserProfile: "lite" }),
         });
         const data = await res.json();
 
-        if (!res.ok || !data.success) {
-          setScrapeError(data.error || "Failed to scrape");
-          return;
+        if (!res.ok) {
+          throw new Error(
+            typeof data?.error === "string" ? data.error : "Failed to scrape"
+          );
         }
 
-        const result = data.data as Record<string, unknown>;
+        const result = extractScrapedImportPayload(data);
         setEvent((prev) => applyScrapedData(result, prev));
         setScraped(true);
       } catch (err) {
