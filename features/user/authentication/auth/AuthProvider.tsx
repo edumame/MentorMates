@@ -39,6 +39,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return [
       ...BASE_PUBLIC_PATHS,
       /^\/join($|\/.*$)/, // Matches /join and all its sub-routes
+      /^\/projects\/join($|\/.*$)/, // Matches legacy project invite routes before redirect
       /^\/projects\/public($|\/.*$)/, // Matches /projects/public and all its sub-routes
       /^\/events($|\/.*$)/, // Matches /events and all its sub-routes
       /^\/ai-vibe-guide($|\/.*$)/, // Matches /ai-vibe-guide and all sub-routes

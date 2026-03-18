@@ -108,8 +108,8 @@ function JoinProjectContent() {
 
   useEffect(() => {
     if (!token) {
-      setTokenValid(null);
-      setInviteError(null);
+      setTokenValid(false);
+      setInviteError("Invalid invitation link. Please use the invitation email you received.");
       setInvitedEmail(null);
       return;
     }
@@ -167,6 +167,11 @@ function JoinProjectContent() {
     setEventRegistrationHref(null);
 
     try {
+      if (!token) {
+        setError("Invalid invitation link. Please request a new invitation.");
+        return;
+      }
+
       const userEmailFromAuth = user.email?.toLowerCase();
       if (!userEmailFromAuth) {
         setError("User profile not found");
@@ -223,11 +228,17 @@ function JoinProjectContent() {
 
       const response = await fetch("/api/projects/join", {
         method: "PUT",
-        body: JSON.stringify({ projectId }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ projectId, token }),
       });
 
       if (!response.ok) {
-        throw new Error("Failed to join project.");
+        const data = (await response.json().catch(() => ({}))) as {
+          error?: string;
+        };
+        throw new Error(data.error || "Failed to join project.");
       }
 
       setSuccess(true);
@@ -395,7 +406,7 @@ function JoinProjectContent() {
                     </p>
                     <Button
                       onClick={joinProject}
-                      disabled={joining || validatingToken || (token !== null && tokenValid === false)}
+                      disabled={joining || validatingToken || !token || tokenValid === false}
                       className="w-full"
                     >
                       {joining ? (
