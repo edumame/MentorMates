@@ -7,10 +7,10 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Paperclip } from "lucide-react";
+import { Paperclip, Globe } from "lucide-react";
 import { useToast } from "@/lib/hooks/use-toast";
 
-type CreateEventModalView = "options" | "ai" | "devpost";
+type CreateEventModalView = "options" | "ai" | "devpost" | "import";
 
 interface CreateEventModalProps {
   open: boolean;
@@ -73,7 +73,7 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
   const [aiLoading, setAiLoading] = useState(false);
 
   const [devpostUrl, setDevpostUrl] = useState("");
-  const [devpostLoading, setDevpostLoading] = useState(false);
+  const [importUrl, setImportUrl] = useState("");
 
   const closeModal = useCallback(
     (nextOpen: boolean) => {
@@ -81,8 +81,10 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
         setView("options");
         setAiText("");
         setDevpostUrl("");
+        setImportUrl("");
         setAiLoading(false);
-        setDevpostLoading(false);
+
+
       }
       onOpenChange(nextOpen);
     },
@@ -134,7 +136,7 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
     }
   };
 
-  const handleDevpostSubmit = async () => {
+  const handleDevpostSubmit = () => {
     if (!devpostUrl.trim()) {
       toast({
         title: "Add DevPost URL",
@@ -142,31 +144,22 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
       });
       return;
     }
-    setDevpostLoading(true);
-    try {
-      const res = await fetch("/api/events/import/devpost", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: devpostUrl.trim() }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data?.error || "Failed to import from DevPost");
-      }
-      persistPrefillAndNavigate(data?.import || {});
-    } catch (error) {
-      console.error(error);
+    // Navigate to wizard with URL — the wizard's scrape bar handles the rest
+    closeModal(false);
+    router.push(`/events/new?url=${encodeURIComponent(devpostUrl.trim())}`);
+  };
+
+  const handleUrlImport = () => {
+    if (!importUrl.trim()) {
       toast({
-        title: "Import failed",
-        description:
-          error instanceof Error
-            ? error.message
-            : "Unable to import from DevPost.",
-        variant: "destructive",
+        title: "Add event URL",
+        description: "Paste a hackathon event link to continue.",
       });
-    } finally {
-      setDevpostLoading(false);
+      return;
     }
+    // Navigate to wizard with URL — the wizard's scrape bar handles the rest
+    closeModal(false);
+    router.push(`/events/new?url=${encodeURIComponent(importUrl.trim())}`);
   };
 
   // ---------------------------------------------------------------------------
@@ -286,19 +279,13 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
             </div>
           </button>
 
-          {/* Import from DevPost */}
+          {/* Import from URL */}
           <button
-            onClick={() => setView("devpost")}
+            onClick={() => setView("import")}
             className="group w-full rounded-[12px] border border-[#E4E4E7] bg-white px-6 py-5 text-center transition-all hover:border-[#4B89EF] hover:bg-[linear-gradient(203deg,_#DBEAFE_13.19%,_rgba(255,255,255,0)_65.83%)]"
           >
             <div className="flex flex-col items-center gap-3">
-              <Image
-                src="/img/devpost.png"
-                alt="DevPost"
-                width={24}
-                height={24}
-                className="size-6 shrink-0"
-              />
+              <Globe className="size-6 shrink-0 text-gray-500 group-hover:text-[#4B89EF]" />
               <div className="space-y-1 text-center w-full">
                 <p
                   className="font-geist font-semibold"
@@ -312,7 +299,7 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
                     letterSpacing: "-0.8px",
                   }}
                 >
-                  Import from DevPost
+                  Import from URL
                 </p>
                 <p
                   className="font-inter font-normal text-center"
@@ -325,7 +312,7 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
                     lineHeight: "150%",
                   }}
                 >
-                  Just paste the event link
+                  Paste any event link
                 </p>
               </div>
             </div>
@@ -476,10 +463,83 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
           </Button>
           <Button
             onClick={handleDevpostSubmit}
-            disabled={devpostLoading}
+            disabled={false}
             className="min-w-[120px] py-2.5 px-6"
           >
-            {devpostLoading ? "Importing..." : "Create event"}
+            {"Import event"}
+          </Button>
+        </div>
+      </div>
+
+      <PrimaryCard />
+    </div>
+  );
+
+  const renderImportView = () => (
+    <div className={dialogSizeClass}>
+      <div className="w-full lg:w-1/2 pt-6 pl-6 pr-6 pb-6 lg:pt-6 lg:pl-6 lg:pr-6 lg:pb-12 flex flex-col min-h-[520px]">
+        <h2
+          className="font-geist font-semibold mb-8"
+          style={{
+            color: "var(--text-text-primary, #18181B)",
+            fontFamily: "Geist, Inter, system-ui, sans-serif",
+            fontSize: "var(--Text-Sizes-Heading-5, 28px)",
+            fontStyle: "normal",
+            fontWeight: 600,
+            lineHeight: "140%",
+            letterSpacing: "-1.68px",
+          }}
+        >
+          Import from URL
+        </h2>
+
+        <div className="flex-1 flex items-center">
+          <div className="mt-6 w-full space-y-2">
+            <p className="text-sm text-gray-700">
+              Paste any event link and we&apos;ll handle the rest.
+            </p>
+
+            <div className="relative mt-2">
+              <span className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                <Globe className="h-4 w-4 text-gray-400" />
+              </span>
+              <Input
+                value={importUrl}
+                onChange={(e) => setImportUrl(e.target.value)}
+                placeholder="https://..."
+                className="pl-9 h-11 rounded-xl text-sm"
+              />
+            </div>
+            <p
+              className="font-inter font-normal"
+              style={{
+                color: "var(--Color-Neutral, #7F7F7F)",
+                fontSize: "var(--Text-Sizes-Text-Regular, 16px)",
+                fontStyle: "normal",
+                fontWeight: 400,
+                lineHeight: "150%",
+              }}
+            >
+              *It takes about 1-2 minutes to finish parsing. Please wait.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end gap-[6px] pt-6">
+          <Button
+            variant="back"
+            type="button"
+            onClick={() => setView("options")}
+            className="min-w-[90px]"
+          >
+            Back
+          </Button>
+          <Button
+            onClick={handleUrlImport}
+            disabled={false}
+            className="min-w-[120px] py-2.5 px-6"
+          >
+            {"Import event"}
           </Button>
         </div>
       </div>
@@ -494,6 +554,7 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
         {view === "options" && renderOptions()}
         {view === "ai" && renderAiView()}
         {view === "devpost" && renderDevpostView()}
+        {view === "import" && renderImportView()}
       </DialogContent>
     </Dialog>
   );
