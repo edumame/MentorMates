@@ -1,7 +1,7 @@
 import { Footer } from "@/components/layout/Footer";
 import { EventsPageClient } from "@/components/eventsPageClient";
 import { createSupabaseClient } from "../utils/supabase/server";
-import { EventRole, EventVisibility, ApprovalStatus } from "@/lib/types";
+import { EventVisibility, ApprovalStatus } from "@/lib/types";
 import { DiscordCTA } from "@/components/ui/discord-cta";
 
 export const dynamic = "force-dynamic";
@@ -108,7 +108,10 @@ export default async function EventsPage() {
           }
         >
           <div className="flex flex-col gap-[24px]">
-            <EventsPageClient eventsList={eventsList} />
+            <EventsPageClient
+              eventsList={eventsList}
+              initialIsAuthenticated={isAuthenticated}
+            />
 
             {/* Discord CTA on events page */}
             <div className="mt-12">

@@ -28,7 +28,6 @@ import {
   INITIAL_WIZARD_EVENT,
   buildApiPayload,
   applyScrapedData,
-  slugify,
 } from "@/lib/types/wizard";
 import { fieldsToApiPayload } from "@/components/events/submission";
 import { WizardShell } from "./components/WizardShell";
@@ -36,6 +35,24 @@ import { DetailsStep } from "./components/DetailsStep";
 import { WizardSubmissionStep } from "./components/WizardSubmissionStep";
 import { WizardJudgingStep } from "./components/WizardJudgingStep";
 import { WizardInviteStep } from "./components/WizardInviteStep";
+
+function getInviteFailureCount(inviteSummary: unknown): number {
+  const summary = inviteSummary as
+    | {
+        failed?: { participant?: string[]; judge?: string[] };
+      }
+    | undefined;
+
+  return (
+    (summary?.failed?.participant?.length || 0) +
+    (summary?.failed?.judge?.length || 0)
+  );
+}
+
+function getOrganizerInviteFailureCount(summary: unknown): number {
+  const organizerSummary = summary as { failed?: string[] } | undefined;
+  return organizerSummary?.failed?.length || 0;
+}
 
 export default function NewEventPage() {
   return (
@@ -150,7 +167,7 @@ function NewEventPageInner() {
     const { data } = await supabase.auth.getSession();
     const currentEmail = data?.session?.user?.email?.trim().toLowerCase();
 
-    const emails = event.organizer_emails
+    const emails = (event.organizer_emails ?? [])
       .map((e) => e.trim().toLowerCase())
       .filter(Boolean);
 
@@ -215,6 +232,23 @@ function NewEventPageInner() {
           variant: "destructive",
         });
         return null;
+      }
+
+      const inviteFailureCount =
+        getInviteFailureCount(data.inviteSummary) +
+        getOrganizerInviteFailureCount(data.organizerInviteSummary);
+      if (data.inviteSummary?.deferred) {
+        toast({
+          title: "Invites not sent",
+          description:
+            "Participant and judge invite emails are only sent when the event is published.",
+        });
+      } else if (inviteFailureCount > 0) {
+        toast({
+          title: "Some invites were not sent",
+          description: `${inviteFailureCount} invite email${inviteFailureCount === 1 ? "" : "s"} failed to send.`,
+          variant: "destructive",
+        });
       }
 
       await saveSubmissionFields(data.event.event_id);

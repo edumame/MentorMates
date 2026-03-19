@@ -142,6 +142,8 @@ export interface WizardEventData {
   tracks: WizardTrack[];
 
   // Access & Invites
+  participant_invite_emails: string[];
+  judge_invite_emails: string[];
   organizer_emails: string[];
   visibility: EventVisibility;
 }
@@ -184,6 +186,8 @@ export const INITIAL_WIZARD_EVENT: WizardEventData = {
   max_team_size: null,
   allow_multiple_tracks: false,
   tracks: [],
+  participant_invite_emails: [],
+  judge_invite_emails: [],
   organizer_emails: [],
   visibility: EventVisibility.Draft,
 };
@@ -251,6 +255,8 @@ export interface EventApiPayload {
       cover_image_url?: string;
     }[];
   };
+  participantInviteEmails?: string[];
+  judgeInviteEmails?: string[];
   organizerEmails?: string[];
 }
 
@@ -359,8 +365,16 @@ export function buildApiPayload(event: WizardEventData): EventApiPayload {
     }
   }
 
+  if ((event.participant_invite_emails ?? []).length > 0) {
+    payload.participantInviteEmails = event.participant_invite_emails;
+  }
+
+  if ((event.judge_invite_emails ?? []).length > 0) {
+    payload.judgeInviteEmails = event.judge_invite_emails;
+  }
+
   // Organizer emails
-  if (event.organizer_emails.length > 0) {
+  if ((event.organizer_emails ?? []).length > 0) {
     payload.organizerEmails = event.organizer_emails;
   }
 
