@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   MapPin,
   Building2,
@@ -21,6 +21,13 @@ interface BasicInfoEditorProps {
 
 export function BasicInfoEditor({ event, update }: BasicInfoEditorProps) {
   const [customEventType, setCustomEventType] = useState("");
+  const [baseUrl, setBaseUrl] = useState(process.env.NEXT_PUBLIC_BASE_URL || "");
+
+  useEffect(() => {
+    if (!baseUrl && typeof window !== "undefined") {
+      setBaseUrl(window.location.origin);
+    }
+  }, [baseUrl]);
 
   return (
     <>
@@ -76,7 +83,7 @@ export function BasicInfoEditor({ event, update }: BasicInfoEditorProps) {
               className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-[#4B89EF] focus:ring-1 focus:ring-[#4B89EF]"
             />
             <p className="text-xs text-gray-400">
-              mentormates.xyz/events/{event.slug || "your-event-slug"}
+              {baseUrl}/events/{event.slug || "your-event-slug"}
             </p>
           </div>
 

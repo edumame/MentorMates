@@ -1,6 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import {
+  useEffect,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import {
   Share2,
   Users,
@@ -29,6 +34,8 @@ type TabId = (typeof TABS)[number]["id"];
 
 export function WizardInviteStep({ event, setEvent }: WizardStepProps) {
   const [activeTab, setActiveTab] = useState<TabId>("share");
+  const participantInviteEmails = event.participant_invite_emails ?? [];
+  const judgeInviteEmails = event.judge_invite_emails ?? [];
 
   return (
     <div className="space-y-6">
@@ -60,7 +67,16 @@ export function WizardInviteStep({ event, setEvent }: WizardStepProps) {
           role="Participants"
           description="Invite participants to register and submit projects for your event."
           placeholderEmail="participant@email.com"
-          event={event}
+          emails={participantInviteEmails}
+          setEmails={(nextEmails) =>
+            setEvent((prev) => ({
+              ...prev,
+              participant_invite_emails:
+                typeof nextEmails === "function"
+                  ? nextEmails(prev.participant_invite_emails ?? [])
+                  : nextEmails,
+            }))
+          }
         />
       )}
       {activeTab === "judges" && (
@@ -68,7 +84,16 @@ export function WizardInviteStep({ event, setEvent }: WizardStepProps) {
           role="Judges"
           description="Invite judges who will review and score submitted projects."
           placeholderEmail="judge@email.com"
-          event={event}
+          emails={judgeInviteEmails}
+          setEmails={(nextEmails) =>
+            setEvent((prev) => ({
+              ...prev,
+              judge_invite_emails:
+                typeof nextEmails === "function"
+                  ? nextEmails(prev.judge_invite_emails ?? [])
+                  : nextEmails,
+            }))
+          }
         />
       )}
       {activeTab === "organizers" && (
@@ -81,9 +106,15 @@ export function WizardInviteStep({ event, setEvent }: WizardStepProps) {
 // ── Share Tab ────────────────────────────────────────────────────────────
 
 function ShareTab({ event }: { event: WizardEventData }) {
+  const [baseUrl, setBaseUrl] = useState(process.env.NEXT_PUBLIC_BASE_URL || "");
   const eventName = event.event_name || "Your Event";
   const slug = event.slug || slugify(event.event_name || "your-event");
-  const baseUrl = "https://mentormates.xyz/events";
+
+  useEffect(() => {
+    if (!baseUrl && typeof window !== "undefined") {
+      setBaseUrl(window.location.origin);
+    }
+  }, [baseUrl]);
 
   const links = [
     {
@@ -198,14 +229,15 @@ function RoleTab({
   role,
   description,
   placeholderEmail,
-  event,
+  emails,
+  setEmails,
 }: {
   role: string;
   description: string;
   placeholderEmail: string;
-  event: WizardEventData;
+  emails: string[];
+  setEmails: Dispatch<SetStateAction<string[]>>;
 }) {
-  const [emails, setEmails] = useState<string[]>([]);
   const [input, setInput] = useState("");
 
   const addEmail = () => {
@@ -280,8 +312,8 @@ function RoleTab({
           </div>
         ) : (
           <p className="text-sm text-gray-400 italic">
-            No {role.toLowerCase()} invited yet. Invitations will be sent after
-            the event is published.
+            No {role.toLowerCase()} invited yet. Invitations will be sent when
+            you publish the event.
           </p>
         )}
       </div>
@@ -291,7 +323,7 @@ function RoleTab({
         <UserPlus className="size-4 text-gray-500 shrink-0 mt-0.5" />
         <p className="text-sm text-gray-600">
           {role} can also join by visiting the event page link from the Share
-          tab. Email invites are sent after the event is created.
+          tab. Draft events do not send invite emails.
         </p>
       </div>
     </div>
@@ -302,13 +334,14 @@ function RoleTab({
 
 function OrganizersTab({ event, setEvent }: WizardStepProps) {
   const [input, setInput] = useState("");
+  const organizerEmails = event.organizer_emails ?? [];
 
   const addOrganizer = () => {
     const email = input.trim().toLowerCase();
-    if (email && !event.organizer_emails.includes(email)) {
+    if (email && !organizerEmails.includes(email)) {
       setEvent((prev) => ({
         ...prev,
-        organizer_emails: [...prev.organizer_emails, email],
+        organizer_emails: [...(prev.organizer_emails ?? []), email],
       }));
       setInput("");
     }
@@ -317,7 +350,7 @@ function OrganizersTab({ event, setEvent }: WizardStepProps) {
   const removeOrganizer = (email: string) => {
     setEvent((prev) => ({
       ...prev,
-      organizer_emails: prev.organizer_emails.filter((e) => e !== email),
+      organizer_emails: (prev.organizer_emails ?? []).filter((e) => e !== email),
     }));
   };
 
@@ -365,9 +398,9 @@ function OrganizersTab({ event, setEvent }: WizardStepProps) {
           </button>
         </div>
 
-        {event.organizer_emails.length > 0 ? (
+        {organizerEmails.length > 0 ? (
           <div className="space-y-2">
-            {event.organizer_emails.map((email) => (
+            {organizerEmails.map((email) => (
               <div
                 key={email}
                 className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5"
