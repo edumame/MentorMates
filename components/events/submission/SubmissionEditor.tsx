@@ -427,6 +427,38 @@ function FieldDisplay({
   );
 }
 
+/** Elements with this attribute are visited in order when pressing Enter (move next or close on last). */
+const FIELD_EDITOR_STEP = "data-field-editor-step";
+
+function focusNextFieldEditorStep(
+  root: HTMLElement,
+  active: HTMLElement,
+  onLast: () => void
+): boolean {
+  if (active.tagName === "SELECT") return false;
+  if (active instanceof HTMLInputElement && active.type === "checkbox")
+    return false;
+  if (!active.hasAttribute(FIELD_EDITOR_STEP)) return false;
+
+  const steps = Array.from(
+    root.querySelectorAll<HTMLElement>(`[${FIELD_EDITOR_STEP}]`)
+  ).filter((el) => {
+    if (el.hasAttribute("disabled")) return false;
+    if (el instanceof HTMLInputElement && el.type === "checkbox") return false;
+    return true;
+  });
+
+  const idx = steps.indexOf(active);
+  if (idx === -1) return false;
+
+  if (idx < steps.length - 1) {
+    steps[idx + 1]?.focus();
+  } else {
+    onLast();
+  }
+  return true;
+}
+
 // ── Inline Field Editor ───────────────────────────────────────────────
 
 function FieldEditor({
@@ -464,13 +496,24 @@ function FieldEditor({
     onUpdate({ options: nextOptions });
   };
 
+  const handleEditorKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== "Enter" || e.shiftKey) return;
+    if (e.nativeEvent.isComposing) return;
+    const active = document.activeElement;
+    if (!(active instanceof HTMLElement)) return;
+    if (focusNextFieldEditorStep(e.currentTarget, active, onClose)) {
+      e.preventDefault();
+    }
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" onKeyDown={handleEditorKeyDown}>
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium text-[#4B89EF]">
           Editing Field
         </span>
         <button
+          type="button"
           onClick={onClose}
           className="rounded-md p-1 text-gray-400 hover:text-gray-600"
         >
@@ -486,12 +529,14 @@ function FieldEditor({
             onChange={(e) => onUpdate({ label: e.target.value })}
             placeholder="e.g., What inspired your project?"
             autoFocus
+            {...{ [FIELD_EDITOR_STEP]: "" }}
             className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm outline-none focus:border-[#4B89EF] focus:ring-1 focus:ring-[#4B89EF]"
           />
         </div>
         <div className="space-y-1.5">
           <label className="text-xs font-medium text-gray-600">Type</label>
           <select
+            {...{ [FIELD_EDITOR_STEP]: "" }}
             value={field.type}
             onChange={(e) => {
               const nextType = e.target.value as SubmissionField["type"];
@@ -534,6 +579,7 @@ function FieldEditor({
             value={field.placeholder}
             onChange={(e) => onUpdate({ placeholder: e.target.value })}
             placeholder="Hint text shown to participants"
+            {...{ [FIELD_EDITOR_STEP]: "" }}
             className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm outline-none focus:border-[#4B89EF] focus:ring-1 focus:ring-[#4B89EF]"
           />
         </div>
@@ -548,6 +594,7 @@ function FieldEditor({
               onUpdate({ helperText: e.target.value || undefined })
             }
             placeholder="e.g., Markdown supported: use headings, lists..."
+            {...{ [FIELD_EDITOR_STEP]: "" }}
             className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm outline-none focus:border-[#4B89EF] focus:ring-1 focus:ring-[#4B89EF]"
           />
         </div>
@@ -570,6 +617,7 @@ function FieldEditor({
                           ? "Yes"
                           : `Option ${index + 1}`
                       }
+                      {...{ [FIELD_EDITOR_STEP]: "" }}
                       className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm outline-none focus:border-[#4B89EF] focus:ring-1 focus:ring-[#4B89EF]"
                     />
                     {(field.type !== "checkbox" || optionValues.length > 0) && (
@@ -626,6 +674,7 @@ function FieldEditor({
                       ),
                     })
                   }
+                  {...{ [FIELD_EDITOR_STEP]: "" }}
                   className="w-16 h-8 rounded-md border border-gray-200 bg-white px-2 text-xs text-center outline-none focus:border-[#4B89EF]"
                 />
               </div>
@@ -644,6 +693,8 @@ function FieldEditor({
             Required field
           </label>
           <button
+            type="button"
+            {...{ [FIELD_EDITOR_STEP]: "" }}
             onClick={onClose}
             className="rounded-xl bg-[#4b89ef] hover:bg-[#3d75d9] text-white px-4 py-2 text-sm font-medium shadow-sm transition-colors"
           >
