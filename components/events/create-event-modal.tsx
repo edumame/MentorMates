@@ -165,8 +165,10 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
   // ---------------------------------------------------------------------------
   // VIEWS（统一宽高，切换 options / AI / DevPost 时 dialog 尺寸不变）
   // ---------------------------------------------------------------------------
+  // Mobile: full viewport width inside DialogContent max-width — avoid fixed 998px
+  // (causes overflow when centered; user only sees the left slice + backdrop gap).
   const dialogSizeClass =
-    "flex w-[998px] h-[590px] flex-col lg:flex-row bg-white rounded-3xl overflow-hidden shadow-[0_18px_45px_rgba(15,23,42,0.18)]";
+    "flex w-full max-w-full min-w-0 lg:w-[998px] min-h-[min(590px,90dvh)] h-auto lg:h-[590px] flex-col lg:flex-row bg-white rounded-3xl overflow-hidden shadow-[0_18px_45px_rgba(15,23,42,0.18)]";
 
   const renderOptions = () => (
     <div className={dialogSizeClass}>
@@ -550,7 +552,7 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
 
   return (
     <Dialog open={open} onOpenChange={closeModal}>
-      <DialogContent className="w-auto max-w-[min(998px,calc(100vw-2rem))] border-none bg-transparent p-0 shadow-none [&>button]:text-white [&>button]:hover:opacity-100 [&>button]:opacity-90">
+      <DialogContent className="w-[calc(100vw-2rem)] max-w-[min(998px,calc(100vw-2rem))] border-none bg-transparent p-0 shadow-none sm:w-auto [&>button]:text-white [&>button]:hover:opacity-100 [&>button]:opacity-90">
         {view === "options" && renderOptions()}
         {view === "ai" && renderAiView()}
         {view === "devpost" && renderDevpostView()}
