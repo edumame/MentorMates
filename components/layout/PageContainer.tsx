@@ -46,7 +46,9 @@ interface PageContentProps {
  */
 export function PageContent({ children, className = "" }: PageContentProps) {
   return (
-    <div className={`flex-grow overflow-auto border-0 ${className}`}>
+    <div
+      className={`flex-grow overflow-auto border-0 flex flex-col ${className}`}
+    >
       {children}
     </div>
   );

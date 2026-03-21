@@ -986,8 +986,8 @@ export default function DraftProjectSubmissionFormSinglePage({
         />
       ) : null}
       {/* Sticky Auto-save Banner */}
-      <div className="sticky top-0 z-40 bg-sky-50 border-b border-[#d8d8d8]">
-        <div className="mx-auto px-6 py-3.5 flex items-center justify-between flex-wrap">
+      <div className="sticky top-0 z-40 border-b border-[#d8d8d8]">
+        <div className="mx-auto px-6 py-3.5 flex items-center justify-between flex-wrap rounded-tl-[32px] lg:rounded-tl-2xl bg-sky-50">
           <div className="flex items-center gap-2">
             <svg
               xmlns="http://www.w3.org/2000/svg"

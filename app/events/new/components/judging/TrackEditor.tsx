@@ -228,7 +228,7 @@ export function TrackEditor({ event, setEvent }: WizardStepProps) {
       <div className="px-4 py-4 sm:px-8 sm:py-6">
         {/* Header */}
         <div className="space-y-1 mb-6">
-          <h1 className="text-[28px] font-semibold text-black tracking-[-0.06em] leading-[1.4]">
+          <h1 className="font-geist text-[28px] font-semibold text-black tracking-[-0.06em] leading-[1.4]">
             Tracks & Judging Criteria
           </h1>
           <p className="text-base text-[#7f7f7f]">

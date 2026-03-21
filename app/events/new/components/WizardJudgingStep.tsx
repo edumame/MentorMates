@@ -13,7 +13,7 @@ export function WizardJudgingStep({ event, setEvent }: WizardStepProps) {
     <div className="space-y-6 w-full">
       {/* Top bar: Edit/Preview toggle */}
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-gray-900">
+        <h2 className="font-geist text-lg font-semibold tracking-[-0.06em] text-gray-900">
           Tracks & Judging
         </h2>
         <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5">

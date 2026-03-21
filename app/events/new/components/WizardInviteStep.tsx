@@ -10,7 +10,6 @@ import {
   Share2,
   Users,
   Scale,
-  Shield,
   Clipboard,
   Check,
   Mail,
@@ -27,7 +26,7 @@ const TABS = [
   { id: "share", label: "Share", icon: Share2 },
   { id: "participants", label: "Participants", icon: Users },
   { id: "judges", label: "Judges", icon: Scale },
-  { id: "organizers", label: "Organizers", icon: Shield },
+  { id: "organizers", label: "Organizers", icon: Users },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -137,7 +136,7 @@ function ShareTab({ event }: { event: WizardEventData }) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-[28px] font-semibold text-black tracking-[-0.06em] leading-[1.4]">
+        <h2 className="font-geist text-[28px] font-semibold text-black tracking-[-0.06em] leading-[1.4]">
           Share {eventName}
         </h2>
         <p className="text-base text-[#7f7f7f] mt-1">
@@ -195,7 +194,9 @@ function ShareCard({
 
       <div className="p-4 space-y-3">
         <div>
-          <h3 className="text-base font-semibold text-black">{label}</h3>
+          <h3 className="font-geist text-base font-semibold tracking-[-0.04em] text-black">
+            {label}
+          </h3>
           <p className="text-sm text-[#7f7f7f] mt-0.5">{description}</p>
         </div>
 
@@ -255,7 +256,7 @@ function RoleTab({
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-[28px] font-semibold text-black tracking-[-0.06em] leading-[1.4]">
+        <h2 className="font-geist text-[28px] font-semibold text-black tracking-[-0.06em] leading-[1.4]">
           {role}
         </h2>
         <p className="text-base text-[#7f7f7f] mt-1">{description}</p>
@@ -263,7 +264,7 @@ function RoleTab({
 
       {/* Email invite */}
       <div className="rounded-xl border border-[rgba(0,0,0,0.15)] bg-white p-6 space-y-4">
-        <h3 className="text-sm font-semibold text-gray-900">
+        <h3 className="font-geist text-sm font-semibold tracking-[-0.04em] text-gray-900">
           Invite by Email
         </h3>
 
@@ -357,7 +358,7 @@ function OrganizersTab({ event, setEvent }: WizardStepProps) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-[28px] font-semibold text-black tracking-[-0.06em] leading-[1.4]">
+        <h2 className="font-geist text-[28px] font-semibold text-black tracking-[-0.06em] leading-[1.4]">
           Organizers
         </h2>
         <p className="text-base text-[#7f7f7f] mt-1">
@@ -368,7 +369,7 @@ function OrganizersTab({ event, setEvent }: WizardStepProps) {
 
       {/* Add organizer */}
       <div className="rounded-xl border border-[rgba(0,0,0,0.15)] bg-white p-6 space-y-4">
-        <h3 className="text-sm font-semibold text-gray-900">
+        <h3 className="font-geist text-sm font-semibold tracking-[-0.04em] text-gray-900">
           Add Organizers
         </h3>
 
@@ -407,7 +408,7 @@ function OrganizersTab({ event, setEvent }: WizardStepProps) {
               >
                 <div className="flex items-center gap-3">
                   <div className="h-8 w-8 rounded-full bg-[#4b89ef]/10 flex items-center justify-center">
-                    <Shield className="size-4 text-[#4b89ef]" />
+                    <Users className="size-4 text-[#4b89ef]" />
                   </div>
                   <span className="text-sm text-gray-900">{email}</span>
                 </div>

@@ -76,8 +76,8 @@ export function ScheduleEditor({ event, update }: ScheduleEditorProps) {
 
   return (
     <>
-      <div>
-        <h2 className="text-[28px] font-semibold text-black tracking-[-0.06em] leading-[1.4]">
+      <div className="px-6">
+        <h2 className="font-geist text-[28px] font-semibold text-black tracking-[-0.06em] leading-[1.4]">
           Schedule
         </h2>
         <p className="text-base text-gray-500 mt-1">
@@ -91,7 +91,7 @@ export function ScheduleEditor({ event, update }: ScheduleEditorProps) {
           className="rounded-xl border border-gray-200 bg-white p-6"
         >
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">
+            <h3 className="font-geist text-lg font-semibold tracking-[-0.04em] text-gray-900">
               Day {dayIndex + 1}
             </h3>
             <button
@@ -201,13 +201,15 @@ export function ScheduleEditor({ event, update }: ScheduleEditorProps) {
         </div>
       )}
 
-      <button
-        onClick={addDay}
-        className="flex items-center gap-1.5 rounded-[12px] bg-[rgba(0,0,0,0.05)] px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-[rgba(0,0,0,0.08)]"
-      >
-        <Plus className="size-4" />
-        Add new day
-      </button>
+      <div className="px-6">
+        <button
+          onClick={addDay}
+          className="flex items-center gap-1.5 rounded-[12px] bg-[rgba(0,0,0,0.05)] px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-[rgba(0,0,0,0.08)]"
+        >
+          <Plus className="size-4" />
+          Add new day
+        </button>
+      </div>
     </>
   );
 }

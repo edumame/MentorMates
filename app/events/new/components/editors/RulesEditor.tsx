@@ -1,6 +1,6 @@
 "use client";
 
-import { Shield, Trash2, Plus } from "lucide-react";
+import { Flag, Trash2, Plus } from "lucide-react";
 import type { WizardEventData, WizardRuleSection } from "@/lib/types/wizard";
 
 interface RulesEditorProps {
@@ -57,8 +57,8 @@ export function RulesEditor({ event, update }: RulesEditorProps) {
 
   return (
     <>
-      <div>
-        <h2 className="text-[28px] font-semibold text-black tracking-[-0.06em] leading-[1.4]">
+      <div className="px-6">
+        <h2 className="font-geist text-[28px] font-semibold text-black tracking-[-0.06em] leading-[1.4]">
           Rules
         </h2>
         <p className="text-base text-gray-500 mt-1">
@@ -79,7 +79,7 @@ export function RulesEditor({ event, update }: RulesEditorProps) {
                 updateSection(sectionIndex, { title: e.target.value })
               }
               placeholder="Section title (e.g., Eligibility)"
-              className="text-lg font-semibold text-gray-900 bg-transparent border-none outline-none placeholder:text-gray-300 flex-1"
+              className="font-geist text-lg font-semibold tracking-[-0.04em] text-gray-900 bg-transparent border-none outline-none placeholder:text-gray-300 flex-1"
             />
             <button
               onClick={() => removeSection(sectionIndex)}
@@ -126,20 +126,22 @@ export function RulesEditor({ event, update }: RulesEditorProps) {
 
       {event.rules.length === 0 && (
         <div className="rounded-xl border-2 border-dashed border-gray-200 py-12 text-center">
-          <Shield className="mx-auto size-10 text-gray-300" />
+          <Flag className="mx-auto size-10 text-gray-300" />
           <p className="mt-3 text-sm text-gray-500">
             No rules yet. Add a section to get started.
           </p>
         </div>
       )}
 
-      <button
-        onClick={addSection}
-        className="flex items-center gap-1.5 rounded-[12px] bg-[rgba(0,0,0,0.05)] px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-[rgba(0,0,0,0.08)]"
-      >
-        <Plus className="size-4" />
-        Add rule section
-      </button>
+      <div className="px-6">
+        <button
+          onClick={addSection}
+          className="flex items-center gap-1.5 rounded-[12px] bg-[rgba(0,0,0,0.05)] px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-[rgba(0,0,0,0.08)]"
+        >
+          <Plus className="size-4" />
+          Add rule section
+        </button>
+      </div>
     </>
   );
 }

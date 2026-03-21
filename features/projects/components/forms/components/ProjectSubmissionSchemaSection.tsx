@@ -54,15 +54,17 @@ function getFieldOptions(options: unknown): string[] {
 function getFieldIcon(fieldKey: string) {
   switch (fieldKey) {
     case "project_name":
-      return <TextFields className="h-6 w-6 shrink-0" />;
+      return (
+        <TextFields className="shrink-0 text-gray-500" sx={{ fontSize: 16 }} />
+      );
     case "project_url":
-      return <Text className="h-6 w-6 shrink-0" />;
+      return <Text className="h-4 w-4 shrink-0 text-gray-500" />;
     case "video_url":
-      return <Video className="h-6 w-6 shrink-0" />;
+      return <Video className="h-4 w-4 shrink-0 text-gray-500" />;
     case "cover_image":
-      return <ImageIcon className="h-6 w-6 shrink-0" />;
+      return <ImageIcon className="h-4 w-4 shrink-0 text-gray-500" />;
     default:
-      return <Paperclip className="h-6 w-6 shrink-0" />;
+      return <Paperclip className="h-4 w-4 shrink-0 text-gray-500" />;
   }
 }
 

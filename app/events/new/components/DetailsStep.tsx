@@ -38,7 +38,9 @@ export function DetailsStep({ event, setEvent }: WizardStepProps) {
     <div className="space-y-6 w-full">
       {/* Top bar: Edit/Preview toggle */}
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-gray-900">Event Details</h2>
+        <h2 className="font-geist text-2xl sm:text-3xl font-semibold tracking-[-0.06em] text-gray-900">
+          Event Details
+        </h2>
         <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5">
           <button
             type="button"
@@ -130,7 +132,7 @@ function PreviewSummary({ event }: { event: WizardStepProps["event"] }) {
         />
       )}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">
+        <h1 className="font-geist text-2xl font-bold tracking-[-0.06em] text-gray-900">
           {event.event_name || "Untitled Event"}
         </h1>
         {event.event_blurb && (
@@ -150,7 +152,9 @@ function PreviewSummary({ event }: { event: WizardStepProps["event"] }) {
       {/* Description */}
       {event.event_description && (
         <div>
-          <h3 className="font-semibold text-gray-900 mb-2">Description</h3>
+          <h3 className="font-geist font-semibold tracking-[-0.04em] text-gray-900 mb-2">
+            Description
+          </h3>
           <p className="text-sm text-gray-700 whitespace-pre-wrap">
             {event.event_description}
           </p>
@@ -160,7 +164,9 @@ function PreviewSummary({ event }: { event: WizardStepProps["event"] }) {
       {/* Schedule */}
       {event.schedule.length > 0 && (
         <div>
-          <h3 className="font-semibold text-gray-900 mb-2">Schedule</h3>
+          <h3 className="font-geist font-semibold tracking-[-0.04em] text-gray-900 mb-2">
+            Schedule
+          </h3>
           {event.schedule.map((day, i) => (
             <div key={i} className="mb-3">
               <p className="font-medium text-gray-800">{day.date}</p>
@@ -182,7 +188,9 @@ function PreviewSummary({ event }: { event: WizardStepProps["event"] }) {
       {/* FAQs */}
       {event.faqs.length > 0 && (
         <div>
-          <h3 className="font-semibold text-gray-900 mb-2">FAQs</h3>
+          <h3 className="font-geist font-semibold tracking-[-0.04em] text-gray-900 mb-2">
+            FAQs
+          </h3>
           <div className="space-y-3">
             {event.faqs.map((faq, i) => (
               <div key={i}>
@@ -199,7 +207,9 @@ function PreviewSummary({ event }: { event: WizardStepProps["event"] }) {
       {/* Rules */}
       {event.rules.length > 0 && (
         <div>
-          <h3 className="font-semibold text-gray-900 mb-2">Rules</h3>
+          <h3 className="font-geist font-semibold tracking-[-0.04em] text-gray-900 mb-2">
+            Rules
+          </h3>
           {event.rules.map((section, i) => (
             <div key={i} className="mb-2">
               <p className="text-sm font-medium text-gray-800">
@@ -218,7 +228,9 @@ function PreviewSummary({ event }: { event: WizardStepProps["event"] }) {
       {/* Resources */}
       {event.resources.length > 0 && (
         <div>
-          <h3 className="font-semibold text-gray-900 mb-2">Resources</h3>
+          <h3 className="font-geist font-semibold tracking-[-0.04em] text-gray-900 mb-2">
+            Resources
+          </h3>
           <ul className="space-y-1">
             {event.resources.map((r, i) => (
               <li key={i} className="text-sm">

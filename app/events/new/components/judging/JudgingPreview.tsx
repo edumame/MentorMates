@@ -14,7 +14,7 @@ export function JudgingPreview({
     return (
       <div className="mx-auto flex max-w-[900px] flex-col items-center gap-6 rounded-3xl border border-dashed border-[#D7DCE4] bg-[#F8FAFD] px-4 py-10 text-center sm:px-8 sm:py-16">
         <Scale className="h-10 w-10 text-[#4B89EF]" />
-        <h2 className="text-[28px] font-semibold leading-[1.3] tracking-[-0.04em] text-black">
+        <h2 className="font-geist text-[28px] font-semibold leading-[1.3] tracking-[-0.04em] text-black">
           No tracks configured
         </h2>
         <p className="max-w-[540px] text-[15px] text-[rgba(0,0,0,0.68)]">
@@ -66,7 +66,7 @@ export function JudgingPreview({
               <div className="flex items-center gap-3">
                 <Tag className="size-5 text-[#4B89EF]" />
                 <div>
-                  <h3 className="font-semibold text-gray-900">
+                  <h3 className="font-geist font-semibold tracking-[-0.04em] text-gray-900">
                     {track.name || "Untitled Track"}
                   </h3>
                   {track.description && (

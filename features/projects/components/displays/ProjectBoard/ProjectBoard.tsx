@@ -68,7 +68,7 @@ const ProjectBoard = ({
           className="mx-auto w-full"
         >
           {projectList.length > 0 ? (
-            <div className="flex flex-col sm:grid sm:grid-cols-2 lg:grid-cols-3 min-[1064px]:grid-cols-[repeat(auto-fit,minmax(320px,1fr))] gap-5 sm:auto-rows-fr">
+            <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-[repeat(auto-fill,minmax(min(100%,280px),339px))] sm:justify-start sm:gap-x-4 sm:gap-y-5 auto-rows-fr">
               {projectList.map((project) => {
                 const projectUrl =
                   projectBoardContext === ProjectBoardContext.MyProjects
@@ -81,7 +81,7 @@ const ProjectBoard = ({
                   <Link
                     href={projectUrl}
                     key={project.id}
-                    className="block group w-full max-w-[420px] mx-auto sm:mx-0"
+                    className="block group h-full w-full max-w-[339px] justify-self-center sm:max-w-none sm:justify-self-stretch"
                   >
                     <Card
                       className={`bg-white rounded-[12px] overflow-hidden relative flex flex-col h-full hover:shadow-xl transition-all duration-300 border border-gray-100 ${

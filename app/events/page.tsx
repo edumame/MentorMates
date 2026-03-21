@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { Footer } from "@/components/layout/Footer";
 import { EventsPageClient } from "@/components/eventsPageClient";
 import { createSupabaseClient } from "../utils/supabase/server";
@@ -108,10 +109,27 @@ export default async function EventsPage() {
           }
         >
           <div className="flex flex-col gap-[24px]">
-            <EventsPageClient
-              eventsList={eventsList}
-              initialIsAuthenticated={isAuthenticated}
-            />
+            <Suspense
+              fallback={
+                <div
+                  className="w-full animate-pulse space-y-6"
+                  aria-hidden
+                >
+                  <div className="h-8 w-40 rounded-lg bg-gray-100" />
+                  <div className="h-10 w-full max-w-xl rounded-xl bg-gray-100" />
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    <div className="h-64 rounded-xl bg-gray-100" />
+                    <div className="h-64 rounded-xl bg-gray-100" />
+                    <div className="hidden h-64 rounded-xl bg-gray-100 lg:block" />
+                  </div>
+                </div>
+              }
+            >
+              <EventsPageClient
+                eventsList={eventsList}
+                initialIsAuthenticated={isAuthenticated}
+              />
+            </Suspense>
 
             {/* Discord CTA on events page */}
             <div className="mt-12">

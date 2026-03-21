@@ -107,7 +107,7 @@ export default function ProjectEditPage() {
   return (
     <PageContainer>
       <Toaster />
-      <PageContent className="flex flex-col">
+      <PageContent>
         <DraftProjectSubmissionFormSinglePage
           projectId={projectId}
           session={session}

@@ -15,7 +15,6 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { toast } from "@/lib/hooks/use-toast";
-import { Toaster } from "@/components/ui/toaster";
 import UserSearchWithInvite from "@/components/utils/UserSearchWithInvite";
 import { useAdmin } from "@/lib/hooks/use-admin";
 import {
@@ -885,8 +884,7 @@ export function NewProjectSubmissionFormSinglePage({
   const totalMembers = (formData.teammates?.length || 0) + 1;
 
   return (
-    <div className="bg-white mb-8">
-      <Toaster />
+    <>
       {activeIntakeForm ? (
         <ParticipantIntakeDialog
           open={showIntakeDialog}
@@ -901,8 +899,8 @@ export function NewProjectSubmissionFormSinglePage({
       ) : null}
 
       {/* Sticky Auto-save Banner */}
-      <div className="sticky top-0 z-20 bg-sky-50 border-b border-[#d8d8d8]">
-        <div className="px-6 py-3.5 flex items-center justify-between flex-wrap">
+      <div className="sticky top-0 z-20 border-b border-[#d8d8d8]">
+        <div className="px-6 py-3.5 flex items-center justify-between flex-wrap rounded-tl-[32px] bg-sky-50">
           <div className="flex items-center gap-2">
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -940,10 +938,8 @@ export function NewProjectSubmissionFormSinglePage({
         </div>
       </div>
 
-      {/* Wrapper without top border */}
-      <div className="overflow-visible">
-        {/* Main Content */}
-        <div className="bg-gradient-to-br from-blue-100/45 via-transparent to-transparent">
+      {/* Main Content */}
+      <div className="bg-gradient-to-br from-blue-100/45 via-transparent to-transparent">
           <div className="px-8 py-6 min-h-[800px]">
             <div className="flex items-center justify-between mb-6 flex-wrap gap-2 sm:gap-0">
               <div className="relative">
@@ -1369,7 +1365,6 @@ export function NewProjectSubmissionFormSinglePage({
             </div>
           </div>
         </div>
-      </div>
-    </div>
+    </>
   );
 }
