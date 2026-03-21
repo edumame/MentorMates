@@ -353,42 +353,48 @@ export function SideNav({ showLogoAtTop }: SideNavProps = {}) {
                 </div>
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" side="top" className="min-w-[220px]">
-              <div className="p-3">
-                <div className="px-2 pb-3">
-                  <div className="flex items-center gap-2">
-                    <p className="text-xl font-bold leading-tight">
-                      {session.user.user_metadata?.full_name ||
-                        session.user.user_metadata?.name ||
-                        session.user.email?.split("@")[0]}
-                    </p>
-                    {isAdmin && (
-                      <span className="text-sm rounded-full bg-blue-100 text-blue-700 px-3 py-0.5">
-                        Admin
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-base text-gray-700 mt-1">{session.user.email}</p>
-                  {!userProfile?.onboarding_metadata ? (
-                    <Button
-                      variant="defaultGray"
-                      onClick={() => router.push("/onboarding")}
-                      className="mt-4 w-full text-base"
-                    >
-                      Set up profile
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="defaultGray"
-                      onClick={() => router.push(`/profile/${session?.user?.id}`)}
-                      className="mt-4 w-full text-base"
-                    >
-                      View profile
-                    </Button>
+            <DropdownMenuContent
+              align="center"
+              side="top"
+              sideOffset={10}
+              collisionPadding={16}
+              className="min-w-[260px] max-w-[min(calc(100vw-2rem),320px)] rounded-xl border border-[#E9EAEB] bg-white p-0 shadow-lg"
+            >
+              <div className="p-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-xl font-bold leading-snug break-words">
+                    {session.user.user_metadata?.full_name ||
+                      session.user.user_metadata?.name ||
+                      session.user.email?.split("@")[0]}
+                  </p>
+                  {isAdmin && (
+                    <span className="text-sm rounded-full bg-blue-100 text-blue-700 px-3 py-0.5 shrink-0">
+                      Admin
+                    </span>
                   )}
                 </div>
-                <DropdownMenuSeparator />
-                <div className="py-1">
+                <p className="mt-2 text-sm text-gray-700 break-all">
+                  {session.user.email}
+                </p>
+                {!userProfile?.onboarding_metadata ? (
+                  <Button
+                    variant="defaultGray"
+                    onClick={() => router.push("/onboarding")}
+                    className="mt-4 w-full text-base"
+                  >
+                    Set up profile
+                  </Button>
+                ) : (
+                  <Button
+                    variant="defaultGray"
+                    onClick={() => router.push(`/profile/${session?.user?.id}`)}
+                    className="mt-4 w-full text-base"
+                  >
+                    View profile
+                  </Button>
+                )}
+                <DropdownMenuSeparator className="my-4" />
+                <div className="flex flex-col gap-0.5 pb-0.5">
                   <DropdownMenuItem onSelect={() => router.push("/help")}>
                     Support
                   </DropdownMenuItem>
