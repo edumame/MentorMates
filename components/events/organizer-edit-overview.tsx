@@ -29,6 +29,7 @@ import { EmailTab } from "@/features/user/dashboards/dashboard/organizer/email";
 import { ProjectImport } from "@/features/user/dashboards/dashboard/organizer/import/ProjectImportButton";
 import { AgentsTab } from "@/features/user/dashboards/dashboard/organizer/agents/AgentsTab";
 import { IntakeFormBuilder } from "@/features/intake-forms/components/IntakeFormBuilder";
+import { SubmissionFieldsSettings } from "@/features/user/dashboards/dashboard/organizer/submissions/SubmissionFieldsSettings";
 
 // Import sub-tab components for Overview
 import { BasicInfoTab } from "@/features/user/dashboards/dashboard/organizer/details/BasicInfoTab";
@@ -988,19 +989,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                   {activeTab === "intake-forms" && (
                     <div className="space-y-6">
                       <div>
-                        <h2
-                        className="font-geist text-xl font-semibold mb-4 text-black"
-                        style={{
-                          fontFamily:
-                            "var(--font-geist-sans), Inter, system-ui, sans-serif",
-                        }}
-                      >
-                        Project Submission Intake Form
-                      </h2>
-                        <IntakeFormBuilder
-                          eventId={eventId}
-                          context="project_submission"
-                        />
+                        <SubmissionFieldsSettings eventId={eventId} />
                       </div>
                       <div className="border-t border-[rgba(0,0,0,0.15)] pt-6">
                         <h2

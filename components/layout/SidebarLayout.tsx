@@ -2,6 +2,7 @@
 
 import React, { useEffect } from "react";
 import { SideNav } from "@/components/heroes/components/SideNav";
+import { MobileSidebarHeader } from "@/components/layout/mobile-sidebar-drawer";
 import { useAuth } from "@/features/user/authentication/auth/AuthContext";
 
 interface SidebarLayoutProps {
@@ -27,31 +28,35 @@ export function SidebarLayout({ children, showLogoInSidebar }: SidebarLayoutProp
     <>
       {isAuthenticated ? (
         <div
-          className="fixed inset-0 flex min-h-screen h-screen bg-[#fbfcfe]"
+          className="fixed inset-0 flex h-screen min-h-screen flex-col bg-[#fbfcfe]"
           style={{ minHeight: "100dvh", height: "100dvh" }}
         >
+          <MobileSidebarHeader showLogoInSidebar={showLogoInSidebar} />
+
+          <div className="relative flex min-h-0 flex-1 flex-col">
             {/* Desktop Sidebar - 灰底铺满到底部，与右侧白底同高 */}
             <aside
-              className="hidden lg:block bg-[#fbfcfe] flex-shrink-0 fixed left-0 top-0 bottom-0 w-[var(--sidebar-width,280px)] overflow-y-auto z-10 min-h-screen"
+              className="fixed bottom-0 left-0 top-0 z-10 hidden w-[var(--sidebar-width,280px)] overflow-y-auto bg-[#fbfcfe] lg:block"
               style={{ minHeight: "100dvh", height: "100dvh" }}
             >
               <SideNav showLogoAtTop={showLogoInSidebar} />
             </aside>
 
-            {/* 右侧区域：距屏幕顶部 16px 外边距，上/左边框用设计变量，左上圆角贴底 */}
+            {/* 右侧区域：桌面距屏幕顶部 16px 外边距；移动端在顶栏下方铺满 */}
             <div
-              className="relative z-20 flex-1 min-w-0 mt-4 lg:ml-[var(--sidebar-width,280px)] flex flex-col bg-white rounded-tl-[32px] overflow-hidden"
+              className="relative z-20 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-white lg:ml-[var(--sidebar-width,280px)] lg:mt-4 lg:rounded-tl-[32px]"
               style={{
-                height: "calc(100dvh - 16px)",
-                minHeight: "calc(100dvh - 16px)",
                 borderTop: "1px solid var(--Color-Neutral-Lighter, #D8D8D8)",
                 borderLeft: "1px solid var(--Color-Neutral-Lighter, #D8D8D8)",
               }}
             >
-              <main className="flex-1 flex flex-col min-h-0 overflow-auto pt-0">
-                {children}
-              </main>
+              <div className="flex min-h-0 flex-1 flex-col lg:h-[calc(100dvh-16px)] lg:min-h-[calc(100dvh-16px)]">
+                <main className="flex min-h-0 flex-1 flex-col overflow-auto pt-0">
+                  {children}
+                </main>
+              </div>
             </div>
+          </div>
         </div>
       ) : (
         <div className="h-full w-full overflow-auto">{children}</div>
