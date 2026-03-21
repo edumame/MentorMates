@@ -4,7 +4,6 @@ import "./globals.css";
 import { Providers } from "@/components/utils/Providers";
 import { AuthProvider } from "@/features/user/authentication/auth/AuthProvider";
 import { AuthContextProvider } from "@/features/user/authentication/auth/AuthContext";
-import { StagewiseToolbarWrapper } from "@/components/StagewiseToolbarWrapper";
 import { ConditionalNavbar } from "@/components/layout/ConditionalNavbar";
 import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
 import { LayoutConfigProvider } from "@/components/layout/LayoutConfigProvider";
@@ -48,9 +47,6 @@ export default function RootLayout({
                 <ConditionalNavbar />
                 <AuthProvider>
                   <ConditionalLayout>
-                    {process.env.NODE_ENV === "development" && (
-                      <StagewiseToolbarWrapper />
-                    )}
                     {children}
                   </ConditionalLayout>
                 </AuthProvider>
