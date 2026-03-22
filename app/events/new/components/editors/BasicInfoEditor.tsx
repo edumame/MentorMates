@@ -284,3 +284,5 @@ export function BasicInfoEditor({ event, update }: BasicInfoEditorProps) {
     </>
   );
 }
+
+
