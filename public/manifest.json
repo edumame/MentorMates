@@ -1,22 +1,24 @@
 {
-  "name": "Mentor Mate",
-  "short_name": "MentorMate",
-  "description": "Streamline your hackathon feedback process",
+  "name": "MentorMates",
+  "short_name": "MentorMates",
+  "description": "Hackathon mentorship platform for students & mentors",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#3b82f6",
+  "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "/mentormate.png",
+      "src": "/icons/icon-192x192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
-      "src": "/mentormate.png",
+      "src": "/icons/icon-512x512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }
-
