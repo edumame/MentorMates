@@ -21,6 +21,7 @@ import {
   Sparkles,
   Eye,
   Calendar,
+  Trash2,
 } from "lucide-react";
 import {
   Select,
@@ -49,6 +50,8 @@ export default function AdminPage() {
   const [pendingRejections, setPendingRejections] = useState<Set<string>>(
     new Set()
   );
+  const [deletingEventId, setDeletingEventId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
     checkAdminAndLoadEvents();
@@ -244,6 +247,40 @@ export default function AdminPage() {
       });
     } finally {
       setUpdatingEventId(null);
+    }
+  };
+
+  const deleteEvent = async (eventId: string) => {
+    setDeletingEventId(eventId);
+    try {
+      const response = await fetch(`/api/admin/events/${eventId}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to delete event");
+      }
+
+      setEvents((prev) => prev.filter((e) => e.event_id !== eventId));
+      setConfirmDeleteId(null);
+
+      toast({
+        title: "Event Deleted",
+        description: "The event and all associated data have been removed.",
+      });
+    } catch (error) {
+      console.error("Error deleting event:", error);
+      toast({
+        title: "Error",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to delete event.",
+        variant: "destructive",
+      });
+    } finally {
+      setDeletingEventId(null);
     }
   };
 
@@ -722,6 +759,52 @@ export default function AdminPage() {
                                     View Event →
                                   </Button>
                                 </div>
+                              </div>
+
+                              {/* Delete Event */}
+                              <div className="pt-2 border-t border-gray-200">
+                                {confirmDeleteId === event.event_id ? (
+                                  <div className="space-y-2">
+                                    <p className="text-xs text-red-600 font-medium">
+                                      Are you sure? This will permanently delete this event and all associated data (projects, scores, roles, etc).
+                                    </p>
+                                    <div className="flex gap-2">
+                                      <Button
+                                        variant="destructive"
+                                        size="sm"
+                                        className="flex-1"
+                                        onClick={() => deleteEvent(event.event_id)}
+                                        disabled={deletingEventId === event.event_id}
+                                      >
+                                        {deletingEventId === event.event_id ? (
+                                          <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                                        ) : (
+                                          <Trash2 className="w-3 h-3 mr-1" />
+                                        )}
+                                        Yes, Delete
+                                      </Button>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="flex-1"
+                                        onClick={() => setConfirmDeleteId(null)}
+                                        disabled={deletingEventId === event.event_id}
+                                      >
+                                        Cancel
+                                      </Button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="w-full text-red-500 hover:text-red-700 hover:bg-red-50"
+                                    onClick={() => setConfirmDeleteId(event.event_id)}
+                                  >
+                                    <Trash2 className="w-3 h-3 mr-1" />
+                                    Delete Event
+                                  </Button>
+                                )}
                               </div>
                             </div>
 
@@ -1332,6 +1415,52 @@ export default function AdminPage() {
                                                 ).toLocaleDateString()}
                                               </span>
                                             </div>
+                                          </div>
+
+                                          {/* Delete Event */}
+                                          <div className="pt-2 border-t border-gray-200">
+                                            {confirmDeleteId === event.event_id ? (
+                                              <div className="space-y-2">
+                                                <p className="text-xs text-red-600 font-medium">
+                                                  Are you sure? This will permanently delete this event and all associated data.
+                                                </p>
+                                                <div className="flex gap-2">
+                                                  <Button
+                                                    variant="destructive"
+                                                    size="sm"
+                                                    className="flex-1"
+                                                    onClick={() => deleteEvent(event.event_id)}
+                                                    disabled={deletingEventId === event.event_id}
+                                                  >
+                                                    {deletingEventId === event.event_id ? (
+                                                      <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                                                    ) : (
+                                                      <Trash2 className="w-3 h-3 mr-1" />
+                                                    )}
+                                                    Yes, Delete
+                                                  </Button>
+                                                  <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="flex-1"
+                                                    onClick={() => setConfirmDeleteId(null)}
+                                                    disabled={deletingEventId === event.event_id}
+                                                  >
+                                                    Cancel
+                                                  </Button>
+                                                </div>
+                                              </div>
+                                            ) : (
+                                              <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="w-full text-red-500 hover:text-red-700 hover:bg-red-50"
+                                                onClick={() => setConfirmDeleteId(event.event_id)}
+                                              >
+                                                <Trash2 className="w-3 h-3 mr-1" />
+                                                Delete Event
+                                              </Button>
+                                            )}
                                           </div>
                                         </div>
 
