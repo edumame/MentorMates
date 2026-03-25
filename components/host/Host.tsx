@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { BackgroundGrid } from "@/components/landing/background-grid";
 import {
   Dialog,
   DialogContent,
@@ -39,19 +40,8 @@ export function Host() {
             "repeating-linear-gradient(135deg, rgba(148,163,184,0.16) 0, rgba(148,163,184,0.16) 1px, transparent 1px, transparent 10px)",
         }}
       />
-      {/* Hero */}
-      <div className="relative px-4 sm:px-6 py-16 sm:py-20 md:py-24 overflow-hidden">
-        {/* subtle grid background to match Figma */}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 -z-10 opacity-70"
-          style={{
-            backgroundImage:
-              "linear-gradient(to right, rgba(209,213,219,0.35) 1px, transparent 1px), linear-gradient(to bottom, rgba(209,213,219,0.35) 1px, transparent 1px)",
-            backgroundSize: "56px 56px",
-          }}
-        />
-
+      {/* Hero with animated grid background */}
+      <BackgroundGrid className="px-4 sm:px-6 py-16 sm:py-20 md:py-24 bg-white">
         <div className="max-w-6xl mx-auto text-center">
           <h1 className="font-geist mx-auto max-w-[931px] text-[32px] sm:text-[40px] md:text-[56px] lg:text-[72px] font-semibold leading-[1.2] tracking-[-0.06em] text-black">
             Host High-Signal Hackathons
@@ -109,7 +99,7 @@ export function Host() {
             </div>
           </div>
         </div>
-      </div>
+      </BackgroundGrid>
 
       {/* Logos directly under hero — full viewport width, horizontally scrolling */}
       <div className="w-full pb-12 sm:pb-14 md:pb-16">
