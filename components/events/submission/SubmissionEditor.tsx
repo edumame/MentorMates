@@ -32,8 +32,7 @@ const INITIAL_MESSAGE: ChatMessage = {
 };
 
 export function SubmissionEditor({ fields, onChange }: SubmissionEditorProps) {
-  const editorFields =
-    fields.length > 0 ? fields : createSubmissionTemplateFields();
+  const editorFields = fields;
   const [editingFieldId, setEditingFieldId] = useState<string | null>(null);
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
@@ -157,6 +156,28 @@ export function SubmissionEditor({ fields, onChange }: SubmissionEditorProps) {
             </div>
 
             <div className="space-y-0">
+              {editorFields.length === 0 && (
+                <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-6 text-center">
+                  <p className="text-sm text-gray-600">
+                    No submission fields yet.
+                  </p>
+                  <div className="mt-4 flex items-center justify-center gap-2">
+                    <button
+                      onClick={() => onChange(createSubmissionTemplateFields())}
+                      className="rounded-lg border border-[#4B89EF] px-3 py-2 text-sm font-medium text-[#4B89EF] hover:bg-blue-50"
+                    >
+                      Add starter template
+                    </button>
+                    <button
+                      onClick={() => addFieldAt(0)}
+                      className="rounded-lg bg-[#4B89EF] px-3 py-2 text-sm font-medium text-white hover:bg-[#3E7EEA]"
+                    >
+                      Add custom field
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {editorFields.map((field, idx) => {
                 const isLocked = LOCKED_FIELD_IDS.includes(field.id);
                 const isEditing = editingFieldId === field.id;
@@ -235,9 +256,11 @@ export function SubmissionEditor({ fields, onChange }: SubmissionEditorProps) {
                 );
               })}
 
-              <AddFieldDivider
-                onClick={() => addFieldAt(editorFields.length)}
-              />
+              {editorFields.length > 0 && (
+                <AddFieldDivider
+                  onClick={() => addFieldAt(editorFields.length)}
+                />
+              )}
             </div>
           </div>
         </div>

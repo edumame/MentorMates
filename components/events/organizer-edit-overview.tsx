@@ -507,6 +507,21 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
     try {
       setSubmittingForApproval(true);
 
+      if (event.visibility !== EventVisibility.Private) {
+        const { error: visibilityError } = await supabase
+          .from("events")
+          .update({ visibility: EventVisibility.Private })
+          .eq("event_id", event.event_id);
+
+        if (visibilityError) {
+          throw new Error("Failed to set event visibility to private before submission");
+        }
+
+        setEvent((prev) =>
+          prev ? { ...prev, visibility: EventVisibility.Private } : prev
+        );
+      }
+
       const res = await fetch("/api/events/request-approval", {
         method: "POST",
         headers: {
@@ -522,9 +537,10 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
 
       await res.json();
 
-      // Update local state with new approval status
+      // Update local state with new visibility + approval status
       setEvent({
         ...event,
+        visibility: EventVisibility.Private,
         approval_status: ApprovalStatus.Submitted,
       });
 
@@ -606,16 +622,16 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
               </Badge>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto items-center sm:items-stretch">
+            <div className="flex flex-wrap items-center justify-start sm:justify-end gap-2 w-full sm:w-auto">
               {/* Profile lives in left nav (SideNav) below Notification */}
-              {/* Submit for Approval Button - Only show for private events that haven't been submitted or were rejected */}
-              {event.visibility === EventVisibility.Private &&
-                (event.approval_status === ApprovalStatus.NotSubmitted ||
-                  event.approval_status === ApprovalStatus.Rejected ||
-                  !event.approval_status) && (
+              {/* Submit for Approval for not-submitted / rejected events. */}
+              {(event.approval_status === ApprovalStatus.NotSubmitted ||
+                event.approval_status === ApprovalStatus.Rejected ||
+                !event.approval_status) &&
+                event.visibility !== EventVisibility.Archived && (
                   <Button
                     variant="default"
-                    className="gap-1.5 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium w-full sm:w-auto whitespace-normal sm:whitespace-nowrap"
+                    className="gap-1.5 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium whitespace-nowrap"
                     disabled={submittingForApproval || archiving || deleting}
                     onClick={handleSubmitForApproval}
                   >
@@ -623,7 +639,9 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                     <span className="text-center">
                       {submittingForApproval
                         ? "Submitting..."
-                        : "Submit for Approval"}
+                        : event.visibility === EventVisibility.Private
+                          ? "Submit for Approval"
+                          : "Set Private & Submit"}
                     </span>
                   </Button>
                 )}
