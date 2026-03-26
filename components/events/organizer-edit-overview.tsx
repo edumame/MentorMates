@@ -44,6 +44,14 @@ import { Button } from "@/components/ui/button";
 import { EventCard } from "@/components/events/event-card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   AlertDialog,
   AlertDialogTrigger,
   AlertDialogContent,
@@ -87,6 +95,10 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
   const [archiving, setArchiving] = useState(false);
   const [submittingForApproval, setSubmittingForApproval] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const [submitDialogOpen, setSubmitDialogOpen] = useState(false);
+  const [submitVisibility, setSubmitVisibility] = useState<EventVisibility>(
+    EventVisibility.Public
+  );
 
   // Use URL as single source of truth for tab state (default to Registration)
   const activeTab = searchParams.get("tab") || "participants";
@@ -633,15 +645,17 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                     variant="default"
                     className="gap-1.5 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium whitespace-nowrap"
                     disabled={submittingForApproval || archiving || deleting}
-                    onClick={handleSubmitForApproval}
+                    onClick={() => {
+                      // Default dropdown selection: Public (per UX request).
+                      setSubmitVisibility(EventVisibility.Public);
+                      setSubmitDialogOpen(true);
+                    }}
                   >
                     <Send className="w-4 h-4 flex-shrink-0" />
                     <span className="text-center">
                       {submittingForApproval
                         ? "Submitting..."
-                        : event.visibility === EventVisibility.Private
-                          ? "Submit for Approval"
-                          : "Set Private & Submit"}
+                        : "Submit"}
                     </span>
                   </Button>
                 )}
@@ -1182,6 +1196,68 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
           </Tabs>
         </div>
       </div>
+
+      <Dialog open={submitDialogOpen} onOpenChange={setSubmitDialogOpen}>
+        <DialogContent className="sm:max-w-[520px]">
+          <DialogHeader>
+            <DialogTitle>Submit for approval</DialogTitle>
+            <DialogDescription>
+              {submitVisibility === EventVisibility.Public
+                ? "Submissions must be Private. We’ll switch it to Private for you, then request approval."
+                : "This event is Private. We’ll request approval now."}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <div className="flex flex-col gap-1">
+              <span className="text-sm font-medium text-black">
+                Visibility
+              </span>
+              <Select
+                value={submitVisibility}
+                onValueChange={(value) =>
+                  setSubmitVisibility(value as EventVisibility)
+                }
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select visibility" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={EventVisibility.Private}>
+                    Private
+                  </SelectItem>
+                  <SelectItem value={EventVisibility.Public}>
+                    Public
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              disabled={submittingForApproval}
+              onClick={() => setSubmitDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              disabled={submittingForApproval}
+              className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white"
+              onClick={() => {
+                void (async () => {
+                  setSubmitDialogOpen(false);
+                  await handleSubmitForApproval();
+                })();
+              }}
+            >
+              <Send className="w-4 h-4 mr-2" />
+              {submittingForApproval ? "Submitting..." : "Submit for approval"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
