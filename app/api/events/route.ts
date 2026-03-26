@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { ApprovalStatus, EventRole, EventVisibility } from "@/lib/types";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
-import { defaultRules } from "@/lib/config/constants";
 import { z } from "zod";
 import type { Database, Json } from "@/lib/database.types";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
@@ -235,9 +234,7 @@ export async function POST(req: Request) {
       event_name: event.event_name,
       event_date: event.event_date,
       location: event.location,
-      rules: (event.rules && event.rules.length > 0
-        ? event.rules
-        : defaultRules) as unknown as Json,
+      rules: ((event.rules ?? []) as unknown as Json),
       visibility: (event.visibility ??
         EventVisibility.Draft) as Database["public"]["Enums"]["event_visibility"],
       slug: event.slug ?? null,
