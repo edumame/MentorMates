@@ -95,7 +95,7 @@ export function ApiKeysTab({ eventId }: ApiKeysTabProps) {
 
   return (
     <div className="space-y-6">
-      {/* Skill Install Instructions */}
+      {/* One-Click Install */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -103,36 +103,22 @@ export function ApiKeysTab({ eventId }: ApiKeysTabProps) {
             Claude Code Integration
           </CardTitle>
           <CardDescription>
-            Generate an API key to manage this event from Claude Code, Codex, or
-            any AI agent.
+            Connect this event to Claude Code, Codex, or any AI agent with one
+            click.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="rounded-lg bg-gray-50 p-4 text-sm space-y-2">
-            <p className="font-medium">Quick Start:</p>
-            <ol className="list-decimal list-inside space-y-1 text-gray-600">
-              <li>Generate an API key below</li>
-              <li>
-                Set it in your environment:{" "}
-                <code className="bg-gray-200 px-1 rounded">
-                  export MENTORMATES_API_KEY=&quot;mm_sk_...&quot;
-                </code>
-              </li>
-              <li>
-                Download the skill file and add to your project&apos;s{" "}
-                <code className="bg-gray-200 px-1 rounded">.claude/</code>{" "}
-                directory
-              </li>
-            </ol>
-            <a
-              href="/api/agent/skill"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-blue-600 hover:underline mt-2"
-            >
-              Download Skill File <ExternalLink className="h-3 w-3" />
-            </a>
-          </div>
+          <a
+            href={`/events/${eventId}/skill-install`}
+            className="inline-flex items-center justify-center gap-2 rounded-md bg-blue-600 px-6 py-3 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
+          >
+            <ExternalLink className="h-4 w-4" />
+            Set Up Agent Access
+          </a>
+          <p className="text-xs text-gray-500">
+            Generates an API key and gives you a ready-to-use skill file with
+            everything pre-configured.
+          </p>
         </CardContent>
       </Card>
 
