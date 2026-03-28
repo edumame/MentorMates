@@ -11,6 +11,7 @@ import {
   EventTrack,
   EventRole,
 } from "@/lib/types";
+import { getDisplayRules } from "@/lib/events/rules";
 import Link from "next/link";
 import { JudgeDashboard } from "@/features/user/dashboards/dashboard/judge-dashboard";
 import { useActiveRole } from "./ActiveRoleContext";
@@ -44,7 +45,10 @@ export function EventPageContent({
       .map((part) => part[0]?.toUpperCase() || "")
       .join("");
 
-  const formatPrizeDisplay = (prizeAmount: string, prizeDescription: string) => {
+  const formatPrizeDisplay = (
+    prizeAmount: string,
+    prizeDescription: string,
+  ) => {
     const amount = prizeAmount?.trim() || "";
     const description = prizeDescription?.trim() || "";
     const descriptionLower = description.toLowerCase();
@@ -63,7 +67,10 @@ export function EventPageContent({
     }
 
     if (descriptionLower.startsWith(amountLower)) {
-      const title = description.slice(amount.length).trim().replace(/^[\-–:]\s*/, "");
+      const title = description
+        .slice(amount.length)
+        .trim()
+        .replace(/^[\-–:]\s*/, "");
       return {
         title: title || description,
         subtitle: description,
@@ -231,10 +238,13 @@ export function EventPageContent({
             </h2>
           </div>
 
-          <div className="flex w-full  px-4 py-5 rounded-xl border border-[rgba(0,0,0,0.15)] relative">
+          <div className="flex w-full px-4 py-5 rounded-xl border border-[rgba(0,0,0,0.15)] relative">
             <div className="flex flex-wrap sm:flex-nowrap relative w-full">
               {event.rules.map((rule, idx) => (
-                <div key={idx} className="flex flex-grow flex-col first:pb-8 sm:pb-0 pt-0 px-0 w-full sm:first:pr-6 sm:last:pl-6 sm:last:border-l sm:border-[rgba(0,0,0,0.15)]">
+                <div
+                  key={idx}
+                  className="flex flex-grow flex-col first:pb-8 sm:pb-0 pt-0 px-0 w-full sm:first:pr-6 sm:last:pl-6 sm:last:border-l sm:border-[rgba(0,0,0,0.15)]"
+                >
                   <div className="font-normal text-black">
                     <p className="font-bold tracking-[-0.06em] text-[22px] leading-[1.4] mb-2">
                       {rule.title}
@@ -329,11 +339,11 @@ export function EventPageContent({
                 <div className="bg-white px-4 py-4">
                   {track.prizes && track.prizes.length > 0 ? (
                     <div className="flex flex-col">
-                      {track.prizes.map((prize, index) => (
+                      {track.prizes.map((prize, index) =>
                         (() => {
                           const { title, subtitle } = formatPrizeDisplay(
                             prize.prize_amount,
-                            prize.prize_description
+                            prize.prize_description,
                           );
 
                           return (
@@ -356,8 +366,8 @@ export function EventPageContent({
                               </div>
                             </div>
                           );
-                        })()
-                      ))}
+                        })(),
+                      )}
                     </div>
                   ) : (
                     <p className="font-normal text-base leading-[1.5] text-black">
@@ -380,12 +390,16 @@ export function EventPageContent({
             </h2>
           </div>
           <div className="flex flex-col pb-4 pt-0 px-0 w-full max-w-full space-y-4">
-            {event.faq.map((item: { question: string; answer: string }, index: number) => (
-              <div key={index}>
-                <p className="font-semibold text-base text-black">{item.question}</p>
-                <p className="mt-1 text-base text-gray-600">{item.answer}</p>
-              </div>
-            ))}
+            {event.faq.map(
+              (item: { question: string; answer: string }, index: number) => (
+                <div key={index}>
+                  <p className="font-semibold text-base text-black">
+                    {item.question}
+                  </p>
+                  <p className="mt-1 text-base text-gray-600">{item.answer}</p>
+                </div>
+              ),
+            )}
           </div>
         </>
       )}
