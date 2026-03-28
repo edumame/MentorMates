@@ -1,3 +1,10 @@
+/**
+ * Rules handling for hackathon events.
+ *
+ * This module provides functionality to normalize, compare, and display rules for hackathon events.
+ * It ensures consistent text formatting and comparison of rule content.
+ */
+
 import { defaultRules } from "@/lib/config/constants";
 import type { Rule } from "@/lib/types";
 
