@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { Pencil, Eye } from "lucide-react";
 import type { SubmissionField } from "./types";
-import { createSubmissionTemplateFields } from "./types";
 import { SubmissionEditor } from "./SubmissionEditor";
 import { SubmissionFormPreview } from "./SubmissionFormPreview";
 
@@ -13,8 +12,6 @@ interface SubmissionStepProps {
 }
 
 export function SubmissionStep({ fields, onChange }: SubmissionStepProps) {
-  const previewFields =
-    fields.length > 0 ? fields : createSubmissionTemplateFields();
   const [stepMode, setStepMode] = useState<"edit" | "preview">("edit");
 
   return (
@@ -53,7 +50,7 @@ export function SubmissionStep({ fields, onChange }: SubmissionStepProps) {
       </div>
 
       {stepMode === "preview" ? (
-        <SubmissionFormPreview fields={previewFields} />
+        <SubmissionFormPreview fields={fields} />
       ) : (
         <SubmissionEditor fields={fields} onChange={onChange} />
       )}
