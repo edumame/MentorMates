@@ -56,6 +56,66 @@ export type Database = {
           },
         ];
       };
+      agent_api_keys: {
+        Row: {
+          id: string;
+          user_id: string;
+          event_id: string;
+          key_hash: string;
+          key_prefix: string;
+          label: string | null;
+          scopes: string[] | null;
+          last_used_at: string | null;
+          expires_at: string | null;
+          revoked_at: string | null;
+          created_at: string | null;
+          updated_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          event_id: string;
+          key_hash: string;
+          key_prefix: string;
+          label?: string | null;
+          scopes?: string[] | null;
+          last_used_at?: string | null;
+          expires_at?: string | null;
+          revoked_at?: string | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          event_id?: string;
+          key_hash?: string;
+          key_prefix?: string;
+          label?: string | null;
+          scopes?: string[] | null;
+          last_used_at?: string | null;
+          expires_at?: string | null;
+          revoked_at?: string | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "agent_api_keys_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "user_profiles";
+            referencedColumns: ["uid"];
+          },
+          {
+            foreignKeyName: "agent_api_keys_event_id_fkey";
+            columns: ["event_id"];
+            isOneToOne: false;
+            referencedRelation: "events";
+            referencedColumns: ["event_id"];
+          },
+        ];
+      };
       event_approval_logs: {
         Row: {
           log_id: string;
