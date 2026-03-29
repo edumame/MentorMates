@@ -591,58 +591,52 @@ export default function ProfilePage() {
   // Loading state - show skeleton UI while fetching profile
   if (isLoading) {
     return (
-      <PageContainer
-        showBorder={false}
-        className="!min-h-0 h-[calc(100dvh-4rem)] max-h-[calc(100dvh-4rem)] overflow-hidden"
-      >
-        <PageContent className="min-h-0 flex-1 overflow-hidden">
-          <div className="flex min-h-0 w-full flex-1 flex-col animate-pulse">
-            <div className="shrink-0">
-              {/* Cover Image Skeleton */}
-              <div className="relative h-[133px] md:h-[160px] w-full rounded-tl-2xl overflow-hidden bg-gray-200" />
+      <PageContainer showBorder={false}>
+        <PageContent>
+          <div className="flex w-full flex-col animate-pulse">
+            {/* Cover Image Skeleton */}
+            <div className="relative h-[133px] md:h-[160px] w-full rounded-tl-none lg:rounded-tl-2xl overflow-hidden bg-gray-200" />
 
-              {/* Profile Header Skeleton */}
-              <div
-                className="relative px-6 md:px-8 pb-6"
-                style={{
-                  background:
-                    "linear-gradient(180deg, #DBEAFE 13.19%, rgba(255, 255, 255, 0) 65.83%), #FFF",
-                }}
-              >
-                <div className="flex flex-col gap-4 md:flex-row md:items-end md:gap-6">
-                  {/* Avatar Skeleton */}
-                  <div className="-mt-16 shrink-0 md:-mt-20">
-                    <div
-                      className="flex h-32 w-32 shrink-0 flex-col items-center justify-center self-stretch rounded-full border border-[rgba(0,0,0,0.08)] bg-[#F5F5F5] py-[21px] shadow-[0_20px_24px_-4px_rgba(10,13,18,0.08),0_8px_8px_-4px_rgba(10,13,18,0.03),0_3px_3px_-1.5px_rgba(10,13,18,0.04)] ring-4 ring-white md:h-40 md:w-40"
-                      aria-hidden
-                    />
-                  </div>
-
-                  {/* Profile Info Skeleton */}
-                  <div className="flex w-full min-w-0 flex-1 flex-col gap-4 md:flex-row md:items-end md:justify-between">
-                    <div className="flex flex-col gap-2">
-                      <div className="h-8 w-48 bg-gray-300 rounded-lg" />
-                      <div className="h-5 w-64 bg-gray-200 rounded" />
-                    </div>
-                    <div className="flex gap-3">
-                      <div className="h-10 w-20 bg-gray-200 rounded-xl" />
-                      <div className="h-10 w-20 bg-gray-200 rounded-xl" />
-                    </div>
-                  </div>
+            {/* Profile Header Skeleton */}
+            <div
+              className="relative px-6 md:px-8 pb-6"
+              style={{
+                background:
+                  "linear-gradient(180deg, #DBEAFE 13.19%, rgba(255, 255, 255, 0) 65.83%), #FFF",
+              }}
+            >
+              <div className="flex flex-col gap-4 md:flex-row md:items-end md:gap-6">
+                {/* Avatar Skeleton */}
+                <div className="-mt-16 shrink-0 md:-mt-20">
+                  <div
+                    className="flex h-32 w-32 shrink-0 flex-col items-center justify-center self-stretch rounded-full border border-[rgba(0,0,0,0.08)] bg-[#F5F5F5] py-[21px] shadow-[0_20px_24px_-4px_rgba(10,13,18,0.08),0_8px_8px_-4px_rgba(10,13,18,0.03),0_3px_3px_-1.5px_rgba(10,13,18,0.04)] ring-4 ring-white md:h-40 md:w-40"
+                    aria-hidden
+                  />
                 </div>
-              </div>
 
-              {/* Tabs Skeleton */}
-              <div className="border-b border-gray-100 bg-white px-6">
-                <div className="flex gap-6 py-3">
-                  <div className="h-6 w-20 bg-gray-200 rounded" />
-                  <div className="h-6 w-16 bg-gray-200 rounded" />
+                {/* Profile Info Skeleton */}
+                <div className="flex w-full min-w-0 flex-1 flex-col gap-4 md:flex-row md:items-end md:justify-between">
+                  <div className="flex flex-col gap-2">
+                    <div className="h-8 w-48 bg-gray-300 rounded-lg" />
+                    <div className="h-5 w-64 bg-gray-200 rounded" />
+                  </div>
+                  <div className="flex gap-3">
+                    <div className="h-10 w-20 bg-gray-200 rounded-xl" />
+                    <div className="h-10 w-20 bg-gray-200 rounded-xl" />
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Content Skeleton — only this region scrolls */}
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain border-0 p-6">
+            {/* Tabs Skeleton */}
+            <div className="border-b border-gray-100 bg-white px-6">
+              <div className="flex gap-6 py-3">
+                <div className="h-6 w-20 bg-gray-200 rounded" />
+                <div className="h-6 w-16 bg-gray-200 rounded" />
+              </div>
+            </div>
+
+            <div className="border-0 p-6">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {[1, 2, 3].map((i) => (
                   <div
@@ -666,18 +660,13 @@ export default function ProfilePage() {
   }
 
   return (
-    <PageContainer
-      showBorder={false}
-      className="!min-h-0 h-[calc(100dvh-4rem)] max-h-[calc(100dvh-4rem)] overflow-hidden"
-    >
-      <PageContent className="min-h-0 flex-1 overflow-hidden">
+    <PageContainer showBorder={false}>
+      <PageContent>
         <Toaster />
 
-        {/* Main: fixed header (cover + profile + tabs), scroll only tab panel */}
-        <div className="flex min-h-0 w-full flex-1 flex-col">
-          <div className="shrink-0">
+        <div className="flex w-full flex-col">
             {/* Cover Image Section */}
-            <div className="relative h-[133px] md:h-[160px] w-full rounded-tl-2xl overflow-hidden">
+            <div className="relative h-[133px] md:h-[160px] w-full rounded-tl-none lg:rounded-tl-2xl overflow-hidden">
             {userProfile?.cover_image_url ? (
               <div
                 className="w-full h-full"
@@ -1010,10 +999,8 @@ export default function ProfilePage() {
               </button>
             </div>
             </div>
-          </div>
 
-          {/* Tab content — scrolls independently */}
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain border-0 p-6">
+          <div className="border-0 p-6">
             {activeTab === PROFILE_TABS.PROJECTS && (
               <div>
                 {isLoading ? (
