@@ -599,7 +599,7 @@ export default function ProfilePage() {
           <div className="flex min-h-0 w-full flex-1 flex-col animate-pulse">
             <div className="shrink-0">
               {/* Cover Image Skeleton */}
-              <div className="relative h-[200px] md:h-[240px] w-full rounded-tl-2xl overflow-hidden bg-gray-200" />
+              <div className="relative h-[133px] md:h-[160px] w-full rounded-tl-2xl overflow-hidden bg-gray-200" />
 
               {/* Profile Header Skeleton */}
               <div
@@ -611,7 +611,7 @@ export default function ProfilePage() {
               >
                 <div className="flex flex-col gap-4 md:flex-row md:items-end md:gap-6">
                   {/* Avatar Skeleton */}
-                  <div className="-mt-20 shrink-0 md:-mt-16">
+                  <div className="-mt-16 shrink-0 md:-mt-20">
                     <div
                       className="flex h-32 w-32 shrink-0 flex-col items-center justify-center self-stretch rounded-full border border-[rgba(0,0,0,0.08)] bg-[#F5F5F5] py-[21px] shadow-[0_20px_24px_-4px_rgba(10,13,18,0.08),0_8px_8px_-4px_rgba(10,13,18,0.03),0_3px_3px_-1.5px_rgba(10,13,18,0.04)] ring-4 ring-white md:h-40 md:w-40"
                       aria-hidden
@@ -677,7 +677,7 @@ export default function ProfilePage() {
         <div className="flex min-h-0 w-full flex-1 flex-col">
           <div className="shrink-0">
             {/* Cover Image Section */}
-            <div className="relative h-[200px] md:h-[240px] w-full rounded-tl-2xl overflow-hidden">
+            <div className="relative h-[133px] md:h-[160px] w-full rounded-tl-2xl overflow-hidden">
             {userProfile?.cover_image_url ? (
               <div
                 className="w-full h-full"
@@ -709,7 +709,7 @@ export default function ProfilePage() {
             {/* Avatar and Info Row — md: bottom-align name/email with avatar circle */}
             <div className="flex flex-col gap-4 md:flex-row md:items-end md:gap-6">
               {/* Avatar column (overlap cover + optional crop confirm) */}
-              <div className="flex shrink-0 flex-col items-start gap-2 -mt-20 md:-mt-16">
+              <div className="flex shrink-0 flex-col items-start gap-2 -mt-16 md:-mt-20">
                 <div className="relative group">
                   <Avatar className="h-32 w-32 shrink-0 rounded-full border border-[rgba(0,0,0,0.08)] shadow-[0_20px_24px_-4px_rgba(10,13,18,0.08),0_8px_8px_-4px_rgba(10,13,18,0.03),0_3px_3px_-1.5px_rgba(10,13,18,0.04)] ring-4 ring-white md:h-40 md:w-40">
                     <AvatarImage
