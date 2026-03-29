@@ -11,6 +11,7 @@
     "test": "jest",
     "test:unit": "jest",
     "test:e2e": "playwright test",
+    "auth:dev": "env-cmd -f .env.local tsx scripts/dev-supabase-auth.ts",
     "setup-db": "env-cmd -f .env.local tsx setup-db.ts",
     "prepare": "husky"
   },

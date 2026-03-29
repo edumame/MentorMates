@@ -1,16 +1,13 @@
 import { NextResponse } from "next/server";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
+import { getAppBaseUrl, getAuthErrorRedirect } from "../auth-flow";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get("code");
 
-  const baseUrl =
-    process.env.NEXT_PUBLIC_APP_URL || new URL(request.url).origin;
-  const cleanBaseUrl = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
-
   if (!code) {
-    return NextResponse.redirect(`${cleanBaseUrl}/auth/auth-code-error`);
+    return getAuthErrorRedirect(request.url);
   }
 
   const supabase = await createSupabaseClient();
@@ -20,13 +17,9 @@ export async function GET(request: Request) {
     error,
   } = await supabase.auth.exchangeCodeForSession(code);
 
-  if (error) {
-    return NextResponse.redirect(`${cleanBaseUrl}/auth/auth-code-error`);
+  if (error || !session) {
+    return getAuthErrorRedirect(request.url);
   }
 
-  if (!session) {
-    return NextResponse.redirect(`${cleanBaseUrl}/auth/auth-code-error`);
-  }
-
-  return NextResponse.redirect(`${cleanBaseUrl}/reset-password`);
+  return NextResponse.redirect(new URL("/reset-password", getAppBaseUrl(request.url)));
 }

@@ -1,84 +1,29 @@
-import { NextResponse } from "next/server";
 import { createSupabaseClient } from "../../utils/supabase/server";
+import { getAuthErrorRedirect, redirectAfterAuth } from "../auth-flow";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get("code");
 
-  // Use environment variable for base URL, fallback to request origin
-  const baseUrl =
-    process.env.NEXT_PUBLIC_APP_URL || new URL(request.url).origin;
-  const cleanBaseUrl = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
-
   if (!code) {
-    return NextResponse.redirect(`${cleanBaseUrl}/auth/auth-code-error`);
+    return getAuthErrorRedirect(request.url);
   }
 
   const supabase = await createSupabaseClient();
 
-  // Exchange code for session
   const {
     data: { session },
     error: codeError,
   } = await supabase.auth.exchangeCodeForSession(code);
 
-  if (codeError) {
-    return NextResponse.redirect(`${cleanBaseUrl}/auth/auth-code-error`);
+  if (codeError || !session?.user) {
+    return getAuthErrorRedirect(request.url);
   }
 
-  if (!session) {
-    return NextResponse.redirect(`${cleanBaseUrl}/auth/auth-code-error`);
-  }
-
-  const user = session.user;
-  if (!user?.email) {
-    return NextResponse.redirect(`${cleanBaseUrl}/auth/auth-code-error`);
-  }
-
-  // Try to check user profile first
-  const { data: existingProfile, error: profileCheckError } = await supabase
-    .from("user_profiles")
-    .select("uid, onboarding_metadata")
-    .eq("uid", user.id)
-    .single();
-
-  if (profileCheckError && profileCheckError.code !== "PGRST116") {
-    return NextResponse.redirect(`${cleanBaseUrl}/auth/auth-code-error`);
-  }
-
-  if (!existingProfile) {
-    const profileData = {
-      uid: user.id,
-      display_name: user.user_metadata?.full_name || user.email.split("@")[0],
-      email: user.email,
-      created_at: new Date().toISOString(),
-    };
-
-    const { error: profileError } = await supabase
-      .from("user_profiles")
-      .insert(profileData);
-
-    if (profileError) {
-      return NextResponse.redirect(`${cleanBaseUrl}/auth/auth-code-error`);
-    }
-  }
-
-  // Default redirect for non-mentor users
-  const returnUrl = searchParams.get("returnUrl") || "";
-  const cleanReturnUrl = returnUrl.startsWith("/")
-    ? returnUrl.slice(1)
-    : returnUrl;
-
-  // If onboarding metadata is missing or empty, redirect to onboarding flow
-  const needsOnboarding = !existingProfile?.onboarding_metadata ||
-    (typeof existingProfile.onboarding_metadata === "object" &&
-      Object.keys(existingProfile.onboarding_metadata as Record<string, unknown>).length === 0);
-
-  if (needsOnboarding) {
-    const onboardingUrl = `${cleanBaseUrl}/onboarding${cleanReturnUrl ? `?returnUrl=${encodeURIComponent(`/${cleanReturnUrl}`)}` : ""}`;
-    return NextResponse.redirect(onboardingUrl);
-  }
-
-  const participantRedirectUrl = `${cleanBaseUrl}/${cleanReturnUrl}`;
-  return NextResponse.redirect(participantRedirectUrl);
+  return redirectAfterAuth({
+    requestUrl: request.url,
+    redirectTo: searchParams.get("returnUrl"),
+    supabase,
+    user: session.user,
+  });
 }
