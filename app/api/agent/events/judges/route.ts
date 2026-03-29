@@ -153,12 +153,13 @@ export async function POST(request: NextRequest) {
         if (!profile?.email) return { skipped: true, user_id: judge.user_id };
 
         const res = await fetch(
-          `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/email`,
+          `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/email_notification`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               to: profile.email,
+              from: "hello@mentormates.ai",
               subject: `[${event?.event_name || "MentorMates"}] ${subject}`,
               html: `<p>Hi ${profile.display_name || ""},</p><p>${message.replace(/\n/g, "<br>")}</p><p>— ${event?.event_name || "MentorMates"} Team</p>`,
             }),
