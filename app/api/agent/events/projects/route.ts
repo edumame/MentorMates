@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { authenticateAgentRequest, requireScope } from "@/lib/agent/auth";
+import {
+  authenticateAgentRequest,
+  authorizeAgentEventAccess,
+  requireScope,
+} from "@/lib/agent/auth";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 
 // GET: List all projects for the event
@@ -10,6 +14,9 @@ export async function GET(request: NextRequest) {
 
     const scopeError = requireScope(auth, "projects:read");
     if (scopeError) return scopeError;
+
+    const access = await authorizeAgentEventAccess(auth);
+    if (access instanceof NextResponse) return access;
 
     const supabase = createSupabaseServiceClient();
     const limit = Math.min(

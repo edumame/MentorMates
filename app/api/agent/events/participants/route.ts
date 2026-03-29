@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { authenticateAgentRequest, requireScope } from "@/lib/agent/auth";
+import {
+  authenticateAgentRequest,
+  authorizeAgentEventAccess,
+  requireScope,
+} from "@/lib/agent/auth";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import { canAccessRole } from "@/features/user/roles/roles";
+import { EventRole } from "@/lib/types";
 import { z } from "zod";
 
 // GET: List all participants (and other roles) for the event
@@ -11,6 +17,9 @@ export async function GET(request: NextRequest) {
 
     const scopeError = requireScope(auth, "participants:read");
     if (scopeError) return scopeError;
+
+    const access = await authorizeAgentEventAccess(auth);
+    if (access instanceof NextResponse) return access;
 
     const supabase = createSupabaseServiceClient();
     const role = request.nextUrl.searchParams.get("role"); // filter by role
@@ -83,6 +92,9 @@ export async function PATCH(request: NextRequest) {
     const scopeError = requireScope(auth, "participants:write");
     if (scopeError) return scopeError;
 
+    const access = await authorizeAgentEventAccess(auth);
+    if (access instanceof NextResponse) return access;
+
     const body = await request.json();
     const parsed = updateParticipantSchema.safeParse(body);
     if (!parsed.success) {
@@ -94,6 +106,46 @@ export async function PATCH(request: NextRequest) {
 
     const { user_id, action, role } = parsed.data;
     const supabase = createSupabaseServiceClient();
+    const { data: targetRoleRow, error: targetRoleError } = await supabase
+      .from("user_event_roles")
+      .select("role")
+      .eq("event_id", auth.eventId)
+      .eq("user_id", user_id)
+      .maybeSingle();
+
+    if (targetRoleError) {
+      return NextResponse.json(
+        { error: "Failed to validate participant permissions" },
+        { status: 500 }
+      );
+    }
+
+    if (!targetRoleRow) {
+      return NextResponse.json(
+        { error: "User not found for this event" },
+        { status: 404 }
+      );
+    }
+
+    const targetRole = targetRoleRow.role as EventRole;
+    const targetHasOrganizerAccess = canAccessRole(targetRole, EventRole.Organizer);
+    const requestedHasOrganizerAccess = role
+      ? canAccessRole(role as EventRole, EventRole.Organizer)
+      : false;
+
+    if (user_id === auth.userId && !access.isAdmin) {
+      return NextResponse.json(
+        { error: "You cannot modify your own role with this API key" },
+        { status: 403 }
+      );
+    }
+
+    if ((targetHasOrganizerAccess || requestedHasOrganizerAccess) && !access.isAdmin) {
+      return NextResponse.json(
+        { error: "Only admins can modify organizer-level roles" },
+        { status: 403 }
+      );
+    }
 
     if (action === "remove") {
       const { error } = await supabase

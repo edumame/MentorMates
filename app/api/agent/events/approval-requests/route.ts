@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { authenticateAgentRequest, requireScope } from "@/lib/agent/auth";
+import {
+  authenticateAgentRequest,
+  authorizeAgentEventAccess,
+  requireScope,
+} from "@/lib/agent/auth";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { z } from "zod";
 
@@ -11,6 +15,9 @@ export async function GET(request: NextRequest) {
 
     const scopeError = requireScope(auth, "participants:read");
     if (scopeError) return scopeError;
+
+    const access = await authorizeAgentEventAccess(auth);
+    if (access instanceof NextResponse) return access;
 
     const supabase = createSupabaseServiceClient();
     const status = request.nextUrl.searchParams.get("status") || "pending";
@@ -70,6 +77,9 @@ export async function POST(request: NextRequest) {
 
     const scopeError = requireScope(auth, "participants:write");
     if (scopeError) return scopeError;
+
+    const access = await authorizeAgentEventAccess(auth);
+    if (access instanceof NextResponse) return access;
 
     const body = await request.json();
     const parsed = reviewRequestSchema.safeParse(body);
