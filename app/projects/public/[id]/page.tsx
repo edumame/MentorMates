@@ -41,11 +41,22 @@ import {
 import { VideoEmbed, canEmbed } from "@/components/utils";
 import { canAccessRole } from "@/features/user/roles/roles";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { QRCodeSVG } from "qrcode.react";
 import { Input } from "@/components/ui/input";
 import { ProjectDescription } from "@/components/projects/ProjectDescription";
 import { ProjectSubmissionDetails } from "@/features/projects/components/displays/ProjectSubmissionDetails";
+
+function getMemberInitials(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return "?";
+  const parts = trimmed.split(/\s+/).filter(Boolean);
+  const first = parts[0]?.[0] ?? "";
+  const last = parts.length > 1 ? parts[parts.length - 1]?.[0] ?? "" : "";
+  const initials = (first + last).toUpperCase();
+  return initials || trimmed.slice(0, 2).toUpperCase();
+}
 
 interface EventDetails {
   event_id: string;
@@ -262,7 +273,7 @@ export default function PublicProjectPage() {
 
   if (isLoading || !fetchComplete) {
     return (
-      <PageContainer>
+      <PageContainer showBorder={false}>
         <div className="flex items-center justify-center flex-grow">
           <div className="flex flex-col items-center gap-3">
             <Loader className="h-10 w-10 animate-spin text-blue-500" />
@@ -274,7 +285,7 @@ export default function PublicProjectPage() {
 
   if (!project) {
     return (
-      <PageContainer>
+      <PageContainer showBorder={false}>
         <div className="flex items-center justify-center flex-grow">
           <div className="text-center">
             <h1 className="text-2xl font-bold mb-4">Project not found</h1>
@@ -352,12 +363,11 @@ export default function PublicProjectPage() {
   };
 
   return (
-    <PageContainer>
+    <PageContainer showBorder={false}>
       <Toaster />
       <PageContent>
-        {/* Header Section */}
-        <div className="bg-gradient-to-b from-blue-50/45 to-white border-b border-gray-200">
-          <div className="container mx-auto px-5 sm:px-8 pt-6 sm:pt-8 pb-0">
+        {/* Main column: same flex height as SidebarLayout content area */}
+        <div className="container mx-auto flex min-h-0 flex-1 flex-col bg-gradient-to-b from-blue-50/45 to-white px-5 sm:px-8 pt-6 sm:pt-8 pb-0 lg:h-[calc(100dvh-16px)] lg:min-h-[calc(100dvh-16px)]">
             {/* Back Button */}
             {eventDetails && (
               <div className="mb-4">
@@ -630,19 +640,6 @@ export default function PublicProjectPage() {
 
                       <ProjectSubmissionDetails project={project} />
 
-                      {/* Cover Image Display */}
-                      {project.cover_image_url && (
-                        <div className="space-y-2 rounded-xl border border-black/10 p-3">
-                          <div className="rounded-xl overflow-hidden">
-                            <img
-                              src={project.cover_image_url}
-                              alt="Project cover"
-                              className="w-full h-auto object-cover"
-                            />
-                          </div>
-                        </div>
-                      )}
-
                       {/* Video Embed */}
                       {project.video_url && canEmbed(project.video_url) && (
                         <div className="space-y-4">
@@ -664,7 +661,13 @@ export default function PublicProjectPage() {
                         <div className="space-y-6">
                           {/* Project Lead */}
                           <div className="flex gap-4 items-center">
-                            <div className="w-14 h-14 rounded-full bg-gray-300 flex-shrink-0"></div>
+                            <Avatar className="h-14 w-14 shrink-0 border border-[rgba(0,0,0,0.08)] bg-[#F5F5F5]">
+                              <AvatarFallback className="bg-[#F5F5F5] text-sm font-semibold text-[#717680]">
+                                {getMemberInitials(
+                                  project.lead_name || project.lead_email
+                                )}
+                              </AvatarFallback>
+                            </Avatar>
                             <div>
                               <div className="flex items-center gap-2">
                                 <p className="font-semibold text-base text-black">
@@ -691,7 +694,11 @@ export default function PublicProjectPage() {
                                 key={index}
                                 className="flex gap-4 items-center"
                               >
-                                <div className="w-14 h-14 rounded-full bg-gray-300 flex-shrink-0"></div>
+                                <Avatar className="h-14 w-14 shrink-0 border border-[rgba(0,0,0,0.08)] bg-[#F5F5F5]">
+                                  <AvatarFallback className="bg-[#F5F5F5] text-sm font-semibold text-[#717680]">
+                                    {getMemberInitials(teammate)}
+                                  </AvatarFallback>
+                                </Avatar>
                                 <div className="space-y-0">
                                   <p className="font-semibold text-base text-black">
                                     {teammate}
@@ -1334,7 +1341,6 @@ export default function PublicProjectPage() {
                 </TabsContent>
               </div>
             </Tabs>
-          </div>
         </div>
 
         {/* Give Feedback Dialog */}
