@@ -105,7 +105,7 @@ export function EventsList({ events }: EventsListProps) {
               <div className="absolute top-3 left-3 z-10">
                 <Badge
                   variant={getRoleBadgeVariant(userRole)}
-                  className="capitalize text-xs shadow-md"
+                  className="capitalize text-xs"
                 >
                   {getRoleLabel(userRole, event.role_labels)}
                 </Badge>
@@ -116,7 +116,7 @@ export function EventsList({ events }: EventsListProps) {
               <div className="absolute top-3 right-3 z-10">
                 <Badge
                   variant="secondary"
-                  className="bg-orange-100 text-orange-800 text-xs shadow-md"
+                  className="bg-orange-100 text-orange-800 text-xs"
                 >
                   📁 Archived
                 </Badge>

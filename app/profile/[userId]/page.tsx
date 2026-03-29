@@ -9,8 +9,9 @@ import {
   EventRole,
   ProjectBoardContext,
   EventDetails,
+  EventVisibility,
 } from "@/lib/types";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EventCard } from "@/components/events/event-card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -39,6 +40,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { getRoleLabel } from "@/features/user/roles/roles";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 import { z } from "zod";
+import { profileAvatarInitialsLora } from "@/lib/fonts/profile-avatar-initials";
 
 // Interface for events with role information
 interface EventWithRole extends EventDetails {
@@ -124,12 +126,32 @@ interface ProjectWithTracks extends Project {
 }
 
 // Tab definitions for the profile page
+/** Default profile header when user has not uploaded a cover (static asset). */
+const PROFILE_DEFAULT_COVER_SRC = "/img/profile-default-cover.png";
+
 const PROFILE_TABS = {
   PROJECTS: "projects",
   EVENTS: "events",
 } as const;
 
 type ProfileTab = (typeof PROFILE_TABS)[keyof typeof PROFILE_TABS];
+
+function roleBadgeVariant(role: EventRole): EventRole {
+  switch (role) {
+    case EventRole.Admin:
+      return EventRole.Admin;
+    case EventRole.Organizer:
+      return EventRole.Organizer;
+    case EventRole.Judge:
+      return EventRole.Judge;
+    case EventRole.Mentor:
+      return EventRole.Mentor;
+    case EventRole.Participant:
+      return EventRole.Participant;
+    default:
+      return EventRole.Participant;
+  }
+}
 
 export default function ProfilePage() {
   const { userId } = useParams();
@@ -569,50 +591,58 @@ export default function ProfilePage() {
   // Loading state - show skeleton UI while fetching profile
   if (isLoading) {
     return (
-      <PageContainer showBorder={false}>
-        <PageContent>
-          <div className="flex flex-col w-full animate-pulse">
-            {/* Cover Image Skeleton */}
-            <div className="relative h-[200px] md:h-[240px] w-full rounded-tl-2xl overflow-hidden bg-gray-200" />
+      <PageContainer
+        showBorder={false}
+        className="!min-h-0 h-[calc(100dvh-4rem)] max-h-[calc(100dvh-4rem)] overflow-hidden"
+      >
+        <PageContent className="min-h-0 flex-1 overflow-hidden">
+          <div className="flex min-h-0 w-full flex-1 flex-col animate-pulse">
+            <div className="shrink-0">
+              {/* Cover Image Skeleton */}
+              <div className="relative h-[200px] md:h-[240px] w-full rounded-tl-2xl overflow-hidden bg-gray-200" />
 
-            {/* Profile Header Skeleton */}
-            <div
-              className="relative px-6 md:px-8 pb-6"
-              style={{
-                background:
-                  "linear-gradient(90deg, #559DFB 0%, #FD9FA4 100%)",
-              }}
-            >
-              <div className="flex flex-col md:flex-row gap-4 md:gap-6 items-start md:items-end">
-                {/* Avatar Skeleton */}
-                <div className="-mt-20 md:-mt-16 shrink-0">
-                  <div className="w-32 h-32 md:w-40 md:h-40 rounded-full bg-gray-300 border-4 border-white shadow-lg" />
+              {/* Profile Header Skeleton */}
+              <div
+                className="relative px-6 md:px-8 pb-6"
+                style={{
+                  background:
+                    "linear-gradient(180deg, #DBEAFE 13.19%, rgba(255, 255, 255, 0) 65.83%), #FFF",
+                }}
+              >
+                <div className="flex flex-col gap-4 md:flex-row md:items-end md:gap-6">
+                  {/* Avatar Skeleton */}
+                  <div className="-mt-20 shrink-0 md:-mt-16">
+                    <div
+                      className="flex h-32 w-32 shrink-0 flex-col items-center justify-center self-stretch rounded-full border border-[rgba(0,0,0,0.08)] bg-[#F5F5F5] py-[21px] shadow-[0_20px_24px_-4px_rgba(10,13,18,0.08),0_8px_8px_-4px_rgba(10,13,18,0.03),0_3px_3px_-1.5px_rgba(10,13,18,0.04)] ring-4 ring-white md:h-40 md:w-40"
+                      aria-hidden
+                    />
+                  </div>
+
+                  {/* Profile Info Skeleton */}
+                  <div className="flex w-full min-w-0 flex-1 flex-col gap-4 md:flex-row md:items-end md:justify-between">
+                    <div className="flex flex-col gap-2">
+                      <div className="h-8 w-48 bg-gray-300 rounded-lg" />
+                      <div className="h-5 w-64 bg-gray-200 rounded" />
+                    </div>
+                    <div className="flex gap-3">
+                      <div className="h-10 w-20 bg-gray-200 rounded-xl" />
+                      <div className="h-10 w-20 bg-gray-200 rounded-xl" />
+                    </div>
+                  </div>
                 </div>
+              </div>
 
-                {/* Profile Info Skeleton */}
-                <div className="flex-1 flex flex-col md:flex-row gap-4 items-start md:items-end justify-between w-full pb-2">
-                  <div className="flex flex-col gap-2">
-                    <div className="h-8 w-48 bg-gray-300 rounded-lg" />
-                    <div className="h-5 w-64 bg-gray-200 rounded" />
-                  </div>
-                  <div className="flex gap-3">
-                    <div className="h-10 w-20 bg-gray-200 rounded-xl" />
-                    <div className="h-10 w-20 bg-gray-200 rounded-xl" />
-                  </div>
+              {/* Tabs Skeleton */}
+              <div className="border-b border-gray-100 bg-white px-6">
+                <div className="flex gap-6 py-3">
+                  <div className="h-6 w-20 bg-gray-200 rounded" />
+                  <div className="h-6 w-16 bg-gray-200 rounded" />
                 </div>
               </div>
             </div>
 
-            {/* Tabs Skeleton */}
-            <div className="px-6">
-              <div className="flex gap-6 py-3">
-                <div className="h-6 w-20 bg-gray-200 rounded" />
-                <div className="h-6 w-16 bg-gray-200 rounded" />
-              </div>
-            </div>
-
-            {/* Content Skeleton */}
-            <div className="p-6 border-0">
+            {/* Content Skeleton — only this region scrolls */}
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain border-0 p-6">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {[1, 2, 3].map((i) => (
                   <div
@@ -636,108 +666,116 @@ export default function ProfilePage() {
   }
 
   return (
-    <PageContainer showBorder={false}>
-      <PageContent>
+    <PageContainer
+      showBorder={false}
+      className="!min-h-0 h-[calc(100dvh-4rem)] max-h-[calc(100dvh-4rem)] overflow-hidden"
+    >
+      <PageContent className="min-h-0 flex-1 overflow-hidden">
         <Toaster />
 
-        {/* Main content wrapper */}
-        <div className="flex flex-col w-full">
-          {/* Cover Image Section */}
-          <div className="relative h-[200px] md:h-[240px] w-full rounded-tl-2xl overflow-hidden">
+        {/* Main: fixed header (cover + profile + tabs), scroll only tab panel */}
+        <div className="flex min-h-0 w-full flex-1 flex-col">
+          <div className="shrink-0">
+            {/* Cover Image Section */}
+            <div className="relative h-[200px] md:h-[240px] w-full rounded-tl-2xl overflow-hidden">
             {userProfile?.cover_image_url ? (
               <div
                 className="w-full h-full"
                 style={{
-                  background:
-                    `url(${userProfile.cover_image_url}) center / cover no-repeat, linear-gradient(90deg, #559DFB 0%, #FD9FA4 100%)`,
+                  background: `url(${userProfile.cover_image_url}) center / cover no-repeat, linear-gradient(90deg, #559DFB 0%, #FD9FA4 100%)`,
                 }}
               />
             ) : (
-              // Default gradient cover when no image
               <div
-                className="w-full h-full"
+                className="w-full h-full bg-sky-100"
                 style={{
-                  background: "linear-gradient(90deg, #559DFB 0%, #FD9FA4 100%)",
+                  backgroundImage: `url(${PROFILE_DEFAULT_COVER_SRC})`,
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                  backgroundRepeat: "no-repeat",
                 }}
               />
             )}
-          </div>
+            </div>
 
-          {/* Profile Header Section */}
-          <div
+            {/* Profile Header Section */}
+            <div
             className="relative px-6 md:px-8 pb-6"
             style={{
               background:
-                "linear-gradient(90deg, #559DFB 0%, #FD9FA4 100%)",
+                "linear-gradient(180deg, #DBEAFE 13.19%, rgba(255, 255, 255, 0) 65.83%), #FFF",
             }}
           >
-            {/* Avatar and Info Row */}
-            <div className="flex flex-col md:flex-row gap-4 md:gap-6 items-start md:items-end">
-              {/* Avatar - positioned to overlap cover */}
-              <div className="-mt-20 md:-mt-16 shrink-0 relative group">
-                <Avatar className="w-32 h-32 md:w-40 md:h-40 border-4 border-white shadow-lg">
-                  <AvatarImage
-                    src={avatarPreview || userProfile?.avatar_url || undefined}
-                    alt={userProfile?.display_name || "User"}
-                  />
-                  <AvatarFallback className="text-3xl md:text-4xl font-semibold bg-gradient-to-br from-blue-500 to-blue-600 text-white">
-                    {getInitials(userProfile?.display_name)}
-                  </AvatarFallback>
-                </Avatar>
-
-                {/* Avatar edit overlay - only shown on own profile */}
-                {isOwnProfile && (
-                  <label className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleAvatarSelect}
-                      className="hidden"
-                      disabled={isUploadingAvatar}
+            {/* Avatar and Info Row — md: bottom-align name/email with avatar circle */}
+            <div className="flex flex-col gap-4 md:flex-row md:items-end md:gap-6">
+              {/* Avatar column (overlap cover + optional crop confirm) */}
+              <div className="flex shrink-0 flex-col items-start gap-2 -mt-20 md:-mt-16">
+                <div className="relative group">
+                  <Avatar className="h-32 w-32 shrink-0 rounded-full border border-[rgba(0,0,0,0.08)] shadow-[0_20px_24px_-4px_rgba(10,13,18,0.08),0_8px_8px_-4px_rgba(10,13,18,0.03),0_3px_3px_-1.5px_rgba(10,13,18,0.04)] ring-4 ring-white md:h-40 md:w-40">
+                    <AvatarImage
+                      src={avatarPreview || userProfile?.avatar_url || undefined}
+                      alt={userProfile?.display_name || "User"}
                     />
-                    <Camera className="w-8 h-8 text-white" />
-                  </label>
-                )}
+                    <AvatarFallback className="flex h-full w-full min-h-0 flex-[1_0_0] flex-col items-center justify-center self-stretch bg-[#F5F5F5] py-[14px] text-center text-[44px] font-semibold leading-[52px] tracking-[-0.88px] text-[#717680] md:py-[18px] md:text-[52px] md:leading-[60px] md:tracking-[-1.04px]">
+                      <span
+                        className={`inline-block w-[120px] max-w-full md:w-[140px] ${profileAvatarInitialsLora.className}`}
+                      >
+                        {getInitials(userProfile?.display_name)}
+                      </span>
+                    </AvatarFallback>
+                  </Avatar>
 
-                {/* Upload indicator */}
-                {isUploadingAvatar && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full">
-                    <Loader2 className="w-8 h-8 text-white animate-spin" />
+                  {isOwnProfile && (
+                    <label className="absolute inset-0 flex cursor-pointer items-center justify-center rounded-full bg-black/50 opacity-0 transition-opacity group-hover:opacity-100">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleAvatarSelect}
+                        className="hidden"
+                        disabled={isUploadingAvatar}
+                      />
+                      <Camera className="h-8 w-8 text-white" />
+                    </label>
+                  )}
+
+                  {isUploadingAvatar && (
+                    <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50">
+                      <Loader2 className="h-8 w-8 animate-spin text-white" />
+                    </div>
+                  )}
+                </div>
+
+                {avatarPreview && !isUploadingAvatar && (
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      onClick={async () => {
+                        const input = document.querySelector(
+                          'input[type="file"]'
+                        ) as HTMLInputElement;
+                        const file = input?.files?.[0];
+                        if (file) {
+                          await handleAvatarUpload(file);
+                        }
+                      }}
+                    >
+                      Save
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setAvatarPreview(null)}
+                    >
+                      Cancel
+                    </Button>
                   </div>
                 )}
               </div>
 
-              {/* Avatar upload confirmation */}
-              {avatarPreview && !isUploadingAvatar && (
-                <div className="flex gap-2 mt-2">
-                  <Button
-                    size="sm"
-                    onClick={async () => {
-                      const input = document.querySelector(
-                        'input[type="file"]'
-                      ) as HTMLInputElement;
-                      const file = input?.files?.[0];
-                      if (file) {
-                        await handleAvatarUpload(file);
-                      }
-                    }}
-                  >
-                    Save
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setAvatarPreview(null)}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              )}
-
               {/* Profile Info and Actions */}
-              <div className="flex-1 flex flex-col md:flex-row gap-4 items-start md:items-end justify-between w-full pb-2">
-                {/* Name, Bio, and Admin Badge */}
-                <div className="flex flex-col gap-1">
+              <div className="flex w-full min-w-0 flex-1 flex-col gap-4 md:flex-row md:items-end md:justify-between">
+                {/* Name, email, admin badge */}
+                <div className="flex flex-col gap-1 md:min-h-0">
                   {isEditing ? (
                     <div className="flex items-center gap-2">
                       <Input
@@ -777,15 +815,6 @@ export default function ProfilePage() {
                   <p className="text-base text-gray-600">
                     {userProfile?.bio || userProfile?.email || ""}
                   </p>
-                  {/* School / Company (stored as `user_profiles.affiliation`) */}
-                  {(userProfile?.affiliation || isOwnProfile) && (
-                    <p className="text-sm text-gray-500 flex items-center gap-2">
-                      <GraduationCap className="w-4 h-4" />
-                      {userProfile?.affiliation
-                        ? userProfile.affiliation
-                        : "Add your school or company (click Edit)"}
-                    </p>
-                  )}
                   {/* Phone number (private: only visible to the profile owner) */}
                   {isOwnProfile && userProfile?.phone_number && (
                     <p className="text-sm text-gray-500 flex items-center gap-2">
@@ -864,7 +893,7 @@ export default function ProfilePage() {
                   )}
 
                   {/* Action Buttons Row */}
-                  <div className="flex gap-4 items-center">
+                  <div className="flex gap-2 items-center">
                     {isOwnProfile && (
                       <button
                         onClick={() => {
@@ -948,10 +977,10 @@ export default function ProfilePage() {
                 </div>
               </div>
             </div>
-          </div>
+            </div>
 
-          {/* Tabs Section */}
-          <div className="px-6">
+            {/* Tabs Section */}
+            <div className="border-b border-gray-100 bg-white px-6">
             <div className="flex gap-6">
               <button
                 onClick={() => setActiveTab(PROFILE_TABS.PROJECTS)}
@@ -980,10 +1009,11 @@ export default function ProfilePage() {
                 )}
               </button>
             </div>
+            </div>
           </div>
 
-          {/* Content Section */}
-          <div className="p-6 border-0">
+          {/* Tab content — scrolls independently */}
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain border-0 p-6">
             {activeTab === PROFILE_TABS.PROJECTS && (
               <div>
                 {isLoading ? (
@@ -1025,62 +1055,44 @@ export default function ProfilePage() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5 }}
-                    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                    className="grid w-full grid-cols-1 gap-4 sm:grid-cols-[repeat(auto-fill,minmax(min(100%,280px),339px))] sm:justify-start sm:gap-x-4 sm:gap-y-5 auto-rows-fr"
                   >
-                    {events.map((event) => (
-                      <Card
-                        key={event.event_id}
-                        className="hover:shadow-lg transition-shadow rounded-xl border border-gray-200/80 overflow-hidden"
-                      >
-                        {event.cover_image_url && (
-                          <div className="relative h-48 w-full">
-                            <div
-                              className="w-full h-full bg-gradient-to-br from-[#559dfb] to-[#fd9fa4]"
-                              style={
-                                event.cover_image_url
-                                  ? {
-                                      backgroundImage: `url(${event.cover_image_url})`,
-                                      backgroundSize: "cover",
-                                      backgroundPosition: "center",
-                                    }
-                                  : undefined
-                              }
-                            />
-                          </div>
-                        )}
-                        <CardHeader>
-                          <CardTitle className="text-xl font-geist font-semibold hover:text-[#4b89ef] transition-colors">
-                            <Link
-                              href={`/events/${
-                                event.slug || event.event_id
-                              }/overview`}
-                            >
-                              {event.event_name}
-                            </Link>
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-4">
-                            <div>
-                              <p className="text-sm text-gray-500">
-                                {event.event_date}
-                              </p>
-                              {event.location && (
-                                <p className="text-sm text-gray-500">
-                                  {event.location}
-                                </p>
-                              )}
+                    {events.map((event) => {
+                      const profileRole = event.user_event_roles?.[0]?.role;
+                      return (
+                        <div
+                          key={event.event_id}
+                          className="relative h-full w-full max-w-[339px] justify-self-center sm:max-w-none sm:justify-self-stretch"
+                        >
+                          <EventCard event={event} />
+                          {profileRole ? (
+                            <div className="absolute top-3 left-3 z-10">
+                              <Badge
+                                variant={roleBadgeVariant(
+                                  profileRole as EventRole
+                                )}
+                                className="capitalize text-xs"
+                              >
+                                {getRoleLabel(
+                                  profileRole as EventRole,
+                                  event.role_labels
+                                )}
+                              </Badge>
                             </div>
-                            <Badge variant={event.user_event_roles?.[0]?.role}>
-                              {getRoleLabel(
-                                event.user_event_roles?.[0]?.role as EventRole,
-                                event.role_labels
-                              )}
-                            </Badge>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                          ) : null}
+                          {event.visibility === EventVisibility.Archived ? (
+                            <div className="absolute top-3 right-3 z-10">
+                              <Badge
+                                variant="secondary"
+                                className="bg-orange-100 text-orange-800 text-xs"
+                              >
+                                📁 Archived
+                              </Badge>
+                            </div>
+                          ) : null}
+                        </div>
+                      );
+                    })}
                   </motion.div>
                 )}
               </div>
@@ -1120,7 +1132,7 @@ export default function ProfilePage() {
               {/* Content */}
               <div className="px-6 pb-6 space-y-6 max-h-[calc(90vh-180px)] overflow-y-auto">
                 {/* Minimum required checklist (so users know what to fill out) */}
-                <div className="rounded-xl border border-black/10 bg-amber-50 p-4">
+                <div className="rounded-xl border border-black/10 bg-[#E5F0FE] p-4">
                   <div className="flex items-center justify-between gap-3">
                     <p className="text-[14px] font-medium text-zinc-900">
                       Minimum required to complete your profile

@@ -93,7 +93,7 @@ const ProjectBoard = ({
                       {/* Winner Banner */}
                       {project.prizes_won && project.prizes_won.length > 0 && (
                         <div className="absolute top-4 left-4 right-4 z-20">
-                          <div className="bg-white/95 backdrop-blur-sm border-2 border-yellow-400 text-yellow-700 py-2 px-4 flex items-center justify-center shadow-lg rounded-lg">
+                          <div className="bg-white/95 backdrop-blur-sm border-2 border-yellow-400 text-yellow-700 py-2 px-4 flex items-center justify-center rounded-lg">
                             <Trophy className="h-4 w-4 mr-2 text-yellow-600" />
                             <span className="font-semibold text-sm">
                               {project.prizes_won.length === 1
@@ -125,12 +125,12 @@ const ProjectBoard = ({
 
                         {/* Status Badges - Overlay on Image */}
                         <div className="absolute top-3 left-3 flex items-center gap-2 z-10">
-                          <div className="bg-white/95 backdrop-blur-sm border border-gray-200 text-gray-700 px-2.5 py-1 text-xs font-medium rounded-full flex items-center gap-1.5 shadow-sm">
+                          <div className="bg-white/95 backdrop-blur-sm border border-gray-200 text-gray-700 px-2.5 py-1 text-xs font-medium rounded-full flex items-center gap-1.5">
                             {project.submitted ? <Sparkles className="w-3 h-3" /> : <Loader className="w-3 h-3 animate-spin" />}
                             {project.submitted ? "Submitted" : "Draft"}
                           </div>
                           {isOwner && (
-                            <div className="bg-white/95 backdrop-blur-sm border border-gray-200 text-gray-700 px-2.5 py-1 text-xs font-medium rounded-full flex items-center gap-1.5 shadow-sm">
+                            <div className="bg-white/95 backdrop-blur-sm border border-gray-200 text-gray-700 px-2.5 py-1 text-xs font-medium rounded-full flex items-center gap-1.5">
                               <User className="w-3 h-3" />
                               Owner
                             </div>

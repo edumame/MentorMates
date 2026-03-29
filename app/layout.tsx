@@ -1,4 +1,5 @@
 import { Inter } from "next/font/google";
+import { profileAvatarInitialsLora } from "@/lib/fonts/profile-avatar-initials";
 import { GeistSans } from "geist/font/sans";
 import "./globals.css";
 import { Providers } from "@/components/utils/Providers";
@@ -26,7 +27,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={GeistSans.variable} suppressHydrationWarning>
+    <html
+      lang="en"
+      className={`${GeistSans.variable} ${profileAvatarInitialsLora.variable}`}
+      suppressHydrationWarning
+    >
       <head>
         <link
           rel="stylesheet"
