@@ -20,12 +20,17 @@ export interface AgentEventAuthorization {
   userRole: EventRole | null;
 }
 
+interface AuthenticateAgentRequestOptions {
+  allowMissingEventId?: boolean;
+}
+
 /**
  * Authenticate an agent API request via Bearer token.
  * Returns the auth context or a NextResponse error.
  */
 export async function authenticateAgentRequest(
-  request: NextRequest
+  request: NextRequest,
+  options?: AuthenticateAgentRequestOptions
 ): Promise<AgentAuthContext | NextResponse> {
   const authHeader = request.headers.get("authorization");
   if (!authHeader?.startsWith("Bearer ")) {
@@ -83,6 +88,15 @@ export async function authenticateAgentRequest(
 
   const eventId = requestedEventId ?? scopedEventId;
   if (!eventId) {
+    if (options?.allowMissingEventId) {
+      return {
+        userId: keyRow.user_id,
+        eventId: "",
+        scopes: keyRow.scopes || [],
+        keyId: keyRow.id,
+      };
+    }
+
     return NextResponse.json(
       { error: "event_id query parameter is required" },
       { status: 400 }

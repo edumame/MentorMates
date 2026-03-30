@@ -63,7 +63,15 @@ describe("Agent API Key Auth", () => {
   });
 
   describe("authenticateAgentRequest", () => {
-    const mockKeyLookup = (keyRow: Record<string, unknown> | null) => {
+    const mockKeyLookup = (
+      keyRow: Record<string, unknown> | null,
+      options?: {
+        isAdmin?: boolean;
+        ownerEvents?: Array<{ event_id: string; event_name: string | null }>;
+        organizerRoleEventIds?: string[];
+        organizerEvents?: Array<{ event_id: string; event_name: string | null }>;
+      }
+    ) => {
       const agentKeySelectQuery = {
         eq: jest.fn().mockReturnThis(),
         maybeSingle: jest.fn().mockResolvedValue({
@@ -74,6 +82,32 @@ describe("Agent API Key Auth", () => {
       const updateQuery = {
         eq: jest.fn().mockResolvedValue({ error: null }),
       };
+      const ownerEventsQuery = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockResolvedValue({
+          data: options?.ownerEvents ?? [],
+          error: null,
+        }),
+      };
+      const organizerRolesQuery = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+      };
+      organizerRolesQuery.eq = jest
+        .fn()
+        .mockReturnValueOnce(organizerRolesQuery)
+        .mockResolvedValue({
+          data: (options?.organizerRoleEventIds ?? []).map((event_id) => ({ event_id })),
+          error: null,
+        });
+      const organizerEventsQuery = {
+        select: jest.fn().mockReturnThis(),
+        in: jest.fn().mockResolvedValue({
+          data: options?.organizerEvents ?? [],
+          error: null,
+        }),
+      };
+      let eventsFromCalls = 0;
       const from = jest.fn((table: string) => {
         if (table === "agent_api_keys") {
           return {
@@ -81,11 +115,23 @@ describe("Agent API Key Auth", () => {
             update: jest.fn().mockReturnValue(updateQuery),
           };
         }
+        if (table === "events") {
+          eventsFromCalls += 1;
+          return eventsFromCalls === 1 ? ownerEventsQuery : organizerEventsQuery;
+        }
+        if (table === "user_event_roles") {
+          return organizerRolesQuery;
+        }
         throw new Error(`Unexpected table: ${table}`);
+      });
+      const rpc = jest.fn().mockResolvedValue({
+        data: options?.isAdmin ?? false,
+        error: null,
       });
 
       (createSupabaseServiceClient as jest.Mock).mockReturnValue({
         from,
+        rpc,
       });
     };
 
@@ -116,7 +162,7 @@ describe("Agent API Key Auth", () => {
       });
     });
 
-    it("requires event_id for reusable keys", async () => {
+    it("requires event_id for reusable keys by default", async () => {
       mockKeyLookup({
         id: "key-1",
         user_id: "user-1",
@@ -137,6 +183,32 @@ describe("Agent API Key Auth", () => {
           error: "event_id query parameter is required",
         });
       }
+    });
+
+    it("allows a missing event_id when explicitly requested by the caller", async () => {
+      mockKeyLookup({
+        id: "key-1",
+        user_id: "user-1",
+        event_id: null,
+        scopes: ["event:read"],
+        expires_at: null,
+        revoked_at: null,
+      });
+
+      const result = await authenticateAgentRequest(
+        {
+          headers: { get: () => "Bearer mm_sk_1234567890abcdef" },
+          nextUrl: new URL("https://mentormates.ai/api/agent/events"),
+        } as never,
+        { allowMissingEventId: true }
+      );
+
+      expect(result).toEqual({
+        userId: "user-1",
+        eventId: "",
+        scopes: ["event:read"],
+        keyId: "key-1",
+      });
     });
 
     it("rejects using a scoped key against a different event", async () => {

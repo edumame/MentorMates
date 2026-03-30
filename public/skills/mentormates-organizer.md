@@ -17,7 +17,7 @@
 
 - **API Base URL**: `https://mentormates.ai/api/agent`
 - **Authentication**: `Authorization: Bearer $MENTORMATES_API_KEY`
-- **Event Selection**: add `?event_id=$MENTORMATES_EVENT_ID` to all event routes
+- **Event Selection**: add `?event_id=$MENTORMATES_EVENT_ID` to all `/api/agent/events*` routes except the discovery form of `GET /api/agent/events`
 
 ## Available Commands
 
@@ -25,6 +25,12 @@
 Get a summary of your event — participant counts, project counts, pending approvals.
 ```
 GET /api/agent/events?event_id=<event_uuid>
+```
+
+### Discover Editable Events
+If you have a reusable key and do not know the event ID yet, omit `event_id` on the overview route to get a paginated list of editable events.
+```
+GET /api/agent/events?limit=20&offset=0
 ```
 
 ### Update Event
@@ -85,6 +91,7 @@ Body: { "judge_ids": ["..."], "message": "..." }
 ## Usage Tips
 
 - Start with "Get my event overview" to see the current state
+- If you are using a reusable key and do not know the event ID yet, first ask for the editable event list
 - Use "Show me pending approval requests" to review who wants to join
 - Use "Approve all pending participants" for batch operations
 - Ask "Which judges haven't finished scoring?" to check progress
