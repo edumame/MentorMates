@@ -9,6 +9,7 @@
 2. Set it as an environment variable:
    ```bash
    export MENTORMATES_API_KEY="mm_sk_..."
+   export MENTORMATES_EVENT_ID="<event_uuid>"
    ```
 3. Or add to your `.claude` project config.
 
@@ -16,32 +17,33 @@
 
 - **API Base URL**: `https://mentormates.ai/api/agent`
 - **Authentication**: `Authorization: Bearer $MENTORMATES_API_KEY`
+- **Event Selection**: add `?event_id=$MENTORMATES_EVENT_ID` to all event routes
 
 ## Available Commands
 
 ### Event Overview
 Get a summary of your event — participant counts, project counts, pending approvals.
 ```
-GET /api/agent/events
+GET /api/agent/events?event_id=<event_uuid>
 ```
 
 ### Update Event
 Modify event details (name, description, dates, capacity, etc).
 ```
-PATCH /api/agent/events
+PATCH /api/agent/events?event_id=<event_uuid>
 Body: { "event_name": "...", "event_description": "...", ... }
 ```
 
 ### List Participants
 View all participants, mentors, judges, and organizers.
 ```
-GET /api/agent/events/participants?role=participant&limit=100&offset=0
+GET /api/agent/events/participants?event_id=<event_uuid>&role=participant&limit=100&offset=0
 ```
 
 ### Manage Participants
 Change a participant's role or remove them from the event.
 ```
-PATCH /api/agent/events/participants
+PATCH /api/agent/events/participants?event_id=<event_uuid>
 Body: { "user_id": "...", "action": "change_role", "role": "judge" }
 Body: { "user_id": "...", "action": "remove" }
 ```
@@ -49,13 +51,13 @@ Body: { "user_id": "...", "action": "remove" }
 ### View Approval Requests
 See pending requests from people wanting to join your event.
 ```
-GET /api/agent/events/approval-requests?status=pending
+GET /api/agent/events/approval-requests?event_id=<event_uuid>&status=pending
 ```
 
 ### Approve / Reject Requests
 Accept or deny a participant's request to join.
 ```
-POST /api/agent/events/approval-requests
+POST /api/agent/events/approval-requests?event_id=<event_uuid>
 Body: { "request_id": "...", "action": "approve" }
 Body: { "request_id": "...", "action": "reject", "rejection_reason": "..." }
 ```
@@ -63,19 +65,19 @@ Body: { "request_id": "...", "action": "reject", "rejection_reason": "..." }
 ### View Projects
 List all submitted projects with their scores.
 ```
-GET /api/agent/events/projects?submitted=true&limit=50
+GET /api/agent/events/projects?event_id=<event_uuid>&submitted=true&limit=50
 ```
 
 ### View Judges
 See judges and their scoring progress.
 ```
-GET /api/agent/events/judges
+GET /api/agent/events/judges?event_id=<event_uuid>
 ```
 
 ### Send Info to Judges
 Send an email update to all judges or specific ones.
 ```
-POST /api/agent/events/judges
+POST /api/agent/events/judges?event_id=<event_uuid>
 Body: { "message": "Scoring deadline is Friday 5pm", "subject": "Reminder" }
 Body: { "judge_ids": ["..."], "message": "..." }
 ```

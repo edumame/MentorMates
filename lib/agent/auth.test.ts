@@ -2,7 +2,7 @@
 
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { EventRole } from "@/lib/types";
-import { authorizeAgentEventAccess, generateApiKey, hashApiKey } from "./auth";
+import { authenticateAgentRequest, authorizeAgentEventAccess, generateApiKey, hashApiKey } from "./auth";
 
 jest.mock("next/server", () => {
   class MockNextResponse {
@@ -59,6 +59,107 @@ describe("Agent API Key Auth", () => {
       const hash1 = hashApiKey("mm_sk_key1");
       const hash2 = hashApiKey("mm_sk_key2");
       expect(hash1).not.toBe(hash2);
+    });
+  });
+
+  describe("authenticateAgentRequest", () => {
+    const mockKeyLookup = (keyRow: Record<string, unknown> | null) => {
+      const agentKeySelectQuery = {
+        eq: jest.fn().mockReturnThis(),
+        maybeSingle: jest.fn().mockResolvedValue({
+          data: keyRow,
+          error: null,
+        }),
+      };
+      const updateQuery = {
+        eq: jest.fn().mockResolvedValue({ error: null }),
+      };
+      const from = jest.fn((table: string) => {
+        if (table === "agent_api_keys") {
+          return {
+            select: jest.fn().mockReturnValue(agentKeySelectQuery),
+            update: jest.fn().mockReturnValue(updateQuery),
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      });
+
+      (createSupabaseServiceClient as jest.Mock).mockReturnValue({
+        from,
+      });
+    };
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it("uses the request event_id for reusable keys", async () => {
+      mockKeyLookup({
+        id: "key-1",
+        user_id: "user-1",
+        event_id: null,
+        scopes: ["event:read"],
+        expires_at: null,
+        revoked_at: null,
+      });
+
+      const result = await authenticateAgentRequest({
+        headers: { get: () => "Bearer mm_sk_1234567890abcdef" },
+        nextUrl: new URL("https://mentormates.ai/api/agent/events?event_id=22222222-2222-4222-8222-222222222222"),
+      } as never);
+
+      expect(result).toEqual({
+        userId: "user-1",
+        eventId: "22222222-2222-4222-8222-222222222222",
+        scopes: ["event:read"],
+        keyId: "key-1",
+      });
+    });
+
+    it("requires event_id for reusable keys", async () => {
+      mockKeyLookup({
+        id: "key-1",
+        user_id: "user-1",
+        event_id: null,
+        scopes: ["event:read"],
+        expires_at: null,
+        revoked_at: null,
+      });
+
+      const result = await authenticateAgentRequest({
+        headers: { get: () => "Bearer mm_sk_1234567890abcdef" },
+        nextUrl: new URL("https://mentormates.ai/api/agent/events"),
+      } as never);
+
+      expect(result).toMatchObject({ status: 400 });
+      if ("status" in result) {
+        await expect(result.json()).resolves.toEqual({
+          error: "event_id query parameter is required",
+        });
+      }
+    });
+
+    it("rejects using a scoped key against a different event", async () => {
+      mockKeyLookup({
+        id: "key-1",
+        user_id: "user-1",
+        event_id: "11111111-1111-4111-8111-111111111111",
+        scopes: ["event:read"],
+        expires_at: null,
+        revoked_at: null,
+      });
+
+      const result = await authenticateAgentRequest({
+        headers: { get: () => "Bearer mm_sk_1234567890abcdef" },
+        nextUrl: new URL("https://mentormates.ai/api/agent/events?event_id=22222222-2222-4222-8222-222222222222"),
+      } as never);
+
+      expect(result).toMatchObject({ status: 403 });
+      if ("status" in result) {
+        await expect(result.json()).resolves.toEqual({
+          error: "This API key is scoped to a different event",
+        });
+      }
     });
   });
 

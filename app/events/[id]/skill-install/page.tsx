@@ -18,6 +18,7 @@ interface InstallData {
   skill_content: string;
   setup_commands: {
     env_export: string;
+    event_export: string;
     skill_save: string;
   };
 }
@@ -123,7 +124,8 @@ export default function SkillInstallPage() {
               {loading ? "Generating..." : "Generate Install Link"}
             </Button>
             <p className="text-xs text-gray-500">
-              This will create an API key scoped to this event.
+              This will create a reusable API key and preconfigure it for this
+              event.
             </p>
           </CardContent>
         </Card>
@@ -215,7 +217,7 @@ export default function SkillInstallPage() {
           </div>
           <p className="text-xs text-gray-500 mt-2">
             This key is embedded in the downloaded skill file. You can revoke it
-            from Event Settings → API Keys.
+            from Keys or Event Settings → API Keys.
           </p>
         </CardContent>
       </Card>

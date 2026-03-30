@@ -60,7 +60,7 @@ export type Database = {
         Row: {
           id: string;
           user_id: string;
-          event_id: string;
+          event_id: string | null;
           key_hash: string;
           key_prefix: string;
           label: string | null;
@@ -74,7 +74,7 @@ export type Database = {
         Insert: {
           id?: string;
           user_id: string;
-          event_id: string;
+          event_id?: string | null;
           key_hash: string;
           key_prefix: string;
           label?: string | null;
@@ -88,7 +88,7 @@ export type Database = {
         Update: {
           id?: string;
           user_id?: string;
-          event_id?: string;
+          event_id?: string | null;
           key_hash?: string;
           key_prefix?: string;
           label?: string | null;

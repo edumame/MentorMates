@@ -7,6 +7,7 @@ import { generateApiKey } from "@/lib/agent/auth";
 
 const createKeySchema = z.object({
   event_id: z.string().uuid(),
+  scope_mode: z.enum(["public", "event"]).optional().default("public"),
   label: z.string().max(100).optional().default("default"),
   scopes: z
     .array(z.string())
@@ -21,7 +22,7 @@ const createKeySchema = z.object({
     ]),
 });
 
-// POST: Generate a new API key for an event
+// POST: Generate a reusable API key after verifying event access
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createSupabaseClient();
@@ -43,7 +44,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { event_id, label, scopes } = parsed.data;
+    const { event_id, scope_mode, label, scopes } = parsed.data;
 
     // Verify user is organizer/admin for this event
     const { data: roleRow } = await supabase
@@ -73,13 +74,13 @@ export async function POST(request: NextRequest) {
       .from("agent_api_keys")
       .insert({
         user_id: user.id,
-        event_id,
+        event_id: scope_mode === "event" ? event_id : null,
         key_hash: hash,
         key_prefix: prefix,
         label,
         scopes,
       })
-      .select("id, key_prefix, label, scopes, created_at")
+      .select("id, event_id, key_prefix, label, scopes, created_at")
       .single();
 
     if (insertError) {
@@ -96,13 +97,16 @@ export async function POST(request: NextRequest) {
         api_key: raw, // Only shown once!
         key: {
           id: keyRow.id,
+          event_id: keyRow.event_id,
           prefix: keyRow.key_prefix,
           label: keyRow.label,
           scopes: keyRow.scopes,
           created_at: keyRow.created_at,
         },
         message:
-          "Save this API key — it will not be shown again. Use it as: Authorization: Bearer <key>",
+          scope_mode === "event"
+            ? "Save this API key — it will not be shown again. This key is scoped to the selected event."
+            : "Save this API key — it will not be shown again. Use it as: Authorization: Bearer <key> and include ?event_id=<event_uuid> on /api/agent/events requests.",
       },
       { status: 201 }
     );
@@ -140,7 +144,7 @@ export async function GET(request: NextRequest) {
       .order("created_at", { ascending: false });
 
     if (eventId) {
-      query = query.eq("event_id", eventId);
+      query = query.or(`event_id.eq.${eventId},event_id.is.null`);
     }
 
     const { data: keys, error } = await query;

@@ -162,7 +162,7 @@ const data = [
   { name: "Learn", href: "/learn", icon: BookIcon },
   { name: "Projects", href: "/projects", icon: ProjectIcon },
   { name: "Feedback", href: "/feedback", icon: FeedbackIcon },
-  { name: "Agents", href: "/agents", icon: AgentsIcon },
+  { name: "API", href: "/keys", icon: AgentsIcon },
 ];
 
 const bottomLinksBase = [

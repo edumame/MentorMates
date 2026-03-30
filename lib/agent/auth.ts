@@ -64,6 +64,31 @@ export async function authenticateAgentRequest(
     return NextResponse.json({ error: "API key has expired" }, { status: 401 });
   }
 
+  const requestedEventId = request.nextUrl.searchParams.get("event_id")?.trim() || null;
+  const scopedEventId = keyRow.event_id || null;
+
+  if (requestedEventId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestedEventId)) {
+    return NextResponse.json(
+      { error: "Invalid event_id query parameter" },
+      { status: 400 }
+    );
+  }
+
+  if (scopedEventId && requestedEventId && scopedEventId !== requestedEventId) {
+    return NextResponse.json(
+      { error: "This API key is scoped to a different event" },
+      { status: 403 }
+    );
+  }
+
+  const eventId = requestedEventId ?? scopedEventId;
+  if (!eventId) {
+    return NextResponse.json(
+      { error: "event_id query parameter is required" },
+      { status: 400 }
+    );
+  }
+
   // Update last_used_at (fire-and-forget)
   supabase
     .from("agent_api_keys")
@@ -73,7 +98,7 @@ export async function authenticateAgentRequest(
 
   return {
     userId: keyRow.user_id,
-    eventId: keyRow.event_id,
+    eventId,
     scopes: keyRow.scopes || [],
     keyId: keyRow.id,
   };

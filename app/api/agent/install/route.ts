@@ -61,7 +61,6 @@ export async function POST(request: NextRequest) {
       .from("agent_api_keys")
       .insert({
         user_id: user.id,
-        event_id,
         key_hash: hash,
         key_prefix: prefix,
         label: `auto-install-${new Date().toISOString().slice(0, 10)}`,
@@ -79,7 +78,7 @@ export async function POST(request: NextRequest) {
     const eventName = event?.event_name || "MentorMates Event";
 
     // Build the skill content with the key baked in
-    const skillContent = buildSkillContent(baseUrl, raw, eventName);
+    const skillContent = buildSkillContent(baseUrl, raw, eventName, event_id);
 
     return NextResponse.json({
       success: true,
@@ -88,6 +87,7 @@ export async function POST(request: NextRequest) {
       skill_content: skillContent,
       setup_commands: {
         env_export: `export MENTORMATES_API_KEY="${raw}"`,
+        event_export: `export MENTORMATES_EVENT_ID="${event_id}"`,
         skill_save: `mkdir -p .claude && curl -s "${baseUrl}/api/agent/skill" > .claude/commands/mentormates.md`,
       },
     });
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-function buildSkillContent(baseUrl: string, apiKey: string, eventName: string): string {
+function buildSkillContent(baseUrl: string, apiKey: string, eventName: string, eventId: string): string {
   return `---
 name: mentormates
 description: Manage "${eventName}" on MentorMates
@@ -111,69 +111,71 @@ You are a MentorMates event management assistant for "${eventName}".
 ## Authentication
 API Key: ${apiKey}
 Base URL: ${baseUrl}/api/agent
+Event ID: ${eventId}
 
 All requests use: Authorization: Bearer ${apiKey}
+All event routes require: ?event_id=${eventId}
 
 ## Commands
 
 ### Event Overview
 \`\`\`bash
-curl -s -H "Authorization: Bearer ${apiKey}" ${baseUrl}/api/agent/events | jq
+curl -s -H "Authorization: Bearer ${apiKey}" "${baseUrl}/api/agent/events?event_id=${eventId}" | jq
 \`\`\`
 
 ### List Participants
 \`\`\`bash
-curl -s -H "Authorization: Bearer ${apiKey}" "${baseUrl}/api/agent/events/participants?role=participant" | jq
+curl -s -H "Authorization: Bearer ${apiKey}" "${baseUrl}/api/agent/events/participants?event_id=${eventId}&role=participant" | jq
 \`\`\`
 
 ### View Pending Approval Requests
 \`\`\`bash
-curl -s -H "Authorization: Bearer ${apiKey}" "${baseUrl}/api/agent/events/approval-requests?status=pending" | jq
+curl -s -H "Authorization: Bearer ${apiKey}" "${baseUrl}/api/agent/events/approval-requests?event_id=${eventId}&status=pending" | jq
 \`\`\`
 
 ### Approve a Request
 \`\`\`bash
 curl -s -X POST -H "Authorization: Bearer ${apiKey}" -H "Content-Type: application/json" \\
   -d '{"request_id":"UUID","action":"approve"}' \\
-  ${baseUrl}/api/agent/events/approval-requests | jq
+  "${baseUrl}/api/agent/events/approval-requests?event_id=${eventId}" | jq
 \`\`\`
 
 ### Reject a Request
 \`\`\`bash
 curl -s -X POST -H "Authorization: Bearer ${apiKey}" -H "Content-Type: application/json" \\
   -d '{"request_id":"UUID","action":"reject","rejection_reason":"..."}' \\
-  ${baseUrl}/api/agent/events/approval-requests | jq
+  "${baseUrl}/api/agent/events/approval-requests?event_id=${eventId}" | jq
 \`\`\`
 
 ### Manage Participants (change role or remove)
 \`\`\`bash
 curl -s -X PATCH -H "Authorization: Bearer ${apiKey}" -H "Content-Type: application/json" \\
   -d '{"user_id":"UUID","action":"change_role","role":"judge"}' \\
-  ${baseUrl}/api/agent/events/participants | jq
+  "${baseUrl}/api/agent/events/participants?event_id=${eventId}" | jq
 \`\`\`
 
 ### View Projects
 \`\`\`bash
-curl -s -H "Authorization: Bearer ${apiKey}" "${baseUrl}/api/agent/events/projects?submitted=true" | jq
+curl -s -H "Authorization: Bearer ${apiKey}" "${baseUrl}/api/agent/events/projects?event_id=${eventId}&submitted=true" | jq
 \`\`\`
 
 ### View Judges + Scoring Progress
 \`\`\`bash
-curl -s -H "Authorization: Bearer ${apiKey}" ${baseUrl}/api/agent/events/judges | jq
+curl -s -H "Authorization: Bearer ${apiKey}" "${baseUrl}/api/agent/events/judges?event_id=${eventId}" | jq
 \`\`\`
 
 ### Send Info to Judges
 \`\`\`bash
 curl -s -X POST -H "Authorization: Bearer ${apiKey}" -H "Content-Type: application/json" \\
   -d '{"message":"...","subject":"Reminder"}' \\
-  ${baseUrl}/api/agent/events/judges | jq
+  "${baseUrl}/api/agent/events/judges?event_id=${eventId}" | jq
 \`\`\`
 
 ### Update Event Details
 \`\`\`bash
 curl -s -X PATCH -H "Authorization: Bearer ${apiKey}" -H "Content-Type: application/json" \\
   -d '{"event_name":"...","event_description":"..."}' \\
-  ${baseUrl}/api/agent/events | jq
+  "${baseUrl}/api/agent/events?event_id=${eventId}" | jq
 \`\`\`
 
 ## Behavior
