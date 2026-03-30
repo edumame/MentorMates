@@ -536,7 +536,7 @@ export function BasicInfoTab({
             <div className="relative flex-1 min-w-0">
               <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
               <Input
-                value=""
+                value={event.cover_image_url || ""}
                 disabled={isArchived}
                 onChange={(e) => {
                   setEvent({

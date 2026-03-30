@@ -226,7 +226,8 @@ export function BasicInfoEditor({ event, update }: BasicInfoEditorProps) {
             <div className="relative">
               <ImageIcon className="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2 text-gray-400" />
               <input
-                type="url"
+                type="text"
+                inputMode="url"
                 value={event.cover_image_url}
                 onChange={(e) => update({ cover_image_url: e.target.value })}
                 placeholder="https://..."
