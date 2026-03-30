@@ -27,7 +27,6 @@ import { PricingTab } from "@/features/user/dashboards/dashboard/organizer/prici
 import EmailDashboard from "@/features/user/dashboards/dashboard/organizer/notifications/EmailDashboard";
 import { EmailTab } from "@/features/user/dashboards/dashboard/organizer/email";
 import { ProjectImport } from "@/features/user/dashboards/dashboard/organizer/import/ProjectImportButton";
-import { AgentsTab } from "@/features/user/dashboards/dashboard/organizer/agents/AgentsTab";
 import { IntakeFormBuilder } from "@/features/intake-forms/components/IntakeFormBuilder";
 import { SubmissionFieldsSettings } from "@/features/user/dashboards/dashboard/organizer/submissions/SubmissionFieldsSettings";
 
@@ -75,6 +74,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ApiKeysTab } from "@/features/user/dashboards/dashboard/organizer/api-keys/ApiKeysTab";
 
 interface OrganizerEditOverviewProps {
   eventId: string;
@@ -118,6 +118,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
     { value: "project", label: "Projects", badge: projectCount },
     { value: "access", label: "Access" },
     { value: "tracks", label: "Tracks & Prizes" },
+    { value: "agent-keys", label: "Agent Keys" },
     { value: "advanced-settings", label: "Advanced Settings" },
   ];
 
@@ -127,7 +128,6 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
     "intake-responses",
     "ticketing",
     "notify",
-    "agents",
   ] as const;
   const advancedTabs = [
     { value: "overview", label: "Edit Event" },
@@ -135,7 +135,6 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
     { value: "intake-responses", label: "Intake Responses" },
     { value: "ticketing", label: "Ticketing" },
     { value: "notify", label: "Notify" },
-    { value: "agents", label: "Agents" },
   ];
   const isAdvancedTab = (tab: string) => advancedTabValues.includes(tab as (typeof advancedTabValues)[number]);
   const projectSubTabValues = ["submission", "live-scores"] as const;
@@ -1093,9 +1092,6 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                       </div>
                     </div>
                   )}
-                  {activeTab === "agents" && (
-                    <AgentsTab eventId={eventId} />
-                  )}
                 </TabsContent>
 
                 {/* Other Main Tabs */}
@@ -1185,6 +1181,10 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                       />
                     </TabsContent>
                   </Tabs>
+                </TabsContent>
+
+                <TabsContent value="agent-keys" className="mt-0 w-full">
+                  <ApiKeysTab eventId={eventId} />
                 </TabsContent>
 
               </div>

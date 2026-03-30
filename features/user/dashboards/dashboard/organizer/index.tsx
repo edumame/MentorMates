@@ -15,6 +15,7 @@ import {
   DollarSign,
   Bell,
   Bot,
+  KeyRound,
 } from "lucide-react";
 
 import {
@@ -33,6 +34,7 @@ import { AccessTab } from "./access";
 import { PricingTab } from "./pricing/PricingTab";
 import EmailDashboard from "./notifications/EmailDashboard";
 import { AgentsTab } from "./agents/AgentsTab";
+import { ApiKeysTab } from "./api-keys/ApiKeysTab";
 import { IntakeResponsesTab } from "./registration";
 // Overview sub-tab components
 import { BasicInfoTab } from "./details/BasicInfoTab";
@@ -80,6 +82,7 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
     { value: "pricing", label: "Pricing", icon: DollarSign },
     { value: "notify", label: "Notify", icon: Bell },
     { value: "agents", label: "Agents", icon: Bot },
+    { value: "api-keys", label: "API Keys", icon: KeyRound },
   ];
 
   // Sub-tabs under Overview matching Figma design
@@ -459,6 +462,10 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
 
               <TabsContent value="agents" className="mt-0">
                 <AgentsTab eventId={eventId} />
+              </TabsContent>
+
+              <TabsContent value="api-keys" className="mt-0">
+                <ApiKeysTab eventId={eventId} />
               </TabsContent>
             </Tabs>
           </div>
