@@ -88,6 +88,34 @@ Body: { "message": "Scoring deadline is Friday 5pm", "subject": "Reminder" }
 Body: { "judge_ids": ["..."], "message": "..." }
 ```
 
+## Roles
+
+| Role | Description |
+|------|-------------|
+| `participant` | Submit and manage projects |
+| `mentor` | Give feedback on projects |
+| `judge` | Score projects |
+| `organizer` | Full event management |
+| `admin` | Everything, all events |
+
+## Event Visibility Values
+
+`draft`, `private`, `public`, `demo`, `test`, `archived`
+
+## Updatable Event Fields (PATCH)
+
+| Field | Type | Example |
+|-------|------|---------|
+| `event_name` | string | "AI Hackathon 2026" |
+| `event_description` | string (markdown) | "Build AI tools..." |
+| `event_blurb` | string | "24-hour hackathon" |
+| `event_date` | string | "2026-04-15" |
+| `location` | string | "San Francisco, CA" |
+| `submission_time_start` | ISO string or null | "2026-04-10T12:00:00Z" |
+| `submission_time_cutoff` | ISO string or null | "2026-04-15T17:00:00Z" |
+| `participant_capacity` | number or null | 100 |
+| `require_participant_approval` | boolean | true |
+
 ## Usage Tips
 
 - Start with "Get my event overview" to see the current state
