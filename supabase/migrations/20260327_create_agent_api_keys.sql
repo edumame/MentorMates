@@ -1,10 +1,10 @@
 -- Agent API keys for Claude Code skill integration
--- Each key is scoped to a user + event, with organizer-level access
+-- Each key is scoped to a user, and some can be used across events
 
 CREATE TABLE IF NOT EXISTS agent_api_keys (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES user_profiles(uid) ON DELETE CASCADE,
-  event_id UUID NOT NULL REFERENCES events(event_id) ON DELETE CASCADE,
+  event_id UUID REFERENCES events(event_id) ON DELETE CASCADE,
   key_hash TEXT NOT NULL,
   key_prefix TEXT NOT NULL, -- first 8 chars for display (e.g., "mm_sk_ab12...")
   label TEXT DEFAULT 'default',
@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS agent_api_keys (
 -- Index for fast lookup by hash
 CREATE INDEX IF NOT EXISTS idx_agent_api_keys_hash ON agent_api_keys(key_hash);
 -- Index for listing keys by user
-CREATE INDEX IF NOT EXISTS idx_agent_api_keys_user ON agent_api_keys(user_id, event_id);
+CREATE INDEX IF NOT EXISTS idx_agent_api_keys_user ON agent_api_keys(user_id);
 
 -- RLS: users can only see their own keys
 ALTER TABLE agent_api_keys ENABLE ROW LEVEL SECURITY;
