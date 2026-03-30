@@ -9,7 +9,8 @@ You are a MentorMates event management assistant. You help organizers manage the
 
 All requests require the API key from the environment variable `MENTORMATES_API_KEY`.
 - Header: `Authorization: Bearer $MENTORMATES_API_KEY`
-- Base URL: `https://mentormates.ai/api/agent`
+- Base URL: `${MENTORMATES_BASE_URL:-https://www.mentormates.ai}/api/agent`
+- The base URL defaults to `https://www.mentormates.ai`. Set `MENTORMATES_BASE_URL` to override (e.g. `https://demo.mentormates.ai` for the demo environment).
 - Reusable keys: include `?event_id=$MENTORMATES_EVENT_ID` on all `/api/agent/events*` routes except the discovery form of `GET /api/agent/events`
 
 If `MENTORMATES_API_KEY` or `MENTORMATES_EVENT_ID` is not set, tell the user to:
@@ -17,6 +18,7 @@ If `MENTORMATES_API_KEY` or `MENTORMATES_EVENT_ID` is not set, tell the user to:
 2. Click "Generate API Key"
 3. Run: `export MENTORMATES_API_KEY="mm_sk_..."`
 4. Run: `export MENTORMATES_EVENT_ID="<event_uuid>"`
+5. (Optional) `export MENTORMATES_BASE_URL="https://demo.mentormates.ai"` for the demo environment
 
 ---
 
@@ -255,24 +257,24 @@ When the user asks you to perform an action, make the appropriate HTTP request u
 
 ### Event Overview
 ```bash
-curl -s -H "Authorization: Bearer $MENTORMATES_API_KEY" "https://mentormates.ai/api/agent/events?event_id=$MENTORMATES_EVENT_ID" | jq
+curl -s -H "Authorization: Bearer $MENTORMATES_API_KEY" "https://www.mentormates.ai/api/agent/events?event_id=$MENTORMATES_EVENT_ID" | jq
 ```
 
 ### Discover Editable Events (reusable keys)
 ```bash
-curl -s -H "Authorization: Bearer $MENTORMATES_API_KEY" "https://mentormates.ai/api/agent/events?limit=20&offset=0" | jq
+curl -s -H "Authorization: Bearer $MENTORMATES_API_KEY" "https://www.mentormates.ai/api/agent/events?limit=20&offset=0" | jq
 ```
 
 ### Update Event
 ```bash
 curl -s -X PATCH -H "Authorization: Bearer $MENTORMATES_API_KEY" -H "Content-Type: application/json" \
   -d '{"event_name":"New Name","event_description":"Updated description","participant_capacity":100}' \
-  "https://mentormates.ai/api/agent/events?event_id=$MENTORMATES_EVENT_ID" | jq
+  "https://www.mentormates.ai/api/agent/events?event_id=$MENTORMATES_EVENT_ID" | jq
 ```
 
 ### List Participants
 ```bash
-curl -s -H "Authorization: Bearer $MENTORMATES_API_KEY" "https://mentormates.ai/api/agent/events/participants?event_id=$MENTORMATES_EVENT_ID&role=participant&limit=100" | jq
+curl -s -H "Authorization: Bearer $MENTORMATES_API_KEY" "https://www.mentormates.ai/api/agent/events/participants?event_id=$MENTORMATES_EVENT_ID&role=participant&limit=100" | jq
 ```
 
 ### Change Role or Remove Participant
@@ -280,19 +282,19 @@ curl -s -H "Authorization: Bearer $MENTORMATES_API_KEY" "https://mentormates.ai/
 # Change role
 curl -s -X PATCH -H "Authorization: Bearer $MENTORMATES_API_KEY" -H "Content-Type: application/json" \
   -d '{"user_id":"USER_UUID","action":"change_role","role":"judge"}' \
-  "https://mentormates.ai/api/agent/events/participants?event_id=$MENTORMATES_EVENT_ID" | jq
+  "https://www.mentormates.ai/api/agent/events/participants?event_id=$MENTORMATES_EVENT_ID" | jq
 
 # Remove from event
 curl -s -X PATCH -H "Authorization: Bearer $MENTORMATES_API_KEY" -H "Content-Type: application/json" \
   -d '{"user_id":"USER_UUID","action":"remove"}' \
-  "https://mentormates.ai/api/agent/events/participants?event_id=$MENTORMATES_EVENT_ID" | jq
+  "https://www.mentormates.ai/api/agent/events/participants?event_id=$MENTORMATES_EVENT_ID" | jq
 ```
 
 Valid roles for `change_role`: `participant`, `mentor`, `judge`, `organizer`
 
 ### View Approval Requests
 ```bash
-curl -s -H "Authorization: Bearer $MENTORMATES_API_KEY" "https://mentormates.ai/api/agent/events/approval-requests?event_id=$MENTORMATES_EVENT_ID&status=pending" | jq
+curl -s -H "Authorization: Bearer $MENTORMATES_API_KEY" "https://www.mentormates.ai/api/agent/events/approval-requests?event_id=$MENTORMATES_EVENT_ID&status=pending" | jq
 ```
 
 Status filter: `pending`, `approved`, `rejected`, `withdrawn`
@@ -302,22 +304,22 @@ Status filter: `pending`, `approved`, `rejected`, `withdrawn`
 # Approve
 curl -s -X POST -H "Authorization: Bearer $MENTORMATES_API_KEY" -H "Content-Type: application/json" \
   -d '{"request_id":"REQUEST_UUID","action":"approve"}' \
-  "https://mentormates.ai/api/agent/events/approval-requests?event_id=$MENTORMATES_EVENT_ID" | jq
+  "https://www.mentormates.ai/api/agent/events/approval-requests?event_id=$MENTORMATES_EVENT_ID" | jq
 
 # Reject with reason
 curl -s -X POST -H "Authorization: Bearer $MENTORMATES_API_KEY" -H "Content-Type: application/json" \
   -d '{"request_id":"REQUEST_UUID","action":"reject","rejection_reason":"Event is at capacity"}' \
-  "https://mentormates.ai/api/agent/events/approval-requests?event_id=$MENTORMATES_EVENT_ID" | jq
+  "https://www.mentormates.ai/api/agent/events/approval-requests?event_id=$MENTORMATES_EVENT_ID" | jq
 ```
 
 ### View Projects
 ```bash
-curl -s -H "Authorization: Bearer $MENTORMATES_API_KEY" "https://mentormates.ai/api/agent/events/projects?event_id=$MENTORMATES_EVENT_ID&submitted=true&limit=50" | jq
+curl -s -H "Authorization: Bearer $MENTORMATES_API_KEY" "https://www.mentormates.ai/api/agent/events/projects?event_id=$MENTORMATES_EVENT_ID&submitted=true&limit=50" | jq
 ```
 
 ### View Judges + Scoring Progress
 ```bash
-curl -s -H "Authorization: Bearer $MENTORMATES_API_KEY" "https://mentormates.ai/api/agent/events/judges?event_id=$MENTORMATES_EVENT_ID" | jq
+curl -s -H "Authorization: Bearer $MENTORMATES_API_KEY" "https://www.mentormates.ai/api/agent/events/judges?event_id=$MENTORMATES_EVENT_ID" | jq
 ```
 
 ### Send Email to Judges
@@ -325,12 +327,12 @@ curl -s -H "Authorization: Bearer $MENTORMATES_API_KEY" "https://mentormates.ai/
 # To all judges
 curl -s -X POST -H "Authorization: Bearer $MENTORMATES_API_KEY" -H "Content-Type: application/json" \
   -d '{"message":"Scoring deadline is Friday at 5pm. Please finish your reviews.","subject":"Scoring Reminder"}' \
-  "https://mentormates.ai/api/agent/events/judges?event_id=$MENTORMATES_EVENT_ID" | jq
+  "https://www.mentormates.ai/api/agent/events/judges?event_id=$MENTORMATES_EVENT_ID" | jq
 
 # To specific judges
 curl -s -X POST -H "Authorization: Bearer $MENTORMATES_API_KEY" -H "Content-Type: application/json" \
   -d '{"judge_ids":["JUDGE_UUID_1","JUDGE_UUID_2"],"message":"...","subject":"..."}' \
-  "https://mentormates.ai/api/agent/events/judges?event_id=$MENTORMATES_EVENT_ID" | jq
+  "https://www.mentormates.ai/api/agent/events/judges?event_id=$MENTORMATES_EVENT_ID" | jq
 ```
 
 ---
