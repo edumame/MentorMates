@@ -381,67 +381,111 @@ export default function KeysPageClient({
         <CardHeader>
           <CardTitle>Create an API key</CardTitle>
           <CardDescription>
-            Choose an event you can manage to authorize the key. Then decide
-            whether the key should stay reusable or be locked to that event.
+            Choose how you want your key to work.
           </CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-[1.1fr_1.2fr_0.9fr_auto] md:items-end">
-          <div className="space-y-2">
-            <Label htmlFor="key-label">Label</Label>
-            <Input
-              id="key-label"
-              value={label}
-              onChange={(event) => setLabel(event.target.value)}
-              placeholder="Recruiting agent"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Authorization Event</Label>
-            <Select value={eventId} onValueChange={setEventId} disabled={eventOptions.length === 0}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select an event" />
-              </SelectTrigger>
-              <SelectContent>
-                {eventOptions.map((event) => (
-                  <SelectItem key={event.id} value={event.id}>
-                    {event.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label>Key Type</Label>
-            <Select
-              value={scopeMode}
-              onValueChange={(value) => setScopeMode(value as "public" | "event")}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="public">Reusable</SelectItem>
-                <SelectItem value="event">Event-specific</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <Button
-            onClick={handleCreateKey}
-            disabled={isCreating || eventOptions.length === 0}
-            className="md:min-w-36"
-          >
-            <KeyRound className="mr-2 h-4 w-4" />
-            {isCreating ? "Creating..." : "Create Key"}
-          </Button>
-        </CardContent>
-        {eventOptions.length === 0 ? (
-          <CardContent className="pt-0">
+        <CardContent className="space-y-6">
+          {eventOptions.length === 0 ? (
             <p className="text-sm text-amber-700">
-              You need organizer access to at least one event before you can mint
-              agent keys here.
+              You need organizer access to at least one event before you can
+              create agent keys.
             </p>
-          </CardContent>
-        ) : null}
+          ) : (
+            <>
+              <div className="grid gap-4 md:grid-cols-2">
+                {/* Reusable key option */}
+                <div
+                  className={`cursor-pointer rounded-lg border-2 p-5 transition-colors ${
+                    scopeMode === "public"
+                      ? "border-blue-500 bg-blue-50"
+                      : "border-slate-200 hover:border-slate-300"
+                  }`}
+                  onClick={() => setScopeMode("public")}
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <Globe2 className="h-5 w-5 text-blue-600" />
+                    <p className="font-semibold text-slate-900">
+                      Key for all my events
+                    </p>
+                  </div>
+                  <p className="text-sm text-slate-600">
+                    One key that works across all events you organize. Pass{" "}
+                    <code className="rounded bg-slate-100 px-1 text-xs">
+                      ?event_id=UUID
+                    </code>{" "}
+                    on each API call to choose the event.
+                  </p>
+                </div>
+
+                {/* Event-specific key option */}
+                <div
+                  className={`cursor-pointer rounded-lg border-2 p-5 transition-colors ${
+                    scopeMode === "event"
+                      ? "border-blue-500 bg-blue-50"
+                      : "border-slate-200 hover:border-slate-300"
+                  }`}
+                  onClick={() => setScopeMode("event")}
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <LockKeyhole className="h-5 w-5 text-amber-600" />
+                    <p className="font-semibold text-slate-900">
+                      Key for one event
+                    </p>
+                  </div>
+                  <p className="text-sm text-slate-600">
+                    Locked to a single event. No need to pass{" "}
+                    <code className="rounded bg-slate-100 px-1 text-xs">
+                      event_id
+                    </code>{" "}
+                    — the key already knows which event it manages.
+                  </p>
+                </div>
+              </div>
+
+              {/* Event selector — only shown for event-specific keys */}
+              {scopeMode === "event" && (
+                <div className="space-y-2">
+                  <Label>Which event?</Label>
+                  <Select
+                    value={eventId}
+                    onValueChange={setEventId}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select an event" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {eventOptions.map((event) => (
+                        <SelectItem key={event.id} value={event.id}>
+                          {event.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              <div className="flex items-end gap-3">
+                <div className="flex-1 space-y-2">
+                  <Label htmlFor="key-label">Label (optional)</Label>
+                  <Input
+                    id="key-label"
+                    value={label}
+                    onChange={(event) => setLabel(event.target.value)}
+                    placeholder="e.g. My laptop, CI/CD, Recruiting agent"
+                  />
+                </div>
+                <Button
+                  onClick={handleCreateKey}
+                  disabled={isCreating}
+                  className="min-w-36"
+                >
+                  <KeyRound className="mr-2 h-4 w-4" />
+                  {isCreating ? "Creating..." : "Create Key"}
+                </Button>
+              </div>
+            </>
+          )}
+        </CardContent>
       </Card>
 
       {error ? (
