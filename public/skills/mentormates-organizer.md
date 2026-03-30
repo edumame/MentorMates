@@ -10,12 +10,14 @@
    ```bash
    export MENTORMATES_API_KEY="mm_sk_..."
    export MENTORMATES_EVENT_ID="<event_uuid>"
+   # Optional: override base URL for demo/staging environments
+   export MENTORMATES_BASE_URL="https://demo.mentormates.ai"
    ```
 3. Or add to your `.claude` project config.
 
 ## Configuration
 
-- **API Base URL**: `https://mentormates.ai/api/agent`
+- **API Base URL**: `${MENTORMATES_BASE_URL:-https://www.mentormates.ai}/api/agent` (defaults to production; set `MENTORMATES_BASE_URL` to override)
 - **Authentication**: `Authorization: Bearer $MENTORMATES_API_KEY`
 - **Event Selection**: add `?event_id=$MENTORMATES_EVENT_ID` to all `/api/agent/events*` routes except the discovery form of `GET /api/agent/events`
 
