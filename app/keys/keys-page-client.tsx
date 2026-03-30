@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { AlertTriangle, Check, Copy, Globe2, KeyRound, LockKeyhole, Trash2 } from "lucide-react";
+import { AlertTriangle, BookOpen, Check, Copy, Download, Globe2, KeyRound, LockKeyhole, Terminal, Trash2 } from "lucide-react";
 
 export interface AgentKeyRecord {
   id: string;
@@ -236,13 +236,135 @@ export default function KeysPageClient({
     <div className="mx-auto max-w-6xl space-y-8 px-4 py-12">
       <div className="space-y-2">
         <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
-          API Keys
+          Developer API
         </h1>
         <p className="max-w-3xl text-sm text-slate-600">
-          Create and revoke agent API keys in one place. Reusable keys work across
-          events and require an `event_id` query param. Event-specific keys stay
-          locked to one event.
+          Manage your hackathon events from Claude Code, Codex, or any AI agent.
+          Create an API key, download the skill file, and start managing events
+          from your terminal.
         </p>
+      </div>
+
+      {/* Quick Start */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Terminal className="h-5 w-5" />
+            Quick Start
+          </CardTitle>
+          <CardDescription>
+            Get up and running in 3 steps.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="rounded-lg border border-slate-200 p-4 space-y-2">
+              <p className="font-medium text-slate-900">1. Create a key</p>
+              <p className="text-sm text-slate-600">
+                Generate an API key below. Choose reusable (works across events)
+                or event-specific.
+              </p>
+            </div>
+            <div className="rounded-lg border border-slate-200 p-4 space-y-2">
+              <p className="font-medium text-slate-900">2. Set env vars</p>
+              <div className="rounded bg-slate-900 px-3 py-2 font-mono text-xs text-green-400">
+                export MENTORMATES_API_KEY=&quot;mm_sk_...&quot;
+              </div>
+            </div>
+            <div className="rounded-lg border border-slate-200 p-4 space-y-2">
+              <p className="font-medium text-slate-900">3. Download skill</p>
+              <a
+                href="/api/agent/skill"
+                className="inline-flex items-center gap-2 rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 transition-colors"
+              >
+                <Download className="h-4 w-4" />
+                mentormates.md
+              </a>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* API Reference */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BookOpen className="h-5 w-5" />
+            API Reference
+          </CardTitle>
+          <CardDescription>
+            All endpoints use Bearer token auth and require{" "}
+            <code className="rounded bg-slate-100 px-1 text-xs">?event_id=UUID</code>{" "}
+            for reusable keys.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-left">
+                  <th className="pb-2 pr-4 font-medium text-slate-500">Method</th>
+                  <th className="pb-2 pr-4 font-medium text-slate-500">Endpoint</th>
+                  <th className="pb-2 font-medium text-slate-500">Description</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                <tr>
+                  <td className="py-2 pr-4"><Badge variant="outline">GET</Badge></td>
+                  <td className="py-2 pr-4 font-mono text-xs">/api/agent/events</td>
+                  <td className="py-2 text-slate-600">List your editable events (no event_id) or get event details</td>
+                </tr>
+                <tr>
+                  <td className="py-2 pr-4"><Badge variant="outline">PATCH</Badge></td>
+                  <td className="py-2 pr-4 font-mono text-xs">/api/agent/events</td>
+                  <td className="py-2 text-slate-600">Update event name, description, date, capacity</td>
+                </tr>
+                <tr>
+                  <td className="py-2 pr-4"><Badge variant="outline">GET</Badge></td>
+                  <td className="py-2 pr-4 font-mono text-xs">/api/agent/events/participants</td>
+                  <td className="py-2 text-slate-600">List participants, mentors, judges (filterable by role)</td>
+                </tr>
+                <tr>
+                  <td className="py-2 pr-4"><Badge variant="outline">PATCH</Badge></td>
+                  <td className="py-2 pr-4 font-mono text-xs">/api/agent/events/participants</td>
+                  <td className="py-2 text-slate-600">Change role or remove a participant</td>
+                </tr>
+                <tr>
+                  <td className="py-2 pr-4"><Badge variant="outline">GET</Badge></td>
+                  <td className="py-2 pr-4 font-mono text-xs">/api/agent/events/approval-requests</td>
+                  <td className="py-2 text-slate-600">List pending approval requests</td>
+                </tr>
+                <tr>
+                  <td className="py-2 pr-4"><Badge variant="outline">POST</Badge></td>
+                  <td className="py-2 pr-4 font-mono text-xs">/api/agent/events/approval-requests</td>
+                  <td className="py-2 text-slate-600">Approve or reject a request</td>
+                </tr>
+                <tr>
+                  <td className="py-2 pr-4"><Badge variant="outline">GET</Badge></td>
+                  <td className="py-2 pr-4 font-mono text-xs">/api/agent/events/projects</td>
+                  <td className="py-2 text-slate-600">List projects with scores</td>
+                </tr>
+                <tr>
+                  <td className="py-2 pr-4"><Badge variant="outline">GET</Badge></td>
+                  <td className="py-2 pr-4 font-mono text-xs">/api/agent/events/judges</td>
+                  <td className="py-2 text-slate-600">List judges and scoring progress</td>
+                </tr>
+                <tr>
+                  <td className="py-2 pr-4"><Badge variant="outline">POST</Badge></td>
+                  <td className="py-2 pr-4 font-mono text-xs">/api/agent/events/judges</td>
+                  <td className="py-2 text-slate-600">Send email to judges</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Keys Management Section */}
+      <div className="space-y-2">
+        <h2 className="text-xl font-semibold tracking-tight text-slate-900">
+          Manage Keys
+        </h2>
       </div>
 
       <Alert>
@@ -259,67 +381,111 @@ export default function KeysPageClient({
         <CardHeader>
           <CardTitle>Create an API key</CardTitle>
           <CardDescription>
-            Choose an event you can manage to authorize the key. Then decide
-            whether the key should stay reusable or be locked to that event.
+            Choose how you want your key to work.
           </CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-[1.1fr_1.2fr_0.9fr_auto] md:items-end">
-          <div className="space-y-2">
-            <Label htmlFor="key-label">Label</Label>
-            <Input
-              id="key-label"
-              value={label}
-              onChange={(event) => setLabel(event.target.value)}
-              placeholder="Recruiting agent"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Authorization Event</Label>
-            <Select value={eventId} onValueChange={setEventId} disabled={eventOptions.length === 0}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select an event" />
-              </SelectTrigger>
-              <SelectContent>
-                {eventOptions.map((event) => (
-                  <SelectItem key={event.id} value={event.id}>
-                    {event.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label>Key Type</Label>
-            <Select
-              value={scopeMode}
-              onValueChange={(value) => setScopeMode(value as "public" | "event")}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="public">Reusable</SelectItem>
-                <SelectItem value="event">Event-specific</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <Button
-            onClick={handleCreateKey}
-            disabled={isCreating || eventOptions.length === 0}
-            className="md:min-w-36"
-          >
-            <KeyRound className="mr-2 h-4 w-4" />
-            {isCreating ? "Creating..." : "Create Key"}
-          </Button>
-        </CardContent>
-        {eventOptions.length === 0 ? (
-          <CardContent className="pt-0">
+        <CardContent className="space-y-6">
+          {eventOptions.length === 0 ? (
             <p className="text-sm text-amber-700">
-              You need organizer access to at least one event before you can mint
-              agent keys here.
+              You need organizer access to at least one event before you can
+              create agent keys.
             </p>
-          </CardContent>
-        ) : null}
+          ) : (
+            <>
+              <div className="grid gap-4 md:grid-cols-2">
+                {/* Reusable key option */}
+                <div
+                  className={`cursor-pointer rounded-lg border-2 p-5 transition-colors ${
+                    scopeMode === "public"
+                      ? "border-blue-500 bg-blue-50"
+                      : "border-slate-200 hover:border-slate-300"
+                  }`}
+                  onClick={() => setScopeMode("public")}
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <Globe2 className="h-5 w-5 text-blue-600" />
+                    <p className="font-semibold text-slate-900">
+                      Key for all my events
+                    </p>
+                  </div>
+                  <p className="text-sm text-slate-600">
+                    One key that works across all events you organize. Pass{" "}
+                    <code className="rounded bg-slate-100 px-1 text-xs">
+                      ?event_id=UUID
+                    </code>{" "}
+                    on each API call to choose the event.
+                  </p>
+                </div>
+
+                {/* Event-specific key option */}
+                <div
+                  className={`cursor-pointer rounded-lg border-2 p-5 transition-colors ${
+                    scopeMode === "event"
+                      ? "border-blue-500 bg-blue-50"
+                      : "border-slate-200 hover:border-slate-300"
+                  }`}
+                  onClick={() => setScopeMode("event")}
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <LockKeyhole className="h-5 w-5 text-amber-600" />
+                    <p className="font-semibold text-slate-900">
+                      Key for one event
+                    </p>
+                  </div>
+                  <p className="text-sm text-slate-600">
+                    Locked to a single event. No need to pass{" "}
+                    <code className="rounded bg-slate-100 px-1 text-xs">
+                      event_id
+                    </code>{" "}
+                    — the key already knows which event it manages.
+                  </p>
+                </div>
+              </div>
+
+              {/* Event selector — only shown for event-specific keys */}
+              {scopeMode === "event" && (
+                <div className="space-y-2">
+                  <Label>Which event?</Label>
+                  <Select
+                    value={eventId}
+                    onValueChange={setEventId}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select an event" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {eventOptions.map((event) => (
+                        <SelectItem key={event.id} value={event.id}>
+                          {event.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              <div className="flex items-end gap-3">
+                <div className="flex-1 space-y-2">
+                  <Label htmlFor="key-label">Label (optional)</Label>
+                  <Input
+                    id="key-label"
+                    value={label}
+                    onChange={(event) => setLabel(event.target.value)}
+                    placeholder="e.g. My laptop, CI/CD, Recruiting agent"
+                  />
+                </div>
+                <Button
+                  onClick={handleCreateKey}
+                  disabled={isCreating}
+                  className="min-w-36"
+                >
+                  <KeyRound className="mr-2 h-4 w-4" />
+                  {isCreating ? "Creating..." : "Create Key"}
+                </Button>
+              </div>
+            </>
+          )}
+        </CardContent>
       </Card>
 
       {error ? (
