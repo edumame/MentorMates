@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { AlertTriangle, Check, Copy, Globe2, KeyRound, LockKeyhole, Trash2 } from "lucide-react";
+import { AlertTriangle, BookOpen, Check, Copy, Download, Globe2, KeyRound, LockKeyhole, Terminal, Trash2 } from "lucide-react";
 
 export interface AgentKeyRecord {
   id: string;
@@ -236,13 +236,135 @@ export default function KeysPageClient({
     <div className="mx-auto max-w-6xl space-y-8 px-4 py-12">
       <div className="space-y-2">
         <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
-          API Keys
+          Developer API
         </h1>
         <p className="max-w-3xl text-sm text-slate-600">
-          Create and revoke agent API keys in one place. Reusable keys work across
-          events and require an `event_id` query param. Event-specific keys stay
-          locked to one event.
+          Manage your hackathon events from Claude Code, Codex, or any AI agent.
+          Create an API key, download the skill file, and start managing events
+          from your terminal.
         </p>
+      </div>
+
+      {/* Quick Start */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Terminal className="h-5 w-5" />
+            Quick Start
+          </CardTitle>
+          <CardDescription>
+            Get up and running in 3 steps.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="rounded-lg border border-slate-200 p-4 space-y-2">
+              <p className="font-medium text-slate-900">1. Create a key</p>
+              <p className="text-sm text-slate-600">
+                Generate an API key below. Choose reusable (works across events)
+                or event-specific.
+              </p>
+            </div>
+            <div className="rounded-lg border border-slate-200 p-4 space-y-2">
+              <p className="font-medium text-slate-900">2. Set env vars</p>
+              <div className="rounded bg-slate-900 px-3 py-2 font-mono text-xs text-green-400">
+                export MENTORMATES_API_KEY=&quot;mm_sk_...&quot;
+              </div>
+            </div>
+            <div className="rounded-lg border border-slate-200 p-4 space-y-2">
+              <p className="font-medium text-slate-900">3. Download skill</p>
+              <a
+                href="/api/agent/skill"
+                className="inline-flex items-center gap-2 rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 transition-colors"
+              >
+                <Download className="h-4 w-4" />
+                mentormates.md
+              </a>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* API Reference */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BookOpen className="h-5 w-5" />
+            API Reference
+          </CardTitle>
+          <CardDescription>
+            All endpoints use Bearer token auth and require{" "}
+            <code className="rounded bg-slate-100 px-1 text-xs">?event_id=UUID</code>{" "}
+            for reusable keys.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-left">
+                  <th className="pb-2 pr-4 font-medium text-slate-500">Method</th>
+                  <th className="pb-2 pr-4 font-medium text-slate-500">Endpoint</th>
+                  <th className="pb-2 font-medium text-slate-500">Description</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                <tr>
+                  <td className="py-2 pr-4"><Badge variant="outline">GET</Badge></td>
+                  <td className="py-2 pr-4 font-mono text-xs">/api/agent/events</td>
+                  <td className="py-2 text-slate-600">List your editable events (no event_id) or get event details</td>
+                </tr>
+                <tr>
+                  <td className="py-2 pr-4"><Badge variant="outline">PATCH</Badge></td>
+                  <td className="py-2 pr-4 font-mono text-xs">/api/agent/events</td>
+                  <td className="py-2 text-slate-600">Update event name, description, date, capacity</td>
+                </tr>
+                <tr>
+                  <td className="py-2 pr-4"><Badge variant="outline">GET</Badge></td>
+                  <td className="py-2 pr-4 font-mono text-xs">/api/agent/events/participants</td>
+                  <td className="py-2 text-slate-600">List participants, mentors, judges (filterable by role)</td>
+                </tr>
+                <tr>
+                  <td className="py-2 pr-4"><Badge variant="outline">PATCH</Badge></td>
+                  <td className="py-2 pr-4 font-mono text-xs">/api/agent/events/participants</td>
+                  <td className="py-2 text-slate-600">Change role or remove a participant</td>
+                </tr>
+                <tr>
+                  <td className="py-2 pr-4"><Badge variant="outline">GET</Badge></td>
+                  <td className="py-2 pr-4 font-mono text-xs">/api/agent/events/approval-requests</td>
+                  <td className="py-2 text-slate-600">List pending approval requests</td>
+                </tr>
+                <tr>
+                  <td className="py-2 pr-4"><Badge variant="outline">POST</Badge></td>
+                  <td className="py-2 pr-4 font-mono text-xs">/api/agent/events/approval-requests</td>
+                  <td className="py-2 text-slate-600">Approve or reject a request</td>
+                </tr>
+                <tr>
+                  <td className="py-2 pr-4"><Badge variant="outline">GET</Badge></td>
+                  <td className="py-2 pr-4 font-mono text-xs">/api/agent/events/projects</td>
+                  <td className="py-2 text-slate-600">List projects with scores</td>
+                </tr>
+                <tr>
+                  <td className="py-2 pr-4"><Badge variant="outline">GET</Badge></td>
+                  <td className="py-2 pr-4 font-mono text-xs">/api/agent/events/judges</td>
+                  <td className="py-2 text-slate-600">List judges and scoring progress</td>
+                </tr>
+                <tr>
+                  <td className="py-2 pr-4"><Badge variant="outline">POST</Badge></td>
+                  <td className="py-2 pr-4 font-mono text-xs">/api/agent/events/judges</td>
+                  <td className="py-2 text-slate-600">Send email to judges</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Keys Management Section */}
+      <div className="space-y-2">
+        <h2 className="text-xl font-semibold tracking-tight text-slate-900">
+          Manage Keys
+        </h2>
       </div>
 
       <Alert>
