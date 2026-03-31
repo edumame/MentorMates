@@ -3,7 +3,12 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ApprovalLog } from "@/components/events/approval-log";
-import { EventItem, ApprovalStatus, EventVisibility } from "@/lib/types";
+import {
+  EventItem,
+  ApprovalStatus,
+  EventRole,
+  EventVisibility,
+} from "@/lib/types";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -31,12 +36,23 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+type EventOrganizer = {
+  userId: string;
+  displayName: string;
+  email: string;
+};
+
+type AdminEventItem = EventItem & {
+  organizers: EventOrganizer[];
+  rejection_reason?: string | null;
+};
+
 export default function AdminPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [events, setEvents] = useState<EventItem[]>([]);
+  const [events, setEvents] = useState<AdminEventItem[]>([]);
   const [updatingEventId, setUpdatingEventId] = useState<string | null>(null);
   const [expandedEventIds, setExpandedEventIds] = useState<Set<string>>(
     new Set()
@@ -126,12 +142,61 @@ export default function AdminPage() {
 
       if (error) throw error;
 
-      const eventsData = data || [];
-      setEvents(eventsData);
+      const eventsData = (data || []) as AdminEventItem[];
+      const eventIds = eventsData.map((event) => event.event_id);
+      let organizersByEventId: Record<string, EventOrganizer[]> = {};
+
+      if (eventIds.length > 0) {
+        const { data: organizerRows, error: organizersError } = await supabase
+          .from("user_event_roles")
+          .select(
+            `
+            event_id,
+            user_id,
+            user_profiles:user_id (
+              uid,
+              display_name,
+              email
+            )
+          `
+          )
+          .in("event_id", eventIds)
+          .eq("role", EventRole.Organizer)
+          .order("created_at", { ascending: true });
+
+        if (organizersError) throw organizersError;
+
+        organizersByEventId = (organizerRows || []).reduce<
+          Record<string, EventOrganizer[]>
+        >((acc, row) => {
+          const profile = Array.isArray(row.user_profiles)
+            ? row.user_profiles[0]
+            : row.user_profiles;
+
+          if (!acc[row.event_id]) {
+            acc[row.event_id] = [];
+          }
+
+          acc[row.event_id].push({
+            userId: row.user_id,
+            displayName: profile?.display_name || "",
+            email: profile?.email || "",
+          });
+
+          return acc;
+        }, {});
+      }
+
+      const eventsWithOrganizers = eventsData.map((event) => ({
+        ...event,
+        organizers: organizersByEventId[event.event_id] || [],
+      }));
+
+      setEvents(eventsWithOrganizers);
       
       // Initialize rejection reasons from database
       const initialRejectionReasons: Record<string, string> = {};
-      eventsData.forEach((event: EventItem & { rejection_reason?: string | null }) => {
+      eventsWithOrganizers.forEach((event) => {
         if (event.rejection_reason) {
           initialRejectionReasons[event.event_id] = event.rejection_reason;
         }
@@ -284,6 +349,36 @@ export default function AdminPage() {
     }
   };
 
+  const getOrganizerPrimaryLabel = (organizer: EventOrganizer) =>
+    organizer.displayName || organizer.email || "Unknown organizer";
+
+  const getOrganizerSummary = (event: AdminEventItem) =>
+    event.organizers.length > 0
+      ? event.organizers.map(getOrganizerPrimaryLabel).join(", ")
+      : "No organizers assigned";
+
+  const renderOrganizerDetails = (event: AdminEventItem) => (
+    <div>
+      <label className="text-gray-600 font-medium">Organizers</label>
+      {event.organizers.length > 0 ? (
+        <div className="mt-1 space-y-2">
+          {event.organizers.map((organizer) => (
+            <div key={organizer.userId}>
+              <p className="text-gray-900">
+                {getOrganizerPrimaryLabel(organizer)}
+              </p>
+              {organizer.displayName && organizer.email ? (
+                <p className="text-xs text-gray-500">{organizer.email}</p>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-gray-500 mt-0.5">No organizers assigned</p>
+      )}
+    </div>
+  );
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -353,7 +448,7 @@ export default function AdminPage() {
   };
 
   const renderEventQueue = (
-    queueEvents: EventItem[],
+    queueEvents: AdminEventItem[],
     queueTitle: string,
     queueDescription: string,
     emptyMessage: string
@@ -405,6 +500,9 @@ export default function AdminPage() {
                       <p className="text-sm text-gray-500">
                         {new Date(event.event_date).toLocaleDateString()} •{" "}
                         {event.location}
+                      </p>
+                      <p className="text-xs text-gray-500 truncate mt-1">
+                        Organizers: {getOrganizerSummary(event)}
                       </p>
                     </div>
 
@@ -468,6 +566,8 @@ export default function AdminPage() {
                                 {event.location}
                               </p>
                             </div>
+
+                            {renderOrganizerDetails(event)}
 
                             {event.event_blurb && (
                               <div>
@@ -1027,6 +1127,9 @@ export default function AdminPage() {
                                     <span>•</span>
                                     <span>{event.location}</span>
                                   </div>
+                                  <p className="text-xs text-gray-500 truncate mt-1">
+                                    Organizers: {getOrganizerSummary(event)}
+                                  </p>
                                 </div>
 
                                 <div className="flex items-center gap-2 flex-shrink-0">
@@ -1098,6 +1201,8 @@ export default function AdminPage() {
                                             {event.location}
                                           </p>
                                         </div>
+
+                                        {renderOrganizerDetails(event)}
 
                                         {event.event_blurb && (
                                           <div>
