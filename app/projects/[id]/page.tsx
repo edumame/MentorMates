@@ -80,7 +80,7 @@ interface EventDetails {
   start_date: string;
   end_date: string;
   location?: string;
-  event_type?: string;
+  event_type?: string[];
   cover_image_url?: string;
 }
 
@@ -2312,12 +2312,11 @@ export default function ProjectPage() {
                               </div>
                               <CardContent className="p-6 space-y-4">
                                 <div className="flex gap-1 flex-wrap">
-                                  <Badge
-                                    variant="secondary"
-                                    className="bg-transparent border border-black/15 text-black rounded-full font-semibold"
-                                  >
-                                    {eventDetails.event_type || "Hackathon"}
-                                  </Badge>
+                                  {(eventDetails.event_type?.length ? eventDetails.event_type : ["Hackathon"]).map((type) => (
+                                    <Badge key={type} variant="secondary" className="bg-transparent border border-black/15 text-black rounded-full font-semibold">
+                                      {type}
+                                    </Badge>
+                                  ))}
                                   <Badge
                                     variant="secondary"
                                     className="bg-transparent border border-black/15 text-black rounded-full font-semibold"

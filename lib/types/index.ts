@@ -121,7 +121,7 @@ export type EventItem = {
   stripe_price_id?: string; // Stripe price ID for paid events
   participant_capacity?: number | null; // Max participants; null = unlimited
   finalist_recommendation_enabled?: boolean | null;
-  event_type?: string;
+  event_type?: string[];
   featured?: boolean; // Whether this event is featured on homepage
   approval_status?: ApprovalStatus; // Approval status: not_submitted, submitted, approved, or rejected. Featured is controlled separately via the featured boolean field.
   created_at?: string; // Timestamp when event was created
@@ -229,7 +229,7 @@ export interface EventTrack {
 
 export interface EventDetails extends EventItem {
   paid: boolean;
-  event_type: string;
+  event_type: string[];
   event_description: string;
   event_blurb?: string;
   paywall_content?: string;

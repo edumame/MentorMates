@@ -117,15 +117,7 @@ export function BasicInfoTab({
   );
   const [descriptionMode, setDescriptionMode] = useState<"edit" | "preview">("edit");
   const PRESET_EVENT_TYPES = ["Hackathon", "Workshop", "Conference"] as const;
-  const isPresetType = (val?: string | null) =>
-    !!val &&
-    PRESET_EVENT_TYPES.includes(val as (typeof PRESET_EVENT_TYPES)[number]);
-  const [eventTypeSelection, setEventTypeSelection] = useState<string>(
-    isPresetType(event?.event_type) ? event!.event_type : "Other"
-  );
-  const [customEventType, setCustomEventType] = useState<string>(
-    isPresetType(event?.event_type) ? "" : event?.event_type || ""
-  );
+  const [customEventType, setCustomEventType] = useState<string>("");
   
   // Get user's timezone as default
   const getUserTimezone = (): string => {
@@ -138,19 +130,16 @@ export function BasicInfoTab({
   
   const [submissionTimezone, setSubmissionTimezone] = useState<string>(() => getUserTimezone());
 
-  // Keep local event type controls in sync if parent event changes
-  // (e.g., after import or external updates)
-  useEffect(() => {
+  const addEventType = (type: string) => {
+    if (!event || !type.trim()) return;
+    const current = event.event_type || [];
+    if (current.includes(type)) return;
+    setEvent({ ...event, event_type: [...current, type] });
+  };
+  const removeEventType = (type: string) => {
     if (!event) return;
-    if (isPresetType(event.event_type)) {
-      setEventTypeSelection(event.event_type);
-      setCustomEventType("");
-    } else {
-      setEventTypeSelection("Other");
-      setCustomEventType(event.event_type || "");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [event?.event_type]);
+    setEvent({ ...event, event_type: (event.event_type || []).filter((t) => t !== type) });
+  };
 
   const handleBasicInfoUpdate = async () => {
     if (!event) return;
@@ -674,55 +663,76 @@ export function BasicInfoTab({
           )}
         </div>
 
-        {/* Event Type */}
+        {/* Event Type (tags) */}
         <div className="space-y-2">
           <label className="text-[16px] font-normal text-black">
             Event Type
           </label>
-          <Select
-            value={eventTypeSelection}
-            onValueChange={(val) => {
-              setEventTypeSelection(val);
-              if (val === "Other") {
-                setEvent({ ...event, event_type: customEventType });
-              } else {
-                setCustomEventType("");
-                setEvent({ ...event, event_type: val });
-              }
-            }}
-            disabled={isArchived}
-          >
-            <SelectTrigger className="w-full h-[44px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px]">
-              <SelectValue placeholder="Select type" />
-            </SelectTrigger>
-            <SelectContent>
-              {PRESET_EVENT_TYPES.map((opt) => (
-                <SelectItem key={opt} value={opt}>
-                  {opt}
-                </SelectItem>
-              ))}
-              <SelectItem value="Other">Other</SelectItem>
-            </SelectContent>
-          </Select>
-          {eventTypeSelection === "Other" && (
-            <div className="pt-2 space-y-1">
-              <Input
-                id="event_type_custom"
-                placeholder="Enter custom type (e.g., Demo Day)"
-                value={customEventType}
+          {/* Selected tags */}
+          <div className="flex flex-wrap gap-2">
+            {(event.event_type || []).map((type) => (
+              <span
+                key={type}
+                className="inline-flex items-center gap-1 px-3 py-1 bg-blue-50 border border-blue-200 rounded-full text-sm text-blue-800"
+              >
+                {type}
+                {!isArchived && (
+                  <button
+                    type="button"
+                    onClick={() => removeEventType(type)}
+                    className="ml-1 text-blue-400 hover:text-blue-600"
+                  >
+                    &times;
+                  </button>
+                )}
+              </span>
+            ))}
+          </div>
+          {/* Add from presets */}
+          <div className="flex flex-wrap gap-2">
+            {PRESET_EVENT_TYPES.filter(
+              (opt) => !(event.event_type || []).includes(opt)
+            ).map((opt) => (
+              <button
+                key={opt}
+                type="button"
                 disabled={isArchived}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setCustomEventType(val);
-                  setEvent({ ...event, event_type: val });
-                }}
-                className="h-[44px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)]"
-              />
-              <p className="text-xs text-gray-500">
-                Use a custom label like &quot;Demo Day&quot; or &quot;Pitch Night&quot;.
-              </p>
-            </div>
-          )}
+                onClick={() => addEventType(opt)}
+                className="px-3 py-1 border border-dashed border-gray-300 rounded-full text-sm text-gray-600 hover:border-blue-400 hover:text-blue-600 transition-colors disabled:opacity-50"
+              >
+                + {opt}
+              </button>
+            ))}
+          </div>
+          {/* Custom type input */}
+          <div className="flex gap-2">
+            <Input
+              id="event_type_custom"
+              placeholder="Add custom type (e.g., Demo Day)"
+              value={customEventType}
+              disabled={isArchived}
+              onChange={(e) => setCustomEventType(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  addEventType(customEventType.trim());
+                  setCustomEventType("");
+                }
+              }}
+              className="h-[44px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)]"
+            />
+            <button
+              type="button"
+              disabled={isArchived || !customEventType.trim()}
+              onClick={() => {
+                addEventType(customEventType.trim());
+                setCustomEventType("");
+              }}
+              className="px-4 h-[44px] bg-blue-600 text-white rounded-[12px] text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Add
+            </button>
+          </div>
         </div>
 
         {/* URL Slug */}

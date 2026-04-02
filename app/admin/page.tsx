@@ -585,7 +585,7 @@ export default function AdminPage() {
                                 Event Type
                               </label>
                               <p className="text-gray-900 mt-0.5">
-                                {event.event_type || "Not specified"}
+                                {event.event_type?.length ? event.event_type.join(", ") : "Not specified"}
                               </p>
                             </div>
 
@@ -1220,8 +1220,9 @@ export default function AdminPage() {
                                             Event Type
                                           </label>
                                           <p className="text-gray-900 mt-0.5">
-                                            {event.event_type ||
-                                              "Not specified"}
+                                            {event.event_type?.length
+                                              ? event.event_type.join(", ")
+                                              : "Not specified"}
                                           </p>
                                         </div>
 
