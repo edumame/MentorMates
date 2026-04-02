@@ -107,7 +107,8 @@ The event object returned by `GET /api/agent/events?event_id=...`:
     "cover_image_url": "https://...",
     "slug": "hackathon-slug",
     "paid": false,
-    "featured": false
+    "featured": false,
+    "event_type": ["hackathon", "ai"]
   },
   "counts": {
     "participants": 50,
@@ -133,6 +134,7 @@ The event object returned by `GET /api/agent/events?event_id=...`:
 | `submission_time_cutoff` | string or null | ISO timestamp for submission deadline |
 | `participant_capacity` | number or null | Max participants (null = unlimited) |
 | `require_participant_approval` | boolean | If true, new participants need organizer approval |
+| `event_type` | string[] | Tags/categories, e.g. `["hackathon", "workshop"]` |
 
 ---
 

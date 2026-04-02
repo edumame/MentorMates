@@ -131,7 +131,7 @@ export async function GET(request: NextRequest) {
          location, visibility, approval_status, participant_capacity,
          submission_time_start, submission_time_cutoff, event_schedule,
          event_prizes, scoring_config, cover_image_url, slug, paid,
-         require_participant_approval, featured`
+         require_participant_approval, featured, event_type`
       )
       .eq("event_id", auth.eventId)
       .single();
@@ -199,6 +199,7 @@ const updateEventSchema = z.object({
   submission_time_cutoff: z.string().nullable().optional(),
   participant_capacity: z.number().int().positive().nullable().optional(),
   require_participant_approval: z.boolean().optional(),
+  event_type: z.array(z.string()).optional(),
 });
 
 // PATCH: Update event details
@@ -267,6 +268,7 @@ const createEventSchema = z.object({
   submission_time_cutoff: z.string().nullable().optional(),
   participant_capacity: z.number().int().positive().nullable().optional(),
   require_participant_approval: z.boolean().optional().default(false),
+  event_type: z.array(z.string()).optional().default([]),
   paid: z.boolean().optional().default(false),
   event_schedule: z.array(z.record(z.string(), z.unknown())).optional(),
   event_prizes: z
@@ -349,6 +351,7 @@ export async function POST(request: NextRequest) {
       approval_status: "not_submitted",
       featured: false,
       require_registration_questionnaire: event.require_participant_approval,
+      event_type: event.event_type ?? [],
     };
 
     const { data: createdEvent, error: insertError } = await supabase
