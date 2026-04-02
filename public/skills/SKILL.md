@@ -265,6 +265,48 @@ curl -s -H "Authorization: Bearer $MENTORMATES_API_KEY" "https://www.mentormates
 curl -s -H "Authorization: Bearer $MENTORMATES_API_KEY" "https://www.mentormates.ai/api/agent/events?limit=20&offset=0" | jq
 ```
 
+### Create Event
+```bash
+curl -s -X POST -H "Authorization: Bearer $MENTORMATES_API_KEY" -H "Content-Type: application/json" \
+  -d '{
+    "event_name": "My Hackathon 2026",
+    "event_date": "2026-06-15",
+    "location": "San Francisco, CA",
+    "event_description": "A 24-hour hackathon focused on AI education tools.",
+    "event_blurb": "Build the future of learning",
+    "visibility": "draft",
+    "participant_capacity": 100,
+    "require_participant_approval": false,
+    "submission_time_start": "2026-06-14T12:00:00Z",
+    "submission_time_cutoff": "2026-06-15T17:00:00Z",
+    "tracks": [
+      { "name": "Best AI Tool", "description": "Build an AI-powered learning tool" },
+      { "name": "Best Design", "description": "Most user-friendly project" }
+    ],
+    "event_prizes": [
+      { "track": "Best AI Tool", "prize": "$1,000", "description": "Top AI project" }
+    ],
+    "faq": [
+      { "question": "Who can participate?", "answer": "Anyone! Students, professionals, hobbyists." }
+    ]
+  }' \
+  "https://www.mentormates.ai/api/agent/events" | jq
+```
+
+Required fields: `event_name`, `event_date`, `location`. Everything else is optional.
+The creator is automatically assigned as organizer.
+Events default to `draft` visibility — change to `public` when ready to publish.
+
+Response:
+```json
+{
+  "success": true,
+  "event": { "event_id": "uuid", "event_name": "...", "event_date": "...", "visibility": "draft", "slug": null },
+  "tracks_created": ["Best AI Tool", "Best Design"],
+  "message": "Event \"My Hackathon 2026\" created successfully. You are now the organizer."
+}
+```
+
 ### Update Event
 ```bash
 curl -s -X PATCH -H "Authorization: Bearer $MENTORMATES_API_KEY" -H "Content-Type: application/json" \
