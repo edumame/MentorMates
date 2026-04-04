@@ -1,6 +1,5 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
 import { ScoringConfigForm } from "@/features/user/dashboards/dashboard/organizer/tracks/scoring-config-form";
 import { EventDetails, EventScoringConfig, EventTrack } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
@@ -34,31 +33,6 @@ export function TracksTab({
   toast,
   isArchived,
 }: TracksTabProps) {
-  const [tracks, setTracks] = useState<EventTrack[]>([]);
-
-  // Function to fetch tracks data
-  const fetchTracks = useCallback(async () => {
-    const { data, error } = await supabase
-      .from("event_tracks")
-      .select("*")
-      .eq("event_id", eventId);
-
-    if (error) {
-      console.error("Error fetching tracks:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load track data",
-        variant: "destructive",
-      });
-    } else {
-      setTracks(data || []);
-    }
-  }, [eventId, toast]);
-
-  useEffect(() => {
-    fetchTracks();
-  }, [eventId, toast, fetchTracks]);
-
   const handleScoreUpdate = async (config: EventScoringConfig) => {
     try {
       setSaving(true);
@@ -108,8 +82,6 @@ export function TracksTab({
 
       if (refreshedTracks && event) {
         const updatedTracks = refreshedTracks as unknown as EventTrack[];
-        setTracks(updatedTracks);
-
         const updatedEvent = {
           ...event,
           event_tracks: updatedTracks,
@@ -154,9 +126,7 @@ export function TracksTab({
             initialConfig={scoringConfig}
             isSubmitting={saving}
             onSave={handleScoreUpdate}
-            tracks={tracks}
             isArchived={isArchived}
-            eventId={eventId}
           />
         </div>
       </div>
