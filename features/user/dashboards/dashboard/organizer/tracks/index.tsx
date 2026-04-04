@@ -9,6 +9,7 @@ import { useEventArchiveStatus } from "@/lib/hooks/use-event-archive-status";
 import { TracksTab } from "./TracksTab";
 import { PrizesTab } from "./PrizesTab";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Info } from "lucide-react";
 
 interface EventTracksContainerProps {
   eventId: string;
@@ -50,6 +51,31 @@ export function EventTracksContainer({
           </Alert>
         </div>
       )}
+
+      {/* Help banner explaining tracks, criteria, and weights */}
+      <div className="mb-4">
+        <Alert className="border-blue-200 bg-blue-50">
+          <Info className="h-4 w-4 text-blue-600" />
+          <AlertTitle className="text-blue-900">
+            How tracks and scoring work
+          </AlertTitle>
+          <AlertDescription className="text-blue-800 space-y-1">
+            <p>
+              <strong>Tracks</strong> are categories that participants submit
+              projects to (e.g., &quot;Best AI Project&quot;, &quot;Best
+              Design&quot;). Each track has its own{" "}
+              <strong>scoring criteria</strong>.
+            </p>
+            <p>
+              <strong>Criteria</strong> are what judges score within a track
+              (e.g., Technical Execution, Creativity). Each criterion has a{" "}
+              <strong>weight</strong> — a number that determines how much it
+              contributes to the final score. Weights are automatically
+              normalized, so they don&apos;t need to sum to exactly 100%.
+            </p>
+          </AlertDescription>
+        </Alert>
+      </div>
 
       <Tabs value={activeSubTab} onValueChange={setActiveSubTab}>
         <TabsList className="flex h-auto gap-2 p-0 justify-start bg-transparent border-0 shadow-none rounded-none">
