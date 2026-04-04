@@ -112,7 +112,7 @@ export interface WizardEventData {
   // Content
   event_blurb: string;
   event_description: string;
-  event_type: string;
+  event_type: string[];
 
   // Submission Window
   submission_time_start: string; // ISO 8601
@@ -170,7 +170,7 @@ export const INITIAL_WIZARD_EVENT: WizardEventData = {
   cover_image_url: "",
   event_blurb: "",
   event_description: "",
-  event_type: "hackathon",
+  event_type: ["hackathon"],
   submission_time_start: "",
   submission_time_cutoff: "",
   timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,

@@ -160,7 +160,7 @@ interface WizardEventData {
   // Content
   event_blurb: string;
   event_description: string;
-  event_type: string;
+  event_type: string[];
 
   // Submission Window
   submission_time_start: string;   // ISO 8601

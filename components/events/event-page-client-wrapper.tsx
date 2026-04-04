@@ -32,7 +32,7 @@ interface EventPageClientWrapperProps {
   displayEventId: string;
   hasJoined: boolean;
   paid: boolean;
-  eventType: string;
+  eventType: string[];
   tabsAndContent: ReactNode; // The tabs and main content to show for non-organizer roles
 }
 

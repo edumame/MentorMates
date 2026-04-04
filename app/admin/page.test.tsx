@@ -112,7 +112,7 @@ describe("AdminPage", () => {
             paid: false,
             stripe_price_id: null,
             slug: "hack-night",
-            event_type: "Hackathon",
+            event_type: ["Hackathon"],
             featured: true,
             approval_status: "approved",
             rejection_reason: null,
