@@ -10,6 +10,7 @@ import {
   INDUSTRY_VALUES,
   PLATFORM_ROLE_VALUES,
 } from "@/features/user/onboarding/questions-data";
+import { ONBOARDING_SKIP_STATUS } from "@/features/user/onboarding/metadata";
 
 // Version 1 schema (legacy with industries and tools)
 const OnboardingSchemaV1 = z.object({
@@ -52,8 +53,20 @@ const OnboardingSchemaV3 = z.object({
   }),
 });
 
+// Version 4 schema (explicit skip so users are not re-routed into onboarding)
+const OnboardingSchemaV4 = z.object({
+  version: z.literal(4),
+  status: z.literal(ONBOARDING_SKIP_STATUS),
+  skippedAt: z.string().datetime(),
+});
+
 // Combined schema that accepts any version
-const OnboardingSchema = z.union([OnboardingSchemaV1, OnboardingSchemaV2, OnboardingSchemaV3]);
+const OnboardingSchema = z.union([
+  OnboardingSchemaV1,
+  OnboardingSchemaV2,
+  OnboardingSchemaV3,
+  OnboardingSchemaV4,
+]);
 
 export async function POST(request: Request) {
   try {
@@ -94,4 +107,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
-

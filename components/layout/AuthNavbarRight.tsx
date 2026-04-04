@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
@@ -15,6 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAdmin } from "@/lib/hooks/use-admin";
+import { hasCompletedOnboarding } from "@/features/user/onboarding/metadata";
 import posthog from "posthog-js";
 import { UserProfile } from "@/lib/types";
 
@@ -58,20 +58,6 @@ export function AuthNavbarRight({ className }: AuthNavbarRightProps) {
     };
     if (session) fetchUserProfile();
   }, [session]);
-
-  const hasAffiliation = Boolean(userProfile?.affiliation?.trim());
-  const hasPhoneNumber = Boolean(userProfile?.phone_number?.trim());
-  const hasLinkedIn = Boolean(userProfile?.links?.linkedin?.trim());
-  const needsProfileCompletion =
-    Boolean(session) &&
-    (!userProfile || !hasAffiliation || !hasPhoneNumber || !hasLinkedIn);
-
-  const missingProfileFields: string[] = [];
-  if (session) {
-    if (!hasAffiliation) missingProfileFields.push("affiliation");
-    if (!hasPhoneNumber) missingProfileFields.push("phone number");
-    if (!hasLinkedIn) missingProfileFields.push("LinkedIn");
-  }
 
   const handleLogin = () => {
     if (typeof window !== "undefined") {
@@ -119,7 +105,7 @@ export function AuthNavbarRight({ className }: AuthNavbarRightProps) {
                 <p className="text-base text-gray-700 mt-1">
                   {session.user.email}
                 </p>
-                {!userProfile?.onboarding_metadata ? (
+                {!hasCompletedOnboarding(userProfile?.onboarding_metadata) ? (
                   <Button
                     variant="defaultGray"
                     onClick={() => router.push("/onboarding")}
