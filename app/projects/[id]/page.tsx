@@ -1240,6 +1240,79 @@ export default function ProjectPage() {
               </div>
             </div>
 
+            {/* Submission Status Banner — clarifies published vs submitted */}
+            {canEdit && (
+              <div
+                className={`mb-4 rounded-xl border p-4 ${
+                  project.submitted
+                    ? "border-green-200 bg-green-50"
+                    : "border-amber-200 bg-amber-50"
+                }`}
+              >
+                {project.submitted ? (
+                  <div className="flex items-start gap-3">
+                    <div className="mt-0.5 h-5 w-5 rounded-full bg-green-500 flex items-center justify-center shrink-0">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 20 20"
+                        fill="white"
+                        className="h-3 w-3"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-green-900">
+                        Submitted to event
+                      </p>
+                      <p className="text-xs text-green-800 mt-0.5">
+                        This project is submitted and visible to judges. You can
+                        still edit it until the submission deadline.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-start gap-3">
+                    <div className="mt-0.5 h-5 w-5 rounded-full bg-amber-500 flex items-center justify-center shrink-0">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 20 20"
+                        fill="white"
+                        className="h-3 w-3"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-amber-900">
+                        Draft — not yet submitted to the event
+                      </p>
+                      <p className="text-xs text-amber-800 mt-0.5">
+                        Your project is saved but hasn&apos;t been submitted. Publishing
+                        a project is not the same as submitting it to an event —
+                        you need to click &quot;Submit to event&quot; for judges to see it.
+                      </p>
+                      <Button
+                        size="sm"
+                        className="mt-2 bg-amber-600 hover:bg-amber-700 text-white"
+                        onClick={() => router.push(`/projects/${projectId}/edit`)}
+                      >
+                        Submit to event
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Project Title and Hero Section */}
             <div className="flex flex-col lg:flex-row gap-6 lg:gap-20 mb-6 sm:mb-12">
               {/* Left: Title and Description */}
