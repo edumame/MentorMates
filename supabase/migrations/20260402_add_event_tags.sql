@@ -13,6 +13,9 @@ BEGIN
       AND data_type = 'text'
   ) THEN
     ALTER TABLE events
+      ALTER COLUMN event_type DROP DEFAULT;
+
+    ALTER TABLE events
       ALTER COLUMN event_type TYPE TEXT[]
       USING CASE
         WHEN event_type IS NOT NULL THEN ARRAY[event_type]
@@ -20,7 +23,7 @@ BEGIN
       END;
 
     ALTER TABLE events
-      ALTER COLUMN event_type SET DEFAULT ARRAY[]::TEXT[];
+      ALTER COLUMN event_type SET DEFAULT ARRAY['Hackathon']::TEXT[];
   END IF;
 END $$;
 
