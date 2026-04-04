@@ -68,6 +68,7 @@ export async function sendEventInviteEmails({
   visibility,
   participantInviteEmails,
   judgeInviteEmails,
+  deferIfDraft = true,
   sendEmail,
 }: {
   appOrigin: string;
@@ -78,6 +79,7 @@ export async function sendEventInviteEmails({
   visibility: EventVisibility;
   participantInviteEmails?: string[];
   judgeInviteEmails?: string[];
+  deferIfDraft?: boolean;
   sendEmail?: (message: {
     to: string;
     subject: string;
@@ -103,7 +105,7 @@ export async function sendEventInviteEmails({
     return summary;
   }
 
-  if (visibility === EventVisibility.Draft) {
+  if (deferIfDraft && visibility === EventVisibility.Draft) {
     summary.deferred = true;
     return summary;
   }

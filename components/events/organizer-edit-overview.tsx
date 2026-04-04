@@ -150,7 +150,12 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
   const isProjectTab = (tab: string) => tab === "project-submission" || tab === "live-scores" || tab === "project";
   const tabsValue = isAdvancedTab(activeTab) ? "advanced-settings" : isProjectTab(activeTab) ? "project" : activeTab;
 
-  const accessSubTabValues = ["password", "role-labels", "invite-organizers"] as const;
+  const accessSubTabValues = [
+    "password",
+    "role-labels",
+    "invite-judges",
+    "invite-organizers",
+  ] as const;
   const accessSubTab: (typeof accessSubTabValues)[number] =
     activeTab === "access"
       ? (accessSubTabValues.includes(searchParams.get("subtab") as (typeof accessSubTabValues)[number])
@@ -847,6 +852,12 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                           className="min-w-[140px] px-3 py-2.5 rounded-[100px] text-base leading-[1.5] font-normal text-[var(--Color-Scheme-1-Text,#000)] border border-transparent data-[state=active]:font-medium data-[state=active]:bg-white data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none flex-shrink-0"
                         >
                           Role Labels
+                        </TabsTrigger>
+                        <TabsTrigger
+                          value="invite-judges"
+                          className="min-w-[140px] px-3 py-2.5 rounded-[100px] text-base leading-[1.5] font-normal text-[var(--Color-Scheme-1-Text,#000)] border border-transparent data-[state=active]:font-medium data-[state=active]:bg-white data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none flex-shrink-0"
+                        >
+                          Invite Judges
                         </TabsTrigger>
                         <TabsTrigger
                           value="invite-organizers"
