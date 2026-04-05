@@ -30,14 +30,8 @@ import { useQRCodeActions } from "@/features/projects/components/management/proj
 import { useProjectLike } from "@/features/projects/hooks/use-project-like";
 import { toast } from "@/lib/hooks/use-toast";
 import { Toaster } from "@/components/ui/toaster";
-import { ProjectScoringForm } from "@/components/project-scoring/project-scoring-form";
-import {
-  EventRole,
-  EventTrack,
-  EventVisibility,
-  Project,
-  TrackScoringConfig,
-} from "@/lib/types";
+import { DefaultScoring } from "@/components/project-scoring/default-scoring";
+import { EventRole, EventTrack, EventVisibility, Project } from "@/lib/types";
 import { VideoEmbed, canEmbed } from "@/components/utils";
 import { canAccessRole } from "@/features/user/roles/roles";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
@@ -66,6 +60,7 @@ export default function PublicProjectPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [fetchComplete, setFetchComplete] = useState(false);
   const [isJudge, setIsJudge] = useState(false);
+  const [judgeId, setJudgeId] = useState("");
   const [isCheckingJudgeStatus, setIsCheckingJudgeStatus] = useState(false);
   const [projectTracks, setProjectTracks] = useState<EventTrack[]>([]);
   const [selectedTrackId, setSelectedTrackId] = useState<string>("");
@@ -80,7 +75,7 @@ export default function PublicProjectPage() {
   const { handleCopyQR, handleDownloadQR } = useQRCodeActions(
     project?.event_id || "",
     projectId,
-    project?.project_name
+    project?.project_name,
   );
 
   const {
@@ -95,7 +90,7 @@ export default function PublicProjectPage() {
       setIsLoading(true);
       setFetchComplete(false);
 
-      const response = await fetch(`/api/projects?public=true&projectId=${projectId}`);
+      const response = await fetch(`/api/projects?projectId=${projectId}`);
       const payload = (await response.json().catch(() => ({}))) as {
         error?: string;
         project?: Project;
@@ -104,23 +99,12 @@ export default function PublicProjectPage() {
       if (!response.ok || !payload.project) {
         setProject(null);
       } else {
-        // Ensure the project belongs to a public event.
-        const { data: eventMeta, error: eventMetaError } = await supabase
-          .from("events")
-          .select("visibility")
-          .eq("event_id", payload.project.event_id)
-          .maybeSingle();
+        // Do not need to check event visibility here; "public" does not mean public to the world, it means public to the event
+        // Event access check is controlled via RLS; if the event is public, the project is public
 
-        const isEventPublic =
-          !eventMetaError && eventMeta?.visibility === EventVisibility.Public;
-
-        if (!isEventPublic) {
-          setProject(null);
-        } else {
-          setProject(payload.project);
-        }
+        setProject(payload.project);
       }
-      
+
       setIsLoading(false);
       setFetchComplete(true);
     };
@@ -137,7 +121,7 @@ export default function PublicProjectPage() {
         const { data: eventData, error } = await supabase
           .from("events")
           .select(
-            "event_id, event_name, slug, event_date, location, cover_image_url, finalist_recommendation_enabled"
+            "event_id, event_name, slug, event_date, location, cover_image_url, finalist_recommendation_enabled",
           )
           .eq("event_id", project.event_id)
           .single();
@@ -155,7 +139,7 @@ export default function PublicProjectPage() {
             cover_image_url: eventData.cover_image_url || undefined,
           });
           setFinalistFeatureEnabled(
-            !!eventData.finalist_recommendation_enabled
+            !!eventData.finalist_recommendation_enabled,
           );
         }
       } catch (error) {
@@ -179,9 +163,12 @@ export default function PublicProjectPage() {
 
         if (!session) {
           setIsJudge(false);
+          setJudgeId("");
           setIsCheckingJudgeStatus(false);
           return;
         }
+
+        setJudgeId(session.user.id);
 
         const { data: roleData, error } = await supabase
           .from("user_event_roles")
@@ -192,13 +179,14 @@ export default function PublicProjectPage() {
 
         if (error) {
           setIsJudge(false);
+          setJudgeId("");
           setIsCheckingJudgeStatus(false);
           return;
         }
 
         const judgeStatus = canAccessRole(
           roleData?.role as EventRole,
-          EventRole.Judge
+          EventRole.Judge,
         );
         setIsJudge(judgeStatus);
 
@@ -217,7 +205,7 @@ export default function PublicProjectPage() {
                   description,
                   scoring_criteria
                 )
-              `
+              `,
               )
               .eq("project_id", project.id)
               .overrideTypes<
@@ -231,7 +219,7 @@ export default function PublicProjectPage() {
               // Error handled
             } else {
               const extractedTracks: EventTrack[] = tracks.map(
-                (track) => track.event_tracks
+                (track) => track.event_tracks,
               );
               setProjectTracks(extractedTracks);
 
@@ -245,6 +233,7 @@ export default function PublicProjectPage() {
         }
       } catch (error) {
         setIsJudge(false);
+        setJudgeId("");
       } finally {
         setIsCheckingJudgeStatus(false);
       }
@@ -252,13 +241,6 @@ export default function PublicProjectPage() {
 
     checkJudgeStatus();
   }, [project?.event_id, project?.id]);
-
-  const handleScoreSubmitted = () => {
-    toast({
-      title: "Score Submitted",
-      description: "Your score has been successfully submitted.",
-    });
-  };
 
   if (isLoading || !fetchComplete) {
     return (
@@ -293,7 +275,7 @@ export default function PublicProjectPage() {
   const totalMembers = (project.teammates?.length || 0) + 1;
   const feedbackUrl = typeof window !== "undefined" ? window.location.href : "";
   const selectedTrack = projectTracks.find(
-    (track) => track.track_id === selectedTrackId
+    (track) => track.track_id === selectedTrackId,
   );
   const handleShare = (platform: string) => {
     switch (platform) {
@@ -304,19 +286,19 @@ export default function PublicProjectPage() {
       case "linkedin":
         window.open(
           `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(feedbackUrl)}`,
-          "_blank"
+          "_blank",
         );
         break;
       case "facebook":
         window.open(
           `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(feedbackUrl)}`,
-          "_blank"
+          "_blank",
         );
         break;
       case "twitter":
         window.open(
           `https://twitter.com/intent/tweet?url=${encodeURIComponent(feedbackUrl)}`,
-          "_blank"
+          "_blank",
         );
         break;
     }
@@ -325,16 +307,16 @@ export default function PublicProjectPage() {
   const projectArtifacts = project?.artifacts || [];
   const extraProjectLinks = projectArtifacts.filter(
     (artifact) =>
-      artifact.kind === "project_link" && artifact.url !== project?.project_url
+      artifact.kind === "project_link" && artifact.url !== project?.project_url,
   );
   const extraVideoLinks = projectArtifacts.filter(
     (artifact) =>
-      artifact.kind === "video_link" && artifact.url !== project?.video_url
+      artifact.kind === "video_link" && artifact.url !== project?.video_url,
   );
   const extraMaterialLinks = projectArtifacts.filter(
     (artifact) =>
       artifact.kind === "additional_material" &&
-      artifact.url !== project?.additional_materials_url
+      artifact.url !== project?.additional_materials_url,
   );
   const extraActionLinks = [...extraProjectLinks, ...extraVideoLinks];
   const handleBack = () => {
@@ -729,19 +711,19 @@ export default function PublicProjectPage() {
                                   <div className="absolute top-4 right-4 bg-white border border-gray-300 rounded-xl py-3 px-1 text-center w-28">
                                     <p className="text-sm text-black">
                                       {new Date(
-                                        eventDetails.start_date
+                                        eventDetails.start_date,
                                       ).toLocaleDateString("en-US", {
                                         weekday: "short",
                                       })}
                                     </p>
                                     <p className="text-4xl font-semibold text-black tracking-tight leading-none">
                                       {new Date(
-                                        eventDetails.start_date
+                                        eventDetails.start_date,
                                       ).getDate()}
                                     </p>
                                     <p className="text-sm text-black">
                                       {new Date(
-                                        eventDetails.start_date
+                                        eventDetails.start_date,
                                       ).toLocaleDateString("en-US", {
                                         month: "short",
                                         year: "numeric",
@@ -1113,16 +1095,15 @@ export default function PublicProjectPage() {
 
                                 {/* Scoring Form */}
                                 {selectedTrack.scoring_criteria ? (
-                                  <ProjectScoringForm
+                                  <DefaultScoring
                                     projectId={project.id}
+                                    eventId={project.event_id}
+                                    judgeId={judgeId}
                                     trackId={selectedTrackId}
-                                    criteria={
-                                      (
-                                        selectedTrack.scoring_criteria as TrackScoringConfig
-                                      ).criteria
+                                    finalistFeatureEnabled={
+                                      finalistFeatureEnabled
                                     }
-                                    onScoreSubmitted={handleScoreSubmitted}
-                                    finalistFeatureEnabled={finalistFeatureEnabled}
+                                    hideProjectHeader
                                   />
                                 ) : (
                                   <div className="text-center py-8">
@@ -1131,8 +1112,8 @@ export default function PublicProjectPage() {
                                       track.
                                     </p>
                                     <p className="text-sm text-gray-500">
-                                      Contact the event organizer to set up scoring
-                                      criteria.
+                                      Contact the event organizer to set up
+                                      scoring criteria.
                                     </p>
                                   </div>
                                 )}
@@ -1161,22 +1142,21 @@ export default function PublicProjectPage() {
 
                                     {/* Scoring Form */}
                                     {track.scoring_criteria ? (
-                                      <ProjectScoringForm
+                                      <DefaultScoring
                                         projectId={project.id}
+                                        eventId={project.event_id}
+                                        judgeId={judgeId}
                                         trackId={track.track_id}
-                                        criteria={
-                                          (
-                                            track.scoring_criteria as TrackScoringConfig
-                                          ).criteria
+                                        finalistFeatureEnabled={
+                                          finalistFeatureEnabled
                                         }
-                                        onScoreSubmitted={handleScoreSubmitted}
-                                        finalistFeatureEnabled={finalistFeatureEnabled}
+                                        hideProjectHeader
                                       />
                                     ) : (
                                       <div className="text-center py-8">
                                         <p className="text-yellow-600 mb-2">
-                                          Scoring criteria not configured for this
-                                          track.
+                                          Scoring criteria not configured for
+                                          this track.
                                         </p>
                                         <p className="text-sm text-gray-500">
                                           Contact the event organizer to set up
