@@ -945,6 +945,17 @@ export function NewProjectSubmissionFormSinglePage({
         {/* Main Content */}
         <div className="bg-gradient-to-br from-blue-100/45 via-transparent to-transparent">
           <div className="px-8 py-6 min-h-[800px]">
+            {/* TODO(lia, #660): Fix mobile layout of this top bar.
+                Currently on mobile (<640px), the visibility dropdown + 3 action
+                buttons wrap awkwardly with text breaking mid-word.
+                Options:
+                  1. Stack vertically full-width on mobile
+                  2. Hide "Delete draft" in an overflow menu
+                  3. Compact icon-only buttons on mobile
+                Keep desktop layout unchanged. Match MM design system (12px radius,
+                #4b89ef primary, Inter). The mobile Publish button is already
+                available in a sticky bottom bar (PR #639), so the top version
+                can be more compact. */}
             <div className="flex items-center justify-between mb-6 flex-wrap gap-2 sm:gap-0">
               <div className="relative">
                 <button
