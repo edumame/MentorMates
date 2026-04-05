@@ -33,6 +33,8 @@ const config: Config = {
       },
       maxWidth: {
         host: "1280px",
+        /** Event shell: header, tabs, and body share this width */
+        "10xl": "1280px",
       },
       /* Brand palette */
       colors: {

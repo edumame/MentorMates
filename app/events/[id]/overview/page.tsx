@@ -170,7 +170,7 @@ export default async function EventOverviewPage({ params }: PageProps) {
       eventType={typedEvent.event_type}
     >
       {/* Main Content */}
-      <div>
+      <div className="min-w-0 flex-1">
         <EventPageContent
           event={typedEvent}
           tracks={tracks}
