@@ -453,10 +453,10 @@ export default function AdminPage() {
     queueDescription: string,
     emptyMessage: string
   ) => (
-    <div className="mb-12">
-      <div className="mb-6">
-        <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1">{queueTitle}</h2>
-        <p className="text-gray-600 text-xs sm:text-sm">{queueDescription}</p>
+    <div className="mb-12 min-w-0">
+      <div className="mb-6 min-w-0">
+        <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1 break-words">{queueTitle}</h2>
+        <p className="text-gray-600 text-xs sm:text-sm break-words">{queueDescription}</p>
       </div>
 
       {queueEvents.length === 0 ? (
@@ -935,14 +935,14 @@ export default function AdminPage() {
   const featuredEvents = events.filter((event) => event.featured);
 
   return (
-    <div className="min-h-screen bg-gray-50 py-4 px-3 sm:py-8 sm:px-4">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-gray-50 py-4 px-3 sm:py-8 sm:px-4">
+      <div className="max-w-7xl mx-auto w-full min-w-0">
         {/* Header */}
-        <div className="mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-4xl font-bold text-gray-900 mb-2">
+        <div className="mb-6 sm:mb-8 min-w-0">
+          <h1 className="text-2xl sm:text-4xl font-bold text-gray-900 mb-2 break-words">
             Event Management Dashboard
           </h1>
-          <p className="text-gray-600 text-sm sm:text-base">
+          <p className="text-gray-600 text-sm sm:text-base break-words">
             Manage featured events and review approval requests.
           </p>
         </div>
