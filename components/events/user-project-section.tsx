@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
+import { CoverImageWithFallback } from "@/features/projects/components/displays/cover-image-with-fallback";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -124,12 +124,10 @@ export function UserProjectSection({
               <div className="flex">
                 {project.cover_image_url ? (
                   <div className="relative h-30 w-24 flex-shrink-0 bg-slate-100">
-                    <Image
+                    <CoverImageWithFallback
                       src={project.cover_image_url}
                       alt={project.project_name || "Project cover"}
-                      fill
-                      className="object-cover"
-                      sizes="96px"
+                      className="absolute inset-0 h-full w-full object-cover"
                     />
                   </div>
                 ) : (

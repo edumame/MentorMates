@@ -65,6 +65,10 @@ import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 import UserSearchWithInvite from "@/components/utils/UserSearchWithInvite";
 import { EditNote, Favorite } from "@mui/icons-material";
 import { buildArtifactsFromLegacy } from "@/features/projects/utils/submission";
+import {
+  CoverImageWithFallback,
+  ProjectCoverHero,
+} from "@/features/projects/components/displays/cover-image-with-fallback";
 import { ProjectDescription } from "@/components/projects/ProjectDescription";
 
 interface EventParticipant {
@@ -1360,30 +1364,23 @@ export default function ProjectPage() {
               {/* Right: Cover Image */}
               <div className="w-full lg:w-[520px] h-[200px] sm:h-[250px] lg:h-[300px] rounded-2xl overflow-hidden shadow-lg order-2">
                 {canEdit ? (
-                  <div className="relative w-full h-full group">
-                    <div
-                      className="w-full h-full bg-cover bg-center bg-no-repeat"
-                      style={{
-                        backgroundImage: `url(${
-                          project.cover_image_url || "/img/placeholder.png"
-                        })`,
-                      }}
-                    ></div>
-                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <span className="text-white text-sm">
-                        Click to edit in settings below
-                      </span>
-                    </div>
+                  <div className="relative h-full w-full group">
+                    <ProjectCoverHero
+                      src={project.cover_image_url}
+                      alt={`${project.project_name || "Project"} cover`}
+                    >
+                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <span className="text-white text-sm">
+                          Click to edit in settings below
+                        </span>
+                      </div>
+                    </ProjectCoverHero>
                   </div>
                 ) : (
-                  <div
-                    className="w-full h-full bg-cover bg-center bg-no-repeat"
-                    style={{
-                      backgroundImage: `url(${
-                        project.cover_image_url || "/img/placeholder.png"
-                      })`,
-                    }}
-                  ></div>
+                  <ProjectCoverHero
+                    src={project.cover_image_url}
+                    alt={`${project.project_name || "Project"} cover`}
+                  />
                 )}
               </div>
             </div>
@@ -1533,7 +1530,7 @@ export default function ProjectPage() {
                         {project.cover_image_url && (
                           <div className="space-y-2 rounded-xl border border-black/10 p-3">
                             <div className="rounded-xl overflow-hidden">
-                              <img
+                              <CoverImageWithFallback
                                 src={project.cover_image_url}
                                 alt="Project cover"
                                 className="w-full h-auto object-cover"

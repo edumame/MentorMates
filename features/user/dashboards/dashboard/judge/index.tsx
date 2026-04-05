@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/accordion";
 import { ArrowLeft, ArrowRight, ChevronDown, Target } from "lucide-react";
 import Link from "next/link";
+import { CoverImageWithFallback } from "@/features/projects/components/displays/cover-image-with-fallback";
 import { LoadingScreen } from "@/components/ui/loading-screen";
 import {
   getNextProjectId,
@@ -805,8 +806,7 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                     <section className="order-1 min-w-0 space-y-4 lg:order-2">
                       <div className="overflow-hidden rounded-2xl bg-white">
                         {currentProject.cover_image_url ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
+                          <CoverImageWithFallback
                             src={currentProject.cover_image_url}
                             alt={`${currentProject.project_name} cover`}
                             className="h-[240px] w-full object-cover md:h-[280px]"
