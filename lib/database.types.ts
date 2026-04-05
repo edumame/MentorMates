@@ -276,6 +276,7 @@ export type Database = {
             | null;
           rejection_reason: string | null;
           require_participant_approval: boolean | null;
+          max_projects: number | null;
         };
         Insert: {
           cover_image_url?: string | null;

@@ -129,7 +129,7 @@ export async function GET(request: NextRequest) {
          location, visibility, approval_status, participant_capacity,
          submission_time_start, submission_time_cutoff, event_schedule,
          event_prizes, scoring_config, cover_image_url, slug, paid,
-         require_participant_approval, featured`
+         require_participant_approval, featured, max_projects`
       )
       .eq("event_id", auth.eventId)
       .single();
@@ -197,6 +197,7 @@ const updateEventSchema = z.object({
   submission_time_cutoff: z.string().nullable().optional(),
   participant_capacity: z.number().int().positive().nullable().optional(),
   require_participant_approval: z.boolean().optional(),
+  max_projects: z.number().int().positive().nullable().optional(),
 });
 
 // PATCH: Update event details

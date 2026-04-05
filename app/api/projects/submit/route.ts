@@ -68,11 +68,17 @@ export async function POST(request: Request) {
 				deriveLegacySubmissionFieldsFromArtifacts(compatibilityArtifacts);
 
 		// If eventId provided, validate event and submission window; otherwise skip
-		let eventData: { submission_time_start: string; submission_time_cutoff: string } | null = null;
+		let eventData: {
+			submission_time_start: string;
+			submission_time_cutoff: string;
+			max_projects: number | null;
+		} | null = null;
 		if (eventId) {
 			const { data, error: eventError } = await supabase
 				.from("events")
-				.select("event_id, submission_time_start, submission_time_cutoff")
+				.select(
+					"event_id, submission_time_start, submission_time_cutoff, max_projects"
+				)
 				.eq("event_id", eventId)
 				.single();
 
@@ -87,7 +93,11 @@ export async function POST(request: Request) {
 				return NextResponse.json({ error: "Event not found" }, { status: 404 });
 			}
 
-			eventData = data as unknown as { submission_time_start: string; submission_time_cutoff: string };
+			eventData = data as unknown as {
+				submission_time_start: string;
+				submission_time_cutoff: string;
+				max_projects: number | null;
+			};
 
 			const now = new Date();
 			const submissionStart = new Date(eventData.submission_time_start);
@@ -103,6 +113,30 @@ export async function POST(request: Request) {
 					{ error: "Project submission deadline has passed" },
 					{ status: 400 }
 				);
+			}
+
+			// Enforce max_projects cap — only applies to NEW projects (not edits
+			// to existing ones). Drafts don't count; only submitted projects.
+			if (eventData.max_projects && !projectId) {
+				const { count: submittedCount } = await supabase
+					.from("projects")
+					.select("id", { count: "exact", head: true })
+					.eq("event_id", eventId)
+					.eq("submitted", true);
+
+				if (
+					submittedCount !== null &&
+					submittedCount >= eventData.max_projects
+				) {
+					return NextResponse.json(
+						{
+							error: `This event has reached the maximum of ${eventData.max_projects} submitted projects.`,
+							max_projects: eventData.max_projects,
+							current_count: submittedCount,
+						},
+						{ status: 409 }
+					);
+				}
 			}
 		}
 
