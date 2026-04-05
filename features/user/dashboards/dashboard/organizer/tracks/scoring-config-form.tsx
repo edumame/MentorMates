@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { TrashIcon, PlusIcon, Users } from "lucide-react";
-import { EventScoringConfig, ScoringCriterion, EventTrack } from "@/lib/types";
+import { EventScoringConfig, EventTrack, ScoringCriterion } from "@/lib/types";
 import { defaultCriteria } from "@/lib/config/constants";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/lib/hooks/use-toast";
@@ -22,9 +22,9 @@ interface ScoringConfigFormProps {
   initialConfig?: EventScoringConfig | null;
   onSave: (config: EventScoringConfig) => void;
   isSubmitting?: boolean;
-  tracks?: EventTrack[];
   isArchived: boolean;
   eventId: string;
+  tracks?: EventTrack[];
 }
 
 export function ScoringConfigForm({
@@ -33,19 +33,26 @@ export function ScoringConfigForm({
   isSubmitting = false,
   isArchived,
   eventId,
+  tracks = [],
 }: ScoringConfigFormProps) {
   const [config, setConfig] = useState<EventScoringConfig>(
     initialConfig || {
       tracks: {},
-      defaultMin: 1,
+      defaultMin: 0,
       defaultMax: 10,
       defaultWeight: 1,
     }
   );
   const [isAssigningProjects, setIsAssigningProjects] = useState(false);
-  const [selectedTrackForBulkAssign, setSelectedTrackForBulkAssign] = useState<string>("");
+  const [selectedTrackForBulkAssign, setSelectedTrackForBulkAssign] =
+    useState<string>("");
 
   const { toast } = useToast();
+
+  const assignableTracks = tracks.map((track) => ({
+    track_id: track.track_id,
+    name: config.tracks[track.track_id]?.name || track.name || "Unnamed Track",
+  }));
 
   const addTrack = () => {
     const trackId = crypto.randomUUID();
@@ -209,7 +216,6 @@ export function ScoringConfigForm({
     try {
       setIsAssigningProjects(true);
 
-      // Fetch all projects for this event
       const { data: projects, error: projectsError } = await supabase
         .from("projects")
         .select("id")
@@ -228,7 +234,6 @@ export function ScoringConfigForm({
         return;
       }
 
-      // Create project_tracks entries (upsert to avoid duplicates)
       const projectTrackEntries = projects.map((project) => ({
         project_id: project.id,
         track_id: trackId,
@@ -263,8 +268,7 @@ export function ScoringConfigForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
-      {/* Bulk Assign Section */}
-      {Object.keys(config.tracks).length > 0 && (
+      {assignableTracks.length > 0 && (
         <Card className="p-5 border border-gray-200 bg-gray-50">
           <div className="space-y-4">
             <div className="flex items-center gap-2">
@@ -274,7 +278,8 @@ export function ScoringConfigForm({
               </h3>
             </div>
             <p className="text-sm text-gray-600">
-              Assign all projects in this event to a selected track. This will not remove existing track assignments.
+              Assign all projects in this event to a selected saved track. This
+              will not remove existing track assignments.
             </p>
             <div className="flex items-end gap-4">
               <div className="flex-1">
@@ -287,12 +292,12 @@ export function ScoringConfigForm({
                   disabled={isArchived}
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Choose a track..." />
+                    <SelectValue placeholder="Choose a saved track..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {Object.entries(config.tracks).map(([trackId, track]) => (
-                      <SelectItem key={trackId} value={trackId}>
-                        {track.name || "Unnamed Track"}
+                    {assignableTracks.map((track) => (
+                      <SelectItem key={track.track_id} value={track.track_id}>
+                        {track.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -304,15 +309,20 @@ export function ScoringConfigForm({
                 onClick={() => {
                   if (selectedTrackForBulkAssign) {
                     assignAllProjectsToTrack(selectedTrackForBulkAssign);
-                  } else {
-                    toast({
-                      title: "No Track Selected",
-                      description: "Please select a track first.",
-                      variant: "destructive",
-                    });
+                    return;
                   }
+
+                  toast({
+                    title: "No Track Selected",
+                    description: "Please select a track first.",
+                    variant: "destructive",
+                  });
                 }}
-                disabled={isArchived || isAssigningProjects || !selectedTrackForBulkAssign}
+                disabled={
+                  isArchived ||
+                  isAssigningProjects ||
+                  !selectedTrackForBulkAssign
+                }
                 className="min-w-[200px]"
               >
                 <Users className="h-4 w-4 mr-2" />
@@ -326,7 +336,12 @@ export function ScoringConfigForm({
       <div className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="text-sm font-medium text-gray-900">Default Min Score</label>
+            <label
+              className="font-sans font-normal leading-[150%] text-[var(--Color-Scheme-1-Text,#000)]"
+              style={{ fontSize: "var(--Text-Sizes-Text-Regular, 16px)" }}
+            >
+              Default Min Score
+            </label>
             <Input
               type="number"
               value={config.defaultMin}
@@ -342,7 +357,12 @@ export function ScoringConfigForm({
             />
           </div>
           <div>
-            <label className="text-sm font-medium text-gray-900">Default Max Score</label>
+            <label
+              className="font-sans font-normal leading-[150%] text-[var(--Color-Scheme-1-Text,#000)]"
+              style={{ fontSize: "var(--Text-Sizes-Text-Regular, 16px)" }}
+            >
+              Default Max Score
+            </label>
             <Input
               type="number"
               value={config.defaultMax}
@@ -358,7 +378,12 @@ export function ScoringConfigForm({
             />
           </div>
           <div>
-            <label className="text-sm font-medium text-gray-900">Default Weight</label>
+            <label
+              className="font-sans font-normal leading-[150%] text-[var(--Color-Scheme-1-Text,#000)]"
+              style={{ fontSize: "var(--Text-Sizes-Text-Regular, 16px)" }}
+            >
+              Default Weight
+            </label>
             <Input
               type="number"
               value={config.defaultWeight}
@@ -407,7 +432,10 @@ export function ScoringConfigForm({
 
               <div className="space-y-4">
                 {track.criteria.map((criterion, index) => (
-                  <div key={criterion.id} className="space-y-3 rounded-xl border border-gray-200 p-4">
+                  <div
+                    key={criterion.id}
+                    className="flex flex-col items-start gap-4 self-stretch rounded-xl border border-gray-200 p-4"
+                  >
                     <div className="flex items-start gap-4">
                       <div className="flex-1 space-y-4">
                         <div>
@@ -620,19 +648,23 @@ export function ScoringConfigForm({
         ))}
       </div>
 
-      <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-4">
         <Button
           type="button"
-          variant="outline"
+          variant="defaultGray"
           onClick={addTrack}
-          className="w-full rounded-xl"
+          className="gap-1.5 shrink-0 px-3"
           disabled={isArchived}
         >
-          <PlusIcon className="h-4 w-4 mr-2" />
+          <PlusIcon className="h-4 w-4" />
           Add new track
         </Button>
 
-        <Button type="submit" disabled={isSubmitting || isArchived} className="w-full">
+        <Button
+          type="submit"
+          disabled={isSubmitting || isArchived}
+          className="px-3 shrink-0"
+        >
           {isSubmitting ? "Saving..." : "Save Scoring Configuration"}
         </Button>
       </div>

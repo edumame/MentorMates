@@ -56,6 +56,66 @@ export type Database = {
           },
         ];
       };
+      agent_api_keys: {
+        Row: {
+          id: string;
+          user_id: string;
+          event_id: string | null;
+          key_hash: string;
+          key_prefix: string;
+          label: string | null;
+          scopes: string[] | null;
+          last_used_at: string | null;
+          expires_at: string | null;
+          revoked_at: string | null;
+          created_at: string | null;
+          updated_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          event_id?: string | null;
+          key_hash: string;
+          key_prefix: string;
+          label?: string | null;
+          scopes?: string[] | null;
+          last_used_at?: string | null;
+          expires_at?: string | null;
+          revoked_at?: string | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          event_id?: string | null;
+          key_hash?: string;
+          key_prefix?: string;
+          label?: string | null;
+          scopes?: string[] | null;
+          last_used_at?: string | null;
+          expires_at?: string | null;
+          revoked_at?: string | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "agent_api_keys_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "user_profiles";
+            referencedColumns: ["uid"];
+          },
+          {
+            foreignKeyName: "agent_api_keys_event_id_fkey";
+            columns: ["event_id"];
+            isOneToOne: false;
+            referencedRelation: "events";
+            referencedColumns: ["event_id"];
+          },
+        ];
+      };
       event_approval_logs: {
         Row: {
           log_id: string;
@@ -196,7 +256,7 @@ export type Database = {
           event_prizes: Json | null;
           event_resources: Json | null;
           event_schedule: Json | null;
-          faq: string | null;
+          faq: Json | null;
           location: string | null;
           owner_id: string | null;
           paid: boolean | null;
@@ -229,7 +289,7 @@ export type Database = {
           event_prizes?: Json | null;
           event_resources?: Json | null;
           event_schedule?: Json | null;
-          faq?: string | null;
+          faq?: Json | null;
           location?: string | null;
           owner_id?: string | null;
           paid?: boolean | null;
@@ -261,7 +321,7 @@ export type Database = {
           event_prizes?: Json | null;
           event_resources?: Json | null;
           event_schedule?: Json | null;
-          faq?: string | null;
+          faq?: Json | null;
           location?: string | null;
           owner_id?: string | null;
           paid?: boolean | null;
@@ -1239,7 +1299,7 @@ export type Database = {
         | "project_link"
         | "video_link"
         | "additional_material";
-      submission_field_type: "short_text" | "long_text" | "url" | "multi_url";
+      submission_field_type: "short_text" | "long_text" | "url" | "multi_url" | "file" | "select" | "multi_select" | "checkbox";
       ticket_status_enum: "unassigned" | "assigned" | "used" | "transferred";
     };
     CompositeTypes: {

@@ -41,7 +41,8 @@ export default async function EventOverviewPage({ params }: PageProps) {
     cover_image_url,
     slug,
     paid,
-    event_type
+    event_type,
+    submission_time_cutoff
   `);
 
   if (isUUID) {
@@ -113,6 +114,15 @@ export default async function EventOverviewPage({ params }: PageProps) {
 
   let hasJoined = false;
   let userRole: EventRole | null = null;
+  let userProjects: Array<{
+    id: string;
+    project_name: string | null;
+    project_description: string | null;
+    cover_image_url: string | null;
+    submitted: boolean | null;
+    submitted_at: string | null;
+    created_at: string | null;
+  }> = [];
 
   if (user) {
     const { data: userEventRole } = await supabase
@@ -124,6 +134,26 @@ export default async function EventOverviewPage({ params }: PageProps) {
 
     hasJoined = !!userEventRole;
     userRole = (userEventRole?.role as EventRole) || null;
+
+    // Fetch the user's projects for this event so they can always find them
+    const userEmail = user.email || "";
+    const { data: projectsData } = await supabase
+      .from("projects")
+      .select(
+        "id, project_name, project_description, cover_image_url, submitted, submitted_at, created_at, lead_email"
+      )
+      .eq("event_id", eventData.event_id)
+      .eq("lead_email", userEmail);
+
+    userProjects = (projectsData || []).map((p) => ({
+      id: p.id,
+      project_name: p.project_name,
+      project_description: p.project_description,
+      cover_image_url: p.cover_image_url,
+      submitted: p.submitted,
+      submitted_at: p.submitted_at,
+      created_at: p.created_at,
+    }));
   }
 
   return (
@@ -140,13 +170,18 @@ export default async function EventOverviewPage({ params }: PageProps) {
       eventType={typedEvent.event_type}
     >
       {/* Main Content */}
-      <EventPageContent
-        event={typedEvent}
-        tracks={tracks}
-        hasJoined={hasJoined}
-        userRole={userRole}
-        judges={judges}
-      />
+      <div>
+        <EventPageContent
+          event={typedEvent}
+          tracks={tracks}
+          hasJoined={hasJoined}
+          userRole={userRole}
+          judges={judges}
+          userProjects={userProjects}
+          eventSlug={typedEvent.slug}
+          submissionDeadline={typedEvent.submission_time_cutoff}
+        />
+      </div>
 
       {/* Sidebar */}
       <EventPageSidebar

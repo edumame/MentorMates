@@ -5,7 +5,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Development Commands
 
 Essential commands for development:
-- `npm run dev` - Start development server on localhost:3000
+- `npm run dev` - Start development server on localhost:3000 (run from repo root; `package.json` is in `MentorMates/`)
+
+### Local login (bypass Google OAuth)
+
+Google OAuth is not required for local development. Use **email/password** on the login page:
+
+1. Open **http://localhost:3000/login**
+2. Use **Sign In** (or **Sign Up** if you don’t have an account).
+3. Enter any email and password (e.g. `dev@local.test` / `password123`).
+4. Sign up creates the user in Supabase; sign in then redirects into the app.
+
+Ensure `.env.local` has `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` pointing to your Supabase project (local or hosted). Email confirmation is disabled in Supabase config, so sign-up works immediately.
 - `npm run build` - Build production version
 - `npm run start` - Start production server
 - `npm run lint` - Run ESLint checks
@@ -104,6 +115,20 @@ app/
 ```
 
 ## Development Guidelines
+
+## Project Detail Route Parity (Required)
+
+Keep these two routes synced for shared behavior and UI:
+- `app/projects/[id]/page.tsx` (private/authenticated view)
+- `app/projects/public/[id]/page.tsx` (public view)
+
+UI parity is required: core project-detail layout, section order, copy, and visual hierarchy must stay aligned across both routes.
+- Private-only controls (edit/delete/team management) can differ, but non-sensitive presentation UI should match.
+- If you change project-detail logic in one route, update the other in the same PR unless the difference is intentionally role/privacy-specific.
+- Prefer extracting shared code into common `features/projects` or `lib` modules to prevent drift.
+- Prefer shared presentational components for project-detail sections to enforce consistent UI.
+- Add or update tests that cover both routes whenever shared behavior changes.
+- If a difference is intentional, leave a short code comment explaining the reason and include it in the PR notes.
 
 **File Naming:**
 - Components use PascalCase: `AuthProvider.tsx`

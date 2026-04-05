@@ -1,9 +1,11 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import ReactMarkdown from "react-markdown";
 import { customMarkdownComponents } from "@/components/markdown/custom-components";
 import { markdownRehypePlugins } from "@/components/markdown/plugins";
-import { Trophy } from "lucide-react";
+import { Trophy, Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   EventDetails,
   ScheduleDay,
@@ -14,12 +16,16 @@ import {
 import Link from "next/link";
 import { JudgeDashboard } from "@/features/user/dashboards/dashboard/judge-dashboard";
 import { useActiveRole } from "./ActiveRoleContext";
+import { UserProjectSection } from "./user-project-section";
 
 interface EventPageContentProps {
   event: EventDetails;
   tracks: EventTrack[];
   hasJoined: boolean;
   userRole?: EventRole | null;
+  userProjects?: ComponentProps<typeof UserProjectSection>["projects"];
+  eventSlug?: string | null;
+  submissionDeadline?: string | null;
   judges?: {
     id: string;
     name: string;
@@ -34,6 +40,9 @@ export function EventPageContent({
   tracks,
   hasJoined,
   userRole,
+  userProjects = [],
+  eventSlug,
+  submissionDeadline,
   judges = [],
 }: EventPageContentProps) {
   const getInitials = (name: string) =>
@@ -44,7 +53,10 @@ export function EventPageContent({
       .map((part) => part[0]?.toUpperCase() || "")
       .join("");
 
-  const formatPrizeDisplay = (prizeAmount: string, prizeDescription: string) => {
+  const formatPrizeDisplay = (
+    prizeAmount: string,
+    prizeDescription: string,
+  ) => {
     const amount = prizeAmount?.trim() || "";
     const description = prizeDescription?.trim() || "";
     const descriptionLower = description.toLowerCase();
@@ -63,7 +75,10 @@ export function EventPageContent({
     }
 
     if (descriptionLower.startsWith(amountLower)) {
-      const title = description.slice(amount.length).trim().replace(/^[\-–:]\s*/, "");
+      const title = description
+        .slice(amount.length)
+        .trim()
+        .replace(/^[\-–:]\s*/, "");
       return {
         title: title || description,
         subtitle: description,
@@ -92,6 +107,15 @@ export function EventPageContent({
   // Show default event overview for participants, mentors, organizers, and non-authenticated users
   return (
     <div className="flex flex-col flex-1 w-full max-w-full md:max-w-[747px]">
+      {hasJoined && displayRole === EventRole.Participant && (
+        <UserProjectSection
+          projects={userProjects}
+          eventId={event.event_id}
+          eventSlug={eventSlug}
+          submissionDeadline={submissionDeadline}
+        />
+      )}
+
       {/* Introduction */}
       <div className="flex flex-col pb-4 pt-0 px-0 w-full min-w-0 max-w-full">
         <h2 className="font-semibold text-[24px] leading-[32px] text-black tracking-[-0.6px] break-words">
@@ -231,10 +255,13 @@ export function EventPageContent({
             </h2>
           </div>
 
-          <div className="flex w-full  px-4 py-5 rounded-xl border border-[rgba(0,0,0,0.15)] relative">
+          <div className="flex w-full px-4 py-5 rounded-xl border border-[rgba(0,0,0,0.15)] relative">
             <div className="flex flex-wrap sm:flex-nowrap relative w-full">
               {event.rules.map((rule, idx) => (
-                <div key={idx} className="flex flex-grow flex-col first:pb-8 sm:pb-0 pt-0 px-0 w-full sm:first:pr-6 sm:last:pl-6 sm:last:border-l sm:border-[rgba(0,0,0,0.15)]">
+                <div
+                  key={idx}
+                  className="flex flex-grow flex-col first:pb-8 sm:pb-0 pt-0 px-0 w-full sm:first:pr-6 sm:last:pl-6 sm:last:border-l sm:border-[rgba(0,0,0,0.15)]"
+                >
                   <div className="font-normal text-black">
                     <p className="font-bold tracking-[-0.06em] text-[22px] leading-[1.4] mb-2">
                       {rule.title}
@@ -329,11 +356,11 @@ export function EventPageContent({
                 <div className="bg-white px-4 py-4">
                   {track.prizes && track.prizes.length > 0 ? (
                     <div className="flex flex-col">
-                      {track.prizes.map((prize, index) => (
+                      {track.prizes.map((prize, index) =>
                         (() => {
                           const { title, subtitle } = formatPrizeDisplay(
                             prize.prize_amount,
-                            prize.prize_description
+                            prize.prize_description,
                           );
 
                           return (
@@ -356,8 +383,8 @@ export function EventPageContent({
                               </div>
                             </div>
                           );
-                        })()
-                      ))}
+                        })(),
+                      )}
                     </div>
                   ) : (
                     <p className="font-normal text-base leading-[1.5] text-black">
@@ -372,24 +399,42 @@ export function EventPageContent({
       )}
 
       {/* FAQ */}
-      {event.faq && (
+      {Array.isArray(event.faq) && event.faq.length > 0 && (
         <>
           <div className="flex flex-col pb-4 pt-5 px-0 w-full max-w-full">
             <h2 className="font-semibold text-[22px] leading-[1.4] text-black tracking-[-0.06em]">
-              Award Ceremony
+              FAQ
             </h2>
           </div>
-          <div className="flex flex-col pb-4 pt-0 px-0 w-full max-w-full">
-            <div className="prose prose-blue max-w-full w-full break-words">
-              <ReactMarkdown
-                rehypePlugins={markdownRehypePlugins}
-                components={customMarkdownComponents}
-              >
-                {event.faq}
-              </ReactMarkdown>
-            </div>
+          <div className="flex flex-col pb-4 pt-0 px-0 w-full max-w-full space-y-4">
+            {event.faq.map(
+              (item: { question: string; answer: string }, index: number) => (
+                <div key={index}>
+                  <p className="font-semibold text-base text-black">
+                    {item.question}
+                  </p>
+                  <p className="mt-1 text-base text-gray-600">{item.answer}</p>
+                </div>
+              ),
+            )}
           </div>
         </>
+      )}
+
+      {/* Bottom Submit CTA — mirrors header button so participants don't have to scroll back up */}
+      {hasJoined && userRole === EventRole.Participant && (
+        <div className="mt-8 flex justify-center border-t pt-8">
+          <Button
+            asChild
+            size="lg"
+            className="rounded-full gap-2 px-8"
+          >
+            <Link href={`/events/${event.event_id}/submit`}>
+              <Plus className="h-5 w-5" />
+              Submit Your Project
+            </Link>
+          </Button>
+        </div>
       )}
     </div>
   );

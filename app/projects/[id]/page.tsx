@@ -54,6 +54,7 @@ import { TrackSelector } from "@/features/projects/components/tracks/TrackSelect
 import { fetchEventTracks } from "@/features/projects/client-actions/client-track-update";
 import { ProjectQRCodeSection } from "@/features/projects/components/displays/project-dashboard/ProjectQRCodeSection";
 import ProjectTimeline from "@/features/projects/components/displays/ProjectTimeline";
+import { ProjectSubmissionDetails } from "@/features/projects/components/displays/ProjectSubmissionDetails";
 import { FileUpload } from "@/components/db/fileUpload";
 import { ImageUpload } from "@/components/db/imageUpload";
 import { VideoEmbed, canEmbed } from "@/components/utils";
@@ -79,7 +80,7 @@ interface EventDetails {
   start_date: string;
   end_date: string;
   location?: string;
-  event_type?: string;
+  event_type?: string[];
   cover_image_url?: string;
 }
 
@@ -277,41 +278,30 @@ export default function ProjectPage() {
     setIsLoading(true);
     setFetchComplete(false);
 
-    const { data, error } = await supabase
-      .from("projects")
-      .select(
-        `
-        *,
-        contextus_project_id
-      `
-      )
-      .eq("id", projectId)
-      .single();
+    const response = await fetch(`/api/projects?projectId=${projectId}`);
+    const payload = (await response.json().catch(() => ({}))) as {
+      error?: string;
+      project?: Project;
+    };
 
-    if (error) {
+    if (!response.ok || !payload.project) {
       setProject(null);
       setIsLoading(false);
       setFetchComplete(true);
       return;
     }
 
-    const { data: artifactRows } = await supabase
-      .from("project_artifacts")
-      .select("id, project_id, kind, label, url, sort_order, is_primary, metadata")
-      .eq("project_id", projectId)
-      .order("sort_order", { ascending: true });
-
     setProjectWithArtifacts({
-      ...(data as Project),
-      artifacts: artifactRows && artifactRows.length > 0 ? artifactRows : undefined,
+      ...payload.project,
+      artifacts: payload.project.artifacts || undefined,
     });
 
     // Check if user can edit (is lead or teammate)
     if (session?.user?.email) {
       const userEmail = session.user.email;
-      const isLead = data.lead_email === userEmail;
-      const isTeammate = data.teammates?.includes(userEmail);
-      const canEditProject = isLead || isTeammate;
+      const isLead = payload.project.lead_email === userEmail;
+      const isTeammate = payload.project.teammates?.includes(userEmail);
+      const canEditProject = isLead || Boolean(isTeammate);
       setCanEdit(canEditProject);
     }
 
@@ -1133,6 +1123,17 @@ export default function ProjectPage() {
       artifact.kind === "additional_material" &&
       artifact.url !== project.additional_materials_url
   );
+  const hasCoverImageSettings = Boolean(project.cover_image_url);
+  const hasAdditionalMaterialsSettings =
+    Boolean(project.additional_materials_url) || extraMaterialLinks.length > 0;
+  const hasProjectUrlSettings =
+    Boolean(project.project_url) || extraProjectLinks.length > 0;
+  const hasVideoUrlSettings = Boolean(project.video_url);
+  const hasVisibleProjectSettings =
+    hasCoverImageSettings ||
+    hasAdditionalMaterialsSettings ||
+    hasProjectUrlSettings ||
+    hasVideoUrlSettings;
   const extraActionLinks = [...extraProjectLinks, ...extraVideoLinks];
 
   return (
@@ -1526,6 +1527,8 @@ export default function ProjectPage() {
                           )}
                         </div>
 
+                        <ProjectSubmissionDetails project={project} />
+
                         {/* Cover Image Display */}
                         {project.cover_image_url && (
                           <div className="space-y-2 rounded-xl border border-black/10 p-3">
@@ -1555,71 +1558,70 @@ export default function ProjectPage() {
                         </div>
 
                         {/* Settings Section - Only for editors */}
-                        {canEdit && (
+                        {canEdit && (hasVisibleProjectSettings || isLead) && (
                           <Card className="mt-12">
                             <CardHeader>
                               <CardTitle>Project Settings</CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-6">
                               {/* Cover Image URL */}
-                              <div>
-                                <div className="flex items-center gap-2 mb-3">
-                                  <ExternalLink className="h-4 w-4 text-gray-500" />
-                                  <label className="text-sm font-medium text-gray-700">
-                                    Cover Image:
-                                  </label>
-                                </div>
-
-                                <div className="mb-4">
-                                  <label className="text-xs font-medium text-gray-600 mb-1 block">
-                                    Image URL:
-                                  </label>
-                                  <div className="flex gap-2">
-                                    <div className="flex-1">
-                                      <EditableField
-                                        value={project.cover_image_url || ""}
-                                        onSave={handleUpdateCoverImage}
-                                        canEdit={canEdit}
-                                        isLoading={isUpdating}
-                                        placeholder="https://example.com/image.jpg"
-                                        displayClassName="text-blue-600 underline"
-                                        renderDisplay={(value) =>
-                                          value ? (
-                                            <span className="text-blue-600 hover:text-blue-800 cursor-pointer break-all">
-                                              {value}
-                                            </span>
-                                          ) : (
-                                            <span className="text-gray-400 italic">
-                                              No cover image URL set
-                                            </span>
-                                          )
-                                        }
-                                      />
-                                    </div>
-                                    {project.cover_image_url && (
-                                      <a
-                                        href={project.cover_image_url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="flex-shrink-0"
-                                      >
-                                        <Button variant="outline" size="sm">
-                                          <ExternalLink className="h-4 w-4 mr-1" />
-                                          View
-                                        </Button>
-                                      </a>
-                                    )}
+                              {hasCoverImageSettings && (
+                                <div>
+                                  <div className="flex items-center gap-2 mb-3">
+                                    <ExternalLink className="h-4 w-4 text-gray-500" />
+                                    <label className="text-sm font-medium text-gray-700">
+                                      Cover Image:
+                                    </label>
                                   </div>
-                                </div>
 
-                                <ImageUpload
-                                  handleUpload={handleCoverImageFileUpload}
-                                  noteText="Note: Changes to the cover image will be reflected in the header image above."
-                                />
-                              </div>
+                                  <div className="mb-4">
+                                    <label className="text-xs font-medium text-gray-600 mb-1 block">
+                                      Image URL:
+                                    </label>
+                                    <div className="flex gap-2">
+                                      <div className="flex-1">
+                                        <EditableField
+                                          value={project.cover_image_url || ""}
+                                          onSave={handleUpdateCoverImage}
+                                          canEdit={canEdit}
+                                          isLoading={isUpdating}
+                                          placeholder="https://example.com/image.jpg"
+                                          displayClassName="text-blue-600 underline"
+                                          renderDisplay={(value) =>
+                                            value ? (
+                                              <span className="text-blue-600 hover:text-blue-800 cursor-pointer break-all">
+                                                {value}
+                                              </span>
+                                            ) : null
+                                          }
+                                        />
+                                      </div>
+                                      {project.cover_image_url && (
+                                        <a
+                                          href={project.cover_image_url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="flex-shrink-0"
+                                        >
+                                          <Button variant="outline" size="sm">
+                                            <ExternalLink className="h-4 w-4 mr-1" />
+                                            View
+                                          </Button>
+                                        </a>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <ImageUpload
+                                    handleUpload={handleCoverImageFileUpload}
+                                    noteText="Note: Changes to the cover image will be reflected in the header image above."
+                                  />
+                                </div>
+                              )}
 
                               {/* Additional Materials */}
-                              <div className="border-t pt-6">
+                              {hasAdditionalMaterialsSettings && (
+                                <div className="border-t pt-6">
                                 <div className="flex items-center gap-2 mb-3">
                                   <ExternalLink className="h-4 w-4 text-gray-500" />
                                   <label className="text-sm font-medium text-gray-700">
@@ -1647,11 +1649,7 @@ export default function ProjectPage() {
                                             <span className="text-blue-600 hover:text-blue-800 cursor-pointer break-all">
                                               {value}
                                             </span>
-                                          ) : (
-                                            <span className="text-gray-400 italic">
-                                              No additional materials URL set
-                                            </span>
-                                          )
+                                          ) : null
                                         }
                                       />
                                     </div>
@@ -1676,10 +1674,12 @@ export default function ProjectPage() {
                                   }
                                   noteText="Examples: GitHub repository, documentation, slides, design files, PDFs, etc."
                                 />
-                              </div>
+                                </div>
+                              )}
 
                               {/* Project URL */}
-                              <div className="border-t pt-6">
+                              {hasProjectUrlSettings && (
+                                <div className="border-t pt-6">
                                 <div className="flex items-center gap-2 mb-2">
                                   <ExternalLink className="h-4 w-4 text-gray-500" />
                                   <label className="text-sm font-medium text-gray-700">
@@ -1700,11 +1700,7 @@ export default function ProjectPage() {
                                           <span className="text-blue-600 hover:text-blue-800 cursor-pointer break-all">
                                             {value}
                                           </span>
-                                        ) : (
-                                          <span className="text-gray-400 italic">
-                                            No project URL set
-                                          </span>
-                                        )
+                                        ) : null
                                       }
                                     />
                                   </div>
@@ -1723,12 +1719,12 @@ export default function ProjectPage() {
                                   )}
                                 </div>
 
-                                <div className="mt-3 space-y-2">
-                                  <label className="text-xs font-medium text-gray-600 block">
-                                    Additional Project Links:
-                                  </label>
-                                  {extraProjectLinks.length > 0 ? (
-                                    extraProjectLinks.map((artifact, index) => (
+                                {extraProjectLinks.length > 0 && (
+                                  <div className="mt-3 space-y-2">
+                                    <label className="text-xs font-medium text-gray-600 block">
+                                      Additional Project Links:
+                                    </label>
+                                    {extraProjectLinks.map((artifact, index) => (
                                       <div
                                         key={`${artifact.id || artifact.url}-settings-project-${index}`}
                                         className="flex gap-2"
@@ -1750,17 +1746,15 @@ export default function ProjectPage() {
                                           </Button>
                                         </a>
                                       </div>
-                                    ))
-                                  ) : (
-                                    <p className="text-xs text-gray-500 italic">
-                                      No additional project links
-                                    </p>
-                                  )}
+                                    ))}
+                                  </div>
+                                )}
                                 </div>
-                              </div>
+                              )}
 
                               {/* Video URL */}
-                              <div className="border-t pt-6">
+                              {hasVideoUrlSettings && (
+                                <div className="border-t pt-6">
                                 <div className="flex items-center gap-2 mb-2">
                                   <ExternalLink className="h-4 w-4 text-gray-500" />
                                   <label className="text-sm font-medium text-gray-700">
@@ -1781,11 +1775,7 @@ export default function ProjectPage() {
                                           <span className="text-blue-600 hover:text-blue-800 cursor-pointer break-all">
                                             {value}
                                           </span>
-                                        ) : (
-                                          <span className="text-gray-400 italic">
-                                            No video URL set
-                                          </span>
-                                        )
+                                        ) : null
                                       }
                                     />
                                   </div>
@@ -1803,7 +1793,8 @@ export default function ProjectPage() {
                                     </a>
                                   )}
                                 </div>
-                              </div>
+                                </div>
+                              )}
 
                               {/* Delete Project Button */}
                               {isLead && (
@@ -2321,12 +2312,11 @@ export default function ProjectPage() {
                               </div>
                               <CardContent className="p-6 space-y-4">
                                 <div className="flex gap-1 flex-wrap">
-                                  <Badge
-                                    variant="secondary"
-                                    className="bg-transparent border border-black/15 text-black rounded-full font-semibold"
-                                  >
-                                    {eventDetails.event_type || "Hackathon"}
-                                  </Badge>
+                                  {(eventDetails.event_type?.length ? eventDetails.event_type : ["Hackathon"]).map((type) => (
+                                    <Badge key={type} variant="secondary" className="bg-transparent border border-black/15 text-black rounded-full font-semibold">
+                                      {type}
+                                    </Badge>
+                                  ))}
                                   <Badge
                                     variant="secondary"
                                     className="bg-transparent border border-black/15 text-black rounded-full font-semibold"

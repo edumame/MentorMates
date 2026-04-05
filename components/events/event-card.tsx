@@ -28,7 +28,7 @@ export function EventCard({ event }: EventCardProps) {
   // Determine if event is paid or free
   const isPaid = event.paid || event.stripe_price_id;
 
-  const eventType = event.event_type || "Hackathon";
+  const eventTypes = event.event_type?.length ? event.event_type : ["Hackathon"];
 
   // Choose the best available summary for the event
   const normalizeSummary = (text?: string | null) =>
@@ -76,11 +76,11 @@ export function EventCard({ event }: EventCardProps) {
         <div className="px-6 py-4 flex flex-col flex-1">
           {/* Event Details Tags */}
           <div className="flex flex-wrap gap-1 mb-3">
-            <span className="px-[10px] py-1 border border-[rgba(0,0,0,0.15)] rounded-full text-[14px] font-semibold text-black">
-              {eventType
-                ? eventType.charAt(0).toUpperCase() + eventType.slice(1)
-                : "Hackathon"}
-            </span>
+            {eventTypes.map((type) => (
+              <span key={type} className="px-[10px] py-1 border border-[rgba(0,0,0,0.15)] rounded-full text-[14px] font-semibold text-black">
+                {type.charAt(0).toUpperCase() + type.slice(1)}
+              </span>
+            ))}
             <span className="px-[10px] py-1 border border-[rgba(0,0,0,0.15)] rounded-full text-[14px] font-semibold text-black">
               {isPaid ? "Paid" : "Free"}
             </span>

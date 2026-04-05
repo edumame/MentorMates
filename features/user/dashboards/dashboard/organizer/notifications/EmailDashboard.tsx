@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/lib/hooks/use-toast";
 import { EMAIL_TYPES } from "@/lib/email_templates/constants";
@@ -118,42 +119,50 @@ export default function EmailDashboard({
   return (
     <div className="space-y-6">
       <div className="flex flex-col space-y-4">
-        <h2 className="text-2xl font-bold">Send Individual Check-in Emails</h2>
-        <p className="text-gray-600">
+        <h2
+        className="font-geist text-2xl font-semibold"
+        style={{
+          fontFamily:
+            "var(--font-geist-sans), Inter, system-ui, sans-serif",
+        }}
+      >
+        Send Individual Check-in Emails
+      </h2>
+        <p className="font-geist text-gray-600">
           Select a participant to send them their check-in QR code email.
         </p>
       </div>
 
-      <div className="rounded-md border">
+      <div className="rounded-[16px] border overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Actions</TableHead>
+              <TableHead className="px-6">Name</TableHead>
+              <TableHead className="px-6">Email</TableHead>
+              <TableHead className="px-6">Role</TableHead>
+              <TableHead className="px-6">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={4} className="text-center py-4">
+                <TableCell colSpan={4} className="text-center py-4 px-6">
                   Loading users...
                 </TableCell>
               </TableRow>
             ) : users.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={4} className="text-center py-4">
+                <TableCell colSpan={4} className="text-center py-4 px-6">
                   No users found
                 </TableCell>
               </TableRow>
             ) : (
               users.map((user) => (
                 <TableRow key={user.uid}>
-                  <TableCell>{user.display_name}</TableCell>
-                  <TableCell>{user.email}</TableCell>
-                  <TableCell>Participant</TableCell>
-                  <TableCell>
+                  <TableCell className="px-6">{user.display_name}</TableCell>
+                  <TableCell className="px-6">{user.email}</TableCell>
+                  <TableCell className="px-6">Participant</TableCell>
+                  <TableCell className="px-6">
                     <Button
                       onClick={() => sendCheckinEmail(user)}
                       disabled={isSending}
@@ -169,22 +178,40 @@ export default function EmailDashboard({
         </Table>
       </div>
 
-      {/* Pagination Controls */}
-      <div className="flex justify-between items-center">
+      {/* Pagination Controls - match Registration page style */}
+      <div className="flex items-center justify-between gap-3 pt-4">
         <Button
-          onClick={() => setCurrentPage((p) => p - 1)}
+          variant="secondary"
+          size="default"
+          onClick={() => setCurrentPage((p) => Math.max(0, p - 1))}
           disabled={currentPage === 0 || loading}
+          className="min-w-[110px] flex justify-center items-center gap-1.5 py-2.5 px-6 rounded-[12px] bg-[var(--Opacity-Neutral-Darkest-5,rgba(0,0,0,0.05))] border-0 text-foreground hover:bg-[var(--Opacity-Neutral-Darkest-5,rgba(0,0,0,0.05))] hover:opacity-90"
+          style={{
+            boxShadow:
+              "0 0 0 1px var(--Opacity-Neutral-Darkest-5, rgba(0,0,0,0.05)) inset, 0 -2px 1px 0 var(--Opacity-Neutral-Darkest-5, rgba(0,0,0,0.05)) inset, 0 1px 2px 0 var(--Opacity-Neutral-Darkest-5, rgba(0,0,0,0.05))",
+          }}
         >
-          Previous
+          <ChevronLeft className="h-4 w-4" />
+          Prev
         </Button>
-        <span className="text-sm text-gray-600">
-          Page {currentPage + 1} of {totalPages}
-        </span>
+        <div className="flex items-center justify-center gap-2">
+          <span className="text-sm text-muted-foreground">
+            Page {currentPage + 1} of {totalPages}
+          </span>
+        </div>
         <Button
+          variant="secondary"
+          size="default"
           onClick={() => setCurrentPage((p) => p + 1)}
           disabled={currentPage >= totalPages - 1 || loading}
+          className="min-w-[110px] flex justify-center items-center gap-1.5 py-2.5 px-6 rounded-[12px] bg-[var(--Opacity-Neutral-Darkest-5,rgba(0,0,0,0.05))] border-0 text-foreground hover:bg-[var(--Opacity-Neutral-Darkest-5,rgba(0,0,0,0.05))] hover:opacity-90"
+          style={{
+            boxShadow:
+              "0 0 0 1px var(--Opacity-Neutral-Darkest-5, rgba(0,0,0,0.05)) inset, 0 -2px 1px 0 var(--Opacity-Neutral-Darkest-5, rgba(0,0,0,0.05)) inset, 0 1px 2px 0 var(--Opacity-Neutral-Darkest-5, rgba(0,0,0,0.05))",
+          }}
         >
           Next
+          <ChevronRight className="h-4 w-4" />
         </Button>
       </div>
     </div>

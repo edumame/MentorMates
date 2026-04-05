@@ -200,7 +200,33 @@ export function AssignTab({ eventId }: AssignTabProps) {
     const response = await fetch(`/api/projects?eventId=${eventId}&submitted=true`);
     if (!response.ok) throw new Error("Failed to fetch projects");
     const data = await response.json();
-    setProjects(data.projects || []);
+    
+    // Transform the projects to extract tracks from project_tracks
+    const transformedProjects = (data.projects || []).map((project: {
+      id: string;
+      project_name: string;
+      lead_name: string;
+      project_tracks?: Array<{
+        track_id: string;
+        event_tracks?: {
+          track_id: string;
+          name: string | null;
+          label: string | null;
+        };
+      }>;
+      [key: string]: unknown;
+    }) => ({
+      ...project,
+      tracks: project.project_tracks
+        ?.map((pt): ProjectTrack | null => pt.event_tracks ? {
+          track_id: pt.event_tracks.track_id,
+          name: pt.event_tracks.name,
+          label: pt.event_tracks.label,
+        } : null)
+        .filter((track): track is ProjectTrack => track !== null) || [],
+    }));
+    
+    setProjects(transformedProjects);
   }, [eventId]);
 
   const fetchAssignments = useCallback(async () => {
@@ -544,7 +570,7 @@ export function AssignTab({ eventId }: AssignTabProps) {
           </div>
 
           {/* Show Name/Email Toggle */}
-          <div className="flex items-center space-x-2 pb-2 border-b">
+          <div className="flex items-center space-x-2 pb-2">
             <Switch
               id="show-name"
               checked={showName}
@@ -668,9 +694,14 @@ export function AssignTab({ eventId }: AssignTabProps) {
                       />
                       <Label
                         htmlFor={`batch-judge-${judge.user_id}`}
-                        className="cursor-pointer text-sm font-normal"
+                        className="cursor-pointer text-sm font-normal flex flex-col"
                       >
-                        {showName ? judge.display_name : judge.email}
+                        <span className="font-medium text-foreground">
+                          {judge.display_name}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {judge.email}
+                        </span>
                       </Label>
                     </div>
                   ))
@@ -803,7 +834,7 @@ export function AssignTab({ eventId }: AssignTabProps) {
                           checked={selectedProjectIds.has(project.id)}
                           onCheckedChange={(checked) =>
                             toggleProjectSelection(project.id, checked === true)
-                          }
+                          } 
                           aria-label={`Select ${project.project_name} for batch assignment`}
                         />
                       </TableCell>
@@ -813,7 +844,7 @@ export function AssignTab({ eventId }: AssignTabProps) {
                           <div className="flex flex-wrap gap-1">
                             {(project.tracks || []).length > 0 ? (
                               project.tracks?.map((track) => (
-                                <Badge key={track.track_id} variant="secondary">
+                                <Badge key={track.track_id} variant="outline">
                                   {track.label || track.name || "Unnamed Track"}
                                 </Badge>
                               ))
@@ -831,8 +862,11 @@ export function AssignTab({ eventId }: AssignTabProps) {
                               key={assignment.id}
                               className="flex items-center gap-2"
                             >
-                              <Badge variant="outline">
-                                {showName ? assignment.user.display_name : assignment.user.email}
+                              <Badge
+                                variant="outline"
+                                title={assignment.user.email}
+                              >
+                                {assignment.user.display_name}
                               </Badge>
                               <Button
                                 size="sm"
@@ -853,7 +887,6 @@ export function AssignTab({ eventId }: AssignTabProps) {
                               (a) => a.user_id
                             )}
                             onAssign={handleIndividualAssign}
-                            showName={showName}
                           />
                         </div>
                       </TableCell>
@@ -864,8 +897,11 @@ export function AssignTab({ eventId }: AssignTabProps) {
                               key={assignment.id}
                               className="flex items-center gap-2"
                             >
-                              <Badge variant="outline">
-                                {showName ? assignment.user.display_name : assignment.user.email}
+                              <Badge
+                                variant="outline"
+                                title={assignment.user.email}
+                              >
+                                {assignment.user.display_name}
                               </Badge>
                               <Button
                                 size="sm"
@@ -886,7 +922,6 @@ export function AssignTab({ eventId }: AssignTabProps) {
                               (a) => a.user_id
                             )}
                             onAssign={handleIndividualAssign}
-                            showName={showName}
                           />
                         </div>
                       </TableCell>
@@ -914,7 +949,6 @@ interface ManualAssignSelectProps {
   users: User[];
   existingAssignments: string[];
   onAssign: (userId: string, projectId: string, role: EventRole) => void;
-  showName: boolean;
 }
 
 function ManualAssignSelect({
@@ -923,7 +957,6 @@ function ManualAssignSelect({
   users,
   existingAssignments,
   onAssign,
-  showName,
 }: ManualAssignSelectProps) {
   const [selectedUserId, setSelectedUserId] = useState<string>("");
 
@@ -946,7 +979,12 @@ function ManualAssignSelect({
         <SelectContent>
           {availableToAssign.map((user) => (
             <SelectItem key={user.user_id} value={user.user_id}>
-              {showName ? user.display_name : user.email}
+              <div className="flex flex-col">
+                <span className="font-medium">{user.display_name}</span>
+                <span className="text-xs text-muted-foreground">
+                  {user.email}
+                </span>
+              </div>
             </SelectItem>
           ))}
         </SelectContent>

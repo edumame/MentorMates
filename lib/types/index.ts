@@ -121,7 +121,7 @@ export type EventItem = {
   stripe_price_id?: string; // Stripe price ID for paid events
   participant_capacity?: number | null; // Max participants; null = unlimited
   finalist_recommendation_enabled?: boolean | null;
-  event_type?: string;
+  event_type?: string[];
   featured?: boolean; // Whether this event is featured on homepage
   approval_status?: ApprovalStatus; // Approval status: not_submitted, submitted, approved, or rejected. Featured is controlled separately via the featured boolean field.
   created_at?: string; // Timestamp when event was created
@@ -229,7 +229,7 @@ export interface EventTrack {
 
 export interface EventDetails extends EventItem {
   paid: boolean;
-  event_type: string;
+  event_type: string[];
   event_description: string;
   event_blurb?: string;
   paywall_content?: string;
@@ -244,7 +244,7 @@ export interface EventDetails extends EventItem {
   rules: Rule[];
   event_tracks?: EventTrack[];
   role_labels?: Record<string, string>;
-  faq?: string; // Optional markdown FAQ content
+  faq?: { question: string; answer: string }[]; // Structured FAQ items
   submission_time_start?: string; // Submission window start time
   submission_time_cutoff?: string; // Submission window end time
   sponsorship_tiers?: {
@@ -276,7 +276,7 @@ export interface ProjectArtifact {
   updated_at?: string;
 }
 
-export type SubmissionFieldType = "short_text" | "long_text" | "url" | "multi_url";
+export type SubmissionFieldType = "short_text" | "long_text" | "url" | "multi_url" | "file" | "select" | "multi_select" | "checkbox";
 
 export interface EventSubmissionField {
   id: string;
@@ -321,6 +321,9 @@ export interface Project {
   cover_image_url?: string;
   artifacts?: ProjectArtifact[];
   submission_answers?: ProjectSubmissionAnswer[];
+  submission_fields?: EventSubmissionField[];
+  submission_values?: Record<string, string | string[]>;
+  has_submission_field_config?: boolean;
   event_name?: string;
   prizes_won?: Prize[];
   contextus_project_id?: string;

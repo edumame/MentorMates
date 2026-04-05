@@ -1,12 +1,10 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ProjectDescription } from "@/components/projects/ProjectDescription";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import {
   Loader2,
@@ -14,10 +12,6 @@ import {
   ThumbsUp,
   MessageSquarePlus,
   MoreHorizontal,
-  ImageIcon,
-  Paperclip,
-  Github,
-  Youtube,
   ExternalLink,
 } from "lucide-react";
 import { toast } from "@/lib/hooks/use-toast";
@@ -31,10 +25,16 @@ import {
 } from "@/lib/types";
 import { useProjectSubmissionData } from "@/features/projects/components/forms/hooks/useProjectSubmissionData";
 import { EventCard } from "@/components/events/event-card";
-import { Public, TextFields } from "@mui/icons-material";
+import { Public } from "@mui/icons-material";
 import Link from "next/link";
-import { submissionFieldTypeSchema } from "@/features/projects/utils/submission";
 import { ParticipantIntakeDialog } from "@/features/intake-forms/components/ParticipantIntakeDialog";
+import { ProjectSubmissionSchemaSection } from "@/features/projects/components/forms/components/ProjectSubmissionSchemaSection";
+import { useProjectSubmissionAutosave } from "@/features/projects/components/forms/hooks/useProjectSubmissionAutosave";
+import {
+  buildEffectiveSubmissionFields,
+  buildSubmissionAnswersPayload,
+  type SubmissionValue,
+} from "@/features/projects/utils/effectiveSubmission";
 import type {
   IntakeFormAnswers,
   IntakeFormSchema,
@@ -46,7 +46,6 @@ interface EventParticipant {
   email: string;
 }
 
-type SubmissionAnswerValue = string | string[];
 interface ActiveIntakeForm {
   formVersionId: string;
   schema: IntakeFormSchema;
@@ -78,8 +77,6 @@ type PublishPayload = {
   }>;
 };
 
-type SubmissionAnswerPayloadItem = PublishPayload["submissionAnswers"][number];
-
 export function NewProjectSubmissionFormSinglePage({
   userEmail,
   leadName,
@@ -106,8 +103,6 @@ export function NewProjectSubmissionFormSinglePage({
   const [contextusId, setContextusId] = useState<string | null>(
     initialContextusId ?? null
   );
-  const [isSaving, setIsSaving] = useState(false);
-  const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [eventDetails, setEventDetails] = useState<EventDetails | null>(null);
   const [participants, setParticipants] = useState<EventParticipant[]>([]);
@@ -126,7 +121,7 @@ export function NewProjectSubmissionFormSinglePage({
   );
   const [showDescriptionPreview, setShowDescriptionPreview] = useState(false);
   const [submissionAnswers, setSubmissionAnswers] = useState<
-    Record<string, SubmissionAnswerValue>
+    Record<string, SubmissionValue>
   >({});
   const [activeIntakeForm, setActiveIntakeForm] =
     useState<ActiveIntakeForm | null>(null);
@@ -266,6 +261,118 @@ export function NewProjectSubmissionFormSinglePage({
     fetchSubmissionFields();
   }, [eventId]);
 
+  const effectiveSubmissionFields = useMemo(
+    () => buildEffectiveSubmissionFields(submissionFields, eventId),
+    [eventId, submissionFields]
+  );
+  const hasConfiguredSubmissionFields = submissionFields.length > 0;
+
+  const getSubmissionFieldValue = useCallback(
+    (field: (typeof effectiveSubmissionFields)[number]): SubmissionValue => {
+      switch (field.key) {
+        case "project_name":
+          return formData.projectName;
+        case "project_description":
+          return formData.projectDescription;
+        case "project_url":
+          return formData.projectUrl;
+        case "video_url":
+          return formData.videoUrl;
+        case "cover_image":
+          return formData.coverImageUrl;
+        case "additional_materials":
+          return [
+            formData.additionalMaterialsUrl,
+            ...extraMaterialsUrls,
+          ].filter((value) => value.trim().length > 0);
+        default:
+          return submissionAnswers[field.id] ?? "";
+      }
+    },
+    [
+      extraMaterialsUrls,
+      formData.additionalMaterialsUrl,
+      formData.coverImageUrl,
+      formData.projectDescription,
+      formData.projectName,
+      formData.projectUrl,
+      formData.videoUrl,
+      submissionAnswers,
+    ]
+  );
+
+  const submissionFieldValues = useMemo(
+    () =>
+      Object.fromEntries(
+        effectiveSubmissionFields.map((field) => [
+          field.key,
+          getSubmissionFieldValue(field),
+        ])
+      ) as Record<string, SubmissionValue>,
+    [effectiveSubmissionFields, getSubmissionFieldValue]
+  );
+
+  const handleSubmissionFieldChange = useCallback(
+    (fieldKey: string, value: SubmissionValue) => {
+      switch (fieldKey) {
+        case "project_name":
+          setFormData((prev) => ({
+            ...prev,
+            projectName: typeof value === "string" ? value : value[0] || "",
+          }));
+          return;
+        case "project_description":
+          setFormData((prev) => ({
+            ...prev,
+            projectDescription: typeof value === "string" ? value : value[0] || "",
+          }));
+          return;
+        case "project_url":
+          setFormData((prev) => ({
+            ...prev,
+            projectUrl: typeof value === "string" ? value : value[0] || "",
+          }));
+          return;
+        case "video_url":
+          setFormData((prev) => ({
+            ...prev,
+            videoUrl: typeof value === "string" ? value : value[0] || "",
+          }));
+          return;
+        case "cover_image":
+          setFormData((prev) => ({
+            ...prev,
+            coverImageUrl: typeof value === "string" ? value : value[0] || "",
+          }));
+          return;
+        case "additional_materials": {
+          const urls = Array.isArray(value)
+            ? value
+            : value.trim().length > 0
+              ? [value]
+              : [];
+          setFormData((prev) => ({
+            ...prev,
+            additionalMaterialsUrl: urls[0] || "",
+          }));
+          setExtraMaterialsUrls(urls.slice(1));
+          return;
+        }
+        default: {
+          const targetField = effectiveSubmissionFields.find(
+            (field) => field.key === fieldKey
+          );
+          if (!targetField) return;
+          setSubmissionAnswers((prev) => ({
+            ...prev,
+            [targetField.id]: value,
+          }));
+        }
+      }
+    },
+    [effectiveSubmissionFields]
+  );
+
   const buildArtifactsPayload = useCallback(() => {
     const artifacts: Array<{
       kind: "project_link" | "video_link" | "additional_material";
@@ -298,56 +405,40 @@ export function NewProjectSubmissionFormSinglePage({
 
     appendArtifacts(
       "project_link",
-      formData.projectUrl,
+      typeof submissionFieldValues.project_url === "string"
+        ? submissionFieldValues.project_url
+        : "",
       extraProjectUrls,
       "Project Link"
     );
-    appendArtifacts("video_link", formData.videoUrl, extraVideoUrls, "Video Link");
+    appendArtifacts(
+      "video_link",
+      typeof submissionFieldValues.video_url === "string"
+        ? submissionFieldValues.video_url
+        : "",
+      extraVideoUrls,
+      "Video Link"
+    );
     appendArtifacts(
       "additional_material",
-      formData.additionalMaterialsUrl,
+      typeof submissionFieldValues.additional_materials === "string"
+        ? submissionFieldValues.additional_materials
+        : Array.isArray(submissionFieldValues.additional_materials)
+          ? submissionFieldValues.additional_materials[0] || ""
+          : "",
       extraMaterialsUrls,
       "Additional Material"
     );
 
     return artifacts;
   }, [
-    formData.projectUrl,
-    formData.videoUrl,
-    formData.additionalMaterialsUrl,
     extraProjectUrls,
     extraVideoUrls,
     extraMaterialsUrls,
+    submissionFieldValues.additional_materials,
+    submissionFieldValues.project_url,
+    submissionFieldValues.video_url,
   ]);
-
-  const buildSubmissionAnswersPayload = useCallback((): SubmissionAnswerPayloadItem[] => {
-    const answers: SubmissionAnswerPayloadItem[] = [];
-
-    for (const field of submissionFields) {
-      const fieldType = submissionFieldTypeSchema.safeParse(field.field_type)
-        .success
-        ? field.field_type
-        : "short_text";
-      const value = submissionAnswers[field.id];
-
-      if (fieldType === "multi_url") {
-        const urls = (Array.isArray(value) ? value : [])
-          .map((url) => (typeof url === "string" ? url.trim() : ""))
-          .filter((url) => url.length > 0);
-        if (urls.length > 0) {
-          answers.push({ eventSubmissionFieldId: field.id, answer: urls });
-        }
-        continue;
-      }
-
-      const textValue = typeof value === "string" ? value.trim() : "";
-      if (textValue.length > 0) {
-        answers.push({ eventSubmissionFieldId: field.id, answer: textValue });
-      }
-    }
-
-    return answers;
-  }, [submissionAnswers, submissionFields]);
 
   // Create a draft as soon as user starts typing (only once)
   useEffect(() => {
@@ -404,68 +495,31 @@ export function NewProjectSubmissionFormSinglePage({
     isAdmin,
   ]);
 
-  // Auto-save functionality with debounce
-  useEffect(() => {
-    if (!projectId || isLoading) return;
-
-    const timer = setTimeout(() => {
-      handleAutoSave();
-    }, 2000);
-
-    return () => clearTimeout(timer);
-  }, [
-    formData,
-    projectId,
-    isLoading,
-    extraProjectUrls,
-    extraVideoUrls,
-    extraMaterialsUrls,
-    submissionAnswers,
-    submissionFields,
-  ]);
-
-  const handleAutoSave = async () => {
-    if (!projectId || isLoading || isSaving) return;
-
-    setIsSaving(true);
-    try {
-      // Filter out invited users (those not in the participants list)
-      // Only save teammates who are actual event participants
-      const participantEmails = participants.map((p) => p.email.toLowerCase());
-      const validTeammates = formData.teammates.filter((email) =>
+  const participantEmails = useMemo(
+    () => participants.map((participant) => participant.email.toLowerCase()),
+    [participants]
+  );
+  const validTeammates = useMemo(
+    () =>
+      formData.teammates.filter((email) =>
         participantEmails.includes(email.toLowerCase())
-      );
+      ),
+    [formData.teammates, participantEmails]
+  );
 
-      const payload: Record<string, unknown> = {
-        project_name: formData.projectName.trim() || undefined,
-        project_description: formData.projectDescription.trim() || undefined,
-        project_url: formData.projectUrl.trim() || undefined,
-        video_url: formData.videoUrl.trim() || null,
-        cover_image_url: formData.coverImageUrl.trim() || undefined,
-        additional_materials_url:
-          formData.additionalMaterialsUrl.trim() || undefined,
-        lead_name: formData.leadName,
-        lead_email: formData.leadEmail,
-        teammates: validTeammates,
-        artifacts: buildArtifactsPayload(),
-        submission_answers: buildSubmissionAnswersPayload(),
-      };
-
-      const resp = await fetch(`/api/projects/${projectId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      if (resp.ok) {
-        setLastSaved(new Date());
-      }
-    } catch (e) {
-      // Silent failure
-    } finally {
-      setIsSaving(false);
-    }
-  };
+  const { lastSaved } = useProjectSubmissionAutosave({
+    enabled: !isLoading,
+    projectId,
+    fields: effectiveSubmissionFields,
+    values: submissionFieldValues,
+    hasConfiguredSubmissionFields,
+    artifacts: hasConfiguredSubmissionFields ? undefined : buildArtifactsPayload(),
+    extraPayload: {
+      lead_name: formData.leadName,
+      lead_email: formData.leadEmail,
+      teammates: validTeammates,
+    },
+  });
 
   const handleCoverImageUpload = async (
     e: React.ChangeEvent<HTMLInputElement>
@@ -510,25 +564,6 @@ export function NewProjectSubmissionFormSinglePage({
     }
   };
 
-  const handleAdditionalMaterialsUpload = async (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const input = e.currentTarget;
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const publicUrl = await uploadAdditionalMaterialFile(file);
-    input.value = "";
-    if (!publicUrl) return;
-
-    setFormData((prev) => ({ ...prev, additionalMaterialsUrl: publicUrl }));
-
-    toast({
-      title: "Success",
-      description: "Additional materials uploaded successfully",
-    });
-  };
-
   const uploadAdditionalMaterialFile = async (file: File) => {
     try {
       const fileExt = file.name.split(".").pop();
@@ -563,28 +598,6 @@ export function NewProjectSubmissionFormSinglePage({
     }
   };
 
-  const handleAdditionalMaterialsExtraUpload = async (
-    index: number,
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const input = e.currentTarget;
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const publicUrl = await uploadAdditionalMaterialFile(file);
-    input.value = "";
-    if (!publicUrl) return;
-
-    setExtraMaterialsUrls((prev) =>
-      prev.map((item, itemIndex) => (itemIndex === index ? publicUrl : item))
-    );
-
-    toast({
-      title: "Success",
-      description: "Additional material link updated from upload",
-    });
-  };
-
   const handleTrackToggle = (trackId: string, checked: boolean) => {
     setSelectedTrackIds((prev) =>
       checked ? [...prev, trackId] : prev.filter((id) => id !== trackId)
@@ -614,21 +627,13 @@ export function NewProjectSubmissionFormSinglePage({
       return;
     }
 
-    if (formData.projectDescription.trim().length < 10) {
-      toast({
-        title: "Insufficient Project Description",
-        description:
-          "Please provide a more detailed project description (minimum 10 characters).",
-        variant: "destructive",
-      });
-      setIsSubmitting(false);
-      return;
-    }
-
-    const missingRequiredField = submissionFields.find((field) => {
+    const missingRequiredField = effectiveSubmissionFields.find((field) => {
       if (!field.required) return false;
-      const value = submissionAnswers[field.id];
-      if (field.field_type === "multi_url") {
+      const value = submissionFieldValues[field.key];
+      if (
+        field.field_type === "multi_url" ||
+        field.field_type === "multi_select"
+      ) {
         return !Array.isArray(value) || value.every((url) => !url.trim());
       }
       return typeof value !== "string" || value.trim().length === 0;
@@ -646,11 +651,6 @@ export function NewProjectSubmissionFormSinglePage({
     try {
       // Filter out invited users (those not in the participants list)
       // Only submit teammates who are actual event participants
-      const participantEmails = participants.map((p) => p.email.toLowerCase());
-      const validTeammates = formData.teammates.filter((email) =>
-        participantEmails.includes(email.toLowerCase())
-      );
-
       const payload = {
         projectId,
         projectName: formData.projectName,
@@ -664,8 +664,11 @@ export function NewProjectSubmissionFormSinglePage({
         eventId,
         trackIds: selectedTrackIds,
         videoUrl: formData.videoUrl,
-        artifacts: buildArtifactsPayload(),
-        submissionAnswers: buildSubmissionAnswersPayload(),
+        artifacts: hasConfiguredSubmissionFields ? [] : buildArtifactsPayload(),
+        submissionAnswers: buildSubmissionAnswersPayload(
+          effectiveSubmissionFields,
+          submissionFieldValues
+        ),
       };
 
       if (eventId) {
@@ -729,15 +732,6 @@ export function NewProjectSubmissionFormSinglePage({
     }
   };
 
-  const getAnswerText = (fieldId: string) =>
-    typeof submissionAnswers[fieldId] === "string"
-      ? (submissionAnswers[fieldId] as string)
-      : "";
-
-  const getAnswerUrls = (fieldId: string) =>
-    Array.isArray(submissionAnswers[fieldId])
-      ? (submissionAnswers[fieldId] as string[])
-      : [""];
   const handleIntakeSubmit = async (answers: IntakeFormAnswers) => {
     if (!pendingPublishPayload) {
       toast({
@@ -891,7 +885,7 @@ export function NewProjectSubmissionFormSinglePage({
   const totalMembers = (formData.teammates?.length || 0) + 1;
 
   return (
-    <div className="bg-white mb-8">
+    <div className="bg-white mb-8 sm:pb-0 pb-24">
       <Toaster />
       {activeIntakeForm ? (
         <ParticipantIntakeDialog
@@ -1050,75 +1044,41 @@ export function NewProjectSubmissionFormSinglePage({
                 </div>
 
                 <div className="space-y-4">
-                  {/* Project Name */}
-                  <div className="space-y-2">
-                    <label className="text-base text-black font-normal">
-                      Project name
-                    </label>
-                    <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-3 py-2 flex items-center gap-3 h-11">
-                      <TextFields className="h-6 w-6 shrink-0" />
-                      <Input
-                        value={formData.projectName}
-                        onChange={(e) =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            projectName: e.target.value,
-                          }))
-                        }
-                        placeholder="Short description shown in the preview card"
-                        className="border-0 p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0 text-base"
-                      />
-                    </div>
-                  </div>
+                  <ProjectSubmissionSchemaSection
+                    fields={effectiveSubmissionFields}
+                    values={submissionFieldValues}
+                    onValueChange={handleSubmissionFieldChange}
+                    onFileUpload={async (fieldKey, file) => {
+                      if (fieldKey === "cover_image") {
+                        const event = {
+                          target: { files: [file] },
+                        } as unknown as React.ChangeEvent<HTMLInputElement>;
+                        await handleCoverImageUpload(event);
+                        return;
+                      }
 
-                  {/* Project Description */}
-                  <div className="space-y-2">
-                    <label className="text-base text-black font-normal">
-                      Project Description
-                    </label>
-                  <Textarea
-                    value={formData.projectDescription}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        projectDescription: e.target.value,
-                      }))
+                      const uploadedUrl = await uploadAdditionalMaterialFile(file);
+                      if (!uploadedUrl) return;
+
+                      if (fieldKey === "additional_materials") {
+                        handleSubmissionFieldChange(fieldKey, [
+                          ...(
+                            Array.isArray(submissionFieldValues.additional_materials)
+                              ? submissionFieldValues.additional_materials
+                              : []
+                          ),
+                          uploadedUrl,
+                        ]);
+                        return;
+                      }
+
+                      handleSubmissionFieldChange(fieldKey, uploadedUrl);
+                    }}
+                    showDescriptionPreview={showDescriptionPreview}
+                    onToggleDescriptionPreview={() =>
+                      setShowDescriptionPreview((prev) => !prev)
                     }
-                    placeholder="Long description or markdown"
-                    rows={7}
-                    className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-3 py-2 text-base resize-none"
                   />
-                  <p className="text-base text-[#7f7f7f]">
-                    Markdown supported: use headings, lists, links, and emphasis.
-                  </p>
-                  {formData.projectDescription.trim() ? (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setShowDescriptionPreview((prev) => !prev)
-                        }
-                        className="text-sm font-medium text-blue-600 hover:text-blue-700"
-                      >
-                        {showDescriptionPreview ? "Hide preview" : "Show preview"}
-                      </button>
-                      {showDescriptionPreview ? (
-                        <div className="rounded-xl border border-[rgba(0,0,0,0.12)] bg-white px-3 py-3">
-                          <p className="text-xs font-medium text-gray-500 mb-2">
-                            Preview
-                          </p>
-                          <ProjectDescription
-                            value={formData.projectDescription}
-                            className="text-base"
-                          />
-                        </div>
-                      ) : null}
-                    </>
-                  ) : null}
-                </div>
-
-                  {/* Divider */}
-                  <div className="border-t border-dashed border-gray-200" />
 
                   {/* Tracks Selection (if event has tracks) */}
                   {eventId && availableTracks && availableTracks.length > 0 && (
@@ -1152,327 +1112,90 @@ export function NewProjectSubmissionFormSinglePage({
                     </div>
                   )}
 
-                  {/* Cover Image */}
-                  <div className="space-y-2">
-                    <label className="text-base text-black font-normal">
-                      Cover image url
-                    </label>
-                    <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-3 py-2 flex items-center gap-3 h-11">
-                      <ImageIcon className="h-6 w-6 shrink-0" />
-                      <Input
-                        value={formData.coverImageUrl}
-                        onChange={(e) =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            coverImageUrl: e.target.value,
-                          }))
-                        }
-                        placeholder="https://..."
-                        className="border-0 p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0 text-base truncate"
-                      />
-                      <label className="bg-[rgba(0,0,0,0.05)] shadow-sm rounded-xl px-3 py-1 cursor-pointer shrink-0">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleCoverImageUpload}
-                          className="hidden"
-                        />
-                        <span className="text-xs text-black font-normal">
-                          Upload
-                        </span>
-                      </label>
-                    </div>
-                    <p className="text-base text-[#7f7f7f]">
-                      Upload an image to showcase your project (Max 10MB).
-                    </p>
-                  </div>
-
-                  {/* Additional Materials */}
-                  <div className="space-y-2">
-                    <label className="text-base text-black font-normal">
-                      Additional materials
-                    </label>
-                    <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-3 py-2 flex items-center gap-3 h-11">
-                      <Paperclip className="h-6 w-6 shrink-0" />
-                      <Input
-                        value={formData.additionalMaterialsUrl}
-                        onChange={(e) =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            additionalMaterialsUrl: e.target.value,
-                          }))
-                        }
-                        placeholder="https://..."
-                        className="border-0 p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0 text-base truncate"
-                      />
-                      <label className="bg-[rgba(0,0,0,0.05)] shadow-sm rounded-xl px-3 py-1 cursor-pointer shrink-0">
-                        <input
-                          type="file"
-                          onChange={handleAdditionalMaterialsUpload}
-                          className="hidden"
-                        />
-                        <span className="text-xs text-black font-normal">
-                          Upload
-                        </span>
-                      </label>
-                    </div>
-                    {extraMaterialsUrls.map((url, index) => (
-                      <div key={`materials-extra-${index}`} className="flex gap-2">
-                        <Input
-                          value={url}
-                          onChange={(e) =>
-                            setExtraMaterialsUrls((prev) =>
-                              prev.map((item, itemIndex) =>
-                                itemIndex === index ? e.target.value : item
-                              )
-                            )
-                          }
-                          placeholder="https://..."
-                          className="h-11"
-                        />
-                        <label className="bg-[rgba(0,0,0,0.05)] shadow-sm rounded-xl px-3 py-1 cursor-pointer shrink-0 h-11 inline-flex items-center">
-                          <input
-                            type="file"
-                            onChange={(e) =>
-                              handleAdditionalMaterialsExtraUpload(index, e)
-                            }
-                            className="hidden"
-                          />
-                          <span className="text-xs text-black font-normal">
-                            Upload
-                          </span>
+                  {!hasConfiguredSubmissionFields ? (
+                    <>
+                      <div className="space-y-2">
+                        <label className="text-base text-black font-normal">
+                          Additional project links (Optional)
                         </label>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() =>
-                            setExtraMaterialsUrls((prev) =>
-                              prev.filter((_, itemIndex) => itemIndex !== index)
-                            )
-                          }
-                        >
-                          Remove
-                        </Button>
-                      </div>
-                    ))}
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() =>
-                        setExtraMaterialsUrls((prev) => [...prev, ""])
-                      }
-                    >
-                      Add another materials link
-                    </Button>
-                    <p className="text-base text-[#7f7f7f]">
-                      Upload any additional documentation (Max 10MB).
-                    </p>
-                  </div>
-
-                  {/* GitHub or Live Link */}
-                  <div className="space-y-2">
-                    <label className="text-base text-black font-normal">
-                      GitHub or live link (Optional)
-                    </label>
-                    <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-3 py-2 flex items-center gap-3 h-11">
-                      <Github className="h-6 w-6 shrink-0" />
-                      <Input
-                        value={formData.projectUrl}
-                        onChange={(e) =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            projectUrl: e.target.value,
-                          }))
-                        }
-                        placeholder="https://..."
-                        className="border-0 p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0 text-base text-[rgba(0,0,0,0.6)]"
-                      />
-                    </div>
-                    {extraProjectUrls.map((url, index) => (
-                      <div key={`project-link-extra-${index}`} className="flex gap-2">
-                        <Input
-                          value={url}
-                          onChange={(e) =>
-                            setExtraProjectUrls((prev) =>
-                              prev.map((item, itemIndex) =>
-                                itemIndex === index ? e.target.value : item
-                              )
-                            )
-                          }
-                          placeholder="https://..."
-                          className="h-11"
-                        />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() =>
-                            setExtraProjectUrls((prev) =>
-                              prev.filter((_, itemIndex) => itemIndex !== index)
-                            )
-                          }
-                        >
-                          Remove
-                        </Button>
-                      </div>
-                    ))}
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setExtraProjectUrls((prev) => [...prev, ""])}
-                    >
-                      Add another project link
-                    </Button>
-                  </div>
-
-                  {/* Video Link */}
-                  <div className="space-y-2">
-                    <label className="text-base text-black font-normal">
-                      Video link (Optional)
-                    </label>
-                    <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-3 py-2 flex items-center gap-3 h-11">
-                      <Youtube className="h-6 w-6 shrink-0" />
-                      <Input
-                        value={formData.videoUrl}
-                        onChange={(e) =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            videoUrl: e.target.value,
-                          }))
-                        }
-                        placeholder="https://..."
-                        className="border-0 p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0 text-base text-[rgba(0,0,0,0.6)]"
-                      />
-                    </div>
-                    {extraVideoUrls.map((url, index) => (
-                      <div key={`video-link-extra-${index}`} className="flex gap-2">
-                        <Input
-                          value={url}
-                          onChange={(e) =>
-                            setExtraVideoUrls((prev) =>
-                              prev.map((item, itemIndex) =>
-                                itemIndex === index ? e.target.value : item
-                              )
-                            )
-                          }
-                          placeholder="https://..."
-                          className="h-11"
-                        />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() =>
-                            setExtraVideoUrls((prev) =>
-                              prev.filter((_, itemIndex) => itemIndex !== index)
-                            )
-                          }
-                        >
-                          Remove
-                        </Button>
-                      </div>
-                    ))}
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setExtraVideoUrls((prev) => [...prev, ""])}
-                    >
-                      Add another video link
-                    </Button>
-                  </div>
-
-                  {submissionFields.length > 0 && (
-                    <div className="space-y-4 border border-[rgba(0,0,0,0.1)] rounded-xl p-4">
-                      <p className="text-base font-medium text-black">
-                        Organizer questions
-                      </p>
-                      {submissionFields.map((field) => (
-                        <div key={field.id} className="space-y-2">
-                          <label className="text-sm font-medium text-black">
-                            {field.label}
-                            {field.required ? " *" : ""}
-                          </label>
-                          {field.description && (
-                            <p className="text-xs text-[#7f7f7f]">
-                              {field.description}
-                            </p>
-                          )}
-                          {field.field_type === "long_text" ? (
-                            <Textarea
-                              value={getAnswerText(field.id)}
-                              onChange={(e) =>
-                                setSubmissionAnswers((prev) => ({
-                                  ...prev,
-                                  [field.id]: e.target.value,
-                                }))
-                              }
-                              placeholder={field.placeholder || ""}
-                              rows={4}
-                            />
-                          ) : field.field_type === "multi_url" ? (
-                            <div className="space-y-2">
-                              {getAnswerUrls(field.id).map((url, index) => (
-                                <div key={`${field.id}-${index}`} className="flex gap-2">
-                                  <Input
-                                    value={url}
-                                    onChange={(e) =>
-                                      setSubmissionAnswers((prev) => {
-                                        const urls = getAnswerUrls(field.id);
-                                        urls[index] = e.target.value;
-                                        return { ...prev, [field.id]: [...urls] };
-                                      })
-                                    }
-                                    placeholder={field.placeholder || "https://..."}
-                                  />
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={() =>
-                                      setSubmissionAnswers((prev) => {
-                                        const urls = getAnswerUrls(field.id).filter(
-                                          (_, urlIndex) => urlIndex !== index
-                                        );
-                                        return {
-                                          ...prev,
-                                          [field.id]: urls.length > 0 ? urls : [""],
-                                        };
-                                      })
-                                    }
-                                  >
-                                    Remove
-                                  </Button>
-                                </div>
-                              ))}
-                              <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() =>
-                                  setSubmissionAnswers((prev) => ({
-                                    ...prev,
-                                    [field.id]: [...getAnswerUrls(field.id), ""],
-                                  }))
-                                }
-                              >
-                                Add another link
-                              </Button>
-                            </div>
-                          ) : (
+                        {extraProjectUrls.map((url, index) => (
+                          <div key={`project-link-extra-${index}`} className="flex gap-2">
                             <Input
-                              type={field.field_type === "url" ? "url" : "text"}
-                              value={getAnswerText(field.id)}
+                              value={url}
                               onChange={(e) =>
-                                setSubmissionAnswers((prev) => ({
-                                  ...prev,
-                                  [field.id]: e.target.value,
-                                }))
+                                setExtraProjectUrls((prev) =>
+                                  prev.map((item, itemIndex) =>
+                                    itemIndex === index ? e.target.value : item
+                                  )
+                                )
                               }
-                              placeholder={field.placeholder || ""}
+                              placeholder="https://..."
+                              className="h-11"
                             />
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() =>
+                                setExtraProjectUrls((prev) =>
+                                  prev.filter((_, itemIndex) => itemIndex !== index)
+                                )
+                              }
+                            >
+                              Remove
+                            </Button>
+                          </div>
+                        ))}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setExtraProjectUrls((prev) => [...prev, ""])}
+                        >
+                          Add another project link
+                        </Button>
+                      </div>
 
-                  {/* Divider */}
+                      <div className="space-y-2">
+                        <label className="text-base text-black font-normal">
+                          Additional video links (Optional)
+                        </label>
+                        {extraVideoUrls.map((url, index) => (
+                          <div key={`video-link-extra-${index}`} className="flex gap-2">
+                            <Input
+                              value={url}
+                              onChange={(e) =>
+                                setExtraVideoUrls((prev) =>
+                                  prev.map((item, itemIndex) =>
+                                    itemIndex === index ? e.target.value : item
+                                  )
+                                )
+                              }
+                              placeholder="https://..."
+                              className="h-11"
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() =>
+                                setExtraVideoUrls((prev) =>
+                                  prev.filter((_, itemIndex) => itemIndex !== index)
+                                )
+                              }
+                            >
+                              Remove
+                            </Button>
+                          </div>
+                        ))}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setExtraVideoUrls((prev) => [...prev, ""])}
+                        >
+                          Add another video link
+                        </Button>
+                      </div>
+                    </>
+                  ) : null}
+
                   <div className="border-t border-dashed border-gray-200" />
 
                   {/* Add Teammates */}
@@ -1646,6 +1369,24 @@ export function NewProjectSubmissionFormSinglePage({
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Mobile sticky bottom submit bar */}
+      <div className="sm:hidden fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-[rgba(0,0,0,0.15)] px-4 py-3 shadow-[0_-4px_12px_rgba(0,0,0,0.08)]">
+        <Button
+          onClick={handlePublish}
+          disabled={isSubmitting}
+          className="w-full bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl py-3 shadow-sm font-medium text-base"
+        >
+          {isSubmitting ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Publishing...
+            </>
+          ) : (
+            "Publish project"
+          )}
+        </Button>
       </div>
     </div>
   );

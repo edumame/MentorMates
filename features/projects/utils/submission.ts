@@ -44,6 +44,10 @@ export const submissionFieldTypeSchema = z.enum([
   "long_text",
   "url",
   "multi_url",
+  "file",
+  "select",
+  "multi_select",
+  "checkbox",
 ]);
 
 export type SubmissionFieldType = z.infer<typeof submissionFieldTypeSchema>;
@@ -202,11 +206,23 @@ export function coerceSubmissionAnswerValue(
   fieldType: SubmissionFieldType,
   value: unknown
 ): string | string[] | null {
-  if (fieldType === "multi_url") {
+  if (fieldType === "multi_url" || fieldType === "multi_select") {
     if (!Array.isArray(value)) return [];
     return value
       .map((item) => (typeof item === "string" ? item.trim() : ""))
       .filter((item) => item.length > 0);
+  }
+
+  if (fieldType === "checkbox") {
+    if (typeof value === "boolean") {
+      return value ? "true" : "";
+    }
+
+    if (typeof value === "string") {
+      return value.trim().toLowerCase() === "true" ? "true" : "";
+    }
+
+    return "";
   }
 
   if (typeof value !== "string") return null;

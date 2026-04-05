@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { useToast } from "@/lib/hooks/use-toast";
 import { ScoringCriterion, Project } from "@/lib/types";
 import { QuestionFactory } from "./question-types/question-factory";
+import { getDefaultScores } from "./scoring-defaults";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -30,24 +31,15 @@ interface DefaultScoringProps {
   trackId: string;
   finalistFeatureEnabled?: boolean;
   onScoreSaved?: () => void;
+  onScoreDeleted?: () => void;
+  hideProjectHeader?: boolean;
+  className?: string;
 }
 
 interface FormValues {
   scores: Record<string, number | string>;
   comments: string;
   finalist_recommendation?: boolean;
-}
-
-function getDefaultScores(criteria: ScoringCriterion[]): Record<string, number | string> {
-  const defaultScores: Record<string, number | string> = {};
-  criteria.forEach((criterion) => {
-    if (criterion.type === "multiplechoice") {
-      defaultScores[criterion.id] = "";
-    } else {
-      defaultScores[criterion.id] = criterion.min || 1;
-    }
-  });
-  return defaultScores;
 }
 
 export function DefaultScoring({
@@ -57,6 +49,9 @@ export function DefaultScoring({
   trackId,
   finalistFeatureEnabled = false,
   onScoreSaved,
+  onScoreDeleted,
+  hideProjectHeader = false,
+  className = "",
 }: DefaultScoringProps) {
   const [loading, setLoading] = useState(true);
   const [project, setProject] = useState<Project | null>(null);
@@ -225,7 +220,7 @@ export function DefaultScoring({
         finalist_recommendation: false,
       });
       setHasExistingScore(false);
-      window.location.reload();
+      onScoreDeleted?.();
 
       toast({
         title: "Score deleted",
@@ -270,18 +265,20 @@ export function DefaultScoring({
   }
 
   return (
-    <div className="p-4 space-y-6">
-      <div>
-        <h2 className="text-xl font-bold">
-          <Link
-            href={`/projects/public/${project.id}`}
-            className="text-blue-600 hover:text-blue-700 hover:underline"
-          >
-            {project.project_name}
-          </Link>
-        </h2>
-        <p className="text-gray-600">{project.project_description}</p>
-      </div>
+    <div className={`space-y-6 ${className}`}>
+      {!hideProjectHeader && (
+        <div>
+          <h2 className="text-xl font-bold">
+            <Link
+              href={`/projects/public/${project.id}`}
+              className="text-blue-600 hover:text-blue-700 hover:underline"
+            >
+              {project.project_name}
+            </Link>
+          </h2>
+          <p className="text-gray-600">{project.project_description}</p>
+        </div>
+      )}
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -335,7 +332,7 @@ export function DefaultScoring({
                 <AlertDialogTrigger asChild>
                   <Button
                     type="button"
-                    variant="destructive"
+                    variant="delete"
                     disabled={submitting || deleting}
                   >
                     {deleting ? "Deleting..." : "Delete Evaluation"}
