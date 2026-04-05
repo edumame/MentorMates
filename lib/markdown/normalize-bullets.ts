@@ -1,47 +1,102 @@
 /**
  * Normalize Unicode bullet characters (•, ●, ·, ‣) into proper markdown list syntax.
  *
- * Event descriptions pasted from Google Docs, Notion, or similar often use the Unicode
- * bullet character `•` to denote list items. ReactMarkdown only recognizes `-`, `*`, or
- * `+` as list markers, so these render as inline text instead of proper bullet lists.
+ * Event descriptions pasted or scraped from Google Docs, Notion, Luma, etc. use the
+ * Unicode bullet character `•` to denote list items. ReactMarkdown only recognizes
+ * `-`, `*`, or `+` as list markers, so bullet characters render as inline text.
  *
- * This helper transforms sequences like:
- *   "WHAT TO EXPECT • item one • item two • item three"
- * into:
- *   "WHAT TO EXPECT\n\n- item one\n- item two\n- item three"
+ * This helper handles BOTH common formats:
+ *
+ *   1. One bullet per line (Luma-style):
+ *        "WHAT TO EXPECT\n• item one\n• item two\n• item three"
+ *      →
+ *        "WHAT TO EXPECT\n\n- item one\n- item two\n- item three"
+ *
+ *   2. Inline bullets on a single line (Google Docs paste):
+ *        "WHAT TO EXPECT • item one • item two • item three"
+ *      →
+ *        "WHAT TO EXPECT\n\n- item one\n- item two\n- item three"
+ *
+ * It also inserts a blank line between a preceding paragraph and a list, and
+ * between a list and a following paragraph — CommonMark requires this
+ * separation or the list collapses back into the surrounding paragraph.
  */
+
+const BULLET_CHARS = /[•●‣·]/;
+const LEADING_BULLET = /^\s*[•●‣·]\s+/;
+const BULLET_SPLIT = /\s*[•●‣·]\s+/g;
+
+function isListItem(line: string): boolean {
+  return /^- /.test(line);
+}
+
 export function normalizeBullets(text: string | null | undefined): string {
   if (!text) return "";
 
-  // Unicode bullet characters to normalize
-  const bulletRegex = /\s*[•●‣·]\s+/g;
+  // Fast path: no bullet characters anywhere, nothing to do.
+  if (!BULLET_CHARS.test(text)) return text;
 
-  // If the text contains no bullets, return as-is
-  if (!bulletRegex.test(text)) return text;
+  // Pass 1: transform each line. Leading-bullet lines become dash list items.
+  // Inline bullets (multiple bullets on a single line) also become list items,
+  // with the first segment kept as a header/label unless the line itself
+  // started with a bullet.
+  const rawLines = text.split(/\r?\n/);
+  const processedLines: string[] = [];
 
-  // Reset the regex (test() advances lastIndex on global regexes)
-  bulletRegex.lastIndex = 0;
+  for (const line of rawLines) {
+    if (!BULLET_CHARS.test(line)) {
+      processedLines.push(line);
+      continue;
+    }
 
-  // Split lines so we only transform within a single logical block
-  const lines = text.split(/\r?\n/);
+    const startsWithBullet = LEADING_BULLET.test(line);
+    const parts = line
+      .split(BULLET_SPLIT)
+      .map((segment) => segment.trim())
+      .filter(Boolean);
 
-  const transformedLines = lines.map((line) => {
-    // Skip lines that don't have bullets
-    if (!/[•●‣·]/.test(line)) return line;
+    if (parts.length === 0) {
+      // Line was only bullet characters with no content. Drop it.
+      continue;
+    }
 
-    // Split on bullets and normalize each segment
-    // "WHAT TO EXPECT • a • b • c" → ["WHAT TO EXPECT", "a", "b", "c"]
-    const parts = line.split(bulletRegex).map((s) => s.trim()).filter(Boolean);
+    if (startsWithBullet) {
+      // Every segment is a list item; there is no header on this line.
+      for (const part of parts) {
+        processedLines.push(`- ${part}`);
+      }
+    } else if (parts.length === 1) {
+      // A bullet character exists but the split produced exactly one part.
+      // This means the bullet wasn't followed by whitespace (e.g. a decimal
+      // like "·5"). Leave the line alone.
+      processedLines.push(line);
+    } else {
+      // First segment is a header/label, remaining segments are list items.
+      const [header, ...items] = parts;
+      processedLines.push(header);
+      for (const item of items) {
+        processedLines.push(`- ${item}`);
+      }
+    }
+  }
 
-    if (parts.length <= 1) return line;
+  // Pass 2: insert blank-line separators between list and non-list blocks so
+  // CommonMark parsers recognize the list. A list adjacent to a paragraph
+  // without a blank line is otherwise treated as lazy paragraph continuation.
+  const finalLines: string[] = [];
 
-    // First part might be a header/label (no bullet before it), keep it as a paragraph
-    // followed by the list items
-    const [first, ...items] = parts;
-    const bullets = items.map((item) => `- ${item}`).join("\n");
+  for (const line of processedLines) {
+    const previous = finalLines[finalLines.length - 1] ?? "";
+    const enteringList =
+      isListItem(line) && previous !== "" && !isListItem(previous);
+    const leavingList =
+      !isListItem(line) && line !== "" && isListItem(previous);
 
-    return `${first}\n\n${bullets}`;
-  });
+    if (enteringList || leavingList) {
+      finalLines.push("");
+    }
+    finalLines.push(line);
+  }
 
-  return transformedLines.join("\n");
+  return finalLines.join("\n");
 }
