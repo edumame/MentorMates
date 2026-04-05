@@ -8,6 +8,7 @@ import { Trophy, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   EventDetails,
+  Rule,
   ScheduleDay,
   ScheduleEvent,
   EventTrack,
@@ -17,6 +18,34 @@ import Link from "next/link";
 import { JudgeDashboard } from "@/features/user/dashboards/dashboard/judge-dashboard";
 import { useActiveRole } from "./ActiveRoleContext";
 import { UserProjectSection } from "./user-project-section";
+
+/** JSONB / API may return a string, single object, or non-array; only arrays are safe to .map */
+function normalizeEventRules(rules: unknown): Rule[] {
+  if (rules == null) return [];
+  if (Array.isArray(rules)) {
+    return rules.filter(
+      (r): r is Rule =>
+        r != null &&
+        typeof r === "object" &&
+        typeof (r as Rule).title === "string" &&
+        Array.isArray((r as Rule).items)
+    );
+  }
+  if (typeof rules === "string") {
+    try {
+      return normalizeEventRules(JSON.parse(rules) as unknown);
+    } catch {
+      return [];
+    }
+  }
+  if (typeof rules === "object" && "title" in rules && "items" in rules) {
+    const r = rules as Rule;
+    if (typeof r.title === "string" && Array.isArray(r.items)) {
+      return [r];
+    }
+  }
+  return [];
+}
 
 interface EventPageContentProps {
   event: EventDetails;
@@ -45,6 +74,8 @@ export function EventPageContent({
   submissionDeadline,
   judges = [],
 }: EventPageContentProps) {
+  const rulesList = normalizeEventRules(event.rules);
+
   const getInitials = (name: string) =>
     name
       .split(" ")
@@ -106,7 +137,7 @@ export function EventPageContent({
 
   // Show default event overview for participants, mentors, organizers, and non-authenticated users
   return (
-    <div className="flex flex-col flex-1 w-full max-w-full md:max-w-[747px]">
+    <div className="flex min-w-0 flex-1 flex-col w-full max-w-full">
       {hasJoined && displayRole === EventRole.Participant && (
         <UserProjectSection
           projects={userProjects}
@@ -247,7 +278,7 @@ export function EventPageContent({
       )}
 
       {/* Rules */}
-      {event.rules && event.rules.length > 0 && (
+      {rulesList.length > 0 && (
         <>
           <div className="flex flex-col pb-4 pt-0 px-0 w-full min-w-0 max-w-full">
             <h2 className="font-semibold text-[24px] leading-[32px] text-black tracking-[-0.6px] break-words">
@@ -257,7 +288,7 @@ export function EventPageContent({
 
           <div className="flex w-full px-4 py-5 rounded-xl border border-[rgba(0,0,0,0.15)] relative">
             <div className="flex flex-wrap sm:flex-nowrap relative w-full">
-              {event.rules.map((rule, idx) => (
+              {rulesList.map((rule, idx) => (
                 <div
                   key={idx}
                   className="flex flex-grow flex-col first:pb-8 sm:pb-0 pt-0 px-0 w-full sm:first:pr-6 sm:last:pl-6 sm:last:border-l sm:border-[rgba(0,0,0,0.15)]"
@@ -267,7 +298,7 @@ export function EventPageContent({
                       {rule.title}
                     </p>
                     <ul className="list-disc pl-6">
-                      {rule.items.map((item, i) => (
+                      {(rule.items ?? []).map((item, i) => (
                         <li key={i} className="mb-0 text-base leading-[1.5]">
                           {item}
                         </li>

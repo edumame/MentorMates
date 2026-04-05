@@ -5,6 +5,7 @@ import { EventPageClientWrapper } from "./event-page-client-wrapper";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { EventRole } from "@/lib/types";
 import { ActiveRoleProvider } from "./ActiveRoleContext";
+import { EVENT_PAGE_SHELL_CLASS } from "./event-page-shell";
 
 interface EventPageLayoutProps {
   children: ReactNode;
@@ -39,7 +40,6 @@ export async function EventPageLayout({
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  const isAuthenticated = !!user;
 
   let userRole: EventRole | null = null;
 
@@ -109,7 +109,9 @@ export async function EventPageLayout({
 
                 {/* Main Content */}
                 <div className="w-full">
-                  <div className="mx-auto flex flex-col md:flex-row items-start gap-6 w-full px-4 md:px-6 py-[24px]">
+                  <div
+                    className={`flex flex-col items-start gap-6 py-6 md:flex-row ${EVENT_PAGE_SHELL_CLASS}`}
+                  >
                     {children}
                   </div>
                 </div>
@@ -131,7 +133,7 @@ export async function EventPageLayout({
               activeRole={null}
               paid={paid || false}
               eventType={eventType?.length ? eventType : ["Hackathon"]}
-              containerClassName="mx-auto w-full max-w-10xl px-4 md:px-10 lg:px-24"
+              containerClassName={EVENT_PAGE_SHELL_CLASS}
             />
 
             {/* Tabs Navigation */}
@@ -146,11 +148,7 @@ export async function EventPageLayout({
             {/* Main Content */}
             <div className="w-full">
               <div
-                className={
-                  isAuthenticated
-                    ? "flex flex-wrap sm:flex-nowrap gap-6 w-full px-6 py-[24px]"
-                    : "mx-auto flex flex-wrap sm:flex-nowrap gap-6 w-full max-w-10xl px-4 sm:px-6 lg:px-10 py-[24px]"
-                }
+                className={`flex flex-wrap items-start gap-6 py-6 sm:flex-nowrap ${EVENT_PAGE_SHELL_CLASS}`}
               >
                 {children}
               </div>
