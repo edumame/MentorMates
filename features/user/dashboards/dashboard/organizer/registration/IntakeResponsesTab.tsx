@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
+import Papa from "papaparse";
+import { Download } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -206,6 +208,116 @@ export function IntakeResponsesTab({ eventId }: { eventId: string }) {
     return [...knownRows, ...unknownRows];
   }, [selectedSubmission, activeForm]);
 
+  const [exporting, setExporting] = useState(false);
+
+  const handleExportCsv = async () => {
+    try {
+      setExporting(true);
+
+      // Fetch all submissions across pages (API caps limit at 100).
+      const EXPORT_PAGE_SIZE = 100;
+      const allSubmissions: Submission[] = [];
+      let exportOffset = 0;
+      let exportTotal = Infinity;
+
+      while (exportOffset < exportTotal) {
+        const response = await fetch(
+          `/api/events/${eventId}/intake-form/submissions?context=${context}&limit=${EXPORT_PAGE_SIZE}&offset=${exportOffset}`,
+          { cache: "no-store" }
+        );
+        if (!response.ok) {
+          const payload = (await response.json().catch(() => ({}))) as {
+            error?: string;
+          };
+          throw new Error(payload.error || "Failed to fetch responses for export");
+        }
+        const payload = (await response.json()) as {
+          submissions: Submission[];
+          pagination: { total: number };
+        };
+        allSubmissions.push(...(payload.submissions ?? []));
+        exportTotal = payload.pagination?.total ?? allSubmissions.length;
+        if ((payload.submissions ?? []).length === 0) break;
+        exportOffset += EXPORT_PAGE_SIZE;
+      }
+
+      if (allSubmissions.length === 0) {
+        toast({
+          title: "Nothing to export",
+          description: "There are no submitted responses yet.",
+        });
+        return;
+      }
+
+      // Build deterministic column order:
+      //   1. Fixed identity columns (Submitter Name / Email / Submitted At / Submission ID)
+      //   2. One column per schema field (in form order) — required for MLH compliance
+      //      exports where field order must be stable across exports.
+      //   3. Any unknown field keys present in answers but absent from the active schema
+      //      (schema edits can leave orphan keys on older submissions).
+      const schemaFields = activeForm?.schema?.fields ?? [];
+      const schemaFieldKeys = schemaFields.map((field) => field.key);
+      const knownKeySet = new Set(schemaFieldKeys);
+
+      const orphanKeys: string[] = [];
+      const seenOrphanKeys = new Set<string>();
+      for (const submission of allSubmissions) {
+        for (const answer of submission.answers) {
+          if (!knownKeySet.has(answer.fieldKey) && !seenOrphanKeys.has(answer.fieldKey)) {
+            seenOrphanKeys.add(answer.fieldKey);
+            orphanKeys.push(answer.fieldKey);
+          }
+        }
+      }
+
+      const rows = allSubmissions.map((submission) => {
+        const answersByKey = mapAnswersByFieldKey(submission.answers);
+        const row: Record<string, string> = {
+          "Submitter Name": submission.submitterProfile?.display_name ?? "",
+          Email: submission.submitterProfile?.email ?? "",
+          "Submitted At": submission.submittedAt
+            ? new Date(submission.submittedAt).toISOString()
+            : "",
+          "Submission ID": submission.id,
+        };
+        for (const field of schemaFields) {
+          row[field.label || field.key] = formatAnswerValue(answersByKey[field.key]);
+        }
+        for (const key of orphanKeys) {
+          row[key] = formatAnswerValue(answersByKey[key]);
+        }
+        return row;
+      });
+
+      const csv = Papa.unparse(rows);
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `intake-${context}-${eventId}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: "Export ready",
+        description: `Downloaded ${rows.length} ${
+          rows.length === 1 ? "response" : "responses"
+        }.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Export failed",
+        description:
+          error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const pageNumber = Math.floor(offset / PAGE_SIZE) + 1;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const canGoPrev = offset > 0;
@@ -213,13 +325,23 @@ export function IntakeResponsesTab({ eventId }: { eventId: string }) {
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between gap-4">
         <CardTitle
-        className="font-geist font-semibold leading-[140%] tracking-[-1.32px] text-[var(--Color-Scheme-1-Text,#000)]"
-        style={{ fontSize: "var(--Text-Sizes-Heading-6, 22px)" }}
-      >
-        Intake Responses
-      </CardTitle>
+          className="font-geist font-semibold leading-[140%] tracking-[-1.32px] text-[var(--Color-Scheme-1-Text,#000)]"
+          style={{ fontSize: "var(--Text-Sizes-Heading-6, 22px)" }}
+        >
+          Intake Responses
+        </CardTitle>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={handleExportCsv}
+          disabled={exporting || loadingResponses || total === 0}
+        >
+          <Download className="mr-2 h-4 w-4" />
+          {exporting ? "Exporting..." : "Export CSV"}
+        </Button>
       </CardHeader>
       <CardContent className="space-y-4">
         <Tabs
