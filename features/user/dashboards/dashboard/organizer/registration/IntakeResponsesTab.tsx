@@ -29,6 +29,7 @@ import type {
 } from "@/features/intake-forms/types";
 import { useToast } from "@/lib/hooks/use-toast";
 import {
+  buildIntakeExportRows,
   formatAnswerValue,
   getFieldLabel,
   isFieldVisible,
@@ -249,45 +250,10 @@ export function IntakeResponsesTab({ eventId }: { eventId: string }) {
         return;
       }
 
-      // Build deterministic column order:
-      //   1. Fixed identity columns (Submitter Name / Email / Submitted At / Submission ID)
-      //   2. One column per schema field (in form order) — required for MLH compliance
-      //      exports where field order must be stable across exports.
-      //   3. Any unknown field keys present in answers but absent from the active schema
-      //      (schema edits can leave orphan keys on older submissions).
-      const schemaFields = activeForm?.schema?.fields ?? [];
-      const schemaFieldKeys = schemaFields.map((field) => field.key);
-      const knownKeySet = new Set(schemaFieldKeys);
-
-      const orphanKeys: string[] = [];
-      const seenOrphanKeys = new Set<string>();
-      for (const submission of allSubmissions) {
-        for (const answer of submission.answers) {
-          if (!knownKeySet.has(answer.fieldKey) && !seenOrphanKeys.has(answer.fieldKey)) {
-            seenOrphanKeys.add(answer.fieldKey);
-            orphanKeys.push(answer.fieldKey);
-          }
-        }
-      }
-
-      const rows = allSubmissions.map((submission) => {
-        const answersByKey = mapAnswersByFieldKey(submission.answers);
-        const row: Record<string, string> = {
-          "Submitter Name": submission.submitterProfile?.display_name ?? "",
-          Email: submission.submitterProfile?.email ?? "",
-          "Submitted At": submission.submittedAt
-            ? new Date(submission.submittedAt).toISOString()
-            : "",
-          "Submission ID": submission.id,
-        };
-        for (const field of schemaFields) {
-          row[field.label || field.key] = formatAnswerValue(answersByKey[field.key]);
-        }
-        for (const key of orphanKeys) {
-          row[key] = formatAnswerValue(answersByKey[key]);
-        }
-        return row;
-      });
+      const rows = buildIntakeExportRows(
+        allSubmissions,
+        activeForm?.schema ?? null
+      );
 
       const csv = Papa.unparse(rows);
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
