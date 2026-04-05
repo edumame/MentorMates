@@ -60,6 +60,23 @@ function formatArtifactUrls(
     .join(" | ");
 }
 
+// MLH submission portal requirements list GitHub link as a required field
+// distinct from the generic project / try-it-out URL. Detect it from the
+// project_link artifacts by URL pattern so organizers don't need a dedicated
+// custom field, while still surfacing it as its own column in the export.
+// See: https://guide.mlh.io/general-information/judging-and-submissions/hackathon-submission-portal
+function formatGithubUrls(artifacts: ExportArtifact[] | undefined): string {
+  return (artifacts || [])
+    .filter(
+      (artifact) =>
+        artifact.kind === "project_link" &&
+        artifact.url &&
+        /(^|\/\/|\.)github\.com\//i.test(artifact.url)
+    )
+    .map((artifact) => artifact.url)
+    .join(" | ");
+}
+
 function formatAllArtifacts(artifacts: ExportArtifact[] | undefined): string {
   return (artifacts || [])
     .filter((artifact) => artifact.url)
@@ -87,12 +104,14 @@ function buildCustomFieldColumns(projects: SubmissionExportProject[]) {
     }
   }
 
-  return Array.from(keyToLabel.entries())
-    .map(([key, label]) => ({
-      key,
-      columnLabel: (labelCounts.get(label) || 0) > 1 ? `${label} (${key})` : label,
-    }))
-    .sort((a, b) => a.columnLabel.localeCompare(b.columnLabel));
+  // Preserve first-seen insertion order (from the form schema) rather than
+  // sorting alphabetically. MLH compliance exports require stable column order
+  // across exports so downstream spreadsheets / import scripts don't break when
+  // organizers add a new custom field.
+  return Array.from(keyToLabel.entries()).map(([key, label]) => ({
+    key,
+    columnLabel: (labelCounts.get(label) || 0) > 1 ? `${label} (${key})` : label,
+  }));
 }
 
 export function buildSubmissionExportRows(projects: SubmissionExportProject[]) {
@@ -105,6 +124,7 @@ export function buildSubmissionExportRows(projects: SubmissionExportProject[]) {
       "Lead Email": project.lead_email || "",
       Description: project.project_description || "",
       "Primary Project URL": project.project_url || "",
+      "GitHub URL": formatGithubUrls(project.artifacts),
       "All Project Links": formatArtifactUrls(project.artifacts, "project_link"),
       "Video Links": formatArtifactUrls(project.artifacts, "video_link"),
       "Additional Material Links": formatArtifactUrls(
