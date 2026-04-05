@@ -78,7 +78,7 @@ export function UserProjectSection({
   if (projects.length === 0) {
     return (
       <Card className="border-dashed border-2 border-blue-200 bg-blue-50/50 mb-6">
-        <CardContent className="py-6 flex items-center justify-between gap-4">
+        <CardContent className="px-6 pt-6 pb-0 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100">
               <FolderPlus className="h-5 w-5 text-blue-600" />
@@ -123,7 +123,7 @@ export function UserProjectSection({
             <CardContent className="p-0">
               <div className="flex">
                 {project.cover_image_url ? (
-                  <div className="relative h-24 w-24 flex-shrink-0 bg-slate-100">
+                  <div className="relative h-30 w-24 flex-shrink-0 bg-slate-100">
                     <Image
                       src={project.cover_image_url}
                       alt={project.project_name || "Project cover"}
@@ -133,7 +133,7 @@ export function UserProjectSection({
                     />
                   </div>
                 ) : (
-                  <div className="h-24 w-24 flex-shrink-0 bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center">
+                  <div className="h-30 w-24 flex-shrink-0 bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center">
                     <span className="text-2xl font-bold text-blue-600">
                       {(project.project_name || "P").charAt(0).toUpperCase()}
                     </span>
@@ -155,7 +155,7 @@ export function UserProjectSection({
                     )}
                   </div>
                   <p className="text-xs text-slate-500 mb-2">
-                    Last edited {formatRelativeTime(project.created_at)}
+                    Created at {formatRelativeTime(project.created_at)}
                   </p>
                   <div className="flex gap-2">
                     <Link href={`/projects/${project.id}/edit`}>

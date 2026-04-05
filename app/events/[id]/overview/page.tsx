@@ -6,7 +6,6 @@ import { isValidUUID } from "@/app/utils/supabase/queries";
 import { EventPageLayout } from "@/components/events/event-page-layout";
 import { EventPageContent } from "@/components/events/event-page-content";
 import { EventPageSidebar } from "@/components/events/event-page-sidebar";
-import { UserProjectSection } from "@/components/events/user-project-section";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -172,20 +171,15 @@ export default async function EventOverviewPage({ params }: PageProps) {
     >
       {/* Main Content */}
       <div>
-        {user && hasJoined && userRole === EventRole.Participant && (
-          <UserProjectSection
-            projects={userProjects}
-            eventId={id}
-            eventSlug={typedEvent.slug}
-            submissionDeadline={typedEvent.submission_time_cutoff}
-          />
-        )}
         <EventPageContent
           event={typedEvent}
           tracks={tracks}
           hasJoined={hasJoined}
           userRole={userRole}
           judges={judges}
+          userProjects={userProjects}
+          eventSlug={typedEvent.slug}
+          submissionDeadline={typedEvent.submission_time_cutoff}
         />
       </div>
 
