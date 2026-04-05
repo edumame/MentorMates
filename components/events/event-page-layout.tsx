@@ -149,7 +149,7 @@ export async function EventPageLayout({
                 className={
                   isAuthenticated
                     ? "flex flex-wrap sm:flex-nowrap gap-6 w-full px-6 py-[24px]"
-                    : "mx-auto flex flex-wrap sm:flex-nowrap gap-6 w-full max-w-10xl px-4 md:px-10 lg:px-24 py-[24px]"
+                    : "mx-auto flex flex-wrap sm:flex-nowrap gap-6 w-full max-w-10xl px-4 sm:px-6 lg:px-10 py-[24px]"
                 }
               >
                 {children}
