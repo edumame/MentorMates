@@ -3,6 +3,7 @@
 import ReactMarkdown from "react-markdown";
 import { customMarkdownComponents } from "@/components/markdown/custom-components";
 import { markdownRehypePlugins } from "@/components/markdown/plugins";
+import { normalizeBullets } from "@/lib/markdown/normalize-bullets";
 import { Trophy, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -114,7 +115,7 @@ export function EventPageContent({
             rehypePlugins={markdownRehypePlugins}
             components={customMarkdownComponents}
           >
-            {event.event_description}
+            {normalizeBullets(event.event_description)}
           </ReactMarkdown>
         </div>
       </div>
@@ -126,7 +127,7 @@ export function EventPageContent({
             🔒 Content for Event Participants
           </h3>
           <div className="prose prose-blue max-w-full w-full break-words">
-            <ReactMarkdown>{event.paywall_content}</ReactMarkdown>
+            <ReactMarkdown>{normalizeBullets(event.paywall_content)}</ReactMarkdown>
           </div>
         </div>
       )}
