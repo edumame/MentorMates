@@ -155,6 +155,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
     "role-labels",
     "invite-judges",
     "invite-organizers",
+    "assign-roles",
   ] as const;
   const accessSubTab: (typeof accessSubTabValues)[number] =
     activeTab === "access"
@@ -864,6 +865,12 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                           className="min-w-[140px] px-3 py-2.5 rounded-[100px] text-base leading-[1.5] font-normal text-[var(--Color-Scheme-1-Text,#000)] border border-transparent data-[state=active]:font-medium data-[state=active]:bg-white data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none flex-shrink-0"
                         >
                           Invite Organizers
+                        </TabsTrigger>
+                        <TabsTrigger
+                          value="assign-roles"
+                          className="min-w-[140px] px-3 py-2.5 rounded-[100px] text-base leading-[1.5] font-normal text-[var(--Color-Scheme-1-Text,#000)] border border-transparent data-[state=active]:font-medium data-[state=active]:bg-white data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none flex-shrink-0"
+                        >
+                          Assign Roles
                         </TabsTrigger>
                       </TabsList>
                     </div>

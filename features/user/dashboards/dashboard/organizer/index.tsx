@@ -29,6 +29,7 @@ import {
 // Tab components
 import { SubmissionsTab } from "./submissions";
 import { ScoresTab } from "./scores";
+import { AssignTab } from "./assign";
 import { EventTracksContainer } from "./tracks";
 import { AccessTab } from "./access";
 import { PricingTab } from "./pricing/PricingTab";
@@ -401,7 +402,7 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
                   <h3 className="text-lg font-semibold mb-4">
                     Project Settings
                   </h3>
-                  <div className="space-y-4">
+                  <div className="space-y-6">
                     <SubmissionsTab eventId={eventId} />
                     <ScoresTab
                       eventId={eventId}
@@ -414,6 +415,12 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
                         }
                       }
                     />
+                    <div className="pt-6 border-t">
+                      <h4 className="text-base font-semibold mb-4">
+                        Assign Judges & Mentors to Projects
+                      </h4>
+                      <AssignTab eventId={eventId} />
+                    </div>
                   </div>
                 </div>
               </TabsContent>
