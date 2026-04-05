@@ -3,7 +3,8 @@
 import ReactMarkdown from "react-markdown";
 import { customMarkdownComponents } from "@/components/markdown/custom-components";
 import { markdownRehypePlugins } from "@/components/markdown/plugins";
-import { Trophy } from "lucide-react";
+import { Trophy, Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   EventDetails,
   ScheduleDay,
@@ -402,6 +403,22 @@ export function EventPageContent({
             )}
           </div>
         </>
+      )}
+
+      {/* Bottom Submit CTA — mirrors header button so participants don't have to scroll back up */}
+      {hasJoined && userRole === EventRole.Participant && (
+        <div className="mt-8 flex justify-center border-t pt-8">
+          <Button
+            asChild
+            size="lg"
+            className="rounded-full gap-2 px-8"
+          >
+            <Link href={`/events/${event.event_id}/submit`}>
+              <Plus className="h-5 w-5" />
+              Submit Your Project
+            </Link>
+          </Button>
+        </div>
       )}
     </div>
   );
