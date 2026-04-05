@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import ReactMarkdown from "react-markdown";
 import { customMarkdownComponents } from "@/components/markdown/custom-components";
 import { markdownRehypePlugins } from "@/components/markdown/plugins";
@@ -12,16 +13,19 @@ import {
   EventTrack,
   EventRole,
 } from "@/lib/types";
-import { getDisplayRules } from "@/lib/events/rules";
 import Link from "next/link";
 import { JudgeDashboard } from "@/features/user/dashboards/dashboard/judge-dashboard";
 import { useActiveRole } from "./ActiveRoleContext";
+import { UserProjectSection } from "./user-project-section";
 
 interface EventPageContentProps {
   event: EventDetails;
   tracks: EventTrack[];
   hasJoined: boolean;
   userRole?: EventRole | null;
+  userProjects?: ComponentProps<typeof UserProjectSection>["projects"];
+  eventSlug?: string | null;
+  submissionDeadline?: string | null;
   judges?: {
     id: string;
     name: string;
@@ -36,6 +40,9 @@ export function EventPageContent({
   tracks,
   hasJoined,
   userRole,
+  userProjects = [],
+  eventSlug,
+  submissionDeadline,
   judges = [],
 }: EventPageContentProps) {
   const getInitials = (name: string) =>
@@ -100,6 +107,15 @@ export function EventPageContent({
   // Show default event overview for participants, mentors, organizers, and non-authenticated users
   return (
     <div className="flex flex-col flex-1 w-full max-w-full md:max-w-[747px]">
+      {hasJoined && displayRole === EventRole.Participant && (
+        <UserProjectSection
+          projects={userProjects}
+          eventId={event.event_id}
+          eventSlug={eventSlug}
+          submissionDeadline={submissionDeadline}
+        />
+      )}
+
       {/* Introduction */}
       <div className="flex flex-col pb-4 pt-0 px-0 w-full min-w-0 max-w-full">
         <h2 className="font-semibold text-[24px] leading-[32px] text-black tracking-[-0.6px] break-words">
