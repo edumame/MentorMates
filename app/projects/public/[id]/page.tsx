@@ -179,7 +179,8 @@ export default function PublicProjectPage() {
 
   // Fetch team profile data (display name, avatar, affiliation) from user_profiles
   useEffect(() => {
-    if (!project?.lead_email && !(project?.teammates?.length ?? 0)) return;
+    if (!project) return;
+    if (!project.lead_email && !(project.teammates?.length ?? 0)) return;
 
     const emails = Array.from(
       new Set([project.lead_email, ...(project.teammates ?? [])])
