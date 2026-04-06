@@ -1029,13 +1029,14 @@ export type Database = {
           created_at: string | null;
           display_name: string | null;
           email: string | null;
+          id: string;
           links: Json | null;
           onboarding_metadata: Json | null;
           phone_number: string | null;
           pulse: number;
           affiliation: string | null;
           stripe_customer_id: string | null;
-          uid: string;
+          uid: string | null;
         };
         Insert: {
           avatar_url?: string | null;
@@ -1043,13 +1044,14 @@ export type Database = {
           created_at?: string | null;
           display_name?: string | null;
           email?: string | null;
+          id?: string;
           links?: Json | null;
           onboarding_metadata?: Json | null;
           phone_number?: string | null;
           pulse?: number;
           affiliation?: string | null;
           stripe_customer_id?: string | null;
-          uid: string;
+          uid?: string | null;
         };
         Update: {
           avatar_url?: string | null;
@@ -1057,13 +1059,14 @@ export type Database = {
           created_at?: string | null;
           display_name?: string | null;
           email?: string | null;
+          id?: string;
           links?: Json | null;
           onboarding_metadata?: Json | null;
           phone_number?: string | null;
           pulse?: number;
           affiliation?: string | null;
           stripe_customer_id?: string | null;
-          uid?: string;
+          uid?: string | null;
         };
         Relationships: [];
       };

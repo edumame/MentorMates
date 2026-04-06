@@ -382,7 +382,8 @@ export async function POST(req: Request) {
       const { data: usersByEmail, error: usersError } = await serviceSupabase
         .from("user_profiles")
         .select("uid, email")
-        .in("email", normalizedEmails);
+        .in("email", normalizedEmails)
+        .not("uid", "is", null);
 
       if (usersError) {
         console.error("Error fetching organizer users:", usersError);
