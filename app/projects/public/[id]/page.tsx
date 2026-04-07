@@ -319,14 +319,21 @@ export default function PublicProjectPage() {
       artifact.url !== project?.additional_materials_url,
   );
   const extraActionLinks = [...extraProjectLinks, ...extraVideoLinks];
+  const eventIdForNav = eventDetails?.event_id ?? project?.event_id;
+  const judgeBackReady = isJudge && !isCheckingJudgeStatus;
+
   const handleBack = () => {
     if (typeof window !== "undefined" && window.history.length > 1) {
       router.back();
       return;
     }
 
-    if (eventDetails) {
-      router.push(`/events/${eventDetails.event_id}/overview`);
+    if (eventIdForNav) {
+      if (judgeBackReady) {
+        router.push(`/events/${eventIdForNav}/gallery`);
+        return;
+      }
+      router.push(`/events/${eventIdForNav}/overview`);
       return;
     }
 
@@ -340,8 +347,8 @@ export default function PublicProjectPage() {
         {/* Header Section */}
         <div className="bg-gradient-to-b from-blue-50/45 to-white border-b border-gray-200">
           <div className="container mx-auto px-5 sm:px-8 pt-6 sm:pt-8 pb-0">
-            {/* Back Button */}
-            {eventDetails && (
+            {/* Back Button — show whenever we know the event (not only after event details fetch) */}
+            {eventIdForNav && (
               <div className="mb-4">
                 <Button
                   variant="ghost"
@@ -349,7 +356,11 @@ export default function PublicProjectPage() {
                   onClick={handleBack}
                 >
                   <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back to {eventDetails.event_name}
+                  {judgeBackReady
+                    ? "Back to projects"
+                    : eventDetails
+                      ? `Back to ${eventDetails.event_name}`
+                      : "Back to event"}
                 </Button>
               </div>
             )}
