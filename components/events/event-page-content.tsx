@@ -460,7 +460,7 @@ export function EventPageContent({
             size="lg"
             className="rounded-full gap-2 px-8"
           >
-            <Link href={`/events/${event.event_id}/submit`}>
+            <Link href={`/projects/submit?eventId=${event.event_id}`}>
               <Plus className="h-5 w-5" />
               Submit Your Project
             </Link>
