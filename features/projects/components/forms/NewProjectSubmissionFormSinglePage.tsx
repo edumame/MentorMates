@@ -26,7 +26,6 @@ import {
 import { useProjectSubmissionData } from "@/features/projects/components/forms/hooks/useProjectSubmissionData";
 import { EventCard } from "@/components/events/event-card";
 import { Public } from "@mui/icons-material";
-import Link from "next/link";
 import { ParticipantIntakeDialog } from "@/features/intake-forms/components/ParticipantIntakeDialog";
 import { ProjectSubmissionSchemaSection } from "@/features/projects/components/forms/components/ProjectSubmissionSchemaSection";
 import { useProjectSubmissionAutosave } from "@/features/projects/components/forms/hooks/useProjectSubmissionAutosave";
@@ -1342,25 +1341,21 @@ export function NewProjectSubmissionFormSinglePage({
                         Submitted to
                       </h3>
                       <div className="w-[339px]">
-                        <Link
-                          href={`/events/${eventDetails.event_id}/overview`}
-                        >
-                          <EventCard
-                            event={{
-                              event_id: eventDetails.event_id,
-                              slug: eventDetails.slug,
-                              event_name: eventDetails.event_name,
-                              event_date: eventDetails.event_date,
-                              location: eventDetails.location || "Online",
-                              cover_image_url: eventDetails.cover_image_url,
-                              paid: eventDetails.paid,
-                              event_blurb:
-                                eventDetails.event_blurb ||
-                                eventDetails.event_description,
-                              event_description: eventDetails.event_description,
-                            }}
-                          />
-                        </Link>
+                        <EventCard
+                          event={{
+                            event_id: eventDetails.event_id,
+                            slug: eventDetails.slug,
+                            event_name: eventDetails.event_name,
+                            event_date: eventDetails.event_date,
+                            location: eventDetails.location || "Online",
+                            cover_image_url: eventDetails.cover_image_url,
+                            paid: eventDetails.paid,
+                            event_blurb:
+                              eventDetails.event_blurb ||
+                              eventDetails.event_description,
+                            event_description: eventDetails.event_description,
+                          }}
+                        />
                       </div>
                     </div>
                   </>
