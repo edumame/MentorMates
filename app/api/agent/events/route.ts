@@ -5,6 +5,7 @@ import {
   requireScope,
 } from "@/lib/agent/auth";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import { listManagedAgentEvents } from "@/lib/agent/event-access";
 import { z } from "zod";
 
 const DEFAULT_EVENT_LIST_LIMIT = 20;
@@ -16,7 +17,6 @@ function parsePaginationParam(value: string | null, fallback: number) {
 }
 
 async function listEditableEvents(request: NextRequest, userId: string) {
-  const supabase = createSupabaseServiceClient();
   const rawLimit = parsePaginationParam(
     request.nextUrl.searchParams.get("limit"),
     DEFAULT_EVENT_LIST_LIMIT
@@ -27,75 +27,15 @@ async function listEditableEvents(request: NextRequest, userId: string) {
   );
   const limit = Math.min(Math.max(rawLimit, 1), MAX_EVENT_LIST_LIMIT);
   const offset = Math.max(rawOffset, 0);
-
-  const { data: isAdminRpc, error: adminError } = await supabase.rpc("is_admin_user", {
-    user_id: userId,
-  });
-  if (adminError) throw adminError;
-
-  if (Boolean(isAdminRpc)) {
-    const { data: events, error, count } = await supabase
-      .from("events")
-      .select("event_id, event_name", { count: "exact" })
-      .order("event_name", { ascending: true })
-      .range(offset, offset + limit - 1);
-
-    if (error) throw error;
-
-    return NextResponse.json({
-      message: "event_id query parameter is required for reusable keys",
-      requires_event_id: true,
-      events: events ?? [],
-      total: count ?? 0,
-      limit,
-      offset,
-    });
-  }
-
-  const [{ data: ownerEvents, error: ownerError }, { data: organizerRoles, error: roleError }] =
-    await Promise.all([
-      supabase
-        .from("events")
-        .select("event_id, event_name")
-        .eq("owner_id", userId),
-      supabase
-        .from("user_event_roles")
-        .select("event_id")
-        .eq("user_id", userId)
-        .eq("role", "organizer"),
-    ]);
-
-  if (ownerError || roleError) {
-    throw ownerError || roleError;
-  }
-
-  const organizerEventIds = Array.from(
-    new Set((organizerRoles ?? []).map((row) => row.event_id).filter(Boolean))
-  );
-
-  let organizerEvents: Array<{ event_id: string; event_name: string | null }> = [];
-  if (organizerEventIds.length > 0) {
-    const { data, error } = await supabase
-      .from("events")
-      .select("event_id, event_name")
-      .in("event_id", organizerEventIds);
-    if (error) throw error;
-    organizerEvents = data ?? [];
-  }
-
-  const uniqueEvents = Array.from(
-    new Map(
-      [...(ownerEvents ?? []), ...organizerEvents].map((event) => [
-        event.event_id,
-        { event_id: event.event_id, event_name: event.event_name },
-      ])
-    ).values()
-  ).sort((a, b) => (a.event_name || "").localeCompare(b.event_name || ""));
+  const uniqueEvents = await listManagedAgentEvents(userId);
 
   return NextResponse.json({
-    message: "event_id query parameter is required for reusable keys",
+    message: "event_id or event_slug query parameter is required for reusable keys",
     requires_event_id: true,
-    events: uniqueEvents.slice(offset, offset + limit),
+    events: uniqueEvents.slice(offset, offset + limit).map((event) => ({
+      event_id: event.event_id,
+      event_name: event.event_name,
+    })),
     total: uniqueEvents.length,
     limit,
     offset,

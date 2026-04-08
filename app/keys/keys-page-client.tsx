@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -49,7 +49,8 @@ interface GeneratedKeyState {
 
 interface KeysPageClientProps {
   initialKeys: AgentKeyRecord[];
-  eventOptions: KeyEventOption[];
+  managedEventOptions: KeyEventOption[];
+  participantEventOptions: KeyEventOption[];
 }
 
 function formatDate(value: string | null) {
@@ -68,12 +69,18 @@ function eventLabel(event: KeyEventOption | undefined, eventId: string | null) {
 
 export default function KeysPageClient({
   initialKeys,
-  eventOptions,
+  managedEventOptions,
+  participantEventOptions,
 }: KeysPageClientProps) {
   const [keys, setKeys] = useState(initialKeys);
   const [label, setLabel] = useState("");
-  const [eventId, setEventId] = useState(eventOptions[0]?.id ?? "");
+  const [accessMode, setAccessMode] = useState<"organizer" | "participant">(
+    managedEventOptions.length > 0 ? "organizer" : "participant"
+  );
   const [scopeMode, setScopeMode] = useState<"public" | "event">("public");
+  const [eventId, setEventId] = useState(
+    managedEventOptions[0]?.id ?? participantEventOptions[0]?.id ?? ""
+  );
   const [generatedKey, setGeneratedKey] = useState<GeneratedKeyState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
@@ -81,11 +88,29 @@ export default function KeysPageClient({
   const [revokingKeyId, setRevokingKeyId] = useState<string | null>(null);
 
   const eventMap = useMemo(
-    () => new Map(eventOptions.map((event) => [event.id, event])),
-    [eventOptions]
+    () =>
+      new Map(
+        [...managedEventOptions, ...participantEventOptions].map((event) => [event.id, event])
+      ),
+    [managedEventOptions, participantEventOptions]
   );
   const publicKeys = keys.filter((key) => !key.event_id);
   const eventScopedKeys = keys.filter((key) => key.event_id);
+  const currentEventOptions = accessMode === "organizer"
+    ? managedEventOptions
+    : participantEventOptions;
+
+  useEffect(() => {
+    if (scopeMode !== "event") {
+      return;
+    }
+
+    if (currentEventOptions.some((event) => event.id === eventId)) {
+      return;
+    }
+
+    setEventId(currentEventOptions[0]?.id ?? "");
+  }, [accessMode, currentEventOptions, eventId, scopeMode]);
 
   const copyToClipboard = async (text: string, field: string) => {
     await navigator.clipboard.writeText(text);
@@ -94,8 +119,13 @@ export default function KeysPageClient({
   };
 
   const handleCreateKey = async () => {
-    if (!eventId) {
+    if (scopeMode === "event" && !eventId) {
       setError("Choose an event to authorize this key.");
+      return;
+    }
+
+    if (accessMode === "organizer" && managedEventOptions.length === 0) {
+      setError("You need organizer access to at least one event to create organizer keys.");
       return;
     }
 
@@ -107,7 +137,8 @@ export default function KeysPageClient({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          event_id: eventId,
+          event_id: scopeMode === "event" ? eventId : eventId || undefined,
+          access_mode: accessMode,
           scope_mode: scopeMode,
           label: label.trim() || undefined,
         }),
@@ -177,6 +208,11 @@ export default function KeysPageClient({
   const renderKeyCard = (key: AgentKeyRecord) => {
     const event = key.event_id ? eventMap.get(key.event_id) : undefined;
     const keyType = key.event_id ? "Event-specific" : "Reusable";
+    const accessType =
+      (key.scopes || []).some((scope) => scope.startsWith("participant-")) &&
+      !(key.scopes || []).some((scope) => !scope.startsWith("participant-"))
+        ? "Participant"
+        : "Organizer";
 
     return (
       <Card key={key.id} className="border border-slate-200">
@@ -186,6 +222,7 @@ export default function KeysPageClient({
               <div className="flex items-center gap-2">
                 <CardTitle className="text-base">{key.label || "default"}</CardTitle>
                 <Badge variant="secondary">{keyType}</Badge>
+                <Badge variant="outline">{accessType}</Badge>
               </div>
               <CardDescription className="font-mono text-xs">
                 {key.key_prefix}
@@ -354,6 +391,26 @@ export default function KeysPageClient({
                   <td className="py-2 pr-4 font-mono text-xs">/api/agent/events/judges</td>
                   <td className="py-2 text-slate-600">Send email to judges</td>
                 </tr>
+                <tr>
+                  <td className="py-2 pr-4"><Badge variant="outline">GET</Badge></td>
+                  <td className="py-2 pr-4 font-mono text-xs">/api/agent/me/events</td>
+                  <td className="py-2 text-slate-600">List participant events you have joined and public events you can join via the agent API</td>
+                </tr>
+                <tr>
+                  <td className="py-2 pr-4"><Badge variant="outline">POST</Badge></td>
+                  <td className="py-2 pr-4 font-mono text-xs">/api/agent/me/events/[eventId]/join</td>
+                  <td className="py-2 text-slate-600">Join or request approval for a free public event as a participant</td>
+                </tr>
+                <tr>
+                  <td className="py-2 pr-4"><Badge variant="outline">GET / POST</Badge></td>
+                  <td className="py-2 pr-4 font-mono text-xs">/api/agent/me/events/[eventId]/projects</td>
+                  <td className="py-2 text-slate-600">List your projects for an event, or create and submit a new one</td>
+                </tr>
+                <tr>
+                  <td className="py-2 pr-4"><Badge variant="outline">PATCH</Badge></td>
+                  <td className="py-2 pr-4 font-mono text-xs">/api/agent/me/events/[eventId]/projects/[projectId]</td>
+                  <td className="py-2 text-slate-600">Edit a project you own or belong to on that event team</td>
+                </tr>
               </tbody>
             </table>
           </div>
@@ -385,13 +442,49 @@ export default function KeysPageClient({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {eventOptions.length === 0 ? (
-            <p className="text-sm text-amber-700">
-              You need organizer access to at least one event before you can
-              create agent keys.
-            </p>
-          ) : (
-            <>
+          <>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div
+                  className={`cursor-pointer rounded-lg border-2 p-5 transition-colors ${
+                    accessMode === "organizer"
+                      ? "border-blue-500 bg-blue-50"
+                      : "border-slate-200 hover:border-slate-300"
+                  }`}
+                  onClick={() => setAccessMode("organizer")}
+                >
+                  <div className="mb-2">
+                    <p className="font-semibold text-slate-900">Organizer access</p>
+                  </div>
+                  <p className="text-sm text-slate-600">
+                    Manage events you organize, including participants, judges,
+                    approval requests, and event-wide project views.
+                  </p>
+                </div>
+                <div
+                  className={`cursor-pointer rounded-lg border-2 p-5 transition-colors ${
+                    accessMode === "participant"
+                      ? "border-blue-500 bg-blue-50"
+                      : "border-slate-200 hover:border-slate-300"
+                  }`}
+                  onClick={() => setAccessMode("participant")}
+                >
+                  <div className="mb-2">
+                    <p className="font-semibold text-slate-900">Participant access</p>
+                  </div>
+                  <p className="text-sm text-slate-600">
+                    List events you can join, inspect your event projects, and
+                    submit or edit your own project from Claude or Codex.
+                  </p>
+                </div>
+              </div>
+
+              {accessMode === "organizer" && managedEventOptions.length === 0 ? (
+                <p className="text-sm text-amber-700">
+                  You need organizer access to at least one event before you can
+                  create organizer agent keys.
+                </p>
+              ) : null}
+
               <div className="grid gap-4 md:grid-cols-2">
                 {/* Reusable key option */}
                 <div
@@ -405,15 +498,24 @@ export default function KeysPageClient({
                   <div className="flex items-center gap-2 mb-2">
                     <Globe2 className="h-5 w-5 text-blue-600" />
                     <p className="font-semibold text-slate-900">
-                      Key for all my events
+                      {accessMode === "organizer"
+                        ? "Key for all my organizer events"
+                        : "Reusable participant key"}
                     </p>
                   </div>
                   <p className="text-sm text-slate-600">
-                    One key that works across all events you organize. Pass{" "}
-                    <code className="rounded bg-slate-100 px-1 text-xs">
-                      ?event_id=UUID
-                    </code>{" "}
-                    on each API call to choose the event.
+                    {accessMode === "organizer"
+                      ? (
+                        <>
+                          One key that works across all events you organize.
+                          Pass{" "}
+                          <code className="rounded bg-slate-100 px-1 text-xs">
+                            ?event_id=UUID
+                          </code>{" "}
+                          on each API call to choose the event.
+                        </>
+                      )
+                      : "One key that can list joinable events and work across the participant events you join."}
                   </p>
                 </div>
 
@@ -429,7 +531,9 @@ export default function KeysPageClient({
                   <div className="flex items-center gap-2 mb-2">
                     <LockKeyhole className="h-5 w-5 text-amber-600" />
                     <p className="font-semibold text-slate-900">
-                      Key for one event
+                      {accessMode === "organizer"
+                        ? "Key for one organizer event"
+                        : "Key for one participant event"}
                     </p>
                   </div>
                   <p className="text-sm text-slate-600">
@@ -437,7 +541,7 @@ export default function KeysPageClient({
                     <code className="rounded bg-slate-100 px-1 text-xs">
                       event_id
                     </code>{" "}
-                    — the key already knows which event it manages.
+                    — the key already knows which event it targets.
                   </p>
                 </div>
               </div>
@@ -454,13 +558,19 @@ export default function KeysPageClient({
                       <SelectValue placeholder="Select an event" />
                     </SelectTrigger>
                     <SelectContent>
-                      {eventOptions.map((event) => (
+                      {currentEventOptions.map((event) => (
                         <SelectItem key={event.id} value={event.id}>
                           {event.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                  {accessMode === "participant" && currentEventOptions.length === 0 ? (
+                    <p className="text-sm text-amber-700">
+                      Join an event first if you want an event-specific participant key.
+                      Reusable participant keys can still browse joinable events.
+                    </p>
+                  ) : null}
                 </div>
               )}
 
@@ -483,8 +593,7 @@ export default function KeysPageClient({
                   {isCreating ? "Creating..." : "Create Key"}
                 </Button>
               </div>
-            </>
-          )}
+          </>
         </CardContent>
       </Card>
 

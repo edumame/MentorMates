@@ -24,6 +24,46 @@ interface AuthenticateAgentRequestOptions {
   allowMissingEventId?: boolean;
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+async function resolveEventIdFromSlug(
+  slug: string
+): Promise<{ eventId: string | null; response: NextResponse | null }> {
+  const normalizedSlug = slug.trim();
+  if (!normalizedSlug) {
+    return {
+      eventId: null,
+      response: NextResponse.json(
+        { error: "Invalid event_slug query parameter" },
+        { status: 400 }
+      ),
+    };
+  }
+
+  const supabase = createSupabaseServiceClient();
+  const { data: event, error } = await supabase
+    .from("events")
+    .select("event_id")
+    .ilike("slug", normalizedSlug)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  if (!event?.event_id) {
+    return {
+      eventId: null,
+      response: NextResponse.json({ error: "Event not found" }, { status: 404 }),
+    };
+  }
+
+  return {
+    eventId: event.event_id,
+    response: null,
+  };
+}
+
 /**
  * Authenticate an agent API request via Bearer token.
  * Returns the auth context or a NextResponse error.
@@ -70,23 +110,49 @@ export async function authenticateAgentRequest(
   }
 
   const requestedEventId = request.nextUrl.searchParams.get("event_id")?.trim() || null;
+  const requestedEventSlug =
+    request.nextUrl.searchParams.get("event_slug")?.trim() || null;
   const scopedEventId = keyRow.event_id || null;
 
-  if (requestedEventId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestedEventId)) {
+  if (requestedEventId && !UUID_RE.test(requestedEventId)) {
     return NextResponse.json(
       { error: "Invalid event_id query parameter" },
       { status: 400 }
     );
   }
 
-  if (scopedEventId && requestedEventId && scopedEventId !== requestedEventId) {
+  let resolvedRequestedEventId = requestedEventId;
+  if (requestedEventSlug) {
+    const { eventId, response } = await resolveEventIdFromSlug(requestedEventSlug);
+    if (response) {
+      return response;
+    }
+    resolvedRequestedEventId = eventId;
+  }
+
+  if (
+    requestedEventId &&
+    resolvedRequestedEventId &&
+    requestedEventId !== resolvedRequestedEventId
+  ) {
+    return NextResponse.json(
+      { error: "event_id and event_slug refer to different events" },
+      { status: 400 }
+    );
+  }
+
+  if (
+    scopedEventId &&
+    resolvedRequestedEventId &&
+    scopedEventId !== resolvedRequestedEventId
+  ) {
     return NextResponse.json(
       { error: "This API key is scoped to a different event" },
       { status: 403 }
     );
   }
 
-  const eventId = requestedEventId ?? scopedEventId;
+  const eventId = resolvedRequestedEventId ?? scopedEventId;
   if (!eventId) {
     if (options?.allowMissingEventId) {
       return {
@@ -98,7 +164,7 @@ export async function authenticateAgentRequest(
     }
 
     return NextResponse.json(
-      { error: "event_id query parameter is required" },
+      { error: "event_id or event_slug query parameter is required" },
       { status: 400 }
     );
   }
@@ -115,6 +181,37 @@ export async function authenticateAgentRequest(
     eventId,
     scopes: keyRow.scopes || [],
     keyId: keyRow.id,
+  };
+}
+
+export async function resolveAgentPathEvent(
+  auth: AgentAuthContext,
+  routeEventRef: string
+): Promise<AgentAuthContext | NextResponse> {
+  let resolvedEventId = routeEventRef;
+
+  if (!UUID_RE.test(routeEventRef)) {
+    const { eventId, response } = await resolveEventIdFromSlug(routeEventRef);
+    if (response) {
+      return response;
+    }
+    resolvedEventId = eventId || "";
+  }
+
+  if (!resolvedEventId) {
+    return NextResponse.json({ error: "Invalid event route parameter" }, { status: 400 });
+  }
+
+  if (auth.eventId && auth.eventId !== resolvedEventId) {
+    return NextResponse.json(
+      { error: "This API key is scoped to a different event" },
+      { status: 403 }
+    );
+  }
+
+  return {
+    ...auth,
+    eventId: resolvedEventId,
   };
 }
 
