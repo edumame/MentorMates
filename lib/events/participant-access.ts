@@ -69,15 +69,6 @@ export async function joinParticipantEvent(
     return failure(404, { error: "Event not found" });
   }
 
-  if (
-    event.visibility !== EventVisibility.Public ||
-    event.approval_status !== "approved"
-  ) {
-    return failure(403, {
-      error: "This event cannot be joined through this API.",
-    });
-  }
-
   if (channel === "agent" && event.paid) {
     return failure(403, {
       error: "Paid events cannot be joined through the agent API.",
