@@ -92,7 +92,7 @@ export function UserProjectSection({
               </p>
             </div>
           </div>
-          <Link href={`/events/${eventPath}/submit`}>
+          <Link href={`/projects/submit?eventId=${eventId}`}>
             <Button>Submit Project</Button>
           </Link>
         </CardContent>
