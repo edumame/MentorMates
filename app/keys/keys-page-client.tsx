@@ -296,13 +296,8 @@ export default function KeysPageClient({
     <Card className="border border-[rgba(0,0,0,0.15)]">
       <CardHeader>
         <CardTitle className="text-[18px] font-semibold text-black tracking-[-0.02em]">
-          Create {activeTab === "organizer" ? "an organizer" : "a participant"} API key
+          Create your {activeTab === "organizer" ? "organizer" : "participant"} API key
         </CardTitle>
-        <CardDescription>
-          {activeTab === "organizer"
-            ? "Manage events you organize: participants, judges, approvals, projects."
-            : "Sync your project, view feedback, and submit from your terminal."}
-        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {activeTab === "organizer" && managedEventOptions.length === 0 && (
@@ -322,10 +317,12 @@ export default function KeysPageClient({
           >
             <div className="flex items-center gap-2 mb-1">
               <Globe2 className="h-4 w-4 text-[#4b89ef]" />
-              <p className="font-medium text-black text-sm">Reusable key</p>
+              <p className="font-medium text-black text-sm">Personal key</p>
             </div>
             <p className="text-xs text-[#575d65]">
-              Works across all your {activeTab === "organizer" ? "organized" : "joined"} events.
+              {activeTab === "organizer"
+                ? "Works with all your organizer events. Pass event_id on each call."
+                : "Your own key that can access all your personal projects across events."}
             </p>
           </div>
           <div
@@ -341,7 +338,9 @@ export default function KeysPageClient({
               <p className="font-medium text-black text-sm">Event-specific key</p>
             </div>
             <p className="text-xs text-[#575d65]">
-              Locked to one event. No event_id param needed.
+              {activeTab === "organizer"
+                ? "Tied to a specific event. No event_id param needed."
+                : "Tied to a specific event. Only accesses projects within that event."}
             </p>
           </div>
         </div>
