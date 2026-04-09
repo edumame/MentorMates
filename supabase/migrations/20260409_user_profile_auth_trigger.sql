@@ -8,7 +8,19 @@ DECLARE
   v_display_name text;
   v_normalized_email text;
 BEGIN
-  IF TG_OP <> 'INSERT' OR NEW.email IS NULL OR btrim(NEW.email) = '' THEN
+  IF NEW.email IS NULL OR btrim(NEW.email) = '' THEN
+    RETURN NEW;
+  END IF;
+
+  IF TG_OP = 'INSERT' THEN
+    IF NEW.confirmed_at IS NULL THEN
+      RETURN NEW;
+    END IF;
+  ELSIF TG_OP = 'UPDATE' THEN
+    IF OLD.confirmed_at IS NOT NULL OR NEW.confirmed_at IS NULL THEN
+      RETURN NEW;
+    END IF;
+  ELSE
     RETURN NEW;
   END IF;
 
@@ -42,8 +54,16 @@ END;
 $function$;
 
 DROP TRIGGER IF EXISTS on_auth_user_created_profile ON auth.users;
+DROP TRIGGER IF EXISTS on_auth_user_inserted_confirmed_profile ON auth.users;
 
 CREATE TRIGGER on_auth_user_created_profile
+AFTER UPDATE OF confirmed_at ON auth.users
+FOR EACH ROW
+WHEN (OLD.confirmed_at IS NULL AND NEW.confirmed_at IS NOT NULL)
+EXECUTE FUNCTION public.handle_new_user_profile();
+
+CREATE TRIGGER on_auth_user_inserted_confirmed_profile
 AFTER INSERT ON auth.users
 FOR EACH ROW
+WHEN (NEW.confirmed_at IS NOT NULL)
 EXECUTE FUNCTION public.handle_new_user_profile();
