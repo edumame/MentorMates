@@ -140,7 +140,6 @@ export async function POST(request: NextRequest) {
           content: `Parse this rubric document into scoring tracks and criteria:\n\nFilename: ${file.name}\n\n${textContent}`,
         },
       ],
-      temperature: 0.2,
       response_format: { type: "json_object" },
     });
 
