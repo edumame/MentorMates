@@ -81,10 +81,9 @@ export function JudgingSidebar({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             message: text,
-            config,
-            history: chatMessages.slice(-10), // last 10 messages for context
+            event: { tracks: config.tracks, scoring_config: config },
+            history: chatMessages.slice(-10),
             context: "judging",
-            eventId,
           }),
         });
 
