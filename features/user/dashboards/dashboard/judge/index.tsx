@@ -48,7 +48,9 @@ interface ScoreRow {
   scores: Record<string, number> | null;
 }
 
-type NavigatorSort = "default" | "score_high" | "score_low" | "unscored_first";
+// Sort key: "default" | "unscored_first" | "score_high" | "score_low"
+// or per-track: "track_high:<trackId>" | "track_low:<trackId>"
+type NavigatorSort = string;
 
 /**
  * Compute the weighted average of a judge's scores for a single track.
@@ -172,11 +174,40 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
     return m;
   }, [projects, scoreValues, tracksById]);
 
+  // Helper: get a project's score for a specific track
+  const getTrackScore = (projectId: string, trackId: string): number | null => {
+    const projectScores = scoreValues.get(projectId);
+    if (!projectScores) return null;
+    const scores = projectScores.get(trackId);
+    if (!scores) return null;
+    const track = tracksById.get(trackId);
+    return computeTrackAverage(scores, track);
+  };
+
   // Apply sort to the visible projects for the navigator
   const navigatorProjects = useMemo(() => {
     if (navigatorSort === "default") return visibleProjects;
     const sorted = [...visibleProjects];
+
+    // Per-track sort: "track_high:<trackId>" or "track_low:<trackId>"
+    const trackMatch = navigatorSort.match(/^track_(high|low):(.+)$/);
+
     sorted.sort((a, b) => {
+      if (trackMatch) {
+        const [, direction, trackId] = trackMatch;
+        const scoreA = getTrackScore(a.id, trackId);
+        const scoreB = getTrackScore(b.id, trackId);
+        const hasA = scoreA !== null;
+        const hasB = scoreB !== null;
+        if (!hasA && !hasB) return a.project_name.localeCompare(b.project_name);
+        if (!hasA) return 1;
+        if (!hasB) return -1;
+        return direction === "high"
+          ? (scoreB as number) - (scoreA as number)
+          : (scoreA as number) - (scoreB as number);
+      }
+
+      // Overall average sort
       const avgA = averagesByProject.get(a.id);
       const avgB = averagesByProject.get(b.id);
       const hasA = avgA !== null && avgA !== undefined;
@@ -187,7 +218,6 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
         if (!hasA && hasB) return -1;
         return a.project_name.localeCompare(b.project_name);
       }
-      // For score sorts, unscored projects go to the bottom
       if (!hasA && !hasB) return a.project_name.localeCompare(b.project_name);
       if (!hasA) return 1;
       if (!hasB) return -1;
@@ -196,7 +226,7 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
         : (avgA as number) - (avgB as number);
     });
     return sorted;
-  }, [visibleProjects, navigatorSort, averagesByProject]);
+  }, [visibleProjects, navigatorSort, averagesByProject, scoreValues, tracksById]);
   const judgedProjectsCount = useMemo(
     () =>
       projects.filter((project) => isProjectFullyScored(project, scoredProjects))
@@ -754,15 +784,39 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                   <select
                     value={navigatorSort}
                     onChange={(e) =>
-                      setNavigatorSort(e.target.value as NavigatorSort)
+                      setNavigatorSort(e.target.value)
                     }
-                    className="h-8 rounded-md border border-[#D4DDEC] bg-white px-2 text-xs font-medium text-[rgba(0,0,0,0.68)] focus:outline-none focus:ring-1 focus:ring-[#4B89EF]"
+                    className="h-8 max-w-[180px] rounded-md border border-[#D4DDEC] bg-white px-2 text-xs font-medium text-[rgba(0,0,0,0.68)] focus:outline-none focus:ring-1 focus:ring-[#4B89EF]"
                     aria-label="Sort projects"
                   >
                     <option value="default">Alphabetical</option>
-                    <option value="score_high">Score: high → low</option>
-                    <option value="score_low">Score: low → high</option>
                     <option value="unscored_first">Unscored first</option>
+                    {eventTracks.length > 0 && (
+                      <optgroup label="By overall avg">
+                        <option value="score_high">Avg: high → low</option>
+                        <option value="score_low">Avg: low → high</option>
+                      </optgroup>
+                    )}
+                    {eventTracks.length > 0 && (
+                      <optgroup label="By track">
+                        {eventTracks.map((track) => (
+                          <option
+                            key={`high_${track.track_id}`}
+                            value={`track_high:${track.track_id}`}
+                          >
+                            {track.track_name}: high → low
+                          </option>
+                        ))}
+                        {eventTracks.map((track) => (
+                          <option
+                            key={`low_${track.track_id}`}
+                            value={`track_low:${track.track_id}`}
+                          >
+                            {track.track_name}: low → high
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
                   </select>
                   <p className="inline-flex h-7 items-center rounded-full bg-[#E8F8EC] px-2.5 text-xs font-semibold text-[#19703A]">
                     Judged {judgedProjectsCount}/{projects.length}
