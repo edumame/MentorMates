@@ -32,7 +32,9 @@ import { toast } from "@/lib/hooks/use-toast";
 import { Toaster } from "@/components/ui/toaster";
 import UserSearch from "@/components/utils/UserSearch";
 import { Card } from "@/components/ui/card";
+import { ProjectDescription } from "@/components/projects/ProjectDescription";
 import { Project, FeedbackItem } from "@/lib/types";
+import { CoverImageWithFallback } from "@/features/projects/components/displays/cover-image-with-fallback";
 import { fetchProjectById } from "@/features/projects/utils/projects";
 import { getFileNameFromUrl } from "@/lib/utils/file";
 import { getInitials } from "@/lib/utils/string";
@@ -100,19 +102,23 @@ export default function ProjectDashboardSection({
     }
 
     const fetchUsers = async () => {
-      const { data, error } = await supabase
-        .from("user_profiles")
-        .select("display_name");
+      const response = await fetch(
+        `/api/events/${eventId}/users?roles=participant,mentor,judge,organizer&limit=500`
+      );
+      const payload = await response.json();
 
-      if (error) {
-        console.error("Error fetching users:", error);
+      if (!response.ok) {
+        console.error("Error fetching users:", payload.error);
         return;
       }
 
-      if (data) {
-        const displayNames = data.map((user) => user.display_name);
-        setAvailableUsers(displayNames);
-      }
+      const users = payload.users as
+        | Array<{ display_name: string; email: string }>
+        | undefined;
+      const displayNames = (users || [])
+        .map((user) => user.display_name || user.email || "")
+        .filter(Boolean);
+      setAvailableUsers(displayNames);
     };
 
     fetchUsers();
@@ -382,12 +388,13 @@ export default function ProjectDashboardSection({
     <Card className="p-0 overflow-hidden">
       <Toaster />
       {projectData.cover_image_url ? (
-        <div
-          className="w-full h-[200px] bg-[#000080] bg-cover bg-center"
-          style={{
-            backgroundImage: `url(${projectData.cover_image_url})`,
-          }}
-        />
+        <div className="relative w-full h-[200px] overflow-hidden bg-[#000080]">
+          <CoverImageWithFallback
+            src={projectData.cover_image_url}
+            alt={`${projectData.project_name ?? "Project"} cover`}
+            className="absolute inset-0 h-full w-full object-cover object-center"
+          />
+        </div>
       ) : (
         <div className="w-full h-[200px] bg-[#000080]" />
       )}
@@ -439,7 +446,7 @@ export default function ProjectDashboardSection({
                   </Button>
                   <Button
                     onClick={() => setShowDeleteDialog(true)}
-                    variant="destructive"
+                    variant="delete"
                     size="icon"
                     className="h-9 w-9"
                   >
@@ -858,6 +865,20 @@ export default function ProjectDashboardSection({
                     }
                     rows={4}
                   />
+                  <p className="text-xs text-gray-500 mt-2">
+                    Markdown supported: use headings, lists, links, and emphasis.
+                  </p>
+                  {editedData?.project_description?.trim() ? (
+                    <div className="mt-3 rounded-lg border border-gray-200 bg-white p-3">
+                      <p className="text-xs font-medium text-gray-500 mb-2">
+                        Preview
+                      </p>
+                      <ProjectDescription
+                        value={editedData.project_description}
+                        className="text-sm"
+                      />
+                    </div>
+                  ) : null}
                 </div>
               </div>
             )}

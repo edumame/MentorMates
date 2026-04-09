@@ -22,10 +22,20 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Trash2, Plus, Shuffle, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Trash2,
+  Plus,
+  Shuffle,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  Loader2,
+} from "lucide-react";
 import { useToast } from "@/lib/hooks/use-toast";
 import { EventRole } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
+import { buildJudgeProjectPairs } from "./batch-assignments";
 import {
   AlertDialog,
   AlertDialogTrigger,
@@ -42,6 +52,13 @@ interface Project {
   id: string;
   project_name: string;
   lead_name: string;
+  tracks?: ProjectTrack[];
+}
+
+interface ProjectTrack {
+  track_id: string;
+  name?: string | null;
+  label?: string | null;
 }
 
 interface User {
@@ -80,6 +97,13 @@ export function AssignTab({ eventId }: AssignTabProps) {
   const [showName, setShowName] = useState<boolean>(false);
   const [sortField, setSortField] = useState<SortField>("project_name");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+  const [selectedJudgeIds, setSelectedJudgeIds] = useState<Set<string>>(
+    new Set()
+  );
+  const [selectedProjectIds, setSelectedProjectIds] = useState<Set<string>>(
+    new Set()
+  );
+  const [batchAssigning, setBatchAssigning] = useState<boolean>(false);
   const { toast } = useToast();
 
   const handleSort = (field: SortField) => {
@@ -138,35 +162,28 @@ export function AssignTab({ eventId }: AssignTabProps) {
   });
 
   const fetchUsers = useCallback(async () => {
-    // Using supabase directly since there's no API endpoint for users by role
-    const { data: userRoles, error } = await supabase
-      .from("user_event_roles")
-      .select(
-        `
-        user_id,
-        role,
-        user_profiles:user_id (
-          display_name,
-          email
-        )
-      `
-      )
-      .eq("event_id", eventId)
-      .in("role", [EventRole.Judge, EventRole.Mentor, EventRole.Organizer]);
+    const response = await fetch(
+      `/api/events/${eventId}/users?roles=${EventRole.Judge},${EventRole.Mentor},${EventRole.Organizer}&limit=500`
+    );
+    const payload = await response.json();
+    if (!response.ok) {
+      throw new Error(payload.error || "Failed to fetch users");
+    }
 
-    if (error) throw error;
-
-    const users: User[] = (userRoles || []).map((ur) => {
-      const profile = Array.isArray(ur.user_profiles)
-        ? ur.user_profiles[0]
-        : ur.user_profiles;
-      return {
-        user_id: ur.user_id,
-        display_name: profile?.display_name || profile?.email?.split("@")[0] || "Unknown User",
-        email: profile?.email || "",
-        role: ur.role as EventRole,
-      };
-    });
+    const users: User[] = (payload.users || []).map(
+      (user: {
+        user_id: string;
+        role: EventRole;
+        display_name: string;
+        email: string;
+      }) => ({
+        user_id: user.user_id,
+        display_name:
+          user.display_name || user.email?.split("@")[0] || "Unknown User",
+        email: user.email || "",
+        role: user.role,
+      })
+    );
     
     if (includeOrganizers) {
       // Include organizers in both judges and mentors pools
@@ -183,71 +200,43 @@ export function AssignTab({ eventId }: AssignTabProps) {
     const response = await fetch(`/api/projects?eventId=${eventId}&submitted=true`);
     if (!response.ok) throw new Error("Failed to fetch projects");
     const data = await response.json();
-    setProjects(data.projects || []);
+    
+    // Transform the projects to extract tracks from project_tracks
+    const transformedProjects = (data.projects || []).map((project: {
+      id: string;
+      project_name: string;
+      lead_name: string;
+      project_tracks?: Array<{
+        track_id: string;
+        event_tracks?: {
+          track_id: string;
+          name: string | null;
+          label: string | null;
+        };
+      }>;
+      [key: string]: unknown;
+    }) => ({
+      ...project,
+      tracks: project.project_tracks
+        ?.map((pt): ProjectTrack | null => pt.event_tracks ? {
+          track_id: pt.event_tracks.track_id,
+          name: pt.event_tracks.name,
+          label: pt.event_tracks.label,
+        } : null)
+        .filter((track): track is ProjectTrack => track !== null) || [],
+    }));
+    
+    setProjects(transformedProjects);
   }, [eventId]);
 
   const fetchAssignments = useCallback(async () => {
-    // First get all project assignments for projects in this event
-    const { data: projectsInEvent } = await supabase
-      .from("projects")
-      .select("id")
-      .eq("event_id", eventId);
-
-    if (!projectsInEvent || projectsInEvent.length === 0) {
-      setAssignments([]);
-      return;
+    const response = await fetch(`/api/events/${eventId}/project-assignments`);
+    const payload = await response.json();
+    if (!response.ok) {
+      throw new Error(payload.error || "Failed to fetch assignments");
     }
 
-    const projectIds = projectsInEvent.map((p) => p.id);
-
-    const { data: assignmentData, error } = await supabase
-      .from("project_assignments")
-      .select(
-        `
-        id,
-        project_id,
-        user_id,
-        role,
-        projects:project_id (
-          id,
-          project_name,
-          lead_name
-        ),
-        user_profiles:user_id (
-          display_name,
-          email
-        )
-      `
-      )
-      .in("project_id", projectIds);
-
-    if (error) throw error;
-
-    const assignments: Assignment[] = (assignmentData || []).map((a) => {
-      const project = Array.isArray(a.projects) ? a.projects[0] : a.projects;
-      const profile = Array.isArray(a.user_profiles)
-        ? a.user_profiles[0]
-        : a.user_profiles;
-      return {
-        id: a.id,
-        project_id: a.project_id,
-        user_id: a.user_id,
-        role: a.role as EventRole,
-        project: {
-          id: project?.id || a.project_id,
-          project_name: project?.project_name || "Unknown Project",
-          lead_name: project?.lead_name || "Unknown Lead",
-        },
-        user: {
-          user_id: a.user_id,
-          display_name: profile?.display_name || profile?.email?.split("@")[0] || "Unknown User",
-          email: profile?.email || "",
-          role: a.role as EventRole,
-        },
-      };
-    });
-
-    setAssignments(assignments);
+    setAssignments(payload.assignments || []);
   }, [eventId]);
 
   const fetchData = useCallback(async () => {
@@ -277,6 +266,32 @@ export function AssignTab({ eventId }: AssignTabProps) {
       fetchUsers();
     }
   }, [includeOrganizers, loading, fetchUsers]);
+
+  useEffect(() => {
+    setSelectedProjectIds((previousSelection) => {
+      const currentProjectIds = new Set(projects.map((project) => project.id));
+      const validSelection = new Set(
+        [...previousSelection].filter((projectId) =>
+          currentProjectIds.has(projectId)
+        )
+      );
+      return validSelection.size === previousSelection.size
+        ? previousSelection
+        : validSelection;
+    });
+  }, [projects]);
+
+  useEffect(() => {
+    setSelectedJudgeIds((previousSelection) => {
+      const currentJudgeIds = new Set(judges.map((judge) => judge.user_id));
+      const validSelection = new Set(
+        [...previousSelection].filter((judgeId) => currentJudgeIds.has(judgeId))
+      );
+      return validSelection.size === previousSelection.size
+        ? previousSelection
+        : validSelection;
+    });
+  }, [judges]);
 
   const handleAutoAssign = async (role: EventRole) => {
     setAutoAssigning(true);
@@ -388,6 +403,138 @@ export function AssignTab({ eventId }: AssignTabProps) {
     );
   };
 
+  const toggleJudgeSelection = (judgeId: string, checked: boolean) => {
+    setSelectedJudgeIds((previousSelection) => {
+      const updatedSelection = new Set(previousSelection);
+      if (checked) {
+        updatedSelection.add(judgeId);
+      } else {
+        updatedSelection.delete(judgeId);
+      }
+      return updatedSelection;
+    });
+  };
+
+  const toggleProjectSelection = (projectId: string, checked: boolean) => {
+    setSelectedProjectIds((previousSelection) => {
+      const updatedSelection = new Set(previousSelection);
+      if (checked) {
+        updatedSelection.add(projectId);
+      } else {
+        updatedSelection.delete(projectId);
+      }
+      return updatedSelection;
+    });
+  };
+
+  const handleSelectAllProjects = (checked: boolean) => {
+    if (!checked) {
+      setSelectedProjectIds(new Set());
+      return;
+    }
+    setSelectedProjectIds(new Set(sortedProjects.map((project) => project.id)));
+  };
+
+  const handleClearBatchSelection = () => {
+    setSelectedJudgeIds(new Set());
+    setSelectedProjectIds(new Set());
+  };
+
+  const handleBatchAssignJudges = async () => {
+    const candidatePairs = buildJudgeProjectPairs(
+      selectedJudgeIds,
+      selectedProjectIds
+    );
+    if (candidatePairs.length === 0) {
+      toast({
+        title: "No selections",
+        description: "Select at least one judge and one project.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const existingJudgeAssignmentKeys = new Set(
+      assignments
+        .filter((assignment) => assignment.role === EventRole.Judge)
+        .map((assignment) => `${assignment.project_id}:${assignment.user_id}`)
+    );
+
+    const newPairs = candidatePairs.filter(
+      ({ projectId, judgeId }) =>
+        !existingJudgeAssignmentKeys.has(`${projectId}:${judgeId}`)
+    );
+
+    if (newPairs.length === 0) {
+      toast({
+        title: "No changes",
+        description:
+          "All selected judges are already assigned to the selected projects.",
+      });
+      return;
+    }
+
+    setBatchAssigning(true);
+    try {
+      const results = await Promise.allSettled(
+        newPairs.map(async ({ judgeId, projectId }) => {
+          const response = await fetch(`/api/roles/assign/${judgeId}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              projectId,
+              role: EventRole.Judge,
+              eventId,
+            }),
+          });
+
+          if (!response.ok) {
+            let errorMessage = "Error assigning role";
+            try {
+              const errorData = await response.json();
+              errorMessage = errorData?.error || errorMessage;
+            } catch {
+              // Best effort parse for failed assignment errors.
+            }
+            throw new Error(errorMessage);
+          }
+        })
+      );
+
+      const failedCount = results.filter(
+        (result) => result.status === "rejected"
+      ).length;
+      const successCount = newPairs.length - failedCount;
+
+      if (failedCount > 0) {
+        toast({
+          title: "Partial success",
+          description: `${successCount} assignments added, ${failedCount} failed.`,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Success",
+          description: `Assigned ${selectedJudgeIds.size} judge${selectedJudgeIds.size === 1 ? "" : "s"} to ${selectedProjectIds.size} project${selectedProjectIds.size === 1 ? "" : "s"}.`,
+        });
+      }
+
+      await fetchAssignments();
+      if (failedCount === 0) {
+        setSelectedProjectIds(new Set());
+      }
+    } catch (error) {
+      console.error("Error batch assigning judges:", error);
+      toast({
+        title: "Error",
+        description: "Failed to assign judges in bulk.",
+        variant: "destructive",
+      });
+    } finally {
+      setBatchAssigning(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -423,7 +570,7 @@ export function AssignTab({ eventId }: AssignTabProps) {
           </div>
 
           {/* Show Name/Email Toggle */}
-          <div className="flex items-center space-x-2 pb-2 border-b">
+          <div className="flex items-center space-x-2 pb-2">
             <Switch
               id="show-name"
               checked={showName}
@@ -518,6 +665,86 @@ export function AssignTab({ eventId }: AssignTabProps) {
             </div>
           </div>
         </div>
+        <div className="space-y-4 p-4 border rounded-lg">
+          <h3 className="font-semibold">Batch Assign Judges</h3>
+          <p className="text-sm text-muted-foreground">
+            Pick one or more judges, then select projects in the table to assign
+            them in one action.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Select judges</Label>
+              <div className="max-h-48 overflow-y-auto rounded-md border p-3 space-y-2">
+                {judges.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No judges available to assign.
+                  </p>
+                ) : (
+                  judges.map((judge) => (
+                    <div
+                      key={judge.user_id}
+                      className="flex items-center gap-2"
+                    >
+                      <Checkbox
+                        id={`batch-judge-${judge.user_id}`}
+                        checked={selectedJudgeIds.has(judge.user_id)}
+                        onCheckedChange={(checked) =>
+                          toggleJudgeSelection(judge.user_id, checked === true)
+                        }
+                      />
+                      <Label
+                        htmlFor={`batch-judge-${judge.user_id}`}
+                        className="cursor-pointer text-sm font-normal flex flex-col"
+                      >
+                        <span className="font-medium text-foreground">
+                          {judge.display_name}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {judge.email}
+                        </span>
+                      </Label>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+            <div className="space-y-3">
+              <div className="rounded-md border p-3 text-sm text-muted-foreground">
+                Selected judges: {selectedJudgeIds.size}
+                <br />
+                Selected projects: {selectedProjectIds.size}
+              </div>
+              <Button
+                className="w-full"
+                disabled={
+                  batchAssigning ||
+                  selectedJudgeIds.size === 0 ||
+                  selectedProjectIds.size === 0
+                }
+                onClick={handleBatchAssignJudges}
+              >
+                {batchAssigning ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Assigning...
+                  </>
+                ) : (
+                  "Assign selected judges to selected projects"
+                )}
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={handleClearBatchSelection}
+                disabled={
+                  selectedJudgeIds.size === 0 && selectedProjectIds.size === 0
+                }
+              >
+                Clear batch selections
+              </Button>
+            </div>
+          </div>
+        </div>
         {/* Assignment Table */}
         <div className="space-y-4">
           <h3 className="font-semibold">Current Assignments for Submitted Projects</h3>
@@ -530,6 +757,18 @@ export function AssignTab({ eventId }: AssignTabProps) {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-12">
+                    <Checkbox
+                      checked={
+                        sortedProjects.length > 0 &&
+                        selectedProjectIds.size === sortedProjects.length
+                      }
+                      onCheckedChange={(checked) =>
+                        handleSelectAllProjects(checked === true)
+                      }
+                      aria-label="Select all submitted projects for batch assignment"
+                    />
+                  </TableHead>
                   <TableHead>
                     <button
                       className="flex items-center hover:text-foreground"
@@ -590,8 +829,30 @@ export function AssignTab({ eventId }: AssignTabProps) {
 
                   return (
                     <TableRow key={project.id}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedProjectIds.has(project.id)}
+                          onCheckedChange={(checked) =>
+                            toggleProjectSelection(project.id, checked === true)
+                          } 
+                          aria-label={`Select ${project.project_name} for batch assignment`}
+                        />
+                      </TableCell>
                       <TableCell className="font-medium">
-                        {project.project_name}
+                        <div className="space-y-1">
+                          <div>{project.project_name}</div>
+                          <div className="flex flex-wrap gap-1">
+                            {(project.tracks || []).length > 0 ? (
+                              project.tracks?.map((track) => (
+                                <Badge key={track.track_id} variant="outline">
+                                  {track.label || track.name || "Unnamed Track"}
+                                </Badge>
+                              ))
+                            ) : (
+                              <Badge variant="outline">No track</Badge>
+                            )}
+                          </div>
+                        </div>
                       </TableCell>
                       <TableCell>{project.lead_name}</TableCell>
                       <TableCell>
@@ -601,8 +862,11 @@ export function AssignTab({ eventId }: AssignTabProps) {
                               key={assignment.id}
                               className="flex items-center gap-2"
                             >
-                              <Badge variant="outline">
-                                {showName ? assignment.user.display_name : assignment.user.email}
+                              <Badge
+                                variant="outline"
+                                title={assignment.user.email}
+                              >
+                                {assignment.user.display_name}
                               </Badge>
                               <Button
                                 size="sm"
@@ -623,7 +887,6 @@ export function AssignTab({ eventId }: AssignTabProps) {
                               (a) => a.user_id
                             )}
                             onAssign={handleIndividualAssign}
-                            showName={showName}
                           />
                         </div>
                       </TableCell>
@@ -634,8 +897,11 @@ export function AssignTab({ eventId }: AssignTabProps) {
                               key={assignment.id}
                               className="flex items-center gap-2"
                             >
-                              <Badge variant="outline">
-                                {showName ? assignment.user.display_name : assignment.user.email}
+                              <Badge
+                                variant="outline"
+                                title={assignment.user.email}
+                              >
+                                {assignment.user.display_name}
                               </Badge>
                               <Button
                                 size="sm"
@@ -656,7 +922,6 @@ export function AssignTab({ eventId }: AssignTabProps) {
                               (a) => a.user_id
                             )}
                             onAssign={handleIndividualAssign}
-                            showName={showName}
                           />
                         </div>
                       </TableCell>
@@ -684,7 +949,6 @@ interface ManualAssignSelectProps {
   users: User[];
   existingAssignments: string[];
   onAssign: (userId: string, projectId: string, role: EventRole) => void;
-  showName: boolean;
 }
 
 function ManualAssignSelect({
@@ -693,7 +957,6 @@ function ManualAssignSelect({
   users,
   existingAssignments,
   onAssign,
-  showName,
 }: ManualAssignSelectProps) {
   const [selectedUserId, setSelectedUserId] = useState<string>("");
 
@@ -716,7 +979,12 @@ function ManualAssignSelect({
         <SelectContent>
           {availableToAssign.map((user) => (
             <SelectItem key={user.user_id} value={user.user_id}>
-              {showName ? user.display_name : user.email}
+              <div className="flex flex-col">
+                <span className="font-medium">{user.display_name}</span>
+                <span className="text-xs text-muted-foreground">
+                  {user.email}
+                </span>
+              </div>
             </SelectItem>
           ))}
         </SelectContent>

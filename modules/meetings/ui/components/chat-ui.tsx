@@ -1,31 +1,43 @@
-import { useState, useEffect, useRef } from "react";
-import type { WheelEvent } from "react";
+import { useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import type { Channel as StreamChannel } from "stream-chat";
 import {
-    useCreateChatClient,
     Chat,
     Channel,
     MessageInput,
     MessageList,
     Thread,
     Window,
+    useCreateChatClient,
 } from "stream-chat-react";
 import { useTRPC } from "@/trpc/client";
 import { LoadingState } from "@/components/loading-state";
+import { ErrorState } from "@/components/error-state";
 import "stream-chat-react/dist/css/v2/index.css";
 
 interface ChatUIProps {
     meetingId: string;
     meetingName: string;
+    projectName?: string | null;
     userId: string;
     userName: string;
     userImage: string | undefined;
 };
 
+const ChatEmptyState = ({ contextName }: { contextName: string }) => (
+    <div className="mx-auto flex min-h-[56vh] w-full max-w-5xl flex-col items-center justify-center pb-20 text-center">
+        <h2 className="text-[38px] font-medium tracking-[-0.03em] text-[#0E1013] sm:text-[56px]">
+            What can I help with?
+        </h2>
+        <p className="mt-4 text-[16px] text-[#6C7077]">
+            Ask anything about {contextName}.
+        </p>
+    </div>
+);
+
 export const ChatUI = ({
     meetingId,
-    meetingName,
+    projectName,
     userId,
     userName,
     userImage,
@@ -34,6 +46,9 @@ export const ChatUI = ({
     const { mutateAsync: generateChatToken } = useMutation(trpc.meetings.generateChatToken.mutationOptions());
 
     const [channel, setChannel] = useState<StreamChannel>();
+    const [isChannelLoading, setIsChannelLoading] = useState(true);
+    const [chatError, setChatError] = useState<string | null>(null);
+
     const client = useCreateChatClient({
         apiKey: process.env.NEXT_PUBLIC_STREAM_CHAT_API_KEY!,
         tokenOrProvider: generateChatToken,
@@ -47,54 +62,37 @@ export const ChatUI = ({
     useEffect(() => {
         if (!client) return;
 
-        const channel = client.channel("messaging", meetingId, { members: [userId] });
+        const nextChannel = client.channel("messaging", meetingId, { members: [userId] });
+        setChannel(nextChannel);
+        setIsChannelLoading(true);
+        setChatError(null);
 
-        setChannel(channel);
-    }, [client, meetingId, meetingName, userId]);
+        let mounted = true;
 
-    const listRef = useRef<HTMLDivElement | null>(null);
+        const initializeChannel = async () => {
+            try {
+                await nextChannel.watch();
+                if (!mounted) return;
 
-    // Auto-scroll to bottom when new messages appear, using smooth behavior
-    useEffect(() => {
-        const el = listRef.current;
-        if (!el) return;
-
-        // Ensure smooth scrolling is enabled
-        try {
-            el.style.scrollBehavior = "smooth";
-        } catch (e) {
-            console.error("Failed to enable smooth scrolling", e);
-        }
-
-        // Scroll to bottom once on mount
-        el.scrollTop = el.scrollHeight;
-
-        const observer = new MutationObserver((mutations) => {
-            for (const m of mutations) {
-                if (m.addedNodes && m.addedNodes.length > 0) {
-                    // New message(s) added -> scroll to bottom
-                    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
-                    break;
-                }
+                setIsChannelLoading(false);
+            } catch (error) {
+                console.error("Failed to initialize chat channel", error);
+                if (!mounted) return;
+                setChannel(undefined);
+                setIsChannelLoading(false);
+                setChatError("Unable to load this chat right now. Please refresh and try again.");
             }
-        });
+        };
 
-        observer.observe(el, { childList: true, subtree: true });
+        void initializeChannel();
 
-        return () => observer.disconnect();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [listRef.current]);
+        return () => {
+            mounted = false;
+            void nextChannel.stopWatching?.();
+        };
+    }, [client, meetingId, userId]);
 
-    const handleWheel = (e: WheelEvent<HTMLDivElement>) => {
-        const el = listRef.current;
-        if (!el) return;
-
-        // Apply wheel delta immediately to match native scrollbar speed
-        el.scrollTop += e.deltaY;
-        e.preventDefault();
-    };
-
-    if (!client) {
+    if (!client || isChannelLoading) {
         return (
             <LoadingState
                 title="Loading Chat"
@@ -103,19 +101,37 @@ export const ChatUI = ({
         );
     }
 
+    if (chatError || !channel) {
+        return (
+            <ErrorState
+                title="Unable to load chat"
+                description={chatError ?? "Please refresh and try again."}
+            />
+        );
+    }
+
+    const emptyStateContextName = projectName?.trim() || "this project";
+
     return (
-        <div className="bg-white rounded-lg border overflow-hidden">
+        <div className="chatgpt-stream-shell flex h-full min-h-0 flex-col bg-[#F4F4F5]">
             <Chat client={client}>
-                <Channel channel={channel}>
+                <Channel
+                    channel={channel}
+                    EmptyStateIndicator={() => <ChatEmptyState contextName={emptyStateContextName} />}
+                >
                     <Window>
-                        <div
-                            ref={listRef}
-                            onWheel={handleWheel}
-                            className="flex-1 overflow-y-auto max-h-[calc(100vh-23rem)] border-b"
-                        >
-                            <MessageList />
+                        <div className="flex-1 overflow-y-auto px-4 pb-6 pt-4 sm:px-8">
+                            <div className="mx-auto w-full max-w-5xl">
+                                <MessageList />
+                            </div>
                         </div>
-                        <MessageInput />
+
+                        <div className="px-4 pb-6 pt-2 sm:px-8">
+                            <div className="mx-auto w-full max-w-5xl">
+                                {/* TODO: Add voice input once transcription support is implemented. */}
+                                <MessageInput additionalTextareaProps={{ placeholder: "Ask anything" }} />
+                            </div>
+                        </div>
                     </Window>
                     <Thread />
                 </Channel>

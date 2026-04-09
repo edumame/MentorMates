@@ -63,6 +63,7 @@ export default function SubmitTranscriptButton({ meetingId }: { meetingId: strin
   const isUpcoming = meetingData?.status === "upcoming";
   const displayDone = done || !isUpcoming;
   const disabled = loading || displayDone;
+  const label = loading ? "Getting review..." : displayDone ? "Review ready" : "Get review";
 
   async function handleSubmit() {
     if (loading || !isUpcoming) return;
@@ -95,8 +96,17 @@ export default function SubmitTranscriptButton({ meetingId }: { meetingId: strin
   }
 
   return (
-    <Button onClick={handleSubmit} disabled={disabled} variant={displayDone ? "defaultGray" : "default"}>
-      {loading ? "Submitting..." : displayDone ? "Submitted" : "Submit"}
+    <Button
+      onClick={handleSubmit}
+      disabled={disabled}
+      variant={displayDone ? "defaultGray" : "default"}
+      aria-label={label}
+      className="!h-9 !px-3 !py-1 text-xs sm:!h-10 sm:!px-4 sm:!py-2 sm:text-base"
+    >
+      <span className="whitespace-nowrap sm:hidden">
+        {loading ? "Loading" : displayDone ? "Reviewed" : "Review"}
+      </span>
+      <span className="hidden whitespace-nowrap sm:inline">{label}</span>
     </Button>
   );
 }

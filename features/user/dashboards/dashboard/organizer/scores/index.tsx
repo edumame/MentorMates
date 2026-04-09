@@ -639,14 +639,22 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
           }
 
           if (participantIds.length > 0) {
-            const { data: users, error: usersError } = await supabase
-              .from("user_profiles")
-              .select("uid, display_name, email")
-              .in("uid", participantIds);
-            if (usersError) {
-              console.error("Error fetching participants for agent scores:", usersError);
+            const profilesResponse = await fetch(
+              `/api/events/${eventId}/profiles`,
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ userIds: participantIds }),
+              }
+            );
+            const profilesPayload = await profilesResponse.json();
+            if (!profilesResponse.ok) {
+              console.error(
+                "Error fetching participants for agent scores:",
+                profilesPayload.error
+              );
             } else {
-              const userRows = (users ?? []) as Array<{
+              const userRows = (profilesPayload.profiles ?? []) as Array<{
                 uid: string;
                 display_name: string | null;
                 email: string | null;
@@ -867,16 +875,25 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
   return (
     <div className="space-y-6">
       <Tabs defaultValue="judge-scores" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 max-w-lg">
-          <TabsTrigger value="judge-scores" className="flex items-center gap-2">
+        <TabsList className="font-inter grid w-full grid-cols-3 h-auto p-1 gap-0 rounded-xl bg-white border border-[rgba(0,0,0,0.15)] text-muted-foreground">
+          <TabsTrigger
+            value="judge-scores"
+            className="flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-black border border-transparent transition-all data-[state=active]:bg-[var(--Color-Pattens-Blue-Lightest,#FBFCFE)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:font-semibold data-[state=active]:shadow-none hover:text-black/80"
+          >
             <Gavel className="w-4 h-4" />
             Judge Scores
           </TabsTrigger>
-          <TabsTrigger value="agent-scores" className="flex items-center gap-2">
+          <TabsTrigger
+            value="agent-scores"
+            className="flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-black border border-transparent transition-all data-[state=active]:bg-[var(--Color-Pattens-Blue-Lightest,#FBFCFE)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:font-semibold data-[state=active]:shadow-none hover:text-black/80"
+          >
             <Bot className="w-4 h-4" />
             Agent Scores
           </TabsTrigger>
-          <TabsTrigger value="peoples-choice" className="flex items-center gap-2">
+          <TabsTrigger
+            value="peoples-choice"
+            className="flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-black border border-transparent transition-all data-[state=active]:bg-[var(--Color-Pattens-Blue-Lightest,#FBFCFE)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:font-semibold data-[state=active]:shadow-none hover:text-black/80"
+          >
             <Vote className="w-4 h-4" />
             People&apos;s Choice
           </TabsTrigger>
@@ -893,11 +910,23 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
                 <div className="flex justify-between items-center">
                   <h3 className="text-lg font-medium">Live Judge Scores</h3>
                   <div className="flex space-x-2">
-                    <Button onClick={exportRawData} variant="outline" size="sm" disabled={loading}>
+                    <Button
+                      onClick={exportRawData}
+                      variant="outline"
+                      size="sm"
+                      disabled={loading}
+                      className="flex h-11 items-center rounded-[12px] px-5 py-2"
+                    >
                       <Download className="w-4 h-4 mr-2" />
                       Export Raw Data
                     </Button>
-                    <Button onClick={exportScores} variant="outline" size="sm" disabled={loading}>
+                    <Button
+                      onClick={exportScores}
+                      variant="outline"
+                      size="sm"
+                      disabled={loading}
+                      className="flex h-11 items-center rounded-[12px] px-5 py-2"
+                    >
                       <Download className="w-4 h-4 mr-2" />
                       Export Tables
                     </Button>
@@ -1150,7 +1179,12 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
                                           </TableCell>
                                           <TableCell className="min-w-[150px] max-w-[200px]">
                                             <div className="break-words">
-                                              {score.projectName}
+                                              <Link
+                                                href={`/projects/public/${score.projectId}`}
+                                                className="text-blue-600 hover:text-blue-700 hover:underline"
+                                              >
+                                                {score.projectName}
+                                              </Link>
                                             </div>
                                           </TableCell>
                                           <TableCell className="min-w-[120px] max-w-[150px]">
@@ -1513,7 +1547,16 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
                                 </TableCell>
                                 <TableCell className="min-w-[220px]">
                                   <div className="break-words">
-                                    {row.projectName || "—"}
+                                    {row.projectId ? (
+                                      <Link
+                                        href={`/projects/public/${row.projectId}`}
+                                        className="text-blue-600 hover:text-blue-700 hover:underline"
+                                      >
+                                        {row.projectName || row.projectId}
+                                      </Link>
+                                    ) : (
+                                      row.projectName || "—"
+                                    )}
                                   </div>
                                 </TableCell>
                                 <TableCell className="min-w-[200px]">

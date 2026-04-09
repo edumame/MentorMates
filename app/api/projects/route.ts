@@ -2,13 +2,124 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import {
   EventRole,
+  EventSubmissionField,
   EventTrack,
   Prize,
   ProjectFromDatabase,
+  ProjectSubmissionAnswer,
   ProjectWithPrizes,
 } from "@/lib/types";
 import { canAccessRole } from "@/features/user/roles/roles";
 import { createContextusProject } from "@/lib/integrations/contextus";
+import { buildArtifactsFromLegacy } from "@/features/projects/utils/submission";
+import { applyEffectiveSubmissionToProject } from "@/features/projects/utils/effectiveSubmission";
+
+type ArtifactRow = {
+  project_id: string;
+  id: string;
+  kind: "project_link" | "video_link" | "additional_material";
+  label: string;
+  url: string;
+  sort_order: number;
+  is_primary: boolean;
+  metadata: Record<string, unknown> | null;
+};
+
+type OrganizerProjectRow = {
+  id: string;
+  project_tracks?: { track_id: string }[] | null;
+  project_url?: string | null;
+  additional_materials_url?: string | null;
+  video_url?: string | null;
+  [key: string]: unknown;
+};
+
+type SubmissionAnswerRow = ProjectSubmissionAnswer;
+
+async function fetchSubmissionFieldsByEventIds(
+  supabase: Awaited<ReturnType<typeof createSupabaseClient>>,
+  eventIds: string[]
+) {
+  if (eventIds.length === 0) {
+    return new Map<string, EventSubmissionField[]>();
+  }
+
+  const { data, error } = await supabase
+    .from("event_submission_fields")
+    .select("*")
+    .in("event_id", eventIds)
+    .eq("is_active", true)
+    .order("sort_order", { ascending: true });
+
+  if (error || !data) {
+    return new Map<string, EventSubmissionField[]>();
+  }
+
+  const map = new Map<string, EventSubmissionField[]>();
+  for (const row of data as EventSubmissionField[]) {
+    const existing = map.get(row.event_id) || [];
+    existing.push(row);
+    map.set(row.event_id, existing);
+  }
+
+  return map;
+}
+
+async function fetchSubmissionAnswersByProjectIds(
+  supabase: Awaited<ReturnType<typeof createSupabaseClient>>,
+  projectIds: string[]
+) {
+  if (projectIds.length === 0) {
+    return new Map<string, SubmissionAnswerRow[]>();
+  }
+
+  const { data, error } = await supabase
+    .from("project_submission_answers")
+    .select("id, project_id, event_submission_field_id, answer")
+    .in("project_id", projectIds);
+
+  if (error || !data) {
+    return new Map<string, SubmissionAnswerRow[]>();
+  }
+
+  const map = new Map<string, SubmissionAnswerRow[]>();
+  for (const row of data as SubmissionAnswerRow[]) {
+    const existing = map.get(row.project_id) || [];
+    existing.push(row);
+    map.set(row.project_id, existing);
+  }
+
+  return map;
+}
+
+async function fetchArtifactsByProjectIds(
+  supabase: Awaited<ReturnType<typeof createSupabaseClient>>,
+  projectIds: string[]
+) {
+  if (projectIds.length === 0) {
+    return new Map<string, ArtifactRow[]>();
+  }
+
+  const { data, error } = await supabase
+    .from("project_artifacts")
+    .select(
+      "id, project_id, kind, label, url, sort_order, is_primary, metadata"
+    )
+    .in("project_id", projectIds)
+    .order("sort_order", { ascending: true });
+
+  if (error || !data) {
+    return new Map<string, ArtifactRow[]>();
+  }
+
+  const map = new Map<string, ArtifactRow[]>();
+  for (const row of data as ArtifactRow[]) {
+    const existing = map.get(row.project_id) || [];
+    existing.push(row);
+    map.set(row.project_id, existing);
+  }
+  return map;
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -39,6 +150,7 @@ export async function GET(request: NextRequest) {
             project_description,
             teammates,
             project_url,
+            video_url,
             additional_materials_url,
             cover_image_url,
             event_id,
@@ -82,8 +194,20 @@ export async function GET(request: NextRequest) {
         if (eventMetaError || eventMeta?.visibility !== "public") {
           return NextResponse.json({ error: "Project not found" }, { status: 404 });
         }
+        const [artifactMap, fieldMap, answerMap] = await Promise.all([
+          fetchArtifactsByProjectIds(supabase, [project.id]),
+          fetchSubmissionFieldsByEventIds(supabase, [project.event_id]),
+          fetchSubmissionAnswersByProjectIds(supabase, [project.id]),
+        ]);
+        const fallbackArtifacts = buildArtifactsFromLegacy({
+          project_url: project.project_url,
+          additional_materials_url: project.additional_materials_url,
+          video_url: (
+            project as unknown as { video_url?: string | null }
+          ).video_url,
+        });
 
-        const transformedProject = {
+        const transformedProject = applyEffectiveSubmissionToProject({
           id: project.id,
           project_name: project.project_name,
           lead_name: project.lead_name,
@@ -99,14 +223,19 @@ export async function GET(request: NextRequest) {
           ).contextus_project_id,
           submitted: (project as unknown as { submitted?: boolean }).submitted ?? true,
           tracks:
-            project.project_tracks?.map((pt) => pt.event_tracks).filter(Boolean) ||
-            [],
+            project.project_tracks?.filter((pt) => Boolean(pt.event_tracks)).map(
+              (pt) => pt.event_tracks
+            ) || [],
           track_ids:
             project.project_tracks
               ?.map((pt) => pt.event_tracks?.track_id)
               .filter(Boolean) || [],
           created_at: project.created_at,
-        };
+        },
+        fieldMap.get(project.event_id) || [],
+        answerMap.get(project.id),
+        artifactMap.get(project.id) || fallbackArtifacts
+        );
 
         return NextResponse.json({ project: transformedProject });
       }
@@ -169,6 +298,7 @@ export async function GET(request: NextRequest) {
           project_description,
           teammates,
           project_url,
+          video_url,
           additional_materials_url,
           cover_image_url,
           event_id,
@@ -214,6 +344,7 @@ export async function GET(request: NextRequest) {
         project_description: item.project_description,
         teammates: item.teammates,
         project_url: item.project_url,
+        video_url: item.video_url,
         additional_materials_url: item.additional_materials_url,
         cover_image_url: item.cover_image_url,
         event_id: item.event_id,
@@ -223,18 +354,44 @@ export async function GET(request: NextRequest) {
         submitted:
           (item as unknown as { submitted?: boolean }).submitted ?? true,
         tracks:
-          item.project_tracks?.map((pt) => pt.event_tracks).filter(Boolean) ||
-          [],
+          item.project_tracks
+            ?.map((pt) => pt.event_tracks)
+            .filter((track): track is EventTrack => Boolean(track)) || [],
         track_ids:
           item.project_tracks
             ?.map((pt) => pt.event_tracks?.track_id)
-            .filter(Boolean) || [],
+            .filter((trackId): trackId is string => Boolean(trackId)) || [],
         created_at: item.created_at,
       }));
 
+      const [artifactMap, fieldMap, answerMap] = await Promise.all([
+        fetchArtifactsByProjectIds(
+          supabase,
+          projects.map((project) => project.id)
+        ),
+        fetchSubmissionFieldsByEventIds(supabase, [resolvedEventId]),
+        fetchSubmissionAnswersByProjectIds(
+          supabase,
+          projects.map((project) => project.id)
+        ),
+      ]);
+      const projectsWithArtifacts = projects.map((project) =>
+        applyEffectiveSubmissionToProject(
+          project,
+          fieldMap.get(project.event_id) || [],
+          answerMap.get(project.id),
+          artifactMap.get(project.id) ||
+            buildArtifactsFromLegacy({
+              project_url: project.project_url,
+              additional_materials_url: project.additional_materials_url,
+              video_url: (project as { video_url?: string | null }).video_url,
+            })
+        )
+      );
+
       // Fetch prizes for all projects
-      if (projects.length > 0) {
-        const projectIds = projects.map((p) => p.id);
+      if (projectsWithArtifacts.length > 0) {
+        const projectIds = projectsWithArtifacts.map((p) => p.id);
         const { data: prizesData } = await supabase
           .from("prizes")
           .select(
@@ -284,16 +441,18 @@ export async function GET(request: NextRequest) {
             }
           });
 
-          projects.forEach(
-            (project: { id: string; [key: string]: unknown }) => {
-              (project as unknown as ProjectWithPrizes).prizes_won =
-                (prizesByProject[project.id] || []) as Prize[];
+          projectsWithArtifacts.forEach((project) => {
+            if (!project.id) {
+              return;
             }
-          );
+
+            (project as unknown as ProjectWithPrizes).prizes_won =
+              (prizesByProject[project.id] || []) as Prize[];
+          });
         }
       }
 
-      return NextResponse.json({ projects });
+      return NextResponse.json({ projects: projectsWithArtifacts });
     }
 
     // For all other requests, require authentication
@@ -318,6 +477,7 @@ export async function GET(request: NextRequest) {
           project_description,
           teammates,
           project_url,
+          video_url,
           additional_materials_url,
           cover_image_url,
           event_id,
@@ -354,8 +514,14 @@ export async function GET(request: NextRequest) {
         );
       }
 
+      const [artifactMap, fieldMap, answerMap] = await Promise.all([
+        fetchArtifactsByProjectIds(supabase, [project.id]),
+        fetchSubmissionFieldsByEventIds(supabase, [project.event_id]),
+        fetchSubmissionAnswersByProjectIds(supabase, [project.id]),
+      ]);
+
       // Transform project data
-      const transformedProject = {
+      const transformedProject = applyEffectiveSubmissionToProject({
         id: project.id,
         project_name: project.project_name,
         lead_name: project.lead_name,
@@ -363,6 +529,7 @@ export async function GET(request: NextRequest) {
         project_description: project.project_description,
         teammates: project.teammates,
         project_url: project.project_url,
+        video_url: (project as unknown as { video_url?: string | null }).video_url,
         additional_materials_url: project.additional_materials_url,
         cover_image_url: project.cover_image_url,
         event_id: project.event_id,
@@ -373,14 +540,23 @@ export async function GET(request: NextRequest) {
           (project as unknown as { submitted?: boolean }).submitted ?? false,
         tracks:
           project.project_tracks
-            ?.map((pt) => pt.event_tracks)
-            .filter(Boolean) || [],
+            ?.filter((pt) => Boolean(pt.event_tracks))
+            .map((pt) => pt.event_tracks) || [],
         track_ids:
           project.project_tracks
             ?.map((pt) => pt.event_tracks?.track_id)
             .filter(Boolean) || [],
         created_at: project.created_at,
-      };
+      },
+      fieldMap.get(project.event_id) || [],
+      answerMap.get(project.id),
+      artifactMap.get(project.id) ||
+        buildArtifactsFromLegacy({
+          project_url: project.project_url,
+          additional_materials_url: project.additional_materials_url,
+          video_url: (project as unknown as { video_url?: string | null }).video_url,
+        })
+      );
 
       // Fetch prizes for this project by starting from prize_winners
       const { data: prizeWinnersData } = await supabase
@@ -423,7 +599,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ project: transformedProject });
     }
 
-    // Handle projects by event (for organizers)
+    // Handle projects by event
     if (eventId) {
       // Check if user is organizer for this event
       const { data: userRole } = await supabase
@@ -433,30 +609,38 @@ export async function GET(request: NextRequest) {
         .eq("user_id", user.id)
         .single();
 
-      if (
-        !userRole ||
-        !canAccessRole(userRole.role as EventRole, EventRole.Organizer)
-      ) {
-        return NextResponse.json(
-          { error: "Insufficient permissions" },
-          { status: 403 }
-        );
-      }
+      const isOrganizer =
+        userRole &&
+        canAccessRole(userRole.role as EventRole, EventRole.Organizer);
 
-      // Organizer view - fetch all projects with track relationships
+      // Build query with track relationships
       const query = supabase
         .from("projects")
         .select(
           `
             *,
             project_tracks (
-              track_id
+              track_id,
+              event_tracks (
+                track_id,
+                name,
+                label
+              )
+            ),
+            feedback (
+              feedback_text,
+              mentor_name,
+              mentor_email
             )
           `
         )
         .eq("event_id", eventId);
 
-      if (submitted) {
+      // Non-organizers can only see submitted projects
+      if (!isOrganizer) {
+        query.eq("submitted", true);
+      } else if (submitted) {
+        // Organizers can optionally filter by submitted
         query.eq("submitted", true);
       }
 
@@ -470,20 +654,51 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      const transformedProjects = (projectsData || []).map(
-        (project: {
-          project_tracks?: { track_id: string }[];
-          [key: string]: unknown;
-        }) => ({
+      const transformedProjects: Array<
+        OrganizerProjectRow & { track_ids: string[] }
+      > = ((projectsData as OrganizerProjectRow[] | null) || []).map(
+        (project) => ({
           ...project,
-          track_ids:
-            project.project_tracks?.map(
-              (pt: { track_id: string }) => pt.track_id
-            ) || [],
+          track_ids: project.project_tracks?.map((pt) => pt.track_id) || [],
         })
       );
+      const artifactMap = await fetchArtifactsByProjectIds(
+        supabase,
+        transformedProjects.map((project) => project.id)
+      );
 
-      return NextResponse.json({ projects: transformedProjects });
+      const [fieldMap, answerMap] = await Promise.all([
+        fetchSubmissionFieldsByEventIds(supabase, [eventId]),
+        fetchSubmissionAnswersByProjectIds(
+          supabase,
+          transformedProjects.map((project) => project.id)
+        ),
+      ]);
+
+      const transformedProjectsWithArtifacts = transformedProjects.map((project) =>
+        applyEffectiveSubmissionToProject(
+          {
+            ...project,
+            project_url: project.project_url ?? undefined,
+            additional_materials_url:
+              project.additional_materials_url ?? undefined,
+            video_url: project.video_url ?? undefined,
+          },
+          fieldMap.get(eventId) || [],
+          answerMap.get(project.id),
+          artifactMap.get(project.id) ||
+            buildArtifactsFromLegacy({
+              project_url: (project as { project_url?: string | null })
+                .project_url,
+              additional_materials_url: (
+                project as { additional_materials_url?: string | null }
+              ).additional_materials_url,
+              video_url: (project as { video_url?: string | null }).video_url,
+            })
+        )
+      );
+
+      return NextResponse.json({ projects: transformedProjectsWithArtifacts });
     }
 
     // If no specific parameters, return error

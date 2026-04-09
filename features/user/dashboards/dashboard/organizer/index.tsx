@@ -15,6 +15,7 @@ import {
   DollarSign,
   Bell,
   Bot,
+  KeyRound,
 } from "lucide-react";
 
 import {
@@ -28,15 +29,14 @@ import {
 // Tab components
 import { SubmissionsTab } from "./submissions";
 import { ScoresTab } from "./scores";
-import { ParticipantsTab } from "./participants";
+import { AssignTab } from "./assign";
 import { EventTracksContainer } from "./tracks";
 import { AccessTab } from "./access";
-import { AssignTab } from "./assign";
-import { ProjectImport } from "./import/ProjectImportButton";
-import { EmailTab } from "./email";
 import { PricingTab } from "./pricing/PricingTab";
 import EmailDashboard from "./notifications/EmailDashboard";
 import { AgentsTab } from "./agents/AgentsTab";
+import { ApiKeysTab } from "./api-keys/ApiKeysTab";
+import { IntakeResponsesTab } from "./registration";
 // Overview sub-tab components
 import { BasicInfoTab } from "./details/BasicInfoTab";
 import { ContentTab } from "./details/ContentTab";
@@ -83,6 +83,7 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
     { value: "pricing", label: "Pricing", icon: DollarSign },
     { value: "notify", label: "Notify", icon: Bell },
     { value: "agents", label: "Agents", icon: Bot },
+    { value: "api-keys", label: "API Keys", icon: KeyRound },
   ];
 
   // Sub-tabs under Overview matching Figma design
@@ -393,14 +394,7 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
               </TabsContent>
 
               <TabsContent value="registration" className="mt-0">
-                <div className="rounded-lg border bg-card p-6">
-                  <h3 className="text-lg font-semibold mb-4">
-                    Registration Settings
-                  </h3>
-                  <p className="text-gray-500">
-                    Registration configuration coming soon
-                  </p>
-                </div>
+                <IntakeResponsesTab eventId={eventId} />
               </TabsContent>
 
               <TabsContent value="project" className="mt-0">
@@ -408,7 +402,7 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
                   <h3 className="text-lg font-semibold mb-4">
                     Project Settings
                   </h3>
-                  <div className="space-y-4">
+                  <div className="space-y-6">
                     <SubmissionsTab eventId={eventId} />
                     <ScoresTab
                       eventId={eventId}
@@ -421,6 +415,12 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
                         }
                       }
                     />
+                    <div className="pt-6 border-t">
+                      <h4 className="text-base font-semibold mb-4">
+                        Assign Judges & Mentors to Projects
+                      </h4>
+                      <AssignTab eventId={eventId} />
+                    </div>
                   </div>
                 </div>
               </TabsContent>
@@ -443,6 +443,7 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
                   setEvent={setEvent}
                   saving={saving}
                   setSaving={setSaving}
+                  activeSubTab="password"
                 />
               </TabsContent>
 
@@ -468,6 +469,10 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
 
               <TabsContent value="agents" className="mt-0">
                 <AgentsTab eventId={eventId} />
+              </TabsContent>
+
+              <TabsContent value="api-keys" className="mt-0">
+                <ApiKeysTab eventId={eventId} />
               </TabsContent>
             </Tabs>
           </div>

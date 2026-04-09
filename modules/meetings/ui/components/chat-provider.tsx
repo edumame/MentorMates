@@ -4,14 +4,16 @@ import { supabase } from "@/lib/supabase";
 import { LoadingState } from "@/components/loading-state";
 import { ChatUI } from "./chat-ui";
 import { useEffect, useState } from "react";
+import type { Session } from "@supabase/supabase-js";
 
 interface Props {
     meetingId: string;
     meetingName: string;
+    projectName?: string | null;
 };
 
-export const ChatProvider = ({ meetingId, meetingName }: Props) => {
-    const [session, setSession] = useState<any | null>(null);
+export const ChatProvider = ({ meetingId, meetingName, projectName }: Props) => {
+    const [session, setSession] = useState<Session | null>(null);
     const [isPending, setIsPending] = useState(true);
 
     useEffect(() => {
@@ -39,12 +41,13 @@ export const ChatProvider = ({ meetingId, meetingName }: Props) => {
 
     const user = session.user;
     const userName = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split("@")[0];
-    const userImage = user?.user_metadata?.avatar_url || user?.avatar_url || "";
+    const userImage = user?.user_metadata?.avatar_url || "";
 
     return (
         <ChatUI
             meetingId={meetingId}
             meetingName={meetingName}
+            projectName={projectName}
             userId={user.id}
             userName={userName}
             userImage={userImage}

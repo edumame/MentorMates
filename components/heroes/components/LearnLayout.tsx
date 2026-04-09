@@ -2,8 +2,7 @@
 
 import { data, LearnItem } from "@/lib/LearnData";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { PageContainer, PageContent } from "@/components/layout/PageContainer";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { MentorCards } from "./MentorCards";
 import { supabase } from "@/lib/supabase";
 import { Lesson } from "@/lib/types";
@@ -15,8 +14,12 @@ export function LearnLayout() {
   const [bookmarkedIds, setBookmarkedIds] = useState<Set<number>>(new Set());
   const [activeTab, setActiveTab] = useState<"all" | "bookmark">("all");
   const [exclusiveLessons, setExclusiveLessons] = useState<LearnItem[]>([]);
-
+  const [mounted, setMounted] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     try {
@@ -113,9 +116,9 @@ export function LearnLayout() {
     });
   };
   return (
-    <PageContainer>
+    <>
       <NewMeetingDialog open={isDialogOpen} onOpenChange={setIsDialogOpen} />
-      <PageContent className="pt-[24px] pb-8">
+      <div className="pt-[24px] pb-8">
         <div className="flex flex-col gap-[24px] px-[32px]">
         <div className="flex items-center justify-between">
           <h1 className="text-[20px] sm:text-[28px] font-semibold leading-[1.4] tracking-[-0.06em] text-black">Learn</h1>
@@ -148,7 +151,11 @@ export function LearnLayout() {
             </Button>
           </div>
         </div>
-        <MentorCards />
+        {mounted && (
+          <Suspense fallback={null}>
+            <MentorCards />
+          </Suspense>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {(activeTab === "bookmark"
           ? allItems.filter((d) => bookmarkedIds.has(d.id))
@@ -261,7 +268,7 @@ export function LearnLayout() {
             <div className="text-sm text-gray-500 mt-6">No bookmarks yet.</div>
           )}
         </div>
-      </PageContent>
-    </PageContainer>
+      </div>
+    </>
   );
 }

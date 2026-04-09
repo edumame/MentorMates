@@ -11,16 +11,36 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default: "font-normal px-24 py-8 text-white bg-[#4B89EF] rounded-[12px] text-[16px] hover:bg-[#3E7EEA] [box-shadow:inset_0_32px_24px_0_rgba(255,255,255,0.05),inset_0_2px_1px_0_rgba(255,255,255,0.25),inset_0_0_0_1px_rgba(0,0,0,0.15),inset_0_-2px_1px_0_rgba(0,0,0,0.20),0_1px_2px_0_rgba(0,0,0,0.05)]",
+        hostPrimary:
+          "font-medium px-6 py-2.5 text-white bg-[#4B89EF] rounded-[12px] text-[16px] leading-6 " +
+          "[box-shadow:inset_0_32px_24px_0_rgba(255,255,255,0.05),inset_0_2px_1px_0_rgba(255,255,255,0.25),inset_0_0_0_0_rgba(0,0,0,0.15),inset_0_-2px_1px_0_rgba(0,0,0,0.20),0_1px_2px_0_rgba(0,0,0,0.05)] " +
+          "hover:bg-[#3E7EEA]",
         defaultGray: "font-normal px-24 py-8 rounded-[12px] bg-[rgba(0,0,0,0.05)] text-[16px] transition-colors duration-200 " +
           "[box-shadow:inset_0_0_0_1px_rgba(0,0,0,0.05),inset_0_-2px_1px_0_rgba(0,0,0,0.05),0_1px_2px_0_rgba(0,0,0,0.05)] " +
           "hover:bg-[rgba(0,0,0,0.07)] hover:[box-shadow:inset_0_0_0_1px_rgba(0,0,0,0.08),inset_0_-2px_1px_0_rgba(0,0,0,0.08),0_2px_4px_0_rgba(0,0,0,0.08)] " +
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/10",
+        hostGhost:
+          "font-medium px-6 py-2.5 rounded-[12px] bg-[rgba(0,0,0,0.05)] text-[16px] leading-6 text-black " +
+          "[box-shadow:inset_0_0_0_0_rgba(0,0,0,0.05),inset_0_-2px_1px_0_rgba(0,0,0,0.05),0_1px_2px_0_rgba(0,0,0,0.05)] " +
+          "hover:bg-[rgba(0,0,0,0.07)]",
         destructive:
           "bg-destructive text-destructive-foreground hover:bg-destructive/90 ",
+        /** Delete 按钮：设计稿样式，红底白字，可复用于删除操作 */
+        delete:
+          "rounded-[12px] py-2.5 px-6 gap-1.5 text-white font-normal text-[16px] min-h-[40px] "
+          + "bg-[var(--red-red-600,#DC2626)] "
+          + "[box-shadow:0_0_0_1px_var(--Opacity-Neutral-Darkest-5,rgba(0,0,0,0.05))_inset,0_-2px_1px_0_var(--Opacity-Neutral-Darkest-5,rgba(0,0,0,0.05))_inset,0_1px_2px_0_var(--Opacity-Neutral-Darkest-5,rgba(0,0,0,0.05))] "
+          + "hover:bg-[#B91C1C] hover:[box-shadow:0_0_0_1px_rgba(0,0,0,0.08)_inset,0_-2px_1px_0_rgba(0,0,0,0.08)_inset,0_1px_2px_0_rgba(0,0,0,0.08)]",
         outline:
           "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
         secondary:
           "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+        /** Back / 次级按钮：设计稿样式，可复用于弹窗「返回」等 */
+        back:
+          "rounded-[12px] py-2.5 px-6 gap-2 text-black font-normal text-[16px] min-h-[40px] "
+          + "bg-[var(--Color-Neutral-Lightest,#F2F2F2)] "
+          + "[box-shadow:0_0_0_1px_var(--Opacity-Neutral-Darkest-5,rgba(0,0,0,0.05))_inset,0_-2px_1px_0_var(--Opacity-Neutral-Darkest-5,rgba(0,0,0,0.05))_inset,0_1px_2px_0_var(--Opacity-Neutral-Darkest-5,rgba(0,0,0,0.05))] "
+          + "hover:bg-[#E8E8E8] hover:[box-shadow:0_0_0_1px_rgba(0,0,0,0.08)_inset,0_-2px_1px_0_rgba(0,0,0,0.08)_inset,0_1px_2px_0_rgba(0,0,0,0.08)]",
         ghost: "hover:bg-accent hover:text-accent-foreground",
         nav: "bg-none text-blue-900 hover:text-blue-600 text-lg font-semibold",
         link: "text-primary underline-offset-4 hover:underline",

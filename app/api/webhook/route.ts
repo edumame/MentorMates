@@ -1,6 +1,5 @@
 import OpenAI from "openai";
 import { NextRequest, NextResponse } from "next/server";
-import { ChatCompletionMessageParam } from "openai/resources/index.mjs";
 import {
   MessageNewEvent,
   CallEndedEvent,
@@ -18,6 +17,276 @@ import { streamChat } from "@/lib/stream-chat";
 const openaiClient = new OpenAI();
 
 const processedMessages = new Set<string>();
+
+const CHAT_RESPONSES_MODEL = process.env.OPENAI_RESPONSES_MODEL || "gpt-5.2";
+const CHAT_ENABLE_WEB_SEARCH =
+  process.env.OPENAI_CHAT_ENABLE_WEB_SEARCH !== "false";
+const DEFAULT_FILE_SEARCH_VECTOR_STORE_IDS = parseCsvEnv(
+  process.env.OPENAI_FILE_SEARCH_VECTOR_STORE_IDS
+);
+const CHAT_TOOL_CHOICE = resolveToolChoice(
+  process.env.OPENAI_CHAT_TOOL_CHOICE,
+  "required"
+);
+const CHAT_LOG_TOOL_CALLS = process.env.OPENAI_CHAT_LOG_TOOL_CALLS === "true";
+const MAX_ATTACHMENT_INPUTS = normalizePositiveInt(
+  Number.parseInt(process.env.OPENAI_CHAT_MAX_ATTACHMENT_INPUTS || "3", 10),
+  3
+);
+
+type ChatHistoryMessage = {
+  role: "assistant" | "user";
+  content: string;
+};
+
+type StreamChannelMessage = {
+  text?: string;
+  user?: { id?: string };
+};
+
+type StreamWebhookMessage = {
+  id?: string;
+  text?: string;
+  attachments?: unknown[];
+};
+
+type StreamWebhookAttachment = {
+  type?: string;
+  asset_url?: string;
+  image_url?: string;
+  title_link?: string;
+  name?: string;
+};
+
+type UserAttachmentInput =
+  | { type: "input_image"; image_url: string; detail: "auto" }
+  | { type: "input_file"; file_url: string; filename?: string };
+
+type ResponseCreateParams = Parameters<typeof openaiClient.responses.create>[0];
+type ResponseTool = NonNullable<ResponseCreateParams["tools"]>[number];
+
+function inputText(text: string): { type: "input_text"; text: string } {
+  return { type: "input_text", text };
+}
+
+function buildResponsesInput(
+  systemInstructions: string,
+  previousMessages: ChatHistoryMessage[],
+  userText: string,
+  userAttachments: UserAttachmentInput[]
+): ResponseCreateParams["input"] {
+  const historyItems = previousMessages.map((message) => ({
+    role: message.role as "user" | "assistant",
+    content: message.content,
+  }));
+
+  return [
+    {
+      role: "system" as const,
+      content: systemInstructions,
+    },
+    ...historyItems,
+    {
+      role: "user" as const,
+      content: [inputText(userText), ...userAttachments] as never,
+    },
+  ] as ResponseCreateParams["input"];
+}
+
+function extractResponseText(response: unknown): string {
+  const responseRecord = response as Record<string, unknown>;
+  if (typeof responseRecord.output_text === "string") {
+    return responseRecord.output_text.trim();
+  }
+
+  if (!Array.isArray(responseRecord.output)) {
+    return "";
+  }
+
+  const chunks: string[] = [];
+  for (const outputItem of responseRecord.output) {
+    const outputRecord = outputItem as Record<string, unknown> | null;
+    if (!outputRecord || !Array.isArray(outputRecord.content)) continue;
+
+    for (const contentItem of outputRecord.content) {
+      const contentRecord = contentItem as Record<string, unknown> | null;
+      if (!contentRecord) continue;
+      if (typeof contentRecord.text === "string") {
+        chunks.push(contentRecord.text);
+        continue;
+      }
+      if (typeof contentRecord.value === "string") {
+        chunks.push(contentRecord.value);
+      }
+    }
+  }
+
+  return chunks.join(" ").trim();
+}
+
+async function createTextResponse(params: {
+  systemInstructions: string;
+  previousMessages: ChatHistoryMessage[];
+  userText: string;
+  userAttachments: UserAttachmentInput[];
+}): Promise<string> {
+  const tools = buildResponseTools();
+
+  const requestBody: Parameters<typeof openaiClient.responses.create>[0] = {
+    model: CHAT_RESPONSES_MODEL,
+    input: buildResponsesInput(
+      params.systemInstructions,
+      params.previousMessages,
+      params.userText,
+      params.userAttachments
+    ),
+    ...(tools.length > 0
+      ? {
+          tools,
+          tool_choice: CHAT_TOOL_CHOICE,
+        }
+      : {}),
+  };
+
+  const response = await openaiClient.responses.create(requestBody);
+  if (CHAT_LOG_TOOL_CALLS) {
+    const toolCalls = extractToolCalls(response);
+    console.log("chat tool calls", toolCalls);
+  }
+
+  return extractResponseText(response);
+}
+
+function parseCsvEnv(value: string | undefined): string[] {
+  if (!value) return [];
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0);
+}
+
+function normalizePositiveInt(value: number, fallback: number): number {
+  if (!Number.isFinite(value) || value <= 0) return fallback;
+  return Math.floor(value);
+}
+
+function resolveToolChoice(
+  rawValue: string | undefined,
+  fallback: "auto" | "required" | "none"
+): "auto" | "required" | "none" {
+  const candidate = (rawValue || "").trim().toLowerCase();
+  if (candidate === "auto") return "auto";
+  if (candidate === "required") return "required";
+  if (candidate === "none") return "none";
+  return fallback;
+}
+
+function extractToolCalls(response: unknown): string[] {
+  const record = response as Record<string, unknown>;
+  if (!Array.isArray(record.output)) return [];
+
+  const result: string[] = [];
+  for (const outputItem of record.output) {
+    if (!outputItem || typeof outputItem !== "object") continue;
+    const item = outputItem as Record<string, unknown>;
+    if (typeof item.type !== "string") continue;
+    if (item.type.endsWith("_call")) {
+      result.push(item.type);
+    }
+  }
+  return result;
+}
+
+function normalizeHttpUrl(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+
+  try {
+    const url = new URL(raw);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+function buildAttachmentInputs(
+  rawAttachments: unknown
+): UserAttachmentInput[] {
+  if (!Array.isArray(rawAttachments)) return [];
+
+  const outputs: UserAttachmentInput[] = [];
+  const seenUrls = new Set<string>();
+
+  for (const rawAttachment of rawAttachments) {
+    if (outputs.length >= MAX_ATTACHMENT_INPUTS) break;
+    if (!rawAttachment || typeof rawAttachment !== "object") continue;
+
+    const attachment = rawAttachment as StreamWebhookAttachment;
+    const attachmentType =
+      typeof attachment.type === "string"
+        ? attachment.type.toLowerCase()
+        : undefined;
+
+    const imageUrl =
+      normalizeHttpUrl(attachment.image_url) ||
+      (attachmentType === "image"
+        ? normalizeHttpUrl(attachment.asset_url)
+        : null);
+
+    if (imageUrl && !seenUrls.has(imageUrl)) {
+      outputs.push({
+        type: "input_image",
+        image_url: imageUrl,
+        detail: "auto",
+      });
+      seenUrls.add(imageUrl);
+      continue;
+    }
+
+    if (
+      attachmentType === "video" ||
+      attachmentType === "audio" ||
+      attachmentType === "voice_recording"
+    ) {
+      continue;
+    }
+
+    const fileUrl =
+      normalizeHttpUrl(attachment.asset_url) ||
+      normalizeHttpUrl(attachment.title_link);
+    if (!fileUrl || seenUrls.has(fileUrl)) continue;
+
+    const fileInput: UserAttachmentInput = {
+      type: "input_file",
+      file_url: fileUrl,
+    };
+    if (typeof attachment.name === "string" && attachment.name.trim().length) {
+      fileInput.filename = attachment.name.trim();
+    }
+
+    outputs.push(fileInput);
+    seenUrls.add(fileUrl);
+  }
+
+  return outputs;
+}
+
+function buildResponseTools(): ResponseTool[] {
+  const tools: ResponseTool[] = [];
+
+  if (CHAT_ENABLE_WEB_SEARCH) {
+    tools.push({ type: "web_search_preview" });
+  }
+
+  if (DEFAULT_FILE_SEARCH_VECTOR_STORE_IDS.length > 0) {
+    tools.push({
+      type: "file_search",
+      vector_store_ids: DEFAULT_FILE_SEARCH_VECTOR_STORE_IDS,
+    });
+  }
+
+  return tools;
+}
 
 function verifySignatureWithSDK(body: string, signature: string): boolean {
   return streamVideo.verifyWebhook(body, signature);
@@ -285,11 +554,13 @@ export async function POST(req: NextRequest) {
   }
   else if (eventType === "message.new") {
       const event = payload as MessageNewEvent;
+      const message = (event.message || {}) as StreamWebhookMessage;
 
       const userId = event.user?.id;
       const channelId = event.channel_id;
-      const text = event.message?.text;
-      const messageId = event.message?.id;
+      const text = (message.text || "").trim();
+      const messageId = message.id;
+      const userAttachments = buildAttachmentInputs(message.attachments);
 
       if (!messageId) {
           return NextResponse.json({ status: "ignored_no_id" });
@@ -300,9 +571,12 @@ export async function POST(req: NextRequest) {
       }
       processedMessages.add(messageId);
 
-      if (!userId || !channelId || !text) {
+      if (!userId || !channelId || (!text && userAttachments.length === 0)) {
           return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
       }
+
+      const userText =
+        text || "Please analyze the attached file(s) and answer the request.";
 
       const { data: existingUpcomingMeeting } = await supabase
         .from("meetings")
@@ -328,24 +602,19 @@ export async function POST(req: NextRequest) {
           await channel.watch();
 
           const { messages: recentMessages } = await channel.query({ messages: { limit: 5 } });
-          type StreamMessage = { text?: string; user?: { id?: string } };
-          const previousMessages = ((recentMessages || []) as StreamMessage[])
+          const previousMessages = ((recentMessages || []) as StreamChannelMessage[])
             .filter((msg) => !!msg?.text && msg.text.trim() !== "")
-            .map<ChatCompletionMessageParam>((message) => ({
+            .map<ChatHistoryMessage>((message) => ({
               role: message.user?.id === existingAgent.id ? "assistant" : "user",
               content: message.text || "",
             }));
 
-          const GPTResponse = await openaiClient.chat.completions.create({
-              messages: [
-                  { role: "system", content: existingAgent.instructions },
-                  ...previousMessages,
-                  { role: "user", content: text },
-              ],
-              model: "gpt-5.2",
+          const GPTResponseText = await createTextResponse({
+              systemInstructions: existingAgent.instructions || "",
+              previousMessages,
+              userText,
+              userAttachments,
           });
-
-          const GPTResponseText = GPTResponse.choices[0].message.content;
 
           if (!GPTResponseText) {
               return NextResponse.json({ error: "No response from GPT" }, { status: 400 });
@@ -414,24 +683,19 @@ export async function POST(req: NextRequest) {
           await channel.watch();
 
           const { messages: recentMessages } = await channel.query({ messages: { limit: 5 } });
-          type StreamMessage = { text?: string; user?: { id?: string } };
-          const previousMessages = ((recentMessages || []) as StreamMessage[])
+          const previousMessages = ((recentMessages || []) as StreamChannelMessage[])
             .filter((msg) => !!msg?.text && msg.text.trim() !== "")
-            .map<ChatCompletionMessageParam>((message) => ({
+            .map<ChatHistoryMessage>((message) => ({
               role: message.user?.id === existingAgent.id ? "assistant" : "user",
               content: message.text || "",
             }));
 
-          const GPTResponse = await openaiClient.chat.completions.create({
-              messages: [
-                  { role: "system", content: instructions },
-                  ...previousMessages,
-                  { role: "user", content: text },
-              ],
-              model: "gpt-5.2",
+          const GPTResponseText = await createTextResponse({
+              systemInstructions: instructions,
+              previousMessages,
+              userText,
+              userAttachments,
           });
-
-          const GPTResponseText = GPTResponse.choices[0].message.content;
 
           if (!GPTResponseText) {
               return NextResponse.json({ error: "No response from GPT" }, { status: 400 });

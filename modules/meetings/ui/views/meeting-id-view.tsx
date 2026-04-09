@@ -26,7 +26,7 @@ export const MeetingChatView = ({ meetingId }: Props) => {
     const { data }: MeetingGetOne = useSuspenseQuery(trpc.meetings.getOne.queryOptions({ id: meetingId }));
     
     return (
-        <ChatProvider meetingId={data.id} meetingName={data.name} />          
+        <ChatProvider meetingId={data.id} meetingName={data.name} projectName={data.projectName} />          
     )
 };
 

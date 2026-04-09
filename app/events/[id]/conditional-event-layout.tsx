@@ -57,8 +57,9 @@ export function ConditionalEventLayout({
     </main>
   );
 
+  // 内容直接交给上层（如 SidebarLayout 的 main），不再包一层 flex-grow overflow-auto px-0
   return (
-    <div className="w-full bg-background pt-[calc(72px+var(--banner-h,0px))]">
+    <div className="flex flex-col bg-background">
       {showEventWrapper ? (
         <EventRegistrationWrapper eventId={event.event_id}>
           {content}

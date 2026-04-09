@@ -9,12 +9,12 @@ export function getOrganizerInvitationEmailTemplate(
   inviterName: string,
   eventSlug?: string,
   isNewUser?: boolean,
-  acceptUrl?: string
+  acceptUrl?: string,
+  eventUrlOverride?: string
 ): OrganizerInvitationEmailTemplate {
-  const eventUrl = `${process.env.NEXT_PUBLIC_APP_URL}/events/${eventId}/overview`;
-  // const eventUrl = eventSlug
-  //   ? `https://mentormates.ai/events/${eventSlug}/overview`
-  //   : `https://mentormates.ai/events/${eventId}/overview`;
+  const eventUrl =
+    eventUrlOverride ||
+    `${process.env.NEXT_PUBLIC_APP_URL}/events/${eventSlug || eventId}/overview`;
 
   const actionUrl = isNewUser && acceptUrl ? acceptUrl : eventUrl;
   const actionText = isNewUser

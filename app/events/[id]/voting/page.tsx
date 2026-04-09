@@ -4,7 +4,6 @@ import { notFound } from "next/navigation";
 import { EventPageLayout } from "@/components/events/event-page-layout";
 import { VotingContent } from "@/components/voting/voting-content";
 import { VotingResultsPanel } from "@/components/voting/voting-results-panel";
-import { EventRole } from "@/lib/types";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -15,7 +14,6 @@ export default async function VotingPage({ params, searchParams }: PageProps) {
   const { id } = await params;
   const resolvedSearchParams = await searchParams;
   const supabase = await createSupabaseClient();
-  const currentRole = (resolvedSearchParams.view as EventRole | null) || null;
 
   const isUUID = isValidUUID(id);
 
@@ -87,22 +85,17 @@ export default async function VotingPage({ params, searchParams }: PageProps) {
       {showResults ? (
         <VotingResultsPanel eventId={eventData.event_id} />
       ) : (
-        <VotingContent
-          eventId={eventData.event_id}
-          slug={id}
-          hasJoined={hasJoined}
-          userRole={userRole}
-        />
+        <VotingContent eventId={eventData.event_id} hasJoined={hasJoined} />
       )}
       
       {/* Show link to results for organizers */}
       {isOrganizer && !showResults && (
-        <div className="mt-8 p-4 bg-purple-50 border border-purple-200 rounded-xl">
-          <p className="text-purple-800 text-sm">
+        <div className="mt-8 p-4 bg-[#eff6ff] border border-[#bfdbfe] rounded-xl">
+          <p className="text-[#1e3a8a] text-sm">
             <strong>Organizer:</strong> You can view detailed voting results{" "}
             <a
               href={`/events/${id}/voting?results=true`}
-              className="underline font-medium hover:text-purple-600"
+              className="underline font-medium hover:text-[#2563eb]"
             >
               here
             </a>
@@ -117,7 +110,7 @@ export default async function VotingPage({ params, searchParams }: PageProps) {
           <p className="text-gray-700 text-sm">
             <a
               href={`/events/${id}/voting`}
-              className="underline font-medium hover:text-purple-600"
+              className="underline font-medium hover:text-[#4B89EF]"
             >
               ← Back to voting page
             </a>

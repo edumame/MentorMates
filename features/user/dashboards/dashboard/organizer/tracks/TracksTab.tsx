@@ -1,6 +1,5 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
 import { ScoringConfigForm } from "@/features/user/dashboards/dashboard/organizer/tracks/scoring-config-form";
 import { EventDetails, EventScoringConfig, EventTrack } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
@@ -34,31 +33,6 @@ export function TracksTab({
   toast,
   isArchived,
 }: TracksTabProps) {
-  const [tracks, setTracks] = useState<EventTrack[]>([]);
-
-  // Function to fetch tracks data
-  const fetchTracks = useCallback(async () => {
-    const { data, error } = await supabase
-      .from("event_tracks")
-      .select("*")
-      .eq("event_id", eventId);
-
-    if (error) {
-      console.error("Error fetching tracks:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load track data",
-        variant: "destructive",
-      });
-    } else {
-      setTracks(data || []);
-    }
-  }, [eventId, toast]);
-
-  useEffect(() => {
-    fetchTracks();
-  }, [eventId, toast, fetchTracks]);
-
   const handleScoreUpdate = async (config: EventScoringConfig) => {
     try {
       setSaving(true);
@@ -108,8 +82,6 @@ export function TracksTab({
 
       if (refreshedTracks && event) {
         const updatedTracks = refreshedTracks as unknown as EventTrack[];
-        setTracks(updatedTracks);
-
         const updatedEvent = {
           ...event,
           event_tracks: updatedTracks,
@@ -134,20 +106,32 @@ export function TracksTab({
   };
 
   return (
-    <div className="space-y-6">
-      <p className="text-sm text-muted-foreground mb-6">
-        Configure your event tracks below. For each track, you can set up
-        scoring criteria.
-      </p>
+    <div className="space-y-4">
+      <div className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6">
+        <div className="space-y-1">
+          <h2
+            className="font-geist font-semibold leading-[140%] tracking-[-1.32px] text-[var(--Color-Scheme-1-Text,#000)]"
+            style={{ fontSize: "var(--Text-Sizes-Heading-6, 22px)" }}
+          >
+            Tracks &amp; Scoring
+          </h2>
+          <p className="text-sm text-gray-600">
+            Configure your event tracks below. For each track, you can set up
+            scoring criteria.
+          </p>
+        </div>
 
-      <ScoringConfigForm
-        initialConfig={scoringConfig}
-        isSubmitting={saving}
-        onSave={handleScoreUpdate}
-        tracks={tracks}
-        isArchived={isArchived}
-        eventId={eventId}
-      />
+        <div className="mt-5">
+          <ScoringConfigForm
+            initialConfig={scoringConfig}
+            isSubmitting={saving}
+            onSave={handleScoreUpdate}
+            isArchived={isArchived}
+            eventId={eventId}
+            tracks={event.event_tracks || []}
+          />
+        </div>
+      </div>
     </div>
   );
 }
