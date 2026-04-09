@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 
 import type {
   IntakeFormAnswers,
@@ -115,7 +116,8 @@ export function ParticipantIntakeDialog(props: ParticipantIntakeDialogProps) {
   const [answers, setAnswers] = useState<IntakeFormAnswers>(() =>
     initializeAnswers(schema)
   );
-  const [error, setError] = useState<string | null>(null);
+  const [submitAttempted, setSubmitAttempted] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const visibleFields = useMemo(() => {
     return schema.fields.filter((field) => {
@@ -125,21 +127,27 @@ export function ParticipantIntakeDialog(props: ParticipantIntakeDialogProps) {
     });
   }, [answers, schema.fields]);
 
-  const missingRequiredLabels = visibleFields
-    .filter((field) => !validateRequired(field, answers[field.key]))
-    .map((field) => field.label);
+  const invalidFieldKeys = useMemo(
+    () =>
+      new Set(
+        visibleFields
+          .filter((field) => !validateRequired(field, answers[field.key]))
+          .map((field) => field.key)
+      ),
+    [visibleFields, answers]
+  );
 
   const handleSubmit = async () => {
-    setError(null);
+    setSubmitAttempted(true);
+    setSubmitError(null);
 
-    if (missingRequiredLabels.length > 0) {
-      setError(
-        `Please complete required fields: ${missingRequiredLabels.join(", ")}`
-      );
-      return;
+    if (invalidFieldKeys.size > 0) return;
+
+    try {
+      await onSubmit(answers);
+    } catch {
+      setSubmitError("Something went wrong. Please try again.");
     }
-
-    await onSubmit(answers);
   };
 
   const handleAnswerChange = (key: string, value: unknown) => {
@@ -173,14 +181,22 @@ export function ParticipantIntakeDialog(props: ParticipantIntakeDialogProps) {
             {visibleFields.map((field) => {
               const value = answers[field.key];
               const options = field.options ?? [];
+              const hasError = submitAttempted && invalidFieldKeys.has(field.key);
 
               return (
                 <div key={field.id} className="space-y-1.5">
                   {field.type !== "checkbox" && (
-                    <label className="text-sm font-medium text-black/90">
+                    <label
+                      className={cn(
+                        "text-sm font-medium",
+                        hasError ? "text-red-500" : "text-black/90"
+                      )}
+                    >
                       {field.label}
                       {field.required ? (
-                        <span className="ml-0.5 text-[#4B89EF]"> *</span>
+                        <span className={cn("ml-0.5", hasError ? "text-red-500" : "text-[#4B89EF]")}>
+                          {" "}*
+                        </span>
                       ) : null}
                     </label>
                   )}
@@ -206,7 +222,7 @@ export function ParticipantIntakeDialog(props: ParticipantIntakeDialogProps) {
                       onChange={(event) =>
                         handleAnswerChange(field.key, event.target.value)
                       }
-                      className="h-10"
+                      className={cn("h-10", hasError && "border-red-400 focus-visible:ring-red-400/30")}
                     />
                   )}
 
@@ -217,7 +233,7 @@ export function ParticipantIntakeDialog(props: ParticipantIntakeDialogProps) {
                       onChange={(event) =>
                         handleAnswerChange(field.key, event.target.value)
                       }
-                      className="min-h-[80px]"
+                      className={cn("min-h-[80px]", hasError && "border-red-400 focus-visible:ring-red-400/30")}
                     />
                   )}
 
@@ -226,7 +242,7 @@ export function ParticipantIntakeDialog(props: ParticipantIntakeDialogProps) {
                       value={typeof value === "string" ? value : ""}
                       onValueChange={(val) => handleAnswerChange(field.key, val)}
                     >
-                      <SelectTrigger className="h-10 w-full">
+                      <SelectTrigger className={cn("h-10 w-full", hasError && "border-red-400")}>
                         <SelectValue placeholder="Select an option" />
                       </SelectTrigger>
                       <SelectContent>
@@ -240,7 +256,7 @@ export function ParticipantIntakeDialog(props: ParticipantIntakeDialogProps) {
                   )}
 
                   {field.type === "multi_select" && (
-                    <div className="space-y-2 rounded-md border border-black/10 p-3">
+                    <div className={cn("space-y-2 rounded-md border p-3", hasError ? "border-red-400" : "border-black/10")}>
                       {options.map((option) => {
                         const current = Array.isArray(value)
                           ? (value as string[])
@@ -270,7 +286,12 @@ export function ParticipantIntakeDialog(props: ParticipantIntakeDialogProps) {
                   )}
 
                   {field.type === "checkbox" && (
-                    <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-black/10 bg-black/[0.02] p-3 text-sm transition-colors hover:bg-black/[0.04]">
+                    <label className={cn(
+                      "flex cursor-pointer items-start gap-2.5 rounded-lg border p-3 text-sm transition-colors",
+                      hasError
+                        ? "border-red-400 bg-red-50/50 hover:bg-red-50"
+                        : "border-black/10 bg-black/[0.02] hover:bg-black/[0.04]"
+                    )}>
                       <Checkbox
                         checked={Boolean(value)}
                         onCheckedChange={(checkedValue) =>
@@ -281,19 +302,25 @@ export function ParticipantIntakeDialog(props: ParticipantIntakeDialogProps) {
                       <span className="leading-snug text-black/80">
                         {renderWithLinks(field.label)}
                         {field.required ? (
-                          <span className="ml-0.5 text-[#4B89EF]"> *</span>
+                          <span className={cn("ml-0.5", hasError ? "text-red-500" : "text-[#4B89EF]")}>
+                            {" "}*
+                          </span>
                         ) : null}
                       </span>
                     </label>
                   )}
+
+                  {hasError ? (
+                    <p className="text-xs text-red-500">This field is required.</p>
+                  ) : null}
                 </div>
               );
             })}
 
-            {error ? (
+            {submitError ? (
               <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3">
                 <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-red-500" />
-                <p className="text-sm text-red-600">{error}</p>
+                <p className="text-sm text-red-600">{submitError}</p>
               </div>
             ) : null}
           </div>
