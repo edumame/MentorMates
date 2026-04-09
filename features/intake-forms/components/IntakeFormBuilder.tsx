@@ -11,6 +11,7 @@ import {
   X,
   FileText,
   ListChecks,
+  ShieldCheck,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,7 @@ import type {
   IntakeFormField,
   IntakeFormSchema,
 } from "@/features/intake-forms/types";
+import { createMLHComplianceTemplate } from "@/features/intake-forms/templates/mlhCompliance";
 
 type IntakeFormBuilderProps = {
   eventId: string;
@@ -604,6 +606,17 @@ export function IntakeFormBuilder({
     }
   }
 
+  function applyMLHTemplate() {
+    const confirmed = window.confirm(
+      "Apply the MLH Compliance template? This will replace the current form title, description, and all questions."
+    );
+    if (!confirmed) return;
+
+    const template = createMLHComplianceTemplate();
+    setSchema(template);
+    setSelectedFieldId(template.fields[0]?.id ?? null);
+  }
+
   async function deleteQuestionnaire() {
     const confirmed = window.confirm(
       "Delete this questionnaire for this context? This will unpublish/archive it and participants will no longer see it."
@@ -673,6 +686,16 @@ export function IntakeFormBuilder({
                     ).toLocaleString()}`
                   : "Last published: never"}
               </span>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-9 px-3"
+                onClick={applyMLHTemplate}
+                disabled={isSaving || isPublishing || isDeleting || isLoading}
+              >
+                <ShieldCheck className="mr-1.5 h-4 w-4" />
+                Apply MLH Template
+              </Button>
               <Button
                 type="button"
                 variant="destructive"
