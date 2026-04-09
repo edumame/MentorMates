@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import pdfParse from "pdf-parse";
+import mammoth from "mammoth";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 
 /**
@@ -103,16 +105,45 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Read file content
+    // Read file content using the appropriate parser
     let textContent: string;
+    const buffer = Buffer.from(await file.arrayBuffer());
 
-    if (file.type === "application/pdf") {
-      // For PDFs, we send the raw text to AI — in a production app you'd use
-      // a PDF parser like pdf-parse. For now, read as text (works for text-based PDFs).
-      const buffer = await file.arrayBuffer();
+    if (ext === ".pdf" || file.type === "application/pdf") {
+      try {
+        const pdf = await pdfParse(buffer);
+        textContent = pdf.text;
+      } catch {
+        return NextResponse.json(
+          { error: "Failed to parse PDF. The file may be corrupted or image-only.", success: false },
+          { status: 400 }
+        );
+      }
+    } else if (
+      ext === ".docx" ||
+      file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    ) {
+      try {
+        const result = await mammoth.extractRawText({ buffer });
+        textContent = result.value;
+      } catch {
+        return NextResponse.json(
+          { error: "Failed to parse DOCX. The file may be corrupted.", success: false },
+          { status: 400 }
+        );
+      }
+    } else if (ext === ".doc" || file.type === "application/msword") {
+      // Legacy .doc format — mammoth doesn't support it reliably.
+      // Fall back to raw text extraction (works for some .doc files).
       textContent = new TextDecoder("utf-8").decode(buffer);
-      // If it's binary PDF, the text will be garbled — AI will handle gracefully
+      if (!textContent.trim() || textContent.includes("\u0000")) {
+        return NextResponse.json(
+          { error: "Legacy .doc format not supported. Please convert to .docx, .pdf, or .txt.", success: false },
+          { status: 400 }
+        );
+      }
     } else {
+      // CSV, TXT, MD — plain text
       textContent = await file.text();
     }
 
