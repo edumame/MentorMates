@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { ScoringConfigForm } from "@/features/user/dashboards/dashboard/organizer/tracks/scoring-config-form";
+import { CompactScoringForm } from "@/features/user/dashboards/dashboard/organizer/tracks/CompactScoringForm";
 import { EventDetails, EventScoringConfig, EventTrack } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
 import { Pencil, Eye, Scale, Download } from "lucide-react";
@@ -206,7 +206,7 @@ export function TracksTab({
           </div>
 
           {/* Scoring config form */}
-          <ScoringConfigForm
+          <CompactScoringForm
             initialConfig={scoringConfig}
             isSubmitting={saving}
             onSave={handleScoreUpdate}
