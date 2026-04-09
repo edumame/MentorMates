@@ -56,6 +56,28 @@ function initializeAnswers(schema: IntakeFormSchema): IntakeFormAnswers {
   return initial;
 }
 
+// Split text on URLs and render each URL as a clickable hyperlink.
+// Uses a capture group in split() so matched URLs appear as odd-indexed elements.
+function renderWithLinks(text: string) {
+  const parts = text.split(/(https?:\/\/[^\s)]+)/);
+  return parts.map((part, i) =>
+    i % 2 === 1 ? (
+      <a
+        key={i}
+        href={part}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-[#4B89EF] underline underline-offset-2 hover:text-[#3E7EEA] break-all"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {part}
+      </a>
+    ) : (
+      part
+    )
+  );
+}
+
 function validateRequired(field: IntakeFormField, value: unknown): boolean {
   if (!field.required) return true;
 
@@ -243,7 +265,7 @@ export function ParticipantIntakeDialog({
                         className="mt-0.5 flex-shrink-0"
                       />
                       <span className="leading-snug text-black/80">
-                        {field.label}
+                        {renderWithLinks(field.label)}
                         {field.required ? (
                           <span className="ml-0.5 text-[#4B89EF]"> *</span>
                         ) : null}
