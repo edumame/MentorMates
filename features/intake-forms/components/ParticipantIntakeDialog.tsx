@@ -11,6 +11,7 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
@@ -28,13 +29,16 @@ import type {
   IntakeFormSchema,
 } from "@/features/intake-forms/types";
 
+// Trigger mode: dialog manages its own open state via DialogTrigger.
+// Controlled mode: caller controls open/close (for programmatic flows).
 type ParticipantIntakeDialogProps = {
-  open: boolean;
   schema: IntakeFormSchema;
   submitting?: boolean;
-  onClose: () => void;
   onSubmit: (answers: IntakeFormAnswers) => Promise<void>;
-};
+} & (
+  | { trigger: React.ReactNode; open?: never; onClose?: never }
+  | { trigger?: never; open: boolean; onClose: () => void }
+);
 
 function initializeAnswers(schema: IntakeFormSchema): IntakeFormAnswers {
   const initial: IntakeFormAnswers = {};
@@ -94,13 +98,20 @@ function validateRequired(field: IntakeFormField, value: unknown): boolean {
     : value !== null && value !== undefined;
 }
 
-export function ParticipantIntakeDialog({
-  open,
-  schema,
-  submitting = false,
-  onClose,
-  onSubmit,
-}: ParticipantIntakeDialogProps) {
+export function ParticipantIntakeDialog(props: ParticipantIntakeDialogProps) {
+  const { schema, submitting = false, onSubmit } = props;
+
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = props.trigger !== undefined ? internalOpen : props.open;
+  const handleClose = () => {
+    if (props.trigger !== undefined) {
+      setInternalOpen(false);
+    } else {
+      // props.onClose is guaranteed by the discriminated union when trigger is absent
+      (props as { onClose: () => void }).onClose();
+    }
+  };
+
   const [answers, setAnswers] = useState<IntakeFormAnswers>(() =>
     initializeAnswers(schema)
   );
@@ -136,7 +147,10 @@ export function ParticipantIntakeDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={(nextOpen) => !nextOpen && onClose()}>
+    <Dialog open={open} onOpenChange={(nextOpen) => !nextOpen && handleClose()}>
+      {props.trigger ? (
+        <DialogTrigger asChild>{props.trigger}</DialogTrigger>
+      ) : null}
       <DialogContent className="flex flex-col gap-0 p-0 w-[calc(100%-2rem)] max-h-[90dvh] sm:max-w-2xl overflow-hidden rounded-xl">
         {/* Blue accent bar — matches the builder card style */}
         <div className="h-1.5 w-full flex-shrink-0 rounded-t-xl bg-[#4B89EF]" />
@@ -287,7 +301,7 @@ export function ParticipantIntakeDialog({
 
         {/* Sticky footer */}
         <div className="flex flex-shrink-0 justify-end gap-2 border-t border-black/10 px-5 py-4 sm:px-6">
-          <Button type="button" variant="outline" onClick={onClose}>
+          <Button type="button" variant="outline" onClick={handleClose}>
             Cancel
           </Button>
           <Button
