@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
       model: "gpt-5",
       messages,
       temperature: 0.3,
-      max_tokens: 2000,
+      max_completion_tokens: 2000,
     });
 
     const raw = completion.choices?.[0]?.message?.content || "";
