@@ -9,6 +9,7 @@ export { generateApiKey, hashApiKey } from "./crypto";
 export interface AgentAuthContext {
   userId: string;
   eventId: string;
+  projectId: string | null;
   scopes: string[];
   keyId: string;
 }
@@ -93,7 +94,7 @@ export async function authenticateAgentRequest(
 
   const { data: keyRow, error } = await supabase
     .from("agent_api_keys")
-    .select("id, user_id, event_id, scopes, expires_at, revoked_at")
+    .select("id, user_id, event_id, project_id, scopes, expires_at, revoked_at")
     .eq("key_hash", keyHash)
     .maybeSingle();
 
@@ -153,11 +154,16 @@ export async function authenticateAgentRequest(
   }
 
   const eventId = resolvedRequestedEventId ?? scopedEventId;
+
+  // If key is project-scoped, resolve project_id
+  const projectId = keyRow.project_id ?? null;
+
   if (!eventId) {
     if (options?.allowMissingEventId) {
       return {
         userId: keyRow.user_id,
         eventId: "",
+        projectId,
         scopes: keyRow.scopes || [],
         keyId: keyRow.id,
       };
@@ -179,6 +185,7 @@ export async function authenticateAgentRequest(
   return {
     userId: keyRow.user_id,
     eventId,
+    projectId,
     scopes: keyRow.scopes || [],
     keyId: keyRow.id,
   };

@@ -20,11 +20,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { AlertTriangle, Check, Copy, Download, Globe2, KeyRound, LockKeyhole, Terminal, Trash2 } from "lucide-react";
+import { AlertTriangle, Check, Copy, Download, FolderKey, Globe2, KeyRound, LockKeyhole, Terminal, Trash2 } from "lucide-react";
 
 export interface AgentKeyRecord {
   id: string;
   event_id: string | null;
+  project_id: string | null;
   key_prefix: string;
   label: string | null;
   scopes: string[] | null;
@@ -39,6 +40,12 @@ export interface KeyEventOption {
   eventDate: string | null;
 }
 
+export interface KeyProjectOption {
+  id: string;
+  name: string;
+  eventId: string;
+}
+
 interface GeneratedKeyState {
   apiKey: string;
   eventId: string | null;
@@ -51,6 +58,7 @@ interface KeysPageClientProps {
   initialKeys: AgentKeyRecord[];
   managedEventOptions: KeyEventOption[];
   participantEventOptions: KeyEventOption[];
+  projectOptions?: KeyProjectOption[];
 }
 
 function formatDate(value: string | null) {
@@ -71,6 +79,7 @@ export default function KeysPageClient({
   initialKeys,
   managedEventOptions,
   participantEventOptions,
+  projectOptions = [],
 }: KeysPageClientProps) {
   const [keys, setKeys] = useState(initialKeys);
   const [label, setLabel] = useState("");
@@ -79,6 +88,7 @@ export default function KeysPageClient({
   const [eventId, setEventId] = useState(
     participantEventOptions[0]?.id ?? managedEventOptions[0]?.id ?? ""
   );
+  const [projectId, setProjectId] = useState<string>("");
   const [generatedKey, setGeneratedKey] = useState<GeneratedKeyState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
@@ -91,6 +101,11 @@ export default function KeysPageClient({
         [...managedEventOptions, ...participantEventOptions].map((event) => [event.id, event])
       ),
     [managedEventOptions, participantEventOptions]
+  );
+
+  const projectMap = useMemo(
+    () => new Map(projectOptions.map((p) => [p.id, p])),
+    [projectOptions]
   );
 
   const currentEventOptions = activeTab === "organizer"
@@ -146,6 +161,7 @@ export default function KeysPageClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           event_id: scopeMode === "event" ? eventId : eventId || undefined,
+          project_id: (projectId && projectId !== "none") ? projectId : undefined,
           access_mode: activeTab,
           scope_mode: scopeMode,
           label: label.trim() || undefined,
@@ -161,6 +177,7 @@ export default function KeysPageClient({
       const createdKey: AgentKeyRecord = {
         id: json.key.id,
         event_id: json.key.event_id ?? null,
+        project_id: json.key.project_id ?? null,
         key_prefix: json.key.prefix,
         label: json.key.label ?? null,
         scopes: json.key.scopes ?? [],
@@ -215,7 +232,8 @@ export default function KeysPageClient({
 
   const renderKeyCard = (key: AgentKeyRecord) => {
     const event = key.event_id ? eventMap.get(key.event_id) : undefined;
-    const keyType = key.event_id ? "Event-specific" : "Reusable";
+    const project = key.project_id ? projectMap.get(key.project_id) : undefined;
+    const keyType = key.project_id ? "Project-scoped" : key.event_id ? "Event-specific" : "Reusable";
 
     return (
       <Card key={key.id} className="border border-[rgba(0,0,0,0.15)]">
@@ -243,13 +261,21 @@ export default function KeysPageClient({
         </CardHeader>
         <CardContent className="space-y-3 text-sm text-[#575d65]">
           <div className="flex items-center gap-2">
-            {key.event_id ? (
+            {key.project_id ? (
+              <FolderKey className="h-4 w-4 text-[#575d65]" />
+            ) : key.event_id ? (
               <LockKeyhole className="h-4 w-4 text-[#575d65]" />
             ) : (
               <Globe2 className="h-4 w-4 text-[#575d65]" />
             )}
             <span>{eventLabel(event, key.event_id)}</span>
           </div>
+          {key.project_id && (
+            <div className="flex items-center gap-2 text-xs text-[#7f7f7f]">
+              <FolderKey className="h-3 w-3" />
+              <span>Project: {project?.name ?? key.project_id}</span>
+            </div>
+          )}
           <div className="grid gap-1 text-xs text-[#7f7f7f]">
             <p>Created: {formatDate(key.created_at)}</p>
             <p>Last used: {formatDate(key.last_used_at)}</p>
@@ -367,6 +393,28 @@ export default function KeysPageClient({
                   : "Join an event first for an event-specific key."}
               </p>
             )}
+          </div>
+        )}
+
+        {activeTab === "participant" && projectOptions.length > 0 && (
+          <div className="space-y-2">
+            <Label>Scope to project (optional)</Label>
+            <Select value={projectId} onValueChange={setProjectId}>
+              <SelectTrigger>
+                <SelectValue placeholder="All projects (no restriction)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">All projects (no restriction)</SelectItem>
+                {projectOptions.map((proj) => (
+                  <SelectItem key={proj.id} value={proj.id}>
+                    {proj.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-[#7f7f7f]">
+              Lock this key to a single project. Leave empty for access to all your projects.
+            </p>
           </div>
         )}
 

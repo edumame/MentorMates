@@ -1,6 +1,6 @@
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { redirect } from "next/navigation";
-import KeysPageClient, { type AgentKeyRecord, type KeyEventOption } from "./keys-page-client";
+import KeysPageClient, { type AgentKeyRecord, type KeyEventOption, type KeyProjectOption } from "./keys-page-client";
 import { listManagedAgentEvents, listParticipantAgentEvents } from "@/lib/agent/event-access";
 
 type EventRow = {
@@ -38,22 +38,33 @@ export default async function KeysPage() {
   let keys: AgentKeyRecord[] = [];
   let managedEvents: EventRow[] = [];
   let participantEvents: EventRow[] = [];
+  let userProjects: KeyProjectOption[] = [];
 
   try {
-    const [keysResult, managed, participant] = await Promise.all([
+    const [keysResult, managed, participant, projectsResult] = await Promise.all([
       supabase
         .from("agent_api_keys")
-        .select("id, event_id, key_prefix, label, scopes, last_used_at, expires_at, created_at")
+        .select("id, event_id, project_id, key_prefix, label, scopes, last_used_at, expires_at, created_at")
         .eq("user_id", user.id)
         .is("revoked_at", null)
         .order("created_at", { ascending: false }),
       listManagedAgentEvents(user.id).catch(() => []),
       listParticipantAgentEvents(user.id).catch(() => []),
+      supabase
+        .from("projects")
+        .select("id, project_name, event_id")
+        .eq("lead_email", user.email)
+        .order("created_at", { ascending: false }),
     ]);
 
     keys = (keysResult.data || []) as AgentKeyRecord[];
     managedEvents = managed as EventRow[];
     participantEvents = participant as EventRow[];
+    userProjects = (projectsResult.data || []).map((p) => ({
+      id: p.id,
+      name: p.project_name || p.id,
+      eventId: p.event_id,
+    }));
   } catch {
     // DB tables may not exist yet in this environment
   }
@@ -63,6 +74,7 @@ export default async function KeysPage() {
       initialKeys={keys}
       managedEventOptions={dedupeEvents(managedEvents)}
       participantEventOptions={dedupeEvents(participantEvents)}
+      projectOptions={userProjects}
     />
   );
 }

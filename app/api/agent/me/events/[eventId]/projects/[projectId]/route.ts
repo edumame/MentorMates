@@ -33,6 +33,14 @@ export async function PATCH(
     });
     if (auth instanceof NextResponse) return auth;
 
+    // If key is project-scoped, verify it matches the requested projectId
+    if (auth.projectId && auth.projectId !== projectId) {
+      return NextResponse.json(
+        { error: "This API key is scoped to a different project" },
+        { status: 403 }
+      );
+    }
+
     const scopeError = requireScope(auth, "participant-projects:write");
     if (scopeError) return scopeError;
 

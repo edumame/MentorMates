@@ -14,6 +14,7 @@ import {
 
 const createKeySchema = z.object({
   event_id: z.string().uuid().optional(),
+  project_id: z.string().uuid().optional(),
   access_mode: agentAccessModeSchema.optional().default("organizer"),
   scope_mode: agentScopeModeSchema.optional().default("public"),
   label: z.string().max(100).optional().default("default"),
@@ -42,7 +43,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { event_id, access_mode, scope_mode, label } = parsed.data;
+    const { event_id, project_id, access_mode, scope_mode, label } = parsed.data;
     const scopes = parsed.data.scopes ?? getDefaultScopesForAccessMode(access_mode);
 
     if (!areScopesAllowedForAccessMode(access_mode, scopes)) {
@@ -106,6 +107,51 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Validate project_id ownership if provided
+    if (project_id) {
+      const { data: projectRow } = await supabase
+        .from("projects")
+        .select("id, lead_email, event_id")
+        .eq("id", project_id)
+        .maybeSingle();
+
+      if (!projectRow) {
+        return NextResponse.json(
+          { error: "Project not found" },
+          { status: 404 }
+        );
+      }
+
+      // Check if user is lead or teammate
+      const { data: profile } = await supabase
+        .from("user_profiles")
+        .select("email")
+        .eq("uid", user.id)
+        .maybeSingle();
+
+      const userEmail = profile?.email ?? user.email;
+
+      const isLead = projectRow.lead_email === userEmail;
+
+      let isTeammate = false;
+      if (!isLead) {
+        const { data: teammates } = await supabase
+          .from("project_teammates")
+          .select("id")
+          .eq("project_id", project_id)
+          .eq("email", userEmail ?? "")
+          .limit(1);
+        isTeammate = (teammates?.length ?? 0) > 0;
+      }
+
+      if (!isLead && !isTeammate) {
+        return NextResponse.json(
+          { error: "You must be a lead or teammate on this project to create a project-scoped key" },
+          { status: 403 }
+        );
+      }
+    }
+
     const { raw, hash, prefix } = generateApiKey();
 
     const { data: keyRow, error: insertError } = await supabase
@@ -113,12 +159,13 @@ export async function POST(request: NextRequest) {
       .insert({
         user_id: user.id,
         event_id: scope_mode === "event" ? event_id : null,
+        project_id: project_id ?? null,
         key_hash: hash,
         key_prefix: prefix,
         label,
         scopes,
       })
-      .select("id, event_id, key_prefix, label, scopes, created_at")
+      .select("id, event_id, project_id, key_prefix, label, scopes, created_at")
       .single();
 
     if (insertError) {
@@ -136,6 +183,7 @@ export async function POST(request: NextRequest) {
         key: {
           id: keyRow.id,
           event_id: keyRow.event_id,
+          project_id: keyRow.project_id,
           prefix: keyRow.key_prefix,
           label: keyRow.label,
           scopes: keyRow.scopes,
@@ -177,7 +225,7 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from("agent_api_keys")
       .select(
-        "id, event_id, key_prefix, label, scopes, last_used_at, expires_at, revoked_at, created_at"
+        "id, event_id, project_id, key_prefix, label, scopes, last_used_at, expires_at, revoked_at, created_at"
       )
       .eq("user_id", user.id)
       .is("revoked_at", null)
