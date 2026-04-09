@@ -40,6 +40,10 @@ import { QRCodeSVG } from "qrcode.react";
 import { Input } from "@/components/ui/input";
 import { ProjectDescription } from "@/components/projects/ProjectDescription";
 import { ProjectSubmissionDetails } from "@/features/projects/components/displays/ProjectSubmissionDetails";
+import {
+  CoverImageWithFallback,
+  ProjectCoverHero,
+} from "@/features/projects/components/displays/cover-image-with-fallback";
 
 interface EventDetails {
   event_id: string;
@@ -503,14 +507,10 @@ export default function PublicProjectPage() {
 
               {/* Right: Cover Image */}
               <div className="w-full lg:w-[520px] h-[200px] sm:h-[250px] lg:h-[300px] rounded-2xl overflow-hidden shadow-lg order-2">
-                <div
-                  className="w-full h-full bg-cover bg-center bg-no-repeat"
-                  style={{
-                    backgroundImage: `url(${
-                      project.cover_image_url || "/img/placeholder.png"
-                    })`,
-                  }}
-                ></div>
+                <ProjectCoverHero
+                  src={project.cover_image_url}
+                  alt={`${project.project_name || "Project"} cover`}
+                />
               </div>
             </div>
 
@@ -616,7 +616,7 @@ export default function PublicProjectPage() {
                       {project.cover_image_url && (
                         <div className="space-y-2 rounded-xl border border-black/10 p-3">
                           <div className="rounded-xl overflow-hidden">
-                            <img
+                            <CoverImageWithFallback
                               src={project.cover_image_url}
                               alt="Project cover"
                               className="w-full h-auto object-cover"
