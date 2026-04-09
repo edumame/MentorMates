@@ -11,6 +11,9 @@
     "test": "jest",
     "test:unit": "jest",
     "test:e2e": "playwright test",
+    "test:e2e:install": "playwright install chromium",
+    "test:e2e:mobile": "playwright test --project=\"Mobile Chrome\"",
+    "test:e2e:desktop": "playwright test --project=chromium-desktop",
     "setup-db": "env-cmd -f .env.local tsx setup-db.ts",
     "prepare": "husky"
   },
