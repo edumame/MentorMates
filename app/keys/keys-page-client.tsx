@@ -20,7 +20,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { AlertTriangle, BookOpen, Check, Copy, Download, Globe2, KeyRound, LockKeyhole, Terminal, Trash2 } from "lucide-react";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { AlertTriangle, Bot, BookOpen, Check, Copy, Download, Globe2, KeyRound, LockKeyhole, MousePointer2, Sparkles, Terminal, Trash2, Wind } from "lucide-react";
 
 export interface AgentKeyRecord {
   id: string;
@@ -86,6 +87,7 @@ export default function KeysPageClient({
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [revokingKeyId, setRevokingKeyId] = useState<string | null>(null);
+  const [apiAudience, setApiAudience] = useState<"organizer" | "participant">("organizer");
 
   const eventMap = useMemo(
     () =>
@@ -111,6 +113,13 @@ export default function KeysPageClient({
 
     setEventId(currentEventOptions[0]?.id ?? "");
   }, [accessMode, currentEventOptions, eventId, scopeMode]);
+
+  useEffect(() => {
+    if (apiAudience !== "organizer") return;
+    if (accessMode !== "organizer") {
+      setAccessMode("organizer");
+    }
+  }, [apiAudience, accessMode]);
 
   const copyToClipboard = async (text: string, field: string) => {
     await navigator.clipboard.writeText(text);
@@ -271,187 +280,441 @@ export default function KeysPageClient({
 
   return (
     <div className="mx-auto max-w-6xl space-y-8 px-4 py-12">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
-          Developer API
-        </h1>
-        <p className="max-w-3xl text-sm text-slate-600">
-          Manage your hackathon events from Claude Code, Codex, or any AI agent.
-          Create an API key, download the skill file, and start managing events
-          from your terminal.
-        </p>
-      </div>
+      <Tabs
+        value={apiAudience}
+        onValueChange={(value) => setApiAudience(value as "organizer" | "participant")}
+        className="space-y-6"
+      >
+        <div className="flex w-fit items-center bg-white border border-[rgba(0,0,0,0.15)] rounded-xl p-1 overflow-x-auto">
+          <button
+            onClick={() => setApiAudience("organizer")}
+            className={`px-4 py-2 text-sm font-medium rounded-lg transition-all border border-transparent ${
+              apiAudience === "organizer"
+                ? "bg-[var(--Color-Pattens-Blue-Lightest,#FBFCFE)] border !border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] text-black font-semibold"
+                : "text-black hover:text-black/80"
+            }`}
+          >
+            For organizer
+          </button>
+          <button
+            onClick={() => setApiAudience("participant")}
+            className={`px-4 py-2 text-sm font-medium rounded-lg transition-all border border-transparent ${
+              apiAudience === "participant"
+                ? "bg-[var(--Color-Pattens-Blue-Lightest,#FBFCFE)] border !border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] text-black font-semibold"
+                : "text-black hover:text-black/80"
+            }`}
+          >
+            For participants
+          </button>
+        </div>
 
-      {/* Quick Start */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Terminal className="h-5 w-5" />
-            Quick Start
-          </CardTitle>
-          <CardDescription>
-            Get up and running in 3 steps.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="rounded-lg border border-slate-200 p-4 space-y-2">
-              <p className="font-medium text-slate-900">1. Create a key</p>
-              <p className="text-sm text-slate-600">
-                Generate an API key below. Choose reusable (works across events)
-                or event-specific.
-              </p>
-            </div>
-            <div className="rounded-lg border border-slate-200 p-4 space-y-2">
-              <p className="font-medium text-slate-900">2. Set env vars</p>
-              <div className="rounded bg-slate-900 px-3 py-2 font-mono text-xs text-green-400">
-                export MENTORMATES_API_KEY=&quot;mm_sk_...&quot;
+        <div className="space-y-2">
+          <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
+            {apiAudience === "organizer" ? "Developer API" : "HackerAgent"}
+          </h1>
+          <p className="max-w-3xl text-sm text-slate-600">
+            {apiAudience === "organizer"
+              ? "Manage your hackathon events from Claude Code, Codex, or any AI agent. Create an API key, download the skill file, and start managing events from your terminal."
+              : "Your AI hackathon copilot. Syncs your project to MentorMates as you build."}
+          </p>
+        </div>
+
+        <TabsContent value="organizer" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Terminal className="h-5 w-5" />
+                Quick Start
+              </CardTitle>
+              <CardDescription>
+                Get up and running in 3 steps.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="rounded-lg border border-slate-200 p-4 space-y-2">
+                  <p className="font-medium text-slate-900">1. Create a key</p>
+                  <p className="text-sm text-slate-600">
+                    Generate an organizer API key below. Choose reusable (works across events)
+                    or event-specific.
+                  </p>
+                </div>
+                <div className="rounded-lg border border-slate-200 p-4 space-y-2">
+                  <p className="font-medium text-slate-900">2. Set env vars</p>
+                  <div className="rounded bg-slate-900 px-3 py-2 font-mono text-xs text-green-400">
+                    export MENTORMATES_API_KEY=&quot;mm_sk_...&quot;
+                  </div>
+                </div>
+                <div className="rounded-lg border border-slate-200 p-4 space-y-2">
+                  <p className="font-medium text-slate-900">3. Download skill</p>
+                  <a
+                    href="/api/agent/skill"
+                    className="inline-flex items-center gap-2 rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 transition-colors"
+                  >
+                    <Download className="h-4 w-4" />
+                    mentormates.md
+                  </a>
+                </div>
               </div>
-            </div>
-            <div className="rounded-lg border border-slate-200 p-4 space-y-2">
-              <p className="font-medium text-slate-900">3. Download skill</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BookOpen className="h-5 w-5" />
+                API Reference
+              </CardTitle>
+              <CardDescription>
+                All endpoints use Bearer token auth and require{" "}
+                <code className="rounded bg-slate-100 px-1 text-xs">?event_id=UUID</code>{" "}
+                for reusable keys.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-left">
+                      <th className="pb-2 pr-4 font-medium text-slate-500">Method</th>
+                      <th className="pb-2 pr-4 font-medium text-slate-500">Endpoint</th>
+                      <th className="pb-2 font-medium text-slate-500">Description</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    <tr>
+                      <td className="py-2 pr-4"><Badge variant="outline">GET</Badge></td>
+                      <td className="py-2 pr-4 font-mono text-xs">/api/agent/events</td>
+                      <td className="py-2 text-slate-600">List your editable events (no event_id) or get event details</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 pr-4"><Badge variant="outline">PATCH</Badge></td>
+                      <td className="py-2 pr-4 font-mono text-xs">/api/agent/events</td>
+                      <td className="py-2 text-slate-600">Update event name, description, date, capacity</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 pr-4"><Badge variant="outline">GET</Badge></td>
+                      <td className="py-2 pr-4 font-mono text-xs">/api/agent/events/participants</td>
+                      <td className="py-2 text-slate-600">List participants, mentors, judges (filterable by role)</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 pr-4"><Badge variant="outline">PATCH</Badge></td>
+                      <td className="py-2 pr-4 font-mono text-xs">/api/agent/events/participants</td>
+                      <td className="py-2 text-slate-600">Change role or remove a participant</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 pr-4"><Badge variant="outline">GET</Badge></td>
+                      <td className="py-2 pr-4 font-mono text-xs">/api/agent/events/approval-requests</td>
+                      <td className="py-2 text-slate-600">List pending approval requests</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 pr-4"><Badge variant="outline">POST</Badge></td>
+                      <td className="py-2 pr-4 font-mono text-xs">/api/agent/events/approval-requests</td>
+                      <td className="py-2 text-slate-600">Approve or reject a request</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 pr-4"><Badge variant="outline">GET</Badge></td>
+                      <td className="py-2 pr-4 font-mono text-xs">/api/agent/events/projects</td>
+                      <td className="py-2 text-slate-600">List projects with scores</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 pr-4"><Badge variant="outline">GET</Badge></td>
+                      <td className="py-2 pr-4 font-mono text-xs">/api/agent/events/judges</td>
+                      <td className="py-2 text-slate-600">List judges and scoring progress</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 pr-4"><Badge variant="outline">POST</Badge></td>
+                      <td className="py-2 pr-4 font-mono text-xs">/api/agent/events/judges</td>
+                      <td className="py-2 text-slate-600">Send email to judges</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="participant" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Terminal className="h-5 w-5" />
+                Install
+              </CardTitle>
+              <CardDescription>
+                Installation differs by platform. Pick your agent below.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-5">
+                <div className="rounded-lg border border-slate-200 p-4">
+                  <h3 className="mb-2 text-base font-medium text-slate-900">Claude Code (Plugin Marketplace)</h3>
+                  <div className="rounded bg-slate-900 px-3 py-2 font-mono text-sm">
+                    <p className="text-emerald-600">/plugin install hackeragent@mentormates-marketplace</p>
+                </div>
+                  <p className="mt-2 text-xs text-slate-500">Or register the marketplace first, then install:</p>
+                  <div className="mt-1 space-y-0.5 rounded bg-slate-900 px-3 py-2 font-mono text-xs">
+                    <p className="text-emerald-500">/plugin marketplace add edumame/mentormates-marketplace</p>
+                    <p className="text-emerald-500">/plugin install hackeragent@mentormates-marketplace</p>
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-slate-200 p-4">
+                  <h3 className="mb-2 text-base font-medium text-slate-900">Cursor Agent</h3>
+                  <p className="mb-2 text-xs text-slate-500">In Cursor Agent chat:</p>
+                  <div className="rounded bg-slate-900 px-3 py-2 font-mono text-sm">
+                    <p className="text-emerald-600">/add-plugin hackeragent</p>
+                  </div>
+                  <p className="mt-2 text-xs text-slate-500">
+                    Or search for &quot;hackeragent&quot; in the plugin marketplace.
+                  </p>
+                </div>
+
+                <div className="rounded-lg border border-slate-200 p-4">
+                  <h3 className="mb-2 text-base font-medium text-slate-900">Codex</h3>
+                  <p className="mb-2 text-xs text-slate-500">Tell Codex:</p>
+                  <div className="rounded bg-slate-900 px-3 py-2 font-mono text-xs">
+                    <p className="break-all text-emerald-600">
+                      Fetch and follow instructions from https://hackeragent.vercel.app/api/install
+                    </p>
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-slate-200 p-4">
+                  <h3 className="mb-2 text-base font-medium text-slate-900">Gemini CLI / Windsurf / Any Agent</h3>
+                  <p className="mb-2 text-xs text-slate-500">
+                    Download the skill file and save it to your agent&apos;s skill directory:
+                  </p>
+                  <div className="space-y-0.5 rounded bg-slate-900 px-3 py-2 font-mono text-xs">
+                    <p className="break-all text-emerald-600">
+                      curl -o ~/.skills/mentormates/SKILL.md https://hackeragent.vercel.app/api/skill
+                    </p>
+                  </div>
+                  <p className="mt-2 text-xs text-slate-500">
+                    Or tell your agent: &quot;Fetch and follow instructions from https://hackeragent.vercel.app/api/install&quot;
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Setup your project</CardTitle>
+              <CardDescription>
+                Follows the HackerAgent setup flow and keeps participant onboarding simple.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <div className="rounded-lg border border-slate-200 p-4 space-y-2">
+                <p className="font-medium text-slate-900">Option A: Copy from MentorMates (recommended)</p>
+                <p className="text-sm text-slate-600">
+                  Create your project in MentorMates, then copy the generated setup command
+                  with project and event IDs prefilled.
+                </p>
+                <div className="rounded bg-slate-900 px-3 py-2 font-mono text-xs text-green-400">
+                  {"echo '{\"token\":\"abc123...\",\"mm_project_id\":\"proj-xyz\",\"mm_event_id\":\"evt-456\"}' > ~/.hackeragent/config.json"}
+                </div>
+              </div>
+              <div className="rounded-lg border border-slate-200 p-4 space-y-2">
+                <p className="font-medium text-slate-900">Option B: Use your MentorMates API key</p>
+                <p className="text-sm text-slate-600">
+                  Set your participant API key and use agent commands to bootstrap automatically.
+                </p>
+                <div className="rounded bg-slate-900 px-3 py-2 font-mono text-xs text-green-400">
+                  {"echo '{\"api_key\":\"mm_sk_...\"}' > ~/.hackeragent/config.json"}
+                </div>
+              </div>
+              <div className="rounded-lg border border-slate-200 p-4 space-y-2">
+                <p className="font-medium text-slate-900">Option C: Interactive setup</p>
+                <p className="text-sm text-slate-600">
+                  Run <code className="rounded bg-slate-100 px-1 text-xs">/mentormates</code> in your
+                  agent and follow prompts for event and project details.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>What it does</CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-4 md:grid-cols-3">
+              <div className="rounded-lg border border-slate-200 p-4">
+                <p className="mb-2 text-sm font-semibold text-slate-900">01 · Loads hackathon context</p>
+                <p className="text-sm text-slate-600">
+                  Injects judging criteria, sponsor challenges, deadlines, and submission format.
+                </p>
+              </div>
+              <div className="rounded-lg border border-slate-200 p-4">
+                <p className="mb-2 text-sm font-semibold text-slate-900">02 · Syncs as you build</p>
+                <p className="text-sm text-slate-600">
+                  Tracks description, tech stack, milestones, and links as you work in your agent.
+                </p>
+              </div>
+              <div className="rounded-lg border border-slate-200 p-4">
+                <p className="mb-2 text-sm font-semibold text-slate-900">03 · Submit when ready</p>
+                <p className="text-sm text-slate-600">
+                  Use <code className="rounded bg-slate-100 px-1 text-xs">/submit</code> to auto-populate
+                  your final project submission.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Works with any agent</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="rounded-xl border border-slate-200 bg-white p-5">
+                  <p className="flex items-center gap-2 text-2xl text-slate-900">
+                    <Bot className="h-5 w-5 text-slate-700" />
+                    Claude Code
+                  </p>
+                  <p className="text-sm text-slate-600">Skill + SessionStart hook</p>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white p-5">
+                  <p className="flex items-center gap-2 text-2xl text-slate-900">
+                    <BookOpen className="h-5 w-5 text-slate-700" />
+                    Codex
+                  </p>
+                  <p className="text-sm text-slate-600">Skill auto-detected</p>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white p-5">
+                  <p className="flex items-center gap-2 text-2xl text-slate-900">
+                    <MousePointer2 className="h-5 w-5 text-slate-700" />
+                    Cursor Agent
+                  </p>
+                  <p className="text-sm text-slate-600">Via .cursorrules or skill</p>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white p-5">
+                  <p className="flex items-center gap-2 text-2xl text-slate-900">
+                    <Sparkles className="h-5 w-5 text-slate-700" />
+                    Gemini CLI
+                  </p>
+                  <p className="text-sm text-slate-600">Via skill directory</p>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white p-5">
+                  <p className="flex items-center gap-2 text-2xl text-slate-900">
+                    <Wind className="h-5 w-5 text-slate-700" />
+                    Windsurf
+                  </p>
+                  <p className="text-sm text-slate-600">Via rules or skill</p>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white p-5">
+                  <p className="flex items-center gap-2 text-2xl text-slate-900">
+                    <Terminal className="h-5 w-5 text-slate-700" />
+                    Any CLI agent
+                  </p>
+                  <p className="text-sm text-slate-600">REST API + curl</p>
+                </div>
+              </div>
+              <p className="text-sm text-slate-600">
+                HackerAgent uses a CLI-based REST API under the hood. Any agent with shell access can call the
+                endpoints directly. The skill file handles the integration automatically.
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BookOpen className="h-5 w-5" />
+                API Reference
+              </CardTitle>
+              <CardDescription>
+                Participant project sync endpoints.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-left">
+                      <th className="pb-2 pr-4 font-medium text-slate-500">Method</th>
+                      <th className="pb-2 pr-4 font-medium text-slate-500">Endpoint</th>
+                      <th className="pb-2 font-medium text-slate-500">Description</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    <tr>
+                      <td className="py-2 pr-4"><Badge variant="outline">POST</Badge></td>
+                      <td className="py-2 pr-4 font-mono text-xs">/api/project/create</td>
+                      <td className="py-2 text-slate-600">Create a project sync session and return a token.</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 pr-4"><Badge variant="outline">POST</Badge></td>
+                      <td className="py-2 pr-4 font-mono text-xs">/api/project/update</td>
+                      <td className="py-2 text-slate-600">Append project updates (description, tech stack, milestones, links).</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 pr-4"><Badge variant="outline">GET</Badge></td>
+                      <td className="py-2 pr-4 font-mono text-xs">/api/project/status</td>
+                      <td className="py-2 text-slate-600">Read aggregated participant project state.</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 pr-4"><Badge variant="outline">GET</Badge></td>
+                      <td className="py-2 pr-4 font-mono text-xs">/api/context/[eventId]</td>
+                      <td className="py-2 text-slate-600">Fetch event context used by the participant assistant.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Web Chat</CardTitle>
+              <CardDescription>
+                Don&apos;t use a coding agent? Use the web chat interface instead.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
               <a
-                href="/api/agent/skill"
+                href="https://hackeragent.vercel.app/chat/demo"
+                target="_blank"
+                rel="noreferrer"
                 className="inline-flex items-center gap-2 rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 transition-colors"
               >
-                <Download className="h-4 w-4" />
-                mentormates.md
+                Open Chat
               </a>
-            </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {apiAudience === "organizer" ? (
+        <>
+          {/* Keys Management Section */}
+          <div className="space-y-2">
+            <h2 className="text-xl font-semibold tracking-tight text-slate-900">
+              Manage Keys
+            </h2>
           </div>
-        </CardContent>
-      </Card>
 
-      {/* API Reference */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BookOpen className="h-5 w-5" />
-            API Reference
-          </CardTitle>
-          <CardDescription>
-            All endpoints use Bearer token auth and require{" "}
-            <code className="rounded bg-slate-100 px-1 text-xs">?event_id=UUID</code>{" "}
-            for reusable keys.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-left">
-                  <th className="pb-2 pr-4 font-medium text-slate-500">Method</th>
-                  <th className="pb-2 pr-4 font-medium text-slate-500">Endpoint</th>
-                  <th className="pb-2 font-medium text-slate-500">Description</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                <tr>
-                  <td className="py-2 pr-4"><Badge variant="outline">GET</Badge></td>
-                  <td className="py-2 pr-4 font-mono text-xs">/api/agent/events</td>
-                  <td className="py-2 text-slate-600">List your editable events (no event_id) or get event details</td>
-                </tr>
-                <tr>
-                  <td className="py-2 pr-4"><Badge variant="outline">PATCH</Badge></td>
-                  <td className="py-2 pr-4 font-mono text-xs">/api/agent/events</td>
-                  <td className="py-2 text-slate-600">Update event name, description, date, capacity</td>
-                </tr>
-                <tr>
-                  <td className="py-2 pr-4"><Badge variant="outline">GET</Badge></td>
-                  <td className="py-2 pr-4 font-mono text-xs">/api/agent/events/participants</td>
-                  <td className="py-2 text-slate-600">List participants, mentors, judges (filterable by role)</td>
-                </tr>
-                <tr>
-                  <td className="py-2 pr-4"><Badge variant="outline">PATCH</Badge></td>
-                  <td className="py-2 pr-4 font-mono text-xs">/api/agent/events/participants</td>
-                  <td className="py-2 text-slate-600">Change role or remove a participant</td>
-                </tr>
-                <tr>
-                  <td className="py-2 pr-4"><Badge variant="outline">GET</Badge></td>
-                  <td className="py-2 pr-4 font-mono text-xs">/api/agent/events/approval-requests</td>
-                  <td className="py-2 text-slate-600">List pending approval requests</td>
-                </tr>
-                <tr>
-                  <td className="py-2 pr-4"><Badge variant="outline">POST</Badge></td>
-                  <td className="py-2 pr-4 font-mono text-xs">/api/agent/events/approval-requests</td>
-                  <td className="py-2 text-slate-600">Approve or reject a request</td>
-                </tr>
-                <tr>
-                  <td className="py-2 pr-4"><Badge variant="outline">GET</Badge></td>
-                  <td className="py-2 pr-4 font-mono text-xs">/api/agent/events/projects</td>
-                  <td className="py-2 text-slate-600">List projects with scores</td>
-                </tr>
-                <tr>
-                  <td className="py-2 pr-4"><Badge variant="outline">GET</Badge></td>
-                  <td className="py-2 pr-4 font-mono text-xs">/api/agent/events/judges</td>
-                  <td className="py-2 text-slate-600">List judges and scoring progress</td>
-                </tr>
-                <tr>
-                  <td className="py-2 pr-4"><Badge variant="outline">POST</Badge></td>
-                  <td className="py-2 pr-4 font-mono text-xs">/api/agent/events/judges</td>
-                  <td className="py-2 text-slate-600">Send email to judges</td>
-                </tr>
-                <tr>
-                  <td className="py-2 pr-4"><Badge variant="outline">GET</Badge></td>
-                  <td className="py-2 pr-4 font-mono text-xs">/api/agent/me/events</td>
-                  <td className="py-2 text-slate-600">List participant events you have joined and public events you can join via the agent API</td>
-                </tr>
-                <tr>
-                  <td className="py-2 pr-4"><Badge variant="outline">POST</Badge></td>
-                  <td className="py-2 pr-4 font-mono text-xs">/api/agent/me/events/[eventId]/join</td>
-                  <td className="py-2 text-slate-600">Join or request approval for a free public event as a participant</td>
-                </tr>
-                <tr>
-                  <td className="py-2 pr-4"><Badge variant="outline">GET / POST</Badge></td>
-                  <td className="py-2 pr-4 font-mono text-xs">/api/agent/me/events/[eventId]/projects</td>
-                  <td className="py-2 text-slate-600">List your projects for an event, or create and submit a new one</td>
-                </tr>
-                <tr>
-                  <td className="py-2 pr-4"><Badge variant="outline">PATCH</Badge></td>
-                  <td className="py-2 pr-4 font-mono text-xs">/api/agent/me/events/[eventId]/projects/[projectId]</td>
-                  <td className="py-2 text-slate-600">Edit a project you own or belong to on that event team</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+          <Alert>
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Authorization still happens per event</AlertTitle>
+            <AlertDescription>
+              Reusable keys are not global admin keys. Every `/api/agent/events*`
+              request still checks the current user behind the key against the
+              `event_id` you pass.
+            </AlertDescription>
+          </Alert>
 
-      {/* Keys Management Section */}
-      <div className="space-y-2">
-        <h2 className="text-xl font-semibold tracking-tight text-slate-900">
-          Manage Keys
-        </h2>
-      </div>
-
-      <Alert>
-        <AlertTriangle className="h-4 w-4" />
-        <AlertTitle>Authorization still happens per event</AlertTitle>
-        <AlertDescription>
-          Reusable keys are not global admin keys. Every `/api/agent/events*`
-          request still checks the current user behind the key against the
-          `event_id` you pass.
-        </AlertDescription>
-      </Alert>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Create an API key</CardTitle>
-          <CardDescription>
-            Choose how you want your key to work.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div
-                  className={`cursor-pointer rounded-lg border-2 p-5 transition-colors ${
-                    accessMode === "organizer"
-                      ? "border-blue-500 bg-blue-50"
-                      : "border-slate-200 hover:border-slate-300"
-                  }`}
-                  onClick={() => setAccessMode("organizer")}
-                >
+          <Card>
+            <CardHeader>
+              <CardTitle>Create an API key</CardTitle>
+              <CardDescription>
+                Choose how you want your key to work.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <>
+                <div className="rounded-lg border-2 border-blue-500 bg-blue-50 p-5">
                   <div className="mb-2">
                     <p className="font-semibold text-slate-900">Organizer access</p>
                   </div>
@@ -460,25 +723,8 @@ export default function KeysPageClient({
                     approval requests, and event-wide project views.
                   </p>
                 </div>
-                <div
-                  className={`cursor-pointer rounded-lg border-2 p-5 transition-colors ${
-                    accessMode === "participant"
-                      ? "border-blue-500 bg-blue-50"
-                      : "border-slate-200 hover:border-slate-300"
-                  }`}
-                  onClick={() => setAccessMode("participant")}
-                >
-                  <div className="mb-2">
-                    <p className="font-semibold text-slate-900">Participant access</p>
-                  </div>
-                  <p className="text-sm text-slate-600">
-                    List events you can join, inspect your event projects, and
-                    submit or edit your own project from Claude or Codex.
-                  </p>
-                </div>
-              </div>
 
-              {accessMode === "organizer" && managedEventOptions.length === 0 ? (
+              {managedEventOptions.length === 0 ? (
                 <p className="text-sm text-amber-700">
                   You need organizer access to at least one event before you can
                   create organizer agent keys.
@@ -497,25 +743,17 @@ export default function KeysPageClient({
                 >
                   <div className="flex items-center gap-2 mb-2">
                     <Globe2 className="h-5 w-5 text-blue-600" />
-                    <p className="font-semibold text-slate-900">
-                      {accessMode === "organizer"
-                        ? "Key for all my organizer events"
-                        : "Reusable participant key"}
-                    </p>
+                    <p className="font-semibold text-slate-900">Key for all my organizer events</p>
                   </div>
                   <p className="text-sm text-slate-600">
-                    {accessMode === "organizer"
-                      ? (
-                        <>
-                          One key that works across all events you organize.
-                          Pass{" "}
-                          <code className="rounded bg-slate-100 px-1 text-xs">
-                            ?event_id=UUID
-                          </code>{" "}
-                          on each API call to choose the event.
-                        </>
-                      )
-                      : "One key that can list joinable events and work across the participant events you join."}
+                    <>
+                      One key that works across all events you organize.
+                      Pass{" "}
+                      <code className="rounded bg-slate-100 px-1 text-xs">
+                        ?event_id=UUID
+                      </code>{" "}
+                      on each API call to choose the event.
+                    </>
                   </p>
                 </div>
 
@@ -530,11 +768,7 @@ export default function KeysPageClient({
                 >
                   <div className="flex items-center gap-2 mb-2">
                     <LockKeyhole className="h-5 w-5 text-amber-600" />
-                    <p className="font-semibold text-slate-900">
-                      {accessMode === "organizer"
-                        ? "Key for one organizer event"
-                        : "Key for one participant event"}
-                    </p>
+                    <p className="font-semibold text-slate-900">Key for one organizer event</p>
                   </div>
                   <p className="text-sm text-slate-600">
                     Locked to a single event. No need to pass{" "}
@@ -565,122 +799,118 @@ export default function KeysPageClient({
                       ))}
                     </SelectContent>
                   </Select>
-                  {accessMode === "participant" && currentEventOptions.length === 0 ? (
-                    <p className="text-sm text-amber-700">
-                      Join an event first if you want an event-specific participant key.
-                      Reusable participant keys can still browse joinable events.
-                    </p>
-                  ) : null}
                 </div>
               )}
 
-              <div className="flex items-end gap-3">
-                <div className="flex-1 space-y-2">
-                  <Label htmlFor="key-label">Label (optional)</Label>
-                  <Input
-                    id="key-label"
-                    value={label}
-                    onChange={(event) => setLabel(event.target.value)}
-                    placeholder="e.g. My laptop, CI/CD, Recruiting agent"
-                  />
+                <div className="flex items-end gap-3">
+                  <div className="flex-1 space-y-2">
+                    <Label htmlFor="key-label">Label (optional)</Label>
+                    <Input
+                      id="key-label"
+                      value={label}
+                      onChange={(event) => setLabel(event.target.value)}
+                      placeholder="e.g. My laptop, CI/CD, Recruiting agent"
+                    />
+                  </div>
+                  <Button
+                    onClick={handleCreateKey}
+                    disabled={isCreating}
+                    className="min-w-36"
+                  >
+                    <KeyRound className="mr-2 h-4 w-4" />
+                    {isCreating ? "Creating..." : "Create Key"}
+                  </Button>
                 </div>
-                <Button
-                  onClick={handleCreateKey}
-                  disabled={isCreating}
-                  className="min-w-36"
-                >
-                  <KeyRound className="mr-2 h-4 w-4" />
-                  {isCreating ? "Creating..." : "Create Key"}
-                </Button>
-              </div>
-          </>
-        </CardContent>
-      </Card>
+              </>
+            </CardContent>
+          </Card>
 
-      {error ? (
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Request failed</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      ) : null}
+          {error ? (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Request failed</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          ) : null}
 
-      {generatedKey ? (
-        <Card className="border-emerald-200 bg-emerald-50">
-          <CardHeader>
-            <CardTitle className="text-emerald-900">New key created</CardTitle>
-            <CardDescription className="text-emerald-800">
-              {generatedKey.message}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-white px-3 py-3">
-              <code className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap font-mono text-sm">
-                {generatedKey.apiKey}
-              </code>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => copyToClipboard(generatedKey.apiKey, "new-key")}
-              >
-                {copiedField === "new-key" ? (
-                  <Check className="h-4 w-4 text-emerald-600" />
-                ) : (
-                  <Copy className="h-4 w-4" />
-                )}
-              </Button>
-            </div>
-            {!generatedKey.eventId ? (
-              <p className="text-sm text-emerald-900">
-                This is a reusable key. Pair it with
-                `?event_id=&lt;event_uuid&gt;` on every agent event route.
+          {generatedKey ? (
+            <Card className="border-emerald-200 bg-emerald-50">
+              <CardHeader>
+                <CardTitle className="text-emerald-900">New key created</CardTitle>
+                <CardDescription className="text-emerald-800">
+                  {generatedKey.message}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-white px-3 py-3">
+                  <code className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap font-mono text-sm">
+                    {generatedKey.apiKey}
+                  </code>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => copyToClipboard(generatedKey.apiKey, "new-key")}
+                  >
+                    {copiedField === "new-key" ? (
+                      <Check className="h-4 w-4 text-emerald-600" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+                {!generatedKey.eventId ? (
+                  <p className="text-sm text-emerald-900">
+                    This is a reusable key. Pair it with
+                    `?event_id=&lt;event_uuid&gt;` on every agent event route.
+                  </p>
+                ) : null}
+              </CardContent>
+            </Card>
+          ) : null}
+
+          <section className="space-y-4">
+            <div className="space-y-1">
+              <h2 className="text-xl font-semibold text-slate-900">Reusable keys</h2>
+              <p className="text-sm text-slate-600">
+                One key, many events. These keys require `event_id` on every
+                `/api/agent/events*` request.
               </p>
-            ) : null}
-          </CardContent>
-        </Card>
+            </div>
+            {publicKeys.length > 0 ? (
+              <div className="grid gap-4 lg:grid-cols-2">
+                {publicKeys.map(renderKeyCard)}
+              </div>
+            ) : (
+              <Card className="border-dashed">
+                <CardContent className="py-8 text-sm text-slate-500">
+                  No reusable keys yet.
+                </CardContent>
+              </Card>
+            )}
+          </section>
+
+          <section className="space-y-4">
+            <div className="space-y-1">
+              <h2 className="text-xl font-semibold text-slate-900">Event-specific keys</h2>
+              <p className="text-sm text-slate-600">
+                Scoped keys only work for one event. Keep them if you need hard event
+                isolation, otherwise prefer reusable keys.
+              </p>
+            </div>
+            {eventScopedKeys.length > 0 ? (
+              <div className="grid gap-4 lg:grid-cols-2">
+                {eventScopedKeys.map(renderKeyCard)}
+              </div>
+            ) : (
+              <Card className="border-dashed">
+                <CardContent className="py-8 text-sm text-slate-500">
+                  No event-specific keys yet.
+                </CardContent>
+              </Card>
+            )}
+          </section>
+        </>
       ) : null}
-
-      <section className="space-y-4">
-        <div className="space-y-1">
-          <h2 className="text-xl font-semibold text-slate-900">Reusable keys</h2>
-          <p className="text-sm text-slate-600">
-            One key, many events. These keys require `event_id` on every
-            `/api/agent/events*` request.
-          </p>
-        </div>
-        {publicKeys.length > 0 ? (
-          <div className="grid gap-4 lg:grid-cols-2">
-            {publicKeys.map(renderKeyCard)}
-          </div>
-        ) : (
-          <Card className="border-dashed">
-            <CardContent className="py-8 text-sm text-slate-500">
-              No reusable keys yet.
-            </CardContent>
-          </Card>
-        )}
-      </section>
-
-      <section className="space-y-4">
-        <div className="space-y-1">
-          <h2 className="text-xl font-semibold text-slate-900">Event-specific keys</h2>
-          <p className="text-sm text-slate-600">
-            Scoped keys only work for one event. Keep them if you need hard event
-            isolation, otherwise prefer reusable keys.
-          </p>
-        </div>
-        {eventScopedKeys.length > 0 ? (
-          <div className="grid gap-4 lg:grid-cols-2">
-            {eventScopedKeys.map(renderKeyCard)}
-          </div>
-        ) : (
-          <Card className="border-dashed">
-            <CardContent className="py-8 text-sm text-slate-500">
-              No event-specific keys yet.
-            </CardContent>
-          </Card>
-        )}
-      </section>
     </div>
   );
 }
