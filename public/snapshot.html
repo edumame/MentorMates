@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MentorMates — Project Snapshot</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --accent: #4B89EF;
+    --accent-hover: #3E7EEA;
+    --accent-soft: rgba(75,137,239,0.08);
+    --text: #18181B;
+    --text-2: #7F7F7F;
+    --text-3: #a3a3a3;
+    --bg: #FFFFFF;
+    --border: rgba(0,0,0,0.15);
+    --border-light: rgba(0,0,0,0.08);
+    --neutral: #F2F2F2;
+    --radius: 16px;
+    --radius-btn: 12px;
+    --shadow: 0 1px 2px rgba(0,0,0,0.05);
+    --shadow-btn: inset 0 32px 24px 0 rgba(255,255,255,0.05), inset 0 2px 1px 0 rgba(255,255,255,0.25), inset 0 0 0 1px rgba(0,0,0,0.15), inset 0 -2px 1px 0 rgba(0,0,0,0.20), 0 1px 2px 0 rgba(0,0,0,0.05);
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 48px 32px 96px;
+  }
+
+  /* ── Hero ── */
+  .hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) 1fr;
+    gap: 48px;
+    align-items: start;
+    margin-bottom: 48px;
+  }
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 12px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    border-radius: 999px;
+    margin-bottom: 16px;
+  }
+  .hero-badge .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #34d399;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+  .hero h1 {
+    font-size: clamp(36px, 5vw, 52px);
+    line-height: 1.05;
+    letter-spacing: -0.06em;
+    font-weight: 800;
+    color: var(--text);
+    margin-bottom: 16px;
+  }
+  .hero-desc {
+    font-size: 16px;
+    line-height: 1.6;
+    color: var(--text-2);
+    margin-bottom: 24px;
+    max-width: 520px;
+  }
+  .hero-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 24px;
+    border-radius: var(--radius-btn);
+    font-size: 16px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.15s;
+    border: none;
+    cursor: pointer;
+  }
+  .btn-primary {
+    background: var(--accent);
+    color: #fff;
+    box-shadow: var(--shadow-btn);
+  }
+  .btn-primary:hover { background: var(--accent-hover); }
+  .btn-secondary {
+    background: rgba(0,0,0,0.05);
+    color: var(--text);
+  }
+  .btn-secondary:hover { background: rgba(0,0,0,0.08); }
+
+  /* Hero right: executive summary card */
+  .exec-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 24px;
+  }
+  .exec-card h3 {
+    font-size: 14px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-2);
+    margin-bottom: 16px;
+  }
+  .exec-item {
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border-light);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .exec-item:last-child { border-bottom: none; }
+  .exec-label {
+    font-weight: 600;
+    color: var(--text);
+    display: block;
+    margin-bottom: 2px;
+  }
+  .exec-value {
+    color: var(--text-2);
+    font-size: 13px;
+  }
+
+  /* ── Proof Points ── */
+  .proof {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+    margin-bottom: 48px;
+  }
+  .proof-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 24px;
+  }
+  .proof-card .value {
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  .proof-card .label {
+    font-size: 14px;
+    color: var(--text-2);
+    margin-top: 4px;
+  }
+  .proof-card .micro {
+    font-size: 12px;
+    color: var(--text-3);
+    margin-top: 2px;
+  }
+
+  /* ── Section ── */
+  .section { margin-top: 48px; }
+  .section-head {
+    font-size: 22px;
+    line-height: 1.4;
+    letter-spacing: -0.04em;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .section-sub {
+    font-size: 14px;
+    color: var(--text-2);
+    margin-bottom: 24px;
+  }
+
+  /* ── Gaps / Delegation (executive brief) ── */
+  .brief-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  .brief-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 24px;
+  }
+  .brief-card h4 {
+    font-size: 14px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-2);
+    margin-bottom: 16px;
+  }
+  .brief-list { list-style: none; }
+  .assign-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border-light);
+    font-size: 14px;
+  }
+  .assign-item:last-child { border-bottom: none; }
+  .assign-avatars {
+    display: flex;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .assign-avatars .mini-av {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700;
+    border: 2px solid #fff;
+  }
+  .assign-avatars .mini-av + .mini-av { margin-left: -6px; }
+  .assign-text { font-weight: 500; line-height: 1.45; }
+  .assign-text .assign-names { font-weight: 600; color: var(--accent); }
+  .gap-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border-light);
+    font-size: 14px;
+    line-height: 1.45;
+  }
+  .gap-item:last-child { border-bottom: none; }
+  .gap-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #DC2626;
+    flex-shrink: 0;
+    margin-top: 6px;
+  }
+
+  /* ── Feature Cards ── */
+  .features {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
+  .feature {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 24px;
+    min-height: 180px;
+    display: flex;
+    flex-direction: column;
+  }
+  .feature .tag {
+    display: inline-flex;
+    align-self: flex-start;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 999px;
+    margin-bottom: 12px;
+  }
+  .tag-shipped { background: var(--accent-soft); color: var(--accent); }
+  .tag-wip { background: rgba(0,0,0,0.05); color: rgba(0,0,0,0.5); }
+  .tag-next { background: rgba(0,0,0,0.03); color: var(--text-3); }
+  .feature h3 {
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.35;
+    margin-bottom: 8px;
+  }
+  .feature p {
+    font-size: 14px;
+    color: var(--text-2);
+    line-height: 1.6;
+    flex: 1;
+  }
+
+  /* ── Changelog ── */
+  .changelog { list-style: none; }
+  .changelog li {
+    display: grid;
+    grid-template-columns: 72px 1fr auto;
+    gap: 12px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border-light);
+    align-items: center;
+    font-size: 14px;
+  }
+  .changelog li:last-child { border-bottom: none; }
+  .cl-cat {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 4px 8px;
+    border-radius: 6px;
+    text-align: center;
+  }
+  .cat-api { background: #DBEAFE; color: #2563EB; }
+  .cat-ux { background: #EDE9FE; color: #7C3AED; }
+  .cat-bug { background: #FEE2E2; color: #DC2626; }
+  .cat-infra { background: rgba(0,0,0,0.05); color: rgba(0,0,0,0.5); }
+  .cat-feat { background: var(--accent-soft); color: var(--accent); }
+  .cl-msg { font-weight: 500; }
+  .cl-meta { font-size: 12px; color: var(--text-3); text-align: right; white-space: nowrap; }
+
+  /* ── Contributors ── */
+  .contributors {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
+  .contrib {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 20px 24px;
+  }
+  .contrib .av {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 16px;
+    flex-shrink: 0;
+  }
+  .av-1 { background: #DBEAFE; color: #2563EB; }
+  .av-2 { background: #D1FAE5; color: #059669; }
+  .av-3 { background: #EDE9FE; color: #7C3AED; }
+  .av-4 { background: #FEF3C7; color: #D97706; }
+  .contrib .c-info { flex: 1; min-width: 0; }
+  .contrib .c-name { font-size: 15px; font-weight: 600; }
+  .contrib .c-role { font-size: 13px; color: var(--text-2); }
+  .contrib .c-stat {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent);
+    text-align: right;
+  }
+
+  /* ── Footer ── */
+  .footer {
+    margin-top: 64px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border-light);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    color: var(--text-3);
+  }
+  .footer-links { display: flex; gap: 16px; }
+  .footer-links a {
+    color: var(--text-2);
+    text-decoration: none;
+    font-weight: 500;
+  }
+  .footer-links a:hover { color: var(--accent); }
+
+  @media (max-width: 768px) {
+    .page { padding: 32px 20px 64px; }
+    .hero { grid-template-columns: 1fr; gap: 24px; }
+    .proof { grid-template-columns: 1fr; }
+    .brief-grid { grid-template-columns: 1fr; }
+    .features { grid-template-columns: 1fr; }
+    .contributors { grid-template-columns: 1fr; }
+    .changelog li { grid-template-columns: 60px 1fr; }
+    .cl-meta { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Hero -->
+  <div class="hero">
+    <div>
+      <div class="hero-badge"><span class="dot"></span> Active Development &middot; Q1 2026</div>
+      <h1>MentorMates</h1>
+      <p class="hero-desc">AI-powered hackathon management platform. Event creation, participant onboarding, judging workflows, and agentic APIs for the builder ecosystem.</p>
+      <div class="hero-actions">
+        <a href="https://www.mentormates.ai" class="btn btn-primary">Visit Platform &rarr;</a>
+        <a href="https://demo.mentormates.ai" class="btn btn-secondary">Demo</a>
+        <a href="https://github.com/edumame/MentorMates" class="btn btn-secondary">GitHub</a>
+      </div>
+    </div>
+
+    <!-- Executive Summary -->
+    <div class="exec-card">
+      <h3>Executive Summary</h3>
+      <div class="exec-item">
+        <span class="exec-label">Where we are</span>
+        <span class="exec-value">Core platform shipped. Agent API live. 31 events, 70+ projects on demo. First organic user (Elsa, ASU) validates PLG thesis.</span>
+      </div>
+      <div class="exec-item">
+        <span class="exec-label">What shipped this sprint</span>
+        <span class="exec-value">Organizer Agent API + Claude Code skill, 4-step event wizard, mobile shell, submission export, API key management UX.</span>
+      </div>
+      <div class="exec-item">
+        <span class="exec-label">Biggest gap</span>
+        <span class="exec-value">Onboarding flow is broken: preview mode missing, AI chatbot only on submission step, QR untested. Blocks organizer experience quality.</span>
+      </div>
+      <div class="exec-item">
+        <span class="exec-label">This week's focus</span>
+        <span class="exec-value">Fix onboarding flow, merge profile page, test judging assignment. Then: participant CLI + WeChat login.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Proof Points -->
+  <div class="proof">
+    <div class="proof-card">
+      <div class="value">31</div>
+      <div class="label">Live events on platform</div>
+      <div class="micro">Including first organic external event</div>
+    </div>
+    <div class="proof-card">
+      <div class="value">70+</div>
+      <div class="label">Projects submitted</div>
+      <div class="micro">AI Challenge Day alone: 70 submissions</div>
+    </div>
+    <div class="proof-card">
+      <div class="value">4-step</div>
+      <div class="label">Event setup wizard</div>
+      <div class="micro">Import from URL, AI-assisted, validated</div>
+    </div>
+  </div>
+
+  <!-- Delegation & Gaps -->
+  <div class="section">
+    <h2 class="section-head">Delegation &amp; Gaps</h2>
+    <p class="section-sub">What each person owns this sprint and where we're behind.</p>
+    <div class="brief-grid">
+      <div class="brief-card">
+        <h4>Assignments</h4>
+        <ul class="brief-list">
+          <li><span class="owner">Lia</span> Test judging platform project assignment end-to-end</li>
+          <li><span class="owner">Jason + Lia</span> Fix organizer onboarding: preview mode, AI chatbot across all wizard steps, QR code</li>
+          <li><span class="owner">Jason</span> Implement WeChat login for China market access</li>
+          <li><span class="owner">Chinat + Jeffrey</span> Participant CLI flow for project submission</li>
+          <li><span class="owner">Jeffrey</span> Contact management system (CRM-lite) &mdash; due Apr 1</li>
+          <li><span class="owner">Team</span> Merge profile page PR #608</li>
+        </ul>
+      </div>
+      <div class="brief-card">
+        <h4>Observed Gaps</h4>
+        <ul class="brief-list">
+          <li><span class="gap-icon">!</span> Onboarding flow broken &mdash; preview mode missing, AI chatbot only on submission form, QR untested</li>
+          <li><span class="gap-icon">!</span> No participant-side CLI &mdash; organizers can use agents but participants can't yet</li>
+          <li><span class="gap-icon">!</span> China accessibility &mdash; AI domain may get blocked, no WeChat login yet</li>
+          <li><span class="gap-icon">!</span> 13 overdue tasks in dev tracker &mdash; need triage and re-scheduling</li>
+          <li><span class="gap-icon">!</span> Judging platform untested in local env &mdash; Lia blocked on project assignment</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- What Shipped -->
+  <div class="section">
+    <h2 class="section-head">What Shipped</h2>
+    <p class="section-sub">Key features delivered this month.</p>
+    <div class="features">
+      <div class="feature">
+        <div class="tag tag-shipped">Shipped</div>
+        <h3>Organizer Agent API</h3>
+        <p>Manage events programmatically from Claude Code or any AI agent. Generate API keys, manage participants, approve requests, view projects and scores.</p>
+      </div>
+      <div class="feature">
+        <div class="tag tag-shipped">Shipped</div>
+        <h3>4-Step Event Wizard</h3>
+        <p>Guided event creation replacing the old tab flow. Import from any event URL, AI-assisted form filling, step-by-step validation with live preview.</p>
+      </div>
+      <div class="feature">
+        <div class="tag tag-shipped">Shipped</div>
+        <h3>Mobile-First Shell</h3>
+        <p>Full mobile experience with drawer navigation, responsive event creation, and adaptive dashboard layouts for all user roles.</p>
+      </div>
+      <div class="feature">
+        <div class="tag tag-shipped">Shipped</div>
+        <h3>Submission Data Export</h3>
+        <p>Organizers export full submission data with custom form responses as CSV for offline review, judging prep, and reporting.</p>
+      </div>
+      <div class="feature">
+        <div class="tag tag-wip">In Progress</div>
+        <h3>Event Tags (Multi-Type)</h3>
+        <p>Events tagged as "hackathon + workshop + networking" simultaneously. Full schema migration across the codebase.</p>
+      </div>
+      <div class="feature">
+        <div class="tag tag-next">Next</div>
+        <h3>Participant CLI + WeChat Login</h3>
+        <p>Participants submit projects via code. WeChat OAuth for China market. Universal AI chatbot across all wizard steps.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Changelog -->
+  <div class="section">
+    <h2 class="section-head">Changelog</h2>
+    <p class="section-sub">Recent activity by category.</p>
+    <ul class="changelog">
+      <li>
+        <span class="cl-cat cat-feat">Feat</span>
+        <span class="cl-msg">Convert event_type to tags array</span>
+        <span class="cl-meta">Chinat &middot; Apr 2</span>
+      </li>
+      <li>
+        <span class="cl-cat cat-infra">Infra</span>
+        <span class="cl-msg">Add organizer info to admin dashboard</span>
+        <span class="cl-meta">Jeffrey &middot; Mar 31</span>
+      </li>
+      <li>
+        <span class="cl-cat cat-bug">Bug</span>
+        <span class="cl-msg">API base URL configurable + redirect fix</span>
+        <span class="cl-meta">Chinat &middot; Mar 30</span>
+      </li>
+      <li>
+        <span class="cl-cat cat-api">API</span>
+        <span class="cl-msg">Redesign API key creation UX</span>
+        <span class="cl-meta">Chinat &middot; Mar 30</span>
+      </li>
+      <li>
+        <span class="cl-cat cat-api">API</span>
+        <span class="cl-msg">Claude Code skill for organizer events</span>
+        <span class="cl-meta">Chinat &middot; Mar 27</span>
+      </li>
+      <li>
+        <span class="cl-cat cat-ux">UX</span>
+        <span class="cl-msg">Private event approval on draft only</span>
+        <span class="cl-meta">Lia &middot; Mar 25</span>
+      </li>
+      <li>
+        <span class="cl-cat cat-ux">UX</span>
+        <span class="cl-msg">Mobile shell header with drawer nav</span>
+        <span class="cl-meta">Lia &middot; Mar 20</span>
+      </li>
+      <li>
+        <span class="cl-cat cat-bug">Bug</span>
+        <span class="cl-msg">Fix event creation invite pattern</span>
+        <span class="cl-meta">Jeffrey &middot; Mar 19</span>
+      </li>
+    </ul>
+  </div>
+
+  <!-- Contributors -->
+  <div class="section">
+    <h2 class="section-head">Team</h2>
+    <div class="contributors">
+      <div class="contrib">
+        <div class="av av-1">C</div>
+        <div class="c-info">
+          <div class="c-name">Chinat Yu</div>
+          <div class="c-role">Product, Infrastructure, Agent API</div>
+        </div>
+        <div class="c-stat">57</div>
+      </div>
+      <div class="contrib">
+        <div class="av av-2">J</div>
+        <div class="c-info">
+          <div class="c-name">Jeffrey Zhou</div>
+          <div class="c-role">Core Platform, Auth, Events</div>
+        </div>
+        <div class="c-stat">41</div>
+      </div>
+      <div class="contrib">
+        <div class="av av-3">J</div>
+        <div class="c-info">
+          <div class="c-name">Jason Ke</div>
+          <div class="c-role">Sign-up Flow, Judging UI</div>
+        </div>
+        <div class="c-stat">12</div>
+      </div>
+      <div class="contrib">
+        <div class="av av-4">L</div>
+        <div class="c-info">
+          <div class="c-name">Lia Sindhu</div>
+          <div class="c-role">Mobile, Host Page, UX Fixes</div>
+        </div>
+        <div class="c-stat">12</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <span>Generated April 3, 2026 &middot; Edumame Inc.</span>
+    <div class="footer-links">
+      <a href="https://www.mentormates.ai">Platform</a>
+      <a href="https://demo.mentormates.ai">Demo</a>
+      <a href="https://github.com/edumame/MentorMates">GitHub</a>
+      <a href="https://www.notion.so/266ab088064e8037b584c554326d3af7">Notion</a>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
