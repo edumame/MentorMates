@@ -20,7 +20,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { AlertTriangle, BookOpen, Check, Copy, Download, Globe2, KeyRound, LockKeyhole, Terminal, Trash2 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AlertTriangle, BookOpen, Check, Copy, Download, Globe2, KeyRound, LockKeyhole, Terminal, Trash2, Users, Shield } from "lucide-react";
 
 export interface AgentKeyRecord {
   id: string;
@@ -75,7 +76,7 @@ export default function KeysPageClient({
   const [keys, setKeys] = useState(initialKeys);
   const [label, setLabel] = useState("");
   const [accessMode, setAccessMode] = useState<"organizer" | "participant">(
-    managedEventOptions.length > 0 ? "organizer" : "participant"
+    "participant"
   );
   const [scopeMode, setScopeMode] = useState<"public" | "event">("public");
   const [eventId, setEventId] = useState(
@@ -270,17 +271,46 @@ export default function KeysPageClient({
   };
 
   return (
-    <div className="mx-auto max-w-6xl space-y-8 px-4 py-12">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
+    <div className="mx-auto max-w-6xl space-y-8 px-4 py-8 sm:px-6 lg:px-8">
+      <div className="space-y-1">
+        <h1 className="text-[28px] font-semibold text-black tracking-[-0.06em] leading-[1.4]">
           Developer API
         </h1>
-        <p className="max-w-3xl text-sm text-slate-600">
+        <p className="text-base text-black">
           Manage your hackathon events from Claude Code, Codex, or any AI agent.
-          Create an API key, download the skill file, and start managing events
-          from your terminal.
         </p>
       </div>
+
+      <Tabs
+        value={accessMode}
+        onValueChange={(v) => setAccessMode(v as "organizer" | "participant")}
+        className="space-y-6"
+      >
+        <TabsList className="bg-[#f2f2f2] rounded-xl p-1">
+          <TabsTrigger value="participant" className="rounded-lg px-4 py-2 gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
+            <Users className="h-4 w-4" />
+            Participant
+          </TabsTrigger>
+          <TabsTrigger value="organizer" className="rounded-lg px-4 py-2 gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
+            <Shield className="h-4 w-4" />
+            Organizer
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="participant" className="space-y-8">
+          <p className="text-sm text-slate-600">
+            List events you can join, inspect your event projects, and submit or edit
+            your own project from Claude Code or Codex.
+          </p>
+        </TabsContent>
+
+        <TabsContent value="organizer" className="space-y-8">
+          <p className="text-sm text-slate-600">
+            Manage events you organize, including participants, judges, approval
+            requests, and event-wide project views.
+          </p>
+        </TabsContent>
+      </Tabs>
 
       {/* Quick Start */}
       <Card>
@@ -443,41 +473,6 @@ export default function KeysPageClient({
         </CardHeader>
         <CardContent className="space-y-6">
           <>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div
-                  className={`cursor-pointer rounded-lg border-2 p-5 transition-colors ${
-                    accessMode === "organizer"
-                      ? "border-blue-500 bg-blue-50"
-                      : "border-slate-200 hover:border-slate-300"
-                  }`}
-                  onClick={() => setAccessMode("organizer")}
-                >
-                  <div className="mb-2">
-                    <p className="font-semibold text-slate-900">Organizer access</p>
-                  </div>
-                  <p className="text-sm text-slate-600">
-                    Manage events you organize, including participants, judges,
-                    approval requests, and event-wide project views.
-                  </p>
-                </div>
-                <div
-                  className={`cursor-pointer rounded-lg border-2 p-5 transition-colors ${
-                    accessMode === "participant"
-                      ? "border-blue-500 bg-blue-50"
-                      : "border-slate-200 hover:border-slate-300"
-                  }`}
-                  onClick={() => setAccessMode("participant")}
-                >
-                  <div className="mb-2">
-                    <p className="font-semibold text-slate-900">Participant access</p>
-                  </div>
-                  <p className="text-sm text-slate-600">
-                    List events you can join, inspect your event projects, and
-                    submit or edit your own project from Claude or Codex.
-                  </p>
-                </div>
-              </div>
-
               {accessMode === "organizer" && managedEventOptions.length === 0 ? (
                 <p className="text-sm text-amber-700">
                   You need organizer access to at least one event before you can

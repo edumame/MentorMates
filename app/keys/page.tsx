@@ -35,27 +35,34 @@ export default async function KeysPage() {
     redirect("/sign-in");
   }
 
-  const { data: isAdminRpc } = await supabase.rpc("is_admin_user", {
-    user_id: user.id,
-  });
-  const isAdmin = Boolean(isAdminRpc);
+  let keys: AgentKeyRecord[] = [];
+  let managedEvents: EventRow[] = [];
+  let participantEvents: EventRow[] = [];
 
-  const [{ data: keys = [] }, managedEvents, participantEvents] = await Promise.all([
-    supabase
-      .from("agent_api_keys")
-      .select("id, event_id, key_prefix, label, scopes, last_used_at, expires_at, created_at")
-      .eq("user_id", user.id)
-      .is("revoked_at", null)
-      .order("created_at", { ascending: false }),
-    listManagedAgentEvents(user.id),
-    listParticipantAgentEvents(user.id),
-  ]);
+  try {
+    const [keysResult, managed, participant] = await Promise.all([
+      supabase
+        .from("agent_api_keys")
+        .select("id, event_id, key_prefix, label, scopes, last_used_at, expires_at, created_at")
+        .eq("user_id", user.id)
+        .is("revoked_at", null)
+        .order("created_at", { ascending: false }),
+      listManagedAgentEvents(user.id).catch(() => []),
+      listParticipantAgentEvents(user.id).catch(() => []),
+    ]);
+
+    keys = (keysResult.data || []) as AgentKeyRecord[];
+    managedEvents = managed as EventRow[];
+    participantEvents = participant as EventRow[];
+  } catch {
+    // DB tables may not exist yet in this environment — render with empty data
+  }
 
   return (
     <KeysPageClient
-      initialKeys={(keys || []) as AgentKeyRecord[]}
-      managedEventOptions={dedupeEvents(managedEvents as EventRow[])}
-      participantEventOptions={dedupeEvents(participantEvents as EventRow[])}
+      initialKeys={keys}
+      managedEventOptions={dedupeEvents(managedEvents)}
+      participantEventOptions={dedupeEvents(participantEvents)}
     />
   );
 }
