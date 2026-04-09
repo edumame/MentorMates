@@ -804,7 +804,7 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                             key={`high_${track.track_id}`}
                             value={`track_high:${track.track_id}`}
                           >
-                            {track.track_name}: high → low
+                            {track.name}: high → low
                           </option>
                         ))}
                         {eventTracks.map((track) => (
@@ -812,7 +812,7 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                             key={`low_${track.track_id}`}
                             value={`track_low:${track.track_id}`}
                           >
-                            {track.track_name}: low → high
+                            {track.name}: low → high
                           </option>
                         ))}
                       </optgroup>
