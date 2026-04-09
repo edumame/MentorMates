@@ -5,7 +5,7 @@ import type { IntakeFormField, IntakeFormSchema } from "@/features/intake-forms/
 const LEVEL_OF_STUDY_OPTIONS = [
   "Less than Secondary / High School",
   "Secondary / High School",
-  "Undergraduate University (2 year - community college or similar)",
+  "Undergraduate University (2 year - community college, etc.)",
   "Undergraduate University (3+ year)",
   "Graduate University (Masters, Professional, Doctoral, etc.)",
   "Code School / Bootcamp",

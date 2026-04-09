@@ -2,20 +2,31 @@
 
 import { useMemo, useState } from "react";
 
+import { AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
-import type { IntakeFormAnswers, IntakeFormField, IntakeFormSchema } from "@/features/intake-forms/types";
+import type {
+  IntakeFormAnswers,
+  IntakeFormField,
+  IntakeFormSchema,
+} from "@/features/intake-forms/types";
 
 type ParticipantIntakeDialogProps = {
   open: boolean;
@@ -56,7 +67,9 @@ function validateRequired(field: IntakeFormField, value: unknown): boolean {
     return Array.isArray(value) && value.length > 0;
   }
 
-  return typeof value === "string" ? value.trim().length > 0 : value !== null && value !== undefined;
+  return typeof value === "string"
+    ? value.trim().length > 0
+    : value !== null && value !== undefined;
 }
 
 export function ParticipantIntakeDialog({
@@ -87,7 +100,9 @@ export function ParticipantIntakeDialog({
     setError(null);
 
     if (missingRequiredLabels.length > 0) {
-      setError(`Please complete required fields: ${missingRequiredLabels.join(", ")}`);
+      setError(
+        `Please complete required fields: ${missingRequiredLabels.join(", ")}`
+      );
       return;
     }
 
@@ -95,137 +110,173 @@ export function ParticipantIntakeDialog({
   };
 
   const handleAnswerChange = (key: string, value: unknown) => {
-    setAnswers((current) => ({
-      ...current,
-      [key]: value,
-    }));
+    setAnswers((current) => ({ ...current, [key]: value }));
   };
 
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => !nextOpen && onClose()}>
-      <DialogContent className="max-h-[90vh] max-w-2xl overflow-auto">
-        <DialogHeader>
-          <DialogTitle>{schema.title}</DialogTitle>
+      <DialogContent className="flex flex-col gap-0 p-0 w-[calc(100%-2rem)] max-h-[90dvh] sm:max-w-2xl overflow-hidden rounded-xl">
+        {/* Blue accent bar — matches the builder card style */}
+        <div className="h-1.5 w-full flex-shrink-0 rounded-t-xl bg-[#4B89EF]" />
+
+        {/* Sticky header */}
+        <DialogHeader className="flex-shrink-0 px-5 pb-3 pt-5 sm:px-6">
+          <DialogTitle className="text-xl font-semibold leading-tight">
+            {schema.title}
+          </DialogTitle>
           {schema.description ? (
-            <DialogDescription>{schema.description}</DialogDescription>
+            <DialogDescription className="mt-1 text-sm leading-relaxed text-black/60">
+              {schema.description}
+            </DialogDescription>
           ) : null}
         </DialogHeader>
 
-        <div className="space-y-4">
-          {visibleFields.map((field) => {
-            const value = answers[field.key];
-            const options = field.options ?? [];
+        {/* Scrollable field body */}
+        <div className="flex-1 overflow-y-auto px-5 pb-2 sm:px-6">
+          <div className="space-y-5 py-2">
+            {visibleFields.map((field) => {
+              const value = answers[field.key];
+              const options = field.options ?? [];
 
-            return (
-              <div key={field.id} className="space-y-2">
-                <label className="text-sm font-medium text-black">
-                  {field.label}
-                  {field.required ? " *" : ""}
-                </label>
+              return (
+                <div key={field.id} className="space-y-1.5">
+                  {field.type !== "checkbox" && (
+                    <label className="text-sm font-medium text-black/90">
+                      {field.label}
+                      {field.required ? (
+                        <span className="ml-0.5 text-[#4B89EF]"> *</span>
+                      ) : null}
+                    </label>
+                  )}
 
-                {field.description ? (
-                  <p className="text-xs text-black/60">{field.description}</p>
-                ) : null}
+                  {field.description ? (
+                    <p className="text-xs text-black/55">{field.description}</p>
+                  ) : null}
 
-                {(field.type === "short_text" ||
-                  field.type === "email" ||
-                  field.type === "number" ||
-                  field.type === "date") && (
-                  <Input
-                    type={
-                      field.type === "short_text"
-                        ? "text"
-                        : field.type === "email"
-                          ? "email"
-                          : field.type
-                    }
-                    value={typeof value === "string" ? value : ""}
-                    placeholder={field.placeholder}
-                    onChange={(event) =>
-                      handleAnswerChange(field.key, event.target.value)
-                    }
-                  />
-                )}
-
-                {field.type === "long_text" && (
-                  <Textarea
-                    value={typeof value === "string" ? value : ""}
-                    placeholder={field.placeholder}
-                    onChange={(event) =>
-                      handleAnswerChange(field.key, event.target.value)
-                    }
-                  />
-                )}
-
-                {field.type === "single_select" && (
-                  <select
-                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                    value={typeof value === "string" ? value : ""}
-                    onChange={(event) =>
-                      handleAnswerChange(field.key, event.target.value)
-                    }
-                  >
-                    <option value="">Select an option</option>
-                    {options.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </select>
-                )}
-
-                {field.type === "multi_select" && (
-                  <div className="space-y-2 rounded-md border border-black/10 p-3">
-                    {options.map((option) => {
-                      const current = Array.isArray(value)
-                        ? (value as string[])
-                        : [];
-                      const checked = current.includes(option);
-
-                      return (
-                        <label key={option} className="flex items-center gap-2 text-sm">
-                          <Checkbox
-                            checked={checked}
-                            onCheckedChange={(checkedValue) => {
-                              const next = checkedValue
-                                ? [...current, option]
-                                : current.filter((item) => item !== option);
-                              handleAnswerChange(field.key, next);
-                            }}
-                          />
-                          {option}
-                        </label>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {field.type === "checkbox" && (
-                  <label className="flex items-center gap-2 text-sm">
-                    <Checkbox
-                      checked={Boolean(value)}
-                      onCheckedChange={(checkedValue) =>
-                        handleAnswerChange(field.key, Boolean(checkedValue))
+                  {(field.type === "short_text" ||
+                    field.type === "email" ||
+                    field.type === "number" ||
+                    field.type === "date") && (
+                    <Input
+                      type={
+                        field.type === "short_text"
+                          ? "text"
+                          : field.type === "email"
+                            ? "email"
+                            : field.type
                       }
+                      value={typeof value === "string" ? value : ""}
+                      placeholder={field.placeholder}
+                      onChange={(event) =>
+                        handleAnswerChange(field.key, event.target.value)
+                      }
+                      className="h-10"
                     />
-                    {field.placeholder || "Yes"}
-                  </label>
-                )}
-              </div>
-            );
-          })}
+                  )}
 
-          {error ? <p className="text-sm text-red-600">{error}</p> : null}
+                  {field.type === "long_text" && (
+                    <Textarea
+                      value={typeof value === "string" ? value : ""}
+                      placeholder={field.placeholder}
+                      onChange={(event) =>
+                        handleAnswerChange(field.key, event.target.value)
+                      }
+                      className="min-h-[80px]"
+                    />
+                  )}
+
+                  {field.type === "single_select" && (
+                    <Select
+                      value={typeof value === "string" ? value : ""}
+                      onValueChange={(val) => handleAnswerChange(field.key, val)}
+                    >
+                      <SelectTrigger className="h-10 w-full">
+                        <SelectValue placeholder="Select an option" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {options.map((option) => (
+                          <SelectItem key={option} value={option}>
+                            {option}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+
+                  {field.type === "multi_select" && (
+                    <div className="space-y-2 rounded-md border border-black/10 p-3">
+                      {options.map((option) => {
+                        const current = Array.isArray(value)
+                          ? (value as string[])
+                          : [];
+                        const checked = current.includes(option);
+
+                        return (
+                          <label
+                            key={option}
+                            className="flex cursor-pointer items-start gap-2.5 text-sm"
+                          >
+                            <Checkbox
+                              checked={checked}
+                              onCheckedChange={(checkedValue) => {
+                                const next = checkedValue
+                                  ? [...current, option]
+                                  : current.filter((item) => item !== option);
+                                handleAnswerChange(field.key, next);
+                              }}
+                              className="mt-0.5 flex-shrink-0"
+                            />
+                            <span className="leading-snug">{option}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {field.type === "checkbox" && (
+                    <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-black/10 bg-black/[0.02] p-3 text-sm transition-colors hover:bg-black/[0.04]">
+                      <Checkbox
+                        checked={Boolean(value)}
+                        onCheckedChange={(checkedValue) =>
+                          handleAnswerChange(field.key, Boolean(checkedValue))
+                        }
+                        className="mt-0.5 flex-shrink-0"
+                      />
+                      <span className="leading-snug text-black/80">
+                        {field.label}
+                        {field.required ? (
+                          <span className="ml-0.5 text-[#4B89EF]"> *</span>
+                        ) : null}
+                      </span>
+                    </label>
+                  )}
+                </div>
+              );
+            })}
+
+            {error ? (
+              <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+                <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-red-500" />
+                <p className="text-sm text-red-600">{error}</p>
+              </div>
+            ) : null}
+          </div>
         </div>
 
-        <DialogFooter>
+        {/* Sticky footer */}
+        <div className="flex flex-shrink-0 justify-end gap-2 border-t border-black/10 px-5 py-4 sm:px-6">
           <Button type="button" variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="button" onClick={handleSubmit} disabled={submitting}>
+          <Button
+            type="button"
+            className="bg-[#4B89EF] text-white hover:bg-[#3E7EEA]"
+            onClick={handleSubmit}
+            disabled={submitting}
+          >
             {submitting ? "Submitting..." : "Submit"}
           </Button>
-        </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );
