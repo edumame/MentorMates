@@ -127,6 +127,8 @@ export function TracksTab({
             isSubmitting={saving}
             onSave={handleScoreUpdate}
             isArchived={isArchived}
+            eventId={eventId}
+            tracks={event.event_tracks || []}
           />
         </div>
       </div>

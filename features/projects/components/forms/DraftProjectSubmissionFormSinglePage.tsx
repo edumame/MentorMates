@@ -54,6 +54,7 @@ import type {
   IntakeFormAnswers,
   IntakeFormSchema,
 } from "@/features/intake-forms/types";
+import { CoverImageWithFallback } from "@/features/projects/components/displays/cover-image-with-fallback";
 
 interface EventParticipant {
   user_id: string;
@@ -1381,7 +1382,7 @@ export default function DraftProjectSubmissionFormSinglePage({
                   {/* Cover Image */}
                   <div className="aspect-[339/220] relative">
                     {formData.cover_image_url ? (
-                      <img
+                      <CoverImageWithFallback
                         src={formData.cover_image_url}
                         alt="Cover"
                         className="w-full h-full object-cover"

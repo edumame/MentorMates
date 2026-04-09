@@ -235,6 +235,7 @@ export async function GET(
         `
         event_id,
         event_name,
+        event_type,
         slug,
         event_date,
         location,

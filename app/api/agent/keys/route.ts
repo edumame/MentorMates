@@ -4,22 +4,20 @@ import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { EventRole } from "@/lib/types";
 import { canAccessRole } from "@/features/user/roles/roles";
 import { generateApiKey } from "@/lib/agent/auth";
+import {
+  agentAccessModeSchema,
+  agentScopeModeSchema,
+  agentScopeSchema,
+  areScopesAllowedForAccessMode,
+  getDefaultScopesForAccessMode,
+} from "@/lib/agent/scopes";
 
 const createKeySchema = z.object({
-  event_id: z.string().uuid(),
-  scope_mode: z.enum(["public", "event"]).optional().default("public"),
+  event_id: z.string().uuid().optional(),
+  access_mode: agentAccessModeSchema.optional().default("organizer"),
+  scope_mode: agentScopeModeSchema.optional().default("public"),
   label: z.string().max(100).optional().default("default"),
-  scopes: z
-    .array(z.string())
-    .optional()
-    .default([
-      "event:read",
-      "event:write",
-      "participants:read",
-      "participants:write",
-      "projects:read",
-      "projects:write",
-    ]),
+  scopes: z.array(agentScopeSchema).optional(),
 });
 
 // POST: Generate a reusable API key after verifying event access
@@ -44,28 +42,68 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { event_id, scope_mode, label, scopes } = parsed.data;
+    const { event_id, access_mode, scope_mode, label } = parsed.data;
+    const scopes = parsed.data.scopes ?? getDefaultScopesForAccessMode(access_mode);
 
-    // Verify user is organizer/admin for this event
-    const { data: roleRow } = await supabase
-      .from("user_event_roles")
-      .select("role")
-      .eq("event_id", event_id)
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    const { data: isAdminRpc } = await supabase.rpc("is_admin_user", {
-      user_id: user.id,
-    });
-
-    const isOrganizer =
-      roleRow && canAccessRole(roleRow.role as EventRole, EventRole.Organizer);
-
-    if (!isOrganizer && !Boolean(isAdminRpc)) {
+    if (!areScopesAllowedForAccessMode(access_mode, scopes)) {
       return NextResponse.json(
-        { error: "Only organizers can generate API keys" },
-        { status: 403 }
+        { error: "Requested scopes are not allowed for this access mode" },
+        { status: 400 }
       );
+    }
+
+    if (scope_mode === "event" && !event_id) {
+      return NextResponse.json(
+        { error: "event_id is required for event-specific keys" },
+        { status: 400 }
+      );
+    }
+
+    if (access_mode === "organizer") {
+      if (!event_id) {
+        return NextResponse.json(
+          { error: "event_id is required for organizer keys" },
+          { status: 400 }
+        );
+      }
+
+      const { data: roleRow } = await supabase
+        .from("user_event_roles")
+        .select("role")
+        .eq("event_id", event_id)
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      const { data: isAdminRpc } = await supabase.rpc("is_admin_user", {
+        user_id: user.id,
+      });
+
+      const isOrganizer =
+        roleRow && canAccessRole(roleRow.role as EventRole, EventRole.Organizer);
+
+      if (!isOrganizer && !Boolean(isAdminRpc)) {
+        return NextResponse.json(
+          { error: "Only organizers can generate organizer agent keys" },
+          { status: 403 }
+        );
+      }
+    } else if (scope_mode === "event" && event_id) {
+      const { data: roleRow } = await supabase
+        .from("user_event_roles")
+        .select("role")
+        .eq("event_id", event_id)
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      const isParticipant =
+        roleRow && canAccessRole(roleRow.role as EventRole, EventRole.Participant);
+
+      if (!isParticipant) {
+        return NextResponse.json(
+          { error: "You need event access before creating an event-scoped participant key" },
+          { status: 403 }
+        );
+      }
     }
 
     const { raw, hash, prefix } = generateApiKey();
@@ -106,7 +144,9 @@ export async function POST(request: NextRequest) {
         message:
           scope_mode === "event"
             ? "Save this API key — it will not be shown again. This key is scoped to the selected event."
-            : "Save this API key — it will not be shown again. Use it as: Authorization: Bearer <key> and include ?event_id=<event_uuid> on /api/agent/events requests.",
+            : access_mode === "participant"
+              ? "Save this API key — it will not be shown again. Use it as: Authorization: Bearer <key> on /api/agent/me/events requests."
+              : "Save this API key — it will not be shown again. Use it as: Authorization: Bearer <key> and include ?event_id=<event_uuid> on /api/agent/events requests.",
       },
       { status: 201 }
     );

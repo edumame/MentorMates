@@ -26,7 +26,6 @@ import {
 import { useProjectSubmissionData } from "@/features/projects/components/forms/hooks/useProjectSubmissionData";
 import { EventCard } from "@/components/events/event-card";
 import { Public } from "@mui/icons-material";
-import Link from "next/link";
 import { ParticipantIntakeDialog } from "@/features/intake-forms/components/ParticipantIntakeDialog";
 import { ProjectSubmissionSchemaSection } from "@/features/projects/components/forms/components/ProjectSubmissionSchemaSection";
 import { useProjectSubmissionAutosave } from "@/features/projects/components/forms/hooks/useProjectSubmissionAutosave";
@@ -39,6 +38,7 @@ import type {
   IntakeFormAnswers,
   IntakeFormSchema,
 } from "@/features/intake-forms/types";
+import { CoverImageWithFallback } from "@/features/projects/components/displays/cover-image-with-fallback";
 
 interface EventParticipant {
   user_id: string;
@@ -885,7 +885,7 @@ export function NewProjectSubmissionFormSinglePage({
   const totalMembers = (formData.teammates?.length || 0) + 1;
 
   return (
-    <div className="bg-white mb-8">
+    <div className="bg-white mb-8 sm:pb-0 pb-24">
       <Toaster />
       {activeIntakeForm ? (
         <ParticipantIntakeDialog
@@ -1243,7 +1243,7 @@ export function NewProjectSubmissionFormSinglePage({
                     {/* Cover Image */}
                     <div className="aspect-[339/220] relative">
                       {formData.coverImageUrl ? (
-                        <img
+                        <CoverImageWithFallback
                           src={formData.coverImageUrl}
                           alt="Cover"
                           className="w-full h-full object-cover"
@@ -1342,25 +1342,21 @@ export function NewProjectSubmissionFormSinglePage({
                         Submitted to
                       </h3>
                       <div className="w-[339px]">
-                        <Link
-                          href={`/events/${eventDetails.event_id}/overview`}
-                        >
-                          <EventCard
-                            event={{
-                              event_id: eventDetails.event_id,
-                              slug: eventDetails.slug,
-                              event_name: eventDetails.event_name,
-                              event_date: eventDetails.event_date,
-                              location: eventDetails.location || "Online",
-                              cover_image_url: eventDetails.cover_image_url,
-                              paid: eventDetails.paid,
-                              event_blurb:
-                                eventDetails.event_blurb ||
-                                eventDetails.event_description,
-                              event_description: eventDetails.event_description,
-                            }}
-                          />
-                        </Link>
+                        <EventCard
+                          event={{
+                            event_id: eventDetails.event_id,
+                            slug: eventDetails.slug,
+                            event_name: eventDetails.event_name,
+                            event_date: eventDetails.event_date,
+                            location: eventDetails.location || "Online",
+                            cover_image_url: eventDetails.cover_image_url,
+                            paid: eventDetails.paid,
+                            event_blurb:
+                              eventDetails.event_blurb ||
+                              eventDetails.event_description,
+                            event_description: eventDetails.event_description,
+                          }}
+                        />
                       </div>
                     </div>
                   </>
@@ -1369,6 +1365,24 @@ export function NewProjectSubmissionFormSinglePage({
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Mobile sticky bottom submit bar */}
+      <div className="sm:hidden fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-[rgba(0,0,0,0.15)] px-4 py-3 shadow-[0_-4px_12px_rgba(0,0,0,0.08)]">
+        <Button
+          onClick={handlePublish}
+          disabled={isSubmitting}
+          className="w-full bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl py-3 shadow-sm font-medium text-base"
+        >
+          {isSubmitting ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Publishing...
+            </>
+          ) : (
+            "Publish project"
+          )}
+        </Button>
       </div>
     </div>
   );
