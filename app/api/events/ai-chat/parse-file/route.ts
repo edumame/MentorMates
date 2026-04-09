@@ -114,10 +114,16 @@ export async function POST(request: NextRequest) {
         const pdf = await pdfParse(buffer);
         textContent = pdf.text;
       } catch {
-        return NextResponse.json(
-          { error: "Failed to parse PDF. The file may be corrupted or image-only.", success: false },
-          { status: 400 }
-        );
+        // Fallback: extract any readable text from the PDF binary.
+        // GPT-5 is surprisingly good at making sense of partial text.
+        const rawText = buffer.toString("utf-8").replace(/[^\x20-\x7E\n\r\t]/g, " ").replace(/\s{3,}/g, "\n");
+        if (rawText.trim().length < 20) {
+          return NextResponse.json(
+            { error: "Failed to parse PDF. The file may be image-only or corrupted.", success: false },
+            { status: 400 }
+          );
+        }
+        textContent = rawText;
       }
     } else if (
       ext === ".docx" ||
