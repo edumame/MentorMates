@@ -14,7 +14,7 @@
  * save/delete patterns as the original form.
  */
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -111,6 +111,32 @@ export function CompactScoringForm({
   const [config, setConfig] = useState<EventScoringConfig>(
     initialConfig || { tracks: {}, defaultMin: 0, defaultMax: 10, defaultWeight: 1 }
   );
+
+  // Sync external config changes (from AI sidebar) into the internal state.
+  // Uses a ref to avoid re-syncing when the user edits the form locally.
+  const lastExternalConfig = useRef(initialConfig);
+  useEffect(() => {
+    if (
+      initialConfig &&
+      initialConfig !== lastExternalConfig.current &&
+      JSON.stringify(initialConfig) !== JSON.stringify(config)
+    ) {
+      setConfig(initialConfig);
+      // Auto-expand new tracks that weren't there before
+      const newTrackIds = Object.keys(initialConfig.tracks).filter(
+        (id) => !config.tracks[id]
+      );
+      if (newTrackIds.length > 0) {
+        setExpandedTracks((prev) => {
+          const next = new Set(prev);
+          newTrackIds.forEach((id) => next.add(id));
+          return next;
+        });
+      }
+    }
+    lastExternalConfig.current = initialConfig;
+  }, [initialConfig]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const [expandedTracks, setExpandedTracks] = useState<Set<string>>(() => {
     // Auto-expand the first track or all tracks if ≤ 2
     const ids = Object.keys(initialConfig?.tracks || {});
