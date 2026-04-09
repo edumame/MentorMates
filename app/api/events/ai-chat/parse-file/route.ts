@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
-import pdfParse from "pdf-parse";
-import mammoth from "mammoth";
+// Dynamic imports to avoid pdf-parse loading test fixtures at build time
+// (pdf-parse v1 has a known bug where it tries to read ./test/data/*.pdf on import)
+const getPdfParse = () => import("pdf-parse").then((m) => m.default);
+const getMammoth = () => import("mammoth").then((m) => m.default);
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 
 /**
@@ -111,6 +113,7 @@ export async function POST(request: NextRequest) {
 
     if (ext === ".pdf" || file.type === "application/pdf") {
       try {
+        const pdfParse = await getPdfParse();
         const pdf = await pdfParse(buffer);
         textContent = pdf.text;
       } catch {
@@ -130,6 +133,7 @@ export async function POST(request: NextRequest) {
       file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     ) {
       try {
+        const mammoth = await getMammoth();
         const result = await mammoth.extractRawText({ buffer });
         textContent = result.value;
       } catch {
