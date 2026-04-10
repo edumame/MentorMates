@@ -108,6 +108,12 @@ export default function KeysPageClient({
   const eventScopedKeys = tabKeys.filter((key) => key.event_id);
 
   useEffect(() => {
+    if (activeTab === "participant" && scopeMode === "event") {
+      setScopeMode("public");
+    }
+  }, [activeTab, scopeMode]);
+
+  useEffect(() => {
     if (scopeMode !== "event") return;
     if (currentEventOptions.some((e) => e.id === eventId)) return;
     setEventId(currentEventOptions[0]?.id ?? "");
@@ -306,7 +312,7 @@ export default function KeysPageClient({
           </p>
         )}
 
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className={`grid gap-3 ${activeTab === "organizer" ? "md:grid-cols-2" : "md:grid-cols-1"}`}>
           <div
             className={`cursor-pointer rounded-xl border-2 p-4 transition-colors ${
               scopeMode === "public"
@@ -325,27 +331,27 @@ export default function KeysPageClient({
                 : "Your own key that can access all your personal projects across events."}
             </p>
           </div>
-          <div
-            className={`cursor-pointer rounded-xl border-2 p-4 transition-colors ${
-              scopeMode === "event"
-                ? "border-[#4b89ef] bg-blue-50"
-                : "border-[rgba(0,0,0,0.15)] hover:border-[rgba(0,0,0,0.25)]"
-            }`}
-            onClick={() => setScopeMode("event")}
-          >
-            <div className="flex items-center gap-2 mb-1">
-              <LockKeyhole className="h-4 w-4 text-amber-600" />
-              <p className="font-medium text-black text-sm">Event-specific key</p>
+          {activeTab === "organizer" && (
+            <div
+              className={`cursor-pointer rounded-xl border-2 p-4 transition-colors ${
+                scopeMode === "event"
+                  ? "border-[#4b89ef] bg-blue-50"
+                  : "border-[rgba(0,0,0,0.15)] hover:border-[rgba(0,0,0,0.25)]"
+              }`}
+              onClick={() => setScopeMode("event")}
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <LockKeyhole className="h-4 w-4 text-amber-600" />
+                <p className="font-medium text-black text-sm">Event-specific key</p>
+              </div>
+              <p className="text-xs text-[#575d65]">
+                Tied to a specific event. No event_id param needed.
+              </p>
             </div>
-            <p className="text-xs text-[#575d65]">
-              {activeTab === "organizer"
-                ? "Tied to a specific event. No event_id param needed."
-                : "Tied to a specific event. Only accesses projects within that event."}
-            </p>
-          </div>
+          )}
         </div>
 
-        {scopeMode === "event" && (
+        {activeTab === "organizer" && scopeMode === "event" && (
           <div className="space-y-2">
             <Label>Event</Label>
             <Select value={eventId} onValueChange={setEventId}>
