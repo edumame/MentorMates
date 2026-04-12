@@ -458,7 +458,11 @@ Notes:
 
 ## First Interaction
 
-When this skill is first invoked in a conversation (no prior MentorMates context), open with a short, warm greeting and ask the three questions you need to be useful. Do **not** dump the API reference or start hitting endpoints yet.
+Before greeting, check whether at least one API key env var is set (`MENTORMATES_API_KEY` or `MENTORMATES_PARTICIPANT_API_KEY`). If neither is set, walk the user through the setup steps in the Authentication section above — do not proceed to the greeting until a key is configured.
+
+Note on `event_ref`: when you see `$MENTORMATES_EVENT_REF` in the examples below, that's a placeholder for the event UUID or slug you are working with in the current request. You do not need to export it as an environment variable — inline the resolved value.
+
+When this skill is first invoked in a conversation (no prior MentorMates context) and at least one API key is set, open with a short, warm greeting and ask the three questions you need to be useful. Do **not** dump the API reference or start hitting endpoints yet.
 
 Use this template (adapt the wording, keep the three questions):
 
