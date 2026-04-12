@@ -266,8 +266,9 @@ export default function KeysPageClient({
   };
 
   const renderQuickStart = () => (
-    <div className="grid gap-4 md:grid-cols-3">
-      <div className="rounded-xl border border-[rgba(0,0,0,0.15)] p-4 space-y-2">
+    <div className="space-y-4">
+      <div className="grid gap-4 md:grid-cols-3">
+        <div className="rounded-xl border border-[rgba(0,0,0,0.15)] p-4 space-y-2">
         <p className="font-medium text-black">1. Create a key</p>
         <p className="text-sm text-[#575d65]">
           Generate an API key below.
@@ -295,6 +296,23 @@ export default function KeysPageClient({
           </div>
         )}
       </div>
+      </div>
+      {activeTab === "participant" && (
+        <div className="rounded-xl border border-[rgba(0,0,0,0.15)] bg-[#fafafa] p-4 space-y-2">
+          <p className="font-medium text-black">What happens next</p>
+          <p className="text-sm text-[#575d65]">
+            Once installed, your agent will greet you and ask three questions to get going:
+          </p>
+          <ol className="list-decimal space-y-1 pl-5 text-sm text-[#575d65]">
+            <li>Which event are you at (name or slug)?</li>
+            <li>What project are you building?</li>
+            <li>Are you in the project&apos;s repo right now?</li>
+          </ol>
+          <p className="text-sm text-[#575d65]">
+            From there it can join free events, draft a submission from your README, or edit an existing project.
+          </p>
+        </div>
+      )}
     </div>
   );
 
