@@ -275,8 +275,8 @@ export default function KeysPageClient({
       </div>
       <div className="rounded-xl border border-[rgba(0,0,0,0.15)] p-4 space-y-2">
         <p className="font-medium text-black">2. Set env vars</p>
-        <div className="rounded-lg bg-black px-3 py-2 font-mono text-xs text-green-400">
-          export MENTORMATES_API_KEY=&quot;mm_sk_...&quot;
+        <div className="rounded-lg bg-black px-3 py-2 font-mono text-xs text-green-400 whitespace-pre-wrap break-all">
+          export {activeTab === "organizer" ? "MENTORMATES_API_KEY" : "MENTORMATES_PARTICIPANT_API_KEY"}=&quot;mm_sk_...&quot;
         </div>
       </div>
       <div className="rounded-xl border border-[rgba(0,0,0,0.15)] p-4 space-y-2">
@@ -290,8 +290,8 @@ export default function KeysPageClient({
             mentormates.md
           </a>
         ) : (
-          <div className="rounded-lg bg-black px-3 py-2 font-mono text-xs text-green-400">
-            npx skills install mentormates
+          <div className="rounded-lg bg-black px-3 py-2 font-mono text-xs text-green-400 whitespace-pre-wrap break-all">
+            npx skills add edumame/mentormates-skill
           </div>
         )}
       </div>
