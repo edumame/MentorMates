@@ -69,10 +69,13 @@ body {
 
     /* Design tokens (Figma / MentorMates) */
     --Color-Pattens-Blue-Lighter: #F7FAFE;
+    --Color-Pattens-Blue: #DBEAFE;
+    --Color-Jacksons-Purple: #4B89EF;
     --text-text-primary: #18181B;
     --Text-Sizes-Heading-5: 28px;
     --Text-Sizes-Heading-6: 22px;
     --Color-Scheme-1-Accent: #4B89EF;
+    --Color-Scheme-1-Text: #000;
     --Color-Neutral-Darkest: #000;
     --Color-Neutral: #7F7F7F;
     --Color-Neutral-Lightest: #F2F2F2;
