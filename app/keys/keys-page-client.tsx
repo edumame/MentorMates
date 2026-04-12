@@ -125,9 +125,84 @@ export default function KeysPageClient({
     window.setTimeout(() => setCopiedField(null), 2000);
   };
 
+  const buildCopyableMarkdown = () => {
+    const isOrg = activeTab === "organizer";
+    const envVar = isOrg ? "MENTORMATES_API_KEY" : "MENTORMATES_PARTICIPANT_API_KEY";
+    const installCmd = isOrg
+      ? "# Download the tailored organizer skill from https://www.mentormates.ai/api/agent/skill"
+      : "npx skills add edumame/mentormates-skill";
+    const endpoints = isOrg
+      ? [
+          { method: "GET", path: "/api/agent/events", desc: "List or get event details" },
+          { method: "PATCH", path: "/api/agent/events", desc: "Update event settings" },
+          { method: "GET", path: "/api/agent/events/participants", desc: "List participants by role" },
+          { method: "PATCH", path: "/api/agent/events/participants", desc: "Change role or remove" },
+          { method: "GET", path: "/api/agent/events/approval-requests", desc: "Pending approvals" },
+          { method: "POST", path: "/api/agent/events/approval-requests", desc: "Approve or reject" },
+          { method: "GET", path: "/api/agent/events/projects", desc: "List projects with scores" },
+          { method: "GET", path: "/api/agent/events/judges", desc: "Judges and scoring progress" },
+          { method: "POST", path: "/api/agent/events/judges", desc: "Send email to judges" },
+        ]
+      : [
+          { method: "GET", path: "/api/agent/me/events", desc: "Your events + joinable events" },
+          { method: "POST", path: "/api/agent/me/events/[eventId]/join", desc: "Join a public event" },
+          { method: "GET", path: "/api/agent/me/events/[eventId]/projects", desc: "Your projects" },
+          { method: "POST", path: "/api/agent/me/events/[eventId]/projects", desc: "Create + submit project" },
+          { method: "PATCH", path: "/api/agent/me/events/[eventId]/projects/[projectId]", desc: "Edit your project" },
+        ];
+    const endpointRows = endpoints
+      .map((e) => `| ${e.method} | \`${e.path}\` | ${e.desc} |`)
+      .join("\n");
+    const nextSteps = isOrg
+      ? "Once configured, your agent can fetch the event overview, review pending approvals, list participants and projects, and message judges."
+      : [
+          "Once installed, your agent will greet you and ask three questions:",
+          "1. Which event are you at (name or slug)?",
+          "2. What project are you building?",
+          "3. Are you in the project's repo right now?",
+          "",
+          "From there it can join free events, draft a submission from your README, or edit an existing project.",
+        ].join("\n");
+
+    return [
+      "# MentorMates Developer API",
+      "",
+      "Create API keys and manage your hackathon from any AI agent.",
+      "",
+      `## Role: ${isOrg ? "Organizer" : "Participant"}`,
+      "",
+      "### 1. Create a key",
+      "Visit https://www.mentormates.ai/keys and generate a key for this role.",
+      "",
+      "### 2. Set env vars",
+      "```bash",
+      `export ${envVar}="mm_sk_..."`,
+      "```",
+      "",
+      "### 3. Install the skill",
+      "```bash",
+      installCmd,
+      "```",
+      "",
+      "### What happens next",
+      nextSteps,
+      "",
+      "## API Reference",
+      "All endpoints require `Authorization: Bearer $API_KEY`.",
+      "",
+      "| Method | Endpoint | Description |",
+      "| --- | --- | --- |",
+      endpointRows,
+      "",
+      "## Links",
+      "- Skill source: https://github.com/edumame/mentormates-skill",
+      "- Full skill reference: https://www.mentormates.ai/skills/SKILL.md",
+      "",
+    ].join("\n");
+  };
+
   const handleCopyPage = async () => {
-    const pageText = document.querySelector("[data-copyable]")?.textContent || "";
-    await navigator.clipboard.writeText(pageText);
+    await navigator.clipboard.writeText(buildCopyableMarkdown());
     setCopiedField("page");
     window.setTimeout(() => setCopiedField(null), 2000);
   };
