@@ -21,7 +21,22 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
-import { AlertTriangle, Bot, BookOpen, Check, Copy, Download, Globe2, KeyRound, LockKeyhole, MousePointer2, Sparkles, Terminal, Trash2, Wind } from "lucide-react";
+import {
+  AlertTriangle,
+  Bot,
+  BookOpen,
+  Check,
+  Copy,
+  Download,
+  Globe2,
+  KeyRound,
+  LockKeyhole,
+  MousePointer2,
+  Sparkles,
+  Terminal,
+  Trash2,
+  Wind,
+} from "lucide-react";
 
 export interface AgentKeyRecord {
   id: string;
@@ -75,9 +90,6 @@ export default function KeysPageClient({
 }: KeysPageClientProps) {
   const [keys, setKeys] = useState(initialKeys);
   const [label, setLabel] = useState("");
-  const [accessMode, setAccessMode] = useState<"organizer" | "participant">(
-    managedEventOptions.length > 0 ? "organizer" : "participant"
-  );
   const [scopeMode, setScopeMode] = useState<"public" | "event">("public");
   const [eventId, setEventId] = useState(
     managedEventOptions[0]?.id ?? participantEventOptions[0]?.id ?? ""
@@ -96,30 +108,31 @@ export default function KeysPageClient({
       ),
     [managedEventOptions, participantEventOptions]
   );
-  const publicKeys = keys.filter((key) => !key.event_id);
-  const eventScopedKeys = keys.filter((key) => key.event_id);
-  const currentEventOptions = accessMode === "organizer"
-    ? managedEventOptions
-    : participantEventOptions;
+
+  const currentEventOptions =
+    apiAudience === "organizer" ? managedEventOptions : participantEventOptions;
+
+  // Filter keys by current tab's access mode
+  const tabKeys = keys.filter((key) => {
+    const isParticipantKey =
+      (key.scopes || []).some((s) => s.startsWith("participant-")) &&
+      !(key.scopes || []).some((s) => !s.startsWith("participant-"));
+    return apiAudience === "participant" ? isParticipantKey : !isParticipantKey;
+  });
+  const publicKeys = tabKeys.filter((key) => !key.event_id);
+  const eventScopedKeys = tabKeys.filter((key) => key.event_id);
 
   useEffect(() => {
-    if (scopeMode !== "event") {
-      return;
+    if (apiAudience === "participant" && scopeMode === "event") {
+      setScopeMode("public");
     }
+  }, [apiAudience, scopeMode]);
 
-    if (currentEventOptions.some((event) => event.id === eventId)) {
-      return;
-    }
-
+  useEffect(() => {
+    if (scopeMode !== "event") return;
+    if (currentEventOptions.some((e) => e.id === eventId)) return;
     setEventId(currentEventOptions[0]?.id ?? "");
-  }, [accessMode, currentEventOptions, eventId, scopeMode]);
-
-  useEffect(() => {
-    if (apiAudience !== "organizer") return;
-    if (accessMode !== "organizer") {
-      setAccessMode("organizer");
-    }
-  }, [apiAudience, accessMode]);
+  }, [apiAudience, currentEventOptions, eventId, scopeMode]);
 
   const copyToClipboard = async (text: string, field: string) => {
     await navigator.clipboard.writeText(text);
@@ -133,7 +146,7 @@ export default function KeysPageClient({
       return;
     }
 
-    if (accessMode === "organizer" && managedEventOptions.length === 0) {
+    if (apiAudience === "organizer" && managedEventOptions.length === 0) {
       setError("You need organizer access to at least one event to create organizer keys.");
       return;
     }
@@ -147,7 +160,7 @@ export default function KeysPageClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           event_id: scopeMode === "event" ? eventId : eventId || undefined,
-          access_mode: accessMode,
+          access_mode: apiAudience,
           scope_mode: scopeMode,
           label: label.trim() || undefined,
         }),
@@ -217,21 +230,15 @@ export default function KeysPageClient({
   const renderKeyCard = (key: AgentKeyRecord) => {
     const event = key.event_id ? eventMap.get(key.event_id) : undefined;
     const keyType = key.event_id ? "Event-specific" : "Reusable";
-    const accessType =
-      (key.scopes || []).some((scope) => scope.startsWith("participant-")) &&
-      !(key.scopes || []).some((scope) => !scope.startsWith("participant-"))
-        ? "Participant"
-        : "Organizer";
 
     return (
-      <Card key={key.id} className="border border-slate-200">
+      <Card key={key.id} className="border border-[rgba(0,0,0,0.15)]">
         <CardHeader className="gap-3">
           <div className="flex items-start justify-between gap-4">
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <CardTitle className="text-base">{key.label || "default"}</CardTitle>
-                <Badge variant="secondary">{keyType}</Badge>
-                <Badge variant="outline">{accessType}</Badge>
+                <Badge variant="secondary" className="bg-white border border-[rgba(0,0,0,0.15)] text-black rounded-full text-xs">{keyType}</Badge>
               </div>
               <CardDescription className="font-mono text-xs">
                 {key.key_prefix}
@@ -248,30 +255,18 @@ export default function KeysPageClient({
             </Button>
           </div>
         </CardHeader>
-        <CardContent className="space-y-3 text-sm text-slate-600">
+        <CardContent className="space-y-3 text-sm text-[#575d65]">
           <div className="flex items-center gap-2">
             {key.event_id ? (
-              <LockKeyhole className="h-4 w-4 text-slate-500" />
+              <LockKeyhole className="h-4 w-4 text-[#575d65]" />
             ) : (
-              <Globe2 className="h-4 w-4 text-slate-500" />
+              <Globe2 className="h-4 w-4 text-[#575d65]" />
             )}
             <span>{eventLabel(event, key.event_id)}</span>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {(key.scopes || []).map((scope) => (
-              <Badge key={scope} variant="outline">
-                {scope}
-              </Badge>
-            ))}
-          </div>
-          <div className="grid gap-1 text-xs text-slate-500">
+          <div className="grid gap-1 text-xs text-[#7f7f7f]">
             <p>Created: {formatDate(key.created_at)}</p>
             <p>Last used: {formatDate(key.last_used_at)}</p>
-            {key.event_id ? (
-              <p>This key only works for the selected event.</p>
-            ) : (
-              <p>Use this key with `?event_id=&lt;event_uuid&gt;` on agent event routes.</p>
-            )}
           </div>
         </CardContent>
       </Card>
