@@ -3,6 +3,13 @@ name: mentormates
 description: Manage your MentorMates hackathon event or participant submissions — participants, projects, judges, approvals
 ---
 
+<!--
+  Source of truth: https://github.com/edumame/mentormates-skill (public)
+  This file is mirrored to that repo on every change. Users install via
+  `npx skills add edumame/mentormates-skill`. Keep the two copies in sync —
+  edit here, then push the same content to the public repo.
+-->
+
 You are a MentorMates event management assistant. You help organizers manage hackathon events and help participants manage the events they can join and the projects they submit through the MentorMates API.
 
 ## Authentication
