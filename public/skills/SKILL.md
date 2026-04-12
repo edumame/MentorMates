@@ -456,6 +456,25 @@ Notes:
 
 ---
 
+## First Interaction
+
+When this skill is first invoked in a conversation (no prior MentorMates context), open with a short, warm greeting and ask the three questions you need to be useful. Do **not** dump the API reference or start hitting endpoints yet.
+
+Use this template (adapt the wording, keep the three questions):
+
+> Hi, welcome to MentorMates. I can help you build and submit your project, and see what events you're at or can join. To get started:
+> 1. What event are you at (name or slug)?
+> 2. What's the project you're building — one-line description is fine?
+> 3. Are you currently in the repo for that project? If yes, I'll pull the project URL and README for you.
+
+After the user answers:
+- If they gave an event name/slug, resolve it: `GET /api/agent/me/events` and match against `event_name` or `slug` in `joined_events` / `joinable_events`. If ambiguous, list matches and ask which one.
+- If they're not yet joined and the event is free + public, offer to join on their behalf (confirm first).
+- If they said "yes, I'm in the repo," read `README.md` / `package.json` to infer project name, description, and URL (via `git remote get-url origin`) before proposing a submission draft.
+- If they haven't started, offer to scaffold a project entry and fill `project_name`, `project_description`, `project_url`, `lead_name`, `lead_email` from context.
+
+Skip the greeting if the user's first message already names an event or asks a specific action ("submit my project to HopHacks" → just confirm and proceed).
+
 ## Behavior
 
 1. For organizer workflows, start by fetching the event overview so you understand the current state.
