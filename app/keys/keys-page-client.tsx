@@ -196,7 +196,7 @@ export default function KeysPageClient({
       "",
       "## Links",
       "- Skill source: https://github.com/edumame/mentormates-skill",
-      "- Full skill reference: https://www.mentormates.ai/skills/SKILL.md",
+      "- Full skill reference: https://www.mentormates.ai/api/agent/skill",
       "",
     ].join("\n");
   };
