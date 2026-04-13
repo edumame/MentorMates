@@ -128,6 +128,7 @@ export default function KeysPageClient({
   const buildCopyableMarkdown = () => {
     const isOrg = activeTab === "organizer";
     const envVar = isOrg ? "MENTORMATES_API_KEY" : "MENTORMATES_PARTICIPANT_API_KEY";
+    const keyValue = generatedKey?.apiKey ?? "mm_sk_...";
     const installCmd = [
       "# In Claude Code:",
       "/plugin marketplace add edumame/mentormates-marketplace",
@@ -180,7 +181,7 @@ export default function KeysPageClient({
       "",
       "### 2. Set env vars",
       "```bash",
-      `export ${envVar}="mm_sk_..."`,
+      `export ${envVar}="${keyValue}"`,
       "```",
       "",
       "### 3. Install the skill",
@@ -356,7 +357,7 @@ export default function KeysPageClient({
       <div className="rounded-xl border border-[rgba(0,0,0,0.15)] p-4 space-y-2">
         <p className="font-medium text-black">2. Set env vars</p>
         <div className="rounded-lg bg-black px-3 py-2 font-mono text-xs text-green-400 whitespace-pre-wrap break-all">
-          export {activeTab === "organizer" ? "MENTORMATES_API_KEY" : "MENTORMATES_PARTICIPANT_API_KEY"}=&quot;mm_sk_...&quot;
+          export {activeTab === "organizer" ? "MENTORMATES_API_KEY" : "MENTORMATES_PARTICIPANT_API_KEY"}=&quot;{generatedKey?.apiKey ?? "mm_sk_..."}&quot;
         </div>
       </div>
       <div className="rounded-xl border border-[rgba(0,0,0,0.15)] p-4 space-y-2">
