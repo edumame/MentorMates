@@ -136,23 +136,6 @@ const PROFILE_TABS = {
 
 type ProfileTab = (typeof PROFILE_TABS)[keyof typeof PROFILE_TABS];
 
-function roleBadgeVariant(role: EventRole): EventRole {
-  switch (role) {
-    case EventRole.Admin:
-      return EventRole.Admin;
-    case EventRole.Organizer:
-      return EventRole.Organizer;
-    case EventRole.Judge:
-      return EventRole.Judge;
-    case EventRole.Mentor:
-      return EventRole.Mentor;
-    case EventRole.Participant:
-      return EventRole.Participant;
-    default:
-      return EventRole.Participant;
-  }
-}
-
 export default function ProfilePage() {
   const { userId } = useParams();
   const searchParams = useSearchParams();
@@ -1055,9 +1038,7 @@ export default function ProfilePage() {
                           {profileRole ? (
                             <div className="absolute top-3 left-3 z-10">
                               <Badge
-                                variant={roleBadgeVariant(
-                                  profileRole as EventRole
-                                )}
+                                variant={profileRole as EventRole}
                                 className="capitalize text-xs"
                               >
                                 {getRoleLabel(
