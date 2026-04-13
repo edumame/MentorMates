@@ -128,9 +128,14 @@ export default function KeysPageClient({
   const buildCopyableMarkdown = () => {
     const isOrg = activeTab === "organizer";
     const envVar = isOrg ? "MENTORMATES_API_KEY" : "MENTORMATES_PARTICIPANT_API_KEY";
-    const installCmd = isOrg
-      ? "# Download the tailored organizer skill from https://www.mentormates.ai/api/agent/skill"
-      : "npx skills add edumame/mentormates-skill";
+    const keyValue = generatedKey?.apiKey ?? "mm_sk_...";
+    const installCmd = [
+      "# In Claude Code:",
+      "/plugin marketplace add edumame/mentormates-marketplace",
+      "/plugin install mentormates@mentormates-marketplace",
+      "",
+      "# Then invoke /mentormates in any session.",
+    ].join("\n");
     const endpoints = isOrg
       ? [
           { method: "GET", path: "/api/agent/events", desc: "List or get event details" },
@@ -176,7 +181,7 @@ export default function KeysPageClient({
       "",
       "### 2. Set env vars",
       "```bash",
-      `export ${envVar}="mm_sk_..."`,
+      `export ${envVar}="${keyValue}"`,
       "```",
       "",
       "### 3. Install the skill",
@@ -352,24 +357,32 @@ export default function KeysPageClient({
       <div className="rounded-xl border border-[rgba(0,0,0,0.15)] p-4 space-y-2">
         <p className="font-medium text-black">2. Set env vars</p>
         <div className="rounded-lg bg-black px-3 py-2 font-mono text-xs text-green-400 whitespace-pre-wrap break-all">
-          export {activeTab === "organizer" ? "MENTORMATES_API_KEY" : "MENTORMATES_PARTICIPANT_API_KEY"}=&quot;mm_sk_...&quot;
+          export {activeTab === "organizer" ? "MENTORMATES_API_KEY" : "MENTORMATES_PARTICIPANT_API_KEY"}=&quot;{generatedKey?.apiKey ?? "mm_sk_..."}&quot;
         </div>
       </div>
       <div className="rounded-xl border border-[rgba(0,0,0,0.15)] p-4 space-y-2">
         <p className="font-medium text-black">3. Install skill</p>
-        {activeTab === "organizer" ? (
-          <a
-            href="/api/agent/skill"
-            className="inline-flex items-center gap-2 rounded-xl bg-black px-4 py-2 text-sm font-medium text-white hover:bg-black/80 transition-colors"
-          >
-            <Download className="h-4 w-4" />
-            mentormates.md
-          </a>
-        ) : (
-          <div className="rounded-lg bg-black px-3 py-2 font-mono text-xs text-green-400 whitespace-pre-wrap break-all">
-            npx skills add edumame/mentormates-skill
-          </div>
-        )}
+        <div className="rounded-lg bg-black px-3 py-2 font-mono text-xs text-green-400 whitespace-pre-wrap break-all">
+          /plugin marketplace add edumame/mentormates-marketplace
+          {"\n"}/plugin install mentormates@mentormates-marketplace
+        </div>
+        <p className="text-xs text-[#575d65]">
+          Run these in Claude Code, then invoke <code className="font-mono">/mentormates</code>.{" "}
+          {activeTab === "organizer" ? (
+            <>
+              Prefer a pre-keyed file? Open any event&apos;s dashboard and use{" "}
+              <span className="font-medium">Generate install</span> to get a
+              personalized skill with the API key baked in.
+            </>
+          ) : null}
+        </p>
+        <a
+          href="/api/agent/skill"
+          className="inline-flex items-center gap-2 text-xs text-[#575d65] underline hover:text-black"
+        >
+          <Download className="h-3 w-3" />
+          Download raw SKILL.md
+        </a>
       </div>
       </div>
       {activeTab === "participant" && (
