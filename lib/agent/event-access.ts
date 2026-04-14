@@ -4,6 +4,8 @@ import { ApprovalStatus, EventRole, EventVisibility } from "@/lib/types";
 export interface AgentEventSummary {
   event_id: string;
   event_name: string | null;
+  event_blurb: string | null;
+  event_description: string | null;
   event_date: string | null;
   location: string | null;
   visibility: EventVisibility | null;
@@ -20,6 +22,8 @@ export interface AgentEventSummary {
 const AGENT_EVENT_SELECT = `
   event_id,
   event_name,
+  event_blurb,
+  event_description,
   event_date,
   location,
   visibility,
@@ -32,6 +36,40 @@ const AGENT_EVENT_SELECT = `
   cover_image_url,
   slug
 `;
+
+/**
+ * Slim shape returned to the participant agent surface. Strips internal/admin
+ * fields (approval_status, paid, capacity, cover, slug, etc.) that are
+ * either always-true-after-join, used only for internal filtering, or noise
+ * in a CLI agent context. See issue #716.
+ */
+export interface ParticipantAgentEvent {
+  event_id: string;
+  event_name: string | null;
+  event_blurb: string | null;
+  event_description: string | null;
+  event_date: string | null;
+  location: string | null;
+  visibility: EventVisibility | null;
+  submission_time_start: string | null;
+  submission_time_cutoff: string | null;
+}
+
+export function toParticipantAgentEvent(
+  event: AgentEventSummary,
+): ParticipantAgentEvent {
+  return {
+    event_id: event.event_id,
+    event_name: event.event_name,
+    event_blurb: event.event_blurb,
+    event_description: event.event_description,
+    event_date: event.event_date,
+    location: event.location,
+    visibility: event.visibility,
+    submission_time_start: event.submission_time_start,
+    submission_time_cutoff: event.submission_time_cutoff,
+  };
+}
 
 function sortEvents(events: AgentEventSummary[]) {
   return [...events].sort((a, b) =>
