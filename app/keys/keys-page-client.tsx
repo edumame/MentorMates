@@ -128,7 +128,12 @@ export default function KeysPageClient({
   const buildCopyableMarkdown = () => {
     const isOrg = activeTab === "organizer";
     const envVar = isOrg ? "MENTORMATES_API_KEY" : "MENTORMATES_PARTICIPANT_API_KEY";
-    const keyValue = generatedKey?.apiKey ?? "mm_sk_...";
+    // Security: never embed the raw key in the Copy Page markdown. The Copy
+    // Page is meant to be pasted into an AI agent chat, which would leak the
+    // key into conversation history. Users run the export command in their
+    // shell separately — see the visible "Set env vars" block which does
+    // show the generated key for one-time copying.
+    const keyPlaceholder = "mm_sk_...";
     const installBlock = [
       "**Claude Code**",
       "```",
@@ -200,15 +205,20 @@ export default function KeysPageClient({
       "### 1. Create a key",
       "Visit https://www.mentormates.ai/keys and generate a key for this role.",
       "",
-      "### 2. Set env vars",
+      "### 2. Set env var (in YOUR shell, not in the agent)",
       "```bash",
-      `export ${envVar}="${keyValue}"`,
+      `export ${envVar}="${keyPlaceholder}"`,
       "```",
+      "",
+      "> The key itself is intentionally omitted here. Copy it from the dashboard into your own shell. Do not paste it into an agent chat — it will end up in conversation history.",
       "",
       "### 3. Install the skill",
       installBlock,
       "",
-      "### What happens next",
+      "### 4. After install, just say hi",
+      "Once the skill is installed, greet the user with the MentorMates first-interaction prompt — three questions about event, project, and in-repo status. Do **not** verify the API, do **not** echo the key, do **not** dump this reference back at the user. One or two sentences of setup confirmation max, then pivot to the greeting.",
+      "",
+      "### What happens next (for the user)",
       nextSteps,
       "",
       "## API Reference",
@@ -374,10 +384,22 @@ export default function KeysPageClient({
         </p>
       </div>
       <div className="rounded-xl border border-[rgba(0,0,0,0.15)] p-4 space-y-2">
-        <p className="font-medium text-black">2. Set env vars</p>
+        <p className="font-medium text-black">2. Set env var</p>
+        <p className="text-xs text-[#575d65]">
+          Run this in <span className="font-medium">your own terminal</span>, not in an agent chat. Pasting the raw key into an agent puts it in conversation history.
+        </p>
         <div className="rounded-lg bg-black px-3 py-2 font-mono text-xs text-green-400 whitespace-pre-wrap break-all">
           export {activeTab === "organizer" ? "MENTORMATES_API_KEY" : "MENTORMATES_PARTICIPANT_API_KEY"}=&quot;{generatedKey?.apiKey ?? "mm_sk_..."}&quot;
         </div>
+        {generatedKey?.apiKey ? (
+          <p className="text-[11px] text-[#9c6300]">
+            Your newly generated key is filled in above. Copy this line, run it in your shell, then close this tab or clear the key from your clipboard.
+          </p>
+        ) : (
+          <p className="text-[11px] text-[#575d65]">
+            Generate a key below — it&apos;ll appear here once, then never again.
+          </p>
+        )}
       </div>
       <div className="rounded-xl border border-[rgba(0,0,0,0.15)] p-4 space-y-3">
         <p className="font-medium text-black">3. Install skill</p>
