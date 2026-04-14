@@ -84,6 +84,9 @@ export default function KeysPageClient({
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [revokingKeyId, setRevokingKeyId] = useState<string | null>(null);
+  const [installAgent, setInstallAgent] = useState<
+    "claude" | "copilot" | "cursor" | "other"
+  >("claude");
 
   const eventMap = useMemo(
     () =>
@@ -401,50 +404,58 @@ export default function KeysPageClient({
           </p>
         )}
       </div>
-      <div className="rounded-xl border border-[rgba(0,0,0,0.15)] p-4 space-y-3">
-        <p className="font-medium text-black">3. Install skill</p>
+      <div className="rounded-xl border border-[rgba(0,0,0,0.15)] p-4 space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <p className="font-medium text-black">3. Install skill</p>
+          <select
+            value={installAgent}
+            onChange={(e) =>
+              setInstallAgent(e.target.value as typeof installAgent)
+            }
+            className="rounded-md border border-[rgba(0,0,0,0.15)] bg-white px-2 py-1 text-xs text-[#575d65] focus:outline-none focus:ring-1 focus:ring-[#4B89EF]"
+            aria-label="Choose your AI agent"
+          >
+            <option value="claude">Claude Code</option>
+            <option value="copilot">GitHub Copilot CLI</option>
+            <option value="cursor">Cursor</option>
+            <option value="other">Codex / OpenCode / other</option>
+          </select>
+        </div>
 
-        <div className="space-y-1">
-          <p className="text-xs font-medium text-[#575d65]">Claude Code</p>
+        {installAgent === "claude" && (
           <div className="rounded-lg bg-black px-3 py-2 font-mono text-xs text-green-400 whitespace-pre-wrap break-all">
             /plugin marketplace add edumame/mentormates-marketplace
             {"\n"}/plugin install mentormates@mentormates-marketplace
           </div>
-        </div>
+        )}
 
-        <div className="space-y-1">
-          <p className="text-xs font-medium text-[#575d65]">GitHub Copilot CLI</p>
+        {installAgent === "copilot" && (
           <div className="rounded-lg bg-black px-3 py-2 font-mono text-xs text-green-400 whitespace-pre-wrap break-all">
             copilot plugin marketplace add edumame/mentormates-marketplace
             {"\n"}copilot plugin install mentormates@mentormates-marketplace
           </div>
-        </div>
+        )}
 
-        <div className="space-y-1">
-          <p className="text-xs font-medium text-[#575d65]">Cursor</p>
+        {installAgent === "cursor" && (
           <p className="text-xs text-[#575d65]">
             In Agent chat say: <em>Install the mentormates plugin from edumame/mentormates-marketplace</em>
           </p>
-        </div>
+        )}
 
-        <div className="space-y-1">
-          <p className="text-xs font-medium text-[#575d65]">Codex CLI / OpenCode / other agents</p>
-          <p className="text-xs text-[#575d65]">Tell the agent:</p>
-          <div className="rounded-lg bg-black px-3 py-2 font-mono text-xs text-green-400 whitespace-pre-wrap break-all">
-            Fetch and follow the skill at https://www.mentormates.ai/api/agent/skill
+        {installAgent === "other" && (
+          <div className="space-y-1">
+            <p className="text-xs text-[#575d65]">Tell the agent:</p>
+            <div className="rounded-lg bg-black px-3 py-2 font-mono text-xs text-green-400 whitespace-pre-wrap break-all">
+              Fetch and follow the skill at https://www.mentormates.ai/api/agent/skill
+            </div>
           </div>
-          <p className="text-xs text-[#575d65]">Or drop the raw file into your agent&apos;s skills dir:</p>
-          <div className="rounded-lg bg-black px-3 py-2 font-mono text-xs text-green-400 whitespace-pre-wrap break-all">
-            curl -s https://www.mentormates.ai/api/agent/skill -o ~/.claude/skills/mentormates/SKILL.md
-          </div>
-        </div>
+        )}
 
         <p className="text-xs text-[#575d65]">
           Once installed, invoke <code className="font-mono">/mentormates</code> in any session.{" "}
           {activeTab === "organizer" ? (
             <>
-              Prefer a pre-keyed file? Open any event&apos;s dashboard and use{" "}
-              <span className="font-medium">Generate install</span> to get a personalized skill with the API key baked in.
+              Prefer a pre-keyed file? Use <span className="font-medium">Generate install</span> from any event&apos;s dashboard.
             </>
           ) : null}
         </p>
