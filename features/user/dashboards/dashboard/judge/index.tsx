@@ -17,6 +17,7 @@ import { ArrowLeft, ArrowRight, ChevronDown, Target } from "lucide-react";
 import Link from "next/link";
 import { CoverImageWithFallback } from "@/features/projects/components/displays/cover-image-with-fallback";
 import { LoadingScreen } from "@/components/ui/loading-screen";
+import { VideoEmbed, canEmbed } from "@/components/utils";
 import {
   getNextProjectId,
   isProjectFullyScored,
@@ -960,20 +961,32 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                   <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
                     {/* Snapshot — shown in both mobile & desktop inside the card */}
                     <section className="order-1 min-w-0 space-y-4 lg:order-2">
-                      <div className="overflow-hidden rounded-2xl bg-white">
-                        {currentProject.cover_image_url ? (
-                          <CoverImageWithFallback
-                            src={currentProject.cover_image_url}
-                            alt={`${currentProject.project_name} cover`}
-                            className="h-[240px] w-full object-cover md:h-[280px]"
+                      {currentProject.video_url && canEmbed(currentProject.video_url) ? (
+                        <div
+                          className="overflow-hidden rounded-2xl bg-black"
+                          data-no-swipe="true"
+                        >
+                          <VideoEmbed
+                            url={currentProject.video_url}
+                            title={`${currentProject.project_name} demo video`}
                           />
-                        ) : (
-                          <div className="flex h-[240px] w-full flex-col items-center justify-center gap-3 bg-gradient-to-br from-[#EEF4FF] via-[#F5F9FF] to-[#EDF9F3] text-[rgba(0,0,0,0.6)] md:h-[280px]">
-                            <Target className="h-8 w-8 text-[#4B89EF]" />
-                            <p className="text-sm font-medium">No project image uploaded</p>
-                          </div>
-                        )}
-                      </div>
+                        </div>
+                      ) : (
+                        <div className="overflow-hidden rounded-2xl bg-white">
+                          {currentProject.cover_image_url ? (
+                            <CoverImageWithFallback
+                              src={currentProject.cover_image_url}
+                              alt={`${currentProject.project_name} cover`}
+                              className="h-[240px] w-full object-cover md:h-[280px]"
+                            />
+                          ) : (
+                            <div className="flex h-[240px] w-full flex-col items-center justify-center gap-3 bg-gradient-to-br from-[#EEF4FF] via-[#F5F9FF] to-[#EDF9F3] text-[rgba(0,0,0,0.6)] md:h-[280px]">
+                              <Target className="h-8 w-8 text-[#4B89EF]" />
+                              <p className="text-sm font-medium">No project image uploaded</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
 
                       <div className="space-y-3">
                         <h4 className="text-sm font-semibold uppercase tracking-[0.14em] text-[rgba(0,0,0,0.5)]">
