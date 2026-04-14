@@ -492,26 +492,87 @@ export function CompactScoringForm({
                                     className="h-9"
                                   />
                                 </div>
-                                <div className="flex items-center justify-between">
+                                <div className="space-y-2">
                                   <div className="flex items-center gap-2">
-                                    <span className="text-xs text-gray-500">Score range:</span>
-                                    <Input
-                                      type="number" min={0}
-                                      value={criterion.min}
+                                    <label className="text-xs font-medium text-gray-500 w-24 shrink-0">Question type</label>
+                                    <Select
+                                      value={criterion.type || "numeric"}
                                       disabled={isArchived}
-                                      onChange={(e) => updateCriterion(trackId, idx, { min: parseInt(e.target.value) || 0 })}
-                                      className="w-14 h-7 text-xs text-center"
-                                    />
-                                    <span className="text-xs text-gray-300">to</span>
-                                    <Input
-                                      type="number" min={1}
-                                      value={criterion.max}
-                                      disabled={isArchived}
-                                      onChange={(e) => updateCriterion(trackId, idx, { max: parseInt(e.target.value) || 10 })}
-                                      className="w-14 h-7 text-xs text-center"
-                                    />
+                                      onValueChange={(value) => updateCriterion(trackId, idx, { type: value as "numeric" | "multiplechoice" })}
+                                    >
+                                      <SelectTrigger className="h-8 text-xs flex-1"><SelectValue /></SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="numeric">Numeric Scale</SelectItem>
+                                        <SelectItem value="multiplechoice">Multiple Choice</SelectItem>
+                                      </SelectContent>
+                                    </Select>
                                   </div>
-                                  <div className="flex items-center gap-2">
+                                  {criterion.type === "multiplechoice" ? (
+                                    <div className="space-y-1.5">
+                                      <label className="text-xs font-medium text-gray-500">Options</label>
+                                      <div className="space-y-1.5">
+                                        {(criterion.options ?? []).map((option, optionIndex) => (
+                                          <div key={optionIndex} className="flex items-center gap-2">
+                                            <Input
+                                              value={option}
+                                              disabled={isArchived}
+                                              onChange={(e) => {
+                                                const newOptions = [...(criterion.options ?? [])];
+                                                newOptions[optionIndex] = e.target.value;
+                                                updateCriterion(trackId, idx, { options: newOptions });
+                                              }}
+                                              placeholder={`Option ${optionIndex + 1}`}
+                                              className="h-8 text-xs"
+                                            />
+                                            <button
+                                              type="button"
+                                              disabled={isArchived || (criterion.options ?? []).length <= 1}
+                                              onClick={() => {
+                                                const newOptions = (criterion.options ?? []).filter((_, i) => i !== optionIndex);
+                                                updateCriterion(trackId, idx, { options: newOptions });
+                                              }}
+                                              className="p-1 text-gray-400 hover:text-red-500 disabled:opacity-30 disabled:hover:text-gray-400"
+                                              title="Remove option"
+                                            >
+                                              <TrashIcon className="h-3.5 w-3.5" />
+                                            </button>
+                                          </div>
+                                        ))}
+                                      </div>
+                                      <button
+                                        type="button"
+                                        disabled={isArchived}
+                                        onClick={() => {
+                                          const newOptions = [...(criterion.options ?? []), ""];
+                                          updateCriterion(trackId, idx, { options: newOptions });
+                                        }}
+                                        className="flex items-center gap-1 text-xs font-medium text-[#4b89ef] hover:text-[#3d75d9] disabled:opacity-50"
+                                      >
+                                        <PlusIcon className="h-3.5 w-3.5" />
+                                        Add option
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs text-gray-500 w-24 shrink-0">Score range</span>
+                                      <Input
+                                        type="number" min={0}
+                                        value={criterion.min ?? 0}
+                                        disabled={isArchived}
+                                        onChange={(e) => updateCriterion(trackId, idx, { min: parseInt(e.target.value) || 0 })}
+                                        className="w-14 h-7 text-xs text-center"
+                                      />
+                                      <span className="text-xs text-gray-300">to</span>
+                                      <Input
+                                        type="number" min={1}
+                                        value={criterion.max ?? 10}
+                                        disabled={isArchived}
+                                        onChange={(e) => updateCriterion(trackId, idx, { max: parseInt(e.target.value) || 10 })}
+                                        className="w-14 h-7 text-xs text-center"
+                                      />
+                                    </div>
+                                  )}
+                                  <div className="flex items-center justify-end gap-2 pt-1">
                                     {track.criteria.length > 1 && (
                                       <button type="button" onClick={() => removeCriterion(trackId, idx)} className="text-xs text-red-500 hover:text-red-600 font-medium">
                                         Delete
@@ -545,7 +606,9 @@ export function CompactScoringForm({
                                   {pct}% · w{criterion.weight ?? 1}
                                 </span>
                                 <span className="shrink-0 text-[10px] text-gray-400 font-mono">
-                                  {criterion.min ?? 0}-{criterion.max ?? 10}
+                                  {criterion.type === "multiplechoice"
+                                    ? `${(criterion.options ?? []).length} opts`
+                                    : `${criterion.min ?? 0}-${criterion.max ?? 10}`}
                                 </span>
                                 <div className="shrink-0 flex items-center gap-0.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                                   <span className="p-1 rounded text-gray-400 hover:text-[#4B89EF]">
