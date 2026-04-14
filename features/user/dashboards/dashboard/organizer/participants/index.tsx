@@ -9,12 +9,13 @@ import Papa from "papaparse";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronLeft, ChevronRight, Download, Copy, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, Copy, Trash2, FileUp } from "lucide-react";
 import { useToast } from "@/lib/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { ApprovalRequestsTab } from "./ApprovalRequestsTab";
 import { ApprovalSettingsTab } from "./ApprovalSettingsTab";
+import { SubmitForParticipantDialog } from "./SubmitForParticipantDialog";
 import { AssignTab } from "../assign";
 
 interface UserEventRoleWithProfile {
@@ -50,6 +51,7 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
+  const [submitForParticipant, setSubmitForParticipant] = useState<Participant | null>(null);
   const router = useRouter();
   const { toast } = useToast();
   const notifyOnSave = false;
@@ -418,15 +420,28 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
                             </TableCell>
                             <TableCell className="text-right pr-6" onClick={(e) => e.stopPropagation()}>
                               {!participant.user_id.startsWith("project-") && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="text-red-600 hover:text-red-700"
-                                  onClick={() => handleRemove(participant.user_id)}
-                                  aria-label={`Remove ${participant.display_name}`}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
+                                <div className="flex items-center justify-end gap-1">
+                                  {participant.role === EventRole.Participant && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => setSubmitForParticipant(participant)}
+                                      aria-label={`Submit project for ${participant.display_name}`}
+                                      title="Submit project on their behalf"
+                                    >
+                                      <FileUp className="h-4 w-4" />
+                                    </Button>
+                                  )}
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-red-600 hover:text-red-700"
+                                    onClick={() => handleRemove(participant.user_id)}
+                                    aria-label={`Remove ${participant.display_name}`}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
                               )}
                             </TableCell>
                           </TableRow>
@@ -515,6 +530,17 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
         </Tabs>
         )}
       </CardContent>
+      {submitForParticipant && (
+        <SubmitForParticipantDialog
+          open={!!submitForParticipant}
+          onOpenChange={(next) => {
+            if (!next) setSubmitForParticipant(null);
+          }}
+          eventId={eventId}
+          participantUserId={submitForParticipant.user_id}
+          participantDisplayName={submitForParticipant.display_name}
+        />
+      )}
     </Card>
   );
 }
