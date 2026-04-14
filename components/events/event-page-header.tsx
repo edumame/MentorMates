@@ -24,7 +24,7 @@ interface EventPageHeaderProps {
   activeRole?: EventRole | null;
   onManageEventClick?: () => void;
   paid: boolean;
-  eventType: string;
+  eventType: string[];
   containerClassName?: string;
 }
 
@@ -82,13 +82,13 @@ export function EventPageHeader({
 
         {/* Event Tags */}
         <div className="absolute left-4 md:left-6 top-4 md:top-6 flex flex-wrap gap-1 z-10">
-          <div className="bg-white border border-[rgba(0,0,0,0.15)] px-2.5 py-1 rounded-full">
-            <p className="font-semibold text-sm leading-[1.5] text-black whitespace-nowrap">
-              {eventType
-                ? eventType.charAt(0).toUpperCase() + eventType.slice(1)
-                : "Hackathon"}
-            </p>
-          </div>
+          {(eventType.length ? eventType : ["Hackathon"]).map((type) => (
+            <div key={type} className="bg-white border border-[rgba(0,0,0,0.15)] px-2.5 py-1 rounded-full">
+              <p className="font-semibold text-sm leading-[1.5] text-black whitespace-nowrap">
+                {type.charAt(0).toUpperCase() + type.slice(1)}
+              </p>
+            </div>
+          ))}
           <div className="bg-white border border-[rgba(0,0,0,0.15)] px-2.5 py-1 rounded-full">
             {paid ? (
               <p className="font-semibold text-sm leading-[1.5] text-black whitespace-nowrap">

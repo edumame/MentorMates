@@ -30,6 +30,7 @@ import { Button } from "@/components/ui/button";
 import { useAdmin } from "@/lib/hooks/use-admin";
 import posthog from "posthog-js";
 import type { UserProfile } from "@/lib/types";
+import { profileNeedsCompletion } from "@/features/user/profile/profile-completion";
 
 const HomeIcon = (
   <svg
@@ -138,24 +139,6 @@ const SupportIcon = (
   </svg>
 );
 
-const ProfileIcon = (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-  >
-    <path
-      d="M16 21V19C16 17.9391 15.5786 16.9217 14.8284 16.1716C14.0783 15.4214 13.0609 15 12 15H6C4.93913 15 3.92172 15.4214 3.17157 16.1716C2.42143 16.9217 2 17.9391 2 19V21M19 13C20.1046 13 21 12.1046 21 11C21 9.89543 20.1046 9 19 9M19 13C17.8954 13 17 12.1046 17 11C17 9.89543 17.8954 9 19 9M19 13V14M19 9V8M21.6 9.5L20.73 10M17.27 12L16.4 12.5M21.6 12.5L20.73 12M17.27 10L16.4 9.5M13 7C13 9.20914 11.2091 11 9 11C6.79086 11 5 9.20914 5 7C5 4.79086 6.79086 3 9 3C11.2091 3 13 4.79086 13 7Z"
-      stroke="#09090B"
-      strokeWidth="1.67"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </svg>
-);
-
 const data = [
   { name: "Home", href: "/", icon: HomeIcon },
   { name: "Events", href: "/events", icon: EventIcon },
@@ -176,6 +159,9 @@ const bottomLinksBase = [
 
 interface ExtendedUserProfile extends UserProfile {
   onboarding_metadata: Record<string, unknown> | null;
+  affiliation: string | null;
+  phone_number?: string | null;
+  links?: Record<string, string> | null;
 }
 
 interface SideNavProps {
@@ -185,24 +171,24 @@ interface SideNavProps {
 
 export function SideNav({ showLogoAtTop }: SideNavProps = {}) {
   const router = useRouter();
-  const [userId, setUserId] = useState<string | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [userProfile, setUserProfile] = useState<ExtendedUserProfile | null>(null);
   const pathname = usePathname();
   const { needsProfileCompletion } = useNotificationData();
   const isAdmin = useAdmin();
+  const showProfileCompletionWarning = Boolean(
+    session && profileNeedsCompletion(userProfile)
+  );
 
   useEffect(() => {
     const client = createClient();
     client.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      setUserId(session?.user?.id ?? null);
     });
     const {
       data: { subscription },
     } = client.auth.onAuthStateChange((_, s) => {
       setSession(s);
-      setUserId(s?.user?.id ?? null);
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -325,8 +311,13 @@ export function SideNav({ showLogoAtTop }: SideNavProps = {}) {
               <button
                 type="button"
                 aria-label="Account menu"
-                className="w-full h-[64px] flex items-center gap-4 px-3 self-stretch rounded-xl border border-[#E9EAEB] bg-white text-left hover:bg-gray-50/80 transition-colors"
+                className="relative w-full h-[64px] flex items-center gap-4 px-3 self-stretch rounded-xl border border-[#E9EAEB] bg-white text-left hover:bg-gray-50/80 transition-colors"
               >
+                {showProfileCompletionWarning && (
+                  <span className="absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-full bg-[#EF4444] text-xs font-semibold text-white">
+                    !
+                  </span>
+                )}
                 <Avatar
                 className="h-[40px] w-[40px] shrink-0 border-[0.714px] border-[var(--Color-Neutral-Lighter,#D8D8D8)]"
               >
@@ -376,10 +367,12 @@ export function SideNav({ showLogoAtTop }: SideNavProps = {}) {
                 <p className="mt-2 text-sm text-gray-700 break-all">
                   {session.user.email}
                 </p>
-                {!userProfile?.onboarding_metadata ? (
+                {profileNeedsCompletion(userProfile) ? (
                   <Button
                     variant="defaultGray"
-                    onClick={() => router.push("/onboarding")}
+                    onClick={() =>
+                      router.push(`/profile/${session?.user?.id}?edit=1`)
+                    }
                     className="mt-4 w-full text-base"
                   >
                     Set up profile

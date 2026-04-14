@@ -19,7 +19,11 @@ test.describe("Host page", () => {
     ).toBeVisible();
   });
 
-  test("matches the desktop layout", async ({ page }) => {
+  test("matches the desktop layout", async ({ page }, testInfo) => {
+    test.skip(
+      testInfo.project.name !== "chromium-desktop",
+      "Snapshot is for desktop viewport only"
+    );
     await page.goto("/host");
     await expect(page).toHaveScreenshot("host-desktop.png", {
       fullPage: true,

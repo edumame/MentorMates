@@ -3,57 +3,19 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import type { Session } from "@supabase/supabase-js";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Menu, Close, NotificationsNone } from "@mui/icons-material";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { useAdmin } from "@/lib/hooks/use-admin";
+import { Menu, Close } from "@mui/icons-material";
 import posthog from "posthog-js";
-import { UserProfile } from "@/lib/types";
-import { GraduationCap } from "lucide-react";
 import { AuthNavbarRight } from "./AuthNavbarRight";
-
-interface ExtendedUserProfile extends UserProfile {
-  // Onboarding data is stored as JSON in the database.
-  // We keep it flexible here because different onboarding versions can add fields over time.
-  onboarding_metadata: Record<string, unknown> | null;
-
-  // The user's school/university/company.
-  affiliation: string | null;
-
-  // Stored as text because phone numbers vary by country/format.
-  // We do NOT display it here (sensitive), only use it to decide if the profile is complete.
-  phone_number?: string | null;
-
-  // Social links are stored as JSON on `user_profiles.links`.
-  // Example: { linkedin: "https://www.linkedin.com/in/..." }
-  links?: Record<string, string> | null;
-}
 
 export function AuthNavbar() {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
-  const isAdmin = useAdmin();
-  const [userProfile, setUserProfile] = useState<ExtendedUserProfile | null>(
-    null
-  );
 
-  // fetch & subscribe to session
   useEffect(() => {
     supabase.auth
       .getSession()
@@ -65,46 +27,6 @@ export function AuthNavbar() {
       subscription.unsubscribe();
     };
   }, []);
-
-  useEffect(() => {
-    const fetchUserProfile = async () => {
-      const { data: userProfileData } = await supabase
-        .from("user_profiles")
-        .select("*")
-        .eq("uid", session?.user?.id)
-        .single();
-      setUserProfile(userProfileData);
-    };
-    if (session) {
-      fetchUserProfile();
-    }
-  }, [session]);
-
-  // Helper checks for "profile completion" notification.
-  const hasAffiliation = Boolean(userProfile?.affiliation?.trim());
-  const hasPhoneNumber = Boolean(userProfile?.phone_number?.trim());
-  const hasLinkedIn = Boolean(userProfile?.links?.linkedin?.trim());
-
-  // If we are logged in but have no `user_profiles` row yet, we still consider the profile incomplete.
-  const needsProfileCompletion =
-    Boolean(session) &&
-    (!userProfile || !hasAffiliation || !hasPhoneNumber || !hasLinkedIn);
-
-  const missingProfileFields: string[] = [];
-  if (session) {
-    if (!hasAffiliation) missingProfileFields.push("affiliation");
-    if (!hasPhoneNumber) missingProfileFields.push("phone number");
-    if (!hasLinkedIn) missingProfileFields.push("LinkedIn");
-  }
-
-  const handleLogin = () => {
-    if (typeof window !== "undefined") {
-      const returnUrl = window.location.pathname;
-      if (returnUrl !== "/mentor") localStorage.setItem("returnUrl", returnUrl);
-    }
-    router.push("/login");
-    setIsOpen(false);
-  };
 
   const handleSignOut = async () => {
     localStorage.removeItem("returnUrl");

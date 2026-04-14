@@ -694,9 +694,14 @@ export function AssignTab({ eventId }: AssignTabProps) {
                       />
                       <Label
                         htmlFor={`batch-judge-${judge.user_id}`}
-                        className="cursor-pointer text-sm font-normal"
+                        className="cursor-pointer text-sm font-normal flex flex-col"
                       >
-                        {showName ? judge.display_name : judge.email}
+                        <span className="font-medium text-foreground">
+                          {judge.display_name}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {judge.email}
+                        </span>
                       </Label>
                     </div>
                   ))
@@ -857,8 +862,11 @@ export function AssignTab({ eventId }: AssignTabProps) {
                               key={assignment.id}
                               className="flex items-center gap-2"
                             >
-                              <Badge variant="outline">
-                                {showName ? assignment.user.display_name : assignment.user.email}
+                              <Badge
+                                variant="outline"
+                                title={assignment.user.email}
+                              >
+                                {assignment.user.display_name}
                               </Badge>
                               <Button
                                 size="sm"
@@ -879,7 +887,6 @@ export function AssignTab({ eventId }: AssignTabProps) {
                               (a) => a.user_id
                             )}
                             onAssign={handleIndividualAssign}
-                            showName={showName}
                           />
                         </div>
                       </TableCell>
@@ -890,8 +897,11 @@ export function AssignTab({ eventId }: AssignTabProps) {
                               key={assignment.id}
                               className="flex items-center gap-2"
                             >
-                              <Badge variant="outline">
-                                {showName ? assignment.user.display_name : assignment.user.email}
+                              <Badge
+                                variant="outline"
+                                title={assignment.user.email}
+                              >
+                                {assignment.user.display_name}
                               </Badge>
                               <Button
                                 size="sm"
@@ -912,7 +922,6 @@ export function AssignTab({ eventId }: AssignTabProps) {
                               (a) => a.user_id
                             )}
                             onAssign={handleIndividualAssign}
-                            showName={showName}
                           />
                         </div>
                       </TableCell>
@@ -940,7 +949,6 @@ interface ManualAssignSelectProps {
   users: User[];
   existingAssignments: string[];
   onAssign: (userId: string, projectId: string, role: EventRole) => void;
-  showName: boolean;
 }
 
 function ManualAssignSelect({
@@ -949,7 +957,6 @@ function ManualAssignSelect({
   users,
   existingAssignments,
   onAssign,
-  showName,
 }: ManualAssignSelectProps) {
   const [selectedUserId, setSelectedUserId] = useState<string>("");
 
@@ -972,7 +979,12 @@ function ManualAssignSelect({
         <SelectContent>
           {availableToAssign.map((user) => (
             <SelectItem key={user.user_id} value={user.user_id}>
-              {showName ? user.display_name : user.email}
+              <div className="flex flex-col">
+                <span className="font-medium">{user.display_name}</span>
+                <span className="text-xs text-muted-foreground">
+                  {user.email}
+                </span>
+              </div>
             </SelectItem>
           ))}
         </SelectContent>

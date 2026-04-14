@@ -286,6 +286,7 @@ export type Database = {
           event_description?: string | null;
           event_id?: string;
           event_name: string;
+          event_type?: string[] | [];
           participant_capacity?: number | null;
           event_prizes?: Json | null;
           event_resources?: Json | null;

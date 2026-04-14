@@ -112,7 +112,7 @@ export interface WizardEventData {
   // Content
   event_blurb: string;
   event_description: string;
-  event_type: string;
+  event_type: string[];
 
   // Submission Window
   submission_time_start: string; // ISO 8601
@@ -170,7 +170,7 @@ export const INITIAL_WIZARD_EVENT: WizardEventData = {
   cover_image_url: "",
   event_blurb: "",
   event_description: "",
-  event_type: "hackathon",
+  event_type: ["hackathon"],
   submission_time_start: "",
   submission_time_cutoff: "",
   timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -212,6 +212,7 @@ export interface EventApiPayload {
     event_name: string;
     event_date: string;
     location: string;
+    event_type?: string[];
     slug?: string;
     cover_image_url?: string;
     event_blurb?: string;
@@ -283,6 +284,7 @@ export function buildApiPayload(event: WizardEventData): EventApiPayload {
     e.submission_time_cutoff = event.submission_time_cutoff;
   if (event.participant_capacity)
     e.participant_capacity = event.participant_capacity;
+  if (event.event_type) e.event_type = event.event_type;
 
   // Pricing
   if (event.paid) {

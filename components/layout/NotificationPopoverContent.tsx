@@ -5,6 +5,10 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import type { Session } from "@supabase/supabase-js";
 import { UserProfile } from "@/lib/types";
+import {
+  getMissingProfileFieldLabels,
+  profileNeedsCompletion,
+} from "@/features/user/profile/profile-completion";
 import { NotificationsNone } from "@mui/icons-material";
 import { GraduationCap } from "lucide-react";
 
@@ -37,19 +41,11 @@ export function useNotificationData() {
     if (session) fetchUserProfile();
   }, [session]);
 
-  const hasAffiliation = Boolean(userProfile?.affiliation?.trim());
-  const hasPhoneNumber = Boolean(userProfile?.phone_number?.trim());
-  const hasLinkedIn = Boolean(userProfile?.links?.linkedin?.trim());
   const needsProfileCompletion =
-    Boolean(session) &&
-    (!userProfile || !hasAffiliation || !hasPhoneNumber || !hasLinkedIn);
-
-  const missingProfileFields: string[] = [];
-  if (session) {
-    if (!hasAffiliation) missingProfileFields.push("affiliation");
-    if (!hasPhoneNumber) missingProfileFields.push("phone number");
-    if (!hasLinkedIn) missingProfileFields.push("LinkedIn");
-  }
+    Boolean(session) && profileNeedsCompletion(userProfile);
+  const missingProfileFields = session
+    ? getMissingProfileFieldLabels(userProfile)
+    : [];
 
   return {
     session,

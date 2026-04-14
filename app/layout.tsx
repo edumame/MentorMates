@@ -7,7 +7,6 @@ import { AuthContextProvider } from "@/features/user/authentication/auth/AuthCon
 import { ConditionalNavbar } from "@/components/layout/ConditionalNavbar";
 import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
 import { LayoutConfigProvider } from "@/components/layout/LayoutConfigProvider";
-import { ConditionalAnnouncement } from "@/components/layout/ConditionalAnnouncement";
 import { FloatingSupportButton } from "@/components/layout/FloatingSupportButton";
 import { JsonLd } from "./JsonLd";
 import { seoMetadata } from "./seo-metadata";
@@ -31,6 +30,7 @@ export default function RootLayout({
           rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=optional"
         />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
       </head>
       <body className={inter.className} suppressHydrationWarning>
         {/* Remove extension-injected node before/during hydration to avoid hydration mismatch */}
@@ -43,7 +43,6 @@ export default function RootLayout({
           <Providers>
             <AuthContextProvider>
               <LayoutConfigProvider>
-                <ConditionalAnnouncement />
                 <ConditionalNavbar />
                 <AuthProvider>
                   <ConditionalLayout>

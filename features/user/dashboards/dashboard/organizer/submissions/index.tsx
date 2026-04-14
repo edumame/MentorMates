@@ -25,11 +25,32 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import Link from "next/link";
-import { Loader2, Trash2, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import {
+  Loader2,
+  Trash2,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  Settings2,
+} from "lucide-react";
 import { useToast } from "@/lib/hooks/use-toast";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SubmissionFieldsSettings } from "./SubmissionFieldsSettings";
 import { buildSubmissionExportRows } from "./export";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { EventTrack } from "@/lib/types";
+import {
+  fetchEventTracks,
+  updateProjectTracks,
+} from "@/features/projects/client-actions/client-track-update";
 
 interface ProjectData {
   id: string;
@@ -77,13 +98,103 @@ type SortDirection = "asc" | "desc";
 
 export function SubmissionsTab({ eventId }: SubmissionsTabProps) {
   const [projects, setProjects] = useState<ProjectData[]>([]);
+  const [eventTracks, setEventTracks] = useState<EventTrack[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingProjectId, setDeletingProjectId] = useState<string | null>(null);
   const [selectedProjects, setSelectedProjects] = useState<Set<string>>(new Set());
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const [sortField, setSortField] = useState<SortField>("project_name");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+  const [trackDialogProjectId, setTrackDialogProjectId] = useState<string | null>(null);
+  const [selectedTrackIds, setSelectedTrackIds] = useState<string[]>([]);
+  const [isSavingTracks, setIsSavingTracks] = useState(false);
   const { toast } = useToast();
+
+  const trackDialogProject = projects.find((project) => project.id === trackDialogProjectId);
+
+  const getProjectTrackIds = (project: ProjectData) =>
+    project.project_tracks
+      ?.map((projectTrack) => projectTrack.event_tracks?.track_id)
+      .filter((trackId): trackId is string => Boolean(trackId)) || [];
+
+  const openTrackDialog = (project: ProjectData) => {
+    setTrackDialogProjectId(project.id);
+    setSelectedTrackIds(getProjectTrackIds(project));
+  };
+
+  const handleTrackToggle = (trackId: string, checked: boolean) => {
+    setSelectedTrackIds((current) => {
+      if (checked) {
+        return current.includes(trackId) ? current : [...current, trackId];
+      }
+
+      return current.filter((id) => id !== trackId);
+    });
+  };
+
+  const handleTrackDialogOpenChange = (open: boolean) => {
+    if (open) {
+      return;
+    }
+
+    setTrackDialogProjectId(null);
+    setSelectedTrackIds([]);
+  };
+
+  const handleSaveProjectTracks = async () => {
+    if (!trackDialogProject) {
+      return;
+    }
+
+    try {
+      setIsSavingTracks(true);
+
+      const { success, error } = await updateProjectTracks(
+        trackDialogProject.id,
+        selectedTrackIds
+      );
+
+      if (!success || error) {
+        throw error || new Error("Failed to update project tracks");
+      }
+
+      const selectedTrackSet = new Set(selectedTrackIds);
+      const updatedProjectTracks = eventTracks
+        .filter((track) => selectedTrackSet.has(track.track_id))
+        .map((track) => ({
+          event_tracks: {
+            track_id: track.track_id,
+            name: track.name,
+          },
+        }));
+
+      setProjects((current) =>
+        current.map((project) =>
+          project.id === trackDialogProject.id
+            ? {
+                ...project,
+                project_tracks: updatedProjectTracks,
+              }
+            : project
+        )
+      );
+
+      toast({
+        title: "Project tracks updated",
+        description: `Saved track assignments for "${trackDialogProject.project_name}".`,
+      });
+      handleTrackDialogOpenChange(false);
+    } catch (error) {
+      console.error("Error updating project tracks:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update project tracks",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSavingTracks(false);
+    }
+  };
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -270,17 +381,26 @@ export function SubmissionsTab({ eventId }: SubmissionsTabProps) {
   useEffect(() => {
     async function fetchProjects() {
       try {
-        const response = await fetch(`/api/projects?eventId=${eventId}`);
-        const payload = (await response.json().catch(() => ({}))) as {
+        const [projectsResponse, tracksResponse] = await Promise.all([
+          fetch(`/api/projects?eventId=${eventId}`),
+          fetchEventTracks(eventId),
+        ]);
+
+        const payload = (await projectsResponse.json().catch(() => ({}))) as {
           projects?: ProjectData[];
           error?: string;
         };
 
-        if (!response.ok) {
+        if (!projectsResponse.ok) {
           throw new Error(payload.error || "Failed to fetch projects");
         }
 
+        if (tracksResponse.error) {
+          throw tracksResponse.error;
+        }
+
         setProjects(payload.projects || []);
+        setEventTracks(tracksResponse.data || []);
       } catch (error) {
         console.error("Error fetching projects:", error);
       } finally {
@@ -467,10 +587,28 @@ export function SubmissionsTab({ eventId }: SubmissionsTabProps) {
                       {(project.teammates?.length || 0) + 1}
                     </TableCell>
                     <TableCell>
-                      {project.project_tracks
-                        ?.map((pt) => pt.event_tracks?.name)
-                        .filter(Boolean)
-                        .join(", ") || "No tracks"}
+                      <div className="flex flex-wrap gap-1">
+                        {project.project_tracks?.length ? (
+                          project.project_tracks.map((projectTrack) => {
+                            const trackId = projectTrack.event_tracks?.track_id;
+                            const trackName = projectTrack.event_tracks?.name;
+
+                            if (!trackId || !trackName) {
+                              return null;
+                            }
+
+                            return (
+                              <Badge key={trackId} variant="outline">
+                                {trackName}
+                              </Badge>
+                            );
+                          })
+                        ) : (
+                          <span className="text-sm text-muted-foreground">
+                            No tracks
+                          </span>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>{project.submitted ? "Yes" : "No"}</TableCell>
                     <TableCell>
@@ -478,11 +616,20 @@ export function SubmissionsTab({ eventId }: SubmissionsTabProps) {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <Link href={`/projects/public/${project.id}`} passHref>
+                        <Link href={`/projects/public/${project.id}`}>
                           <Button variant="outline" size="sm" className="text-xs">
                             View Details
                           </Button>
                         </Link>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-xs"
+                          onClick={() => openTrackDialog(project)}
+                        >
+                          <Settings2 className="mr-1 h-3.5 w-3.5" />
+                          Manage Tracks
+                        </Button>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button
@@ -528,6 +675,75 @@ export function SubmissionsTab({ eventId }: SubmissionsTabProps) {
           </div>
         </CardContent>
       </Card>
+
+      <Dialog
+        open={Boolean(trackDialogProject)}
+        onOpenChange={handleTrackDialogOpenChange}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Manage Project Tracks</DialogTitle>
+            <DialogDescription>
+              {trackDialogProject
+                ? `Choose which tracks "${trackDialogProject.project_name}" should be assigned to.`
+                : "Choose which tracks this project should be assigned to."}
+            </DialogDescription>
+          </DialogHeader>
+
+          {eventTracks.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No event tracks are available yet. Create tracks first in the Tracks
+              tab.
+            </p>
+          ) : (
+            <div className="grid gap-3">
+              {eventTracks.map((track) => {
+                const checked = selectedTrackIds.includes(track.track_id);
+
+                return (
+                  <label
+                    key={track.track_id}
+                    className="flex items-start gap-3 rounded-lg border p-3 cursor-pointer"
+                  >
+                    <Checkbox
+                      checked={checked}
+                      onCheckedChange={(value) =>
+                        handleTrackToggle(track.track_id, value === true)
+                      }
+                      aria-label={`Assign ${track.name}`}
+                      disabled={isSavingTracks}
+                    />
+                    <div className="space-y-1">
+                      <div className="text-sm font-medium">{track.name}</div>
+                      {track.description ? (
+                        <p className="text-sm text-muted-foreground">
+                          {track.description}
+                        </p>
+                      ) : null}
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => handleTrackDialogOpenChange(false)}
+              disabled={isSavingTracks}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveProjectTracks}
+              disabled={isSavingTracks || !trackDialogProject}
+            >
+              {isSavingTracks ? "Saving..." : "Save Tracks"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

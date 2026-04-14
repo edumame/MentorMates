@@ -115,6 +115,34 @@ describe("event invite emails", () => {
     expect(sendEmail).not.toHaveBeenCalled();
   });
 
+  it("can send judge invites for draft events when draft deferral is disabled", async () => {
+    const sendEmail = jest.fn().mockResolvedValue(true);
+
+    const summary = await sendEventInviteEmails({
+      appOrigin: "https://mentormates.ai",
+      eventId: "event-123",
+      eventName: "Hack Night",
+      inviterName: "Casey Organizer",
+      visibility: EventVisibility.Draft,
+      judgeInviteEmails: ["judge@email.com"],
+      deferIfDraft: false,
+      sendEmail,
+    });
+
+    expect(summary).toEqual({
+      deferred: false,
+      sent: {
+        participant: 0,
+        judge: 1,
+      },
+      failed: {
+        participant: [],
+        judge: [],
+      },
+    });
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+  });
+
   it("sends organizer invites for existing and new organizers", async () => {
     const sendEmail = jest.fn().mockResolvedValue(true);
 
