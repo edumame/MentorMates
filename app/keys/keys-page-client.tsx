@@ -129,12 +129,33 @@ export default function KeysPageClient({
     const isOrg = activeTab === "organizer";
     const envVar = isOrg ? "MENTORMATES_API_KEY" : "MENTORMATES_PARTICIPANT_API_KEY";
     const keyValue = generatedKey?.apiKey ?? "mm_sk_...";
-    const installCmd = [
-      "# In Claude Code:",
+    const installBlock = [
+      "**Claude Code**",
+      "```",
       "/plugin marketplace add edumame/mentormates-marketplace",
       "/plugin install mentormates@mentormates-marketplace",
+      "```",
       "",
-      "# Then invoke /mentormates in any session.",
+      "**GitHub Copilot CLI**",
+      "```bash",
+      "copilot plugin marketplace add edumame/mentormates-marketplace",
+      "copilot plugin install mentormates@mentormates-marketplace",
+      "```",
+      "",
+      "**Cursor**",
+      "Open the Agent chat and say: *Install the mentormates plugin from edumame/mentormates-marketplace*. Or add the marketplace URL via the plugin panel.",
+      "",
+      "**Codex CLI / OpenCode / other agents**",
+      "Tell the agent:",
+      "> Fetch and follow the skill at https://www.mentormates.ai/api/agent/skill",
+      "",
+      "Or drop the raw file into your agent's skills directory:",
+      "```bash",
+      "curl -s https://www.mentormates.ai/api/agent/skill -o ~/.claude/skills/mentormates/SKILL.md",
+      "# (replace ~/.claude/skills/ with your agent's skills path)",
+      "```",
+      "",
+      "Once installed, invoke `/mentormates` in any session.",
     ].join("\n");
     const endpoints = isOrg
       ? [
@@ -185,9 +206,7 @@ export default function KeysPageClient({
       "```",
       "",
       "### 3. Install the skill",
-      "```bash",
-      installCmd,
-      "```",
+      installBlock,
       "",
       "### What happens next",
       nextSteps,
@@ -360,22 +379,54 @@ export default function KeysPageClient({
           export {activeTab === "organizer" ? "MENTORMATES_API_KEY" : "MENTORMATES_PARTICIPANT_API_KEY"}=&quot;{generatedKey?.apiKey ?? "mm_sk_..."}&quot;
         </div>
       </div>
-      <div className="rounded-xl border border-[rgba(0,0,0,0.15)] p-4 space-y-2">
+      <div className="rounded-xl border border-[rgba(0,0,0,0.15)] p-4 space-y-3">
         <p className="font-medium text-black">3. Install skill</p>
-        <div className="rounded-lg bg-black px-3 py-2 font-mono text-xs text-green-400 whitespace-pre-wrap break-all">
-          /plugin marketplace add edumame/mentormates-marketplace
-          {"\n"}/plugin install mentormates@mentormates-marketplace
+
+        <div className="space-y-1">
+          <p className="text-xs font-medium text-[#575d65]">Claude Code</p>
+          <div className="rounded-lg bg-black px-3 py-2 font-mono text-xs text-green-400 whitespace-pre-wrap break-all">
+            /plugin marketplace add edumame/mentormates-marketplace
+            {"\n"}/plugin install mentormates@mentormates-marketplace
+          </div>
         </div>
+
+        <div className="space-y-1">
+          <p className="text-xs font-medium text-[#575d65]">GitHub Copilot CLI</p>
+          <div className="rounded-lg bg-black px-3 py-2 font-mono text-xs text-green-400 whitespace-pre-wrap break-all">
+            copilot plugin marketplace add edumame/mentormates-marketplace
+            {"\n"}copilot plugin install mentormates@mentormates-marketplace
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          <p className="text-xs font-medium text-[#575d65]">Cursor</p>
+          <p className="text-xs text-[#575d65]">
+            In Agent chat say: <em>Install the mentormates plugin from edumame/mentormates-marketplace</em>
+          </p>
+        </div>
+
+        <div className="space-y-1">
+          <p className="text-xs font-medium text-[#575d65]">Codex CLI / OpenCode / other agents</p>
+          <p className="text-xs text-[#575d65]">Tell the agent:</p>
+          <div className="rounded-lg bg-black px-3 py-2 font-mono text-xs text-green-400 whitespace-pre-wrap break-all">
+            Fetch and follow the skill at https://www.mentormates.ai/api/agent/skill
+          </div>
+          <p className="text-xs text-[#575d65]">Or drop the raw file into your agent&apos;s skills dir:</p>
+          <div className="rounded-lg bg-black px-3 py-2 font-mono text-xs text-green-400 whitespace-pre-wrap break-all">
+            curl -s https://www.mentormates.ai/api/agent/skill -o ~/.claude/skills/mentormates/SKILL.md
+          </div>
+        </div>
+
         <p className="text-xs text-[#575d65]">
-          Run these in Claude Code, then invoke <code className="font-mono">/mentormates</code>.{" "}
+          Once installed, invoke <code className="font-mono">/mentormates</code> in any session.{" "}
           {activeTab === "organizer" ? (
             <>
               Prefer a pre-keyed file? Open any event&apos;s dashboard and use{" "}
-              <span className="font-medium">Generate install</span> to get a
-              personalized skill with the API key baked in.
+              <span className="font-medium">Generate install</span> to get a personalized skill with the API key baked in.
             </>
           ) : null}
         </p>
+
         <a
           href="/api/agent/skill"
           className="inline-flex items-center gap-2 text-xs text-[#575d65] underline hover:text-black"
