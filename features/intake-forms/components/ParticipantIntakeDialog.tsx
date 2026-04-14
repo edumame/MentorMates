@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Check, ChevronsUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -21,6 +21,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
@@ -118,6 +131,8 @@ export function ParticipantIntakeDialog(props: ParticipantIntakeDialogProps) {
   );
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [openComboboxKey, setOpenComboboxKey] = useState<string | null>(null);
+  const [comboboxSearch, setComboboxSearch] = useState("");
 
   const visibleFields = useMemo(() => {
     return schema.fields.filter((field) => {
@@ -237,7 +252,7 @@ export function ParticipantIntakeDialog(props: ParticipantIntakeDialogProps) {
                     />
                   )}
 
-                  {field.type === "single_select" && (
+                  {field.type === "single_select" && !field.searchable && (
                     <Select
                       value={typeof value === "string" ? value : ""}
                       onValueChange={(val) => handleAnswerChange(field.key, val)}
@@ -253,6 +268,85 @@ export function ParticipantIntakeDialog(props: ParticipantIntakeDialogProps) {
                         ))}
                       </SelectContent>
                     </Select>
+                  )}
+
+                  {field.type === "single_select" && field.searchable && (
+                    <Popover
+                      open={openComboboxKey === field.key}
+                      onOpenChange={(isOpen) => {
+                        setOpenComboboxKey(isOpen ? field.key : null);
+                        if (!isOpen) setComboboxSearch("");
+                      }}
+                    >
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          role="combobox"
+                          aria-controls={`combobox-${field.key}`}
+                          aria-expanded={openComboboxKey === field.key}
+                          className={cn(
+                            "flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+                            hasError && "border-red-400",
+                            !(typeof value === "string" && value) && "text-muted-foreground"
+                          )}
+                        >
+                          <span className="truncate">
+                            {typeof value === "string" && value ? value : "Search schools..."}
+                          </span>
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent
+                        className="p-0"
+                        style={{ width: "var(--radix-popover-trigger-width)" }}
+                        align="start"
+                      >
+                        <Command id={`combobox-${field.key}`} shouldFilter={false}>
+                          <CommandInput
+                            placeholder="Search schools..."
+                            value={comboboxSearch}
+                            onValueChange={setComboboxSearch}
+                          />
+                          <CommandList onWheel={(e) => e.stopPropagation()}>
+                            {comboboxSearch.trim() === "" ? (
+                              <p className="py-6 text-center text-sm text-muted-foreground">
+                                Start typing to search schools…
+                              </p>
+                            ) : (() => {
+                              const filtered = options.filter((o) =>
+                                o.toLowerCase().includes(comboboxSearch.toLowerCase())
+                              );
+                              return filtered.length === 0 ? (
+                                <CommandEmpty>No school found.</CommandEmpty>
+                              ) : (
+                                <CommandGroup>
+                                  {filtered.slice(0, 50).map((option) => (
+                                    <CommandItem
+                                      key={option}
+                                      value={option}
+                                      className="cursor-pointer hover:bg-[#4B89EF] hover:text-white data-[selected=true]:bg-[#4B89EF] data-[selected=true]:text-white"
+                                      onSelect={() => {
+                                        handleAnswerChange(field.key, option);
+                                        setOpenComboboxKey(null);
+                                        setComboboxSearch("");
+                                      }}
+                                    >
+                                      {option}
+                                      <Check
+                                        className={cn(
+                                          "ml-auto h-4 w-4 shrink-0 text-[#4B89EF]",
+                                          value === option ? "opacity-100" : "opacity-0"
+                                        )}
+                                      />
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              );
+                            })()}
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                   )}
 
                   {field.type === "multi_select" && (

@@ -1,4 +1,5 @@
 import type { IntakeFormField, IntakeFormSchema } from "@/features/intake-forms/types";
+import { SCHOOL_OPTIONS } from "@/features/intake-forms/templates/mlhSchools";
 
 // MLH Level of Study options per the MLH guide:
 // https://guide.mlh.io/general-information/managing-registrations/registrations
@@ -307,10 +308,11 @@ export function createMLHComplianceTemplate(): IntakeFormSchema {
         placeholder: "+1 (555) 000-0000",
       }),
       makeField("Email", "email", { placeholder: "name@example.com" }),
-      makeField("School", "short_text", {
-        placeholder: "Your university or school name",
+      makeField("School", "single_select", {
+        options: SCHOOL_OPTIONS,
+        searchable: true,
         description:
-          "Enter your school name as it appears in the MLH verified schools list.",
+          "Search and select your school from the MLH verified schools list.",
       }),
       makeField("Level of Study", "single_select", {
         options: LEVEL_OF_STUDY_OPTIONS,
