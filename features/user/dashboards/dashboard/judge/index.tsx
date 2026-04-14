@@ -422,7 +422,7 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
             .eq("event_id", eventId),
           supabase
             .from("events")
-            .select("finalist_recommendation_enabled")
+            .select("finalist_recommendation_enabled, scoring_config")
             .eq("event_id", eventId)
             .maybeSingle(),
           supabase
@@ -456,9 +456,44 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
           );
         }
 
-        const projectIds = assignedProjectsResponse.data?.map(
+        let projectIds = assignedProjectsResponse.data?.map(
           (project) => project.project_id
         ) || [];
+
+        // Multi-round judging (#706): filter assigned projects down to those
+        // advanced to the active round. If no advancements exist for round 1,
+        // fall back to all assigned projects (backward compat).
+        const scoringCfg =
+          (eventSettingsResponse.data?.scoring_config as {
+            activeRound?: number;
+          } | null) ?? null;
+        const activeRound =
+          scoringCfg && typeof scoringCfg.activeRound === "number" &&
+          scoringCfg.activeRound > 0
+            ? scoringCfg.activeRound
+            : 1;
+
+        if (projectIds.length > 0) {
+          const { data: advancements } = await supabase
+            .from("project_round_advancements")
+            .select("project_id")
+            .eq("event_id", eventId)
+            .eq("round_number", activeRound)
+            .in("project_id", projectIds);
+
+          const advancedIds = (advancements ?? []).map(
+            (a: { project_id: string }) => a.project_id
+          );
+
+          if (advancedIds.length > 0) {
+            projectIds = advancedIds;
+          } else if (activeRound > 1) {
+            // Explicitly past round 1 with no advancements for this judge →
+            // show nothing.
+            projectIds = [];
+          }
+          // Round 1 with no advancement rows → fall through (legacy behavior).
+        }
 
         if (projectIds.length === 0) {
           setProjects([]);
@@ -529,6 +564,7 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
           .select("project_id, track_id, scores")
           .eq("judge_id", session.user.id)
           .eq("event_id", eventId)
+          .eq("round_number", activeRound)
           .overrideTypes<ScoreRow[]>();
 
         if (scoresError) {

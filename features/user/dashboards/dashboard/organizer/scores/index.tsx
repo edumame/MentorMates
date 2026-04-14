@@ -80,6 +80,7 @@ type ProjectScoreQueryRow = {
   track_id: string;
   scores: unknown;
   comments: string | null;
+  round_number?: number | null;
   projects: unknown;
   event_tracks: unknown;
 };
@@ -111,6 +112,7 @@ interface ScoresTabProps {
 interface RawScoreData {
   scores: Record<string, string | number>;
   comments: string | null;
+  round_number: number;
   projects: {
     project_name: string;
     lead_email: string;
@@ -270,6 +272,7 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
         const baseData: Record<string, string | number | null> = {
           "Project Name": score.projects.project_name || "",
           Track: score.event_tracks.name || "",
+          Round: score.round_number ?? 1,
           Comments: score.comments || "",
           "Lead Email": score.projects.lead_email || "",
         };
@@ -742,6 +745,7 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
             track_id,
             scores,
             comments,
+            round_number,
             projects:projects!inner (
               project_name,
               lead_name,
@@ -809,6 +813,8 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
           return {
             scores: item.scores as Record<string, string | number>,
             comments: item.comments,
+            round_number:
+              typeof item.round_number === "number" ? item.round_number : 1,
             projects: {
               project_name: projects?.project_name || "",
               lead_email: projects?.lead_email || "",
