@@ -85,7 +85,7 @@ export default function KeysPageClient({
   const [isCreating, setIsCreating] = useState(false);
   const [revokingKeyId, setRevokingKeyId] = useState<string | null>(null);
   const [installAgent, setInstallAgent] = useState<
-    "claude" | "copilot" | "cursor" | "other"
+    "claude" | "copilot" | "cursor" | "codex" | "other"
   >("claude");
 
   const eventMap = useMemo(
@@ -153,17 +153,23 @@ export default function KeysPageClient({
       "**Cursor**",
       "Open the Agent chat and say: *Install the mentormates plugin from edumame/mentormates-marketplace*. Or add the marketplace URL via the plugin panel.",
       "",
-      "**Codex CLI / OpenCode / other agents**",
+      "**Codex CLI**",
+      "Tell Codex:",
+      "> Fetch and follow https://raw.githubusercontent.com/edumame/mentormates-skill/main/.codex/INSTALL.md",
+      "",
+      "That installs to `~/.agents/skills/mentormates/` (Codex's discovery path — not `~/.codex/skills/`). One restart of Codex is needed for first discovery. Invoke via `/skill mentormates` — Codex doesn't auto-map skill names to top-level slash commands.",
+      "",
+      "**OpenCode / other agents**",
       "Tell the agent:",
       "> Fetch and follow the skill at https://www.mentormates.ai/api/agent/skill",
       "",
-      "Or drop the raw file into your agent's skills directory:",
+      "Or drop the raw file into the agent's skills directory:",
       "```bash",
       "curl -s https://www.mentormates.ai/api/agent/skill -o ~/.claude/skills/mentormates/SKILL.md",
       "# (replace ~/.claude/skills/ with your agent's skills path)",
       "```",
       "",
-      "Once installed, invoke `/mentormates` in any session.",
+      "Once installed, invoke `/mentormates` (or your agent's equivalent skill-invocation flow) in any session.",
     ].join("\n");
     const endpoints = isOrg
       ? [
@@ -418,7 +424,8 @@ export default function KeysPageClient({
             <option value="claude">Claude Code</option>
             <option value="copilot">GitHub Copilot CLI</option>
             <option value="cursor">Cursor</option>
-            <option value="other">Codex / OpenCode / other</option>
+            <option value="codex">Codex CLI</option>
+            <option value="other">OpenCode / other</option>
           </select>
         </div>
 
@@ -442,6 +449,15 @@ export default function KeysPageClient({
           </p>
         )}
 
+        {installAgent === "codex" && (
+          <div className="space-y-1">
+            <p className="text-xs text-[#575d65]">Tell Codex:</p>
+            <div className="rounded-lg bg-black px-3 py-2 font-mono text-xs text-green-400 whitespace-pre-wrap break-all">
+              Fetch and follow https://raw.githubusercontent.com/edumame/mentormates-skill/main/.codex/INSTALL.md
+            </div>
+          </div>
+        )}
+
         {installAgent === "other" && (
           <div className="space-y-1">
             <p className="text-xs text-[#575d65]">Tell the agent:</p>
@@ -452,7 +468,16 @@ export default function KeysPageClient({
         )}
 
         <p className="text-xs text-[#575d65]">
-          Once installed, invoke <code className="font-mono">/mentormates</code> in any session.{" "}
+          Once installed, invoke{" "}
+          {installAgent === "codex" ? (
+            <>
+              <code className="font-mono">/skill mentormates</code> in Codex (slash-name autocomplete is Claude-Code only). One-time restart needed for first discovery.
+            </>
+          ) : (
+            <>
+              <code className="font-mono">/mentormates</code> in any session.
+            </>
+          )}{" "}
           {activeTab === "organizer" ? (
             <>
               Prefer a pre-keyed file? Use <span className="font-medium">Generate install</span> from any event&apos;s dashboard.
