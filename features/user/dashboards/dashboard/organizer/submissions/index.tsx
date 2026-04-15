@@ -57,8 +57,14 @@ interface ProjectData {
   project_name: string;
   lead_name: string;
   lead_email: string;
+  lead_school?: string | null;
   project_description: string;
   teammates: string[];
+  teammate_profiles?: {
+    email: string;
+    display_name?: string | null;
+    affiliation?: string | null;
+  }[];
   project_url: string | null;
   additional_materials_url: string | null;
   cover_image_url: string | null;
