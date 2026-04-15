@@ -86,7 +86,10 @@ describe("buildSubmissionExportRows", () => {
       {
         "Project Name": "Vibeflow",
         "Lead Name": "Alice",
+        "Lead First Name": "Alice",
+        "Lead Last Name": "",
         "Lead Email": "alice@example.com",
+        "Lead School": "",
         Description: "AI workflow builder",
         "Primary Project URL": "https://demo.example.com",
         "GitHub URL": "https://github.com/acme/vibeflow",
@@ -101,6 +104,15 @@ describe("buildSubmissionExportRows", () => {
         Tracks: "Best AI App",
         Submitted: true,
         "Created At": "2026-03-18T00:00:00Z",
+        // Per-member columns (no teammate_profiles provided → empty profile data)
+        "Member 1 First Name": "",
+        "Member 1 Last Name": "",
+        "Member 1 Email": "bob@example.com",
+        "Member 1 School": "",
+        "Member 2 First Name": "",
+        "Member 2 Last Name": "",
+        "Member 2 Email": "carol@example.com",
+        "Member 2 School": "",
         // Custom field columns follow schema (first-seen) order, not alphabetical.
         // project_name / project_url collide with built-in keys and are skipped.
         "GitHub Link": "https://github.com/acme/vibeflow",
@@ -278,6 +290,98 @@ describe("buildSubmissionExportRows", () => {
       );
       expect(row["Project Name"]).toBe("Project A");
       expect(row["Real Custom"]).toBe("ok");
+    });
+
+    it("emits Lead First/Last Name and Lead School columns", () => {
+      const [row] = buildSubmissionExportRows([
+        makeProject({
+          lead_name: "Ada Lovelace",
+          lead_school: "University of London",
+        }),
+      ]);
+      expect(row["Lead First Name"]).toBe("Ada");
+      expect(row["Lead Last Name"]).toBe("Lovelace");
+      expect(row["Lead School"]).toBe("University of London");
+    });
+
+    it("handles lead with single-word display_name", () => {
+      const [row] = buildSubmissionExportRows([
+        makeProject({ lead_name: "Alice" }),
+      ]);
+      expect(row["Lead First Name"]).toBe("Alice");
+      expect(row["Lead Last Name"]).toBe("");
+    });
+
+    it("expands teammates to per-member columns with profile data", () => {
+      const [row] = buildSubmissionExportRows([
+        makeProject({
+          lead_email: "lead@example.com",
+          teammates: ["lead@example.com", "bob@example.com", "carol@example.com"],
+          teammate_profiles: [
+            {
+              email: "bob@example.com",
+              display_name: "Bob Smith",
+              affiliation: "MIT",
+            },
+            {
+              email: "carol@example.com",
+              display_name: "Carol Jones",
+              affiliation: "Stanford",
+            },
+          ],
+        }),
+      ]);
+
+      // Lead email filtered from non-lead teammates
+      expect(row["Member 1 Email"]).toBe("bob@example.com");
+      expect(row["Member 1 First Name"]).toBe("Bob");
+      expect(row["Member 1 Last Name"]).toBe("Smith");
+      expect(row["Member 1 School"]).toBe("MIT");
+
+      expect(row["Member 2 Email"]).toBe("carol@example.com");
+      expect(row["Member 2 First Name"]).toBe("Carol");
+      expect(row["Member 2 Last Name"]).toBe("Jones");
+      expect(row["Member 2 School"]).toBe("Stanford");
+    });
+
+    it("falls back to empty strings when teammate profile is missing", () => {
+      const [row] = buildSubmissionExportRows([
+        makeProject({
+          teammates: ["unknown@example.com"],
+          teammate_profiles: [],
+        }),
+      ]);
+      expect(row["Member 1 Email"]).toBe("unknown@example.com");
+      expect(row["Member 1 First Name"]).toBe("");
+      expect(row["Member 1 Last Name"]).toBe("");
+      expect(row["Member 1 School"]).toBe("");
+    });
+
+    it("pads empty member slots when projects have different team sizes", () => {
+      // Two projects: one with 2 teammates, one with 0.
+      // The shorter project should still emit Member 1/2 columns (blank).
+      const rows = buildSubmissionExportRows([
+        makeProject({
+          project_name: "Big Team",
+          teammates: ["a@example.com", "b@example.com"],
+          teammate_profiles: [],
+        }),
+        makeProject({
+          project_name: "Solo",
+          teammates: [],
+          teammate_profiles: [],
+        }),
+      ]);
+
+      expect(rows[1]["Member 1 Email"]).toBe("");
+      expect(rows[1]["Member 1 First Name"]).toBe("");
+      expect(rows[1]["Member 2 Email"]).toBe("");
+    });
+
+    it("does not emit member columns when all projects are solo", () => {
+      const [row] = buildSubmissionExportRows([makeProject({ teammates: [] })]);
+      const headers = Object.keys(row);
+      expect(headers.some((h) => h.startsWith("Member "))).toBe(false);
     });
   });
 });
