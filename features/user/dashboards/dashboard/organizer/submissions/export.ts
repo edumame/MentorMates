@@ -12,12 +12,20 @@ type ExportField = {
   label: string;
 };
 
+export type ExportMemberProfile = {
+  email: string;
+  display_name?: string | null;
+  affiliation?: string | null;
+};
+
 export type SubmissionExportProject = {
   project_name: string;
   lead_name: string;
   lead_email: string;
+  lead_school?: string | null;
   project_description: string;
   teammates: string[];
+  teammate_profiles?: ExportMemberProfile[];
   project_url?: string | null;
   additional_materials_url?: string | null;
   cover_image_url?: string | null;
@@ -86,6 +94,32 @@ function formatAllArtifacts(artifacts: ExportArtifact[] | undefined): string {
     .join(" | ");
 }
 
+function splitDisplayName(displayName: string | null | undefined): {
+  first: string;
+  last: string;
+} {
+  const name = displayName?.trim() ?? "";
+  const spaceIdx = name.indexOf(" ");
+  if (spaceIdx === -1) return { first: name, last: "" };
+  return {
+    first: name.slice(0, spaceIdx).trim(),
+    last: name.slice(spaceIdx + 1).trim(),
+  };
+}
+
+function buildTeamMemberColumns(
+  projects: SubmissionExportProject[]
+): number {
+  let max = 0;
+  for (const project of projects) {
+    const nonLeadTeammates = (project.teammates ?? []).filter(
+      (e) => e !== project.lead_email
+    );
+    if (nonLeadTeammates.length > max) max = nonLeadTeammates.length;
+  }
+  return max;
+}
+
 function buildCustomFieldColumns(projects: SubmissionExportProject[]) {
   const keyToLabel = new Map<string, string>();
   const labelCounts = new Map<string, number>();
@@ -116,12 +150,18 @@ function buildCustomFieldColumns(projects: SubmissionExportProject[]) {
 
 export function buildSubmissionExportRows(projects: SubmissionExportProject[]) {
   const customFieldColumns = buildCustomFieldColumns(projects);
+  const maxNonLeadTeammates = buildTeamMemberColumns(projects);
 
   return projects.map((project) => {
+    const leadName = splitDisplayName(project.lead_name);
+
     const row: Record<string, string | boolean> = {
       "Project Name": project.project_name || "",
       "Lead Name": project.lead_name || "",
+      "Lead First Name": leadName.first,
+      "Lead Last Name": leadName.last,
       "Lead Email": project.lead_email || "",
+      "Lead School": project.lead_school || "",
       Description: project.project_description || "",
       "Primary Project URL": project.project_url || "",
       "GitHub URL": formatGithubUrls(project.artifacts),
@@ -142,6 +182,28 @@ export function buildSubmissionExportRows(projects: SubmissionExportProject[]) {
       Submitted: project.submitted,
       "Created At": project.created_at,
     };
+
+    // Per-member columns: filter lead from teammates to avoid duplication,
+    // then emit Member N First Name / Last Name / Email / School for each slot
+    // up to the max team size across all projects.
+    const profileByEmail = new Map(
+      (project.teammate_profiles ?? []).map((p) => [p.email, p])
+    );
+    const nonLeadTeammates = (project.teammates ?? []).filter(
+      (e) => e !== project.lead_email
+    );
+
+    for (let i = 0; i < maxNonLeadTeammates; i++) {
+      const memberNum = i + 1;
+      const email = nonLeadTeammates[i] ?? "";
+      const profile = email ? profileByEmail.get(email) : undefined;
+      const memberName = splitDisplayName(profile?.display_name);
+
+      row[`Member ${memberNum} First Name`] = memberName.first;
+      row[`Member ${memberNum} Last Name`] = memberName.last;
+      row[`Member ${memberNum} Email`] = email;
+      row[`Member ${memberNum} School`] = profile?.affiliation ?? "";
+    }
 
     for (const field of customFieldColumns) {
       row[field.columnLabel] = formatValue(project.submission_values?.[field.key]);
