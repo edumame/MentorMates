@@ -14,7 +14,7 @@
  * save/delete patterns as the original form.
  */
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -28,7 +28,12 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { EventScoringConfig, EventTrack, ScoringCriterion } from "@/lib/types";
+import {
+  EventScoringConfig,
+  EventTrack,
+  ScoringCriterion,
+  TrackScoringConfig,
+} from "@/lib/types";
 import { defaultCriteria } from "@/lib/config/constants";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/lib/hooks/use-toast";
@@ -85,6 +90,20 @@ function sanitizeCriterion(c: ScoringCriterion): ScoringCriterion {
     return { ...c, min: undefined, max: undefined, weight: undefined, options: c.options || ["Option 1", "Option 2"] };
   }
   return { ...c, options: undefined };
+}
+
+function cloneCriterion(criterion: ScoringCriterion): ScoringCriterion {
+  return {
+    ...criterion,
+    options: criterion.options ? [...criterion.options] : criterion.options,
+  };
+}
+
+function cloneTrackScoringConfig(track: TrackScoringConfig): TrackScoringConfig {
+  return {
+    name: track.name,
+    criteria: track.criteria.map(cloneCriterion),
+  };
 }
 
 // ── Props ─────────────────────────────────────────────────────────────
@@ -145,6 +164,9 @@ export function CompactScoringForm({
   const [editingCritId, setEditingCritId] = useState<string | null>(null);
   const [isAssigningProjects, setIsAssigningProjects] = useState(false);
   const [selectedTrackForBulkAssign, setSelectedTrackForBulkAssign] = useState("");
+  const [selectedRubricScopeByTrack, setSelectedRubricScopeByTrack] = useState<
+    Record<string, string>
+  >({});
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
   const [newTrackName, setNewTrackName] = useState("");
   const [selectedTemplate, setSelectedTemplate] = useState("numeric_10");
@@ -155,6 +177,114 @@ export function CompactScoringForm({
     track_id: track.track_id,
     name: config.tracks[track.track_id]?.name || track.name || "Unnamed Track",
   }));
+  const rounds = useMemo(
+    () =>
+      [...(config.rounds || [])].sort(
+        (a, b) => a.round_number - b.round_number
+      ),
+    [config.rounds]
+  );
+  const hasMultipleRounds = rounds.length > 1;
+
+  const getSelectedRubricScope = (trackId: string) =>
+    selectedRubricScopeByTrack[trackId] || "default";
+
+  const getSelectedRoundNumber = (trackId: string) => {
+    const scope = getSelectedRubricScope(trackId);
+    return scope === "default" ? null : Number(scope);
+  };
+
+  const hasRoundOverride = (trackId: string) => {
+    const roundNumber = getSelectedRoundNumber(trackId);
+    if (!roundNumber) return false;
+
+    return !!config.rounds?.find((round) => round.round_number === roundNumber)
+      ?.tracks?.[trackId];
+  };
+
+  const getDisplayedTrackConfig = (trackId: string) => {
+    const baseTrack = config.tracks[trackId];
+    const roundNumber = getSelectedRoundNumber(trackId);
+
+    if (!roundNumber) {
+      return baseTrack;
+    }
+
+    return (
+      config.rounds?.find((round) => round.round_number === roundNumber)?.tracks?.[
+        trackId
+      ] || baseTrack
+    );
+  };
+
+  const updateScopedTrackConfig = (
+    trackId: string,
+    updater: (track: TrackScoringConfig) => TrackScoringConfig
+  ) => {
+    setConfig((prev) => {
+      const baseTrack = prev.tracks[trackId];
+      if (!baseTrack) return prev;
+
+      const selectedScope = selectedRubricScopeByTrack[trackId] || "default";
+      if (selectedScope === "default") {
+        return {
+          ...prev,
+          tracks: {
+            ...prev.tracks,
+            [trackId]: updater(baseTrack),
+          },
+        };
+      }
+
+      const roundNumber = Number(selectedScope);
+      if (!Number.isInteger(roundNumber)) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        rounds: (prev.rounds || []).map((round) => {
+          if (round.round_number !== roundNumber) {
+            return round;
+          }
+
+          const existingTrack =
+            round.tracks?.[trackId] || cloneTrackScoringConfig(baseTrack);
+
+          return {
+            ...round,
+            tracks: {
+              ...(round.tracks || {}),
+              [trackId]: updater(existingTrack),
+            },
+          };
+        }),
+      };
+    });
+  };
+
+  const resetRoundOverride = (trackId: string) => {
+    const roundNumber = getSelectedRoundNumber(trackId);
+    if (!roundNumber) return;
+
+    setConfig((prev) => ({
+      ...prev,
+      rounds: (prev.rounds || []).map((round) => {
+        if (round.round_number !== roundNumber || !round.tracks?.[trackId]) {
+          return round;
+        }
+
+        const nextTracks = { ...round.tracks };
+        delete nextTracks[trackId];
+
+        return {
+          ...round,
+          tracks: Object.keys(nextTracks).length > 0 ? nextTracks : undefined,
+        };
+      }),
+    }));
+    setEditingCritId(null);
+  };
 
   // ── Track mutations ─────────────────────────────────────────────────
 
@@ -184,11 +314,30 @@ export function CompactScoringForm({
         ...prev,
         tracks: {
           ...prev.tracks,
-          [newId]: { name: src.name ? `${src.name} (Copy)` : "", criteria: src.criteria.map((c) => ({ ...c })) },
+          [newId]: {
+            name: src.name ? `${src.name} (Copy)` : "",
+            criteria: src.criteria.map(cloneCriterion),
+          },
         },
+        rounds: (prev.rounds || []).map((round) => ({
+          ...round,
+          tracks: round.tracks?.[sourceId]
+            ? {
+                ...(round.tracks || {}),
+                [newId]: {
+                  ...cloneTrackScoringConfig(round.tracks[sourceId]),
+                  name: src.name ? `${src.name} (Copy)` : "",
+                },
+              }
+            : round.tracks,
+        })),
       };
     });
     setExpandedTracks((prev) => new Set(prev).add(newId));
+    setSelectedRubricScopeByTrack((prev) => ({
+      ...prev,
+      [newId]: getSelectedRubricScope(sourceId),
+    }));
     toast({ title: "Track duplicated", description: "Edit the new track name and criteria." });
   };
 
@@ -199,7 +348,13 @@ export function CompactScoringForm({
     const id = crypto.randomUUID();
     setConfig((prev) => ({
       ...prev,
-      tracks: { ...prev.tracks, [id]: { name: newTrackName.trim(), criteria: tmpl.criteria.map((c) => ({ ...c })) } },
+      tracks: {
+        ...prev.tracks,
+        [id]: {
+          name: newTrackName.trim(),
+          criteria: tmpl.criteria.map(cloneCriterion),
+        },
+      },
     }));
     setExpandedTracks((prev) => new Set(prev).add(id));
     setNewTrackName("");
@@ -216,7 +371,33 @@ export function CompactScoringForm({
       setConfig((prev) => {
         const newTracks = { ...prev.tracks };
         delete newTracks[id];
-        return { ...prev, tracks: newTracks };
+        return {
+          ...prev,
+          tracks: newTracks,
+          rounds: (prev.rounds || []).map((round) => {
+            if (!round.tracks?.[id]) {
+              return round;
+            }
+
+            const nextTracks = { ...round.tracks };
+            delete nextTracks[id];
+
+            return {
+              ...round,
+              tracks: Object.keys(nextTracks).length > 0 ? nextTracks : undefined,
+            };
+          }),
+        };
+      });
+      setSelectedRubricScopeByTrack((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+      setExpandedTracks((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
       });
     }
   };
@@ -225,63 +406,56 @@ export function CompactScoringForm({
     setConfig((prev) => ({
       ...prev,
       tracks: { ...prev.tracks, [id]: { ...prev.tracks[id], name } },
+      rounds: (prev.rounds || []).map((round) => ({
+        ...round,
+        tracks: round.tracks?.[id]
+          ? {
+              ...(round.tracks || {}),
+              [id]: {
+                ...round.tracks[id],
+                name,
+              },
+            }
+          : round.tracks,
+      })),
     }));
   };
 
   // ── Criterion mutations ─────────────────────────────────────────────
 
   const addCriterion = (trackId: string) => {
-    setConfig((prev) => {
-      const base: ScoringCriterion = {
-        id: `criterion_${Date.now()}`,
-        name: "",
-        description: "",
-        type: "numeric",
-        weight: prev.defaultWeight,
-        min: prev.defaultMin,
-        max: prev.defaultMax,
-      };
-      return {
-        ...prev,
-        tracks: {
-          ...prev.tracks,
-          [trackId]: {
-            ...prev.tracks[trackId],
-            criteria: [...prev.tracks[trackId].criteria, sanitizeCriterion(base)],
-          },
-        },
-      };
-    });
+    const base: ScoringCriterion = {
+      id: `criterion_${Date.now()}`,
+      name: "",
+      description: "",
+      type: "numeric",
+      weight: config.defaultWeight,
+      min: config.defaultMin,
+      max: config.defaultMax,
+    };
+
+    updateScopedTrackConfig(trackId, (track) => ({
+      ...track,
+      criteria: [...track.criteria, sanitizeCriterion(base)],
+    }));
   };
 
   const removeCriterion = (trackId: string, index: number) => {
-    setConfig((prev) => ({
-      ...prev,
-      tracks: {
-        ...prev.tracks,
-        [trackId]: {
-          ...prev.tracks[trackId],
-          criteria: prev.tracks[trackId].criteria.filter((_, i) => i !== index),
-        },
-      },
+    updateScopedTrackConfig(trackId, (track) => ({
+      ...track,
+      criteria: track.criteria.filter((_, i) => i !== index),
     }));
     setEditingCritId(null);
   };
 
   const updateCriterion = (trackId: string, index: number, updates: Partial<ScoringCriterion>) => {
-    setConfig((prev) => {
-      const cur = prev.tracks[trackId].criteria[index];
+    updateScopedTrackConfig(trackId, (track) => {
+      const cur = track.criteria[index];
       let updated = { ...cur, ...updates };
       if (updates.type || updates.options !== undefined) updated = sanitizeCriterion(updated);
       return {
-        ...prev,
-        tracks: {
-          ...prev.tracks,
-          [trackId]: {
-            ...prev.tracks[trackId],
-            criteria: prev.tracks[trackId].criteria.map((c, i) => (i === index ? updated : c)),
-          },
-        },
+        ...track,
+        criteria: track.criteria.map((c, i) => (i === index ? updated : c)),
       };
     });
   };
@@ -374,7 +548,14 @@ export function CompactScoringForm({
       <div className="space-y-3">
         {trackEntries.map(([trackId, track]) => {
           const isExpanded = expandedTracks.has(trackId);
-          const totalWeight = track.criteria.reduce((s, c) => s + (c.weight ?? 1), 0);
+          const displayedTrack = getDisplayedTrackConfig(trackId);
+          const displayedCriteria = displayedTrack?.criteria || [];
+          const totalWeight = displayedCriteria.reduce(
+            (s, c) => s + (c.weight ?? 1),
+            0
+          );
+          const selectedRoundNumber = getSelectedRoundNumber(trackId);
+          const roundOverrideActive = hasRoundOverride(trackId);
 
           return (
             <Card key={trackId} className="rounded-2xl border border-gray-200 overflow-hidden">
@@ -434,17 +615,83 @@ export function CompactScoringForm({
 
                   {/* ── Scoring Criteria ── */}
                   <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="text-xs font-semibold text-gray-900 uppercase tracking-wide">
-                        Scoring Criteria
-                      </h4>
-                      <span className="text-[10px] text-gray-400 font-medium">
-                        Total weight: {totalWeight}
-                      </span>
+                    <div className="mb-2 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="space-y-1">
+                        <h4 className="text-xs font-semibold text-gray-900 uppercase tracking-wide">
+                          Scoring Criteria
+                        </h4>
+                        {hasMultipleRounds && (
+                          <p className="text-xs text-gray-500">
+                            Edit the default rubric or create a round-specific override for this track.
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex flex-col items-start gap-2 sm:items-end">
+                        {hasMultipleRounds && (
+                          <div className="flex w-full flex-col gap-2 sm:w-[260px]">
+                            <label className="text-[10px] font-medium uppercase tracking-wide text-gray-500">
+                              Rubric
+                            </label>
+                            <Select
+                              value={getSelectedRubricScope(trackId)}
+                              onValueChange={(value) => {
+                                setSelectedRubricScopeByTrack((prev) => ({
+                                  ...prev,
+                                  [trackId]: value,
+                                }));
+                                setEditingCritId(null);
+                              }}
+                              disabled={isArchived}
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="default">
+                                  Default rubric
+                                </SelectItem>
+                                {rounds.map((round) => (
+                                  <SelectItem
+                                    key={round.round_number}
+                                    value={String(round.round_number)}
+                                  >
+                                    Round {round.round_number}: {round.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            {selectedRoundNumber ? (
+                              <div className="flex w-full items-center justify-between gap-2">
+                                <span className="text-[10px] text-gray-500">
+                                  {roundOverrideActive
+                                    ? "Custom round rubric"
+                                    : "Using event default rubric"}
+                                </span>
+                                {roundOverrideActive && (
+                                  <button
+                                    type="button"
+                                    onClick={() => resetRoundOverride(trackId)}
+                                    className="text-[10px] font-medium text-[#4b89ef] hover:text-[#3d75d9]"
+                                  >
+                                    Reset round
+                                  </button>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-[10px] text-gray-500">
+                                Shared by any round without an override
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        <span className="text-[10px] text-gray-400 font-medium">
+                          Total weight: {totalWeight}
+                        </span>
+                      </div>
                     </div>
 
                     <div className="space-y-0">
-                      {track.criteria.map((criterion, idx) => {
+                      {displayedCriteria.map((criterion, idx) => {
                         const pct = totalWeight > 0 ? Math.round(((criterion.weight ?? 1) / totalWeight) * 100) : 0;
                         const isEditing = editingCritId === criterion.id;
 
@@ -512,7 +759,7 @@ export function CompactScoringForm({
                                     />
                                   </div>
                                   <div className="flex items-center gap-2">
-                                    {track.criteria.length > 1 && (
+                                    {displayedCriteria.length > 1 && (
                                       <button type="button" onClick={() => removeCriterion(trackId, idx)} className="text-xs text-red-500 hover:text-red-600 font-medium">
                                         Delete
                                       </button>
@@ -544,14 +791,14 @@ export function CompactScoringForm({
                                 <span className="shrink-0 inline-flex items-center rounded-full bg-[#4B89EF]/10 px-2 py-0.5 text-[10px] font-semibold text-[#4B89EF]">
                                   {pct}% · w{criterion.weight ?? 1}
                                 </span>
-                                <span className="shrink-0 text-[10px] text-gray-400 font-mono">
-                                  {criterion.min ?? 0}-{criterion.max ?? 10}
-                                </span>
-                                <div className="shrink-0 flex items-center gap-0.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                                  <span className="p-1 rounded text-gray-400 hover:text-[#4B89EF]">
-                                    <Pencil className="h-3.5 w-3.5" />
+                                  <span className="shrink-0 text-[10px] text-gray-400 font-mono">
+                                    {criterion.min ?? 0}-{criterion.max ?? 10}
                                   </span>
-                                  {track.criteria.length > 1 && (
+                                  <div className="shrink-0 flex items-center gap-0.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                                    <span className="p-1 rounded text-gray-400 hover:text-[#4B89EF]">
+                                      <Pencil className="h-3.5 w-3.5" />
+                                    </span>
+                                  {displayedCriteria.length > 1 && (
                                     <span
                                       className="p-1 rounded text-gray-400 hover:text-red-500"
                                       onClick={(e) => { e.stopPropagation(); removeCriterion(trackId, idx); }}

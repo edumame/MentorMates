@@ -41,6 +41,21 @@ export function isMultiRound(
   return !!scoringConfig?.rounds && scoringConfig.rounds.length > 1;
 }
 
+export interface AdvancementScoreRow {
+  project_id: string;
+  scores: Record<string, unknown> | null;
+  project_name?: string | null;
+  lead_name?: string | null;
+}
+
+export interface AdvancementCandidate {
+  projectId: string;
+  projectName: string;
+  leadName: string;
+  score: number | null;
+  judgeCount: number;
+}
+
 /**
  * Returns project_ids eligible for `roundNumber` in this event.
  *
@@ -80,37 +95,23 @@ export async function getProjectIdsForRound(
   return [];
 }
 
-/**
- * Compute the top-K projects from `fromRound` (by average score across all
- * criteria/tracks) and insert advancement rows for `fromRound + 1`.
- *
- * Returns the list of advanced project_ids (in ranked order).
- */
-export async function computeAdvancements(
-  supabase: SupabaseClient,
-  eventId: string,
-  fromRound: number,
-  scoringConfig: EventScoringConfig | null | undefined
-): Promise<{ advanced: string[]; toRound: number }> {
-  const rounds = getRoundsConfig(scoringConfig);
-  const current = rounds.find((r) => r.round_number === fromRound);
-  const advancementCount = current?.advancement_count ?? null;
-  const toRound = fromRound + 1;
-
-  // Pull all scores for this event + round.
-  const { data: scores, error: scoreErr } = await supabase
-    .from("project_scores")
-    .select("project_id, scores")
-    .eq("event_id", eventId)
-    .eq("round_number", fromRound);
-  if (scoreErr) throw scoreErr;
-
-  // Average numeric criteria per project.
+export function rankProjectsForAdvancement(
+  rows: AdvancementScoreRow[]
+): AdvancementCandidate[] {
   const bucket = new Map<string, { total: number; count: number }>();
-  for (const row of (scores ?? []) as {
-    project_id: string;
-    scores: Record<string, unknown> | null;
-  }[]) {
+  const projectMeta = new Map<
+    string,
+    { projectName: string; leadName: string }
+  >();
+
+  for (const row of rows) {
+    if (!projectMeta.has(row.project_id)) {
+      projectMeta.set(row.project_id, {
+        projectName: row.project_name ?? "",
+        leadName: row.lead_name ?? "",
+      });
+    }
+
     if (!row.scores) continue;
     let sum = 0;
     let n = 0;
@@ -132,19 +133,46 @@ export async function computeAdvancements(
     }
   }
 
-  const ranked = Array.from(bucket.entries())
-    .map(([project_id, { total, count }]) => ({
-      project_id,
-      avg: total / count,
-    }))
-    .sort((a, b) => b.avg - a.avg);
+  return Array.from(bucket.entries())
+    .map(([projectId, { total, count }]) => {
+      const meta = projectMeta.get(projectId);
+      return {
+        projectId,
+        projectName: meta?.projectName ?? "",
+        leadName: meta?.leadName ?? "",
+        score: total / count,
+        judgeCount: count,
+      };
+    })
+    .sort((a, b) => {
+      if ((b.score ?? -Infinity) !== (a.score ?? -Infinity)) {
+        return (b.score ?? -Infinity) - (a.score ?? -Infinity);
+      }
+      return a.projectName.localeCompare(b.projectName);
+    });
+}
 
-  const advanced =
-    advancementCount && advancementCount > 0
-      ? ranked.slice(0, advancementCount).map((r) => r.project_id)
-      : ranked.map((r) => r.project_id);
+export async function replaceAdvancements(
+  supabase: SupabaseClient,
+  eventId: string,
+  fromRound: number,
+  projectIds: string[]
+): Promise<{ advanced: string[]; toRound: number }> {
+  const toRound = fromRound + 1;
+  const advanced = Array.from(
+    new Set(projectIds.map((projectId) => projectId.trim()).filter(Boolean))
+  );
 
-  if (advanced.length === 0) return { advanced: [], toRound };
+  const { error: deleteErr } = await supabase
+    .from("project_round_advancements")
+    .delete()
+    .eq("event_id", eventId)
+    .eq("round_number", toRound);
+  if (deleteErr) throw deleteErr;
+
+  if (advanced.length === 0) {
+    return { advanced: [], toRound };
+  }
 
   const rows = advanced.map((project_id) => ({
     event_id: eventId,

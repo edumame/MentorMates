@@ -222,7 +222,7 @@ export interface EventTrack {
   description: string;
   label?: string;
   prizes?: Prize[];
-  scoring_criteria: TrackScoringConfig;
+  scoring_criteria: EventTrackScoringConfig;
   created_at: string;
   updated_at: string;
 }
@@ -363,11 +363,18 @@ export interface TrackScoringConfig {
   criteria: ScoringCriterion[];
 }
 
+export interface EventTrackScoringConfig extends TrackScoringConfig {
+  /** Optional per-round rubric overrides stored on the event_tracks row. */
+  rounds?: Record<string, TrackScoringConfig>;
+}
+
 export interface RoundConfig {
   round_number: number;
   name: string;
   /** Number of projects that advance to the next round. null/undefined on the final round. */
   advancement_count?: number | null;
+  /** Optional hydrated per-track scoring config overrides for this round. */
+  tracks?: Record<string, TrackScoringConfig>;
   /** Optional: override criteria for this round. Falls back to track criteria if omitted. */
   criteria?: ScoringCriterion[];
   /** Optional: restrict which judges see this round. */
