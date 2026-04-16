@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { CompactScoringForm } from "@/features/user/dashboards/dashboard/organizer/tracks/CompactScoringForm";
 import { JudgingSidebar } from "@/features/user/dashboards/dashboard/organizer/tracks/JudgingSidebar";
+import { buildEventTrackScoringCriteriaFromConfig } from "@/lib/judging/scoring-config";
 import { EventDetails, EventScoringConfig, EventTrack } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
 import { Pencil, Eye, Scale, Download } from "lucide-react";
@@ -73,10 +74,11 @@ export function TracksTab({
           event_id: eventId,
           name: trackConfig.name,
           description: trackConfig.name,
-          scoring_criteria: {
-            name: trackConfig.name,
-            criteria: trackConfig.criteria,
-          },
+          scoring_criteria: buildEventTrackScoringCriteriaFromConfig({
+            trackId,
+            trackConfig,
+            rounds: config.rounds,
+          }),
         })
       );
 
