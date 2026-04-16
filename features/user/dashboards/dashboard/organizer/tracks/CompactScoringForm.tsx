@@ -820,7 +820,7 @@ export function CompactScoringForm({
                                     </div>
                                   )}
                                   <div className="flex items-center justify-end gap-2 pt-1">
-                                    {track.criteria.length > 1 && (
+                                    {displayedCriteria.length > 1 && (
                                       <button type="button" onClick={() => removeCriterion(trackId, idx)} className="text-xs text-red-500 hover:text-red-600 font-medium">
                                         Delete
                                       </button>
@@ -861,10 +861,6 @@ export function CompactScoringForm({
                                   <span className="p-1 rounded text-gray-400 hover:text-[#4B89EF]">
                                     <Pencil className="h-3.5 w-3.5" />
                                   </span>
-                                  <div className="shrink-0 flex items-center gap-0.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                                    <span className="p-1 rounded text-gray-400 hover:text-[#4B89EF]">
-                                      <Pencil className="h-3.5 w-3.5" />
-                                    </span>
                                   {displayedCriteria.length > 1 && (
                                     <span
                                       className="p-1 rounded text-gray-400 hover:text-red-500"
