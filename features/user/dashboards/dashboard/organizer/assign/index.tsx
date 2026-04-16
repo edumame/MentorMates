@@ -35,7 +35,10 @@ import {
 import { useToast } from "@/lib/hooks/use-toast";
 import { EventRole } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
-import { buildJudgeProjectPairs } from "./batch-assignments";
+import {
+  buildJudgeProjectPairs,
+  getAssignableTracks,
+} from "./batch-assignments";
 import {
   AlertDialog,
   AlertDialogTrigger,
@@ -104,6 +107,8 @@ export function AssignTab({ eventId }: AssignTabProps) {
     new Set()
   );
   const [batchAssigning, setBatchAssigning] = useState<boolean>(false);
+  const [selectedTrackId, setSelectedTrackId] = useState<string>("");
+  const [trackAssigning, setTrackAssigning] = useState<boolean>(false);
   const { toast } = useToast();
 
   const handleSort = (field: SortField) => {
@@ -160,6 +165,10 @@ export function AssignTab({ eventId }: AssignTabProps) {
     }
     return sortDirection === "asc" ? comparison : -comparison;
   });
+  const assignableTracks = getAssignableTracks(projects);
+  const selectedTrack = assignableTracks.find(
+    (track) => track.track_id === selectedTrackId
+  );
 
   const fetchUsers = useCallback(async () => {
     const response = await fetch(
@@ -292,6 +301,15 @@ export function AssignTab({ eventId }: AssignTabProps) {
         : validSelection;
     });
   }, [judges]);
+
+  useEffect(() => {
+    if (
+      selectedTrackId &&
+      !assignableTracks.some((track) => track.track_id === selectedTrackId)
+    ) {
+      setSelectedTrackId("");
+    }
+  }, [assignableTracks, selectedTrackId]);
 
   const handleAutoAssign = async (role: EventRole) => {
     setAutoAssigning(true);
@@ -535,6 +553,69 @@ export function AssignTab({ eventId }: AssignTabProps) {
     }
   };
 
+  const handleTrackAssignJudges = async () => {
+    if (selectedJudgeIds.size === 0) {
+      toast({
+        title: "No judges selected",
+        description: "Select at least one judge.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!selectedTrackId) {
+      toast({
+        title: "No track selected",
+        description: "Choose a track to assign the selected judges.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setTrackAssigning(true);
+    try {
+      const response = await fetch(
+        `/api/events/${eventId}/project-assignments/bulk-by-track`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            track_id: selectedTrackId,
+            user_ids: [...selectedJudgeIds],
+            role: EventRole.Judge,
+          }),
+        }
+      );
+
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error || "Failed to assign judges by track");
+      }
+
+      toast({
+        title: payload.assignments_created > 0 ? "Success" : "No changes",
+        description:
+          payload.assignments_created > 0
+            ? `Created ${payload.assignments_created} assignment${payload.assignments_created === 1 ? "" : "s"} for ${payload.track_name}.`
+            : `All selected judges are already assigned to ${payload.track_name}.`,
+      });
+
+      await fetchAssignments();
+    } catch (error) {
+      console.error("Error assigning judges by track:", error);
+      toast({
+        title: "Error",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to assign judges by track.",
+        variant: "destructive",
+      });
+    } finally {
+      setTrackAssigning(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -708,6 +789,45 @@ export function AssignTab({ eventId }: AssignTabProps) {
                 Selected judges: {selectedJudgeIds.size}
                 <br />
                 Selected projects: {selectedProjectIds.size}
+              </div>
+              <div className="space-y-2 rounded-md border p-3">
+                <Label htmlFor="track-batch-assign">Assign selected judges by track</Label>
+                <Select value={selectedTrackId} onValueChange={setSelectedTrackId}>
+                  <SelectTrigger id="track-batch-assign">
+                    <SelectValue placeholder="Select a track" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {assignableTracks.map((track) => (
+                      <SelectItem key={track.track_id} value={track.track_id}>
+                        {track.name} ({track.projectCount} project
+                        {track.projectCount === 1 ? "" : "s"})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-sm text-muted-foreground">
+                  {selectedTrack
+                    ? `Assign the selected judges to all ${selectedTrack.projectCount} submitted project${selectedTrack.projectCount === 1 ? "" : "s"} in ${selectedTrack.name}.`
+                    : "Choose a track to assign the selected judges to every submitted project in that track."}
+                </p>
+                <Button
+                  className="w-full"
+                  disabled={
+                    trackAssigning ||
+                    selectedJudgeIds.size === 0 ||
+                    !selectedTrackId
+                  }
+                  onClick={handleTrackAssignJudges}
+                >
+                  {trackAssigning ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Assigning by track...
+                    </>
+                  ) : (
+                    "Assign selected judges to selected track"
+                  )}
+                </Button>
               </div>
               <Button
                 className="w-full"
