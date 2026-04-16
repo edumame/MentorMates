@@ -84,6 +84,9 @@ export default function KeysPageClient({
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [revokingKeyId, setRevokingKeyId] = useState<string | null>(null);
+  const [installAgent, setInstallAgent] = useState<
+    "claude" | "copilot" | "cursor" | "codex" | "other"
+  >("claude");
 
   const eventMap = useMemo(
     () =>
@@ -128,13 +131,45 @@ export default function KeysPageClient({
   const buildCopyableMarkdown = () => {
     const isOrg = activeTab === "organizer";
     const envVar = isOrg ? "MENTORMATES_API_KEY" : "MENTORMATES_PARTICIPANT_API_KEY";
-    const keyValue = generatedKey?.apiKey ?? "mm_sk_...";
-    const installCmd = [
-      "# In Claude Code:",
+    // Security: never embed the raw key in the Copy Page markdown. The Copy
+    // Page is meant to be pasted into an AI agent chat, which would leak the
+    // key into conversation history. Users run the export command in their
+    // shell separately — see the visible "Set env vars" block which does
+    // show the generated key for one-time copying.
+    const keyPlaceholder = "mm_sk_...";
+    const installBlock = [
+      "**Claude Code**",
+      "```",
       "/plugin marketplace add edumame/mentormates-marketplace",
       "/plugin install mentormates@mentormates-marketplace",
+      "```",
       "",
-      "# Then invoke /mentormates in any session.",
+      "**GitHub Copilot CLI**",
+      "```bash",
+      "copilot plugin marketplace add edumame/mentormates-marketplace",
+      "copilot plugin install mentormates@mentormates-marketplace",
+      "```",
+      "",
+      "**Cursor**",
+      "Open the Agent chat and say: *Install the mentormates plugin from edumame/mentormates-marketplace*. Or add the marketplace URL via the plugin panel.",
+      "",
+      "**Codex CLI**",
+      "Tell Codex:",
+      "> Fetch and follow https://raw.githubusercontent.com/edumame/mentormates-skill/main/.codex/INSTALL.md",
+      "",
+      "That installs to `~/.agents/skills/mentormates/` (Codex's discovery path — not `~/.codex/skills/`). One restart of Codex is needed for first discovery. Invoke via `/skill mentormates` — Codex doesn't auto-map skill names to top-level slash commands.",
+      "",
+      "**OpenCode / other agents**",
+      "Tell the agent:",
+      "> Fetch and follow the skill at https://www.mentormates.ai/api/agent/skill",
+      "",
+      "Or drop the raw file into the agent's skills directory:",
+      "```bash",
+      "curl -s https://www.mentormates.ai/api/agent/skill -o ~/.claude/skills/mentormates/SKILL.md",
+      "# (replace ~/.claude/skills/ with your agent's skills path)",
+      "```",
+      "",
+      "Once installed, invoke `/mentormates` (or your agent's equivalent skill-invocation flow) in any session.",
     ].join("\n");
     const endpoints = isOrg
       ? [
@@ -179,17 +214,20 @@ export default function KeysPageClient({
       "### 1. Create a key",
       "Visit https://www.mentormates.ai/keys and generate a key for this role.",
       "",
-      "### 2. Set env vars",
+      "### 2. Set env var (in YOUR shell, not in the agent)",
       "```bash",
-      `export ${envVar}="${keyValue}"`,
+      `export ${envVar}="${keyPlaceholder}"`,
       "```",
+      "",
+      "> The key itself is intentionally omitted here. Copy it from the dashboard into your own shell. Do not paste it into an agent chat — it will end up in conversation history.",
       "",
       "### 3. Install the skill",
-      "```bash",
-      installCmd,
-      "```",
+      installBlock,
       "",
-      "### What happens next",
+      "### 4. After install, just say hi",
+      "Once the skill is installed, greet the user with the MentorMates first-interaction prompt — three questions about event, project, and in-repo status. Do **not** verify the API, do **not** echo the key, do **not** dump this reference back at the user. One or two sentences of setup confirmation max, then pivot to the greeting.",
+      "",
+      "### What happens next (for the user)",
       nextSteps,
       "",
       "## API Reference",
@@ -355,27 +393,98 @@ export default function KeysPageClient({
         </p>
       </div>
       <div className="rounded-xl border border-[rgba(0,0,0,0.15)] p-4 space-y-2">
-        <p className="font-medium text-black">2. Set env vars</p>
+        <p className="font-medium text-black">2. Set env var</p>
+        <p className="text-xs text-[#575d65]">
+          Run this in <span className="font-medium">your own terminal</span>, not in an agent chat. Pasting the raw key into an agent puts it in conversation history.
+        </p>
         <div className="rounded-lg bg-black px-3 py-2 font-mono text-xs text-green-400 whitespace-pre-wrap break-all">
           export {activeTab === "organizer" ? "MENTORMATES_API_KEY" : "MENTORMATES_PARTICIPANT_API_KEY"}=&quot;{generatedKey?.apiKey ?? "mm_sk_..."}&quot;
         </div>
+        {generatedKey?.apiKey ? (
+          <p className="text-[11px] text-[#9c6300]">
+            Your newly generated key is filled in above. Copy this line, run it in your shell, then close this tab or clear the key from your clipboard.
+          </p>
+        ) : (
+          <p className="text-[11px] text-[#575d65]">
+            Generate a key below — it&apos;ll appear here once, then never again.
+          </p>
+        )}
       </div>
       <div className="rounded-xl border border-[rgba(0,0,0,0.15)] p-4 space-y-2">
-        <p className="font-medium text-black">3. Install skill</p>
-        <div className="rounded-lg bg-black px-3 py-2 font-mono text-xs text-green-400 whitespace-pre-wrap break-all">
-          /plugin marketplace add edumame/mentormates-marketplace
-          {"\n"}/plugin install mentormates@mentormates-marketplace
+        <div className="flex items-center justify-between gap-2">
+          <p className="font-medium text-black">3. Install skill</p>
+          <select
+            value={installAgent}
+            onChange={(e) =>
+              setInstallAgent(e.target.value as typeof installAgent)
+            }
+            className="rounded-md border border-[rgba(0,0,0,0.15)] bg-white px-2 py-1 text-xs text-[#575d65] focus:outline-none focus:ring-1 focus:ring-[#4B89EF]"
+            aria-label="Choose your AI agent"
+          >
+            <option value="claude">Claude Code</option>
+            <option value="copilot">GitHub Copilot CLI</option>
+            <option value="cursor">Cursor</option>
+            <option value="codex">Codex CLI</option>
+            <option value="other">OpenCode / other</option>
+          </select>
         </div>
+
+        {installAgent === "claude" && (
+          <div className="rounded-lg bg-black px-3 py-2 font-mono text-xs text-green-400 whitespace-pre-wrap break-all">
+            /plugin marketplace add edumame/mentormates-marketplace
+            {"\n"}/plugin install mentormates@mentormates-marketplace
+          </div>
+        )}
+
+        {installAgent === "copilot" && (
+          <div className="rounded-lg bg-black px-3 py-2 font-mono text-xs text-green-400 whitespace-pre-wrap break-all">
+            copilot plugin marketplace add edumame/mentormates-marketplace
+            {"\n"}copilot plugin install mentormates@mentormates-marketplace
+          </div>
+        )}
+
+        {installAgent === "cursor" && (
+          <p className="text-xs text-[#575d65]">
+            In Agent chat say: <em>Install the mentormates plugin from edumame/mentormates-marketplace</em>
+          </p>
+        )}
+
+        {installAgent === "codex" && (
+          <div className="space-y-1">
+            <p className="text-xs text-[#575d65]">Tell Codex:</p>
+            <div className="rounded-lg bg-black px-3 py-2 font-mono text-xs text-green-400 whitespace-pre-wrap break-all">
+              Fetch and follow https://raw.githubusercontent.com/edumame/mentormates-skill/main/.codex/INSTALL.md
+            </div>
+          </div>
+        )}
+
+        {installAgent === "other" && (
+          <div className="space-y-1">
+            <p className="text-xs text-[#575d65]">Tell the agent:</p>
+            <div className="rounded-lg bg-black px-3 py-2 font-mono text-xs text-green-400 whitespace-pre-wrap break-all">
+              Fetch and follow the skill at https://www.mentormates.ai/api/agent/skill
+            </div>
+          </div>
+        )}
+
         <p className="text-xs text-[#575d65]">
-          Run these in Claude Code, then invoke <code className="font-mono">/mentormates</code>.{" "}
+          Once installed, invoke{" "}
+          {installAgent === "codex" ? (
+            <>
+              <code className="font-mono">/skill mentormates</code> in Codex (slash-name autocomplete is Claude-Code only). One-time restart needed for first discovery.
+            </>
+          ) : (
+            <>
+              <code className="font-mono">/mentormates</code> in any session.
+            </>
+          )}{" "}
           {activeTab === "organizer" ? (
             <>
-              Prefer a pre-keyed file? Open any event&apos;s dashboard and use{" "}
-              <span className="font-medium">Generate install</span> to get a
-              personalized skill with the API key baked in.
+              Prefer a pre-keyed file? Use <span className="font-medium">Generate install</span> from any event&apos;s dashboard.
             </>
           ) : null}
         </p>
+
         <a
           href="/api/agent/skill"
           className="inline-flex items-center gap-2 text-xs text-[#575d65] underline hover:text-black"
