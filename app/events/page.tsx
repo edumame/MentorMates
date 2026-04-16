@@ -104,7 +104,7 @@ export default async function EventsPage() {
         <div className={
             isAuthenticated
               ? "flex flex-col gap-[24px] px-[32px]"
-              : "mx-auto w-full max-w-10xl px-4 md:px-10 lg:px-24"
+              : "mx-auto w-full max-w-10xl px-4 md:px-10"
           }
         >
           <div className="flex flex-col gap-[24px]">
