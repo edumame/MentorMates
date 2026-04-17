@@ -24,8 +24,8 @@ export default function NotFound() {
           <Image
             alt="MentorMates"
             src="/mentormate.png"
-            width={48}
-            height={48}
+            width={256}
+            height={256}
             className="mx-auto object-contain"
           />
         </div>
