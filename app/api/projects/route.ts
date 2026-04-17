@@ -155,6 +155,7 @@ export async function GET(request: NextRequest) {
             cover_image_url,
             event_id,
             contextus_project_id,
+            private,
             created_at,
             submitted,
             project_tracks (
@@ -214,6 +215,7 @@ export async function GET(request: NextRequest) {
           lead_email: project.lead_email,
           project_description: project.project_description,
           teammates: project.teammates,
+          is_private: Boolean((project as { private?: boolean | null }).private),
           project_url: project.project_url,
           additional_materials_url: project.additional_materials_url,
           cover_image_url: project.cover_image_url,
@@ -303,6 +305,7 @@ export async function GET(request: NextRequest) {
           cover_image_url,
           event_id,
           contextus_project_id,
+          private,
           created_at,
           submitted,
           project_tracks (
@@ -343,6 +346,7 @@ export async function GET(request: NextRequest) {
         lead_email: item.lead_email,
         project_description: item.project_description,
         teammates: item.teammates,
+        is_private: Boolean((item as { private?: boolean | null }).private),
         project_url: item.project_url,
         video_url: item.video_url,
         additional_materials_url: item.additional_materials_url,
@@ -482,6 +486,7 @@ export async function GET(request: NextRequest) {
           cover_image_url,
           event_id,
           contextus_project_id,
+          private,
           created_at,
           submitted,
           project_tracks (
@@ -526,6 +531,7 @@ export async function GET(request: NextRequest) {
         project_name: project.project_name,
         lead_name: project.lead_name,
         lead_email: project.lead_email,
+        is_private: Boolean((project as { private?: boolean | null }).private),
         project_description: project.project_description,
         teammates: project.teammates,
         project_url: project.project_url,
@@ -679,6 +685,7 @@ export async function GET(request: NextRequest) {
         applyEffectiveSubmissionToProject(
           {
             ...project,
+            is_private: Boolean((project as { private?: boolean | null }).private),
             project_url: project.project_url ?? undefined,
             additional_materials_url:
               project.additional_materials_url ?? undefined,

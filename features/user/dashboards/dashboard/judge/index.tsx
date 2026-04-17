@@ -158,7 +158,7 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
     () =>
       projects.filter(
         (project) =>
-          project.project_name
+          project.project_name || "Project Name Not Set"
             .toLowerCase()
             .includes(normalizedSearchQuery) ||
           (project.project_description || "")

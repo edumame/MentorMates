@@ -93,6 +93,7 @@ export async function fetchProjectById(
       project_name: data.project_name,
       lead_name: data.lead_name,
       lead_email: data.lead_email,
+      is_private: Boolean((data as { private?: boolean | null }).private),
       project_description: data.project_description,
       teammates: data.teammates,
       project_url: data.project_url,

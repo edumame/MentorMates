@@ -6,7 +6,9 @@ import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
+  AlertTriangle,
   Loader2,
   Trash2,
   ExternalLink,
@@ -43,11 +45,14 @@ import {
   buildDraftArtifactsPayload,
   splitPrimaryAndExtrasFromArtifacts,
 } from "@/features/projects/components/forms/utils/draftProjectArtifacts";
+import { ProjectPrivacySelect } from "@/features/projects/components/forms/components/ProjectPrivacySelect";
 import { ProjectSubmissionSchemaSection } from "@/features/projects/components/forms/components/ProjectSubmissionSchemaSection";
 import { useProjectSubmissionAutosave } from "@/features/projects/components/forms/hooks/useProjectSubmissionAutosave";
+import { getProjectVisibilityDescription } from "@/features/projects/components/forms/utils/projectPrivacy";
 import {
   buildEffectiveSubmissionFields,
   buildSubmissionAnswersPayload,
+  hasSubmissionFieldMismatch,
   type SubmissionValue,
 } from "@/features/projects/utils/effectiveSubmission";
 import type {
@@ -105,6 +110,7 @@ export default function DraftProjectSubmissionFormSinglePage({
     useState<ActiveIntakeForm | null>(null);
   const [showIntakeDialog, setShowIntakeDialog] = useState(false);
   const [showDescriptionPreview, setShowDescriptionPreview] = useState(false);
+  const [isPrivate, setIsPrivate] = useState(Boolean(initialProject.is_private));
 
   // Form state
   const [formData, setFormData] = useState({
@@ -118,7 +124,11 @@ export default function DraftProjectSubmissionFormSinglePage({
   const [extraProjectUrls, setExtraProjectUrls] = useState<string[]>([]);
   const [extraVideoUrls, setExtraVideoUrls] = useState<string[]>([]);
   const [extraMaterialsUrls, setExtraMaterialsUrls] = useState<string[]>([]);
-  const [submissionFields, setSubmissionFields] = useState<EventSubmissionField[]>([]);
+  const [submissionFields, setSubmissionFields] = useState<EventSubmissionField[]>(
+    initialProject.has_submission_field_config
+      ? initialProject.submission_fields || []
+      : []
+  );
   const [submissionAnswers, setSubmissionAnswers] = useState<
     Record<string, SubmissionValue>
   >(() =>
@@ -144,6 +154,9 @@ export default function DraftProjectSubmissionFormSinglePage({
   const [availableTracks, setAvailableTracks] = useState<EventTrack[]>([]);
   const [selectedTrackIds, setSelectedTrackIds] = useState<string[]>([]);
   const [isLoadingTracks, setIsLoadingTracks] = useState(false);
+  const [liveMismatchMessage, setLiveMismatchMessage] = useState<string | null>(
+    null
+  );
 
   const fetchAvailableEvents = useCallback(async () => {
     setIsLoadingEvents(true);
@@ -345,6 +358,16 @@ export default function DraftProjectSubmissionFormSinglePage({
     [project.event_id, submissionFields]
   );
   const hasConfiguredSubmissionFields = submissionFields.length > 0;
+  const hasStoredSubmissionFieldMismatch = useMemo(
+    () =>
+      hasSubmissionFieldMismatch(project.submission_answers, submissionFields),
+    [project.submission_answers, submissionFields]
+  );
+  const submissionFieldMismatchMessage =
+    liveMismatchMessage ||
+    (hasStoredSubmissionFieldMismatch
+      ? "This draft still has answers from an older submission form. Review the current fields and save again before publishing."
+      : null);
 
   const getSubmissionFieldValue = useCallback(
     (field: (typeof effectiveSubmissionFields)[number]): SubmissionValue => {
@@ -540,6 +563,10 @@ export default function DraftProjectSubmissionFormSinglePage({
     }
   }, [project, onProjectUpdate]);
 
+  useEffect(() => {
+    setIsPrivate(Boolean(project.is_private));
+  }, [project.is_private]);
+
   const { lastSaved } = useProjectSubmissionAutosave({
     enabled: true,
     projectId,
@@ -547,11 +574,26 @@ export default function DraftProjectSubmissionFormSinglePage({
     values: submissionFieldValues,
     hasConfiguredSubmissionFields,
     initializeAsSaved: true,
+    extraPayload: {
+      private: isPrivate,
+    },
     artifacts: hasConfiguredSubmissionFields ? undefined : buildArtifactsPayload(),
     onSaved: (savedProject) => {
       if (savedProject) {
         setProject(savedProject);
+        setIsPrivate(Boolean(savedProject.is_private));
+        setLiveMismatchMessage(null);
       }
+    },
+    onError: (error) => {
+      if (error.code !== "submission_field_mismatch") {
+        return;
+      }
+
+      setLiveMismatchMessage(
+        error.message ||
+          "Submission fields changed while you were editing. Refresh this page to load the latest form."
+      );
     },
   });
 
@@ -843,12 +885,19 @@ export default function DraftProjectSubmissionFormSinglePage({
           : {
               artifacts: buildArtifactsPayload(),
             }),
+        private: isPrivate,
         submitted: true,
       }),
     });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
+      if (errorData.code === "submission_field_mismatch") {
+        setLiveMismatchMessage(
+          errorData.error ||
+            "Submission fields changed while you were editing. Refresh this page to load the latest form."
+        );
+      }
       throw new Error(errorData.error || "Failed to publish project");
     }
 
@@ -904,7 +953,7 @@ export default function DraftProjectSubmissionFormSinglePage({
         setProject(data);
         toast({
           title: "Project published",
-          description: "Your project is now public",
+          description: getProjectVisibilityDescription(isPrivate),
         });
         router.push(`/projects/${projectId}`);
       }
@@ -957,7 +1006,7 @@ export default function DraftProjectSubmissionFormSinglePage({
       setShowIntakeDialog(false);
       toast({
         title: "Project published",
-        description: "Your project and intake form are now submitted.",
+        description: `${getProjectVisibilityDescription(isPrivate)} Your intake form was submitted too.`,
       });
       router.push(`/projects/${projectId}`);
     } catch {
@@ -1033,10 +1082,36 @@ export default function DraftProjectSubmissionFormSinglePage({
             {/* Left Side - Form */}
             <div className="flex-1 space-y-6">
               <div className="space-y-1">
-                <h1 className="text-[28px] font-semibold text-black tracking-[-0.06em] leading-[1.4]">
-                  Edit your project
-                </h1>
+                <div className="flex items-start justify-between gap-4 flex-wrap">
+                  <h1 className="text-[28px] font-semibold text-black tracking-[-0.06em] leading-[1.4]">
+                    Edit your project
+                  </h1>
+                  <ProjectPrivacySelect
+                    value={isPrivate}
+                    onValueChange={setIsPrivate}
+                  />
+                </div>
               </div>
+
+              {submissionFieldMismatchMessage ? (
+                <Alert className="border-amber-200 bg-amber-50 text-amber-900 [&>svg]:text-amber-700">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>Submission form changed</AlertTitle>
+                  <AlertDescription className="space-y-3 text-amber-900">
+                    <p>{submissionFieldMismatchMessage}</p>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="border-amber-300 bg-white text-amber-900 hover:bg-amber-100"
+                        onClick={() => window.location.reload()}
+                      >
+                        Refresh form
+                      </Button>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              ) : null}
 
               <div className="space-y-4">
                 <ProjectSubmissionSchemaSection

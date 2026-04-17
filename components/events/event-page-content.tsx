@@ -8,6 +8,12 @@ import { normalizeBullets } from "@/lib/markdown/normalize-bullets";
 import { Trophy, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import {
   EventDetails,
   Rule,
   ScheduleDay,
@@ -288,27 +294,30 @@ export function EventPageContent({
           </div>
 
           <div className="flex w-full px-4 py-5 rounded-xl border border-[rgba(0,0,0,0.15)] relative">
-            <div className="flex flex-wrap sm:flex-nowrap relative w-full">
+            <Accordion type="multiple" className="w-full">
               {rulesList.map((rule, idx) => (
-                <div
-                  key={idx}
-                  className="flex flex-grow flex-col first:pb-8 sm:pb-0 pt-0 px-0 w-full sm:first:pr-6 sm:last:pl-6 sm:last:border-l sm:border-[rgba(0,0,0,0.15)]"
+                <AccordionItem
+                  key={`${rule.title}-${idx}`}
+                  value={`${rule.title}-${idx}`}
+                  className="last:border-b-0"
                 >
-                  <div className="font-normal text-black">
-                    <p className="font-bold tracking-[-0.06em] text-[22px] leading-[1.4] mb-2">
+                  <AccordionTrigger className="py-3 text-left text-black hover:no-underline">
+                    <span className="font-bold tracking-[-0.04em] text-[20px] leading-[1.4]">
                       {rule.title}
-                    </p>
+                    </span>
+                  </AccordionTrigger>
+                  <AccordionContent className="pb-3">
                     <ul className="list-disc pl-6">
                       {(rule.items ?? []).map((item, i) => (
-                        <li key={i} className="mb-0 text-base leading-[1.5]">
+                        <li key={i} className="mb-0 text-base leading-[1.5] text-black">
                           {item}
                         </li>
                       ))}
                     </ul>
-                  </div>
-                </div>
+                  </AccordionContent>
+                </AccordionItem>
               ))}
-            </div>
+            </Accordion>
           </div>
         </>
       )}
