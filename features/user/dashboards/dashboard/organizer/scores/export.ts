@@ -6,6 +6,9 @@ export interface DashboardProjectScore {
   track_id: string;
   event_id: string;
   round_number: number;
+  judge_id?: string | null;
+  judge_name?: string | null;
+  created_at?: string | null;
   scores: Record<string, number | string>;
   projects: {
     project_name: string;
@@ -31,6 +34,13 @@ export interface RawScoreExportData {
   };
 }
 
+export interface JudgeScoreSummary {
+  judgeId: string;
+  judgeName: string;
+  totalScore: number;
+  submittedAt: string | null;
+}
+
 export interface TrackScore {
   projectId: string;
   projectName: string;
@@ -39,6 +49,7 @@ export interface TrackScore {
   totalScore: number;
   numberOfJudges: number;
   criterionScores: Record<string, { total: number; average: number }>;
+  judgeScores: JudgeScoreSummary[];
   choiceCounts?: Record<string, Record<string, number>>;
 }
 
@@ -100,6 +111,7 @@ function addProjectScore(
       totalScore: 0,
       numberOfJudges: 0,
       criterionScores: {},
+      judgeScores: [],
     };
     trackScoresMap[score.track_id].push(projectScore);
   }
@@ -158,6 +170,28 @@ function addProjectScore(
   projectScore.averageScore =
     projectScore.totalScore / projectScore.numberOfJudges;
 
+  const judgeKey =
+    score.judge_id?.trim() ||
+    score.judge_name?.trim() ||
+    `judge-${projectScore.numberOfJudges}`;
+  const judgeName = score.judge_name?.trim() || score.judge_id?.trim() || judgeKey;
+  const existingJudgeScore = projectScore.judgeScores.find(
+    (judgeScore) => judgeScore.judgeId === judgeKey
+  );
+
+  if (existingJudgeScore) {
+    existingJudgeScore.judgeName = judgeName;
+    existingJudgeScore.totalScore = totalScore;
+    existingJudgeScore.submittedAt = score.created_at ?? null;
+  } else {
+    projectScore.judgeScores.push({
+      judgeId: judgeKey,
+      judgeName,
+      totalScore,
+      submittedAt: score.created_at ?? null,
+    });
+  }
+
   Object.keys(projectScore.criterionScores).forEach((criterionId) => {
     projectScore.criterionScores[criterionId].average =
       projectScore.criterionScores[criterionId].total /
@@ -167,6 +201,17 @@ function addProjectScore(
 
 function sortTrackScores(trackScoresMap: TrackScores) {
   Object.keys(trackScoresMap).forEach((trackId) => {
+    trackScoresMap[trackId].forEach((projectScore) => {
+      projectScore.judgeScores.sort((a, b) => {
+        const byName = a.judgeName.localeCompare(b.judgeName);
+        if (byName !== 0) {
+          return byName;
+        }
+
+        return b.totalScore - a.totalScore;
+      });
+    });
+
     trackScoresMap[trackId].sort((a, b) => b.averageScore - a.averageScore);
   });
 

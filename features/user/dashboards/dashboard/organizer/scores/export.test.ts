@@ -1,5 +1,6 @@
 import type { EventScoringConfig } from "@/lib/types";
 import {
+  buildTrackScores,
   buildRawScoreExportFiles,
   buildRawScoreExportRows,
   buildScoreExportFiles,
@@ -146,6 +147,65 @@ describe("score exports", () => {
     expect(byRound[2].main.map((score) => score.projectId)).toEqual([
       "p2",
       "p1",
+    ]);
+  });
+
+  it("includes a per-judge score breakdown for each ranked project", () => {
+    const trackScores = buildTrackScores(
+      [
+        {
+          project_id: "p1",
+          track_id: "main",
+          event_id: "event-1",
+          round_number: 1,
+          judge_id: "judge-b",
+          judge_name: "Zara Judge",
+          created_at: "2026-04-01T10:00:00.000Z",
+          scores: { impact: 8, feasible: 7 },
+          projects: {
+            project_name: "Alpha",
+            lead_name: "Alice",
+            event_id: "event-1",
+          },
+          tracks: {
+            name: "Main Track",
+          },
+        },
+        {
+          project_id: "p1",
+          track_id: "main",
+          event_id: "event-1",
+          round_number: 1,
+          judge_id: "judge-a",
+          judge_name: "Alex Judge",
+          created_at: "2026-04-01T09:00:00.000Z",
+          scores: { impact: 9, feasible: 6 },
+          projects: {
+            project_name: "Alpha",
+            lead_name: "Alice",
+            event_id: "event-1",
+          },
+          tracks: {
+            name: "Main Track",
+          },
+        },
+      ],
+      scoringConfig
+    );
+
+    expect(trackScores.main[0].judgeScores).toEqual([
+      {
+        judgeId: "judge-a",
+        judgeName: "Alex Judge",
+        totalScore: 24,
+        submittedAt: "2026-04-01T09:00:00.000Z",
+      },
+      {
+        judgeId: "judge-b",
+        judgeName: "Zara Judge",
+        totalScore: 23,
+        submittedAt: "2026-04-01T10:00:00.000Z",
+      },
     ]);
   });
 
