@@ -573,14 +573,14 @@ export default function ProfilePage() {
         <PageContent>
           <div className="flex flex-col w-full animate-pulse">
             {/* Cover Image Skeleton */}
-            <div className="relative h-[200px] md:h-[240px] w-full rounded-tl-2xl overflow-hidden bg-gray-200" />
+            <div className="relative h-[200px] md:h-[240px] w-full rounded-tl-2xl overflow-hidden bg-[#DBEAFE]" />
 
             {/* Profile Header Skeleton */}
             <div
               className="relative px-6 md:px-8 pb-6"
               style={{
                 background:
-                  "linear-gradient(90deg, #559DFB 0%, #FD9FA4 100%)",
+                  "#DBEAFE",
               }}
             >
               <div className="flex flex-col md:flex-row gap-4 md:gap-6 items-start md:items-end">
@@ -604,7 +604,7 @@ export default function ProfilePage() {
             </div>
 
             {/* Tabs Skeleton */}
-            <div className="px-6">
+            <div className="px-6 pt-8">
               <div className="flex gap-6 py-3">
                 <div className="h-6 w-20 bg-gray-200 rounded" />
                 <div className="h-6 w-16 bg-gray-200 rounded" />
@@ -649,15 +649,15 @@ export default function ProfilePage() {
                 className="w-full h-full"
                 style={{
                   background:
-                    `url(${userProfile.cover_image_url}) center / cover no-repeat, linear-gradient(90deg, #559DFB 0%, #FD9FA4 100%)`,
+                    `url(${userProfile.cover_image_url}) center / cover no-repeat, #DBEAFE`,
                 }}
               />
             ) : (
-              // Default gradient cover when no image
+              // Default solid cover when no image
               <div
                 className="w-full h-full"
                 style={{
-                  background: "linear-gradient(90deg, #559DFB 0%, #FD9FA4 100%)",
+                  background: "#DBEAFE",
                 }}
               />
             )}
@@ -668,7 +668,7 @@ export default function ProfilePage() {
             className="relative px-6 md:px-8 pb-6"
             style={{
               background:
-                "linear-gradient(90deg, #559DFB 0%, #FD9FA4 100%)",
+                "#DBEAFE",
             }}
           >
             {/* Avatar and Info Row */}
@@ -951,7 +951,7 @@ export default function ProfilePage() {
           </div>
 
           {/* Tabs Section */}
-          <div className="px-6">
+          <div className="px-6 pt-8">
             <div className="flex gap-6">
               <button
                 onClick={() => setActiveTab(PROFILE_TABS.PROJECTS)}

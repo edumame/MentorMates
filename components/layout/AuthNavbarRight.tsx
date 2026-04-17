@@ -14,7 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAdmin } from "@/lib/hooks/use-admin";
-import { hasCompletedOnboarding } from "@/features/user/onboarding/metadata";
+import { profileNeedsCompletion } from "@/features/user/profile/profile-completion";
 import posthog from "posthog-js";
 import { UserProfile } from "@/lib/types";
 
@@ -105,10 +105,12 @@ export function AuthNavbarRight({ className }: AuthNavbarRightProps) {
                 <p className="text-base text-gray-700 mt-1">
                   {session.user.email}
                 </p>
-                {!hasCompletedOnboarding(userProfile?.onboarding_metadata) ? (
+                {profileNeedsCompletion(userProfile) ? (
                   <Button
                     variant="defaultGray"
-                    onClick={() => router.push("/onboarding")}
+                    onClick={() =>
+                      router.push(`/profile/${session?.user?.id}?edit=1`)
+                    }
                     className="mt-4 w-full text-base"
                   >
                     Set up profile

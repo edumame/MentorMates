@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
+import { CoverImageWithFallback } from "@/features/projects/components/displays/cover-image-with-fallback";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -78,8 +78,8 @@ export function UserProjectSection({
   if (projects.length === 0) {
     return (
       <Card className="border-dashed border-2 border-blue-200 bg-blue-50/50 mb-6">
-        <CardContent className="px-6 pt-6 pb-0 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
+        <CardContent className="px-6 py-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-start sm:items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100">
               <FolderPlus className="h-5 w-5 text-blue-600" />
             </div>
@@ -92,8 +92,8 @@ export function UserProjectSection({
               </p>
             </div>
           </div>
-          <Link href={`/events/${eventPath}/submit`}>
-            <Button>Submit Project</Button>
+          <Link href={`/projects/submit?eventId=${eventPath}`} className="sm:self-center">
+            <Button className="w-full sm:w-auto">Submit Project</Button>
           </Link>
         </CardContent>
       </Card>
@@ -124,12 +124,10 @@ export function UserProjectSection({
               <div className="flex">
                 {project.cover_image_url ? (
                   <div className="relative h-30 w-24 flex-shrink-0 bg-slate-100">
-                    <Image
+                    <CoverImageWithFallback
                       src={project.cover_image_url}
                       alt={project.project_name || "Project cover"}
-                      fill
-                      className="object-cover"
-                      sizes="96px"
+                      className="absolute inset-0 h-full w-full object-cover"
                     />
                   </div>
                 ) : (

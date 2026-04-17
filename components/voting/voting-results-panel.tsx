@@ -5,6 +5,7 @@ import { Loader, Trophy, Users, Vote, RefreshCw, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import Link from "next/link";
+import { CoverImageWithFallback } from "@/features/projects/components/displays/cover-image-with-fallback";
 
 interface VotingResultsPanelProps {
   eventId: string;
@@ -178,8 +179,8 @@ function ResultRow({
 
         {/* Project Image */}
         <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 shrink-0">
-          <img
-            src={result.coverImageUrl || "/img/placeholder.png"}
+          <CoverImageWithFallback
+            src={result.coverImageUrl}
             alt={result.projectName}
             className="w-full h-full object-cover"
           />

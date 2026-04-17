@@ -54,7 +54,7 @@ export default function NotFound() {
             Browse events
           </Button>
         </div>
-      </div>
-    </div>
+      </section>
+    </main>
   );
 }

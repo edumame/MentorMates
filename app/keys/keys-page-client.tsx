@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { AlertTriangle, BookOpen, Check, Copy, Download, Globe2, KeyRound, LockKeyhole, Terminal, Trash2 } from "lucide-react";
+import { AlertTriangle, Check, Copy, Download, Globe2, KeyRound, LockKeyhole, Terminal, Trash2 } from "lucide-react";
 
 export interface AgentKeyRecord {
   id: string;
@@ -49,7 +49,8 @@ interface GeneratedKeyState {
 
 interface KeysPageClientProps {
   initialKeys: AgentKeyRecord[];
-  eventOptions: KeyEventOption[];
+  managedEventOptions: KeyEventOption[];
+  participantEventOptions: KeyEventOption[];
 }
 
 function formatDate(value: string | null) {
@@ -68,24 +69,58 @@ function eventLabel(event: KeyEventOption | undefined, eventId: string | null) {
 
 export default function KeysPageClient({
   initialKeys,
-  eventOptions,
+  managedEventOptions,
+  participantEventOptions,
 }: KeysPageClientProps) {
   const [keys, setKeys] = useState(initialKeys);
   const [label, setLabel] = useState("");
-  const [eventId, setEventId] = useState(eventOptions[0]?.id ?? "");
+  const [activeTab, setActiveTab] = useState<"participant" | "organizer">("participant");
   const [scopeMode, setScopeMode] = useState<"public" | "event">("public");
+  const [eventId, setEventId] = useState(
+    participantEventOptions[0]?.id ?? managedEventOptions[0]?.id ?? ""
+  );
   const [generatedKey, setGeneratedKey] = useState<GeneratedKeyState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [revokingKeyId, setRevokingKeyId] = useState<string | null>(null);
+  const [installAgent, setInstallAgent] = useState<
+    "claude" | "copilot" | "cursor" | "codex" | "other"
+  >("claude");
 
   const eventMap = useMemo(
-    () => new Map(eventOptions.map((event) => [event.id, event])),
-    [eventOptions]
+    () =>
+      new Map(
+        [...managedEventOptions, ...participantEventOptions].map((event) => [event.id, event])
+      ),
+    [managedEventOptions, participantEventOptions]
   );
-  const publicKeys = keys.filter((key) => !key.event_id);
-  const eventScopedKeys = keys.filter((key) => key.event_id);
+
+  const currentEventOptions = activeTab === "organizer"
+    ? managedEventOptions
+    : participantEventOptions;
+
+  // Filter keys by current tab's access mode
+  const tabKeys = keys.filter((key) => {
+    const isParticipantKey =
+      (key.scopes || []).some((s) => s.startsWith("participant-")) &&
+      !(key.scopes || []).some((s) => !s.startsWith("participant-"));
+    return activeTab === "participant" ? isParticipantKey : !isParticipantKey;
+  });
+  const publicKeys = tabKeys.filter((key) => !key.event_id);
+  const eventScopedKeys = tabKeys.filter((key) => key.event_id);
+
+  useEffect(() => {
+    if (activeTab === "participant" && scopeMode === "event") {
+      setScopeMode("public");
+    }
+  }, [activeTab, scopeMode]);
+
+  useEffect(() => {
+    if (scopeMode !== "event") return;
+    if (currentEventOptions.some((e) => e.id === eventId)) return;
+    setEventId(currentEventOptions[0]?.id ?? "");
+  }, [activeTab, currentEventOptions, eventId, scopeMode]);
 
   const copyToClipboard = async (text: string, field: string) => {
     await navigator.clipboard.writeText(text);
@@ -93,9 +128,136 @@ export default function KeysPageClient({
     window.setTimeout(() => setCopiedField(null), 2000);
   };
 
+  const buildCopyableMarkdown = () => {
+    const isOrg = activeTab === "organizer";
+    const envVar = isOrg ? "MENTORMATES_API_KEY" : "MENTORMATES_PARTICIPANT_API_KEY";
+    // Security: never embed the raw key in the Copy Page markdown. The Copy
+    // Page is meant to be pasted into an AI agent chat, which would leak the
+    // key into conversation history. Users run the export command in their
+    // shell separately — see the visible "Set env vars" block which does
+    // show the generated key for one-time copying.
+    const keyPlaceholder = "mm_sk_...";
+    const installBlock = [
+      "**Claude Code**",
+      "```",
+      "/plugin marketplace add edumame/mentormates-marketplace",
+      "/plugin install mentormates@mentormates-marketplace",
+      "```",
+      "",
+      "**GitHub Copilot CLI**",
+      "```bash",
+      "copilot plugin marketplace add edumame/mentormates-marketplace",
+      "copilot plugin install mentormates@mentormates-marketplace",
+      "```",
+      "",
+      "**Cursor**",
+      "Open the Agent chat and say: *Install the mentormates plugin from edumame/mentormates-marketplace*. Or add the marketplace URL via the plugin panel.",
+      "",
+      "**Codex CLI**",
+      "Tell Codex:",
+      "> Fetch and follow https://raw.githubusercontent.com/edumame/mentormates-skill/main/.codex/INSTALL.md",
+      "",
+      "That installs to `~/.agents/skills/mentormates/` (Codex's discovery path — not `~/.codex/skills/`). One restart of Codex is needed for first discovery. Invoke via `/skill mentormates` — Codex doesn't auto-map skill names to top-level slash commands.",
+      "",
+      "**OpenCode / other agents**",
+      "Tell the agent:",
+      "> Fetch and follow the skill at https://www.mentormates.ai/api/agent/skill",
+      "",
+      "Or drop the raw file into the agent's skills directory:",
+      "```bash",
+      "curl -s https://www.mentormates.ai/api/agent/skill -o ~/.claude/skills/mentormates/SKILL.md",
+      "# (replace ~/.claude/skills/ with your agent's skills path)",
+      "```",
+      "",
+      "Once installed, invoke `/mentormates` (or your agent's equivalent skill-invocation flow) in any session.",
+    ].join("\n");
+    const endpoints = isOrg
+      ? [
+          { method: "GET", path: "/api/agent/events", desc: "List or get event details" },
+          { method: "PATCH", path: "/api/agent/events", desc: "Update event settings" },
+          { method: "GET", path: "/api/agent/events/participants", desc: "List participants by role" },
+          { method: "PATCH", path: "/api/agent/events/participants", desc: "Change role or remove" },
+          { method: "GET", path: "/api/agent/events/approval-requests", desc: "Pending approvals" },
+          { method: "POST", path: "/api/agent/events/approval-requests", desc: "Approve or reject" },
+          { method: "GET", path: "/api/agent/events/projects", desc: "List projects with scores" },
+          { method: "GET", path: "/api/agent/events/judges", desc: "Judges and scoring progress" },
+          { method: "POST", path: "/api/agent/events/judges", desc: "Send email to judges" },
+        ]
+      : [
+          { method: "GET", path: "/api/agent/me/events", desc: "Your events + joinable events" },
+          { method: "POST", path: "/api/agent/me/events/[eventId]/join", desc: "Join a public event" },
+          { method: "GET", path: "/api/agent/me/events/[eventId]/projects", desc: "Your projects" },
+          { method: "POST", path: "/api/agent/me/events/[eventId]/projects", desc: "Create + submit project" },
+          { method: "PATCH", path: "/api/agent/me/events/[eventId]/projects/[projectId]", desc: "Edit your project" },
+        ];
+    const endpointRows = endpoints
+      .map((e) => `| ${e.method} | \`${e.path}\` | ${e.desc} |`)
+      .join("\n");
+    const nextSteps = isOrg
+      ? "Once configured, your agent can fetch the event overview, review pending approvals, list participants and projects, and message judges."
+      : [
+          "Once installed, your agent will greet you and ask three questions:",
+          "1. Which event are you at (name or slug)?",
+          "2. What project are you building?",
+          "3. Are you in the project's repo right now?",
+          "",
+          "From there it can join free events, draft a submission from your README, or edit an existing project.",
+        ].join("\n");
+
+    return [
+      "# MentorMates Developer API",
+      "",
+      "Create API keys and manage your hackathon from any AI agent.",
+      "",
+      `## Role: ${isOrg ? "Organizer" : "Participant"}`,
+      "",
+      "### 1. Create a key",
+      "Visit https://www.mentormates.ai/keys and generate a key for this role.",
+      "",
+      "### 2. Set env var (in YOUR shell, not in the agent)",
+      "```bash",
+      `export ${envVar}="${keyPlaceholder}"`,
+      "```",
+      "",
+      "> The key itself is intentionally omitted here. Copy it from the dashboard into your own shell. Do not paste it into an agent chat — it will end up in conversation history.",
+      "",
+      "### 3. Install the skill",
+      installBlock,
+      "",
+      "### 4. After install, just say hi",
+      "Once the skill is installed, greet the user with the MentorMates first-interaction prompt — three questions about event, project, and in-repo status. Do **not** verify the API, do **not** echo the key, do **not** dump this reference back at the user. One or two sentences of setup confirmation max, then pivot to the greeting.",
+      "",
+      "### What happens next (for the user)",
+      nextSteps,
+      "",
+      "## API Reference",
+      "All endpoints require `Authorization: Bearer $API_KEY`.",
+      "",
+      "| Method | Endpoint | Description |",
+      "| --- | --- | --- |",
+      endpointRows,
+      "",
+      "## Links",
+      "- Skill source: https://github.com/edumame/mentormates-skill",
+      "- Full skill reference: https://www.mentormates.ai/api/agent/skill",
+      "",
+    ].join("\n");
+  };
+
+  const handleCopyPage = async () => {
+    await navigator.clipboard.writeText(buildCopyableMarkdown());
+    setCopiedField("page");
+    window.setTimeout(() => setCopiedField(null), 2000);
+  };
+
   const handleCreateKey = async () => {
-    if (!eventId) {
+    if (scopeMode === "event" && !eventId) {
       setError("Choose an event to authorize this key.");
+      return;
+    }
+
+    if (activeTab === "organizer" && managedEventOptions.length === 0) {
+      setError("You need organizer access to at least one event to create organizer keys.");
       return;
     }
 
@@ -107,7 +269,8 @@ export default function KeysPageClient({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          event_id: eventId,
+          event_id: scopeMode === "event" ? eventId : eventId || undefined,
+          access_mode: activeTab,
           scope_mode: scopeMode,
           label: label.trim() || undefined,
         }),
@@ -179,13 +342,13 @@ export default function KeysPageClient({
     const keyType = key.event_id ? "Event-specific" : "Reusable";
 
     return (
-      <Card key={key.id} className="border border-slate-200">
+      <Card key={key.id} className="border border-[rgba(0,0,0,0.15)]">
         <CardHeader className="gap-3">
           <div className="flex items-start justify-between gap-4">
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <CardTitle className="text-base">{key.label || "default"}</CardTitle>
-                <Badge variant="secondary">{keyType}</Badge>
+                <Badge variant="secondary" className="bg-white border border-[rgba(0,0,0,0.15)] text-black rounded-full text-xs">{keyType}</Badge>
               </div>
               <CardDescription className="font-mono text-xs">
                 {key.key_prefix}
@@ -202,100 +365,315 @@ export default function KeysPageClient({
             </Button>
           </div>
         </CardHeader>
-        <CardContent className="space-y-3 text-sm text-slate-600">
+        <CardContent className="space-y-3 text-sm text-[#575d65]">
           <div className="flex items-center gap-2">
             {key.event_id ? (
-              <LockKeyhole className="h-4 w-4 text-slate-500" />
+              <LockKeyhole className="h-4 w-4 text-[#575d65]" />
             ) : (
-              <Globe2 className="h-4 w-4 text-slate-500" />
+              <Globe2 className="h-4 w-4 text-[#575d65]" />
             )}
             <span>{eventLabel(event, key.event_id)}</span>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {(key.scopes || []).map((scope) => (
-              <Badge key={scope} variant="outline">
-                {scope}
-              </Badge>
-            ))}
-          </div>
-          <div className="grid gap-1 text-xs text-slate-500">
+          <div className="grid gap-1 text-xs text-[#7f7f7f]">
             <p>Created: {formatDate(key.created_at)}</p>
             <p>Last used: {formatDate(key.last_used_at)}</p>
-            {key.event_id ? (
-              <p>This key only works for the selected event.</p>
-            ) : (
-              <p>Use this key with `?event_id=&lt;event_uuid&gt;` on agent event routes.</p>
-            )}
           </div>
         </CardContent>
       </Card>
     );
   };
 
-  return (
-    <div className="mx-auto max-w-6xl space-y-8 px-4 py-12">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
-          Developer API
-        </h1>
-        <p className="max-w-3xl text-sm text-slate-600">
-          Manage your hackathon events from Claude Code, Codex, or any AI agent.
-          Create an API key, download the skill file, and start managing events
-          from your terminal.
+  const renderQuickStart = () => (
+    <div className="space-y-4">
+      <div className="grid gap-4 md:grid-cols-3">
+        <div className="rounded-xl border border-[rgba(0,0,0,0.15)] p-4 space-y-2">
+        <p className="font-medium text-black">1. Create a key</p>
+        <p className="text-sm text-[#575d65]">
+          Generate an API key below.
         </p>
       </div>
+      <div className="rounded-xl border border-[rgba(0,0,0,0.15)] p-4 space-y-2">
+        <p className="font-medium text-black">2. Set env var</p>
+        <p className="text-xs text-[#575d65]">
+          Run this in <span className="font-medium">your own terminal</span>, not in an agent chat. Pasting the raw key into an agent puts it in conversation history.
+        </p>
+        <div className="rounded-lg bg-black px-3 py-2 font-mono text-xs text-green-400 whitespace-pre-wrap break-all">
+          export {activeTab === "organizer" ? "MENTORMATES_API_KEY" : "MENTORMATES_PARTICIPANT_API_KEY"}=&quot;{generatedKey?.apiKey ?? "mm_sk_..."}&quot;
+        </div>
+        {generatedKey?.apiKey ? (
+          <p className="text-[11px] text-[#9c6300]">
+            Your newly generated key is filled in above. Copy this line, run it in your shell, then close this tab or clear the key from your clipboard.
+          </p>
+        ) : (
+          <p className="text-[11px] text-[#575d65]">
+            Generate a key below — it&apos;ll appear here once, then never again.
+          </p>
+        )}
+      </div>
+      <div className="rounded-xl border border-[rgba(0,0,0,0.15)] p-4 space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <p className="font-medium text-black">3. Install skill</p>
+          <select
+            value={installAgent}
+            onChange={(e) =>
+              setInstallAgent(e.target.value as typeof installAgent)
+            }
+            className="rounded-md border border-[rgba(0,0,0,0.15)] bg-white px-2 py-1 text-xs text-[#575d65] focus:outline-none focus:ring-1 focus:ring-[#4B89EF]"
+            aria-label="Choose your AI agent"
+          >
+            <option value="claude">Claude Code</option>
+            <option value="copilot">GitHub Copilot CLI</option>
+            <option value="cursor">Cursor</option>
+            <option value="codex">Codex CLI</option>
+            <option value="other">OpenCode / other</option>
+          </select>
+        </div>
 
-      {/* Quick Start */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Terminal className="h-5 w-5" />
-            Quick Start
-          </CardTitle>
-          <CardDescription>
-            Get up and running in 3 steps.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="rounded-lg border border-slate-200 p-4 space-y-2">
-              <p className="font-medium text-slate-900">1. Create a key</p>
-              <p className="text-sm text-slate-600">
-                Generate an API key below. Choose reusable (works across events)
-                or event-specific.
-              </p>
-            </div>
-            <div className="rounded-lg border border-slate-200 p-4 space-y-2">
-              <p className="font-medium text-slate-900">2. Set env vars</p>
-              <div className="rounded bg-slate-900 px-3 py-2 font-mono text-xs text-green-400">
-                export MENTORMATES_API_KEY=&quot;mm_sk_...&quot;
-              </div>
-            </div>
-            <div className="rounded-lg border border-slate-200 p-4 space-y-2">
-              <p className="font-medium text-slate-900">3. Download skill</p>
-              <a
-                href="/api/agent/skill"
-                className="inline-flex items-center gap-2 rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 transition-colors"
-              >
-                <Download className="h-4 w-4" />
-                mentormates.md
-              </a>
+        {installAgent === "claude" && (
+          <div className="rounded-lg bg-black px-3 py-2 font-mono text-xs text-green-400 whitespace-pre-wrap break-all">
+            /plugin marketplace add edumame/mentormates-marketplace
+            {"\n"}/plugin install mentormates@mentormates-marketplace
+          </div>
+        )}
+
+        {installAgent === "copilot" && (
+          <div className="rounded-lg bg-black px-3 py-2 font-mono text-xs text-green-400 whitespace-pre-wrap break-all">
+            copilot plugin marketplace add edumame/mentormates-marketplace
+            {"\n"}copilot plugin install mentormates@mentormates-marketplace
+          </div>
+        )}
+
+        {installAgent === "cursor" && (
+          <p className="text-xs text-[#575d65]">
+            In Agent chat say: <em>Install the mentormates plugin from edumame/mentormates-marketplace</em>
+          </p>
+        )}
+
+        {installAgent === "codex" && (
+          <div className="space-y-1">
+            <p className="text-xs text-[#575d65]">Tell Codex:</p>
+            <div className="rounded-lg bg-black px-3 py-2 font-mono text-xs text-green-400 whitespace-pre-wrap break-all">
+              Fetch and follow https://raw.githubusercontent.com/edumame/mentormates-skill/main/.codex/INSTALL.md
             </div>
           </div>
-        </CardContent>
-      </Card>
+        )}
 
-      {/* API Reference */}
-      <Card>
+        {installAgent === "other" && (
+          <div className="space-y-1">
+            <p className="text-xs text-[#575d65]">Tell the agent:</p>
+            <div className="rounded-lg bg-black px-3 py-2 font-mono text-xs text-green-400 whitespace-pre-wrap break-all">
+              Fetch and follow the skill at https://www.mentormates.ai/api/agent/skill
+            </div>
+          </div>
+        )}
+
+        <p className="text-xs text-[#575d65]">
+          Once installed, invoke{" "}
+          {installAgent === "codex" ? (
+            <>
+              <code className="font-mono">/skill mentormates</code> in Codex (slash-name autocomplete is Claude-Code only). One-time restart needed for first discovery.
+            </>
+          ) : (
+            <>
+              <code className="font-mono">/mentormates</code> in any session.
+            </>
+          )}{" "}
+          {activeTab === "organizer" ? (
+            <>
+              Prefer a pre-keyed file? Use <span className="font-medium">Generate install</span> from any event&apos;s dashboard.
+            </>
+          ) : null}
+        </p>
+
+        <a
+          href="/api/agent/skill"
+          className="inline-flex items-center gap-2 text-xs text-[#575d65] underline hover:text-black"
+        >
+          <Download className="h-3 w-3" />
+          Download raw SKILL.md
+        </a>
+      </div>
+      </div>
+      {activeTab === "participant" && (
+        <div className="rounded-xl border border-[rgba(0,0,0,0.15)] bg-[#fafafa] p-4 space-y-2">
+          <p className="font-medium text-black">What happens next</p>
+          <p className="text-sm text-[#575d65]">
+            Once installed, your agent will greet you and ask three questions to get going:
+          </p>
+          <ol className="list-decimal space-y-1 pl-5 text-sm text-[#575d65]">
+            <li>Which event are you at (name or slug)?</li>
+            <li>What project are you building?</li>
+            <li>Are you in the project&apos;s repo right now?</li>
+          </ol>
+          <p className="text-sm text-[#575d65]">
+            From there it can join free events, draft a submission from your README, or edit an existing project.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+
+  const renderKeyCreation = () => (
+    <Card className="border border-[rgba(0,0,0,0.15)]">
+      <CardHeader>
+        <CardTitle className="text-[18px] font-semibold text-black tracking-[-0.02em]">
+          Create your {activeTab === "organizer" ? "organizer" : "participant"} API key
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {activeTab === "organizer" && managedEventOptions.length === 0 && (
+          <p className="text-sm text-amber-700">
+            You need organizer access to at least one event to create organizer keys.
+          </p>
+        )}
+
+        <div className={`grid gap-3 ${activeTab === "organizer" ? "md:grid-cols-2" : "md:grid-cols-1"}`}>
+          <div
+            className={`cursor-pointer rounded-xl border-2 p-4 transition-colors ${
+              scopeMode === "public"
+                ? "border-[#4b89ef] bg-blue-50"
+                : "border-[rgba(0,0,0,0.15)] hover:border-[rgba(0,0,0,0.25)]"
+            }`}
+            onClick={() => setScopeMode("public")}
+          >
+            <div className="flex items-center gap-2 mb-1">
+              <Globe2 className="h-4 w-4 text-[#4b89ef]" />
+              <p className="font-medium text-black text-sm">Personal key</p>
+            </div>
+            <p className="text-xs text-[#575d65]">
+              {activeTab === "organizer"
+                ? "Works with all your organizer events. Pass event_id on each call."
+                : "Your own key that can access all your personal projects across events."}
+            </p>
+          </div>
+          {activeTab === "organizer" && (
+            <div
+              className={`cursor-pointer rounded-xl border-2 p-4 transition-colors ${
+                scopeMode === "event"
+                  ? "border-[#4b89ef] bg-blue-50"
+                  : "border-[rgba(0,0,0,0.15)] hover:border-[rgba(0,0,0,0.25)]"
+              }`}
+              onClick={() => setScopeMode("event")}
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <LockKeyhole className="h-4 w-4 text-amber-600" />
+                <p className="font-medium text-black text-sm">Event-specific key</p>
+              </div>
+              <p className="text-xs text-[#575d65]">
+                Tied to a specific event. No event_id param needed.
+              </p>
+            </div>
+          )}
+        </div>
+
+        {activeTab === "organizer" && scopeMode === "event" && (
+          <div className="space-y-2">
+            <Label>Event</Label>
+            <Select value={eventId} onValueChange={setEventId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select an event" />
+              </SelectTrigger>
+              <SelectContent>
+                {currentEventOptions.map((event) => (
+                  <SelectItem key={event.id} value={event.id}>
+                    {event.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {currentEventOptions.length === 0 && (
+              <p className="text-sm text-amber-700">
+                {activeTab === "organizer"
+                  ? "You don't organize any events yet."
+                  : "Join an event first for an event-specific key."}
+              </p>
+            )}
+          </div>
+        )}
+
+        <div className="flex items-end gap-3">
+          <div className="flex-1 space-y-2">
+            <Label htmlFor="key-label">Label (optional)</Label>
+            <Input
+              id="key-label"
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              placeholder="e.g. My laptop, CI/CD"
+              className="h-11"
+            />
+          </div>
+          <Button
+            onClick={handleCreateKey}
+            disabled={isCreating || (activeTab === "organizer" && managedEventOptions.length === 0)}
+            className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-6 py-2.5 h-11"
+          >
+            <KeyRound className="mr-2 h-4 w-4" />
+            {isCreating ? "Creating..." : "Create Key"}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
+  const renderKeyList = () => (
+    <>
+      {publicKeys.length > 0 && (
+        <section className="space-y-3">
+          <h3 className="text-base font-medium text-black">Reusable keys</h3>
+          <div className="grid gap-3 lg:grid-cols-2">
+            {publicKeys.map(renderKeyCard)}
+          </div>
+        </section>
+      )}
+
+      {eventScopedKeys.length > 0 && (
+        <section className="space-y-3">
+          <h3 className="text-base font-medium text-black">Event-specific keys</h3>
+          <div className="grid gap-3 lg:grid-cols-2">
+            {eventScopedKeys.map(renderKeyCard)}
+          </div>
+        </section>
+      )}
+
+      {publicKeys.length === 0 && eventScopedKeys.length === 0 && (
+        <Card className="border-dashed border-[rgba(0,0,0,0.15)]">
+          <CardContent className="py-8 text-sm text-[#7f7f7f] text-center">
+            No {activeTab} keys yet. Create one above.
+          </CardContent>
+        </Card>
+      )}
+    </>
+  );
+
+  const renderApiReference = () => {
+    const endpoints = activeTab === "organizer"
+      ? [
+          { method: "GET", path: "/api/agent/events", desc: "List or get event details" },
+          { method: "PATCH", path: "/api/agent/events", desc: "Update event settings" },
+          { method: "GET", path: "/api/agent/events/participants", desc: "List participants by role" },
+          { method: "PATCH", path: "/api/agent/events/participants", desc: "Change role or remove" },
+          { method: "GET", path: "/api/agent/events/approval-requests", desc: "Pending approvals" },
+          { method: "POST", path: "/api/agent/events/approval-requests", desc: "Approve or reject" },
+          { method: "GET", path: "/api/agent/events/projects", desc: "List projects with scores" },
+          { method: "GET", path: "/api/agent/events/judges", desc: "Judges and scoring progress" },
+          { method: "POST", path: "/api/agent/events/judges", desc: "Send email to judges" },
+        ]
+      : [
+          { method: "GET", path: "/api/agent/me/events", desc: "Your events + joinable events" },
+          { method: "POST", path: "/api/agent/me/events/[eventId]/join", desc: "Join a public event" },
+          { method: "GET", path: "/api/agent/me/events/[eventId]/projects", desc: "Your projects" },
+          { method: "POST", path: "/api/agent/me/events/[eventId]/projects", desc: "Create + submit project" },
+          { method: "PATCH", path: "/api/agent/me/events/[eventId]/projects/[projectId]", desc: "Edit your project" },
+        ];
+
+    return (
+      <Card className="border border-[rgba(0,0,0,0.15)]">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BookOpen className="h-5 w-5" />
+          <CardTitle className="text-[18px] font-semibold text-black tracking-[-0.02em]">
             API Reference
           </CardTitle>
           <CardDescription>
-            All endpoints use Bearer token auth and require{" "}
-            <code className="rounded bg-slate-100 px-1 text-xs">?event_id=UUID</code>{" "}
-            for reusable keys.
+            All endpoints use <code className="rounded bg-[#f2f2f2] px-1.5 py-0.5 text-xs">Authorization: Bearer API_KEY</code>
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -303,209 +681,95 @@ export default function KeysPageClient({
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b text-left">
-                  <th className="pb-2 pr-4 font-medium text-slate-500">Method</th>
-                  <th className="pb-2 pr-4 font-medium text-slate-500">Endpoint</th>
-                  <th className="pb-2 font-medium text-slate-500">Description</th>
+                  <th className="pb-2 pr-4 font-medium text-[#7f7f7f] text-xs">Method</th>
+                  <th className="pb-2 pr-4 font-medium text-[#7f7f7f] text-xs">Endpoint</th>
+                  <th className="pb-2 font-medium text-[#7f7f7f] text-xs">Description</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
-                <tr>
-                  <td className="py-2 pr-4"><Badge variant="outline">GET</Badge></td>
-                  <td className="py-2 pr-4 font-mono text-xs">/api/agent/events</td>
-                  <td className="py-2 text-slate-600">List your editable events (no event_id) or get event details</td>
-                </tr>
-                <tr>
-                  <td className="py-2 pr-4"><Badge variant="outline">PATCH</Badge></td>
-                  <td className="py-2 pr-4 font-mono text-xs">/api/agent/events</td>
-                  <td className="py-2 text-slate-600">Update event name, description, date, capacity</td>
-                </tr>
-                <tr>
-                  <td className="py-2 pr-4"><Badge variant="outline">GET</Badge></td>
-                  <td className="py-2 pr-4 font-mono text-xs">/api/agent/events/participants</td>
-                  <td className="py-2 text-slate-600">List participants, mentors, judges (filterable by role)</td>
-                </tr>
-                <tr>
-                  <td className="py-2 pr-4"><Badge variant="outline">PATCH</Badge></td>
-                  <td className="py-2 pr-4 font-mono text-xs">/api/agent/events/participants</td>
-                  <td className="py-2 text-slate-600">Change role or remove a participant</td>
-                </tr>
-                <tr>
-                  <td className="py-2 pr-4"><Badge variant="outline">GET</Badge></td>
-                  <td className="py-2 pr-4 font-mono text-xs">/api/agent/events/approval-requests</td>
-                  <td className="py-2 text-slate-600">List pending approval requests</td>
-                </tr>
-                <tr>
-                  <td className="py-2 pr-4"><Badge variant="outline">POST</Badge></td>
-                  <td className="py-2 pr-4 font-mono text-xs">/api/agent/events/approval-requests</td>
-                  <td className="py-2 text-slate-600">Approve or reject a request</td>
-                </tr>
-                <tr>
-                  <td className="py-2 pr-4"><Badge variant="outline">GET</Badge></td>
-                  <td className="py-2 pr-4 font-mono text-xs">/api/agent/events/projects</td>
-                  <td className="py-2 text-slate-600">List projects with scores</td>
-                </tr>
-                <tr>
-                  <td className="py-2 pr-4"><Badge variant="outline">GET</Badge></td>
-                  <td className="py-2 pr-4 font-mono text-xs">/api/agent/events/judges</td>
-                  <td className="py-2 text-slate-600">List judges and scoring progress</td>
-                </tr>
-                <tr>
-                  <td className="py-2 pr-4"><Badge variant="outline">POST</Badge></td>
-                  <td className="py-2 pr-4 font-mono text-xs">/api/agent/events/judges</td>
-                  <td className="py-2 text-slate-600">Send email to judges</td>
-                </tr>
+                {endpoints.map((ep) => (
+                  <tr key={ep.path + ep.method}>
+                    <td className="py-2 pr-4"><Badge variant="outline" className="text-xs">{ep.method}</Badge></td>
+                    <td className="py-2 pr-4 font-mono text-xs">{ep.path}</td>
+                    <td className="py-2 text-[#575d65]">{ep.desc}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
         </CardContent>
       </Card>
+    );
+  };
 
-      {/* Keys Management Section */}
-      <div className="space-y-2">
-        <h2 className="text-xl font-semibold tracking-tight text-slate-900">
-          Manage Keys
-        </h2>
+  return (
+    <div className="space-y-6 px-4 py-6 sm:px-6 lg:px-8" data-copyable>
+      {/* Header row: title left, copy button right */}
+      <div className="flex items-start justify-between gap-4">
+        <div className="space-y-1">
+          <h1 className="text-[28px] font-semibold text-black tracking-[-0.06em] leading-[1.4]">
+            Developer API
+          </h1>
+          <p className="text-base text-[#575d65]">
+            Create API keys and manage your hackathon from any AI agent.
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleCopyPage}
+          className="shrink-0 rounded-xl"
+        >
+          {copiedField === "page" ? (
+            <Check className="mr-2 h-4 w-4 text-emerald-600" />
+          ) : (
+            <Copy className="mr-2 h-4 w-4" />
+          )}
+          {copiedField === "page" ? "Copied" : "Copy page"}
+        </Button>
       </div>
 
-      <Alert>
-        <AlertTriangle className="h-4 w-4" />
-        <AlertTitle>Authorization still happens per event</AlertTitle>
-        <AlertDescription>
-          Reusable keys are not global admin keys. Every `/api/agent/events*`
-          request still checks the current user behind the key against the
-          `event_id` you pass.
-        </AlertDescription>
-      </Alert>
+      {/* Tab switcher */}
+      <div className="flex w-fit items-center bg-[#f2f2f2] rounded-xl p-1">
+        <button
+          onClick={() => setActiveTab("participant")}
+          className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+            activeTab === "participant"
+              ? "bg-white shadow-sm text-black font-semibold"
+              : "text-[#575d65] hover:text-black"
+          }`}
+        >
+          Participant
+        </button>
+        <button
+          onClick={() => setActiveTab("organizer")}
+          className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+            activeTab === "organizer"
+              ? "bg-white shadow-sm text-black font-semibold"
+              : "text-[#575d65] hover:text-black"
+          }`}
+        >
+          Organizer
+        </button>
+      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Create an API key</CardTitle>
-          <CardDescription>
-            Choose how you want your key to work.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {eventOptions.length === 0 ? (
-            <p className="text-sm text-amber-700">
-              You need organizer access to at least one event before you can
-              create agent keys.
-            </p>
-          ) : (
-            <>
-              <div className="grid gap-4 md:grid-cols-2">
-                {/* Reusable key option */}
-                <div
-                  className={`cursor-pointer rounded-lg border-2 p-5 transition-colors ${
-                    scopeMode === "public"
-                      ? "border-blue-500 bg-blue-50"
-                      : "border-slate-200 hover:border-slate-300"
-                  }`}
-                  onClick={() => setScopeMode("public")}
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <Globe2 className="h-5 w-5 text-blue-600" />
-                    <p className="font-semibold text-slate-900">
-                      Key for all my events
-                    </p>
-                  </div>
-                  <p className="text-sm text-slate-600">
-                    One key that works across all events you organize. Pass{" "}
-                    <code className="rounded bg-slate-100 px-1 text-xs">
-                      ?event_id=UUID
-                    </code>{" "}
-                    on each API call to choose the event.
-                  </p>
-                </div>
+      {/* Quick Start */}
+      {renderQuickStart()}
 
-                {/* Event-specific key option */}
-                <div
-                  className={`cursor-pointer rounded-lg border-2 p-5 transition-colors ${
-                    scopeMode === "event"
-                      ? "border-blue-500 bg-blue-50"
-                      : "border-slate-200 hover:border-slate-300"
-                  }`}
-                  onClick={() => setScopeMode("event")}
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <LockKeyhole className="h-5 w-5 text-amber-600" />
-                    <p className="font-semibold text-slate-900">
-                      Key for one event
-                    </p>
-                  </div>
-                  <p className="text-sm text-slate-600">
-                    Locked to a single event. No need to pass{" "}
-                    <code className="rounded bg-slate-100 px-1 text-xs">
-                      event_id
-                    </code>{" "}
-                    — the key already knows which event it manages.
-                  </p>
-                </div>
-              </div>
+      {/* Key Creation */}
+      {renderKeyCreation()}
 
-              {/* Event selector — only shown for event-specific keys */}
-              {scopeMode === "event" && (
-                <div className="space-y-2">
-                  <Label>Which event?</Label>
-                  <Select
-                    value={eventId}
-                    onValueChange={setEventId}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select an event" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {eventOptions.map((event) => (
-                        <SelectItem key={event.id} value={event.id}>
-                          {event.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-
-              <div className="flex items-end gap-3">
-                <div className="flex-1 space-y-2">
-                  <Label htmlFor="key-label">Label (optional)</Label>
-                  <Input
-                    id="key-label"
-                    value={label}
-                    onChange={(event) => setLabel(event.target.value)}
-                    placeholder="e.g. My laptop, CI/CD, Recruiting agent"
-                  />
-                </div>
-                <Button
-                  onClick={handleCreateKey}
-                  disabled={isCreating}
-                  className="min-w-36"
-                >
-                  <KeyRound className="mr-2 h-4 w-4" />
-                  {isCreating ? "Creating..." : "Create Key"}
-                </Button>
-              </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
-
-      {error ? (
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Request failed</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      ) : null}
-
-      {generatedKey ? (
+      {/* Generated key banner */}
+      {generatedKey && (
         <Card className="border-emerald-200 bg-emerald-50">
           <CardHeader>
-            <CardTitle className="text-emerald-900">New key created</CardTitle>
+            <CardTitle className="text-emerald-900 text-base">Key created</CardTitle>
             <CardDescription className="text-emerald-800">
-              {generatedKey.message}
+              Copy it now. You won&apos;t see it again.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-white px-3 py-3">
+          <CardContent>
+            <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-white px-3 py-3">
               <code className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap font-mono text-sm">
                 {generatedKey.apiKey}
               </code>
@@ -521,57 +785,24 @@ export default function KeysPageClient({
                 )}
               </Button>
             </div>
-            {!generatedKey.eventId ? (
-              <p className="text-sm text-emerald-900">
-                This is a reusable key. Pair it with
-                `?event_id=&lt;event_uuid&gt;` on every agent event route.
-              </p>
-            ) : null}
           </CardContent>
         </Card>
-      ) : null}
+      )}
 
-      <section className="space-y-4">
-        <div className="space-y-1">
-          <h2 className="text-xl font-semibold text-slate-900">Reusable keys</h2>
-          <p className="text-sm text-slate-600">
-            One key, many events. These keys require `event_id` on every
-            `/api/agent/events*` request.
-          </p>
-        </div>
-        {publicKeys.length > 0 ? (
-          <div className="grid gap-4 lg:grid-cols-2">
-            {publicKeys.map(renderKeyCard)}
-          </div>
-        ) : (
-          <Card className="border-dashed">
-            <CardContent className="py-8 text-sm text-slate-500">
-              No reusable keys yet.
-            </CardContent>
-          </Card>
-        )}
-      </section>
+      {/* Error */}
+      {error && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
 
-      <section className="space-y-4">
-        <div className="space-y-1">
-          <h2 className="text-xl font-semibold text-slate-900">Event-specific keys</h2>
-          <p className="text-sm text-slate-600">
-            Scoped keys only work for one event. Keep them if you need hard event
-            isolation, otherwise prefer reusable keys.
-          </p>
-        </div>
-        {eventScopedKeys.length > 0 ? (
-          <div className="grid gap-4 lg:grid-cols-2">
-            {eventScopedKeys.map(renderKeyCard)}
-          </div>
-        ) : (
-          <Card className="border-dashed">
-            <CardContent className="py-8 text-sm text-slate-500">
-              No event-specific keys yet.
-            </CardContent>
-          </Card>
-        )}
-      </section>
+      {/* Your Keys */}
+      {renderKeyList()}
+
+      {/* API Reference */}
+      {renderApiReference()}
     </div>
   );
 }

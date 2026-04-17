@@ -70,6 +70,7 @@ describe("Agent API Key Auth", () => {
         ownerEvents?: Array<{ event_id: string; event_name: string | null }>;
         organizerRoleEventIds?: string[];
         organizerEvents?: Array<{ event_id: string; event_name: string | null }>;
+        slugEvent?: { event_id: string } | null;
       }
     ) => {
       const agentKeySelectQuery = {
@@ -107,6 +108,14 @@ describe("Agent API Key Auth", () => {
           error: null,
         }),
       };
+      const slugEventQuery = {
+        select: jest.fn().mockReturnThis(),
+        ilike: jest.fn().mockReturnThis(),
+        maybeSingle: jest.fn().mockResolvedValue({
+          data: options?.slugEvent ?? null,
+          error: null,
+        }),
+      };
       let eventsFromCalls = 0;
       const from = jest.fn((table: string) => {
         if (table === "agent_api_keys") {
@@ -116,6 +125,9 @@ describe("Agent API Key Auth", () => {
           };
         }
         if (table === "events") {
+          if (options && "slugEvent" in options) {
+            return slugEventQuery;
+          }
           eventsFromCalls += 1;
           return eventsFromCalls === 1 ? ownerEventsQuery : organizerEventsQuery;
         }
@@ -180,9 +192,41 @@ describe("Agent API Key Auth", () => {
       expect(result).toMatchObject({ status: 400 });
       if ("status" in result) {
         await expect(result.json()).resolves.toEqual({
-          error: "event_id query parameter is required",
+          error: "event_id or event_slug query parameter is required",
         });
       }
+    });
+
+    it("uses event_slug for reusable keys", async () => {
+      mockKeyLookup(
+        {
+          id: "key-1",
+          user_id: "user-1",
+          event_id: null,
+          scopes: ["event:read"],
+          expires_at: null,
+          revoked_at: null,
+        },
+        {
+          slugEvent: {
+            event_id: "22222222-2222-4222-8222-222222222222",
+          },
+        }
+      );
+
+      const result = await authenticateAgentRequest({
+        headers: { get: () => "Bearer mm_sk_1234567890abcdef" },
+        nextUrl: new URL(
+          "https://mentormates.ai/api/agent/events?event_slug=student-hackathon"
+        ),
+      } as never);
+
+      expect(result).toEqual({
+        userId: "user-1",
+        eventId: "22222222-2222-4222-8222-222222222222",
+        scopes: ["event:read"],
+        keyId: "key-1",
+      });
     });
 
     it("allows a missing event_id when explicitly requested by the caller", async () => {
@@ -290,6 +334,36 @@ describe("Agent API Key Auth", () => {
         isAdmin: false,
         isOwner: false,
         userRole: EventRole.Organizer,
+      });
+    });
+
+    it("allows participant access when the caller only needs participant permissions", async () => {
+      const { eventQuery, roleQuery, rpc } = mockSupabase();
+      eventQuery.maybeSingle.mockResolvedValue({
+        data: { owner_id: "owner-1" },
+        error: null,
+      });
+      roleQuery.maybeSingle.mockResolvedValue({
+        data: { role: EventRole.Participant },
+        error: null,
+      });
+      rpc.mockResolvedValue({ data: false, error: null });
+
+      const result = await authorizeAgentEventAccess(
+        {
+          userId: "user-1",
+          eventId: "event-1",
+          scopes: [],
+          keyId: "key-1",
+        },
+        EventRole.Participant
+      );
+
+      expect(result).toEqual({
+        eventId: "event-1",
+        isAdmin: false,
+        isOwner: false,
+        userRole: EventRole.Participant,
       });
     });
 
