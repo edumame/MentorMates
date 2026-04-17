@@ -45,8 +45,10 @@ import {
   buildDraftArtifactsPayload,
   splitPrimaryAndExtrasFromArtifacts,
 } from "@/features/projects/components/forms/utils/draftProjectArtifacts";
+import { ProjectPrivacySelect } from "@/features/projects/components/forms/components/ProjectPrivacySelect";
 import { ProjectSubmissionSchemaSection } from "@/features/projects/components/forms/components/ProjectSubmissionSchemaSection";
 import { useProjectSubmissionAutosave } from "@/features/projects/components/forms/hooks/useProjectSubmissionAutosave";
+import { getProjectVisibilityDescription } from "@/features/projects/components/forms/utils/projectPrivacy";
 import {
   buildEffectiveSubmissionFields,
   buildSubmissionAnswersPayload,
@@ -108,6 +110,7 @@ export default function DraftProjectSubmissionFormSinglePage({
     useState<ActiveIntakeForm | null>(null);
   const [showIntakeDialog, setShowIntakeDialog] = useState(false);
   const [showDescriptionPreview, setShowDescriptionPreview] = useState(false);
+  const [isPrivate, setIsPrivate] = useState(Boolean(initialProject.is_private));
 
   // Form state
   const [formData, setFormData] = useState({
@@ -560,6 +563,10 @@ export default function DraftProjectSubmissionFormSinglePage({
     }
   }, [project, onProjectUpdate]);
 
+  useEffect(() => {
+    setIsPrivate(Boolean(project.is_private));
+  }, [project.is_private]);
+
   const { lastSaved } = useProjectSubmissionAutosave({
     enabled: true,
     projectId,
@@ -567,10 +574,14 @@ export default function DraftProjectSubmissionFormSinglePage({
     values: submissionFieldValues,
     hasConfiguredSubmissionFields,
     initializeAsSaved: true,
+    extraPayload: {
+      private: isPrivate,
+    },
     artifacts: hasConfiguredSubmissionFields ? undefined : buildArtifactsPayload(),
     onSaved: (savedProject) => {
       if (savedProject) {
         setProject(savedProject);
+        setIsPrivate(Boolean(savedProject.is_private));
         setLiveMismatchMessage(null);
       }
     },
@@ -874,6 +885,7 @@ export default function DraftProjectSubmissionFormSinglePage({
           : {
               artifacts: buildArtifactsPayload(),
             }),
+        private: isPrivate,
         submitted: true,
       }),
     });
@@ -941,7 +953,7 @@ export default function DraftProjectSubmissionFormSinglePage({
         setProject(data);
         toast({
           title: "Project published",
-          description: "Your project is now public",
+          description: getProjectVisibilityDescription(isPrivate),
         });
         router.push(`/projects/${projectId}`);
       }
@@ -994,7 +1006,7 @@ export default function DraftProjectSubmissionFormSinglePage({
       setShowIntakeDialog(false);
       toast({
         title: "Project published",
-        description: "Your project and intake form are now submitted.",
+        description: `${getProjectVisibilityDescription(isPrivate)} Your intake form was submitted too.`,
       });
       router.push(`/projects/${projectId}`);
     } catch {
@@ -1070,9 +1082,15 @@ export default function DraftProjectSubmissionFormSinglePage({
             {/* Left Side - Form */}
             <div className="flex-1 space-y-6">
               <div className="space-y-1">
-                <h1 className="text-[28px] font-semibold text-black tracking-[-0.06em] leading-[1.4]">
-                  Edit your project
-                </h1>
+                <div className="flex items-start justify-between gap-4 flex-wrap">
+                  <h1 className="text-[28px] font-semibold text-black tracking-[-0.06em] leading-[1.4]">
+                    Edit your project
+                  </h1>
+                  <ProjectPrivacySelect
+                    value={isPrivate}
+                    onValueChange={setIsPrivate}
+                  />
+                </div>
               </div>
 
               {submissionFieldMismatchMessage ? (

@@ -107,6 +107,7 @@ describe("saveProjectSubmission", () => {
           cover_image_url: null,
           event_id: eventId,
           contextus_project_id: "ctx-1",
+          private: true,
           created_at: "2026-04-16T12:00:00.000Z",
           submitted: true,
           submitted_at: "2026-04-16T12:00:00.000Z",
@@ -172,6 +173,7 @@ describe("saveProjectSubmission", () => {
             answer: "Locked Project Description",
           },
         ],
+        isPrivate: true,
         submitted: true,
       },
     });
@@ -193,6 +195,7 @@ describe("saveProjectSubmission", () => {
         video_url: null,
         cover_image_url: null,
         additional_materials_url: null,
+        private: true,
         submitted: true,
         submitted_at: expect.any(String),
       }),

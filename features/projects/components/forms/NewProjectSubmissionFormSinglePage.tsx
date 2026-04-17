@@ -21,14 +21,14 @@ import { useAdmin } from "@/lib/hooks/use-admin";
 import {
   EventDetails,
   EventSubmissionField,
-  EventVisibility,
 } from "@/lib/types";
 import { useProjectSubmissionData } from "@/features/projects/components/forms/hooks/useProjectSubmissionData";
 import { EventCard } from "@/components/events/event-card";
-import { Public } from "@mui/icons-material";
 import { ParticipantIntakeDialog } from "@/features/intake-forms/components/ParticipantIntakeDialog";
+import { ProjectPrivacySelect } from "@/features/projects/components/forms/components/ProjectPrivacySelect";
 import { ProjectSubmissionSchemaSection } from "@/features/projects/components/forms/components/ProjectSubmissionSchemaSection";
 import { useProjectSubmissionAutosave } from "@/features/projects/components/forms/hooks/useProjectSubmissionAutosave";
+import { getProjectVisibilityDescription } from "@/features/projects/components/forms/utils/projectPrivacy";
 import {
   buildEffectiveSubmissionFields,
   buildSubmissionAnswersPayload,
@@ -61,6 +61,7 @@ type PublishPayload = {
   projectUrl: string;
   coverImageUrl: string;
   additionalMaterialsUrl: string;
+  private: boolean;
   eventId?: string;
   trackIds: string[];
   videoUrl: string;
@@ -108,10 +109,7 @@ export function NewProjectSubmissionFormSinglePage({
   const [participants, setParticipants] = useState<EventParticipant[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedTrackIds, setSelectedTrackIds] = useState<string[]>([]);
-  const [visibility, setVisibility] = useState<EventVisibility>(
-    EventVisibility.Public
-  );
-  const [showVisibilityDropdown, setShowVisibilityDropdown] = useState(false);
+  const [isPrivate, setIsPrivate] = useState(false);
   const [isDeletingDraft, setIsDeletingDraft] = useState(false);
   const [extraProjectUrls, setExtraProjectUrls] = useState<string[]>([]);
   const [extraVideoUrls, setExtraVideoUrls] = useState<string[]>([]);
@@ -518,6 +516,7 @@ export function NewProjectSubmissionFormSinglePage({
       lead_name: formData.leadName,
       lead_email: formData.leadEmail,
       teammates: validTeammates,
+      private: isPrivate,
     },
   });
 
@@ -661,6 +660,7 @@ export function NewProjectSubmissionFormSinglePage({
         projectUrl: formData.projectUrl,
         coverImageUrl: formData.coverImageUrl,
         additionalMaterialsUrl: formData.additionalMaterialsUrl,
+        private: isPrivate,
         eventId,
         trackIds: selectedTrackIds,
         videoUrl: formData.videoUrl,
@@ -713,8 +713,7 @@ export function NewProjectSubmissionFormSinglePage({
 
       toast({
         title: "Project Successfully Shared!",
-        description:
-          "Your project is now available for others to view and provide feedback.",
+        description: getProjectVisibilityDescription(isPrivate),
       });
       onProjectSubmitted?.();
       router.push(`/projects/${data.data?.id || data.id}`);
@@ -789,8 +788,7 @@ export function NewProjectSubmissionFormSinglePage({
 
       toast({
         title: "Project Successfully Shared!",
-        description:
-          "Your project and intake form have been submitted successfully.",
+        description: `${getProjectVisibilityDescription(isPrivate)} Your intake form was submitted too.`,
       });
       onProjectSubmitted?.();
       setShowIntakeDialog(false);
@@ -947,49 +945,10 @@ export function NewProjectSubmissionFormSinglePage({
           <div className="px-8 py-6 min-h-[800px]">
             <div className="flex items-center justify-between mb-6 flex-wrap gap-2 sm:gap-0">
               <div className="relative">
-                <button
-                  onClick={() =>
-                    setShowVisibilityDropdown(!showVisibilityDropdown)
-                  }
-                  className="flex items-center gap-2 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] px-3 py-2 h-[44px] w-[142px] hover:bg-gray-50 transition-colors"
-                >
-                  <Public className="w-6 h-6" />
-                  <span className="text-[16px] font-normal">
-                    {visibility.charAt(0).toUpperCase() + visibility.slice(1)}
-                  </span>
-                  <svg
-                    className="w-6 h-6 ml-auto"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                  >
-                    <path
-                      d="M7 10l5 5 5-5"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </button>
-
-                {showVisibilityDropdown && (
-                  <div className="absolute top-full py-1.5 px-1 mt-2 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] shadow-lg z-10 w-[160px] overflow-hidden">
-                    {[EventVisibility.Public, EventVisibility.Private].map(
-                      (vis) => (
-                        <button
-                          key={vis}
-                          onClick={() => {
-                            setVisibility(vis);
-                            setShowVisibilityDropdown(false);
-                          }}
-                          className="w-full text-left px-3 py-2 hover:bg-[#F2F2F2] text-[16px] rounded-[8px]"
-                        >
-                          {vis.charAt(0).toUpperCase() + vis.slice(1)}
-                        </button>
-                      )
-                    )}
-                  </div>
-                )}
+                <ProjectPrivacySelect
+                  value={isPrivate}
+                  onValueChange={setIsPrivate}
+                />
               </div>
               <div className="flex items-center gap-1 justify-end">
                 <Button
