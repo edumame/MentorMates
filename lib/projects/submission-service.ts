@@ -41,6 +41,24 @@ const projectWriteSchema = z.object({
 
 export type NormalizedProjectWriteInput = z.infer<typeof projectWriteSchema>;
 
+type ConfiguredSubmissionField = {
+  key: string;
+  fieldType:
+    | "short_text"
+    | "long_text"
+    | "url"
+    | "multi_url"
+    | "file"
+    | "select"
+    | "multi_select"
+    | "checkbox";
+};
+
+type NormalizedSubmissionAnswerPayload = Pick<
+  Database["public"]["Tables"]["project_submission_answers"]["Insert"],
+  "event_submission_field_id" | "answer"
+>;
+
 function normalizeString(value: unknown) {
   return typeof value === "string" ? value : undefined;
 }
@@ -102,6 +120,121 @@ export function normalizeProjectWriteInput(body: unknown) {
       payload.extraMaterialsUrls ?? payload.extra_materials_urls,
     ),
   });
+}
+
+function buildConfiguredSubmissionFieldMap(
+  configuredSubmissionFields: Array<{
+    id: string;
+    key: string;
+    field_type: string;
+  }>,
+) {
+  return new Map<string, ConfiguredSubmissionField>(
+    configuredSubmissionFields.map((field) => [
+      field.id,
+      {
+        key: field.key,
+        fieldType: field.field_type as ConfiguredSubmissionField["fieldType"],
+      },
+    ]),
+  );
+}
+
+function deriveLockedProjectFieldUpdates(
+  input: NormalizedProjectWriteInput,
+  parsedAnswers: Array<z.infer<typeof submissionAnswerInputSchema>>,
+  fieldById: Map<string, ConfiguredSubmissionField>,
+): Pick<
+  Database["public"]["Tables"]["projects"]["Update"],
+  "project_name" | "project_description"
+> {
+  const lockedFieldUpdates: Pick<
+    Database["public"]["Tables"]["projects"]["Update"],
+    "project_name" | "project_description"
+  > = {};
+
+  for (const answer of parsedAnswers) {
+    const field = fieldById.get(answer.eventSubmissionFieldId);
+    if (!field) continue;
+
+    if (
+      field.key !== "project_name" &&
+      field.key !== "project_description"
+    ) {
+      continue;
+    }
+
+    const coerced = coerceSubmissionAnswerValue(field.fieldType, answer.answer);
+    if (coerced === null || Array.isArray(coerced)) {
+      continue;
+    }
+
+    if (field.key === "project_name" && input.projectName === undefined) {
+      lockedFieldUpdates.project_name = coerced;
+    }
+
+    if (
+      field.key === "project_description" &&
+      input.projectDescription === undefined
+    ) {
+      lockedFieldUpdates.project_description = coerced;
+    }
+  }
+
+  return lockedFieldUpdates;
+}
+
+function normalizeSubmissionAnswersForPersistence(
+  parsedAnswers: Array<z.infer<typeof submissionAnswerInputSchema>>,
+  fieldById: Map<string, ConfiguredSubmissionField>,
+):
+  | {
+      normalizedAnswers: NormalizedSubmissionAnswerPayload[];
+    }
+  | {
+      error: string;
+      code: "submission_field_mismatch";
+      status: 400;
+    } {
+  const answerFieldIds = [
+    ...new Set(parsedAnswers.map((answer) => answer.eventSubmissionFieldId)),
+  ];
+
+  if (answerFieldIds.some((fieldId) => !fieldById.has(fieldId))) {
+    return {
+      error:
+        "This project's saved submission fields no longer match the event's current submission form.",
+      code: "submission_field_mismatch",
+      status: 400,
+    };
+  }
+
+  return {
+    normalizedAnswers: parsedAnswers
+      .map((answer) => {
+        const field = fieldById.get(answer.eventSubmissionFieldId);
+        if (!field) return null;
+
+        const coerced = coerceSubmissionAnswerValue(
+          field.fieldType,
+          answer.answer,
+        );
+
+        if (coerced === null) return null;
+        if (typeof coerced === "string" && coerced.length === 0) return null;
+        if (Array.isArray(coerced) && coerced.length === 0) return null;
+
+        return {
+          event_submission_field_id: answer.eventSubmissionFieldId,
+          answer: coerced as Json,
+        };
+      })
+      .filter(
+        (
+          answer,
+        ): answer is NormalizedSubmissionAnswerPayload => Boolean(answer),
+      ),
+  };
 }
 
 function buildArtifactsFromInput(input: NormalizedProjectWriteInput) {
@@ -424,12 +557,37 @@ export async function saveProjectSubmission(
 
   const { configuredSubmissionFields, hasConfiguredSubmissionFields } =
     validation;
+  const configuredFieldById = buildConfiguredSubmissionFieldMap(
+    configuredSubmissionFields,
+  );
+  const lockedProjectFieldUpdates = deriveLockedProjectFieldUpdates(
+    input,
+    parsedAnswers,
+    configuredFieldById,
+  );
+  const normalizedSubmissionAnswersResult =
+    normalizeSubmissionAnswersForPersistence(
+      parsedAnswers,
+      configuredFieldById,
+    );
+
+  if ("error" in normalizedSubmissionAnswersResult) {
+    return normalizedSubmissionAnswersResult;
+  }
+
+  const normalizedSubmissionAnswers =
+    normalizedSubmissionAnswersResult.normalizedAnswers;
 
   const updateData: Database["public"]["Tables"]["projects"]["Update"] = {};
   if (input.projectName !== undefined)
     updateData.project_name = input.projectName;
+  else if (lockedProjectFieldUpdates.project_name !== undefined) {
+    updateData.project_name = lockedProjectFieldUpdates.project_name;
+  }
   if (input.projectDescription !== undefined) {
     updateData.project_description = input.projectDescription;
+  } else if (lockedProjectFieldUpdates.project_description !== undefined) {
+    updateData.project_description = lockedProjectFieldUpdates.project_description;
   }
   if (input.projectUrl !== undefined) updateData.project_url = input.projectUrl;
   if (input.additionalMaterialsUrl !== undefined) {
@@ -448,7 +606,12 @@ export async function saveProjectSubmission(
   }
 
   if (hasConfiguredSubmissionFields) {
-    Object.assign(updateData, buildNullLegacyProjectPayload());
+    const {
+      project_name: _ignoredProjectName,
+      project_description: _ignoredProjectDescription,
+      ...legacySubmissionFieldReset
+    } = buildNullLegacyProjectPayload();
+    Object.assign(updateData, legacySubmissionFieldReset);
   } else if (mode === "create" || hasArtifactsPayload) {
     updateData.project_url = legacyFields.project_url;
     updateData.video_url = legacyFields.video_url;
@@ -487,6 +650,7 @@ export async function saveProjectSubmission(
         >
       >();
     if (error || !createdProject) {
+      console.error("Failed to create project:", error);
       return { error: "Failed to create project", status: 500 as const };
     }
 
@@ -549,50 +713,6 @@ export async function saveProjectSubmission(
   }
 
   if (input.submissionAnswers !== undefined || hasConfiguredSubmissionFields) {
-    const fieldById = new Map(
-      configuredSubmissionFields.map((field) => [
-        field.id,
-        field.field_type as
-          | "short_text"
-          | "long_text"
-          | "url"
-          | "multi_url"
-          | "file"
-          | "select"
-          | "multi_select"
-          | "checkbox",
-      ]),
-    );
-
-    const answerFieldIds = [
-      ...new Set(parsedAnswers.map((answer) => answer.eventSubmissionFieldId)),
-    ];
-    if (answerFieldIds.some((fieldId) => !fieldById.has(fieldId))) {
-      return { error: "Invalid submission field IDs", status: 400 as const };
-    }
-
-    const normalizedAnswers = parsedAnswers
-      .map((answer) => {
-        const fieldType = fieldById.get(answer.eventSubmissionFieldId);
-        if (!fieldType) return null;
-        const coerced = coerceSubmissionAnswerValue(fieldType, answer.answer);
-        if (coerced === null) return null;
-        if (typeof coerced === "string" && coerced.length === 0) return null;
-        if (Array.isArray(coerced) && coerced.length === 0) return null;
-
-        return {
-          project_id: finalProjectId,
-          event_submission_field_id: answer.eventSubmissionFieldId,
-          answer: coerced as Json,
-        };
-      })
-      .filter(
-        (
-          answer,
-        ): answer is Database["public"]["Tables"]["project_submission_answers"]["Insert"] =>
-          Boolean(answer),
-      );
-
     const { error: deleteAnswersError } = await supabase
       .from("project_submission_answers")
       .delete()
@@ -608,10 +728,15 @@ export async function saveProjectSubmission(
       };
     }
 
-    if (normalizedAnswers.length > 0) {
+    if (normalizedSubmissionAnswers.length > 0) {
       const { error: insertAnswersError } = await supabase
         .from("project_submission_answers")
-        .insert(normalizedAnswers);
+        .insert(
+          normalizedSubmissionAnswers.map((answer) => ({
+            project_id: finalProjectId,
+            ...answer,
+          })),
+        );
       if (insertAnswersError) {
         return {
           error: "Failed to save submission answers",
