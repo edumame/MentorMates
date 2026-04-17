@@ -29,6 +29,7 @@ const projectWriteSchema = z.object({
   coverImageUrl: z.string().optional(),
   additionalMaterialsUrl: z.string().optional(),
   eventId: z.string().uuid().nullable().optional(),
+  isPrivate: z.boolean().optional(),
   trackIds: z.array(z.string().uuid()).optional(),
   videoUrl: z.string().optional(),
   artifacts: z.unknown().optional(),
@@ -99,6 +100,11 @@ export function normalizeProjectWriteInput(body: unknown) {
       payload.additionalMaterialsUrl ?? payload.additional_materials_url,
     ),
     eventId: normalizeString(payload.eventId ?? payload.event_id) ?? undefined,
+    isPrivate:
+      typeof (payload.isPrivate ?? payload.is_private ?? payload.private) ===
+      "boolean"
+        ? Boolean(payload.isPrivate ?? payload.is_private ?? payload.private)
+        : undefined,
     trackIds: Array.isArray(rawTrackIds)
       ? rawTrackIds.filter((item): item is string => typeof item === "string")
       : undefined,
@@ -600,6 +606,7 @@ export async function saveProjectSubmission(
   if (input.teammates !== undefined) updateData.teammates = input.teammates;
   if (input.videoUrl !== undefined) updateData.video_url = input.videoUrl;
   if (input.eventId !== undefined) updateData.event_id = input.eventId;
+  if (input.isPrivate !== undefined) updateData.private = input.isPrivate;
   if (submitted !== undefined) {
     updateData.submitted = submitted;
     updateData.submitted_at = submitted ? new Date().toISOString() : null;
@@ -788,6 +795,7 @@ export async function saveProjectSubmission(
       cover_image_url,
       event_id,
       contextus_project_id,
+      private,
       created_at,
       submitted,
       submitted_at,

@@ -945,6 +945,7 @@ export type Database = {
           id: string;
           lead_email: string | null;
           lead_name: string;
+          private?: boolean | null;
           project_description: string | null;
           project_name: string | null;
           project_url: string | null;
@@ -962,6 +963,7 @@ export type Database = {
           id?: string;
           lead_email?: string | null;
           lead_name: string;
+          private?: boolean | null;
           project_description?: string | null;
           project_name?: string | null;
           project_url?: string | null;
@@ -979,6 +981,7 @@ export type Database = {
           id?: string;
           lead_email?: string | null;
           lead_name?: string;
+          private?: boolean | null;
           project_description?: string | null;
           project_name?: string | null;
           project_url?: string | null;
