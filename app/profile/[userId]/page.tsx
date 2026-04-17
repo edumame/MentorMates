@@ -38,6 +38,7 @@ import { useToast } from "@/lib/hooks/use-toast";
 import { Toaster } from "@/components/ui/toaster";
 import { getRoleLabel } from "@/features/user/roles/roles";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
+import { PHONE_NUMBER_TEXT_USAGE_COPY } from "@/lib/constants/privacy";
 import { z } from "zod";
 
 // Interface for events with role information
@@ -1429,6 +1430,18 @@ export default function ProfilePage() {
                       className="flex-1 text-base bg-transparent outline-none placeholder:text-black/60"
                     />
                   </div>
+                  <p className="text-[12px] leading-relaxed text-zinc-600">
+                    By providing your phone number, you consent to receiving
+                    text updates about events you have joined or are interested
+                    in joining. {PHONE_NUMBER_TEXT_USAGE_COPY} See our{" "}
+                    <Link
+                      href="/privacy"
+                      className="text-[#4b89ef] hover:underline"
+                    >
+                      Privacy Policy
+                    </Link>
+                    .
+                  </p>
                   {validationErrors.phone_number && (
                     <p className="text-sm text-red-500">
                       {validationErrors.phone_number}
