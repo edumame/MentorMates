@@ -2,6 +2,7 @@ import {
   applyEffectiveSubmissionToProject,
   buildEffectiveSubmissionFields,
   buildSubmissionAnswersPayload,
+  hasSubmissionFieldMismatch,
   hasConfiguredSubmissionFields,
 } from "./effectiveSubmission";
 import type {
@@ -114,6 +115,38 @@ describe("effective submission helpers", () => {
         answer: ["Next.js", "Supabase"],
       },
     ]);
+  });
+
+  it("detects when stored answers reference removed submission fields", () => {
+    expect(
+      hasSubmissionFieldMismatch(
+        [
+          {
+            id: "answer-1",
+            project_id: "project-1",
+            event_submission_field_id: "removed-field",
+            answer: "Legacy answer",
+          },
+        ],
+        configuredFields
+      )
+    ).toBe(true);
+  });
+
+  it("treats orphaned answers as a mismatch when no configured fields remain", () => {
+    expect(
+      hasSubmissionFieldMismatch(
+        [
+          {
+            id: "answer-1",
+            project_id: "project-1",
+            event_submission_field_id: "old-field",
+            answer: "Legacy answer",
+          },
+        ],
+        []
+      )
+    ).toBe(true);
   });
 
   it("hydrates project views from configured submission answers and synthesizes artifacts", () => {

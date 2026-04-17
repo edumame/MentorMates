@@ -6,7 +6,9 @@ import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
+  AlertTriangle,
   Loader2,
   Trash2,
   ExternalLink,
@@ -48,6 +50,7 @@ import { useProjectSubmissionAutosave } from "@/features/projects/components/for
 import {
   buildEffectiveSubmissionFields,
   buildSubmissionAnswersPayload,
+  hasSubmissionFieldMismatch,
   type SubmissionValue,
 } from "@/features/projects/utils/effectiveSubmission";
 import type {
@@ -118,7 +121,11 @@ export default function DraftProjectSubmissionFormSinglePage({
   const [extraProjectUrls, setExtraProjectUrls] = useState<string[]>([]);
   const [extraVideoUrls, setExtraVideoUrls] = useState<string[]>([]);
   const [extraMaterialsUrls, setExtraMaterialsUrls] = useState<string[]>([]);
-  const [submissionFields, setSubmissionFields] = useState<EventSubmissionField[]>([]);
+  const [submissionFields, setSubmissionFields] = useState<EventSubmissionField[]>(
+    initialProject.has_submission_field_config
+      ? initialProject.submission_fields || []
+      : []
+  );
   const [submissionAnswers, setSubmissionAnswers] = useState<
     Record<string, SubmissionValue>
   >(() =>
@@ -144,6 +151,9 @@ export default function DraftProjectSubmissionFormSinglePage({
   const [availableTracks, setAvailableTracks] = useState<EventTrack[]>([]);
   const [selectedTrackIds, setSelectedTrackIds] = useState<string[]>([]);
   const [isLoadingTracks, setIsLoadingTracks] = useState(false);
+  const [liveMismatchMessage, setLiveMismatchMessage] = useState<string | null>(
+    null
+  );
 
   const fetchAvailableEvents = useCallback(async () => {
     setIsLoadingEvents(true);
@@ -345,6 +355,16 @@ export default function DraftProjectSubmissionFormSinglePage({
     [project.event_id, submissionFields]
   );
   const hasConfiguredSubmissionFields = submissionFields.length > 0;
+  const hasStoredSubmissionFieldMismatch = useMemo(
+    () =>
+      hasSubmissionFieldMismatch(project.submission_answers, submissionFields),
+    [project.submission_answers, submissionFields]
+  );
+  const submissionFieldMismatchMessage =
+    liveMismatchMessage ||
+    (hasStoredSubmissionFieldMismatch
+      ? "This draft still has answers from an older submission form. Review the current fields and save again before publishing."
+      : null);
 
   const getSubmissionFieldValue = useCallback(
     (field: (typeof effectiveSubmissionFields)[number]): SubmissionValue => {
@@ -551,7 +571,18 @@ export default function DraftProjectSubmissionFormSinglePage({
     onSaved: (savedProject) => {
       if (savedProject) {
         setProject(savedProject);
+        setLiveMismatchMessage(null);
       }
+    },
+    onError: (error) => {
+      if (error.code !== "submission_field_mismatch") {
+        return;
+      }
+
+      setLiveMismatchMessage(
+        error.message ||
+          "Submission fields changed while you were editing. Refresh this page to load the latest form."
+      );
     },
   });
 
@@ -849,6 +880,12 @@ export default function DraftProjectSubmissionFormSinglePage({
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
+      if (errorData.code === "submission_field_mismatch") {
+        setLiveMismatchMessage(
+          errorData.error ||
+            "Submission fields changed while you were editing. Refresh this page to load the latest form."
+        );
+      }
       throw new Error(errorData.error || "Failed to publish project");
     }
 
@@ -1037,6 +1074,26 @@ export default function DraftProjectSubmissionFormSinglePage({
                   Edit your project
                 </h1>
               </div>
+
+              {submissionFieldMismatchMessage ? (
+                <Alert className="border-amber-200 bg-amber-50 text-amber-900 [&>svg]:text-amber-700">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>Submission form changed</AlertTitle>
+                  <AlertDescription className="space-y-3 text-amber-900">
+                    <p>{submissionFieldMismatchMessage}</p>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="border-amber-300 bg-white text-amber-900 hover:bg-amber-100"
+                        onClick={() => window.location.reload()}
+                      >
+                        Refresh form
+                      </Button>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              ) : null}
 
               <div className="space-y-4">
                 <ProjectSubmissionSchemaSection
