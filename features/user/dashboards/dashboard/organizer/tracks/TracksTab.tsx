@@ -101,8 +101,6 @@ export function TracksTab({
         if (insertError) throw insertError;
       }
 
-      if (error) throw error;
-
       const { data: refreshedTracks } = await supabase
         .from("event_tracks")
         .select(
