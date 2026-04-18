@@ -2,10 +2,10 @@ import rehypeRaw from 'rehype-raw';
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
 import type { PluggableList } from 'unified';
 
-// Extend the default sanitize schema to allow iframes with safe attributes
+// Extend the default sanitize schema to allow iframes and video elements
 const iframeSanitizeSchema = {
   ...defaultSchema,
-  tagNames: [...(defaultSchema.tagNames || []), 'iframe'],
+  tagNames: [...(defaultSchema.tagNames || []), 'iframe', 'video', 'source'],
   attributes: {
     ...defaultSchema.attributes,
     iframe: [
@@ -22,6 +22,22 @@ const iframeSanitizeSchema = {
       'className',
       'class',
     ],
+    video: [
+      'src',
+      'controls',
+      'autoplay',
+      'muted',
+      'loop',
+      'playsinline',
+      'poster',
+      'preload',
+      'width',
+      'height',
+      'className',
+      'class',
+      'style',
+    ],
+    source: ['src', 'type'],
   },
 };
 

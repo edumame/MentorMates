@@ -21,15 +21,14 @@ import { useAdmin } from "@/lib/hooks/use-admin";
 import {
   EventDetails,
   EventSubmissionField,
-  EventVisibility,
 } from "@/lib/types";
 import { useProjectSubmissionData } from "@/features/projects/components/forms/hooks/useProjectSubmissionData";
 import { EventCard } from "@/components/events/event-card";
-import { Public } from "@mui/icons-material";
-import Link from "next/link";
 import { ParticipantIntakeDialog } from "@/features/intake-forms/components/ParticipantIntakeDialog";
+import { ProjectPrivacySelect } from "@/features/projects/components/forms/components/ProjectPrivacySelect";
 import { ProjectSubmissionSchemaSection } from "@/features/projects/components/forms/components/ProjectSubmissionSchemaSection";
 import { useProjectSubmissionAutosave } from "@/features/projects/components/forms/hooks/useProjectSubmissionAutosave";
+import { getProjectVisibilityDescription } from "@/features/projects/components/forms/utils/projectPrivacy";
 import {
   buildEffectiveSubmissionFields,
   buildSubmissionAnswersPayload,
@@ -39,6 +38,7 @@ import type {
   IntakeFormAnswers,
   IntakeFormSchema,
 } from "@/features/intake-forms/types";
+import { CoverImageWithFallback } from "@/features/projects/components/displays/cover-image-with-fallback";
 
 interface EventParticipant {
   user_id: string;
@@ -61,6 +61,7 @@ type PublishPayload = {
   projectUrl: string;
   coverImageUrl: string;
   additionalMaterialsUrl: string;
+  private: boolean;
   eventId?: string;
   trackIds: string[];
   videoUrl: string;
@@ -108,10 +109,7 @@ export function NewProjectSubmissionFormSinglePage({
   const [participants, setParticipants] = useState<EventParticipant[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedTrackIds, setSelectedTrackIds] = useState<string[]>([]);
-  const [visibility, setVisibility] = useState<EventVisibility>(
-    EventVisibility.Public
-  );
-  const [showVisibilityDropdown, setShowVisibilityDropdown] = useState(false);
+  const [isPrivate, setIsPrivate] = useState(false);
   const [showMobileActions, setShowMobileActions] = useState(false);
   const [isDeletingDraft, setIsDeletingDraft] = useState(false);
   const [extraProjectUrls, setExtraProjectUrls] = useState<string[]>([]);
@@ -519,6 +517,7 @@ export function NewProjectSubmissionFormSinglePage({
       lead_name: formData.leadName,
       lead_email: formData.leadEmail,
       teammates: validTeammates,
+      private: isPrivate,
     },
   });
 
@@ -662,6 +661,7 @@ export function NewProjectSubmissionFormSinglePage({
         projectUrl: formData.projectUrl,
         coverImageUrl: formData.coverImageUrl,
         additionalMaterialsUrl: formData.additionalMaterialsUrl,
+        private: isPrivate,
         eventId,
         trackIds: selectedTrackIds,
         videoUrl: formData.videoUrl,
@@ -714,8 +714,7 @@ export function NewProjectSubmissionFormSinglePage({
 
       toast({
         title: "Project Successfully Shared!",
-        description:
-          "Your project is now available for others to view and provide feedback.",
+        description: getProjectVisibilityDescription(isPrivate),
       });
       onProjectSubmitted?.();
       router.push(`/projects/${data.data?.id || data.id}`);
@@ -790,8 +789,7 @@ export function NewProjectSubmissionFormSinglePage({
 
       toast({
         title: "Project Successfully Shared!",
-        description:
-          "Your project and intake form have been submitted successfully.",
+        description: `${getProjectVisibilityDescription(isPrivate)} Your intake form was submitted too.`,
       });
       onProjectSubmitted?.();
       setShowIntakeDialog(false);
@@ -959,49 +957,10 @@ export function NewProjectSubmissionFormSinglePage({
                 can be more compact. */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-3">
               <div className="relative w-full sm:w-auto">
-                <button
-                  onClick={() =>
-                    setShowVisibilityDropdown(!showVisibilityDropdown)
-                  }
-                  className="flex items-center gap-2 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] px-3 py-2 h-[44px] w-full sm:w-[142px] hover:bg-gray-50 transition-colors"
-                >
-                  <Public className="w-6 h-6" />
-                  <span className="text-[16px] font-normal">
-                    {visibility.charAt(0).toUpperCase() + visibility.slice(1)}
-                  </span>
-                  <svg
-                    className="w-6 h-6 ml-auto"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                  >
-                    <path
-                      d="M7 10l5 5 5-5"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </button>
-
-                {showVisibilityDropdown && (
-                  <div className="absolute top-full py-1.5 px-1 mt-2 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] shadow-lg z-10 w-[160px] overflow-hidden">
-                    {[EventVisibility.Public, EventVisibility.Private].map(
-                      (vis) => (
-                        <button
-                          key={vis}
-                          onClick={() => {
-                            setVisibility(vis);
-                            setShowVisibilityDropdown(false);
-                          }}
-                          className="w-full text-left px-3 py-2 hover:bg-[#F2F2F2] text-[16px] rounded-[8px]"
-                        >
-                          {vis.charAt(0).toUpperCase() + vis.slice(1)}
-                        </button>
-                      )
-                    )}
-                  </div>
-                )}
+                  <ProjectPrivacySelect
+                    value={isPrivate}
+                    onValueChange={setIsPrivate}
+                  />
               </div>
               <div className="flex items-center justify-end gap-2">
                 {/* Desktop actions */}
@@ -1304,7 +1263,7 @@ export function NewProjectSubmissionFormSinglePage({
                     {/* Cover Image */}
                     <div className="aspect-[339/220] relative">
                       {formData.coverImageUrl ? (
-                        <img
+                        <CoverImageWithFallback
                           src={formData.coverImageUrl}
                           alt="Cover"
                           className="w-full h-full object-cover"
@@ -1403,25 +1362,21 @@ export function NewProjectSubmissionFormSinglePage({
                         Submitted to
                       </h3>
                       <div className="w-[339px]">
-                        <Link
-                          href={`/events/${eventDetails.event_id}/overview`}
-                        >
-                          <EventCard
-                            event={{
-                              event_id: eventDetails.event_id,
-                              slug: eventDetails.slug,
-                              event_name: eventDetails.event_name,
-                              event_date: eventDetails.event_date,
-                              location: eventDetails.location || "Online",
-                              cover_image_url: eventDetails.cover_image_url,
-                              paid: eventDetails.paid,
-                              event_blurb:
-                                eventDetails.event_blurb ||
-                                eventDetails.event_description,
-                              event_description: eventDetails.event_description,
-                            }}
-                          />
-                        </Link>
+                        <EventCard
+                          event={{
+                            event_id: eventDetails.event_id,
+                            slug: eventDetails.slug,
+                            event_name: eventDetails.event_name,
+                            event_date: eventDetails.event_date,
+                            location: eventDetails.location || "Online",
+                            cover_image_url: eventDetails.cover_image_url,
+                            paid: eventDetails.paid,
+                            event_blurb:
+                              eventDetails.event_blurb ||
+                              eventDetails.event_description,
+                            event_description: eventDetails.event_description,
+                          }}
+                        />
                       </div>
                     </div>
                   </>

@@ -39,7 +39,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { QRCodeSVG } from "qrcode.react";
 import { Input } from "@/components/ui/input";
 import { ProjectDescription } from "@/components/projects/ProjectDescription";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { getInitials } from "@/lib/utils/string";
 import { ProjectSubmissionDetails } from "@/features/projects/components/displays/ProjectSubmissionDetails";
+import {
+  CoverImageWithFallback,
+  ProjectCoverHero,
+} from "@/features/projects/components/displays/cover-image-with-fallback";
 
 interface EventDetails {
   event_id: string;
@@ -70,6 +76,16 @@ export default function PublicProjectPage() {
     useState<boolean>(false);
   const [activeTab, setActiveTab] = useState("overview");
   const [showFeedbackDialog, setShowFeedbackDialog] = useState(false);
+  const [teamProfileByEmail, setTeamProfileByEmail] = useState<
+    Record<
+      string,
+      {
+        displayName: string | null;
+        avatarUrl: string | null;
+        affiliation: string | null;
+      }
+    >
+  >({});
 
   // QR Code functionality
   const { handleCopyQR, handleDownloadQR } = useQRCodeActions(
@@ -111,6 +127,60 @@ export default function PublicProjectPage() {
 
     fetchProject();
   }, [projectId]);
+
+  // Fetch team profile data (display name, avatar, affiliation) from user_profiles
+  useEffect(() => {
+    if (!project) return;
+    if (!project.lead_email && !(project.teammates?.length ?? 0)) return;
+
+    const emails = Array.from(
+      new Set([project.lead_email, ...(project.teammates ?? [])])
+    )
+      .filter(Boolean)
+      .map((e) => String(e).toLowerCase());
+
+    if (emails.length === 0) return;
+
+    let alive = true;
+
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from("user_profiles")
+          .select("email, affiliation, avatar_url, display_name")
+          .in("email", emails);
+
+        if (error || !alive) return;
+
+        const map: Record<
+          string,
+          {
+            displayName: string | null;
+            avatarUrl: string | null;
+            affiliation: string | null;
+          }
+        > = {};
+
+        for (const row of data ?? []) {
+          const email = row.email?.toLowerCase();
+          if (!email) continue;
+          map[email] = {
+            displayName: row.display_name?.trim() || null,
+            avatarUrl: row.avatar_url?.trim() || null,
+            affiliation: row.affiliation?.trim() || null,
+          };
+        }
+
+        setTeamProfileByEmail(map);
+      } catch {
+        // ignore
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [project?.lead_email, project?.teammates, project]);
 
   // Fetch event details when project is loaded
   useEffect(() => {
@@ -273,6 +343,23 @@ export default function PublicProjectPage() {
   }
 
   const totalMembers = (project.teammates?.length || 0) + 1;
+  const teamMembers =
+    project &&
+    [
+      {
+        email: project.lead_email,
+        displayName:
+          teamProfileByEmail[project.lead_email.toLowerCase()]?.displayName ||
+          project.lead_name,
+        role: "lead" as const,
+      },
+      ...(project.teammates ?? []).map((email) => ({
+        email,
+        displayName:
+          teamProfileByEmail[email.toLowerCase()]?.displayName || email,
+        role: "member" as const,
+      })),
+    ];
   const feedbackUrl = typeof window !== "undefined" ? window.location.href : "";
   const selectedTrack = projectTracks.find(
     (track) => track.track_id === selectedTrackId,
@@ -503,14 +590,10 @@ export default function PublicProjectPage() {
 
               {/* Right: Cover Image */}
               <div className="w-full lg:w-[520px] h-[200px] sm:h-[250px] lg:h-[300px] rounded-2xl overflow-hidden shadow-lg order-2">
-                <div
-                  className="w-full h-full bg-cover bg-center bg-no-repeat"
-                  style={{
-                    backgroundImage: `url(${
-                      project.cover_image_url || "/img/placeholder.png"
-                    })`,
-                  }}
-                ></div>
+                <ProjectCoverHero
+                  src={project.cover_image_url}
+                  alt={`${project.project_name || "Project"} cover`}
+                />
               </div>
             </div>
 
@@ -616,7 +699,7 @@ export default function PublicProjectPage() {
                       {project.cover_image_url && (
                         <div className="space-y-2 rounded-xl border border-black/10 p-3">
                           <div className="rounded-xl overflow-hidden">
-                            <img
+                            <CoverImageWithFallback
                               src={project.cover_image_url}
                               alt="Project cover"
                               className="w-full h-auto object-cover"
@@ -646,11 +729,31 @@ export default function PublicProjectPage() {
                         <div className="space-y-6">
                           {/* Project Lead */}
                           <div className="flex gap-4 items-center">
-                            <div className="w-14 h-14 rounded-full bg-gray-300 flex-shrink-0"></div>
+                            <Avatar className="h-14 w-14 shrink-0">
+                              <AvatarImage
+                                src={
+                                  teamProfileByEmail[
+                                    project.lead_email.toLowerCase()
+                                  ]?.avatarUrl ?? undefined
+                                }
+                                alt={
+                                  teamProfileByEmail[
+                                    project.lead_email.toLowerCase()
+                                  ]?.displayName ||
+                                  project.lead_name ||
+                                  project.lead_email
+                                }
+                              />
+                              <AvatarFallback>
+                                {getInitials(project.lead_name || project.lead_email)}
+                              </AvatarFallback>
+                            </Avatar>
                             <div>
                               <div className="flex items-center gap-2">
                                 <p className="font-semibold text-base text-black">
-                                  {project.lead_name}
+                                  {teamProfileByEmail[
+                                    project.lead_email.toLowerCase()
+                                  ]?.displayName || project.lead_name}
                                 </p>
                                 <Badge
                                   variant="secondary"
@@ -659,9 +762,21 @@ export default function PublicProjectPage() {
                                   Lead
                                 </Badge>
                               </div>
-                              <p className="text-base text-black">
-                                {project.lead_email}
-                              </p>
+                              {teamProfileByEmail[
+                                project.lead_email.toLowerCase()
+                              ]?.affiliation ? (
+                                <p className="text-base text-black">
+                                  {
+                                    teamProfileByEmail[
+                                      project.lead_email.toLowerCase()
+                                    ]?.affiliation
+                                  }
+                                </p>
+                              ) : (
+                                <p className="text-base text-black">
+                                  {project.lead_email}
+                                </p>
+                              )}
                             </div>
                           </div>
 
@@ -673,11 +788,42 @@ export default function PublicProjectPage() {
                                 key={index}
                                 className="flex gap-4 items-center"
                               >
-                                <div className="w-14 h-14 rounded-full bg-gray-300 flex-shrink-0"></div>
+                                <Avatar className="h-14 w-14 shrink-0">
+                                  <AvatarImage
+                                    src={
+                                      teamProfileByEmail[
+                                        teammate.toLowerCase()
+                                      ]?.avatarUrl ?? undefined
+                                    }
+                                    alt={
+                                      teamProfileByEmail[
+                                        teammate.toLowerCase()
+                                      ]?.displayName || teammate
+                                    }
+                                  />
+                                  <AvatarFallback>
+                                    {getInitials(
+                                      teamProfileByEmail[
+                                        teammate.toLowerCase()
+                                      ]?.displayName || teammate
+                                    )}
+                                  </AvatarFallback>
+                                </Avatar>
                                 <div className="space-y-0">
                                   <p className="font-semibold text-base text-black">
-                                    {teammate}
+                                    {teamProfileByEmail[teammate.toLowerCase()]
+                                      ?.displayName || teammate}
                                   </p>
+                                  {teamProfileByEmail[teammate.toLowerCase()]
+                                    ?.affiliation ? (
+                                    <p className="text-base text-black">
+                                      {
+                                        teamProfileByEmail[
+                                          teammate.toLowerCase()
+                                        ]?.affiliation
+                                      }
+                                    </p>
+                                  ) : null}
                                 </div>
                               </div>
                             ))}
@@ -929,31 +1075,61 @@ export default function PublicProjectPage() {
                       <CardTitle>Team Members</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between p-3 border rounded">
-                          <div>
-                            <p className="font-medium">{project.lead_name}</p>
-                            <p className="text-sm text-gray-500">
-                              {project.lead_email}
-                            </p>
-                          </div>
-                          <Badge>Lead</Badge>
-                        </div>
+                      <div className="space-y-4">
+                        {teamMembers?.map((member) => {
+                          const emailKey = member.email.toLowerCase();
+                          const profile = teamProfileByEmail[emailKey];
+                          const title =
+                            member.displayName?.trim() || member.email;
+                          const subtitle =
+                            profile?.affiliation?.trim() ||
+                            (title.toLowerCase() === member.email.toLowerCase()
+                              ? member.email
+                              : null);
 
-                        {project.teammates?.map((teammate, index) => (
-                          <div
-                            key={index}
-                            className="flex items-center justify-between p-3 border rounded"
-                          >
-                            <div>
-                              <p className="font-medium">{teammate}</p>
-                              <p className="text-sm text-gray-500">
-                                Team Member
-                              </p>
+                          return (
+                            <div
+                              key={member.email}
+                              className="flex items-center justify-between gap-4"
+                            >
+                              <div className="flex items-center gap-4 min-w-0">
+                                <Avatar className="h-14 w-14 shrink-0">
+                                  <AvatarImage
+                                    src={profile?.avatarUrl ?? undefined}
+                                    alt={title}
+                                  />
+                                  <AvatarFallback>
+                                    {getInitials(title)}
+                                  </AvatarFallback>
+                                </Avatar>
+
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <p className="font-semibold text-base text-black truncate">
+                                      {title}
+                                    </p>
+                                    {member.role === "lead" ? (
+                                      <Badge
+                                        variant="secondary"
+                                        className="bg-transparent border border-black/15 text-black rounded-full text-sm px-2.5 py-0.5"
+                                      >
+                                        Lead
+                                      </Badge>
+                                    ) : null}
+                                  </div>
+                                  {subtitle ? (
+                                    <p className="text-base text-black truncate">
+                                      {subtitle}
+                                    </p>
+                                  ) : null}
+                                </div>
+                              </div>
+
+                              {/* Placeholder for future actions like Follow button */}
+                              <div className="shrink-0" />
                             </div>
-                            <Badge variant="secondary">Member</Badge>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </CardContent>
                   </Card>
