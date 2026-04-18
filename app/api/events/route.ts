@@ -179,6 +179,7 @@ const eventSchema = z.object({
     .optional(),
   approval_status: z.nativeEnum(ApprovalStatus).optional(),
   featured: z.boolean().optional(),
+  event_type: z.array(z.string()).optional(),
 });
 
 const payloadSchema = z.object({
@@ -254,6 +255,7 @@ export async function POST(req: Request) {
       owner_id: user.id, // Set the creator as the owner
       approval_status: event.approval_status ?? ApprovalStatus.NotSubmitted, // Events default to not_submitted (visibility controls draft/private/public)
       featured: event.featured ?? false,
+      event_type: (event.event_type ?? []) as string[],
     };
 
     const { data: createdEvent, error: insertError } = await supabase
@@ -264,6 +266,14 @@ export async function POST(req: Request) {
 
     if (insertError || !createdEvent) {
       console.error("Error creating event:", insertError);
+
+      if (insertError?.message?.toLowerCase().includes("events_slug_key")) {
+        return NextResponse.json(
+          { error: "Event slug already exists. Please try a different slug." },
+          { status: 400 }
+        );
+      }
+
       return NextResponse.json(
         { error: "Failed to create event" },
         { status: 500 }

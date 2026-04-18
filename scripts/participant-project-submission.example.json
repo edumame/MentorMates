@@ -1,0 +1,38 @@
+{
+  "project_name": "MentorMates CLI Smoke Test Project",
+  "project_description": "A test submission body for exercising the participant agent project submission endpoint with curl.",
+  "project_url": "https://example.com/project",
+  "video_url": "https://example.com/demo",
+  "additional_materials_url": "https://example.com/slides",
+  "cover_image_url": "https://images.unsplash.com/photo-1516321318423-f06f85e504b3",
+  "lead_name": "CLI Test User",
+  "lead_email": "cli-test@example.com",
+  "teammates": [
+    "teammate-one@example.com",
+    "teammate-two@example.com"
+  ],
+  "artifacts": [
+    {
+      "kind": "project_link",
+      "label": "Project Link",
+      "url": "https://example.com/project",
+      "sort_order": 0,
+      "is_primary": true
+    },
+    {
+      "kind": "video_link",
+      "label": "Demo Video",
+      "url": "https://example.com/demo",
+      "sort_order": 1,
+      "is_primary": true
+    },
+    {
+      "kind": "additional_material",
+      "label": "Pitch Deck",
+      "url": "https://example.com/slides",
+      "sort_order": 2,
+      "is_primary": true
+    }
+  ],
+  "submissionAnswers": []
+}

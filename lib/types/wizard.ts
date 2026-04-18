@@ -214,6 +214,7 @@ export interface EventApiPayload {
     event_name: string;
     event_date: string;
     location: string;
+    event_type?: string[];
     slug?: string;
     cover_image_url?: string;
     event_blurb?: string;
@@ -286,6 +287,7 @@ export function buildApiPayload(event: WizardEventData): EventApiPayload {
     e.submission_time_cutoff = event.submission_time_cutoff;
   if (event.participant_capacity)
     e.participant_capacity = event.participant_capacity;
+  if (event.event_type) e.event_type = event.event_type;
   if (event.max_projects)
     e.max_projects = event.max_projects;
 

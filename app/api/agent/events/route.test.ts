@@ -107,7 +107,7 @@ describe("GET /api/agent/events", () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
-      message: "event_id query parameter is required for reusable keys",
+      message: "event_id or event_slug query parameter is required for reusable keys",
       requires_event_id: true,
       events: [
         {
