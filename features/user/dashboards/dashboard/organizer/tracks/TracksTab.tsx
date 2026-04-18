@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { CompactScoringForm } from "@/features/user/dashboards/dashboard/organizer/tracks/CompactScoringForm";
 import { JudgingSidebar } from "@/features/user/dashboards/dashboard/organizer/tracks/JudgingSidebar";
 import { buildEventTrackScoringCriteriaFromConfig } from "@/lib/judging/scoring-config";
+import { classifyTrackEntries } from "./classify-track-entries";
 import { EventDetails, EventScoringConfig, EventTrack } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
 import { Pencil, Eye, Scale, Download } from "lucide-react";
@@ -68,28 +69,37 @@ export function TracksTab({
       setSaving(true);
       setScoringConfig(config);
 
-      const tracksToUpsert = Object.entries(config.tracks).map(
-        ([trackId, trackConfig]) => ({
-          track_id: trackId,
-          event_id: eventId,
-          name: trackConfig.name,
-          description: trackConfig.name,
+      const existingDbTrackIds = new Set(tracks.map((t) => t.track_id));
+      const { existing, newTracks } = classifyTrackEntries(
+        Object.keys(config.tracks),
+        existingDbTrackIds,
+        eventId,
+        (trackId) => ({
+          name: config.tracks[trackId].name,
+          description: config.tracks[trackId].name,
           scoring_criteria: buildEventTrackScoringCriteriaFromConfig({
             trackId,
-            trackConfig,
+            trackConfig: config.tracks[trackId],
             rounds: config.rounds,
           }),
-        })
+        }),
       );
 
-      const { error } = await supabase
-        .from("event_tracks")
-        .upsert(tracksToUpsert, {
-          onConflict: "track_id",
-          ignoreDuplicates: false,
-        });
+      // Upsert existing tracks (real UUIDs already in DB)
+      if (existing.length > 0) {
+        const { error: upsertError } = await supabase
+          .from("event_tracks")
+          .upsert(existing, { onConflict: "track_id", ignoreDuplicates: false });
+        if (upsertError) throw upsertError;
+      }
 
-      if (error) throw error;
+      // Insert new tracks — omit track_id so Postgres gen_random_uuid() fills it
+      if (newTracks.length > 0) {
+        const { error: insertError } = await supabase
+          .from("event_tracks")
+          .insert(newTracks);
+        if (insertError) throw insertError;
+      }
 
       const { data: refreshedTracks } = await supabase
         .from("event_tracks")

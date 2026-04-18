@@ -135,6 +135,16 @@ describe("copyToClipboard", () => {
       expect(capturedValue).toBe(testKey);
       expect(document.querySelector("textarea")).toBeNull();
     });
+
+    it("fixed version: always returns copied even on fallback", async () => {
+      setClipboard(
+        jest.fn().mockRejectedValue(new Error("Permission denied"))
+      );
+      document.execCommand = jest.fn().mockReturnValue(true);
+
+      const result = await copyFixed(testKey);
+      expect(result).toBe("copied");
+    });
   });
 });
 
@@ -167,7 +177,9 @@ describe("buildCopyableMarkdown", () => {
         isOrg: false,
         generatedApiKey: realKey,
       });
-      expect(md).toContain(`export MENTORMATES_PARTICIPANT_API_KEY="${realKey}"`);
+      expect(md).toContain(
+        `export MENTORMATES_PARTICIPANT_API_KEY="${realKey}"`
+      );
     });
 
     it("falls back to placeholder when no key has been generated", () => {
