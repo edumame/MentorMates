@@ -955,16 +955,16 @@ export function NewProjectSubmissionFormSinglePage({
                 #4b89ef primary, Inter). The mobile Publish button is already
                 available in a sticky bottom bar (PR #639), so the top version
                 can be more compact. */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-3">
+            <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="relative w-full sm:w-auto">
-                  <ProjectPrivacySelect
-                    value={isPrivate}
-                    onValueChange={setIsPrivate}
-                  />
+                <ProjectPrivacySelect
+                  value={isPrivate}
+                  onValueChange={setIsPrivate}
+                />
               </div>
-              <div className="flex items-center justify-end gap-2">
+              <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
                 {/* Desktop actions */}
-                <div className="hidden sm:flex items-center gap-1">
+                <div className="hidden items-center gap-1 sm:flex">
                   <Button
                     variant="secondary"
                     onClick={() =>
@@ -1050,46 +1050,7 @@ export function NewProjectSubmissionFormSinglePage({
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-1 justify-end">
-              <Button
-                variant="secondary"
-                onClick={() =>
-                  router.push(
-                    eventDetails?.slug
-                      ? `/events/${eventDetails.slug}/overview`
-                      : eventId
-                        ? `/events/${eventId}/overview`
-                        : `/projects`
-                  )
-                }
-                className="bg-[#f2f2f2] hover:bg-[#e8e8e8] text-black rounded-xl px-6 py-2.5 shadow-sm font-medium"
-              >
-                Save draft and exit
-              </Button>
-              <Button
-                onClick={handleDeleteDraft}
-                disabled={isDeletingDraft}
-                className="bg-red-600 hover:bg-red-700 text-white rounded-xl px-6 py-2.5 shadow-sm font-medium"
-              >
-                Delete draft
-              </Button>
-              <Button
-                onClick={handlePublish}
-                disabled={isSubmitting}
-                className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-6 py-2.5 shadow-sm font-medium"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Publishing...
-                  </>
-                ) : (
-                  "Publish project"
-                )}
-              </Button>
-            </div>
-          </div>
-          <div className="flex justify-between gap-[50px] sm:gap-[85px] flex-wrap-reverse sm:flex-nowrap">
+          <div className="flex items-start justify-between gap-[50px] sm:gap-[85px] flex-wrap-reverse sm:flex-nowrap">
               {/* Left Side - Form */}
               <div className="flex-1 space-y-6">
                 <div className="space-y-1">
@@ -1421,6 +1382,7 @@ export function NewProjectSubmissionFormSinglePage({
                   </>
                 )}
               </div>
+            </div>
           </div>
         </div>
       </div>
