@@ -276,6 +276,7 @@ export type Database = {
             | null;
           rejection_reason: string | null;
           require_participant_approval: boolean | null;
+          event_type: string[] | null;
         };
         Insert: {
           cover_image_url?: string | null;
@@ -285,7 +286,6 @@ export type Database = {
           event_description?: string | null;
           event_id?: string;
           event_name: string;
-          event_type?: string[] | [];
           participant_capacity?: number | null;
           event_prizes?: Json | null;
           event_resources?: Json | null;
@@ -309,6 +309,7 @@ export type Database = {
             | Database["public"]["Enums"]["approval_status"]
             | null;
           require_registration_questionnaire?: boolean | null;
+          event_type?: string[] | null;
         };
         Update: {
           cover_image_url?: string | null;
@@ -341,6 +342,7 @@ export type Database = {
             | null;
           visibility?: Database["public"]["Enums"]["event_visibility"];
           require_registration_questionnaire?: boolean | null;
+          event_type?: string[] | null;
         };
         Relationships: [
           {
@@ -653,6 +655,45 @@ export type Database = {
           },
         ];
       };
+      project_round_advancements: {
+        Row: {
+          id: string;
+          event_id: string;
+          project_id: string;
+          round_number: number;
+          advanced_at: string;
+        };
+        Insert: {
+          id?: string;
+          event_id: string;
+          project_id: string;
+          round_number: number;
+          advanced_at?: string;
+        };
+        Update: {
+          id?: string;
+          event_id?: string;
+          project_id?: string;
+          round_number?: number;
+          advanced_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "project_round_advancements_event_id_fkey";
+            columns: ["event_id"];
+            isOneToOne: false;
+            referencedRelation: "events";
+            referencedColumns: ["event_id"];
+          },
+          {
+            foreignKeyName: "project_round_advancements_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "projects";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
       project_scores: {
         Row: {
           comments: string | null;
@@ -665,6 +706,7 @@ export type Database = {
           track_id: string | null;
           updated_at: string | null;
           finalist_recommendation: boolean | null;
+          round_number: number;
         };
         Insert: {
           comments?: string | null;
@@ -677,6 +719,7 @@ export type Database = {
           track_id?: string | null;
           updated_at?: string | null;
           finalist_recommendation?: boolean | null;
+          round_number?: number;
         };
         Update: {
           comments?: string | null;
@@ -689,6 +732,7 @@ export type Database = {
           track_id?: string | null;
           updated_at?: string | null;
           finalist_recommendation?: boolean | null;
+          round_number?: number;
         };
         Relationships: [
           {
@@ -901,6 +945,7 @@ export type Database = {
           id: string;
           lead_email: string | null;
           lead_name: string;
+          private?: boolean | null;
           project_description: string | null;
           project_name: string | null;
           project_url: string | null;
@@ -918,6 +963,7 @@ export type Database = {
           id?: string;
           lead_email?: string | null;
           lead_name: string;
+          private?: boolean | null;
           project_description?: string | null;
           project_name?: string | null;
           project_url?: string | null;
@@ -935,6 +981,7 @@ export type Database = {
           id?: string;
           lead_email?: string | null;
           lead_name?: string;
+          private?: boolean | null;
           project_description?: string | null;
           project_name?: string | null;
           project_url?: string | null;

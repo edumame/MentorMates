@@ -22,8 +22,6 @@ import {
   EventDetails,
   EventRole,
   EventScoringConfig,
-  EventTrack,
-  ScoringCriterion,
 } from "@/lib/types";
 
 // Tab components
@@ -46,6 +44,7 @@ import { RulesTab } from "./details/RulesTab";
 import { FAQTab } from "./details/FAQTab";
 import { useEventArchiveStatus } from "@/lib/hooks/use-event-archive-status";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
+import { buildEventScoringConfig } from "@/lib/events/build-event-scoring-config";
 
 export function OrganizerDashboard({ eventId }: { eventId: string }) {
   const [event, setEvent] = useState<EventDetails | null>(null);
@@ -191,51 +190,7 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
         eventData.event_lessons = lessonsData || [];
         setEvent(eventData);
 
-        // Map event tracks to scoring_config structure if needed
-        if (eventData && eventData.event_tracks) {
-          const tracksConfig: Record<
-            string,
-            {
-              name: string;
-              criteria: Array<{
-                id: string;
-                name: string;
-                description: string;
-                weight: number;
-                min: number;
-                max: number;
-              }>;
-            }
-          > = {};
-
-          eventData.event_tracks.forEach((track: EventTrack) => {
-            if (track.track_id && track.scoring_criteria) {
-              tracksConfig[track.track_id] = {
-                name: track.name,
-                criteria: track.scoring_criteria.criteria.map(
-                  (criterion: ScoringCriterion) => ({
-                    id: criterion.id,
-                    name: criterion.name,
-                    description: criterion.description,
-                    weight: criterion.weight || 1,
-                    min: criterion.min || 1,
-                    max: criterion.max || 10,
-                    type: criterion.type || "numeric",
-                    options: criterion.options || [],
-                  })
-                ),
-              };
-            }
-          });
-
-          const scoreConfig = {
-            tracks: tracksConfig,
-            defaultMin: 1,
-            defaultMax: 10,
-            defaultWeight: 1,
-          };
-          setScoringConfig(scoreConfig);
-        }
+        setScoringConfig(buildEventScoringConfig(eventData));
       } catch (error) {
         console.error("Error fetching event:", error);
         toast({
@@ -414,6 +369,7 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
                           defaultWeight: 1,
                         }
                       }
+                      onScoringConfigSaved={setScoringConfig}
                     />
                     <div className="pt-6 border-t">
                       <h4 className="text-base font-semibold mb-4">

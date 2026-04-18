@@ -74,8 +74,8 @@ The event state includes a "tracks" object or a "scoring_config" object with thi
   }
 }
 
-When creating a new track, generate a unique ID like "track-<timestamp>".
-When creating criteria, generate IDs like "crit-<timestamp>-<index>".
+When creating a new track, do NOT generate a track_id. Omit the track_id field entirely — the database will assign a UUID automatically. Use a placeholder key like "new_track_1" in the JSON patch; the server will replace it with a real UUID on save.
+When creating criteria, generate IDs like "crit-<index>" (short, stable, no timestamps).
 Default criteria weight is 1, min is 1, max is 10, type is "numeric".
 
 Available patch fields:
