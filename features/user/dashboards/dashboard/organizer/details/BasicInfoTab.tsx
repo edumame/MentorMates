@@ -44,6 +44,7 @@ import {
   Type,
   Mail,
   Upload,
+  FolderKanban,
 } from "lucide-react";
 
 interface BasicInfoTabProps {
@@ -185,6 +186,7 @@ export function BasicInfoTab({
           submission_time_start: event.submission_time_start,
           submission_time_cutoff: event.submission_time_cutoff,
           participant_capacity: event.participant_capacity ?? null,
+          max_projects: event.max_projects ?? null,
           finalist_recommendation_enabled:
             event.finalist_recommendation_enabled ?? false,
         })
@@ -456,6 +458,39 @@ export function BasicInfoTab({
           </div>
           <p className="text-xs text-gray-500">
             Leave blank for unlimited participants.
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          <label htmlFor="max-projects" className="text-[16px] font-normal text-black">
+            Project Submission Cap
+          </label>
+          <div className="relative w-full min-w-0">
+            <FolderKanban className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-600" />
+            <Input
+              id="max-projects"
+              type="number"
+              min={1}
+              value={
+                typeof event.max_projects === "number"
+                  ? String(event.max_projects)
+                  : ""
+              }
+              disabled={isArchived}
+              onChange={(e) => {
+                const value = e.target.value;
+                setEvent({
+                  ...event,
+                  max_projects:
+                    value === "" ? null : Math.max(1, parseInt(value, 10) || 1),
+                });
+              }}
+              placeholder="Leave blank for unlimited submissions"
+              className="w-full min-w-0 h-[44px] pl-11 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] placeholder:text-[rgba(0,0,0,0.6)] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+            />
+          </div>
+          <p className="text-xs text-gray-500">
+            Limits how many projects can be submitted to this event per participant.
           </p>
         </div>
 

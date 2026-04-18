@@ -12,6 +12,33 @@ import {
 	buildNullLegacyProjectPayload,
 } from "@/features/projects/utils/effectiveSubmission";
 
+type SubmittedProjectMembership = {
+	id: string;
+	lead_email: string | null;
+	teammates: string[] | null;
+};
+
+function normalizeEmail(email: string | null | undefined) {
+	return email?.trim().toLowerCase() ?? "";
+}
+
+function projectIncludesParticipant(
+	project: SubmittedProjectMembership,
+	participantEmail: string
+) {
+	if (!participantEmail) {
+		return false;
+	}
+
+	if (normalizeEmail(project.lead_email) === participantEmail) {
+		return true;
+	}
+
+	return (project.teammates ?? []).some(
+		(teammateEmail) => normalizeEmail(teammateEmail) === participantEmail
+	);
+}
+
 export async function POST(request: Request) {
 	const supabase = await createSupabaseClient();
 
@@ -19,6 +46,13 @@ export async function POST(request: Request) {
 		const { data: user, error: userError } = await supabase.auth.getUser();
 		if (!user?.user || userError) {
 			return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+		}
+		const participantEmail = normalizeEmail(user.user.email);
+		if (!participantEmail) {
+			return NextResponse.json(
+				{ error: "User email not found" },
+				{ status: 400 }
+			);
 		}
 
 			const body = await request.json();
@@ -115,24 +149,36 @@ export async function POST(request: Request) {
 				);
 			}
 
-			// Enforce max_projects cap — only applies to NEW projects (not edits
-			// to existing ones). Drafts don't count; only submitted projects.
+			// Enforce max_projects cap per participant — only applies to NEW
+			// projects (not edits to existing ones). Drafts don't count; only
+			// submitted projects where the authenticated participant is either the
+			// lead or a teammate count toward the cap.
 			if (eventData.max_projects && !projectId) {
-				const { count: submittedCount } = await supabase
+				const { data: submittedProjects, error: submittedProjectsError } = await supabase
 					.from("projects")
-					.select("id", { count: "exact", head: true })
+					.select("id, lead_email, teammates")
 					.eq("event_id", eventId)
 					.eq("submitted", true);
 
-				if (
-					submittedCount !== null &&
-					submittedCount >= eventData.max_projects
-				) {
+				if (submittedProjectsError) {
+					return NextResponse.json(
+						{ error: "Failed to fetch submitted projects" },
+						{ status: 500 }
+					);
+				}
+
+				const participantSubmittedCount = (
+					(submittedProjects as SubmittedProjectMembership[] | null) ?? []
+				).filter((project) =>
+					projectIncludesParticipant(project, participantEmail)
+				).length;
+
+				if (participantSubmittedCount >= eventData.max_projects) {
 					return NextResponse.json(
 						{
-							error: `This event has reached the maximum of ${eventData.max_projects} submitted projects.`,
+							error: `You have reached the maximum of ${eventData.max_projects} submitted projects for this event.`,
 							max_projects: eventData.max_projects,
-							current_count: submittedCount,
+							current_count: participantSubmittedCount,
 						},
 						{ status: 409 }
 					);

@@ -120,6 +120,7 @@ export type EventItem = {
   paid?: boolean;
   stripe_price_id?: string; // Stripe price ID for paid events
   participant_capacity?: number | null; // Max participants; null = unlimited
+  max_projects?: number | null; // Max submitted projects; null = unlimited
   finalist_recommendation_enabled?: boolean | null;
   event_type?: string[];
   featured?: boolean; // Whether this event is featured on homepage
