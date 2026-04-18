@@ -1,5 +1,6 @@
 /** @jest-environment node */
 
+
 import * as bcrypt from "bcrypt";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { EventRole } from "@/lib/types";
