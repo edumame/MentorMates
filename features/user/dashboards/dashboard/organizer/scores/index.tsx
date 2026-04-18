@@ -628,6 +628,13 @@ export function ScoresTab({
             ? item.event_tracks[0]
             : item.event_tracks;
 
+          const judgeId = item.judge_id ? String(item.judge_id) : null;
+          const judgeProfile = judgeId ? judgeProfilesById.get(judgeId) : null;
+          const judgeName =
+            judgeProfile?.display_name ||
+            judgeProfile?.email ||
+            judgeId;
+
           return {
             scores: item.scores as Record<string, string | number>,
             comments: item.comments,
