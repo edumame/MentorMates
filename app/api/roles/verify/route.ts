@@ -34,9 +34,9 @@ export async function POST(request: Request) {
       );
     }
 
-    const { data: event, error: eventError } = await supabase
+    const { error: eventError } = await supabase
       .from("events")
-      .select("*")
+      .select("event_id")
       .eq("event_id", eventId)
       .maybeSingle();
 
@@ -47,57 +47,42 @@ export async function POST(request: Request) {
       );
     }
 
-    // For all events, check if the role itself requires a password. Remove private password requirement.
-    
-      const isProtectedRole =
-        role === EventRole.Judge || role === EventRole.Organizer;
+    // If this role has a configured password, require and verify it.
+    const { data: rolePassword, error: rolePasswordError } = await supabase
+      .from("role_passwords")
+      .select("password_hash")
+      .eq("event_id", eventId)
+      .eq("role", role)
+      .maybeSingle();
 
-      if (isProtectedRole) {
-        if (!password) {
-          return NextResponse.json(
-            { error: "Password required for this role" },
-            { status: 400 }
-          );
-        }
+    if (rolePasswordError) {
+      return NextResponse.json(
+        { error: "Failed to verify role password" },
+        { status: 500 }
+      );
+    }
 
-        // Get the stored password hash
-        const { data: rolePassword, error: fetchError } = await supabase
-          .from("role_passwords")
-          .select("password_hash")
-          .eq("event_id", eventId)
-          .eq("role", role)
-          .single();
-
-        if (fetchError || !rolePassword) {
-          return NextResponse.json(
-            { error: "No password set for this role" },
-            { status: 404 }
-          );
-        }
-
-        // Verify password
-        const isValid = await bcrypt.compare(
-          password,
-          rolePassword.password_hash
+    if (rolePassword) {
+      if (!password) {
+        return NextResponse.json(
+          { error: "Password required for this role" },
+          { status: 400 }
         );
-
-        if (!isValid) {
-          return NextResponse.json(
-            { error: "Invalid password" },
-            { status: 401 }
-          );
-        }
-      } else {
-        // For non-protected roles (Participant or Mentor), verify the role is valid
-        const validRoles = [EventRole.Participant, EventRole.Mentor];
-        if (!validRoles.includes(role)) {
-          return NextResponse.json({ error: "Invalid role" }, { status: 400 });
-        }
       }
 
+      const isValid = await bcrypt.compare(password, rolePassword.password_hash);
+
+      if (!isValid) {
+        return NextResponse.json(
+          { error: "Invalid password" },
+          { status: 401 }
+        );
+      }
+    }
+
     // At this point, either:
-    // 1. It's a protected role and the role password was verified
-    // 2. It's a non-protected role
+    // 1. This role has a configured password and it was verified
+    // 2. No password is configured for this role
     if (role === EventRole.Participant) {
       const joinResult = await joinParticipantEvent(supabase, {
         eventId,
