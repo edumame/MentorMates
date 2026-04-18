@@ -123,7 +123,18 @@ export default function KeysPageClient({
   }, [activeTab, currentEventOptions, eventId, scopeMode]);
 
   const copyToClipboard = async (text: string, field: string) => {
-    await navigator.clipboard.writeText(text);
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
+    }
     setCopiedField(field);
     window.setTimeout(() => setCopiedField(null), 2000);
   };
@@ -770,7 +781,7 @@ export default function KeysPageClient({
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-white px-3 py-3">
-              <code className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap font-mono text-sm">
+              <code className="flex-1 overflow-x-auto font-mono text-sm select-all">
                 {generatedKey.apiKey}
               </code>
               <Button
