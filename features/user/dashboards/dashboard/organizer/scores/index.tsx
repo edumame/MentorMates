@@ -1084,14 +1084,46 @@ export function ScoresTab({
                                                 {score.judgeScores.map((judgeScore) => (
                                                   <div
                                                     key={judgeScore.judgeId}
-                                                    className="flex items-center justify-between gap-3 rounded-md bg-muted/50 px-2 py-1 text-sm"
+                                                    className="rounded-md bg-muted/50 px-2 py-2 text-sm"
                                                   >
-                                                    <span className="truncate">
-                                                      {judgeScore.judgeName}
-                                                    </span>
-                                                    <span className="font-medium tabular-nums">
-                                                      {judgeScore.totalScore.toFixed(2)}
-                                                    </span>
+                                                    <div className="flex items-center justify-between gap-3">
+                                                      <span className="truncate">
+                                                        {judgeScore.judgeName}
+                                                      </span>
+                                                      <span className="font-medium tabular-nums">
+                                                        {judgeScore.totalScore.toFixed(2)}
+                                                      </span>
+                                                    </div>
+                                                    {choiceCriteria.length > 0 &&
+                                                    Object.keys(judgeScore.choiceAnswers)
+                                                      .length > 0 ? (
+                                                      <div className="mt-1 space-y-1 text-xs text-muted-foreground">
+                                                        {choiceCriteria
+                                                          .filter(
+                                                            (criterion) =>
+                                                              judgeScore.choiceAnswers[
+                                                                criterion.id
+                                                              ]
+                                                          )
+                                                          .map((criterion) => (
+                                                            <div
+                                                              key={`${judgeScore.judgeId}-${criterion.id}`}
+                                                              className="flex items-start gap-1"
+                                                            >
+                                                              <span className="font-medium text-foreground/80">
+                                                                {criterion.name}:
+                                                              </span>
+                                                              <span>
+                                                                {
+                                                                  judgeScore.choiceAnswers[
+                                                                    criterion.id
+                                                                  ]
+                                                                }
+                                                              </span>
+                                                            </div>
+                                                          ))}
+                                                      </div>
+                                                    ) : null}
                                                   </div>
                                                 ))}
                                               </div>

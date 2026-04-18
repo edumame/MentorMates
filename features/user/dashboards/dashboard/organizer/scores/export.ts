@@ -39,6 +39,7 @@ export interface JudgeScoreSummary {
   judgeName: string;
   totalScore: number;
   submittedAt: string | null;
+  choiceAnswers: Record<string, string>;
 }
 
 export interface TrackScore {
@@ -189,8 +190,27 @@ function addProjectScore(
       judgeName,
       totalScore,
       submittedAt: score.created_at ?? null,
+      choiceAnswers: {},
     });
   }
+
+  Object.entries(score.scores).forEach(([criterionId, scoreValue]) => {
+    const criterion = trackConfig.criteria.find(
+      (item: ScoringCriterion) => item.id === criterionId
+    );
+    if (!criterion || criterion.type !== "multiplechoice") {
+      return;
+    }
+
+    const judgeScore = projectScore.judgeScores.find(
+      (item) => item.judgeId === judgeKey
+    );
+    if (!judgeScore) {
+      return;
+    }
+
+    judgeScore.choiceAnswers[criterionId] = String(scoreValue);
+  });
 
   Object.keys(projectScore.criterionScores).forEach((criterionId) => {
     projectScore.criterionScores[criterionId].average =

@@ -73,6 +73,38 @@ describe("score exports", () => {
       },
     ],
   };
+  const scoringConfigWithChoice: EventScoringConfig = {
+    tracks: {
+      main: {
+        name: "Main Track",
+        criteria: [
+          {
+            id: "impact",
+            name: "Impact",
+            description: "Impact score",
+            weight: 2,
+            min: 1,
+            max: 10,
+            type: "numeric",
+            options: [],
+          },
+          {
+            id: "award_fit",
+            name: "Award Fit",
+            description: "Best fitting award",
+            weight: 1,
+            min: 1,
+            max: 1,
+            type: "multiplechoice",
+            options: ["Best AI", "Best UX"],
+          },
+        ],
+      },
+    },
+    defaultMin: 1,
+    defaultMax: 10,
+    defaultWeight: 1,
+  };
 
   it("keeps track rankings separate for each round", () => {
     const scoreData: DashboardProjectScore[] = [
@@ -199,12 +231,52 @@ describe("score exports", () => {
         judgeName: "Alex Judge",
         totalScore: 24,
         submittedAt: "2026-04-01T09:00:00.000Z",
+        choiceAnswers: {},
       },
       {
         judgeId: "judge-b",
         judgeName: "Zara Judge",
         totalScore: 23,
         submittedAt: "2026-04-01T10:00:00.000Z",
+        choiceAnswers: {},
+      },
+    ]);
+  });
+
+  it("stores each judge's multiple-choice answers in the breakdown", () => {
+    const trackScores = buildTrackScores(
+      [
+        {
+          project_id: "p1",
+          track_id: "main",
+          event_id: "event-1",
+          round_number: 1,
+          judge_id: "judge-a",
+          judge_name: "Alex Judge",
+          created_at: "2026-04-01T09:00:00.000Z",
+          scores: { impact: 9, award_fit: "Best AI" },
+          projects: {
+            project_name: "Alpha",
+            lead_name: "Alice",
+            event_id: "event-1",
+          },
+          tracks: {
+            name: "Main Track",
+          },
+        },
+      ],
+      scoringConfigWithChoice
+    );
+
+    expect(trackScores.main[0].judgeScores).toEqual([
+      {
+        judgeId: "judge-a",
+        judgeName: "Alex Judge",
+        totalScore: 18,
+        submittedAt: "2026-04-01T09:00:00.000Z",
+        choiceAnswers: {
+          award_fit: "Best AI",
+        },
       },
     ]);
   });
