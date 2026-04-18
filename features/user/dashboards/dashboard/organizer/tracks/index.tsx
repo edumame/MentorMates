@@ -9,6 +9,7 @@ import { useEventArchiveStatus } from "@/lib/hooks/use-event-archive-status";
 import { TracksTab } from "./TracksTab";
 import { PrizesTab } from "./PrizesTab";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Info } from "lucide-react";
 
 interface EventTracksContainerProps {
   eventId: string;
