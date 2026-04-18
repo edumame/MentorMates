@@ -131,19 +131,33 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// Shared shapes (kept aligned with createEventSchema below)
-const prizeShape = z.object({
-  track: z.string(),
-  prize: z.string(),
-  description: z.string().optional(),
-});
-const faqShape = z.object({ question: z.string(), answer: z.string() });
-const ruleShape = z.object({ title: z.string(), items: z.array(z.string()) });
-const resourceShape = z.object({ name: z.string(), link: z.string().url() });
+// Shared shapes (kept aligned with createEventSchema below). Each nested
+// shape is .strict() so injected fields on JSONB structures are rejected.
+const prizeShape = z
+  .object({
+    track: z.string(),
+    prize: z.string(),
+    description: z.string().optional(),
+  })
+  .strict();
+const faqShape = z
+  .object({ question: z.string(), answer: z.string() })
+  .strict();
+const ruleShape = z
+  .object({ title: z.string(), items: z.array(z.string()) })
+  .strict();
+const resourceShape = z
+  .object({ name: z.string(), link: z.string().url() })
+  .strict();
+
+// URL-safe slug: alphanumeric + hyphen/underscore only. Blocks path traversal,
+// whitespace, and special characters.
+const slugPattern = /^[a-zA-Z0-9][a-zA-Z0-9_-]*$/;
 
 // Organizer-writable fields. Admin-only fields (approval_status, rejection_reason,
 // featured) and immutable fields (event_id, owner_id, created_at) are intentionally
-// excluded and rejected via .strict().
+// excluded and rejected via .strict(). `archived` visibility is excluded: archive
+// flow goes through the dedicated web route that performs additional bookkeeping.
 const updateEventSchema = z
   .object({
     // text
@@ -152,7 +166,15 @@ const updateEventSchema = z
     event_blurb: z.string().max(500).optional(),
     event_date: z.string().optional(),
     location: z.string().max(500).optional(),
-    slug: z.string().min(1).max(100).optional(),
+    slug: z
+      .string()
+      .min(1)
+      .max(100)
+      .regex(slugPattern, {
+        message:
+          "Slug must start with a letter/digit and contain only letters, digits, hyphens, or underscores",
+      })
+      .optional(),
     cover_image_url: z.string().url().nullable().optional(),
     // temporal
     submission_time_start: z.string().nullable().optional(),
@@ -164,9 +186,9 @@ const updateEventSchema = z
     paid: z.boolean().optional(),
     // numerics
     participant_capacity: z.number().int().positive().nullable().optional(),
-    // enums
+    // enums (excluding "archived" — see comment above)
     visibility: z
-      .enum(["draft", "private", "public", "demo", "test", "archived"])
+      .enum(["draft", "private", "public", "demo", "test"])
       .optional(),
     // arrays / jsonb structures
     event_type: z.array(z.string()).optional(),
@@ -178,7 +200,10 @@ const updateEventSchema = z
     role_labels: z.record(z.string(), z.unknown()).nullable().optional(),
     scoring_config: z.record(z.string(), z.unknown()).nullable().optional(),
   })
-  .strict();
+  .strict()
+  .refine((obj) => Object.keys(obj).length > 0, {
+    message: "At least one field must be provided",
+  });
 
 // PATCH: Update event details
 export async function PATCH(request: NextRequest) {

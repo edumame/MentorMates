@@ -3,6 +3,7 @@
 import { GET, PATCH } from "./route";
 import { authenticateAgentRequest, authorizeAgentEventAccess, requireScope } from "@/lib/agent/auth";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import { NextResponse } from "next/server";
 
 jest.mock("next/server", () => {
   class MockNextResponse {
@@ -332,5 +333,197 @@ describe("PATCH /api/agent/events (expanded field set)", () => {
         event_type: ["hackathon"],
       })
     );
+  });
+
+  // ---------- Boundary / validation tests ----------
+
+  it("rejects event_name longer than 200 chars", async () => {
+    mockUpdateChain();
+    const res = await patchWith({ event_name: "a".repeat(201) });
+    expect(res.status).toBe(400);
+  });
+
+  it("accepts event_name at exactly 200 chars", async () => {
+    mockUpdateChain();
+    const res = await patchWith({ event_name: "a".repeat(200) });
+    expect(res.status).toBe(200);
+  });
+
+  it("rejects empty event_name", async () => {
+    mockUpdateChain();
+    const res = await patchWith({ event_name: "" });
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects event_description longer than 5000 chars", async () => {
+    mockUpdateChain();
+    const res = await patchWith({ event_description: "a".repeat(5001) });
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects location longer than 500 chars", async () => {
+    mockUpdateChain();
+    const res = await patchWith({ location: "a".repeat(501) });
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects slug longer than 100 chars", async () => {
+    mockUpdateChain();
+    const res = await patchWith({ slug: "a".repeat(101) });
+    expect(res.status).toBe(400);
+  });
+
+  // ---------- Slug pattern (security) ----------
+
+  it("rejects slug with path traversal characters", async () => {
+    mockUpdateChain();
+    const res = await patchWith({ slug: "../../../admin" });
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects slug with spaces", async () => {
+    mockUpdateChain();
+    const res = await patchWith({ slug: "hello world" });
+    expect(res.status).toBe(400);
+  });
+
+  it("accepts valid kebab-case slug", async () => {
+    mockUpdateChain();
+    const res = await patchWith({ slug: "ara-x-cornell-2026" });
+    expect(res.status).toBe(200);
+  });
+
+  // ---------- Nested shape .strict() ----------
+
+  it("rejects event_prizes with extra keys on prize objects", async () => {
+    mockUpdateChain();
+    const res = await patchWith({
+      event_prizes: [{ track: "t", prize: "p", evil_field: "injected" }],
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects event_prizes missing required track", async () => {
+    mockUpdateChain();
+    const res = await patchWith({ event_prizes: [{ prize: "p" }] });
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects rules with extra keys", async () => {
+    mockUpdateChain();
+    const res = await patchWith({
+      rules: [{ title: "t", items: ["i"], hidden: "x" }],
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects faq missing answer", async () => {
+    mockUpdateChain();
+    const res = await patchWith({ faq: [{ question: "q" }] });
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects event_resources missing link", async () => {
+    mockUpdateChain();
+    const res = await patchWith({ event_resources: [{ name: "Docs" }] });
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects event_resources with invalid url", async () => {
+    mockUpdateChain();
+    const res = await patchWith({
+      event_resources: [{ name: "Docs", link: "not-a-url" }],
+    });
+    expect(res.status).toBe(400);
+  });
+
+  // ---------- Wrong types ----------
+
+  it("rejects event_prizes as a string", async () => {
+    mockUpdateChain();
+    const res = await patchWith({ event_prizes: "not an array" });
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects participant_capacity as a string", async () => {
+    mockUpdateChain();
+    const res = await patchWith({ participant_capacity: "fifty" });
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects paid as a string", async () => {
+    mockUpdateChain();
+    const res = await patchWith({ paid: "true" });
+    expect(res.status).toBe(400);
+  });
+
+  // ---------- Visibility: archived flows through separate archive route ----------
+
+  it("rejects visibility='archived' (use archive route instead)", async () => {
+    mockUpdateChain();
+    const res = await patchWith({ visibility: "archived" });
+    expect(res.status).toBe(400);
+  });
+
+  // ---------- Null semantics ----------
+
+  it("accepts cover_image_url: null (clears the field)", async () => {
+    const q = mockUpdateChain();
+    const res = await patchWith({ cover_image_url: null });
+    expect(res.status).toBe(200);
+    expect(q.update).toHaveBeenCalledWith(
+      expect.objectContaining({ cover_image_url: null })
+    );
+  });
+
+  it("rejects cover_image_url with invalid url", async () => {
+    mockUpdateChain();
+    const res = await patchWith({ cover_image_url: "not a url" });
+    expect(res.status).toBe(400);
+  });
+
+  // ---------- Empty body ----------
+
+  it("rejects empty PATCH body (nothing to update)", async () => {
+    mockUpdateChain();
+    const res = await patchWith({});
+    expect(res.status).toBe(400);
+  });
+
+  // ---------- Auth propagation ----------
+
+  it("propagates 403 when requireScope denies", async () => {
+    const scopeErrorResp = { status: 403 };
+    (requireScope as jest.Mock).mockReturnValue(scopeErrorResp);
+    const res = await patchWith({ event_name: "New Name" });
+    expect(res).toBe(scopeErrorResp);
+  });
+
+  it("propagates 403 when authorizeAgentEventAccess denies", async () => {
+    // authorizeAgentEventAccess returns a NextResponse on failure. Must be
+    // a real (mocked) NextResponse instance so the `instanceof` check hits.
+    const accessErrorResp = NextResponse.json({ error: "forbidden" }, { status: 403 });
+    (authorizeAgentEventAccess as jest.Mock).mockResolvedValue(accessErrorResp);
+    const res = await patchWith({ event_name: "New Name" });
+    expect(res).toBe(accessErrorResp);
+  });
+
+  // ---------- DB error paths ----------
+
+  it("returns 500 when Supabase update returns an error", async () => {
+    const updateQuery = {
+      update: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({
+        data: null,
+        error: { message: "boom" },
+      }),
+    };
+    (createSupabaseServiceClient as jest.Mock).mockReturnValue({
+      from: jest.fn().mockReturnValue(updateQuery),
+    });
+    const res = await patchWith({ event_name: "New Name" });
+    expect(res.status).toBe(500);
   });
 });

@@ -152,6 +152,14 @@ export async function PATCH(request: NextRequest) {
       .single();
 
     if (error) {
+      // PGRST116 = no rows matched. Could mean lesson doesn't exist OR lesson
+      // belongs to a different event. Either way, agent has no business here.
+      if ((error as { code?: string }).code === "PGRST116") {
+        return NextResponse.json(
+          { error: "Lesson not found for this event" },
+          { status: 404 }
+        );
+      }
       console.error("Agent lessons PATCH error:", error);
       return NextResponse.json({ error: "Failed to update lesson" }, { status: 500 });
     }
@@ -184,6 +192,31 @@ export async function DELETE(request: NextRequest) {
     }
 
     const supabase = createSupabaseServiceClient();
+
+    // Existence + cross-event check BEFORE delete. Supabase DELETE doesn't
+    // return affected rows by default, so we can't tell after the fact whether
+    // we deleted something or no-opped. Doing a SELECT first is the simplest
+    // way to surface a clear 404 when the lesson belongs to a different event.
+    const { data: existing, error: lookupError } = await supabase
+      .from("event_lessons")
+      .select("id")
+      .eq("id", lessonId)
+      .eq("event_id", auth.eventId);
+
+    if (lookupError) {
+      console.error("Agent lessons DELETE lookup error:", lookupError);
+      return NextResponse.json(
+        { error: "Failed to delete lesson" },
+        { status: 500 }
+      );
+    }
+    if (!existing || existing.length === 0) {
+      return NextResponse.json(
+        { error: "Lesson not found for this event" },
+        { status: 404 }
+      );
+    }
+
     const { error } = await supabase
       .from("event_lessons")
       .delete()
