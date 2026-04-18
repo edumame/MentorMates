@@ -6,6 +6,9 @@ export interface DashboardProjectScore {
   track_id: string;
   event_id: string;
   round_number: number;
+  judge_id?: string | null;
+  judge_name?: string | null;
+  created_at?: string | null;
   scores: Record<string, number | string>;
   projects: {
     project_name: string;
@@ -21,6 +24,9 @@ export interface RawScoreExportData {
   scores: Record<string, string | number>;
   comments: string | null;
   round_number: number;
+  judge_id?: string | null;
+  judge_name?: string | null;
+  created_at?: string | null;
   projects: {
     project_name: string;
     lead_email: string;
@@ -31,6 +37,14 @@ export interface RawScoreExportData {
   };
 }
 
+export interface JudgeScoreSummary {
+  judgeId: string;
+  judgeName: string;
+  totalScore: number;
+  submittedAt: string | null;
+  choiceAnswers: Record<string, string>;
+}
+
 export interface TrackScore {
   projectId: string;
   projectName: string;
@@ -39,6 +53,7 @@ export interface TrackScore {
   totalScore: number;
   numberOfJudges: number;
   criterionScores: Record<string, { total: number; average: number }>;
+  judgeScores: JudgeScoreSummary[];
   choiceCounts?: Record<string, Record<string, number>>;
 }
 
@@ -100,6 +115,7 @@ function addProjectScore(
       totalScore: 0,
       numberOfJudges: 0,
       criterionScores: {},
+      judgeScores: [],
     };
     trackScoresMap[score.track_id].push(projectScore);
   }
@@ -158,6 +174,47 @@ function addProjectScore(
   projectScore.averageScore =
     projectScore.totalScore / projectScore.numberOfJudges;
 
+  const judgeKey =
+    score.judge_id?.trim() ||
+    score.judge_name?.trim() ||
+    `judge-${projectScore.numberOfJudges}`;
+  const judgeName = score.judge_name?.trim() || score.judge_id?.trim() || judgeKey;
+  const existingJudgeScore = projectScore.judgeScores.find(
+    (judgeScore) => judgeScore.judgeId === judgeKey
+  );
+
+  if (existingJudgeScore) {
+    existingJudgeScore.judgeName = judgeName;
+    existingJudgeScore.totalScore = totalScore;
+    existingJudgeScore.submittedAt = score.created_at ?? null;
+  } else {
+    projectScore.judgeScores.push({
+      judgeId: judgeKey,
+      judgeName,
+      totalScore,
+      submittedAt: score.created_at ?? null,
+      choiceAnswers: {},
+    });
+  }
+
+  Object.entries(score.scores).forEach(([criterionId, scoreValue]) => {
+    const criterion = trackConfig.criteria.find(
+      (item: ScoringCriterion) => item.id === criterionId
+    );
+    if (!criterion || criterion.type !== "multiplechoice") {
+      return;
+    }
+
+    const judgeScore = projectScore.judgeScores.find(
+      (item) => item.judgeId === judgeKey
+    );
+    if (!judgeScore) {
+      return;
+    }
+
+    judgeScore.choiceAnswers[criterionId] = String(scoreValue);
+  });
+
   Object.keys(projectScore.criterionScores).forEach((criterionId) => {
     projectScore.criterionScores[criterionId].average =
       projectScore.criterionScores[criterionId].total /
@@ -167,6 +224,17 @@ function addProjectScore(
 
 function sortTrackScores(trackScoresMap: TrackScores) {
   Object.keys(trackScoresMap).forEach((trackId) => {
+    trackScoresMap[trackId].forEach((projectScore) => {
+      projectScore.judgeScores.sort((a, b) => {
+        const byName = a.judgeName.localeCompare(b.judgeName);
+        if (byName !== 0) {
+          return byName;
+        }
+
+        return b.totalScore - a.totalScore;
+      });
+    });
+
     trackScoresMap[trackId].sort((a, b) => b.averageScore - a.averageScore);
   });
 
@@ -274,10 +342,15 @@ export function buildRawScoreExportRows(params: {
       trackName,
       score.round_number
     );
+    let totalScore = 0;
+    let hasNumericScore = false;
     const baseData: Record<string, string | number | null> = {
       "Project Name": score.projects.project_name || "",
       Track: score.event_tracks.name || "",
       Round: score.round_number ?? 1,
+      "Judge Name": score.judge_name || "",
+      "Judge ID": score.judge_id || "",
+      "Submitted At": score.created_at || "",
       Comments: score.comments || "",
       "Lead Email": score.projects.lead_email || "",
     };
@@ -287,6 +360,22 @@ export function buildRawScoreExportRows(params: {
         const criterion = trackConfig.criteria.find((item) => item.id === criterionId);
         const criterionName = criterion ? criterion.name : criterionId;
         baseData[criterionName] = scoreValue as string | number | null;
+
+        if (!criterion || criterion.type === "multiplechoice") {
+          return;
+        }
+
+        const numeric =
+          typeof scoreValue === "number"
+            ? scoreValue
+            : parseFloat(String(scoreValue));
+
+        if (Number.isNaN(numeric)) {
+          return;
+        }
+
+        totalScore += numeric * (criterion.weight || 1);
+        hasNumericScore = true;
       });
     } else if (score.scores) {
       Object.entries(score.scores).forEach(([criterionId, scoreValue]) => {
@@ -296,6 +385,8 @@ export function buildRawScoreExportRows(params: {
           | null;
       });
     }
+
+    baseData["Total Score"] = hasNumericScore ? totalScore : null;
 
     return baseData;
   });
