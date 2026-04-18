@@ -1,12 +1,14 @@
 "use client";
 
+import { useState } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EventDetails, EventScoringConfig } from "@/lib/types";
 import { useEventArchiveStatus } from "@/lib/hooks/use-event-archive-status";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { Info } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { PrizesTab } from "./PrizesTab";
+
+// Import component tabs
 import { TracksTab } from "./TracksTab";
+import { PrizesTab } from "./PrizesTab";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 interface EventTracksContainerProps {
   eventId: string;
@@ -33,8 +35,8 @@ export function EventTracksContainer({
   setSaving,
   toast,
 }: EventTracksContainerProps) {
+  const [activeSubTab, setActiveSubTab] = useState("tracks");
   const { isArchived } = useEventArchiveStatus(event);
-
   return (
     <div className="w-full">
       {isArchived && (
@@ -48,7 +50,7 @@ export function EventTracksContainer({
           </Alert>
         </div>
       )}
-
+      
       {/* Help banner explaining tracks, criteria, and weights */}
       <div className="mb-4">
         <Alert className="border-blue-200 bg-blue-50">
@@ -119,4 +121,4 @@ export function EventTracksContainer({
       </Tabs>
     </div>
   );
-}
+} 
