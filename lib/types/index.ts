@@ -222,7 +222,7 @@ export interface EventTrack {
   description: string;
   label?: string;
   prizes?: Prize[];
-  scoring_criteria: TrackScoringConfig;
+  scoring_criteria: EventTrackScoringConfig;
   created_at: string;
   updated_at: string;
 }
@@ -310,6 +310,7 @@ export interface Project {
   project_description: string;
   lead_name: string;
   lead_email: string;
+  is_private?: boolean;
   teammates?: string[];
   event_id: string;
   track_ids: string[]; //need to make tracks not required. Will need to redo.
@@ -363,11 +364,41 @@ export interface TrackScoringConfig {
   criteria: ScoringCriterion[];
 }
 
+export interface EventTrackScoringConfig extends TrackScoringConfig {
+  /** Optional per-round rubric overrides stored on the event_tracks row. */
+  rounds?: Record<string, TrackScoringConfig>;
+}
+
+export interface RoundConfig {
+  round_number: number;
+  name: string;
+  /** Number of projects that advance to the next round. null/undefined on the final round. */
+  advancement_count?: number | null;
+  /** Optional hydrated per-track scoring config overrides for this round. */
+  tracks?: Record<string, TrackScoringConfig>;
+  /** Optional: override criteria for this round. Falls back to track criteria if omitted. */
+  criteria?: ScoringCriterion[];
+  /** Optional: restrict which judges see this round. */
+  judges?: string[];
+}
+
 export interface EventScoringConfig {
   tracks: Record<string, TrackScoringConfig>;
   defaultMin?: number;
   defaultMax?: number;
   defaultWeight?: number;
+  /** Optional multi-round configuration. If omitted, event behaves as a single round (round 1, all projects). */
+  rounds?: RoundConfig[];
+  /** Currently active round number. Defaults to 1 when unset. */
+  activeRound?: number;
+}
+
+export interface ProjectRoundAdvancement {
+  id: string;
+  event_id: string;
+  project_id: string;
+  round_number: number;
+  advanced_at: string;
 }
 
 export interface ProjectScore {
@@ -379,6 +410,7 @@ export interface ProjectScore {
   scores: Record<string, number | string>;
   comments?: string;
   finalist_recommendation?: boolean;
+  round_number?: number;
   created_at: string;
   updated_at: string;
 }
@@ -455,6 +487,7 @@ export interface ProjectFromDatabase {
   project_name: string;
   lead_name: string;
   lead_email: string;
+  is_private?: boolean;
   project_description: string;
   teammates: string[];
   project_url?: string;

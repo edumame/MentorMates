@@ -1,13 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EventDetails, EventScoringConfig } from "@/lib/types";
 import { useEventArchiveStatus } from "@/lib/hooks/use-event-archive-status";
-
-// Import component tabs
 import { TracksTab } from "./TracksTab";
-import { PrizesTab } from "./PrizesTab";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Info } from "lucide-react";
 
@@ -36,8 +31,8 @@ export function EventTracksContainer({
   setSaving,
   toast,
 }: EventTracksContainerProps) {
-  const [activeSubTab, setActiveSubTab] = useState("tracks");
   const { isArchived } = useEventArchiveStatus(event);
+
   return (
     <div className="w-full">
       {isArchived && (
@@ -122,4 +117,4 @@ export function EventTracksContainer({
       </Tabs>
     </div>
   );
-} 
+}

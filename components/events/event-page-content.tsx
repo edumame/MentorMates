@@ -1,26 +1,68 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import ReactMarkdown from "react-markdown";
 import { customMarkdownComponents } from "@/components/markdown/custom-components";
 import { markdownRehypePlugins } from "@/components/markdown/plugins";
-import { Trophy } from "lucide-react";
+import { normalizeBullets } from "@/lib/markdown/normalize-bullets";
+import { Trophy, Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import {
   EventDetails,
+  Rule,
   ScheduleDay,
   ScheduleEvent,
   EventTrack,
   EventRole,
 } from "@/lib/types";
-import { getDisplayRules } from "@/lib/events/rules";
 import Link from "next/link";
 import { JudgeDashboard } from "@/features/user/dashboards/dashboard/judge-dashboard";
 import { useActiveRole } from "./ActiveRoleContext";
+import { UserProjectSection } from "./user-project-section";
+import { EventMentorshipSection } from "@/features/events/mentor-bookings/EventMentorshipSection";
+
+/** JSONB / API may return a string, single object, or non-array; only arrays are safe to .map */
+function normalizeEventRules(rules: unknown): Rule[] {
+  if (rules == null) return [];
+  if (Array.isArray(rules)) {
+    return rules.filter(
+      (r): r is Rule =>
+        r != null &&
+        typeof r === "object" &&
+        typeof (r as Rule).title === "string" &&
+        Array.isArray((r as Rule).items)
+    );
+  }
+  if (typeof rules === "string") {
+    try {
+      return normalizeEventRules(JSON.parse(rules) as unknown);
+    } catch {
+      return [];
+    }
+  }
+  if (typeof rules === "object" && "title" in rules && "items" in rules) {
+    const r = rules as Rule;
+    if (typeof r.title === "string" && Array.isArray(r.items)) {
+      return [r];
+    }
+  }
+  return [];
+}
 
 interface EventPageContentProps {
   event: EventDetails;
   tracks: EventTrack[];
   hasJoined: boolean;
   userRole?: EventRole | null;
+  userProjects?: ComponentProps<typeof UserProjectSection>["projects"];
+  eventSlug?: string | null;
+  submissionDeadline?: string | null;
   judges?: {
     id: string;
     name: string;
@@ -35,8 +77,13 @@ export function EventPageContent({
   tracks,
   hasJoined,
   userRole,
+  userProjects = [],
+  eventSlug,
+  submissionDeadline,
   judges = [],
 }: EventPageContentProps) {
+  const rulesList = normalizeEventRules(event.rules);
+
   const getInitials = (name: string) =>
     name
       .split(" ")
@@ -98,7 +145,22 @@ export function EventPageContent({
 
   // Show default event overview for participants, mentors, organizers, and non-authenticated users
   return (
-    <div className="flex flex-col flex-1 w-full max-w-full md:max-w-[747px]">
+    <div className="flex min-w-0 flex-1 flex-col w-full max-w-full">
+      {hasJoined && displayRole === EventRole.Participant && (
+        <UserProjectSection
+          projects={userProjects}
+          eventId={event.event_id}
+          eventSlug={eventSlug}
+          submissionDeadline={submissionDeadline}
+        />
+      )}
+
+      <EventMentorshipSection
+        eventId={event.event_id}
+        role={displayRole}
+        hasJoined={hasJoined}
+      />
+
       {/* Introduction */}
       <div className="flex flex-col pb-4 pt-0 px-0 w-full min-w-0 max-w-full">
         <h2 className="font-semibold text-[24px] leading-[32px] text-black tracking-[-0.6px] break-words">
@@ -113,7 +175,7 @@ export function EventPageContent({
             rehypePlugins={markdownRehypePlugins}
             components={customMarkdownComponents}
           >
-            {event.event_description}
+            {normalizeBullets(event.event_description)}
           </ReactMarkdown>
         </div>
       </div>
@@ -125,7 +187,7 @@ export function EventPageContent({
             🔒 Content for Event Participants
           </h3>
           <div className="prose prose-blue max-w-full w-full break-words">
-            <ReactMarkdown>{event.paywall_content}</ReactMarkdown>
+            <ReactMarkdown>{normalizeBullets(event.paywall_content)}</ReactMarkdown>
           </div>
         </div>
       )}
@@ -230,7 +292,7 @@ export function EventPageContent({
       )}
 
       {/* Rules */}
-      {event.rules && event.rules.length > 0 && (
+      {rulesList.length > 0 && (
         <>
           <div className="flex flex-col pb-4 pt-0 px-0 w-full min-w-0 max-w-full">
             <h2 className="font-semibold text-[24px] leading-[32px] text-black tracking-[-0.6px] break-words">
@@ -239,27 +301,30 @@ export function EventPageContent({
           </div>
 
           <div className="flex w-full px-4 py-5 rounded-xl border border-[rgba(0,0,0,0.15)] relative">
-            <div className="flex flex-wrap sm:flex-nowrap relative w-full">
-              {event.rules.map((rule, idx) => (
-                <div
-                  key={idx}
-                  className="flex flex-grow flex-col first:pb-8 sm:pb-0 pt-0 px-0 w-full sm:first:pr-6 sm:last:pl-6 sm:last:border-l sm:border-[rgba(0,0,0,0.15)]"
+            <Accordion type="multiple" className="w-full">
+              {rulesList.map((rule, idx) => (
+                <AccordionItem
+                  key={`${rule.title}-${idx}`}
+                  value={`${rule.title}-${idx}`}
+                  className="last:border-b-0"
                 >
-                  <div className="font-normal text-black">
-                    <p className="font-bold tracking-[-0.06em] text-[22px] leading-[1.4] mb-2">
+                  <AccordionTrigger className="py-3 text-left text-black hover:no-underline">
+                    <span className="font-bold tracking-[-0.04em] text-[20px] leading-[1.4]">
                       {rule.title}
-                    </p>
+                    </span>
+                  </AccordionTrigger>
+                  <AccordionContent className="pb-3">
                     <ul className="list-disc pl-6">
-                      {rule.items.map((item, i) => (
-                        <li key={i} className="mb-0 text-base leading-[1.5]">
+                      {(rule.items ?? []).map((item, i) => (
+                        <li key={i} className="mb-0 text-base leading-[1.5] text-black">
                           {item}
                         </li>
                       ))}
                     </ul>
-                  </div>
-                </div>
+                  </AccordionContent>
+                </AccordionItem>
               ))}
-            </div>
+            </Accordion>
           </div>
         </>
       )}
@@ -402,6 +467,22 @@ export function EventPageContent({
             )}
           </div>
         </>
+      )}
+
+      {/* Bottom Submit CTA — mirrors header button so participants don't have to scroll back up */}
+      {hasJoined && userRole === EventRole.Participant && (
+        <div className="mt-8 flex justify-center border-t pt-8">
+          <Button
+            asChild
+            size="lg"
+            className="rounded-full gap-2 px-8"
+          >
+            <Link href={`/projects/submit?eventId=${event.event_id}`}>
+              <Plus className="h-5 w-5" />
+              Submit Your Project
+            </Link>
+          </Button>
+        </div>
       )}
     </div>
   );

@@ -11,9 +11,7 @@ import {
   ApprovalStatus,
   EventDetails,
   EventScoringConfig,
-  EventTrack,
   EventVisibility,
-  ScoringCriterion,
 } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 
@@ -75,6 +73,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ApiKeysTab } from "@/features/user/dashboards/dashboard/organizer/api-keys/ApiKeysTab";
+import { buildEventScoringConfig } from "@/lib/events/build-event-scoring-config";
 
 interface OrganizerEditOverviewProps {
   eventId: string;
@@ -155,6 +154,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
     "role-labels",
     "invite-judges",
     "invite-organizers",
+    "assign-roles",
   ] as const;
   const accessSubTab: (typeof accessSubTabValues)[number] =
     activeTab === "access"
@@ -360,50 +360,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
 
       setEvent(data as EventDetails);
 
-      // Map event tracks to scoring_config structure
-      if (data && data.event_tracks) {
-        const tracksConfig: Record<
-          string,
-          {
-            name: string;
-            criteria: Array<{
-              id: string;
-              name: string;
-              description: string;
-              weight: number;
-              min: number;
-              max: number;
-            }>;
-          }
-        > = {};
-        data.event_tracks.forEach((track: EventTrack) => {
-          if (track.track_id && track.scoring_criteria) {
-            tracksConfig[track.track_id] = {
-              name: track.name,
-              criteria: track.scoring_criteria.criteria.map(
-                (criterion: ScoringCriterion) => ({
-                  id: criterion.id,
-                  name: criterion.name,
-                  description: criterion.description,
-                  weight: criterion.weight || 1,
-                  min: criterion.min || 1,
-                  max: criterion.max || 10,
-                  type: criterion.type || "numeric",
-                  options: criterion.options || [],
-                })
-              ),
-            };
-          }
-        });
-
-        const scoreConfig = {
-          tracks: tracksConfig,
-          defaultMin: 1,
-          defaultMax: 10,
-          defaultWeight: 1,
-        };
-        setScoringConfig(scoreConfig);
-      }
+      setScoringConfig(buildEventScoringConfig(data));
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
       const message = error instanceof Error ? error.message : String(error);
@@ -865,6 +822,12 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                         >
                           Invite Organizers
                         </TabsTrigger>
+                        <TabsTrigger
+                          value="assign-roles"
+                          className="min-w-[140px] px-3 py-2.5 rounded-[100px] text-base leading-[1.5] font-normal text-[var(--Color-Scheme-1-Text,#000)] border border-transparent data-[state=active]:font-medium data-[state=active]:bg-white data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none flex-shrink-0"
+                        >
+                          Assign Roles
+                        </TabsTrigger>
                       </TabsList>
                     </div>
                     {accessSubTab === "password" && (
@@ -1189,6 +1152,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                             defaultWeight: 1,
                           }
                         }
+                        onScoringConfigSaved={setScoringConfig}
                       />
                     </TabsContent>
                   </Tabs>
