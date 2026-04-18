@@ -25,6 +25,7 @@ import Link from "next/link";
 import { JudgeDashboard } from "@/features/user/dashboards/dashboard/judge-dashboard";
 import { useActiveRole } from "./ActiveRoleContext";
 import { UserProjectSection } from "./user-project-section";
+import { EventMentorshipSection } from "@/features/events/mentor-bookings/EventMentorshipSection";
 
 /** JSONB / API may return a string, single object, or non-array; only arrays are safe to .map */
 function normalizeEventRules(rules: unknown): Rule[] {
@@ -153,6 +154,12 @@ export function EventPageContent({
           submissionDeadline={submissionDeadline}
         />
       )}
+
+      <EventMentorshipSection
+        eventId={event.event_id}
+        role={displayRole}
+        hasJoined={hasJoined}
+      />
 
       {/* Introduction */}
       <div className="flex flex-col pb-4 pt-0 px-0 w-full min-w-0 max-w-full">

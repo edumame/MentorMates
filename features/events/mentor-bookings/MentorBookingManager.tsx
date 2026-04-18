@@ -1,18 +1,25 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/lib/hooks/use-toast";
 import { createClient } from "@/app/utils/supabase/client";
+import { cn } from "@/lib/utils";
 import type { MentorAvailabilityWithBookings } from "@/lib/types/mentor-booking";
 
-export default function MentorBookingPage() {
-  const params = useParams<{ id: string }>();
-  const eventId = params?.id ?? "";
-  const { toast } = useToast();
+interface MentorBookingManagerProps {
+  eventId: string;
+  className?: string;
+  showHeader?: boolean;
+}
 
+export function MentorBookingManager({
+  eventId,
+  className,
+  showHeader = true,
+}: MentorBookingManagerProps) {
+  const { toast } = useToast();
   const [userId, setUserId] = useState<string | null>(null);
   const [slots, setSlots] = useState<MentorAvailabilityWithBookings[]>([]);
   const [loading, setLoading] = useState(true);
@@ -27,19 +34,24 @@ export default function MentorBookingPage() {
 
   const load = useCallback(async () => {
     if (!eventId) return;
+
     setLoading(true);
     try {
-      const res = await fetch(
-        `/api/events/${eventId}/mentor-availability`,
-        { cache: "no-store" }
-      );
+      const res = await fetch(`/api/events/${eventId}/mentor-availability`, {
+        cache: "no-store",
+      });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to load");
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to load");
+      }
+
       setSlots(data.availability ?? []);
-    } catch (e) {
+    } catch (error) {
       toast({
         title: "Could not load slots",
-        description: e instanceof Error ? e.message : "Unknown error",
+        description:
+          error instanceof Error ? error.message : "Unknown error",
         variant: "destructive",
       });
     } finally {
@@ -52,31 +64,33 @@ export default function MentorBookingPage() {
   }, [load]);
 
   const grouped = useMemo(() => {
-    const map = new Map<
+    const groups = new Map<
       string,
       { mentorName: string; rows: MentorAvailabilityWithBookings[] }
     >();
-    for (const s of slots) {
-      if (userId && s.mentor_id === userId) continue; // don't show own slots to self
-      const key = s.mentor_id;
-      const label =
-        s.mentor?.display_name ||
-        s.mentor?.email ||
-        "Mentor";
-      if (!map.has(key)) {
-        map.set(key, { mentorName: label, rows: [] });
+
+    for (const slot of slots) {
+
+      const mentorName =
+        slot.mentor?.display_name || slot.mentor?.email || "Mentor";
+
+      if (!groups.has(slot.mentor_id)) {
+        groups.set(slot.mentor_id, { mentorName, rows: [] });
       }
-      map.get(key)!.rows.push(s);
+
+      groups.get(slot.mentor_id)?.rows.push(slot);
     }
-    return Array.from(map.entries()).map(([mentorId, v]) => ({
+
+    return Array.from(groups.entries()).map(([mentorId, value]) => ({
       mentorId,
-      mentorName: v.mentorName,
-      rows: v.rows,
+      mentorName: value.mentorName,
+      rows: value.rows,
     }));
-  }, [slots, userId]);
+  }, [slots]);
 
   async function handleBook(slot: MentorAvailabilityWithBookings) {
     setBusyId(slot.id);
+
     try {
       const res = await fetch(`/api/events/${eventId}/mentor-bookings`, {
         method: "POST",
@@ -84,13 +98,18 @@ export default function MentorBookingPage() {
         body: JSON.stringify({ availability_id: slot.id }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to book");
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to book");
+      }
+
       toast({ title: "Booked!" });
       await load();
-    } catch (e) {
+    } catch (error) {
       toast({
         title: "Could not book slot",
-        description: e instanceof Error ? e.message : "Unknown error",
+        description:
+          error instanceof Error ? error.message : "Unknown error",
         variant: "destructive",
       });
     } finally {
@@ -100,19 +119,24 @@ export default function MentorBookingPage() {
 
   async function handleCancel(bookingId: string) {
     setBusyId(bookingId);
+
     try {
-      const res = await fetch(
-        `/api/events/${eventId}/mentor-bookings?id=${bookingId}`,
-        { method: "DELETE" }
-      );
+      const res = await fetch(`/api/events/${eventId}/mentor-bookings?id=${bookingId}`, {
+        method: "DELETE",
+      });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to cancel");
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to cancel");
+      }
+
       toast({ title: "Booking cancelled" });
       await load();
-    } catch (e) {
+    } catch (error) {
       toast({
         title: "Could not cancel booking",
-        description: e instanceof Error ? e.message : "Unknown error",
+        description:
+          error instanceof Error ? error.message : "Unknown error",
         variant: "destructive",
       });
     } finally {
@@ -121,13 +145,15 @@ export default function MentorBookingPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Book a mentor</h1>
-        <p className="text-sm text-muted-foreground">
-          Choose an open time with one of this event&apos;s mentors.
-        </p>
-      </div>
+    <div className={cn("space-y-6", className)}>
+      {showHeader && (
+        <div>
+          <h1 className="text-2xl font-semibold">Book a mentor</h1>
+          <p className="text-sm text-muted-foreground">
+            Choose an open time with one of this event&apos;s mentors.
+          </p>
+        </div>
+      )}
 
       {loading ? (
         <p className="text-sm text-muted-foreground">Loading slots...</p>
@@ -140,38 +166,41 @@ export default function MentorBookingPage() {
           {grouped.map((group) => (
             <div key={group.mentorId} className="space-y-2">
               <h2 className="text-lg font-medium">{group.mentorName}</h2>
+
               <div className="space-y-2">
-                {group.rows.map((s) => {
-                  const remaining = s.max_bookings - s.booking_count;
-                  const viewerBooked = Boolean(s.viewer_booking_id);
+                {group.rows.map((slot) => {
+                  const remaining = slot.max_bookings - slot.booking_count;
+                  const viewerBooked = Boolean(slot.viewer_booking_id);
                   const full = remaining <= 0;
+
                   return (
                     <Card
-                      key={s.id}
-                      className="p-4 flex items-center justify-between gap-4"
+                      key={slot.id}
+                      className="flex items-center justify-between gap-4 p-4"
                     >
                       <div className="text-sm">
                         <div className="font-medium">
-                          {new Date(s.start_time).toLocaleString()}{" "}
+                          {new Date(slot.start_time).toLocaleString()}{" "}
                           <span className="text-muted-foreground">→</span>{" "}
-                          {new Date(s.end_time).toLocaleString()}
+                          {new Date(slot.end_time).toLocaleString()}
                         </div>
                         <div className="text-muted-foreground">
                           {viewerBooked
                             ? "You are booked"
                             : full
-                            ? "Full"
-                            : `${remaining} spot${remaining === 1 ? "" : "s"} open`}
+                              ? "Full"
+                              : `${remaining} spot${remaining === 1 ? "" : "s"} open`}
                         </div>
                       </div>
+
                       {viewerBooked ? (
                         <Button
                           variant="outline"
                           size="sm"
-                          disabled={busyId === s.viewer_booking_id}
+                          disabled={busyId === slot.viewer_booking_id}
                           onClick={() =>
-                            s.viewer_booking_id &&
-                            handleCancel(s.viewer_booking_id)
+                            slot.viewer_booking_id &&
+                            handleCancel(slot.viewer_booking_id)
                           }
                         >
                           Cancel
@@ -179,10 +208,10 @@ export default function MentorBookingPage() {
                       ) : (
                         <Button
                           size="sm"
-                          disabled={full || busyId === s.id}
-                          onClick={() => handleBook(s)}
+                          disabled={full || busyId === slot.id}
+                          onClick={() => handleBook(slot)}
                         >
-                          {busyId === s.id ? "Booking..." : "Book"}
+                          {busyId === slot.id ? "Booking..." : "Book"}
                         </Button>
                       )}
                     </Card>

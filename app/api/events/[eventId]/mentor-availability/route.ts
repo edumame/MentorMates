@@ -109,6 +109,16 @@ export async function GET(
           }),
     ]);
 
+    const participantIds = bookingRes.data?.map((b) => b.participant_id) ?? [];
+    const { data: participantData, error: participantError } = await service
+      .from("user_profiles")
+      .select("display_name, email")
+      .in("uid", participantIds);
+
+    if (participantError) {
+      console.error("user_profiles fetch error", participantError);
+    }
+
     if (bookingRes.error) {
       console.error("mentor_bookings count error", bookingRes.error);
     }
@@ -138,6 +148,7 @@ export async function GET(
       booking_count: countsBySlot.get(s.id) ?? 0,
       viewer_booking_id: viewerBookingBySlot.get(s.id) ?? null,
       mentor: mentorById.get(s.mentor_id) ?? null,
+      participants: participantData ?? [],
     }));
 
     return NextResponse.json({ availability: result });

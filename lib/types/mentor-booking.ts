@@ -30,8 +30,14 @@ export interface MentorProfileLite {
   avatar_url: string | null;
 }
 
+export interface UserProfileLite {
+  display_name: string | null;
+  email: string | null;
+}
+
 export interface MentorAvailabilityWithBookings extends MentorAvailability {
   mentor?: MentorProfileLite | null;
+  participants: UserProfileLite[];
   booking_count: number;
   // Set when the viewing participant has an active booking for this slot.
   viewer_booking_id?: string | null;
