@@ -49,7 +49,11 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ data: result.project });
   } catch (error) {
-    console.error("Error in project submission:", error);
+    console.error("[submit] unhandled exception in POST /api/projects/submit", {
+      error,
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
