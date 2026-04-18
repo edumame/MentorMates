@@ -1,5 +1,6 @@
 import type { EventScoringConfig } from "@/lib/types";
 import {
+  buildTrackScores,
   buildRawScoreExportFiles,
   buildRawScoreExportRows,
   buildScoreExportFiles,
@@ -71,6 +72,38 @@ describe("score exports", () => {
         },
       },
     ],
+  };
+  const scoringConfigWithChoice: EventScoringConfig = {
+    tracks: {
+      main: {
+        name: "Main Track",
+        criteria: [
+          {
+            id: "impact",
+            name: "Impact",
+            description: "Impact score",
+            weight: 2,
+            min: 1,
+            max: 10,
+            type: "numeric",
+            options: [],
+          },
+          {
+            id: "award_fit",
+            name: "Award Fit",
+            description: "Best fitting award",
+            weight: 1,
+            min: 1,
+            max: 1,
+            type: "multiplechoice",
+            options: ["Best AI", "Best UX"],
+          },
+        ],
+      },
+    },
+    defaultMin: 1,
+    defaultMax: 10,
+    defaultWeight: 1,
   };
 
   it("keeps track rankings separate for each round", () => {
@@ -146,6 +179,105 @@ describe("score exports", () => {
     expect(byRound[2].main.map((score) => score.projectId)).toEqual([
       "p2",
       "p1",
+    ]);
+  });
+
+  it("includes a per-judge score breakdown for each ranked project", () => {
+    const trackScores = buildTrackScores(
+      [
+        {
+          project_id: "p1",
+          track_id: "main",
+          event_id: "event-1",
+          round_number: 1,
+          judge_id: "judge-b",
+          judge_name: "Zara Judge",
+          created_at: "2026-04-01T10:00:00.000Z",
+          scores: { impact: 8, feasible: 7 },
+          projects: {
+            project_name: "Alpha",
+            lead_name: "Alice",
+            event_id: "event-1",
+          },
+          tracks: {
+            name: "Main Track",
+          },
+        },
+        {
+          project_id: "p1",
+          track_id: "main",
+          event_id: "event-1",
+          round_number: 1,
+          judge_id: "judge-a",
+          judge_name: "Alex Judge",
+          created_at: "2026-04-01T09:00:00.000Z",
+          scores: { impact: 9, feasible: 6 },
+          projects: {
+            project_name: "Alpha",
+            lead_name: "Alice",
+            event_id: "event-1",
+          },
+          tracks: {
+            name: "Main Track",
+          },
+        },
+      ],
+      scoringConfig
+    );
+
+    expect(trackScores.main[0].judgeScores).toEqual([
+      {
+        judgeId: "judge-a",
+        judgeName: "Alex Judge",
+        totalScore: 24,
+        submittedAt: "2026-04-01T09:00:00.000Z",
+        choiceAnswers: {},
+      },
+      {
+        judgeId: "judge-b",
+        judgeName: "Zara Judge",
+        totalScore: 23,
+        submittedAt: "2026-04-01T10:00:00.000Z",
+        choiceAnswers: {},
+      },
+    ]);
+  });
+
+  it("stores each judge's multiple-choice answers in the breakdown", () => {
+    const trackScores = buildTrackScores(
+      [
+        {
+          project_id: "p1",
+          track_id: "main",
+          event_id: "event-1",
+          round_number: 1,
+          judge_id: "judge-a",
+          judge_name: "Alex Judge",
+          created_at: "2026-04-01T09:00:00.000Z",
+          scores: { impact: 9, award_fit: "Best AI" },
+          projects: {
+            project_name: "Alpha",
+            lead_name: "Alice",
+            event_id: "event-1",
+          },
+          tracks: {
+            name: "Main Track",
+          },
+        },
+      ],
+      scoringConfigWithChoice
+    );
+
+    expect(trackScores.main[0].judgeScores).toEqual([
+      {
+        judgeId: "judge-a",
+        judgeName: "Alex Judge",
+        totalScore: 18,
+        submittedAt: "2026-04-01T09:00:00.000Z",
+        choiceAnswers: {
+          award_fit: "Best AI",
+        },
+      },
     ]);
   });
 
@@ -270,6 +402,9 @@ describe("score exports", () => {
         scores: { impact: 9, feasible: 6 },
         comments: "Strong prototype",
         round_number: 1,
+        judge_id: "judge-1",
+        judge_name: "Alex Judge",
+        created_at: "2026-04-01T09:00:00.000Z",
         projects: {
           project_name: "Alpha",
           lead_email: "alpha@example.com",
@@ -283,6 +418,9 @@ describe("score exports", () => {
         scores: { demo: 5 },
         comments: "Best live demo",
         round_number: 2,
+        judge_id: "judge-2",
+        judge_name: "Zara Judge",
+        created_at: "2026-04-02T11:30:00.000Z",
         projects: {
           project_name: "Beta",
           lead_email: "beta@example.com",
@@ -309,10 +447,14 @@ describe("score exports", () => {
         "Project Name": "Alpha",
         Track: "Main Track",
         Round: 1,
+        "Judge Name": "Alex Judge",
+        "Judge ID": "judge-1",
+        "Submitted At": "2026-04-01T09:00:00.000Z",
         Comments: "Strong prototype",
         "Lead Email": "alpha@example.com",
         Impact: 9,
         Feasibility: 6,
+        "Total Score": 24,
       },
     ]);
     expect(files[1].rows).toEqual([
@@ -320,9 +462,13 @@ describe("score exports", () => {
         "Project Name": "Beta",
         Track: "Main Track",
         Round: 2,
+        "Judge Name": "Zara Judge",
+        "Judge ID": "judge-2",
+        "Submitted At": "2026-04-02T11:30:00.000Z",
         Comments: "Best live demo",
         "Lead Email": "beta@example.com",
         "Demo Quality": 5,
+        "Total Score": 15,
       },
     ]);
   });
@@ -335,6 +481,9 @@ describe("score exports", () => {
             scores: { custom_metric: 7 },
             comments: "Unmapped metric",
             round_number: 3,
+            judge_id: "judge-3",
+            judge_name: "Taylor Judge",
+            created_at: "2026-04-03T15:00:00.000Z",
             projects: {
               project_name: "Gamma",
               lead_email: "gamma@example.com",
@@ -352,9 +501,13 @@ describe("score exports", () => {
         "Project Name": "Gamma",
         Track: "Unknown Track",
         Round: 3,
+        "Judge Name": "Taylor Judge",
+        "Judge ID": "judge-3",
+        "Submitted At": "2026-04-03T15:00:00.000Z",
         Comments: "Unmapped metric",
         "Lead Email": "gamma@example.com",
         Score_custom_metric: 7,
+        "Total Score": null,
       },
     ]);
   });

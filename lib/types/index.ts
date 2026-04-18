@@ -310,6 +310,7 @@ export interface Project {
   project_description: string;
   lead_name: string;
   lead_email: string;
+  is_private?: boolean;
   teammates?: string[];
   event_id: string;
   track_ids: string[]; //need to make tracks not required. Will need to redo.
@@ -486,6 +487,7 @@ export interface ProjectFromDatabase {
   project_name: string;
   lead_name: string;
   lead_email: string;
+  is_private?: boolean;
   project_description: string;
   teammates: string[];
   project_url?: string;

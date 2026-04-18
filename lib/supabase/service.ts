@@ -70,6 +70,60 @@ type ServiceDatabase = Omit<Database, "public"> & {
         };
         Relationships: [];
       };
+      mentor_availability: {
+        Row: {
+          id: string;
+          mentor_id: string;
+          event_id: string;
+          start_time: string;
+          end_time: string;
+          max_bookings: number;
+          created_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          mentor_id: string;
+          event_id: string;
+          start_time: string;
+          end_time: string;
+          max_bookings?: number;
+          created_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          mentor_id?: string;
+          event_id?: string;
+          start_time?: string;
+          end_time?: string;
+          max_bookings?: number;
+          created_at?: string | null;
+        };
+        Relationships: [];
+      };
+      mentor_bookings: {
+        Row: {
+          id: string;
+          availability_id: string;
+          participant_id: string;
+          status: string;
+          booked_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          availability_id: string;
+          participant_id: string;
+          status?: string;
+          booked_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          availability_id?: string;
+          participant_id?: string;
+          status?: string;
+          booked_at?: string | null;
+        };
+        Relationships: [];
+      };
       intake_form_submissions: {
         Row: {
           id: string;

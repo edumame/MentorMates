@@ -4,6 +4,7 @@ import {
   buildMessages,
   getSystemPrompt,
   SUBMISSION_PROMPT,
+  JUDGING_PROMPT,
 } from "./ai-chat";
 
 describe("ai-chat", () => {
@@ -127,6 +128,39 @@ describe("ai-chat", () => {
   describe("getSystemPrompt", () => {
     it("returns submission prompt", () => {
       expect(getSystemPrompt("submission")).toBe(SUBMISSION_PROMPT);
+    });
+  });
+
+  describe("JUDGING_PROMPT track ID format", () => {
+    it("does NOT instruct the AI to generate track-<timestamp> IDs", () => {
+      expect(JUDGING_PROMPT).not.toContain("track-<timestamp>");
+    });
+
+    it("instructs the AI to generate UUID-format track IDs or omit them", () => {
+      // The prompt should either tell the AI to use crypto.randomUUID()-style IDs
+      // or tell it to omit track_id entirely (let DB default handle it)
+      const mentionsUuid = /uuid|randomUUID|gen_random_uuid|omit.*track_id|do not.*generate.*id/i.test(JUDGING_PROMPT);
+      expect(mentionsUuid).toBe(true);
+    });
+  });
+
+  describe("parseAIResponse with track patches", () => {
+    it("parses a track patch with UUID track IDs", () => {
+      const raw = JSON.stringify({
+        reply: "Added Best Design track.",
+        patch: {
+          tracks: {
+            "a1b2c3d4-e5f6-7890-abcd-ef1234567890": {
+              name: "Best Design",
+              criteria: [{ id: "crit-1", name: "UI/UX", weight: 1, min: 1, max: 10, type: "numeric" }],
+            },
+          },
+        },
+      });
+      const result = parseAIResponse(raw);
+      expect(result.reply).toBe("Added Best Design track.");
+      expect(result.patch).toBeTruthy();
+      expect(result.patch!.tracks).toBeTruthy();
     });
   });
 });
