@@ -883,7 +883,7 @@ export function NewProjectSubmissionFormSinglePage({
   const totalMembers = (formData.teammates?.length || 0) + 1;
 
   return (
-    <div className="bg-white mb-8 sm:pb-0 pb-24">
+    <div className="min-h-full bg-gradient-to-br from-blue-100/45 via-transparent to-transparent sm:pb-8 pb-24">
       <Toaster />
       {activeIntakeForm ? (
         <ParticipantIntakeDialog
@@ -941,55 +941,54 @@ export function NewProjectSubmissionFormSinglePage({
       {/* Wrapper without top border */}
       <div className="overflow-visible">
         {/* Main Content */}
-        <div className="bg-gradient-to-br from-blue-100/45 via-transparent to-transparent">
-          <div className="px-8 py-6 min-h-[800px]">
-            <div className="flex items-center justify-between mb-6 flex-wrap gap-2 sm:gap-0">
-              <div className="relative">
-                <ProjectPrivacySelect
-                  value={isPrivate}
-                  onValueChange={setIsPrivate}
-                />
-              </div>
-              <div className="flex items-center gap-1 justify-end">
-                <Button
-                  variant="secondary"
-                  onClick={() =>
-                    router.push(
-                      eventDetails?.slug
-                        ? `/events/${eventDetails.slug}/overview`
-                        : eventId
-                          ? `/events/${eventId}/overview`
-                          : `/projects`
-                    )
-                  }
-                  className="bg-[#f2f2f2] hover:bg-[#e8e8e8] text-black rounded-xl px-6 py-2.5 shadow-sm font-medium"
-                >
-                  Save draft and exit
-                </Button>
-                <Button
-                  onClick={handleDeleteDraft}
-                  disabled={isDeletingDraft}
-                  className="bg-red-600 hover:bg-red-700 text-white rounded-xl px-6 py-2.5 shadow-sm font-medium"
-                >
-                  Delete draft
-                </Button>
-                <Button
-                  onClick={handlePublish}
-                  disabled={isSubmitting}
-                  className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-6 py-2.5 shadow-sm font-medium"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Publishing...
-                    </>
-                  ) : (
-                    "Publish project"
-                  )}
-                </Button>
-              </div>
+        <div className="px-8 py-6 min-h-[800px]">
+          <div className="flex items-center justify-between mb-6 flex-wrap gap-2 sm:gap-0">
+            <div className="relative">
+              <ProjectPrivacySelect
+                value={isPrivate}
+                onValueChange={setIsPrivate}
+              />
             </div>
-            <div className="flex justify-between gap-[50px] sm:gap-[85px] flex-wrap-reverse sm:flex-nowrap">
+            <div className="flex items-center gap-1 justify-end">
+              <Button
+                variant="secondary"
+                onClick={() =>
+                  router.push(
+                    eventDetails?.slug
+                      ? `/events/${eventDetails.slug}/overview`
+                      : eventId
+                        ? `/events/${eventId}/overview`
+                        : `/projects`
+                  )
+                }
+                className="bg-[#f2f2f2] hover:bg-[#e8e8e8] text-black rounded-xl px-6 py-2.5 shadow-sm font-medium"
+              >
+                Save draft and exit
+              </Button>
+              <Button
+                onClick={handleDeleteDraft}
+                disabled={isDeletingDraft}
+                className="bg-red-600 hover:bg-red-700 text-white rounded-xl px-6 py-2.5 shadow-sm font-medium"
+              >
+                Delete draft
+              </Button>
+              <Button
+                onClick={handlePublish}
+                disabled={isSubmitting}
+                className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-6 py-2.5 shadow-sm font-medium"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Publishing...
+                  </>
+                ) : (
+                  "Publish project"
+                )}
+              </Button>
+            </div>
+          </div>
+          <div className="flex justify-between gap-[50px] sm:gap-[85px] flex-wrap-reverse sm:flex-nowrap">
               {/* Left Side - Form */}
               <div className="flex-1 space-y-6">
                 <div className="space-y-1">
@@ -1321,7 +1320,6 @@ export function NewProjectSubmissionFormSinglePage({
                   </>
                 )}
               </div>
-            </div>
           </div>
         </div>
       </div>

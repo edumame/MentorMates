@@ -1026,7 +1026,7 @@ export default function DraftProjectSubmissionFormSinglePage({
   const totalMembers = (project.teammates?.length || 0) + 1;
 
   return (
-    <>
+    <div className="min-h-full bg-gradient-to-br from-blue-100/45 via-transparent to-transparent">
       {activeIntakeForm ? (
         <ParticipantIntakeDialog
           open={showIntakeDialog}
@@ -1076,42 +1076,41 @@ export default function DraftProjectSubmissionFormSinglePage({
       </div>
 
       {/* Main Content */}
-      <div className="bg-gradient-to-br from-blue-100/45 via-transparent to-transparent">
-        <div className="mx-auto px-8 py-6 min-h-[800px]">
-          <div className="flex gap-[50px] sm:gap-[85px] items-start justify-between flex-wrap-reverse sm:flex-nowrap">
-            {/* Left Side - Form */}
-            <div className="flex-1 space-y-6">
-              <div className="space-y-1">
-                <div className="flex items-start justify-between gap-4 flex-wrap">
-                  <h1 className="text-[28px] font-semibold text-black tracking-[-0.06em] leading-[1.4]">
-                    Edit your project
-                  </h1>
-                  <ProjectPrivacySelect
-                    value={isPrivate}
-                    onValueChange={setIsPrivate}
-                  />
-                </div>
+      <div className="mx-auto px-8 py-6 min-h-[800px]">
+        <div className="flex gap-[50px] sm:gap-[85px] items-start justify-between flex-wrap-reverse sm:flex-nowrap">
+          {/* Left Side - Form */}
+          <div className="flex-1 space-y-6">
+            <div className="space-y-1">
+              <div className="flex items-start justify-between gap-4 flex-wrap">
+                <h1 className="text-[28px] font-semibold text-black tracking-[-0.06em] leading-[1.4]">
+                  Edit your project
+                </h1>
+                <ProjectPrivacySelect
+                  value={isPrivate}
+                  onValueChange={setIsPrivate}
+                />
               </div>
+            </div>
 
-              {submissionFieldMismatchMessage ? (
-                <Alert className="border-amber-200 bg-amber-50 text-amber-900 [&>svg]:text-amber-700">
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertTitle>Submission form changed</AlertTitle>
-                  <AlertDescription className="space-y-3 text-amber-900">
-                    <p>{submissionFieldMismatchMessage}</p>
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="border-amber-300 bg-white text-amber-900 hover:bg-amber-100"
-                        onClick={() => window.location.reload()}
-                      >
-                        Refresh form
-                      </Button>
-                    </div>
-                  </AlertDescription>
-                </Alert>
-              ) : null}
+            {submissionFieldMismatchMessage ? (
+              <Alert className="border-amber-200 bg-amber-50 text-amber-900 [&>svg]:text-amber-700">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Submission form changed</AlertTitle>
+                <AlertDescription className="space-y-3 text-amber-900">
+                  <p>{submissionFieldMismatchMessage}</p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="border-amber-300 bg-white text-amber-900 hover:bg-amber-100"
+                      onClick={() => window.location.reload()}
+                    >
+                      Refresh form
+                    </Button>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            ) : null}
 
               <div className="space-y-4">
                 <ProjectSubmissionSchemaSection
@@ -1428,10 +1427,10 @@ export default function DraftProjectSubmissionFormSinglePage({
                   </div>
                 </div>
               </div>
-            </div>
+          </div>
 
-            {/* Right Side - Preview & Actions */}
-            <div className="space-y-6">
+          {/* Right Side - Preview & Actions */}
+          <div className="space-y-6">
               {/* Action Buttons */}
               <div className="flex items-center gap-1 justify-end">
                 {isLead && (
@@ -1543,7 +1542,6 @@ export default function DraftProjectSubmissionFormSinglePage({
                   <ExternalLink className="h-4.5 w-4.5" />
                 </button>
               </div>
-            </div>
           </div>
         </div>
       </div>
@@ -1572,6 +1570,6 @@ export default function DraftProjectSubmissionFormSinglePage({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </>
+    </div>
   );
 }
