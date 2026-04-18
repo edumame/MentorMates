@@ -110,6 +110,7 @@ export function NewProjectSubmissionFormSinglePage({
   const [isLoading, setIsLoading] = useState(true);
   const [selectedTrackIds, setSelectedTrackIds] = useState<string[]>([]);
   const [isPrivate, setIsPrivate] = useState(false);
+  const [showMobileActions, setShowMobileActions] = useState(false);
   const [isDeletingDraft, setIsDeletingDraft] = useState(false);
   const [extraProjectUrls, setExtraProjectUrls] = useState<string[]>([]);
   const [extraVideoUrls, setExtraVideoUrls] = useState<string[]>([]);
@@ -941,13 +942,113 @@ export function NewProjectSubmissionFormSinglePage({
       {/* Wrapper without top border */}
       <div className="overflow-visible">
         {/* Main Content */}
-        <div className="px-8 py-6 min-h-[800px]">
-          <div className="flex items-center justify-between mb-6 flex-wrap gap-2 sm:gap-0">
-            <div className="relative">
-              <ProjectPrivacySelect
-                value={isPrivate}
-                onValueChange={setIsPrivate}
-              />
+        <div className="bg-gradient-to-br from-blue-100/45 via-transparent to-transparent">
+          <div className="px-8 py-6 min-h-[800px]">
+            {/* TODO(lia, #660): Fix mobile layout of this top bar.
+                Currently on mobile (<640px), the visibility dropdown + 3 action
+                buttons wrap awkwardly with text breaking mid-word.
+                Options:
+                  1. Stack vertically full-width on mobile
+                  2. Hide "Delete draft" in an overflow menu
+                  3. Compact icon-only buttons on mobile
+                Keep desktop layout unchanged. Match MM design system (12px radius,
+                #4b89ef primary, Inter). The mobile Publish button is already
+                available in a sticky bottom bar (PR #639), so the top version
+                can be more compact. */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-3">
+              <div className="relative w-full sm:w-auto">
+                  <ProjectPrivacySelect
+                    value={isPrivate}
+                    onValueChange={setIsPrivate}
+                  />
+              </div>
+              <div className="flex items-center justify-end gap-2">
+                {/* Desktop actions */}
+                <div className="hidden sm:flex items-center gap-1">
+                  <Button
+                    variant="secondary"
+                    onClick={() =>
+                      router.push(
+                        eventDetails?.slug
+                          ? `/events/${eventDetails.slug}/overview`
+                          : eventId
+                            ? `/events/${eventId}/overview`
+                            : `/projects`
+                      )
+                    }
+                    className="bg-[#f2f2f2] hover:bg-[#e8e8e8] text-black rounded-xl px-6 py-2.5 shadow-sm font-medium"
+                  >
+                    Save draft and exit
+                  </Button>
+                  <Button
+                    onClick={handleDeleteDraft}
+                    disabled={isDeletingDraft}
+                    className="bg-red-600 hover:bg-red-700 text-white rounded-xl px-6 py-2.5 shadow-sm font-medium"
+                  >
+                    Delete draft
+                  </Button>
+                  <Button
+                    onClick={handlePublish}
+                    disabled={isSubmitting}
+                    className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-6 py-2.5 shadow-sm font-medium"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Publishing...
+                      </>
+                    ) : (
+                      "Publish project"
+                    )}
+                  </Button>
+                </div>
+
+                {/* Mobile overflow actions */}
+                <div className="relative sm:hidden">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="rounded-xl border-[rgba(0,0,0,0.15)] bg-white"
+                    onClick={() =>
+                      setShowMobileActions((prev) => !prev)
+                    }
+                  >
+                    <MoreHorizontal className="h-5 w-5" />
+                  </Button>
+                  {showMobileActions && (
+                    <div className="absolute right-0 mt-2 w-56 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] shadow-lg z-20 py-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowMobileActions(false);
+                          router.push(
+                            eventDetails?.slug
+                              ? `/events/${eventDetails.slug}/overview`
+                              : eventId
+                                ? `/events/${eventId}/overview`
+                                : `/projects`
+                          );
+                        }}
+                        className="w-full text-left px-4 py-2.5 text-[15px] hover:bg-[#F2F2F2]"
+                      >
+                        Save draft and exit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowMobileActions(false);
+                          handleDeleteDraft();
+                        }}
+                        disabled={isDeletingDraft}
+                        className="w-full text-left px-4 py-2.5 text-[15px] text-red-600 hover:bg-[#FCE8E6] disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                        Delete draft
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
             <div className="flex items-center gap-1 justify-end">
               <Button
