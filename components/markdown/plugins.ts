@@ -1,5 +1,6 @@
 import rehypeRaw from 'rehype-raw';
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
+import remarkGfm from 'remark-gfm';
 import type { PluggableList } from 'unified';
 
 // Extend the default sanitize schema to allow iframes and video elements
@@ -46,5 +47,9 @@ export const markdownRehypePlugins: PluggableList = [
   rehypeRaw,
   [rehypeSanitize, iframeSanitizeSchema],
 ];
+
+// Reusable list of remark plugins for ReactMarkdown.
+// remark-gfm enables GFM tables, strikethrough, task lists, and autolinks.
+export const markdownRemarkPlugins: PluggableList = [remarkGfm];
 
 export { iframeSanitizeSchema };
