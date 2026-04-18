@@ -402,6 +402,9 @@ describe("score exports", () => {
         scores: { impact: 9, feasible: 6 },
         comments: "Strong prototype",
         round_number: 1,
+        judge_id: "judge-1",
+        judge_name: "Alex Judge",
+        created_at: "2026-04-01T09:00:00.000Z",
         projects: {
           project_name: "Alpha",
           lead_email: "alpha@example.com",
@@ -415,6 +418,9 @@ describe("score exports", () => {
         scores: { demo: 5 },
         comments: "Best live demo",
         round_number: 2,
+        judge_id: "judge-2",
+        judge_name: "Zara Judge",
+        created_at: "2026-04-02T11:30:00.000Z",
         projects: {
           project_name: "Beta",
           lead_email: "beta@example.com",
@@ -441,10 +447,14 @@ describe("score exports", () => {
         "Project Name": "Alpha",
         Track: "Main Track",
         Round: 1,
+        "Judge Name": "Alex Judge",
+        "Judge ID": "judge-1",
+        "Submitted At": "2026-04-01T09:00:00.000Z",
         Comments: "Strong prototype",
         "Lead Email": "alpha@example.com",
         Impact: 9,
         Feasibility: 6,
+        "Total Score": 24,
       },
     ]);
     expect(files[1].rows).toEqual([
@@ -452,9 +462,13 @@ describe("score exports", () => {
         "Project Name": "Beta",
         Track: "Main Track",
         Round: 2,
+        "Judge Name": "Zara Judge",
+        "Judge ID": "judge-2",
+        "Submitted At": "2026-04-02T11:30:00.000Z",
         Comments: "Best live demo",
         "Lead Email": "beta@example.com",
         "Demo Quality": 5,
+        "Total Score": 15,
       },
     ]);
   });
@@ -467,6 +481,9 @@ describe("score exports", () => {
             scores: { custom_metric: 7 },
             comments: "Unmapped metric",
             round_number: 3,
+            judge_id: "judge-3",
+            judge_name: "Taylor Judge",
+            created_at: "2026-04-03T15:00:00.000Z",
             projects: {
               project_name: "Gamma",
               lead_email: "gamma@example.com",
@@ -484,9 +501,13 @@ describe("score exports", () => {
         "Project Name": "Gamma",
         Track: "Unknown Track",
         Round: 3,
+        "Judge Name": "Taylor Judge",
+        "Judge ID": "judge-3",
+        "Submitted At": "2026-04-03T15:00:00.000Z",
         Comments: "Unmapped metric",
         "Lead Email": "gamma@example.com",
         Score_custom_metric: 7,
+        "Total Score": null,
       },
     ]);
   });

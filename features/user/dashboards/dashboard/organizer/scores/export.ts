@@ -24,6 +24,9 @@ export interface RawScoreExportData {
   scores: Record<string, string | number>;
   comments: string | null;
   round_number: number;
+  judge_id?: string | null;
+  judge_name?: string | null;
+  created_at?: string | null;
   projects: {
     project_name: string;
     lead_email: string;
@@ -339,10 +342,15 @@ export function buildRawScoreExportRows(params: {
       trackName,
       score.round_number
     );
+    let totalScore = 0;
+    let hasNumericScore = false;
     const baseData: Record<string, string | number | null> = {
       "Project Name": score.projects.project_name || "",
       Track: score.event_tracks.name || "",
       Round: score.round_number ?? 1,
+      "Judge Name": score.judge_name || "",
+      "Judge ID": score.judge_id || "",
+      "Submitted At": score.created_at || "",
       Comments: score.comments || "",
       "Lead Email": score.projects.lead_email || "",
     };
@@ -352,6 +360,22 @@ export function buildRawScoreExportRows(params: {
         const criterion = trackConfig.criteria.find((item) => item.id === criterionId);
         const criterionName = criterion ? criterion.name : criterionId;
         baseData[criterionName] = scoreValue as string | number | null;
+
+        if (!criterion || criterion.type === "multiplechoice") {
+          return;
+        }
+
+        const numeric =
+          typeof scoreValue === "number"
+            ? scoreValue
+            : parseFloat(String(scoreValue));
+
+        if (Number.isNaN(numeric)) {
+          return;
+        }
+
+        totalScore += numeric * (criterion.weight || 1);
+        hasNumericScore = true;
       });
     } else if (score.scores) {
       Object.entries(score.scores).forEach(([criterionId, scoreValue]) => {
@@ -361,6 +385,8 @@ export function buildRawScoreExportRows(params: {
           | null;
       });
     }
+
+    baseData["Total Score"] = hasNumericScore ? totalScore : null;
 
     return baseData;
   });

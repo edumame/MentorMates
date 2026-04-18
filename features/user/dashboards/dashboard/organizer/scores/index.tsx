@@ -633,6 +633,9 @@ export function ScoresTab({
             comments: item.comments,
             round_number:
               typeof item.round_number === "number" ? item.round_number : 1,
+            judge_id: judgeId,
+            judge_name: judgeName,
+            created_at: item.created_at ?? null,
             projects: {
               project_name: projects?.project_name || "",
               lead_email: projects?.lead_email || "",
