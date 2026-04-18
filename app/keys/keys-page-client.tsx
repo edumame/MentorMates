@@ -142,12 +142,10 @@ export default function KeysPageClient({
   const buildCopyableMarkdown = () => {
     const isOrg = activeTab === "organizer";
     const envVar = isOrg ? "MENTORMATES_API_KEY" : "MENTORMATES_PARTICIPANT_API_KEY";
-    // Security: never embed the raw key in the Copy Page markdown. The Copy
-    // Page is meant to be pasted into an AI agent chat, which would leak the
-    // key into conversation history. Users run the export command in their
-    // shell separately — see the visible "Set env vars" block which does
-    // show the generated key for one-time copying.
-    const keyPlaceholder = "mm_sk_...";
+    // Include the real key when one has just been generated so the user can
+    // copy the page and paste it directly into their shell. Falls back to a
+    // placeholder if no key has been generated yet.
+    const keyValue = generatedKey?.apiKey || "mm_sk_...";
     const installBlock = [
       "**Claude Code**",
       "```",
@@ -227,7 +225,7 @@ export default function KeysPageClient({
       "",
       "### 2. Set env var (in YOUR shell, not in the agent)",
       "```bash",
-      `export ${envVar}="${keyPlaceholder}"`,
+      `export ${envVar}="${keyValue}"`,
       "```",
       "",
       "> The key itself is intentionally omitted here. Copy it from the dashboard into your own shell. Do not paste it into an agent chat — it will end up in conversation history.",
@@ -256,9 +254,7 @@ export default function KeysPageClient({
   };
 
   const handleCopyPage = async () => {
-    await navigator.clipboard.writeText(buildCopyableMarkdown());
-    setCopiedField("page");
-    window.setTimeout(() => setCopiedField(null), 2000);
+    await copyToClipboard(buildCopyableMarkdown(), "page");
   };
 
   const handleCreateKey = async () => {
