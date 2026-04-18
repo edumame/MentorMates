@@ -884,7 +884,7 @@ export function NewProjectSubmissionFormSinglePage({
   const totalMembers = (formData.teammates?.length || 0) + 1;
 
   return (
-    <div className="bg-white mb-8 sm:pb-0 pb-24">
+    <div className="min-h-full bg-gradient-to-br from-blue-100/45 via-transparent to-transparent sm:pb-8 pb-24">
       <Toaster />
       {activeIntakeForm ? (
         <ParticipantIntakeDialog
@@ -955,16 +955,16 @@ export function NewProjectSubmissionFormSinglePage({
                 #4b89ef primary, Inter). The mobile Publish button is already
                 available in a sticky bottom bar (PR #639), so the top version
                 can be more compact. */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-3">
+            <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="relative w-full sm:w-auto">
-                  <ProjectPrivacySelect
-                    value={isPrivate}
-                    onValueChange={setIsPrivate}
-                  />
+                <ProjectPrivacySelect
+                  value={isPrivate}
+                  onValueChange={setIsPrivate}
+                />
               </div>
-              <div className="flex items-center justify-end gap-2">
+              <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
                 {/* Desktop actions */}
-                <div className="hidden sm:flex items-center gap-1">
+                <div className="hidden items-center gap-1 sm:flex">
                   <Button
                     variant="secondary"
                     onClick={() =>
@@ -1050,7 +1050,7 @@ export function NewProjectSubmissionFormSinglePage({
                 </div>
               </div>
             </div>
-            <div className="flex justify-between gap-[50px] sm:gap-[85px] flex-wrap-reverse sm:flex-nowrap">
+          <div className="flex items-start justify-between gap-[50px] sm:gap-[85px] flex-wrap-reverse sm:flex-nowrap">
               {/* Left Side - Form */}
               <div className="flex-1 space-y-6">
                 <div className="space-y-1">
