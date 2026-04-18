@@ -1,6 +1,6 @@
 /** @jest-environment jsdom */
 
-import { GET } from "./route";
+import { GET, PATCH } from "./route";
 import { authenticateAgentRequest, authorizeAgentEventAccess, requireScope } from "@/lib/agent/auth";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 
@@ -120,5 +120,217 @@ describe("GET /api/agent/events", () => {
       offset: 1,
     });
     expect(authorizeAgentEventAccess).not.toHaveBeenCalled();
+  });
+});
+
+describe("PATCH /api/agent/events (expanded field set)", () => {
+  const mockAuth = {
+    userId: "user-1",
+    eventId: "event-1",
+    scopes: ["event:write"],
+    keyId: "key-1",
+  };
+
+  function mockUpdateChain(returnEvent = { event_id: "event-1", event_name: "Updated" }) {
+    const updateQuery = {
+      update: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({ data: returnEvent, error: null }),
+    };
+    (createSupabaseServiceClient as jest.Mock).mockReturnValue({
+      from: jest.fn().mockReturnValue(updateQuery),
+    });
+    return updateQuery;
+  }
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (authenticateAgentRequest as jest.Mock).mockResolvedValue(mockAuth);
+    (requireScope as jest.Mock).mockReturnValue(null);
+    (authorizeAgentEventAccess as jest.Mock).mockResolvedValue({ eventId: "event-1" });
+  });
+
+  async function patchWith(body: Record<string, unknown>) {
+    const req = {
+      json: async () => body,
+      nextUrl: new URL("https://mentormates.ai/api/agent/events?event_id=event-1"),
+    };
+    return PATCH(req as never);
+  }
+
+  it("accepts event_prizes array", async () => {
+    const q = mockUpdateChain();
+    const res = await patchWith({
+      event_prizes: [
+        { track: "Overall Winner", prize: "Scooter", description: "judges" },
+      ],
+    });
+    expect(res.status).toBe(200);
+    expect(q.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event_prizes: [
+          { track: "Overall Winner", prize: "Scooter", description: "judges" },
+        ],
+      })
+    );
+  });
+
+  it("accepts event_schedule array of blocks", async () => {
+    const q = mockUpdateChain();
+    const res = await patchWith({
+      event_schedule: [{ time: "Day 1", events: [{ name: "Kickoff", time: "1 PM" }] }],
+    });
+    expect(res.status).toBe(200);
+    expect(q.update).toHaveBeenCalledWith(
+      expect.objectContaining({ event_schedule: expect.any(Array) })
+    );
+  });
+
+  it("accepts event_resources array", async () => {
+    const q = mockUpdateChain();
+    const res = await patchWith({
+      event_resources: [{ name: "Docs", link: "https://example.com/docs" }],
+    });
+    expect(res.status).toBe(200);
+    expect(q.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event_resources: [{ name: "Docs", link: "https://example.com/docs" }],
+      })
+    );
+  });
+
+  it("accepts scoring_config object", async () => {
+    const q = mockUpdateChain();
+    const res = await patchWith({
+      scoring_config: { tracks: { overall: { name: "Overall", criteria: [] } } },
+    });
+    expect(res.status).toBe(200);
+    expect(q.update).toHaveBeenCalledWith(
+      expect.objectContaining({ scoring_config: expect.any(Object) })
+    );
+  });
+
+  it("accepts rules array", async () => {
+    const q = mockUpdateChain();
+    const res = await patchWith({
+      rules: [{ title: "Code of Conduct", items: ["Be kind"] }],
+    });
+    expect(res.status).toBe(200);
+    expect(q.update).toHaveBeenCalledWith(
+      expect.objectContaining({ rules: expect.any(Array) })
+    );
+  });
+
+  it("accepts faq array", async () => {
+    const q = mockUpdateChain();
+    const res = await patchWith({
+      faq: [{ question: "When?", answer: "Tomorrow" }],
+    });
+    expect(res.status).toBe(200);
+    expect(q.update).toHaveBeenCalledWith(
+      expect.objectContaining({ faq: expect.any(Array) })
+    );
+  });
+
+  it("accepts cover_image_url", async () => {
+    const q = mockUpdateChain();
+    const res = await patchWith({ cover_image_url: "https://example.com/cover.png" });
+    expect(res.status).toBe(200);
+    expect(q.update).toHaveBeenCalledWith(
+      expect.objectContaining({ cover_image_url: "https://example.com/cover.png" })
+    );
+  });
+
+  it("accepts slug", async () => {
+    const q = mockUpdateChain();
+    const res = await patchWith({ slug: "new-slug" });
+    expect(res.status).toBe(200);
+    expect(q.update).toHaveBeenCalledWith(expect.objectContaining({ slug: "new-slug" }));
+  });
+
+  it("accepts visibility enum", async () => {
+    const q = mockUpdateChain();
+    const res = await patchWith({ visibility: "public" });
+    expect(res.status).toBe(200);
+    expect(q.update).toHaveBeenCalledWith(expect.objectContaining({ visibility: "public" }));
+  });
+
+  it("rejects invalid visibility enum", async () => {
+    mockUpdateChain();
+    const res = await patchWith({ visibility: "not-a-real-value" });
+    expect(res.status).toBe(400);
+  });
+
+  it("accepts paid boolean", async () => {
+    const q = mockUpdateChain();
+    const res = await patchWith({ paid: true });
+    expect(res.status).toBe(200);
+    expect(q.update).toHaveBeenCalledWith(expect.objectContaining({ paid: true }));
+  });
+
+  it("accepts role_labels", async () => {
+    const q = mockUpdateChain();
+    const res = await patchWith({
+      role_labels: { participant: "Hacker", judge: "Reviewer" },
+    });
+    expect(res.status).toBe(200);
+    expect(q.update).toHaveBeenCalledWith(
+      expect.objectContaining({ role_labels: expect.any(Object) })
+    );
+  });
+
+  it("accepts finalist_recommendation_enabled", async () => {
+    const q = mockUpdateChain();
+    const res = await patchWith({ finalist_recommendation_enabled: true });
+    expect(res.status).toBe(200);
+    expect(q.update).toHaveBeenCalledWith(
+      expect.objectContaining({ finalist_recommendation_enabled: true })
+    );
+  });
+
+  it("rejects admin-only fields (featured, approval_status, rejection_reason)", async () => {
+    mockUpdateChain();
+    const res = await patchWith({ featured: true });
+    expect(res.status).toBe(400);
+
+    const res2 = await patchWith({ approval_status: "approved" });
+    expect(res2.status).toBe(400);
+
+    const res3 = await patchWith({ rejection_reason: "because" });
+    expect(res3.status).toBe(400);
+  });
+
+  it("rejects immutable fields (event_id, owner_id, created_at)", async () => {
+    mockUpdateChain();
+    const res = await patchWith({ event_id: "malicious" });
+    expect(res.status).toBe(400);
+
+    const res2 = await patchWith({ owner_id: "someone-else" });
+    expect(res2.status).toBe(400);
+  });
+
+  it("still accepts the existing supported fields", async () => {
+    const q = mockUpdateChain();
+    const res = await patchWith({
+      event_name: "New Name",
+      event_description: "desc",
+      event_blurb: "blurb",
+      event_date: "2026-05-01",
+      location: "Brooklyn",
+      submission_time_start: "2026-05-01T12:00:00Z",
+      submission_time_cutoff: "2026-05-01T18:00:00Z",
+      participant_capacity: 50,
+      require_participant_approval: true,
+      event_type: ["hackathon"],
+    });
+    expect(res.status).toBe(200);
+    expect(q.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event_name: "New Name",
+        participant_capacity: 50,
+        event_type: ["hackathon"],
+      })
+    );
   });
 });

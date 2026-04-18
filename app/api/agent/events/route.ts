@@ -70,8 +70,10 @@ export async function GET(request: NextRequest) {
         `event_id, event_name, event_date, event_blurb, event_description,
          location, visibility, approval_status, participant_capacity,
          submission_time_start, submission_time_cutoff, event_schedule,
-         event_prizes, scoring_config, cover_image_url, slug, paid,
-         require_participant_approval, featured, event_type`
+         event_prizes, event_resources, scoring_config, cover_image_url, slug,
+         paid, require_participant_approval, require_registration_questionnaire,
+         finalist_recommendation_enabled, featured, event_type, rules, faq,
+         role_labels`
       )
       .eq("event_id", auth.eventId)
       .single();
@@ -129,18 +131,54 @@ export async function GET(request: NextRequest) {
   }
 }
 
-const updateEventSchema = z.object({
-  event_name: z.string().min(1).max(200).optional(),
-  event_description: z.string().max(5000).optional(),
-  event_blurb: z.string().max(500).optional(),
-  event_date: z.string().optional(),
-  location: z.string().max(500).optional(),
-  submission_time_start: z.string().nullable().optional(),
-  submission_time_cutoff: z.string().nullable().optional(),
-  participant_capacity: z.number().int().positive().nullable().optional(),
-  require_participant_approval: z.boolean().optional(),
-  event_type: z.array(z.string()).optional(),
+// Shared shapes (kept aligned with createEventSchema below)
+const prizeShape = z.object({
+  track: z.string(),
+  prize: z.string(),
+  description: z.string().optional(),
 });
+const faqShape = z.object({ question: z.string(), answer: z.string() });
+const ruleShape = z.object({ title: z.string(), items: z.array(z.string()) });
+const resourceShape = z.object({ name: z.string(), link: z.string().url() });
+
+// Organizer-writable fields. Admin-only fields (approval_status, rejection_reason,
+// featured) and immutable fields (event_id, owner_id, created_at) are intentionally
+// excluded and rejected via .strict().
+const updateEventSchema = z
+  .object({
+    // text
+    event_name: z.string().min(1).max(200).optional(),
+    event_description: z.string().max(5000).optional(),
+    event_blurb: z.string().max(500).optional(),
+    event_date: z.string().optional(),
+    location: z.string().max(500).optional(),
+    slug: z.string().min(1).max(100).optional(),
+    cover_image_url: z.string().url().nullable().optional(),
+    // temporal
+    submission_time_start: z.string().nullable().optional(),
+    submission_time_cutoff: z.string().nullable().optional(),
+    // booleans
+    require_participant_approval: z.boolean().optional(),
+    require_registration_questionnaire: z.boolean().optional(),
+    finalist_recommendation_enabled: z.boolean().optional(),
+    paid: z.boolean().optional(),
+    // numerics
+    participant_capacity: z.number().int().positive().nullable().optional(),
+    // enums
+    visibility: z
+      .enum(["draft", "private", "public", "demo", "test", "archived"])
+      .optional(),
+    // arrays / jsonb structures
+    event_type: z.array(z.string()).optional(),
+    event_prizes: z.array(prizeShape).optional(),
+    event_schedule: z.array(z.record(z.string(), z.unknown())).optional(),
+    event_resources: z.array(resourceShape).optional(),
+    rules: z.array(ruleShape).optional(),
+    faq: z.array(faqShape).optional(),
+    role_labels: z.record(z.string(), z.unknown()).nullable().optional(),
+    scoring_config: z.record(z.string(), z.unknown()).nullable().optional(),
+  })
+  .strict();
 
 // PATCH: Update event details
 export async function PATCH(request: NextRequest) {
@@ -167,7 +205,7 @@ export async function PATCH(request: NextRequest) {
 
     const { data: event, error } = await supabase
       .from("events")
-      .update(parsed.data)
+      .update(parsed.data as Database["public"]["Tables"]["events"]["Update"])
       .eq("event_id", auth.eventId)
       .select("event_id, event_name")
       .single();
