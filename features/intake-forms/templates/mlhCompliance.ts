@@ -238,6 +238,24 @@ const COUNTRY_OPTIONS = [
   "Zimbabwe",
 ];
 
+const POPULAR_COUNTRY_OPTIONS = [
+  "United States",
+  "Canada",
+  "United Kingdom",
+  "India",
+  "Australia",
+  "Germany",
+  "France",
+  "Brazil",
+  "China",
+  "Japan",
+  "Mexico",
+  "Singapore",
+  "Netherlands",
+  "Sweden",
+  "Ireland",
+];
+
 function createId() {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
     return crypto.randomUUID();
@@ -319,6 +337,9 @@ export function createMLHComplianceTemplate(): IntakeFormSchema {
       }),
       makeField("Country of Residence", "single_select", {
         options: COUNTRY_OPTIONS,
+        searchable: true,
+        popularOptions: POPULAR_COUNTRY_OPTIONS,
+        description: "Select your country of residence.",
       }),
       makeField("LinkedIn URL", "short_text", {
         placeholder: "https://linkedin.com/in/yourprofile",

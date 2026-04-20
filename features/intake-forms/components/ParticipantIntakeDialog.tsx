@@ -291,7 +291,7 @@ export function ParticipantIntakeDialog(props: ParticipantIntakeDialogProps) {
                           )}
                         >
                           <span className="truncate">
-                            {typeof value === "string" && value ? value : "Search schools..."}
+                            {typeof value === "string" && value ? value : `Search ${field.label.toLowerCase()}...`}
                           </span>
                           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                         </button>
@@ -303,21 +303,46 @@ export function ParticipantIntakeDialog(props: ParticipantIntakeDialogProps) {
                       >
                         <Command id={`combobox-${field.key}`} shouldFilter={false}>
                           <CommandInput
-                            placeholder="Search schools..."
+                            placeholder={`Search ${field.label.toLowerCase()}...`}
                             value={comboboxSearch}
                             onValueChange={setComboboxSearch}
                           />
                           <CommandList onWheel={(e) => e.stopPropagation()}>
                             {comboboxSearch.trim() === "" ? (
-                              <p className="py-6 text-center text-sm text-muted-foreground">
-                                Start typing to search schools…
-                              </p>
+                              field.popularOptions && field.popularOptions.length > 0 ? (
+                                <CommandGroup>
+                                  {field.popularOptions.map((option) => (
+                                    <CommandItem
+                                      key={option}
+                                      value={option}
+                                      className="cursor-pointer hover:bg-[#4B89EF] hover:text-white data-[selected=true]:bg-[#4B89EF] data-[selected=true]:text-white"
+                                      onSelect={() => {
+                                        handleAnswerChange(field.key, option);
+                                        setOpenComboboxKey(null);
+                                        setComboboxSearch("");
+                                      }}
+                                    >
+                                      {option}
+                                      <Check
+                                        className={cn(
+                                          "ml-auto h-4 w-4 shrink-0 text-[#4B89EF]",
+                                          value === option ? "opacity-100" : "opacity-0"
+                                        )}
+                                      />
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              ) : (
+                                <p className="py-6 text-center text-sm text-muted-foreground">
+                                  Start typing to search…
+                                </p>
+                              )
                             ) : (() => {
                               const filtered = options.filter((o) =>
                                 o.toLowerCase().includes(comboboxSearch.toLowerCase())
                               );
                               return filtered.length === 0 ? (
-                                <CommandEmpty>No school found.</CommandEmpty>
+                                <CommandEmpty>No results found.</CommandEmpty>
                               ) : (
                                 <CommandGroup>
                                   {filtered.slice(0, 50).map((option) => (

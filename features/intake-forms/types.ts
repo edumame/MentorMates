@@ -27,6 +27,7 @@ export type IntakeFormField = {
   required: boolean;
   options?: string[];
   searchable?: boolean;
+  popularOptions?: string[];
   validation?: IntakeFormFieldValidation;
   showIf?: {
     fieldKey: string;
