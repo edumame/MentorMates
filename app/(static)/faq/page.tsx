@@ -115,8 +115,22 @@ function FAQAccordionItem({
 }
 
 export default function FAQPage() {
-  const [openIndex, setOpenIndex] = React.useState<number | null>(0);
+  const [openIndexes, setOpenIndexes] = React.useState<Set<number>>(
+    () => new Set([0])
+  );
   const { isAuthenticated } = useAuth();
+
+  const toggleIndex = (index: number) => {
+    setOpenIndexes((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) {
+        next.delete(index);
+      } else {
+        next.add(index);
+      }
+      return next;
+    });
+  };
 
   return (
     <>
@@ -144,10 +158,8 @@ export default function FAQPage() {
               <FAQAccordionItem
                 key={index}
                 item={faq}
-                isOpen={openIndex === index}
-                onToggle={() =>
-                  setOpenIndex(openIndex === index ? null : index)
-                }
+                isOpen={openIndexes.has(index)}
+                onToggle={() => toggleIndex(index)}
               />
             ))}
           </div>

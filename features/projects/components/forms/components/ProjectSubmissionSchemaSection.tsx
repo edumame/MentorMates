@@ -11,6 +11,7 @@ import type {
   EffectiveSubmissionField,
   SubmissionValue,
 } from "@/features/projects/utils/effectiveSubmission";
+import { getFileNameFromUrl } from "@/lib/utils/file";
 
 interface ProjectSubmissionSchemaSectionProps {
   fields: EffectiveSubmissionField[];
@@ -179,29 +180,93 @@ export function ProjectSubmissionSchemaSection({
                   </Button>
                 </div>
               ) : field.field_type === "file" ? (
-                <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-3 py-2 flex items-center gap-3 h-11">
-                  {getFieldIcon(field.key)}
-                  <Input
-                    value={textValue}
-                    onChange={(event) => onValueChange(field.key, event.target.value)}
-                    placeholder={field.placeholder || "https://..."}
-                    className="border-0 p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0 text-base truncate"
-                  />
-                  <label className="bg-[rgba(0,0,0,0.05)] shadow-sm rounded-xl px-3 py-1 cursor-pointer shrink-0">
-                    <input
-                      type="file"
-                      accept={field.key === "cover_image" ? "image/*" : undefined}
-                      onChange={(event) => {
-                        const file = event.target.files?.[0];
-                        if (!file) return;
-                        void onFileUpload(field.key, file);
-                        event.currentTarget.value = "";
-                      }}
-                      className="hidden"
+                field.key === "cover_image" ? (
+                  <div className="space-y-2">
+                    <div className="flex min-h-11 flex-wrap items-center gap-3 rounded-xl border border-[rgba(0,0,0,0.15)] bg-white px-3 py-2">
+                      {getFieldIcon(field.key)}
+                      <div className="flex min-w-0 flex-1 items-center gap-3">
+                        {textValue.trim() ? (
+                          <>
+                            <div className="h-10 w-16 shrink-0 overflow-hidden rounded-md bg-gray-100">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={textValue}
+                                alt=""
+                                className="h-full w-full object-cover"
+                              />
+                            </div>
+                            <span
+                              className="min-w-0 truncate text-base text-black"
+                              title={getFileNameFromUrl(textValue)}
+                            >
+                              {getFileNameFromUrl(textValue)}
+                            </span>
+                          </>
+                        ) : (
+                          <span className="text-base text-[rgba(0,0,0,0.45)]">
+                            No cover image
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <label className="inline-flex h-9 cursor-pointer items-center rounded-xl bg-[rgba(0,0,0,0.05)] px-3 py-1 shadow-sm">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(event) => {
+                              const file = event.target.files?.[0];
+                              if (!file) return;
+                              void onFileUpload(field.key, file);
+                              event.currentTarget.value = "";
+                            }}
+                            className="hidden"
+                          />
+                          <span className="text-xs font-normal text-black">
+                            Upload
+                          </span>
+                        </label>
+                        {textValue.trim() ? (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-9 rounded-xl text-xs"
+                            onClick={() => onValueChange(field.key, "")}
+                          >
+                            Remove
+                          </Button>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex h-11 items-center gap-3 rounded-xl border border-[rgba(0,0,0,0.15)] bg-white px-3 py-2">
+                    {getFieldIcon(field.key)}
+                    <Input
+                      value={textValue}
+                      onChange={(event) =>
+                        onValueChange(field.key, event.target.value)
+                      }
+                      placeholder={field.placeholder || "https://..."}
+                      className="h-auto border-0 p-0 text-base focus-visible:ring-0 focus-visible:ring-offset-0 truncate"
                     />
-                    <span className="text-xs text-black font-normal">Upload</span>
-                  </label>
-                </div>
+                    <label className="shrink-0 cursor-pointer rounded-xl bg-[rgba(0,0,0,0.05)] px-3 py-1 shadow-sm">
+                      <input
+                        type="file"
+                        onChange={(event) => {
+                          const file = event.target.files?.[0];
+                          if (!file) return;
+                          void onFileUpload(field.key, file);
+                          event.currentTarget.value = "";
+                        }}
+                        className="hidden"
+                      />
+                      <span className="text-xs font-normal text-black">
+                        Upload
+                      </span>
+                    </label>
+                  </div>
+                )
               ) : field.field_type === "select" ? (
                 <div className="space-y-2">
                   {getFieldOptions(field.options).map((option) => (

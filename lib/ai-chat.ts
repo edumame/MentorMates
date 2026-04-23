@@ -5,7 +5,7 @@
 
 export type EventLike = Record<string, unknown>;
 
-export type ChatContext = "submission";
+export type ChatContext = "submission" | "judging";
 
 export interface ChatMessage {
   role: "user" | "assistant";
@@ -58,7 +58,43 @@ IMPORTANT:
 - Always return the FULL submission_fields array in the patch, not just the changed field.
 - Generate sensible IDs using lowercase_snake_case (e.g., "tech_stack", "demo_video", "project_categories").`;
 
-export function getSystemPrompt(_context: ChatContext | string): string {
+export const JUDGING_PROMPT = `You are an AI assistant that helps organizers set up hackathon judging tracks and scoring criteria on MentorMates.
+
+${RESPONSE_FORMAT}
+
+The event state includes a "tracks" object or a "scoring_config" object with this structure:
+{
+  "tracks": {
+    "<track_id>": {
+      "name": "Track Name",
+      "criteria": [
+        { "id": "crit_id", "name": "Criterion", "description": "...", "weight": 1, "min": 1, "max": 10, "type": "numeric" }
+      ]
+    }
+  }
+}
+
+When creating a new track, do NOT generate a track_id. Omit the track_id field entirely — the database will assign a UUID automatically. Use a placeholder key like "new_track_1" in the JSON patch; the server will replace it with a real UUID on save.
+When creating criteria, generate IDs like "crit-<index>" (short, stable, no timestamps).
+Default criteria weight is 1, min is 1, max is 10, type is "numeric".
+
+Available patch fields:
+- tracks: the full tracks object (always include ALL tracks when patching, not just changed ones)
+
+Examples:
+- "Add a Best Design track" → create track with 4 default criteria (Technical, Creativity, Impact, Presentation)
+- "Set all weights to equal" → set every criterion weight to 1
+- "Change scoring to 1-5 scale" → update min=1, max=5 on all criteria
+- "Add a criterion for accessibility" → add a new criterion to the most recently discussed track
+- "Remove the Impact criterion" → filter it out from the criteria array
+
+IMPORTANT:
+- When patching tracks, return the FULL tracks object, not just the changed track.
+- Preserve existing track IDs and criterion IDs when editing.
+- For prizes, just acknowledge the request in the reply (prizes are managed in a separate UI).`;
+
+export function getSystemPrompt(context: ChatContext | string): string {
+  if (context === "judging") return JUDGING_PROMPT;
   return SUBMISSION_PROMPT;
 }
 
