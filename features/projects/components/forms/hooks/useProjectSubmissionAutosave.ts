@@ -26,6 +26,11 @@ interface UseProjectSubmissionAutosaveOptions {
     is_primary: boolean;
   }>;
   onSaved?: (project: Project | null) => void;
+  onError?: (error: {
+    code?: string;
+    message: string;
+    status: number;
+  }) => void;
 }
 
 export function useProjectSubmissionAutosave({
@@ -38,11 +43,13 @@ export function useProjectSubmissionAutosave({
   extraPayload,
   artifacts,
   onSaved,
+  onError,
 }: UseProjectSubmissionAutosaveOptions) {
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const lastSavedSnapshotRef = useRef<string>("");
   const initializedProjectIdRef = useRef<string | null>(null);
+  const blockedSnapshotRef = useRef<string | null>(null);
 
   const payload = useMemo(() => {
     const basePayload = hasConfiguredSubmissionFields
@@ -80,7 +87,12 @@ export function useProjectSubmissionAutosave({
       return;
     }
 
-    if (!enabled || !projectId || payloadSnapshot === lastSavedSnapshotRef.current) {
+    if (
+      !enabled ||
+      !projectId ||
+      payloadSnapshot === lastSavedSnapshotRef.current ||
+      payloadSnapshot === blockedSnapshotRef.current
+    ) {
       return;
     }
 
@@ -98,10 +110,23 @@ export function useProjectSubmissionAutosave({
         });
 
         if (!response.ok) {
+          const errorPayload = (await response.json().catch(() => ({}))) as {
+            code?: string;
+            error?: string;
+          };
+          if (errorPayload.code === "submission_field_mismatch") {
+            blockedSnapshotRef.current = payloadSnapshot;
+          }
+          onError?.({
+            code: errorPayload.code,
+            message: errorPayload.error || "Failed to save project changes",
+            status: response.status,
+          });
           return;
         }
 
         const json = (await response.json()) as { project?: Project };
+        blockedSnapshotRef.current = null;
         lastSavedSnapshotRef.current = payloadSnapshot;
         setLastSaved(new Date());
         onSaved?.(json.project || null);
@@ -111,7 +136,15 @@ export function useProjectSubmissionAutosave({
     }, 2000);
 
     return () => window.clearTimeout(timer);
-  }, [enabled, initializeAsSaved, onSaved, payloadSnapshot, projectId, isSaving]);
+  }, [
+    enabled,
+    initializeAsSaved,
+    isSaving,
+    onError,
+    onSaved,
+    payloadSnapshot,
+    projectId,
+  ]);
 
   return {
     isSaving,

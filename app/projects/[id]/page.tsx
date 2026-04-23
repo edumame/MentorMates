@@ -65,6 +65,10 @@ import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 import UserSearchWithInvite from "@/components/utils/UserSearchWithInvite";
 import { EditNote, Favorite } from "@mui/icons-material";
 import { buildArtifactsFromLegacy } from "@/features/projects/utils/submission";
+import {
+  CoverImageWithFallback,
+  ProjectCoverHero,
+} from "@/features/projects/components/displays/cover-image-with-fallback";
 import { ProjectDescription } from "@/components/projects/ProjectDescription";
 
 interface EventParticipant {
@@ -1189,17 +1193,6 @@ export default function ProjectPage() {
 
               {/* Action Buttons - Desktop Only */}
               <div className="hidden sm:flex items-center gap-2 sm:gap-3 flex-wrap">
-                {canEdit && (
-                  <Button
-                    variant="ghost"
-                    className="rounded-xl px-4 sm:px-5 py-2 text-sm sm:text-base"
-                    onClick={() => router.push(`/projects/${projectId}/edit`)}
-                  >
-                    {/* <Edit className="h-6 w-6 mr-1.5" /> */}
-                    <EditNote className="h-5 w-5 sm:h-6 sm:w-6 mr-1.5" />
-                    Edit
-                  </Button>
-                )}
                 <div
                   onClick={() => {
                     if (!session) {
@@ -1231,12 +1224,22 @@ export default function ProjectPage() {
                   <span className="whitespace-nowrap">{liked ? "Liked" : "Like"}</span>
                   {/* <span className="ml-2 text-sm">{likesCount}</span> */}
                 </div>
-                <Button
-                  onClick={() => setShowFeedbackDialog(true)}
-                  className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-4 sm:px-5 py-2 shadow-sm text-sm sm:text-base whitespace-nowrap"
-                >
-                  Give feedback
-                </Button>
+                {canEdit ? (
+                  <Button
+                    onClick={() => router.push(`/projects/${projectId}/edit`)}
+                    className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-4 sm:px-5 py-2 shadow-sm text-sm sm:text-base whitespace-nowrap"
+                  >
+                    <EditNote className="h-5 w-5 sm:h-6 sm:w-6 mr-1.5" />
+                    Edit
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={() => setShowFeedbackDialog(true)}
+                    className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-4 sm:px-5 py-2 shadow-sm text-sm sm:text-base whitespace-nowrap"
+                  >
+                    Give feedback
+                  </Button>
+                )}
               </div>
             </div>
 
@@ -1432,46 +1435,29 @@ export default function ProjectPage() {
               {/* Right: Cover Image */}
               <div className="w-full lg:w-[520px] h-[200px] sm:h-[250px] lg:h-[300px] rounded-2xl overflow-hidden shadow-lg order-2">
                 {canEdit ? (
-                  <div className="relative w-full h-full group">
-                    <div
-                      className="w-full h-full bg-cover bg-center bg-no-repeat"
-                      style={{
-                        backgroundImage: `url(${
-                          project.cover_image_url || "/img/placeholder.png"
-                        })`,
-                      }}
-                    ></div>
-                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <span className="text-white text-sm">
-                        Click to edit in settings below
-                      </span>
-                    </div>
+                  <div className="relative h-full w-full group">
+                    <ProjectCoverHero
+                      src={project.cover_image_url}
+                      alt={`${project.project_name || "Project"} cover`}
+                    >
+                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <span className="text-white text-sm">
+                          Click to edit in settings below
+                        </span>
+                      </div>
+                    </ProjectCoverHero>
                   </div>
                 ) : (
-                  <div
-                    className="w-full h-full bg-cover bg-center bg-no-repeat"
-                    style={{
-                      backgroundImage: `url(${
-                        project.cover_image_url || "/img/placeholder.png"
-                      })`,
-                    }}
-                  ></div>
+                  <ProjectCoverHero
+                    src={project.cover_image_url}
+                    alt={`${project.project_name || "Project"} cover`}
+                  />
                 )}
               </div>
             </div>
 
             {/* Action Buttons - Mobile Only */}
             <div className="flex sm:hidden items-center gap-2 mb-6 overflow-x-auto pb-2 -mx-4 px-4">
-              {canEdit && (
-                <Button
-                  variant="ghost"
-                  className="rounded-xl px-4 py-2 text-sm flex-shrink-0"
-                  onClick={() => router.push(`/projects/${projectId}/edit`)}
-                >
-                  <Edit className="h-5 w-5 mr-1.5" />
-                  Edit
-                </Button>
-              )}
               <div
                 onClick={() => {
                   if (!session) {
@@ -1502,12 +1488,22 @@ export default function ProjectPage() {
                 )}
                 <span className="whitespace-nowrap">{liked ? "Liked" : "Like"}</span>
               </div>
-              <Button
-                onClick={() => setShowFeedbackDialog(true)}
-                className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-4 py-2 shadow-sm text-sm whitespace-nowrap flex-shrink-0"
-              >
-                Give feedback
-              </Button>
+              {canEdit ? (
+                <Button
+                  onClick={() => router.push(`/projects/${projectId}/edit`)}
+                  className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-4 py-2 shadow-sm text-sm whitespace-nowrap flex-shrink-0"
+                >
+                  <Edit className="h-5 w-5 mr-1.5" />
+                  Edit
+                </Button>
+              ) : (
+                <Button
+                  onClick={() => setShowFeedbackDialog(true)}
+                  className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-4 py-2 shadow-sm text-sm whitespace-nowrap flex-shrink-0"
+                >
+                  Give feedback
+                </Button>
+              )}
             </div>
 
             {/* Tabs Navigation */}
@@ -1605,7 +1601,7 @@ export default function ProjectPage() {
                         {project.cover_image_url && (
                           <div className="space-y-2 rounded-xl border border-black/10 p-3">
                             <div className="rounded-xl overflow-hidden">
-                              <img
+                              <CoverImageWithFallback
                                 src={project.cover_image_url}
                                 alt="Project cover"
                                 className="w-full h-auto object-cover"

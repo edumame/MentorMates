@@ -24,11 +24,11 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
   const shouldPad = showPadding && !isAuthRoute;
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col w-full max-w-full overflow-x-hidden">
       {/* Add top padding only when needed */}
-      <div className={`flex flex-1 ${shouldPad ? "pt-16" : ""}`}>
-        <main className="flex-1 flex flex-col">
-          <div className="flex-1">{children}</div>
+      <div className={`flex flex-1 min-w-0 w-full ${shouldPad ? "pt-16" : ""}`}>
+        <main className="flex-1 flex flex-col min-w-0 w-full">
+          <div className="flex-1 min-w-0 w-full">{children}</div>
         </main>
       </div>
     </div>
