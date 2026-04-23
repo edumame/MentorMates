@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/toaster";
 import ProjectBoard from "@/features/projects/components/displays/ProjectBoard/ProjectBoard";
@@ -10,21 +9,20 @@ import { Project, ProjectBoardContext } from "@/lib/types";
 import { DiscordCTA } from "@/components/ui/discord-cta";
 import { Footer } from "@/components/layout/Footer";
 import { useAuth } from "@/features/user/authentication/auth/AuthContext";
-import { PageContainer, PageContent } from "@/components/layout/PageContainer";
-import { Search } from "lucide-react";
 import { PublicProjectsGallery } from "@/features/projects/components/displays/PublicProjectsGallery/PublicProjectsGallery";
 import { EventSearchInput } from "@/components/ui/event-search-input";
 
-type FilterType = "all" | "public" | "mine";
+type FilterType = "all" | "public" | "mine" | "archived";
+type SortType = "newest" | "oldest" | "name-asc" | "name-desc";
 
 export default function ProjectsPage() {
   const { session, isAuthenticated, isLoading: isAuthLoading } = useAuth();
-  const router = useRouter();
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [isUserProjectsLoading, setIsUserProjectsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState<FilterType>("all");
+  const [sortType, setSortType] = useState<SortType>("newest");
 
   useEffect(() => {
     // Logged-in: fetch user's projects.
@@ -73,6 +71,9 @@ export default function ProjectsPage() {
       filtered = filtered.filter(
         (p) => p.lead_email === session?.user?.email
       );
+    } else if (filterType === "archived") {
+      // "Archived" maps to unsubmitted drafts in current project model.
+      filtered = filtered.filter((p) => p.submitted !== true);
     }
     // "all" shows all projects, no additional filtering needed
 
@@ -84,24 +85,35 @@ export default function ProjectsPage() {
       );
     }
 
-    return filtered;
-  }, [projects, searchTerm, filterType, session?.user?.email]);
+    return [...filtered].sort((a, b) => {
+      if (sortType === "name-asc") {
+        return (a.project_name || "").localeCompare(b.project_name || "");
+      }
+      if (sortType === "name-desc") {
+        return (b.project_name || "").localeCompare(a.project_name || "");
+      }
+
+      const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return sortType === "oldest" ? aTime - bTime : bTime - aTime;
+    });
+  }, [projects, searchTerm, filterType, sortType, session?.user?.email]);
 
   // All deletion and QR actions are handled inside the ProjectBoard component menu.
 
   if (isAuthLoading) {
     return (
-      <PageContainer showBorder={false}>
+      <>
         <Toaster />
-        <PageContent className="pt-[24px] pb-8">
+        <div className="pt-[24px] pb-8">
           <div className="container mx-auto px-5 sm:px-8">
             <div className="flex items-center justify-center py-24">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto" />
             </div>
           </div>
-        </PageContent>
+        </div>
         <Footer />
-      </PageContainer>
+      </>
     );
   }
 
@@ -110,9 +122,9 @@ export default function ProjectsPage() {
   }
 
   return (
-    <PageContainer showBorder={isAuthenticated}>
+    <>
       <Toaster />
-      <PageContent className="pt-[24px] pb-8">
+      <div className="pt-[24px] pb-8">
         <div className="flex flex-col gap-[24px] px-[32px]">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-[8px]">
@@ -166,34 +178,61 @@ export default function ProjectsPage() {
 
           {/* Project Filter */}
           {session && !isUserProjectsLoading && projects.length > 0 && (
-            <div className="flex items-center bg-white border border-[rgba(0,0,0,0.15)] rounded-xl p-1 w-full sm:w-fit">
-              <button
-                onClick={() => setFilterType("all")}
-                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all border border-transparent ${filterType === "all"
-                  ? "bg-white border !border-[rgba(0,0,0,0.15)] text-black font-semibold"
-                  : "text-black hover:text-black/80"
-                  }`}
-              >
-                All
-              </button>
-              <button
-                onClick={() => setFilterType("public")}
-                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all border border-transparent ${filterType === "public"
-                  ? "bg-white border !border-[rgba(0,0,0,0.15)] text-black font-semibold"
-                  : "text-black hover:text-black/80"
-                  }`}
-              >
-                Public
-              </button>
-              <button
-                onClick={() => setFilterType("mine")}
-                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all border border-transparent ${filterType === "mine"
-                  ? "bg-white border !border-[rgba(0,0,0,0.15)] text-black font-semibold"
-                  : "text-black hover:text-black/80"
-                  }`}
-              >
-                Mine
-              </button>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center bg-white border border-[rgba(0,0,0,0.15)] rounded-xl p-1 w-full sm:w-fit overflow-x-auto">
+                <button
+                  onClick={() => setFilterType("all")}
+                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-all border border-transparent ${filterType === "all"
+                    ? "bg-[var(--Color-Pattens-Blue-Lightest,#FBFCFE)] border !border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] text-black font-semibold"
+                    : "text-black hover:text-black/80"
+                    }`}
+                >
+                  All
+                </button>
+                <button
+                  onClick={() => setFilterType("public")}
+                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-all border border-transparent ${filterType === "public"
+                    ? "bg-[var(--Color-Pattens-Blue-Lightest,#FBFCFE)] border !border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] text-black font-semibold"
+                    : "text-black hover:text-black/80"
+                    }`}
+                >
+                  Public
+                </button>
+                <button
+                  onClick={() => setFilterType("mine")}
+                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-all border border-transparent ${filterType === "mine"
+                    ? "bg-[var(--Color-Pattens-Blue-Lightest,#FBFCFE)] border !border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] text-black font-semibold"
+                    : "text-black hover:text-black/80"
+                    }`}
+                >
+                  Mine
+                </button>
+                <button
+                  onClick={() => setFilterType("archived")}
+                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-all border border-transparent ${filterType === "archived"
+                    ? "bg-[var(--Color-Pattens-Blue-Lightest,#FBFCFE)] border !border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] text-black font-semibold"
+                    : "text-black hover:text-black/80"
+                    }`}
+                >
+                  Archived
+                </button>
+              </div>
+              <div className="flex items-center gap-2">
+                <label htmlFor="projects-sort" className="text-sm text-black/70">
+                  Sort by
+                </label>
+                <select
+                  id="projects-sort"
+                  value={sortType}
+                  onChange={(e) => setSortType(e.target.value as SortType)}
+                  className="h-10 rounded-lg border border-[rgba(0,0,0,0.15)] bg-white px-3 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-200"
+                >
+                  <option value="newest">Newest first</option>
+                  <option value="oldest">Oldest first</option>
+                  <option value="name-asc">Name (A-Z)</option>
+                  <option value="name-desc">Name (Z-A)</option>
+                </select>
+              </div>
             </div>
           )}
 
@@ -240,8 +279,8 @@ export default function ProjectsPage() {
             </>
           )}
         </div>
-      </PageContent>
+      </div>
       <Footer />
-    </PageContainer>
+    </>
   );
 }

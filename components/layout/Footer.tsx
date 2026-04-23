@@ -107,7 +107,7 @@ export function Footer() {
                     </Link>
                   </li>
                   <li>
-                    <Link href="/project" className="hover:text-gray-900">
+                    <Link href="/projects" className="hover:text-gray-900">
                       Projects
                     </Link>
                   </li>

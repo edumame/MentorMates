@@ -23,7 +23,8 @@ export default async function FAQPage({ params }: PageProps) {
     cover_image_url,
     slug,
     paid,
-    owner_id
+    owner_id,
+    faq
   `);
 
   if (isUUID) {
@@ -70,6 +71,10 @@ export default async function FAQPage({ params }: PageProps) {
     hasJoined = !!userEventRole;
   }
 
+  const faqs = Array.isArray(eventData.faq)
+    ? (eventData.faq as { question: string; answer: string }[])
+    : undefined;
+
   return (
     <EventPageLayout
       eventName={eventData.event_name}
@@ -82,7 +87,7 @@ export default async function FAQPage({ params }: PageProps) {
       dbEventId={eventData.event_id}
       paid={eventData.paid}
     >
-      <FAQContent contactEmail={organizerEmail} />
+      <FAQContent faqs={faqs} contactEmail={organizerEmail} />
     </EventPageLayout>
   );
 }

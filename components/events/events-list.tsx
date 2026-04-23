@@ -21,7 +21,7 @@ interface Event {
   event_description?: string;
   paid?: boolean;
   stripe_price_id?: string;
-  event_type?: string;
+  event_type?: string[];
 }
 
 interface UserEventRole {

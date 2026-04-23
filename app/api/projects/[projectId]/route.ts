@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
+import { getProjectEditAccess } from "@/lib/projects/access";
+import {
+  normalizeProjectWriteInput,
+  saveProjectSubmission,
+} from "@/lib/projects/submission-service";
 
 export async function PATCH(
   request: NextRequest,
@@ -17,87 +22,54 @@ export async function PATCH(
 
     const { projectId } = await params;
     const body = await request.json();
-
-    // Validate event_id change if provided
-    if (body.event_id !== undefined) {
-      const { data: eventData, error: eventError } = await supabase
-        .from("events")
-        .select("event_id, event_name, submission_time_start, submission_time_cutoff")
-        .eq("event_id", body.event_id)
-        .single();
-
-      if (eventError || !eventData) {
-        return NextResponse.json(
-          { error: "Event not found" },
-          { status: 404 }
-        );
-      }
-
-      // Check submission time window
-      const now = new Date();
-      const submissionStart = new Date(eventData.submission_time_start);
-      const submissionCutoff = new Date(eventData.submission_time_cutoff);
-
-      if (now < submissionStart) {
-        return NextResponse.json(
-          { 
-            error: "Project submission has not started yet",
-            event_name: eventData.event_name,
-            submission_start: eventData.submission_time_start
-          },
-          { status: 400 }
-        );
-      }
-
-      if (now > submissionCutoff) {
-        return NextResponse.json(
-          { 
-            error: "Project submission deadline has passed",
-            event_name: eventData.event_name,
-            submission_cutoff: eventData.submission_time_cutoff
-          },
-          { status: 400 }
-        );
-      }
-    }
-
-    const allowedFields: string[] = [
-      "project_name",
-      "project_description",
-      "project_url",
-      "additional_materials_url",
-      "cover_image_url",
-      "lead_name",
-      "lead_email",
-      "teammates",
-      "video_url",
-      "event_id",
-    ];
-
-    const updateData: Record<string, unknown> = {};
-    for (const key of allowedFields) {
-      if (key in body) {
-        updateData[key] = body[key];
-      }
-    }
-
-    if (Object.keys(updateData).length === 0) {
-      return NextResponse.json({ message: "No updates provided" });
-    }
-
-    const { error } = await supabase
-      .from("projects")
-      .update(updateData)
-      .eq("id", projectId);
-
-    if (error) {
+    const parsed = normalizeProjectWriteInput(body);
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: error.message || "Failed to update project" },
+        { error: "Invalid request", details: parsed.error.flatten() },
         { status: 400 }
       );
     }
 
-    return NextResponse.json({ success: true });
+    const accessResult = await getProjectEditAccess(supabase, {
+      projectId,
+      userId: user.id,
+      userEmail: user.email,
+    });
+
+    if (!accessResult.access) {
+      return NextResponse.json({ error: accessResult.error }, { status: accessResult.status });
+    }
+
+    if (!accessResult.access.canEdit) {
+      return NextResponse.json(
+        { error: "Unauthorized to edit this project" },
+        { status: 403 }
+      );
+    }
+
+    const result = await saveProjectSubmission(supabase, {
+      input: parsed.data,
+      mode: "update",
+      projectId,
+    });
+
+    if ("error" in result) {
+      return NextResponse.json(
+        Object.fromEntries(
+          Object.entries(result).filter(([key]) => !["status"].includes(key))
+        ),
+        { status: result.status }
+      );
+    }
+
+    if ("message" in result) {
+      return NextResponse.json({ message: result.message });
+    }
+
+    return NextResponse.json({
+      success: true,
+      project: result.project,
+    });
   } catch (error) {
     console.error("Error updating project:", error);
     return NextResponse.json(
@@ -205,4 +177,3 @@ export async function DELETE(
     );
   }
 }
-

@@ -221,7 +221,7 @@ export function EmailTemplates({ onSelectTemplate }: EmailTemplatesProps) {
                       <Button
                         size="sm"
                         variant="outline"
-                        className="w-full"
+                        className="w-full rounded-[12px]"
                         onClick={() => onSelectTemplate(template)}
                       >
                         Use Template
