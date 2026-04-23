@@ -79,8 +79,8 @@ export const getEmbedDescriptor = (url: string): EmbedDescriptor | null => {
 export const getEmbedUrl = (url: string): string | null => {
   const descriptor = getEmbedDescriptor(url);
   if (!descriptor) return null;
-  // Preserve prior contract: return an iframe src string.
-  return descriptor.kind === "iframe" ? descriptor.src : descriptor.src;
+  // Preserve prior contract: return an iframe src string (null for non-iframe descriptors).
+  return descriptor.kind === "iframe" ? descriptor.src : null;
 };
 
 // Utility function to check if a URL can be embedded

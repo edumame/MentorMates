@@ -963,7 +963,14 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                     <section className="order-1 min-w-0 space-y-4 lg:order-2">
                       {currentProject.video_url && canEmbed(currentProject.video_url) ? (
                         <div
-                          className="overflow-hidden rounded-2xl bg-black"
+                          className="overflow-hidden rounded-2xl bg-black bg-cover bg-center"
+                          style={
+                            currentProject.cover_image_url
+                              ? {
+                                  backgroundImage: `url(${currentProject.cover_image_url})`,
+                                }
+                              : undefined
+                          }
                           data-no-swipe="true"
                         >
                           <VideoEmbed
