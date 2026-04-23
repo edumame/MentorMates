@@ -1,13 +1,26 @@
 import { NextResponse } from "next/server";
 import { ApprovalStatus, EventRole, EventVisibility } from "@/lib/types";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
-import { defaultRules } from "@/lib/config/constants";
 import {
   getVisibleEventResources,
   normalizeEventResources,
 } from "@/lib/utils/event-resources";
 import { z } from "zod";
 import type { Database, Json } from "@/lib/database.types";
+import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import { randomUUID } from "crypto";
+import { Resend } from "resend";
+import { NOTIFICATIONS_EMAIL_FROM } from "@/lib/email_templates/constants";
+import {
+  sendEventInviteEmails,
+  sendOrganizerInviteEmails,
+} from "@/lib/events/invite-emails";
+
+function getResend(): Resend | null {
+  const key = process.env.RESEND_API_KEY;
+  if (!key) return null;
+  return new Resend(key);
+}
 
 export async function GET() {
   const supabase = await createSupabaseClient();
@@ -130,8 +143,46 @@ const eventSchema = z.object({
   event_blurb: z.string().optional(),
   submission_time_start: z.string().optional(),
   submission_time_cutoff: z.string().optional(),
+  participant_capacity: z.number().int().nonnegative().optional(),
   paid: z.boolean().optional(),
   stripe_price_id: z.string().optional(),
+  event_schedule: z.array(z.record(z.string(), z.unknown())).optional(),
+  event_resources: z
+    .array(
+      z.object({
+        name: z.string(),
+        link: z.string(),
+      })
+    )
+    .optional(),
+  faq: z
+    .array(
+      z.object({
+        question: z.string(),
+        answer: z.string(),
+      })
+    )
+    .optional(),
+  tracks: z
+    .array(
+      z.object({
+        client_id: z.string().min(1),
+        name: z.string().min(1),
+        description: z.string().nullable().optional(),
+        scoring_criteria: z.record(z.string(), z.unknown()).optional(),
+      })
+    )
+    .optional(),
+  prizes: z
+    .array(
+      z.object({
+        track_client_id: z.string().min(1),
+        name: z.string().min(1),
+        description: z.string().optional(),
+        cover_image_url: z.string().url().nullable().optional(),
+      })
+    )
+    .optional(),
   rules: z
     .array(
       z.object({
@@ -142,15 +193,19 @@ const eventSchema = z.object({
     .optional(),
   approval_status: z.nativeEnum(ApprovalStatus).optional(),
   featured: z.boolean().optional(),
+  event_type: z.array(z.string()).optional(),
 });
 
 const payloadSchema = z.object({
   event: eventSchema,
+  participantInviteEmails: z.array(z.string().email()).optional(),
+  judgeInviteEmails: z.array(z.string().email()).optional(),
   organizerEmails: z.array(z.string().email()).optional(),
 });
 
 export async function POST(req: Request) {
   const supabase = await createSupabaseClient();
+  const serviceSupabase = createSupabaseServiceClient();
 
   try {
     const {
@@ -183,16 +238,19 @@ export async function POST(req: Request) {
       );
     }
 
-    const { event, organizerEmails = [] } = parsed.data;
+    const {
+      event,
+      participantInviteEmails = [],
+      judgeInviteEmails = [],
+      organizerEmails = [],
+    } = parsed.data;
 
     // Build insert payload, providing sane defaults
     const insertPayload: Database["public"]["Tables"]["events"]["Insert"] = {
       event_name: event.event_name,
       event_date: event.event_date,
       location: event.location,
-      rules: (event.rules && event.rules.length > 0
-        ? event.rules
-        : defaultRules) as unknown as Json,
+      rules: ((event.rules ?? []) as unknown as Json),
       visibility: (event.visibility ??
         EventVisibility.Draft) as Database["public"]["Enums"]["event_visibility"],
       slug: event.slug ?? null,
@@ -201,11 +259,16 @@ export async function POST(req: Request) {
       event_blurb: event.event_blurb ?? null,
       submission_time_start: event.submission_time_start ?? null,
       submission_time_cutoff: event.submission_time_cutoff ?? null,
+      participant_capacity: event.participant_capacity ?? null,
       paid: event.paid ?? null,
       stripe_price_id: event.stripe_price_id ?? null,
+      ...(event.event_schedule ? { event_schedule: event.event_schedule as Json } : {}),
+      event_resources: (event.event_resources as Json) ?? ([] as Json),
+      faq: (event.faq as Json) ?? null,
       owner_id: user.id, // Set the creator as the owner
       approval_status: event.approval_status ?? ApprovalStatus.NotSubmitted, // Events default to not_submitted (visibility controls draft/private/public)
       featured: event.featured ?? false,
+      event_type: (event.event_type ?? []) as string[],
     };
 
     const { data: createdEvent, error: insertError } = await supabase
@@ -216,22 +279,132 @@ export async function POST(req: Request) {
 
     if (insertError || !createdEvent) {
       console.error("Error creating event:", insertError);
+
+      if (insertError?.message?.toLowerCase().includes("events_slug_key")) {
+        return NextResponse.json(
+          { error: "Event slug already exists. Please try a different slug." },
+          { status: 400 }
+        );
+      }
+
       return NextResponse.json(
         { error: "Failed to create event" },
         { status: 500 }
       );
     }
 
-    let assignedCount = 0;
+    const { error: creatorRoleError } = await supabase
+      .from("user_event_roles")
+      .upsert(
+        {
+          user_id: user.id,
+          event_id: createdEvent.event_id,
+          role: EventRole.Organizer,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id,event_id" }
+      );
+
+    if (creatorRoleError) {
+      console.error("Error assigning creator as organizer:", creatorRoleError);
+      return NextResponse.json(
+        { error: "Event created but assigning creator role failed" },
+        { status: 500 }
+      );
+    }
+
+    const clientToDbTrackId = new Map<string, string>();
+    if (event.tracks && event.tracks.length > 0) {
+      const trackInserts: Database["public"]["Tables"]["event_tracks"]["Insert"][] =
+        event.tracks.map((track) => {
+          const trackId = randomUUID();
+          clientToDbTrackId.set(track.client_id, trackId);
+
+          return {
+            track_id: trackId,
+            event_id: createdEvent.event_id,
+            name: track.name,
+            description: track.description ?? null,
+            scoring_criteria: (track.scoring_criteria as Json) ?? null,
+            updated_at: new Date().toISOString(),
+          };
+        });
+
+      const { error: trackInsertError } = await supabase
+        .from("event_tracks")
+        .insert(trackInserts);
+
+      if (trackInsertError) {
+        console.error("Error creating tracks:", trackInsertError);
+        return NextResponse.json(
+          { error: "Event created but creating tracks failed" },
+          { status: 500 }
+        );
+      }
+    }
+
+    const skippedPrizes: string[] = [];
+    if (event.prizes && event.prizes.length > 0) {
+      const prizeInserts: Database["public"]["Tables"]["prizes"]["Insert"][] = [];
+
+      for (const prize of event.prizes) {
+        const dbTrackId = clientToDbTrackId.get(prize.track_client_id);
+        if (!dbTrackId) {
+          skippedPrizes.push(prize.track_client_id);
+          continue;
+        }
+
+        prizeInserts.push({
+          track_id: dbTrackId,
+          prize_amount: prize.name,
+          prize_description: prize.description ?? "",
+          updated_at: new Date().toISOString(),
+        });
+      }
+
+      if (prizeInserts.length > 0) {
+        const { error: prizeInsertError } = await supabase
+          .from("prizes")
+          .insert(prizeInserts);
+
+        if (prizeInsertError) {
+          console.error("Error creating prizes:", prizeInsertError);
+          return NextResponse.json(
+            { error: "Event created but creating prizes failed" },
+            { status: 500 }
+          );
+        }
+      }
+    }
+
+    const { data: inviterProfile } = await supabase
+      .from("user_profiles")
+      .select("display_name, email")
+      .eq("uid", user.id)
+      .maybeSingle();
+
+    const inviterName =
+      inviterProfile?.display_name?.trim() ||
+      inviterProfile?.email?.trim() ||
+      "A MentorMates organizer";
+    const inviterEmail = user.email?.trim().toLowerCase() || null;
+
+    let assignedCount = 1;
     const missingEmails: string[] = [];
+    const existingOrganizerInviteEmails: string[] = [];
+    const newOrganizerInviteEmails: string[] = [];
 
     if (organizerEmails.length > 0) {
-      const normalizedEmails = organizerEmails.map((e) =>
-        e.trim().toLowerCase()
+      const normalizedEmails = Array.from(
+        new Set(
+          organizerEmails
+            .map((e) => e.trim().toLowerCase())
+            .filter((email) => email && email !== inviterEmail)
+        )
       );
 
       // Fetch all users by email in one query
-      const { data: usersByEmail, error: usersError } = await supabase
+      const { data: usersByEmail, error: usersError } = await serviceSupabase
         .from("user_profiles")
         .select("uid, email")
         .in("email", normalizedEmails);
@@ -248,38 +421,104 @@ export async function POST(req: Request) {
         (usersByEmail || []).map((u) => (u.email || "").toLowerCase())
       );
       for (const email of normalizedEmails) {
-        if (!foundEmails.has(email)) missingEmails.push(email);
+        if (!foundEmails.has(email)) {
+          missingEmails.push(email);
+          newOrganizerInviteEmails.push(email);
+        }
       }
 
       if (usersByEmail && usersByEmail.length > 0) {
-        const upserts = usersByEmail.map((u) => ({
+        const upserts = usersByEmail
+          .filter((u) => u.uid !== user.id)
+          .map((u) => ({
           user_id: u.uid,
           event_id: createdEvent.event_id,
           role: EventRole.Organizer,
           updated_at: new Date().toISOString(),
         }));
 
-        const { error: upsertError } = await supabase
-          .from("user_event_roles")
-          .upsert(upserts, { onConflict: "user_id,event_id" });
+        if (upserts.length > 0) {
+          const { error: upsertError } = await supabase
+            .from("user_event_roles")
+            .upsert(upserts, { onConflict: "user_id,event_id" });
 
-        if (upsertError) {
-          console.error("Error assigning organizers:", upsertError);
-          return NextResponse.json(
-            { error: "Event created but assigning organizers failed" },
-            { status: 500 }
-          );
+          if (upsertError) {
+            console.error("Error assigning organizers:", upsertError);
+            return NextResponse.json(
+              { error: "Event created but assigning organizers failed" },
+              { status: 500 }
+            );
+          }
+
+          assignedCount += upserts.length;
         }
 
-        assignedCount = upserts.length;
+        existingOrganizerInviteEmails.push(
+          ...usersByEmail
+            .filter((u) => u.uid !== user.id)
+            .map((u) => (u.email || "").trim().toLowerCase())
+            .filter(Boolean)
+        );
       }
     }
+
+    const resend = getResend();
+    const sendEmail = resend
+      ? async ({ to, subject, html }: { to: string; subject: string; html: string }) => {
+          try {
+            const { error } = await resend.emails.send({
+              from: NOTIFICATIONS_EMAIL_FROM,
+              to,
+              subject,
+              html,
+            });
+
+            if (error) {
+              console.error("Failed to send event invite email:", error);
+              return false;
+            }
+
+            return true;
+          } catch (emailError) {
+            console.error("Error sending event invite email:", emailError);
+            return false;
+          }
+        }
+      : undefined;
+
+    const organizerInviteSummary = await sendOrganizerInviteEmails({
+      appOrigin: process.env.NEXT_PUBLIC_APP_URL || new URL(req.url).origin,
+      eventId: createdEvent.event_id,
+      eventName: createdEvent.event_name,
+      eventSlug: createdEvent.slug,
+      inviterName,
+      existingOrganizerEmails: existingOrganizerInviteEmails,
+      newOrganizerEmails: newOrganizerInviteEmails,
+      sendEmail,
+    });
+
+    const inviteSummary = await sendEventInviteEmails({
+      appOrigin: process.env.NEXT_PUBLIC_APP_URL || new URL(req.url).origin,
+      eventId: createdEvent.event_id,
+      eventName: createdEvent.event_name,
+      eventSlug: createdEvent.slug,
+      inviterName,
+      visibility:
+        (createdEvent.visibility as EventVisibility | null) ??
+        EventVisibility.Draft,
+      participantInviteEmails,
+      judgeInviteEmails,
+      sendEmail,
+    });
 
     return NextResponse.json(
       {
         event: createdEvent,
         organizersAssigned: assignedCount,
         missingOrganizerEmails: missingEmails,
+        organizerInviteSummary,
+        inviteSummary,
+        skippedPrizeTrackIds: skippedPrizes,
       },
       { status: 201 }
     );

@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Users,
   Calendar,
@@ -17,7 +18,6 @@ import {
   Copy,
   ExternalLink,
   Trash2,
-  X,
   UserPlus,
   Edit,
   Heart,
@@ -54,6 +54,7 @@ import { TrackSelector } from "@/features/projects/components/tracks/TrackSelect
 import { fetchEventTracks } from "@/features/projects/client-actions/client-track-update";
 import { ProjectQRCodeSection } from "@/features/projects/components/displays/project-dashboard/ProjectQRCodeSection";
 import ProjectTimeline from "@/features/projects/components/displays/ProjectTimeline";
+import { ProjectSubmissionDetails } from "@/features/projects/components/displays/ProjectSubmissionDetails";
 import { FileUpload } from "@/components/db/fileUpload";
 import { ImageUpload } from "@/components/db/imageUpload";
 import { VideoEmbed, canEmbed } from "@/components/utils";
@@ -63,6 +64,12 @@ import { useProjectLike } from "@/features/projects/hooks/use-project-like";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 import UserSearchWithInvite from "@/components/utils/UserSearchWithInvite";
 import { EditNote, Favorite } from "@mui/icons-material";
+import { buildArtifactsFromLegacy } from "@/features/projects/utils/submission";
+import {
+  CoverImageWithFallback,
+  ProjectCoverHero,
+} from "@/features/projects/components/displays/cover-image-with-fallback";
+import { ProjectDescription } from "@/components/projects/ProjectDescription";
 
 interface EventParticipant {
   user_id: string;
@@ -77,7 +84,7 @@ interface EventDetails {
   start_date: string;
   end_date: string;
   location?: string;
-  event_type?: string;
+  event_type?: string[];
   cover_image_url?: string;
 }
 
@@ -99,6 +106,16 @@ export default function ProjectPage() {
   // Participant search state
   const [participants, setParticipants] = useState<EventParticipant[]>([]);
   const [isLoadingParticipants, setIsLoadingParticipants] = useState(false);
+  const [teamProfileByEmail, setTeamProfileByEmail] = useState<
+    Record<
+      string,
+      {
+        displayName: string | null;
+        avatarUrl: string | null;
+        affiliation: string | null;
+      }
+    >
+  >({});
 
   // Event details state
   const [eventDetails, setEventDetails] = useState<EventDetails | null>(null);
@@ -114,6 +131,21 @@ export default function ProjectPage() {
   const [showFeedbackDialog, setShowFeedbackDialog] = useState(false);
 
   const [fetchComplete, setFetchComplete] = useState(false);
+
+  const setProjectWithArtifacts = useCallback((nextProject: Project) => {
+    const fallbackArtifacts = buildArtifactsFromLegacy({
+      project_url: nextProject.project_url,
+      video_url: nextProject.video_url,
+      additional_materials_url: nextProject.additional_materials_url,
+    });
+    setProject((prev) => ({
+      ...nextProject,
+      artifacts:
+        nextProject.artifacts ||
+        prev?.artifacts ||
+        fallbackArtifacts,
+    }));
+  }, []);
 
   // QR Code functionality
   const { handleCopyQR, handleDownloadQR } = useQRCodeActions(
@@ -250,32 +282,30 @@ export default function ProjectPage() {
     setIsLoading(true);
     setFetchComplete(false);
 
-    const { data, error } = await supabase
-      .from("projects")
-      .select(
-        `
-        *,
-        contextus_project_id
-      `
-      )
-      .eq("id", projectId)
-      .single();
+    const response = await fetch(`/api/projects?projectId=${projectId}`);
+    const payload = (await response.json().catch(() => ({}))) as {
+      error?: string;
+      project?: Project;
+    };
 
-    if (error) {
+    if (!response.ok || !payload.project) {
       setProject(null);
       setIsLoading(false);
       setFetchComplete(true);
       return;
     }
 
-    setProject(data);
+    setProjectWithArtifacts({
+      ...payload.project,
+      artifacts: payload.project.artifacts || undefined,
+    });
 
     // Check if user can edit (is lead or teammate)
     if (session?.user?.email) {
       const userEmail = session.user.email;
-      const isLead = data.lead_email === userEmail;
-      const isTeammate = data.teammates?.includes(userEmail);
-      const canEditProject = isLead || isTeammate;
+      const isLead = payload.project.lead_email === userEmail;
+      const isTeammate = payload.project.teammates?.includes(userEmail);
+      const canEditProject = isLead || Boolean(isTeammate);
       setCanEdit(canEditProject);
     }
 
@@ -299,7 +329,7 @@ export default function ProjectPage() {
         return false;
       }
 
-      setProject(data);
+      setProjectWithArtifacts(data as Project);
       toast({
         title: "Success",
         description: "Project title updated successfully",
@@ -335,7 +365,7 @@ export default function ProjectPage() {
         return false;
       }
 
-      setProject(data);
+      setProjectWithArtifacts(data as Project);
       toast({
         title: "Success",
         description: "Project description updated successfully",
@@ -391,7 +421,7 @@ export default function ProjectPage() {
         return false;
       }
 
-      setProject(data);
+      setProjectWithArtifacts(data as Project);
       toast({
         title: "Success",
         description: newUrl.trim()
@@ -450,7 +480,7 @@ export default function ProjectPage() {
         return false;
       }
 
-      setProject(data);
+      setProjectWithArtifacts(data as Project);
       toast({
         title: "Success",
         description: newUrl.trim()
@@ -507,7 +537,7 @@ export default function ProjectPage() {
         return false;
       }
 
-      setProject(data);
+      setProjectWithArtifacts(data as Project);
       toast({
         title: "Success",
         description: "Cover image uploaded and updated successfully",
@@ -565,7 +595,7 @@ export default function ProjectPage() {
         return false;
       }
 
-      setProject(data);
+      setProjectWithArtifacts(data as Project);
       toast({
         title: "Success",
         description: newUrl.trim()
@@ -624,7 +654,7 @@ export default function ProjectPage() {
         return false;
       }
 
-      setProject(data);
+      setProjectWithArtifacts(data as Project);
       toast({
         title: "Success",
         description: newUrl.trim()
@@ -683,7 +713,7 @@ export default function ProjectPage() {
         return false;
       }
 
-      setProject(data);
+      setProjectWithArtifacts(data as Project);
       toast({
         title: "Success",
         description: "Additional materials uploaded and updated successfully",
@@ -738,39 +768,20 @@ export default function ProjectPage() {
 
     setIsLoadingParticipants(true);
     try {
-      const { data, error } = await supabase
-        .from("user_event_roles")
-        .select(
-          `
-          user_id,
-          profiles:user_id (
-            display_name,
-            email
-          )
-        `
-        )
-        .eq("event_id", project.event_id)
-        .overrideTypes<
-          Array<{
-            user_id: string;
-            profiles: {
-              display_name: string | null;
-              email: string | null;
-            };
-          }>
-        >();
-
-      if (error) {
+      const response = await fetch(
+        `/api/events/${project.event_id}/users?roles=participant&limit=500`
+      );
+      const payload = await response.json();
+      if (!response.ok) {
         return;
       }
 
-      const participantList: EventParticipant[] = (data || [])
-        .filter((role) => role.profiles?.email)
-        .map((role) => ({
-          user_id: role.user_id,
-          display_name:
-            role.profiles?.display_name || role.profiles?.email || "",
-          email: role.profiles?.email || "",
+      const participantList: EventParticipant[] = (payload.users || [])
+        .filter((user: { email: string }) => Boolean(user.email))
+        .map((user: { user_id: string; display_name: string; email: string }) => ({
+          user_id: user.user_id,
+          display_name: user.display_name || user.email || "",
+          email: user.email || "",
         }));
 
       setParticipants(participantList);
@@ -786,6 +797,66 @@ export default function ProjectPage() {
       fetchEventParticipants();
     }
   }, [project?.event_id, fetchEventParticipants]);
+
+  const getInitials = useCallback((value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed) return "?";
+    const parts = trimmed.split(/\s+/).filter(Boolean);
+    const first = parts[0]?.[0] ?? "";
+    const last = parts.length > 1 ? parts[parts.length - 1]?.[0] ?? "" : "";
+    const initials = (first + last).toUpperCase();
+    return initials || trimmed.slice(0, 2).toUpperCase();
+  }, []);
+
+  // Load team profile info for team members (from user_profiles)
+  useEffect(() => {
+    if (!project) return;
+
+    const emails = Array.from(
+      new Set([project.lead_email, ...(project.teammates ?? [])])
+    )
+      .filter(Boolean)
+      .map((e) => String(e).toLowerCase());
+
+    if (emails.length === 0) return;
+
+    let alive = true;
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from("user_profiles")
+          .select("email, affiliation, avatar_url, display_name")
+          .in("email", emails);
+
+        if (error || !alive) return;
+
+        const map: Record<
+          string,
+          {
+            displayName: string | null;
+            avatarUrl: string | null;
+            affiliation: string | null;
+          }
+        > = {};
+        for (const row of data ?? []) {
+          const email = row.email?.toLowerCase();
+          if (!email) continue;
+          map[email] = {
+            displayName: row.display_name?.trim() || null,
+            avatarUrl: row.avatar_url?.trim() || null,
+            affiliation: row.affiliation?.trim() || null,
+          };
+        }
+        setTeamProfileByEmail(map);
+      } catch {
+        // ignore
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [project?.lead_email, project?.teammates, project]);
 
   const handleAddTeammate = async (email: string) => {
     const emailToAdd = email.trim();
@@ -850,7 +921,7 @@ export default function ProjectPage() {
         return;
       }
 
-      setProject(data);
+      setProjectWithArtifacts(data as Project);
       toast({
         title: "Team member added",
         description: `${normalizedEmail} has been successfully added to the team`,
@@ -885,7 +956,7 @@ export default function ProjectPage() {
         return;
       }
 
-      setProject(data);
+      setProjectWithArtifacts(data as Project);
       toast({
         title: "Team member removed",
         description: `${teammateEmail} has been removed from the team`,
@@ -946,7 +1017,7 @@ export default function ProjectPage() {
         return;
       }
 
-      setProject(data);
+      setProjectWithArtifacts(data as Project);
       toast({
         title: "Success",
         description: "Project linked to Contextus successfully",
@@ -992,8 +1063,27 @@ export default function ProjectPage() {
     );
   }
 
-  const isLead = session?.user?.email === project.lead_email;
+  const isLead =
+    session?.user?.email?.toLowerCase() === project.lead_email?.toLowerCase();
   const totalMembers = (project.teammates?.length || 0) + 1;
+  const teamMembers = [
+    {
+      email: project.lead_email,
+      displayName:
+        teamProfileByEmail[project.lead_email.toLowerCase()]?.displayName ||
+        project.lead_name,
+      role: "lead" as const,
+    },
+    ...(project.teammates ?? []).map((email) => ({
+      email,
+      displayName:
+        teamProfileByEmail[email.toLowerCase()]?.displayName ||
+        participants.find((p) => p.email.toLowerCase() === email.toLowerCase())
+          ?.display_name || email,
+      role: "member" as const,
+    })),
+  ];
+
   const feedbackUrl = `${
     typeof window !== "undefined" ? window.location.origin : ""
   }/projects/public/${project.id}`;
@@ -1024,6 +1114,31 @@ export default function ProjectPage() {
         break;
     }
   };
+
+  const projectArtifacts = project.artifacts || [];
+  const extraProjectLinks = projectArtifacts.filter(
+    (artifact) => artifact.kind === "project_link" && artifact.url !== project.project_url
+  );
+  const extraVideoLinks = projectArtifacts.filter(
+    (artifact) => artifact.kind === "video_link" && artifact.url !== project.video_url
+  );
+  const extraMaterialLinks = projectArtifacts.filter(
+    (artifact) =>
+      artifact.kind === "additional_material" &&
+      artifact.url !== project.additional_materials_url
+  );
+  const hasCoverImageSettings = Boolean(project.cover_image_url);
+  const hasAdditionalMaterialsSettings =
+    Boolean(project.additional_materials_url) || extraMaterialLinks.length > 0;
+  const hasProjectUrlSettings =
+    Boolean(project.project_url) || extraProjectLinks.length > 0;
+  const hasVideoUrlSettings = Boolean(project.video_url);
+  const hasVisibleProjectSettings =
+    hasCoverImageSettings ||
+    hasAdditionalMaterialsSettings ||
+    hasProjectUrlSettings ||
+    hasVideoUrlSettings;
+  const extraActionLinks = [...extraProjectLinks, ...extraVideoLinks];
 
   return (
     <PageContainer>
@@ -1078,17 +1193,6 @@ export default function ProjectPage() {
 
               {/* Action Buttons - Desktop Only */}
               <div className="hidden sm:flex items-center gap-2 sm:gap-3 flex-wrap">
-                {canEdit && (
-                  <Button
-                    variant="ghost"
-                    className="rounded-xl px-4 sm:px-5 py-2 text-sm sm:text-base"
-                    onClick={() => router.push(`/projects/${projectId}/edit`)}
-                  >
-                    {/* <Edit className="h-6 w-6 mr-1.5" /> */}
-                    <EditNote className="h-5 w-5 sm:h-6 sm:w-6 mr-1.5" />
-                    Edit
-                  </Button>
-                )}
                 <div
                   onClick={() => {
                     if (!session) {
@@ -1120,12 +1224,22 @@ export default function ProjectPage() {
                   <span className="whitespace-nowrap">{liked ? "Liked" : "Like"}</span>
                   {/* <span className="ml-2 text-sm">{likesCount}</span> */}
                 </div>
-                <Button
-                  onClick={() => setShowFeedbackDialog(true)}
-                  className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-4 sm:px-5 py-2 shadow-sm text-sm sm:text-base whitespace-nowrap"
-                >
-                  Give feedback
-                </Button>
+                {canEdit ? (
+                  <Button
+                    onClick={() => router.push(`/projects/${projectId}/edit`)}
+                    className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-4 sm:px-5 py-2 shadow-sm text-sm sm:text-base whitespace-nowrap"
+                  >
+                    <EditNote className="h-5 w-5 sm:h-6 sm:w-6 mr-1.5" />
+                    Edit
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={() => setShowFeedbackDialog(true)}
+                    className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-4 sm:px-5 py-2 shadow-sm text-sm sm:text-base whitespace-nowrap"
+                  >
+                    Give feedback
+                  </Button>
+                )}
               </div>
             </div>
 
@@ -1161,17 +1275,24 @@ export default function ProjectPage() {
                       canEdit={canEdit}
                       isLoading={isUpdating}
                       multiline={true}
-                      displayClassName="text-lg text-gray-700 leading-relaxed"
+                      className="w-full"
+                      displayClassName="w-full"
                       renderDisplay={(value) => (
-                        <p className="text-lg text-gray-700 leading-relaxed hover:text-blue-600">
-                          {value}
-                        </p>
+                        <ProjectDescription
+                          value={value}
+                          variant="header"
+                          truncateLines={4}
+                          className="text-base sm:text-lg"
+                        />
                       )}
                     />
                   ) : (
-                    <p className="text-lg text-gray-700 leading-relaxed">
-                      {project.project_description}
-                    </p>
+                    <ProjectDescription
+                      value={project.project_description}
+                      variant="header"
+                      truncateLines={4}
+                      className="text-base sm:text-lg"
+                    />
                   )}
                 </div>
 
@@ -1204,52 +1325,67 @@ export default function ProjectPage() {
                       </Button>
                     </a>
                   )}
+                  {extraProjectLinks.map((artifact, index) => (
+                    <a
+                      key={`${artifact.id || artifact.url}-project-${index}`}
+                      href={artifact.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Button
+                        variant="outline"
+                        className="rounded-xl px-4 sm:px-6 py-2.5 shadow-sm text-sm sm:text-base"
+                      >
+                        <LinkIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-1.5" />
+                        <span className="whitespace-nowrap">{artifact.label}</span>
+                      </Button>
+                    </a>
+                  ))}
+                  {extraVideoLinks.map((artifact, index) => (
+                    <a
+                      key={`${artifact.id || artifact.url}-video-${index}`}
+                      href={artifact.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Button
+                        variant="outline"
+                        className="rounded-xl px-4 sm:px-6 py-2.5 shadow-sm text-sm sm:text-base"
+                      >
+                        <Video className="h-4 w-4 sm:h-5 sm:w-5 mr-1.5" />
+                        <span className="whitespace-nowrap">{artifact.label}</span>
+                      </Button>
+                    </a>
+                  ))}
                 </div>
               </div>
 
               {/* Right: Cover Image */}
               <div className="w-full lg:w-[520px] h-[200px] sm:h-[250px] lg:h-[300px] rounded-2xl overflow-hidden shadow-lg order-2">
                 {canEdit ? (
-                  <div className="relative w-full h-full group">
-                    <div
-                      className="w-full h-full bg-cover bg-center bg-no-repeat"
-                      style={{
-                        backgroundImage: `url(${
-                          project.cover_image_url || "/img/placeholder.png"
-                        })`,
-                      }}
-                    ></div>
-                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <span className="text-white text-sm">
-                        Click to edit in settings below
-                      </span>
-                    </div>
+                  <div className="relative h-full w-full group">
+                    <ProjectCoverHero
+                      src={project.cover_image_url}
+                      alt={`${project.project_name || "Project"} cover`}
+                    >
+                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <span className="text-white text-sm">
+                          Click to edit in settings below
+                        </span>
+                      </div>
+                    </ProjectCoverHero>
                   </div>
                 ) : (
-                  <div
-                    className="w-full h-full bg-cover bg-center bg-no-repeat"
-                    style={{
-                      backgroundImage: `url(${
-                        project.cover_image_url || "/img/placeholder.png"
-                      })`,
-                    }}
-                  ></div>
+                  <ProjectCoverHero
+                    src={project.cover_image_url}
+                    alt={`${project.project_name || "Project"} cover`}
+                  />
                 )}
               </div>
             </div>
 
             {/* Action Buttons - Mobile Only */}
             <div className="flex sm:hidden items-center gap-2 mb-6 overflow-x-auto pb-2 -mx-4 px-4">
-              {canEdit && (
-                <Button
-                  variant="ghost"
-                  className="rounded-xl px-4 py-2 text-sm flex-shrink-0"
-                  onClick={() => router.push(`/projects/${projectId}/edit`)}
-                >
-                  <Edit className="h-5 w-5 mr-1.5" />
-                  Edit
-                </Button>
-              )}
               <div
                 onClick={() => {
                   if (!session) {
@@ -1280,12 +1416,22 @@ export default function ProjectPage() {
                 )}
                 <span className="whitespace-nowrap">{liked ? "Liked" : "Like"}</span>
               </div>
-              <Button
-                onClick={() => setShowFeedbackDialog(true)}
-                className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-4 py-2 shadow-sm text-sm whitespace-nowrap flex-shrink-0"
-              >
-                Give feedback
-              </Button>
+              {canEdit ? (
+                <Button
+                  onClick={() => router.push(`/projects/${projectId}/edit`)}
+                  className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-4 py-2 shadow-sm text-sm whitespace-nowrap flex-shrink-0"
+                >
+                  <Edit className="h-5 w-5 mr-1.5" />
+                  Edit
+                </Button>
+              ) : (
+                <Button
+                  onClick={() => setShowFeedbackDialog(true)}
+                  className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-4 py-2 shadow-sm text-sm whitespace-nowrap flex-shrink-0"
+                >
+                  Give feedback
+                </Button>
+              )}
             </div>
 
             {/* Tabs Navigation */}
@@ -1363,25 +1509,27 @@ export default function ProjectPage() {
                               canEdit={canEdit}
                               isLoading={isUpdating}
                               multiline={true}
-                              displayClassName="text-base text-black leading-relaxed"
+                              className="w-full"
+                              displayClassName="w-full"
                               renderDisplay={(value) => (
-                                <p className="text-base text-black leading-relaxed hover:text-blue-600">
-                                  {value}
-                                </p>
+                                <ProjectDescription value={value} className="text-base" />
                               )}
                             />
                           ) : (
-                            <p className="text-base text-black leading-relaxed">
-                              {project.project_description}
-                            </p>
+                            <ProjectDescription
+                              value={project.project_description}
+                              className="text-base"
+                            />
                           )}
                         </div>
 
+                        <ProjectSubmissionDetails project={project} />
+
                         {/* Cover Image Display */}
                         {project.cover_image_url && (
-                          <div className="space-y-2">
+                          <div className="space-y-2 rounded-xl border border-black/10 p-3">
                             <div className="rounded-xl overflow-hidden">
-                              <img
+                              <CoverImageWithFallback
                                 src={project.cover_image_url}
                                 alt="Project cover"
                                 className="w-full h-auto object-cover"
@@ -1406,71 +1554,70 @@ export default function ProjectPage() {
                         </div>
 
                         {/* Settings Section - Only for editors */}
-                        {canEdit && (
+                        {canEdit && (hasVisibleProjectSettings || isLead) && (
                           <Card className="mt-12">
                             <CardHeader>
                               <CardTitle>Project Settings</CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-6">
                               {/* Cover Image URL */}
-                              <div>
-                                <div className="flex items-center gap-2 mb-3">
-                                  <ExternalLink className="h-4 w-4 text-gray-500" />
-                                  <label className="text-sm font-medium text-gray-700">
-                                    Cover Image:
-                                  </label>
-                                </div>
-
-                                <div className="mb-4">
-                                  <label className="text-xs font-medium text-gray-600 mb-1 block">
-                                    Image URL:
-                                  </label>
-                                  <div className="flex gap-2">
-                                    <div className="flex-1">
-                                      <EditableField
-                                        value={project.cover_image_url || ""}
-                                        onSave={handleUpdateCoverImage}
-                                        canEdit={canEdit}
-                                        isLoading={isUpdating}
-                                        placeholder="https://example.com/image.jpg"
-                                        displayClassName="text-blue-600 underline"
-                                        renderDisplay={(value) =>
-                                          value ? (
-                                            <span className="text-blue-600 hover:text-blue-800 cursor-pointer break-all">
-                                              {value}
-                                            </span>
-                                          ) : (
-                                            <span className="text-gray-400 italic">
-                                              No cover image URL set
-                                            </span>
-                                          )
-                                        }
-                                      />
-                                    </div>
-                                    {project.cover_image_url && (
-                                      <a
-                                        href={project.cover_image_url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="flex-shrink-0"
-                                      >
-                                        <Button variant="outline" size="sm">
-                                          <ExternalLink className="h-4 w-4 mr-1" />
-                                          View
-                                        </Button>
-                                      </a>
-                                    )}
+                              {hasCoverImageSettings && (
+                                <div>
+                                  <div className="flex items-center gap-2 mb-3">
+                                    <ExternalLink className="h-4 w-4 text-gray-500" />
+                                    <label className="text-sm font-medium text-gray-700">
+                                      Cover Image:
+                                    </label>
                                   </div>
-                                </div>
 
-                                <ImageUpload
-                                  handleUpload={handleCoverImageFileUpload}
-                                  noteText="Note: Changes to the cover image will be reflected in the header image above."
-                                />
-                              </div>
+                                  <div className="mb-4">
+                                    <label className="text-xs font-medium text-gray-600 mb-1 block">
+                                      Image URL:
+                                    </label>
+                                    <div className="flex gap-2">
+                                      <div className="flex-1">
+                                        <EditableField
+                                          value={project.cover_image_url || ""}
+                                          onSave={handleUpdateCoverImage}
+                                          canEdit={canEdit}
+                                          isLoading={isUpdating}
+                                          placeholder="https://example.com/image.jpg"
+                                          displayClassName="text-blue-600 underline"
+                                          renderDisplay={(value) =>
+                                            value ? (
+                                              <span className="text-blue-600 hover:text-blue-800 cursor-pointer break-all">
+                                                {value}
+                                              </span>
+                                            ) : null
+                                          }
+                                        />
+                                      </div>
+                                      {project.cover_image_url && (
+                                        <a
+                                          href={project.cover_image_url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="flex-shrink-0"
+                                        >
+                                          <Button variant="outline" size="sm">
+                                            <ExternalLink className="h-4 w-4 mr-1" />
+                                            View
+                                          </Button>
+                                        </a>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <ImageUpload
+                                    handleUpload={handleCoverImageFileUpload}
+                                    noteText="Note: Changes to the cover image will be reflected in the header image above."
+                                  />
+                                </div>
+                              )}
 
                               {/* Additional Materials */}
-                              <div className="border-t pt-6">
+                              {hasAdditionalMaterialsSettings && (
+                                <div className="border-t pt-6">
                                 <div className="flex items-center gap-2 mb-3">
                                   <ExternalLink className="h-4 w-4 text-gray-500" />
                                   <label className="text-sm font-medium text-gray-700">
@@ -1498,11 +1645,7 @@ export default function ProjectPage() {
                                             <span className="text-blue-600 hover:text-blue-800 cursor-pointer break-all">
                                               {value}
                                             </span>
-                                          ) : (
-                                            <span className="text-gray-400 italic">
-                                              No additional materials URL set
-                                            </span>
-                                          )
+                                          ) : null
                                         }
                                       />
                                     </div>
@@ -1527,10 +1670,12 @@ export default function ProjectPage() {
                                   }
                                   noteText="Examples: GitHub repository, documentation, slides, design files, PDFs, etc."
                                 />
-                              </div>
+                                </div>
+                              )}
 
                               {/* Project URL */}
-                              <div className="border-t pt-6">
+                              {hasProjectUrlSettings && (
+                                <div className="border-t pt-6">
                                 <div className="flex items-center gap-2 mb-2">
                                   <ExternalLink className="h-4 w-4 text-gray-500" />
                                   <label className="text-sm font-medium text-gray-700">
@@ -1551,11 +1696,7 @@ export default function ProjectPage() {
                                           <span className="text-blue-600 hover:text-blue-800 cursor-pointer break-all">
                                             {value}
                                           </span>
-                                        ) : (
-                                          <span className="text-gray-400 italic">
-                                            No project URL set
-                                          </span>
-                                        )
+                                        ) : null
                                       }
                                     />
                                   </div>
@@ -1573,10 +1714,43 @@ export default function ProjectPage() {
                                     </a>
                                   )}
                                 </div>
-                              </div>
+
+                                {extraProjectLinks.length > 0 && (
+                                  <div className="mt-3 space-y-2">
+                                    <label className="text-xs font-medium text-gray-600 block">
+                                      Additional Project Links:
+                                    </label>
+                                    {extraProjectLinks.map((artifact, index) => (
+                                      <div
+                                        key={`${artifact.id || artifact.url}-settings-project-${index}`}
+                                        className="flex gap-2"
+                                      >
+                                        <Input
+                                          value={artifact.url}
+                                          readOnly
+                                          className="text-sm"
+                                        />
+                                        <a
+                                          href={artifact.url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="flex-shrink-0"
+                                        >
+                                          <Button variant="outline" size="sm">
+                                            <ExternalLink className="h-4 w-4 mr-1" />
+                                            Open
+                                          </Button>
+                                        </a>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                                </div>
+                              )}
 
                               {/* Video URL */}
-                              <div className="border-t pt-6">
+                              {hasVideoUrlSettings && (
+                                <div className="border-t pt-6">
                                 <div className="flex items-center gap-2 mb-2">
                                   <ExternalLink className="h-4 w-4 text-gray-500" />
                                   <label className="text-sm font-medium text-gray-700">
@@ -1597,11 +1771,7 @@ export default function ProjectPage() {
                                           <span className="text-blue-600 hover:text-blue-800 cursor-pointer break-all">
                                             {value}
                                           </span>
-                                        ) : (
-                                          <span className="text-gray-400 italic">
-                                            No video URL set
-                                          </span>
-                                        )
+                                        ) : null
                                       }
                                     />
                                   </div>
@@ -1619,7 +1789,8 @@ export default function ProjectPage() {
                                     </a>
                                   )}
                                 </div>
-                              </div>
+                                </div>
+                              )}
 
                               {/* Delete Project Button */}
                               {isLead && (
@@ -1654,65 +1825,82 @@ export default function ProjectPage() {
                       </TabsContent>
                     )}
 
-                    <TabsContent value="team" className="mt-0 overflow-hidden">
-                      <Card>
-                        <CardHeader>
-                          <CardTitle>Team Members</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-3">
-                            <div className="flex items-center justify-between p-3 border rounded">
-                              <div>
-                                <p className="font-medium">
-                                  {project.lead_name}
-                                </p>
-                                <p className="text-sm text-gray-500">
-                                  {project.lead_email}
-                                </p>
-                              </div>
-                              <Badge>Lead</Badge>
+                    <TabsContent value="team" className="mt-0 overflow-visible">
+                      <div className="w-full overflow-visible">
+                        <div className="rounded-xl border border-gray-200 bg-white p-4 sm:p-6 overflow-visible">
+                          <h3 className="text-lg font-semibold text-gray-900">
+                            Team Members
+                          </h3>
+
+                          <div className="mt-5 space-y-4">
+                            {teamMembers.map((member) => {
+                              const emailKey = member.email.toLowerCase();
+                              const profile = teamProfileByEmail[emailKey];
+                              const title =
+                                member.displayName?.trim() || member.email;
+                              const subtitle =
+                                profile?.affiliation?.trim() ||
+                                (title.toLowerCase() === member.email.toLowerCase()
+                                  ? member.email
+                                  : null);
+
+                              return (
+                                <div
+                                  key={member.email}
+                                  className="flex items-center justify-between gap-4"
+                                >
+                                  <div className="flex items-center gap-4 min-w-0">
+                                    <Avatar className="h-14 w-14 shrink-0">
+                                      <AvatarImage
+                                        src={profile?.avatarUrl ?? undefined}
+                                        alt={title}
+                                      />
+                                      <AvatarFallback>
+                                        {getInitials(title)}
+                                      </AvatarFallback>
+                                    </Avatar>
+
+                                    <div className="min-w-0">
+                                      <div className="flex items-center gap-2 min-w-0">
+                                        <p className="font-semibold text-base text-black truncate">
+                                          {title}
+                                        </p>
+                                        {member.role === "lead" ? (
+                                          <Badge
+                                            variant="secondary"
+                                            className="bg-transparent border border-black/15 text-black rounded-full text-sm px-2.5 py-0.5"
+                                          >
+                                            Lead
+                                          </Badge>
+                                        ) : null}
+                                      </div>
+                                      {subtitle ? (
+                                        <p className="text-base text-black truncate">
+                                          {subtitle}
+                                        </p>
+                                      ) : null}
+                                    </div>
+                                  </div>
+
+                                  <Button className="h-9 rounded-full bg-blue-600 px-4 text-white hover:bg-blue-700">
+                                    Follow
+                                  </Button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {canEdit && isLead && (
+                          <div className="mt-8 rounded-xl border border-gray-200 bg-white p-4 sm:p-6 overflow-visible">
+                            <div className="flex items-center gap-2 mb-3">
+                              <UserPlus className="h-4 w-4 text-gray-500" />
+                              <h4 className="font-medium text-gray-900">
+                                Add team member
+                              </h4>
                             </div>
 
-                            {project.teammates?.map((teammate, index) => (
-                              <div
-                                key={index}
-                                className="flex items-center justify-between p-3 border rounded"
-                              >
-                                <div>
-                                  <p className="font-medium">{teammate}</p>
-                                  <p className="text-sm text-gray-500">
-                                    Team Member
-                                  </p>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <Badge variant="secondary">Member</Badge>
-                                  {canEdit && isLead && (
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() =>
-                                        handleRemoveTeammate(teammate)
-                                      }
-                                      disabled={isUpdating}
-                                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                    >
-                                      <X className="h-4 w-4" />
-                                    </Button>
-                                  )}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-
-                          {canEdit && isLead && (
-                            <div className="mt-6 pt-4 border-t">
-                              <div className="flex items-center gap-2 mb-3">
-                                <UserPlus className="h-4 w-4 text-gray-500" />
-                                <h4 className="font-medium text-gray-900">
-                                  Add Team Member
-                                </h4>
-                              </div>
-
+                            <div className="relative overflow-visible">
                               <UserSearchWithInvite
                                 allTags={participants.map(
                                   (p) =>
@@ -1726,26 +1914,22 @@ export default function ProjectPage() {
                                   });
 
                                   // Get list of participant emails for validation
-                                  const participantEmails = participants.map(
-                                    (p) => p.email.toLowerCase()
+                                  const participantEmails = participants.map((p) =>
+                                    p.email.toLowerCase()
                                   );
 
                                   // Only process emails that are actual event participants
                                   const validEmails = emails.filter((email) =>
-                                    participantEmails.includes(
-                                      email.toLowerCase()
-                                    )
+                                    participantEmails.includes(email.toLowerCase())
                                   );
 
                                   // Find newly added emails (only from valid participants)
-                                  const currentTeammates =
-                                    project?.teammates || [];
+                                  const currentTeammates = project?.teammates || [];
                                   const newEmails = validEmails.filter(
                                     (email) =>
                                       !currentTeammates.some(
                                         (t) =>
-                                          t.toLowerCase() ===
-                                          email.toLowerCase()
+                                          t.toLowerCase() === email.toLowerCase()
                                       )
                                   );
 
@@ -1753,9 +1937,7 @@ export default function ProjectPage() {
                                   const removedEmails = currentTeammates.filter(
                                     (email) =>
                                       !validEmails.some(
-                                        (e) =>
-                                          e.toLowerCase() ===
-                                          email.toLowerCase()
+                                        (e) => e.toLowerCase() === email.toLowerCase()
                                       )
                                   );
 
@@ -1773,32 +1955,30 @@ export default function ProjectPage() {
                                     );
                                   }
                                 }}
-                                initialTags={(project?.teammates || []).map(
-                                  (email) => {
-                                    const participant = participants.find(
-                                      (p) =>
-                                        p.email.toLowerCase() ===
-                                        email.toLowerCase()
-                                    );
-                                    return participant
-                                      ? `${participant.display_name || participant.email} (${participant.email})`
-                                      : email;
-                                  }
-                                )}
+                                initialTags={(project?.teammates || []).map((email) => {
+                                  const participant = participants.find(
+                                    (p) =>
+                                      p.email.toLowerCase() ===
+                                      email.toLowerCase()
+                                  );
+                                  return participant
+                                    ? `${participant.display_name || participant.email} (${participant.email})`
+                                    : email;
+                                })}
                                 projectId={projectId}
                                 enableInvite={true}
                               />
-
-                              <p className="text-xs text-gray-500 mt-3">
-                                Search for event participants to add them
-                                immediately, or send an invitation to users not
-                                yet registered. Invited users will be added to
-                                the team once they accept the invitation.
-                              </p>
                             </div>
-                          )}
-                        </CardContent>
-                      </Card>
+
+                            <p className="text-xs text-gray-500 mt-3">
+                              Search for event participants to add them immediately, or
+                              send an invitation to users not yet registered. Invited
+                              users will be added to the team once they accept the
+                              invitation.
+                            </p>
+                          </div>
+                        )}
+                      </div>
                     </TabsContent>
 
                     <TabsContent
@@ -1975,11 +2155,31 @@ export default function ProjectPage() {
                           <div className="space-y-6">
                             {/* Project Lead */}
                             <div className="flex gap-4 items-center">
-                              <div className="w-14 h-14 rounded-full bg-gray-300 flex-shrink-0"></div>
+                              <Avatar className="h-14 w-14 shrink-0">
+                                <AvatarImage
+                                  src={
+                                    teamProfileByEmail[
+                                      project.lead_email.toLowerCase()
+                                    ]?.avatarUrl ?? undefined
+                                  }
+                                  alt={
+                                    teamProfileByEmail[
+                                      project.lead_email.toLowerCase()
+                                    ]?.displayName ||
+                                    project.lead_name ||
+                                    project.lead_email
+                                  }
+                                />
+                                <AvatarFallback>
+                                  {getInitials(project.lead_name || project.lead_email)}
+                                </AvatarFallback>
+                              </Avatar>
                               <div>
                                 <div className="flex items-center gap-2">
                                   <p className="font-semibold text-base text-black">
-                                    {project.lead_name}
+                                    {teamProfileByEmail[
+                                      project.lead_email.toLowerCase()
+                                    ]?.displayName || project.lead_name}
                                   </p>
                                   <Badge
                                     variant="secondary"
@@ -1988,9 +2188,21 @@ export default function ProjectPage() {
                                     Lead
                                   </Badge>
                                 </div>
-                                <p className="text-base text-black">
-                                  {project.lead_email}
-                                </p>
+                                {teamProfileByEmail[
+                                  project.lead_email.toLowerCase()
+                                ]?.affiliation ? (
+                                  <p className="text-base text-black">
+                                    {
+                                      teamProfileByEmail[
+                                        project.lead_email.toLowerCase()
+                                      ]?.affiliation
+                                    }
+                                  </p>
+                                ) : (
+                                  <p className="text-base text-black">
+                                    {project.lead_email}
+                                  </p>
+                                )}
                               </div>
                             </div>
 
@@ -2002,14 +2214,41 @@ export default function ProjectPage() {
                                   key={index}
                                   className="flex gap-4 items-center"
                                 >
-                                  <div className="w-14 h-14 rounded-full bg-gray-300 flex-shrink-0"></div>
+                                  <Avatar className="h-14 w-14 shrink-0">
+                                    <AvatarImage
+                                      src={
+                                        teamProfileByEmail[
+                                          teammate.toLowerCase()
+                                        ]?.avatarUrl ?? undefined
+                                      }
+                                      alt={
+                                        teamProfileByEmail[
+                                          teammate.toLowerCase()
+                                        ]?.displayName || teammate
+                                      }
+                                    />
+                                    <AvatarFallback>
+                                      {getInitials(
+                                        teamProfileByEmail[teammate.toLowerCase()]
+                                          ?.displayName || teammate
+                                      )}
+                                    </AvatarFallback>
+                                  </Avatar>
                                   <div className="space-y-0">
                                     <p className="font-semibold text-base text-black">
-                                      {teammate}
+                                      {teamProfileByEmail[teammate.toLowerCase()]
+                                        ?.displayName || teammate}
                                     </p>
-                                    <p className="text-base text-black">
-                                      Student, Stanford
-                                    </p>
+                                    {teamProfileByEmail[teammate.toLowerCase()]
+                                      ?.affiliation ? (
+                                      <p className="text-base text-black">
+                                        {
+                                          teamProfileByEmail[
+                                            teammate.toLowerCase()
+                                          ]?.affiliation
+                                        }
+                                      </p>
+                                    ) : null}
                                   </div>
                                 </div>
                               ))}
@@ -2069,12 +2308,11 @@ export default function ProjectPage() {
                               </div>
                               <CardContent className="p-6 space-y-4">
                                 <div className="flex gap-1 flex-wrap">
-                                  <Badge
-                                    variant="secondary"
-                                    className="bg-transparent border border-black/15 text-black rounded-full font-semibold"
-                                  >
-                                    {eventDetails.event_type || "Hackathon"}
-                                  </Badge>
+                                  {(eventDetails.event_type?.length ? eventDetails.event_type : ["Hackathon"]).map((type) => (
+                                    <Badge key={type} variant="secondary" className="bg-transparent border border-black/15 text-black rounded-full font-semibold">
+                                      {type}
+                                    </Badge>
+                                  ))}
                                   <Badge
                                     variant="secondary"
                                     className="bg-transparent border border-black/15 text-black rounded-full font-semibold"
@@ -2109,36 +2347,95 @@ export default function ProjectPage() {
                         <div className="border-t border-gray-200"></div>
                       )}
 
+                      {/* Additional links */}
+                      {activeTab === "overview" && (
+                        <div className="space-y-4">
+                          <h3 className="text-lg font-semibold text-black tracking-tight mb-4">
+                            Additional links
+                          </h3>
+                          <div className="space-y-2">
+                            {extraActionLinks.length > 0 ? (
+                              extraActionLinks.map((artifact, index) => (
+                                <a
+                                  key={`${artifact.id || artifact.url}-extra-link-${index}`}
+                                  href={artifact.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="block"
+                                >
+                                  <Button
+                                    variant="secondary"
+                                    className="w-full bg-black/5 hover:bg-black/10 rounded-xl py-2.5 shadow-sm justify-center"
+                                  >
+                                    <ArrowUpRight className="h-5 w-5 mr-1.5" />
+                                    {artifact.label}
+                                  </Button>
+                                </a>
+                              ))
+                            ) : (
+                              <p className="text-sm text-gray-500 italic">
+                                No additional links available
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Divider */}
+                      {activeTab === "overview" && (
+                        <div className="border-t border-gray-200"></div>
+                      )}
+
                       {/* Additional materials */}
                       {activeTab === "overview" && (
                         <div className="space-y-4">
                           <h3 className="text-lg font-semibold text-black tracking-tight mb-4">
                             Additional materials
                           </h3>
-                          {project.additional_materials_url ? (
-                            <a
-                              href={project.additional_materials_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              <Button
-                                variant="secondary"
-                                className="w-full bg-black/5 hover:bg-black/10 rounded-xl py-2.5 shadow-sm justify-center"
+                          <div className="space-y-2">
+                            {project.additional_materials_url ? (
+                              <a
+                                href={project.additional_materials_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block"
                               >
-                                <ArrowUpRight className="h-5 w-5 mr-1.5" />
-                                Pitch deck
-                              </Button>
-                            </a>
-                          ) : canEdit ? (
-                            <p className="text-sm text-gray-500 italic">
-                              No additional materials added yet. Add them in the
-                              settings below.
-                            </p>
-                          ) : (
-                            <p className="text-sm text-gray-500 italic">
-                              No additional materials available
-                            </p>
-                          )}
+                                <Button
+                                  variant="secondary"
+                                  className="w-full bg-black/5 hover:bg-black/10 rounded-xl py-2.5 shadow-sm justify-center"
+                                >
+                                  <ArrowUpRight className="h-5 w-5 mr-1.5" />
+                                  Pitch deck
+                                </Button>
+                              </a>
+                            ) : canEdit ? (
+                              <p className="text-sm text-gray-500 italic">
+                                No additional materials added yet. Add them in the
+                                settings below.
+                              </p>
+                            ) : (
+                              <p className="text-sm text-gray-500 italic">
+                                No additional materials available
+                              </p>
+                            )}
+                            {extraMaterialLinks.map((artifact, index) => (
+                              <a
+                                key={`${artifact.id || artifact.url}-material-${index}`}
+                                href={artifact.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block"
+                              >
+                                <Button
+                                  variant="secondary"
+                                  className="w-full bg-black/5 hover:bg-black/10 rounded-xl py-2.5 shadow-sm justify-center"
+                                >
+                                  <ArrowUpRight className="h-5 w-5 mr-1.5" />
+                                  {artifact.label}
+                                </Button>
+                              </a>
+                            ))}
+                          </div>
                         </div>
                       )}
 

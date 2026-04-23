@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
+import { createSupabaseServiceClient } from "@/lib/supabase/service";
 
 export async function GET(
   request: NextRequest,
@@ -41,6 +42,8 @@ export async function GET(
       );
     }
 
+    const serviceSupabase = createSupabaseServiceClient();
+
     // Fetch approval logs with admin details
     const { data: logs, error } = await supabase
       .from("event_approval_logs")
@@ -67,7 +70,7 @@ export async function GET(
     // Fetch admin details for each log
     const logsWithAdminDetails = await Promise.all(
       (logs || []).map(async (log) => {
-        const { data: profile } = await supabase
+        const { data: profile } = await serviceSupabase
           .from("user_profiles")
           .select("display_name, email")
           .eq("uid", log.admin_user_id)

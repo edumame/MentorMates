@@ -1,37 +1,29 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/lib/supabase";
 import { EventRole, EventDetails } from "@/lib/types";
 import Papa from "papaparse";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
-import { Download, ContentCopy } from "@mui/icons-material";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, Copy, Trash2 } from "lucide-react";
 import { useToast } from "@/lib/hooks/use-toast";
 import { useRouter } from "next/navigation";
+import { Badge } from "@/components/ui/badge";
 import { ApprovalRequestsTab } from "./ApprovalRequestsTab";
 import { ApprovalSettingsTab } from "./ApprovalSettingsTab";
+import { AssignTab } from "../assign";
 
 interface UserEventRoleWithProfile {
   user_id: string;
-  role: string;     
+  role: string;
   profiles: {
     display_name: string;
     email: string;
-  };
+  } | null;
 }
 
 interface Participant {
@@ -48,106 +40,106 @@ interface ParticipantsTabProps {
   isArchived: boolean;
 }
 
+interface ProjectRow {
+  lead_email: string | null;
+  teammates: string[] | null;
+}
+
 export function ParticipantsTab({ eventId, event, setEvent, isArchived }: ParticipantsTabProps) {
+  const PAGE_SIZE = 10;
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [loading, setLoading] = useState(true);
-  const [notifyOnSave, setNotifyOnSave] = useState<boolean>(false);
+  const [currentPage, setCurrentPage] = useState(1);
   const router = useRouter();
   const { toast } = useToast();
+  const notifyOnSave = false;
 
   useEffect(() => {
     async function fetchParticipants() {
       try {
-        // Get participants with their profile info
-        const { data, error } = await supabase
-          .from("user_event_roles")
-          .select(
-            `
-            user_id,
-            role,
-            profiles:user_id (
-              display_name,
-              email
-            )
-          `
-          )
+        const participantsResponse = await fetch(
+          `/api/events/${eventId}/users?roles=participant,mentor,judge,organizer,admin&limit=500`
+        );
+        const participantsPayload = await participantsResponse.json();
+        if (!participantsResponse.ok) {
+          throw new Error(
+            participantsPayload.error || "Failed to fetch participants"
+          );
+        }
+        const data = (participantsPayload.users || []).map(
+          (user: {
+            user_id: string;
+            role: EventRole;
+            display_name: string;
+            email: string;
+          }) => ({
+            user_id: user.user_id,
+            role: user.role,
+            profiles: {
+              display_name: user.display_name,
+              email: user.email,
+            },
+          })
+        ) as UserEventRoleWithProfile[];
+
+        const { data: projectRows, error: projectError } = await supabase
+          .from("projects")
+          .select("lead_email, teammates")
           .eq("event_id", eventId)
-          .overrideTypes<UserEventRoleWithProfile[]>();
+          .overrideTypes<ProjectRow[]>();
 
-        if (error) throw error;
+        if (projectError) throw projectError;
 
-        // get all lead email and teammembers 
-        const { data: leadData, error: leadError } = await supabase
-        .from("projects")
-        .select(
-          `
-          lead_email, 
-          teammates
-          `)
-        .eq("event_id", eventId);
-
-        if (leadError) throw leadError;
-
-        // Transform the user_event_roles data
-        const transformedData: Participant[] = (
-          (data as UserEventRoleWithProfile[]) || []
-        ).map((role) => ({
-          user_id: role.user_id,
-          role: role.role as EventRole,
-          display_name: role.profiles?.display_name || role.profiles?.email?.split("@")[0] || "Unknown User",
-          email: role.profiles?.email || "",
+        const transformedData: Participant[] = (data ?? []).map((roleRow) => ({
+          user_id: roleRow.user_id,
+          role: roleRow.role as EventRole,
+          display_name:
+            roleRow.profiles?.display_name ||
+            roleRow.profiles?.email?.split("@")[0] ||
+            "Unknown User",
+          email: roleRow.profiles?.email ?? "",
         }));
 
-        // Transform project participants (lead_email and teammates)
         const projectParticipants: Participant[] = [];
         const allEmails = new Set<string>();
 
-        // Add existing participants' emails to the set
-        transformedData.forEach((participant) => {
-          if (participant.email) {
-            allEmails.add(participant.email.toLowerCase());
-          }
+        transformedData.forEach((p) => {
+          if (p.email) allEmails.add(p.email.toLowerCase());
         });
 
-        // Process project data
-        if (leadData && leadData.length > 0) {
-          leadData.forEach((project) => {
-            // Add lead email
-            if (project.lead_email) {
-              const leadEmail = project.lead_email.toLowerCase();
-              if (!allEmails.has(leadEmail)) {
-                projectParticipants.push({
-                  user_id: `project-lead-${leadEmail}`, // Generate a unique ID for project participants
-                  role: "participant" as EventRole,
-                  display_name: `project-lead-${project.lead_email}`, // Use email as display name since we don't have profile data
-                  email: project.lead_email,
-                });
-                allEmails.add(leadEmail);
-              }
-            }
-
-            // Add teammates
-            if (project.teammates && Array.isArray(project.teammates)) {
-              project.teammates.forEach((teammate: string) => {
-                const teammateEmail = teammate.toLowerCase();
-                if (teammate && !allEmails.has(teammateEmail)) {
-                  projectParticipants.push({
-                    user_id: `project-teammate-${teammateEmail}`, // Generate a unique ID for project participants
-                    role: "participant" as EventRole,
-                    display_name: `project-teammate-${teammate}`, // Use email as display name since we don't have profile data
-                    email: teammate,
-                  });
-                  allEmails.add(teammateEmail);
-                }
+        (projectRows ?? []).forEach((project) => {
+          // lead_email
+          if (project.lead_email) {
+            const leadEmailLower = project.lead_email.toLowerCase();
+            if (!allEmails.has(leadEmailLower)) {
+              projectParticipants.push({
+                user_id: `project-lead-${leadEmailLower}`,
+                role: EventRole.Participant,
+                display_name: project.lead_email,
+                email: project.lead_email,
               });
+              allEmails.add(leadEmailLower);
+            }
+          }
+
+          // teammates
+          const teammates = project.teammates ?? [];
+          teammates.forEach((teammateEmail) => {
+            if (!teammateEmail) return;
+            const teammateLower = teammateEmail.toLowerCase();
+            if (!allEmails.has(teammateLower)) {
+              projectParticipants.push({
+                user_id: `project-teammate-${teammateLower}`,
+                role: EventRole.Participant,
+                display_name: teammateEmail,
+                email: teammateEmail,
+              });
+              allEmails.add(teammateLower);
             }
           });
-        }
+        });
 
-        // Combine all participants and filter for unique emails
-        const allParticipants = [...transformedData, ...projectParticipants];
-        
-        setParticipants(allParticipants);
+        setParticipants([...transformedData, ...projectParticipants]);
       } catch (error) {
         console.error("Error fetching participants:", error);
       } finally {
@@ -157,6 +149,33 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
 
     fetchParticipants();
   }, [eventId]);
+
+  const totalPages = Math.max(1, Math.ceil(participants.length / PAGE_SIZE));
+  const clampedCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+  const startIndex = (clampedCurrentPage - 1) * PAGE_SIZE;
+  const endIndex = startIndex + PAGE_SIZE;
+  const pagedParticipants = participants.slice(startIndex, endIndex);
+
+  useEffect(() => {
+    if (currentPage !== clampedCurrentPage) setCurrentPage(clampedCurrentPage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clampedCurrentPage]);
+
+  const getPageItems = (): Array<number | "ellipsis"> => {
+    if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
+
+    const items: Array<number | "ellipsis"> = [];
+    const left = Math.max(2, clampedCurrentPage - 1);
+    const right = Math.min(totalPages - 1, clampedCurrentPage + 1);
+
+    items.push(1);
+    if (left > 2) items.push("ellipsis");
+    for (let p = left; p <= right; p++) items.push(p);
+    if (right < totalPages - 1) items.push("ellipsis");
+    items.push(totalPages);
+
+    return items;
+  };
 
   const handleExportCSV = () => {
     const csv = Papa.unparse(
@@ -177,20 +196,33 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
 
   const handleCopyEmails = async () => {
     const emails = participants
-      .map((participant) => participant.email)
-      .filter((email) => email) // Filter out empty emails
-      .join(", ");
+      .map((p) => p.email.trim())
+      .filter((e) => e.length > 0);
 
     try {
-      await navigator.clipboard.writeText(emails);
-      toast({ title: "Emails copied to clipboard" });
+      await navigator.clipboard.writeText(emails.join(", "));
+      toast({ title: "Copied emails", description: `${emails.length} copied` });
     } catch {
       toast({
-        title: "Failed to copy",
-        description: "Could not copy emails to clipboard",
+        title: "Error",
+        description: "Could not copy to clipboard",
         variant: "destructive",
       });
     }
+  };
+
+  const safeParseJson = async (response: Response): Promise<unknown> => {
+    try {
+      return await response.json();
+    } catch {
+      return null;
+    }
+  };
+
+  const getErrorMessageFromResponseData = (data: unknown): string | undefined => {
+    if (typeof data !== "object" || data === null) return undefined;
+    const maybeError = (data as Record<string, unknown>).error;
+    return typeof maybeError === "string" ? maybeError : undefined;
   };
 
   const navigateToProfile = (userId: string) => {
@@ -204,13 +236,18 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ role: newRole, notify: notifyOnSave }),
       });
+
       if (!res.ok) {
-        const data = await res.json().catch(() => ({} as any));
-        throw new Error((data as any).error || "Failed to update role");
+        const data = (await res.json().catch(() => ({}))) as {
+          error?: string;
+        };
+        throw new Error(data.error || "Failed to update role");
       }
+
       setParticipants((prev) =>
         prev.map((p) => (p.user_id === userId ? { ...p, role: newRole } : p))
       );
+
       toast({ title: "Role updated" });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to update role";
@@ -225,11 +262,16 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ notify: notifyOnSave }),
       });
+
       if (!res.ok) {
-        const data = await res.json().catch(() => ({} as any));
-        throw new Error((data as any).error || "Failed to remove user");
+        const data = (await res.json().catch(() => ({}))) as {
+          error?: string;
+        };
+        throw new Error(data.error || "Failed to remove user");
       }
+
       setParticipants((prev) => prev.filter((p) => p.user_id !== userId));
+
       toast({ title: "Removed from event" });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to remove user";
@@ -237,19 +279,83 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
     }
   };
 
+  const [topSection, setTopSection] = useState<"registration" | "assign-roles">("registration");
   const [activeTab, setActiveTab] = useState("list");
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Event Participants</CardTitle>
+    <Card className="border-0 bg-transparent shadow-none px-0">
+      <CardHeader className="flex flex-row items-center justify-between gap-3 px-0 pt-0 pb-6">
+        <Tabs value={topSection} onValueChange={(v) => setTopSection(v as "registration" | "assign-roles")} className="w-auto">
+          <TabsList className="flex h-auto gap-2 p-0 bg-transparent border-0 shadow-none rounded-none">
+            <TabsTrigger
+              value="registration"
+              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-[100px] text-base leading-[1.5] text-[var(--Color-Scheme-1-Text,#000)] font-normal border border-transparent bg-transparent data-[state=active]:font-medium data-[state=active]:bg-[var(--Color-Scheme-1-Foreground,#FFF)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none"
+            >
+              Registration
+              <Badge variant="secondary" className="rounded-full font-normal text-sm text-[var(--Color-Neutral,#737373)] bg-transparent border-0 px-0 hover:bg-transparent">
+                {participants.length}
+              </Badge>
+            </TabsTrigger>
+            <TabsTrigger
+              value="assign-roles"
+              className="flex items-center justify-center px-4 py-2.5 rounded-[100px] text-base leading-[1.5] text-[var(--Color-Scheme-1-Text,#000)] font-normal border border-transparent bg-transparent data-[state=active]:font-medium data-[state=active]:bg-[var(--Color-Scheme-1-Foreground,#FFF)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none"
+            >
+              Assign Roles
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        {topSection === "registration" && (
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={handleCopyEmails}
+              variant="outline"
+              size="sm"
+              className="flex h-11 items-center px-5 py-2 rounded-[var(--Radius-Medium,12px)] border border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] bg-[var(--Color-Scheme-1-Foreground,#FFF)] text-[var(--Color-Scheme-1-Text,#000)] font-normal text-base leading-[1.5]"
+              type="button"
+            >
+              <Copy className="h-4 w-4 mr-2" />
+              Copy emails
+            </Button>
+
+            <Button
+              onClick={handleExportCSV}
+              variant="outline"
+              size="sm"
+              className="flex h-11 items-center px-5 py-2 rounded-[var(--Radius-Medium,12px)] border border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] bg-[var(--Color-Scheme-1-Foreground,#FFF)] text-[var(--Color-Scheme-1-Text,#000)] font-normal text-base leading-[1.5]"
+              type="button"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Export CSV
+            </Button>
+          </div>
+        )}
       </CardHeader>
-      <CardContent>
+
+      <CardContent className="px-0">
+        {topSection === "assign-roles" ? (
+          <AssignTab eventId={eventId} />
+        ) : (
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="list">Participant List</TabsTrigger>
-            <TabsTrigger value="approval-requests">Approval Requests</TabsTrigger>
-            <TabsTrigger value="approval-settings">Approval Settings</TabsTrigger>
+          <TabsList className="font-inter grid w-full grid-cols-3 h-auto p-1 gap-0 rounded-xl bg-white border border-[rgba(0,0,0,0.15)] text-muted-foreground">
+            <TabsTrigger
+              value="list"
+              className="rounded-lg px-4 py-2 text-sm font-medium text-black border border-transparent transition-all data-[state=active]:bg-[var(--Color-Pattens-Blue-Lightest,#FBFCFE)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:font-semibold data-[state=active]:shadow-none hover:text-black/80"
+            >
+              Participant List
+            </TabsTrigger>
+            <TabsTrigger
+              value="approval-requests"
+              className="rounded-lg px-4 py-2 text-sm font-medium text-black border border-transparent transition-all data-[state=active]:bg-[var(--Color-Pattens-Blue-Lightest,#FBFCFE)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:font-semibold data-[state=active]:shadow-none hover:text-black/80"
+            >
+              Approval Requests
+            </TabsTrigger>
+            <TabsTrigger
+              value="approval-settings"
+              className="rounded-lg px-4 py-2 text-sm font-medium text-black border border-transparent transition-all data-[state=active]:bg-[var(--Color-Pattens-Blue-Lightest,#FBFCFE)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:font-semibold data-[state=active]:shadow-none hover:text-black/80"
+            >
+              Approval Settings
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="list" className="mt-6">
@@ -258,92 +364,137 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
                 <div>Loading participants...</div>
               ) : (
                 <>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Checkbox
-                        id="notify-on-save"
-                        checked={notifyOnSave}
-                        onCheckedChange={(checked) => setNotifyOnSave(Boolean(checked))}
-                      />
-                      <Label htmlFor="notify-on-save" className="text-sm text-muted-foreground">
-                        Notify participant when saving changes
-                      </Label>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button onClick={handleCopyEmails} variant="outline" size="sm">
-                        <ContentCopy className="w-4 h-4 mr-2" />
-                        Copy Emails
-                      </Button>
-                      <Button onClick={handleExportCSV} variant="outline" size="sm">
-                        <Download className="w-4 h-4 mr-2" />
-                        Export CSV
-                      </Button>
-                    </div>
-                  </div>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Role</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {participants.map((participant) => (
-                        <TableRow
-                          key={participant.user_id}
-                          onClick={() => {
-                            // Only navigate to profile for actual users, not project participants
-                            if (!participant.user_id.startsWith('project-')) {
-                              navigateToProfile(participant.user_id);
-                            }
-                          }}
-                          className={`${
-                            !participant.user_id.startsWith('project-') 
-                              ? 'cursor-pointer hover:bg-gray-50' 
-                              : 'cursor-default'
-                          }`}
-                        >
-                          <TableCell>{participant.display_name}</TableCell>
-                          <TableCell>{participant.email}</TableCell>
-                          <TableCell onClick={(e) => e.stopPropagation()}>
-                            {!participant.user_id.startsWith('project-') ? (
-                              <Select
-                                value={participant.role}
-                                onValueChange={(val) => handleChangeRole(participant.user_id, val as EventRole)}
-                              >
-                                <SelectTrigger className="w-[180px]">
-                                  <SelectValue placeholder="Select role" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value={EventRole.Participant}>Participant</SelectItem>
-                                  <SelectItem value={EventRole.Mentor}>Mentor</SelectItem>
-                                  <SelectItem value={EventRole.Judge}>Judge</SelectItem>
-                                  <SelectItem value={EventRole.Organizer}>Organizer</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            ) : (
-                              <span className="capitalize">{participant.role}</span>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                            {!participant.user_id.startsWith('project-') && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-red-600 hover:text-red-700"
-                                onClick={() => handleRemove(participant.user_id)}
-                                aria-label={`Remove ${participant.display_name}`}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            )}
-                          </TableCell>
+                  <div
+                    className="flex items-start self-stretch rounded-[16px] border border-[var(--Color-Scheme-1-Border,rgba(0,0,0,0.15))] bg-[var(--Color-White,#FFF)]"
+                    style={{ borderWidth: "var(--Stroke-Border-Width, 1px)" }}
+                  >
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="pl-6">Name</TableHead>
+                          <TableHead>Email</TableHead>
+                          <TableHead>Role</TableHead>
+                          <TableHead className="text-right pr-6">Actions</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {pagedParticipants.map((participant) => (
+                          <TableRow
+                            key={participant.user_id}
+                            onClick={() => {
+                              if (!participant.user_id.startsWith("project-")) {
+                                navigateToProfile(participant.user_id);
+                              }
+                            }}
+                            className={
+                              !participant.user_id.startsWith("project-")
+                                ? "cursor-pointer hover:bg-gray-50"
+                                : "cursor-default"
+                            }
+                          >
+                            <TableCell className="pl-6">{participant.display_name}</TableCell>
+                            <TableCell>{participant.email}</TableCell>
+                            <TableCell onClick={(e) => e.stopPropagation()}>
+                              {!participant.user_id.startsWith("project-") ? (
+                                <Select
+                                  value={participant.role}
+                                  onValueChange={(val) =>
+                                    handleChangeRole(participant.user_id, val as EventRole)
+                                  }
+                                >
+                                  <SelectTrigger className="w-[180px]">
+                                    <SelectValue placeholder="Select role" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value={EventRole.Participant}>Participant</SelectItem>
+                                    <SelectItem value={EventRole.Mentor}>Mentor</SelectItem>
+                                    <SelectItem value={EventRole.Judge}>Judge</SelectItem>
+                                    <SelectItem value={EventRole.Organizer}>Organizer</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              ) : (
+                                <span className="capitalize">{participant.role}</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right pr-6" onClick={(e) => e.stopPropagation()}>
+                              {!participant.user_id.startsWith("project-") && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-red-600 hover:text-red-700"
+                                  onClick={() => handleRemove(participant.user_id)}
+                                  aria-label={`Remove ${participant.display_name}`}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3 pt-4">
+                    <Button
+                      variant="secondary"
+                      size="default"
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      disabled={clampedCurrentPage === 1}
+                      className="min-w-[110px] flex justify-center items-center gap-1.5 py-2.5 px-6 rounded-[12px] bg-[var(--Opacity-Neutral-Darkest-5,rgba(0,0,0,0.05))] border-0 text-foreground hover:bg-[var(--Opacity-Neutral-Darkest-5,rgba(0,0,0,0.05))] hover:opacity-90"
+                      style={{
+                        boxShadow:
+                          "0 0 0 1px var(--Opacity-Neutral-Darkest-5, rgba(0,0,0,0.05)) inset, 0 -2px 1px 0 var(--Opacity-Neutral-Darkest-5, rgba(0,0,0,0.05)) inset, 0 1px 2px 0 var(--Opacity-Neutral-Darkest-5, rgba(0,0,0,0.05))",
+                      }}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      Prev
+                    </Button>
+
+                    <div className="flex items-center justify-center gap-2">
+                      {getPageItems().map((item, idx) => {
+                        if (item === "ellipsis") {
+                          return (
+                            <span
+                              key={`ellipsis-${idx}`}
+                              className="px-2 text-sm text-muted-foreground"
+                              aria-hidden="true"
+                            >
+                              …
+                            </span>
+                          );
+                        }
+                        const isActive = item === clampedCurrentPage;
+                        return (
+                          <Button
+                            key={item}
+                            variant={isActive ? "outline" : "ghost"}
+                            size="icon"
+                            className="h-9 w-9"
+                            onClick={() => setCurrentPage(item)}
+                            aria-current={isActive ? "page" : undefined}
+                          >
+                            {item}
+                          </Button>
+                        );
+                      })}
+                    </div>
+
+                    <Button
+                      variant="secondary"
+                      size="default"
+                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={clampedCurrentPage === totalPages}
+                      className="min-w-[110px] flex justify-center items-center gap-1.5 py-2.5 px-6 rounded-[12px] bg-[var(--Opacity-Neutral-Darkest-5,rgba(0,0,0,0.05))] border-0 text-foreground hover:bg-[var(--Opacity-Neutral-Darkest-5,rgba(0,0,0,0.05))] hover:opacity-90"
+                      style={{
+                        boxShadow:
+                          "0 0 0 1px var(--Opacity-Neutral-Darkest-5, rgba(0,0,0,0.05)) inset, 0 -2px 1px 0 var(--Opacity-Neutral-Darkest-5, rgba(0,0,0,0.05)) inset, 0 1px 2px 0 var(--Opacity-Neutral-Darkest-5, rgba(0,0,0,0.05))",
+                      }}
+                    >
+                      Next
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </>
               )}
             </div>
@@ -362,6 +513,7 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
             />
           </TabsContent>
         </Tabs>
+        )}
       </CardContent>
     </Card>
   );

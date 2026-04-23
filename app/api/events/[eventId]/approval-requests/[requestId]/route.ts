@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
+import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { EventRole, ParticipantRequestStatus } from "@/lib/types";
 import { canAccessRole } from "@/features/user/roles/roles";
 
@@ -20,6 +21,7 @@ export async function GET(
   try {
     const { eventId, requestId } = await context.params;
     const supabase = await createSupabaseClient();
+    const serviceSupabase = createSupabaseServiceClient();
 
     const {
       data: { user },
@@ -31,7 +33,7 @@ export async function GET(
     }
 
     // Fetch the request
-    const { data: approvalRequest, error: queryError } = await supabase
+    const { data: approvalRequest, error: queryError } = await serviceSupabase
       .from("participant_approval_requests")
       .select(
         `
@@ -227,44 +229,58 @@ export async function PATCH(
     }
 
     // If approved, create the user_event_role entry (if not already exists)
+    // BUT: For paid events, skip role creation - the role will be created after payment
     if (status === ParticipantRequestStatus.Approved) {
-      // Check if role already exists (in case of re-approval)
-      const { data: existingRole } = await supabase
-        .from("user_event_roles")
-        .select("*")
+      // Check if this is a paid event
+      const { data: event } = await supabase
+        .from("events")
+        .select("paid")
         .eq("event_id", eventId)
-        .eq("user_id", approvalRequest.user_id)
-        .eq("role", approvalRequest.requested_role)
-        .maybeSingle();
+        .single();
 
-      if (!existingRole) {
-        const { error: roleError } = await supabase
+      const isPaidEvent = event?.paid || false;
+
+      // Only create role immediately for non-paid events
+      if (!isPaidEvent) {
+        // Check if role already exists (in case of re-approval)
+        const { data: existingRole } = await supabase
           .from("user_event_roles")
-          .insert({
-            event_id: eventId,
-            user_id: approvalRequest.user_id,
-            role: approvalRequest.requested_role,
-          });
+          .select("*")
+          .eq("event_id", eventId)
+          .eq("user_id", approvalRequest.user_id)
+          .eq("role", approvalRequest.requested_role)
+          .maybeSingle();
 
-        if (roleError) {
-          // If role creation fails, revert the request status
-          await supabase
-            .from("participant_approval_requests")
-            .update({
-              status: currentStatus,
-              reviewed_by: null,
-              reviewed_at: null,
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", requestId);
+        if (!existingRole) {
+          const { error: roleError } = await supabase
+            .from("user_event_roles")
+            .insert({
+              event_id: eventId,
+              user_id: approvalRequest.user_id,
+              role: approvalRequest.requested_role,
+            });
 
-          console.error("Error creating user role:", roleError);
-          return NextResponse.json(
-            { error: "Failed to assign role to user" },
-            { status: 500 }
-          );
+          if (roleError) {
+            // If role creation fails, revert the request status
+            await supabase
+              .from("participant_approval_requests")
+              .update({
+                status: currentStatus,
+                reviewed_by: null,
+                reviewed_at: null,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", requestId);
+
+            console.error("Error creating user role:", roleError);
+            return NextResponse.json(
+              { error: "Failed to assign role to user" },
+              { status: 500 }
+            );
+          }
         }
       }
+      // For paid events, the role will be created after payment completion via post-payment-join
     }
 
     return NextResponse.json({

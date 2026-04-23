@@ -8,21 +8,33 @@ import { UI_TEXT } from "@/lib/config/constants";
 import { Button } from "@/components/ui/button";
 import { EventSearchInput } from "@/components/ui/event-search-input";
 import { useAuth } from "@/features/user/authentication/auth/AuthContext";
-import { useAdmin } from "@/lib/hooks/use-admin";
 import { ChevronDown } from "lucide-react";
 import { CreateEventModal } from "@/components/events/create-event-modal";
 
 type SortOption = "date" | "name" | "type";
 
-export function EventsPageClient({ eventsList }: { eventsList: EventItem[] }) {
+type EventsPageClientProps = {
+  eventsList: EventItem[];
+  initialIsAuthenticated: boolean;
+};
+
+export function EventsPageClient({
+  eventsList,
+  initialIsAuthenticated,
+}: EventsPageClientProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>("date");
   const [showSortMenu, setShowSortMenu] = useState(false);
-  const { isAuthenticated } = useAuth();
-  const isAdmin = useAdmin();
+  const {
+    isAuthenticated: clientIsAuthenticated,
+    isLoading: isAuthLoading,
+  } = useAuth();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const searchParams = useSearchParams();
   const onboardingRole = searchParams.get("role");
+  const isAuthenticated = isAuthLoading
+    ? initialIsAuthenticated
+    : clientIsAuthenticated;
 
   const filteredAndSortedEvents = useMemo(() => {
     // First filter by search term
@@ -77,7 +89,7 @@ export function EventsPageClient({ eventsList }: { eventsList: EventItem[] }) {
 
   return (
     <div className="w-full">
-      <div className="flex justify-between sm:gap-[15rem] mb-6 items-center flex-wrap">
+      <div className="flex justify-between sm:gap-x-[15rem] mb-6 items-center flex-wrap">
         <h1 className="w-full sm:w-auto mb-4 sm:mb-0 text-[20px] sm:text-[28px] font-semibold leading-[1.4] tracking-[-0.06em] text-black">
           Events
         </h1>

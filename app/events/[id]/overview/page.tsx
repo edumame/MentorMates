@@ -15,6 +15,14 @@ interface PageProps {
   params: Promise<{ id: string }>;
 }
 
+interface EventJudge {
+  id: string;
+  name: string;
+  bio?: string | null;
+  avatarUrl?: string | null;
+  affiliation?: string | null;
+}
+
 export default async function EventOverviewPage({ params }: PageProps) {
   const { id } = await Promise.resolve(params);
   const supabase = await createSupabaseClient();
@@ -37,7 +45,8 @@ export default async function EventOverviewPage({ params }: PageProps) {
     cover_image_url,
     slug,
     paid,
-    event_type
+    event_type,
+    submission_time_cutoff
   `);
 
   if (isUUID) {
@@ -75,6 +84,34 @@ export default async function EventOverviewPage({ params }: PageProps) {
   (typedEvent as EventDetails & { event_lessons?: Lesson[] }).event_lessons = (lessonsData || []) as Lesson[];
   const tracks = (tracksData || []) as EventTrack[];
 
+  const { data: judgesData } = await supabase
+    .from("user_event_roles")
+    .select(
+      "user_id, user_profiles!user_id(uid, display_name, bio, avatar_url, affiliation)"
+    )
+    .eq("event_id", eventData.event_id)
+    .eq("role", "judge");
+
+  const judges: EventJudge[] = (judgesData || []).flatMap((judgeRecord) => {
+      const profile = Array.isArray(judgeRecord.user_profiles)
+        ? judgeRecord.user_profiles[0]
+        : judgeRecord.user_profiles;
+
+      if (!profile?.uid || !profile?.display_name) {
+        return [];
+      }
+
+      return [
+        {
+          id: profile.uid,
+          name: profile.display_name,
+          bio: profile.bio ?? null,
+          avatarUrl: profile.avatar_url ?? null,
+          affiliation: profile.affiliation ?? null,
+        },
+      ];
+    });
+
   // Check if user has joined and get their role
   const {
     data: { user },
@@ -82,6 +119,15 @@ export default async function EventOverviewPage({ params }: PageProps) {
 
   let hasJoined = false;
   let userRole: EventRole | null = null;
+  let userProjects: Array<{
+    id: string;
+    project_name: string | null;
+    project_description: string | null;
+    cover_image_url: string | null;
+    submitted: boolean | null;
+    submitted_at: string | null;
+    created_at: string | null;
+  }> = [];
 
   if (user) {
     const { data: userEventRole } = await supabase
@@ -93,6 +139,26 @@ export default async function EventOverviewPage({ params }: PageProps) {
 
     hasJoined = !!userEventRole;
     userRole = (userEventRole?.role as EventRole) || null;
+
+    // Fetch the user's projects for this event so they can always find them
+    const userEmail = user.email || "";
+    const { data: projectsData } = await supabase
+      .from("projects")
+      .select(
+        "id, project_name, project_description, cover_image_url, submitted, submitted_at, created_at, lead_email"
+      )
+      .eq("event_id", eventData.event_id)
+      .eq("lead_email", userEmail);
+
+    userProjects = (projectsData || []).map((p) => ({
+      id: p.id,
+      project_name: p.project_name,
+      project_description: p.project_description,
+      cover_image_url: p.cover_image_url,
+      submitted: p.submitted,
+      submitted_at: p.submitted_at,
+      created_at: p.created_at,
+    }));
   }
 
   const visibleResources = getVisibleEventResources(
@@ -118,12 +184,18 @@ export default async function EventOverviewPage({ params }: PageProps) {
       eventType={eventForRender.event_type}
     >
       {/* Main Content */}
-      <EventPageContent
-        event={eventForRender}
-        tracks={tracks}
-        hasJoined={hasJoined}
-        userRole={userRole}
-      />
+      <div className="min-w-0 flex-1">
+        <EventPageContent
+          event={eventForRender}
+          tracks={tracks}
+          hasJoined={hasJoined}
+          userRole={userRole}
+          judges={judges}
+          userProjects={userProjects}
+          eventSlug={eventForRender.slug}
+          submissionDeadline={eventForRender.submission_time_cutoff}
+        />
+      </div>
 
       {/* Sidebar */}
       <EventPageSidebar

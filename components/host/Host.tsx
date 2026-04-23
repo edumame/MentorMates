@@ -2,246 +2,115 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { SERVICES_SECTIONS, type ServiceSectionData } from "./content";
 import { Button } from "@/components/ui/button";
-import { LogoCarousel } from "@/components/heroes/components/LogoCarousel";
+import { BackgroundGrid } from "@/components/landing/background-grid";
+import {
+  Dialog,
+  DialogContent,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  LogoCarousel,
+  logos as defaultLogoItems,
+} from "@/components/heroes/components/LogoCarousel";
 import { Customer } from "@/components/heroes/components/Customer";
-import { getEmbedUrl } from "@/components/utils";
-import { VIDEO_SOURCES } from "@/lib/config/video-sources";
-import * as LucideIcons from "lucide-react";
 import { Play } from "lucide-react";
+import { FeaturesHeader } from "./sections/FeaturesHeader";
+import { DefineDeploySection } from "./sections/DefineDeploySection";
+import { ScaleMentorshipSection } from "./sections/ScaleMentorshipSection";
+import { IdeaToDemoCta } from "./sections/IdeaToDemoCta";
 
-// Helper function to render Lucide icons
-function renderLucideIcon(
-  iconName: string,
-  className?: string,
-  title?: string
-) {
-  const IconComponent = (LucideIcons as unknown as Record<string, React.ComponentType<{ className?: string; title?: string }>>)[iconName];
-  if (!IconComponent) {
-    console.warn(`Icon "${iconName}" not found in Lucide React`);
-    return null;
-  }
-  return <IconComponent className={className} title={title} />;
-}
+const DEMO_VIDEO_URL = "https://www.youtube.com/embed/kXwY--1M4jY";
+
+const HOST_LOGOS = [
+  ...defaultLogoItems,
+  { alt: "a16z", src: "/partners/a16z.svg" },
+  { alt: "Lovable", src: "/partners/lovable-gray.svg" },
+];
 
 export function Host() {
-  const organizerDemo = VIDEO_SOURCES.organizer;
-  const organizerEmbedUrl =
-    getEmbedUrl(organizerDemo.url) ?? organizerDemo.url;
-
-  const sections = SERVICES_SECTIONS.map((s, i) => ({
-    ...s,
-    imageSide: s.imageSide ?? (i % 2 === 0 ? "right" : "left"),
-  }));
-
   return (
-    <section className="bg-white">
-      {/* Hero */}
-      <div className="px-4 sm:px-6 py-16 sm:py-20 md:py-24 min-h-[400px]">
-        <div className="max-w-7xl mx-auto text-center">
-          <h1 className="mx-auto max-w-4xl text-3xl sm:text-5xl md:text-6xl font-semibold tracking-tight text-gray-900">
-            Build a Culture of Creative Innovation Across Your Teams
+    <section className="relative bg-white overflow-hidden">
+      {/* Top background pattern from Figma */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 top-0 h-40 sm:h-48 md:h-56 -z-10"
+        style={{
+          backgroundImage:
+            "repeating-linear-gradient(135deg, rgba(148,163,184,0.16) 0, rgba(148,163,184,0.16) 1px, transparent 1px, transparent 10px)",
+        }}
+      />
+      {/* Hero with animated grid background */}
+      <BackgroundGrid className="px-4 sm:px-6 py-16 sm:py-20 md:py-24 bg-white">
+        <div className="max-w-6xl mx-auto text-center">
+          <h1 className="font-geist mx-auto max-w-[931px] text-[32px] sm:text-[40px] md:text-[56px] lg:text-[72px] font-semibold leading-[1.2] tracking-[-0.06em] text-black">
+            Host High-Signal Hackathons
+            <span className="block">That Sponsors Love</span>
           </h1>
-          <p className="mt-4 sm:mt-6 text-gray-700 text-base sm:text-lg max-w-4xl mx-auto">
-            Run internal hackathons, host a lifetime of maker projects, and
-            amplify team creativity — all on one platform.
+          <p className="mt-4 sm:mt-6 text-gray-700 text-base sm:text-lg max-w-3xl mx-auto">
+            Give every student a 24/7 world-class pitch coach. Turn raw ideas
+            into high-signal projects that attract top-tier judges, mentors, and
+            sponsors.
           </p>
           <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
-            <Button variant="default" asChild>
-              <a href="#demo-video">
-                <Play className="mr-2 h-4 w-4" />
-                Watch Demo
-              </a>
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="flex min-w-[260px] sm:min-w-0 py-2.5 px-6 justify-center items-center gap-1.5 rounded-xl bg-black/5 border-0 shadow-[inset_0_0_0_1px_rgba(0,0,0,0.05),inset_0_-2px_1px_0_rgba(0,0,0,0.05),0_1px_2px_0_rgba(0,0,0,0.05)] hover:bg-black/[0.08]"
+                >
+                  <Play className="h-4 w-4 shrink-0" />
+                  Demo
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-4xl w-[95vw] p-0 gap-0 border-0 bg-black overflow-hidden rounded-xl [&>button]:text-white [&>button]:right-2 [&>button]:top-2 [&>button]:bg-white/15 [&>button]:hover:bg-white/25">
+                <div className="relative aspect-video">
+                  <iframe
+                    src={DEMO_VIDEO_URL}
+                    title="MentorMates Demo"
+                    className="absolute inset-0 w-full h-full"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                </div>
+              </DialogContent>
+            </Dialog>
+            <Button
+              variant="default"
+              asChild
+              className="flex min-w-[260px] sm:min-w-0 items-center justify-center gap-2 py-2.5 px-6 text-[16px] leading-6 font-medium text-white"
+            >
+              <Link href="/login">Host your event free</Link>
             </Button>
-            <Button variant="outline" asChild>
-              <Link href="/login">Get Started Free</Link>
-            </Button>
-            <span className="text-gray-600 text-sm">
-              Have questions?{" "}
-              <Link
-                href="https://calendly.com/edumameofficial/30min"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline hover:text-gray-900"
-              >
-                Schedule a call
-              </Link>
-            </span>
           </div>
-        </div>
-      </div>
 
-      {/* Demo Video Section */}
-      <div id="demo-video" className="px-4 sm:px-6 py-12 sm:py-16 bg-gray-50">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-semibold text-gray-900 mb-4">
-            See MentorMates in Action
-          </h2>
-          <p className="text-gray-600 mb-8 max-w-2xl mx-auto">
-            Watch how organizers manage hackathons from start to finish —
-            event setup, mentor assignments, submissions, and judging.
-          </p>
-          <div className="aspect-video rounded-xl overflow-hidden shadow-lg">
-            <iframe
-              src={organizerEmbedUrl}
-              title={organizerDemo.title}
-              className="w-full h-full"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Sections (mobile: text first, image second) */}
-      <div className="px-4 sm:px-6 py-12 sm:py-16 md:py-20">
-        <div className="max-w-7xl mx-auto space-y-16 md:space-y-24">
-          {sections.map((s) => (
-            <ServiceRow key={s.id} data={s} />
-          ))}
-
-          {/* Social Proof / Case Studies */}
-          <div className="space-y-10">
-            {/* Logos */}
-            <div className="bg-white">
-              <div>
-                <LogoCarousel />
+          <div className="mt-10 sm:mt-12">
+            <div className="relative mx-auto max-w-5xl">
+              <div className="flex flex-col items-start p-[3.5px]">
+                <Image
+                  src="/img/host-hero.png"
+                  alt="MentorMates host dashboard preview"
+                  width={1280}
+                  height={800}
+                  className="h-auto w-full"
+                  priority
+                />
               </div>
             </div>
-
-            {/* Testimonials grid (existing component) */}
-            <div>
-              <Customer />
-            </div>
-
-            {/* Metrics callouts */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-              {[
-                { stat: "20+", desc: "prototypes delivered in 4 weeks" },
-                { stat: "3", desc: "cross-team hires sparked" },
-                { stat: "+7%", desc: "retention lift reported" },
-              ].map((m) => (
-                <div
-                  key={m.desc}
-                  className="text-center border border-gray-200 rounded-xl p-6"
-                >
-                  <div className="text-4xl font-bold text-gray-900">
-                    {m.stat}
-                  </div>
-                  <div className="mt-2 text-gray-700">{m.desc}</div>
-                </div>
-              ))}
-            </div>
           </div>
         </div>
+      </BackgroundGrid>
+
+      {/* Logos directly under hero — full viewport width, horizontally scrolling */}
+      <div className="w-full pb-12 sm:pb-14 md:pb-16">
+        <LogoCarousel items={HOST_LOGOS} />
       </div>
 
-      {/* Final Push CTA */}
-      <div className="px-4 sm:px-6 pb-16 sm:pb-20 md:pb-24">
-        <div className="max-w-7xl mx-auto">
-          <div className="bg-gray-50 border border-gray-200 rounded-2xl p-8 sm:p-10 text-center">
-            <h2 className="text-2xl sm:text-3xl md:text-4xl font-semibold text-gray-900">
-              Ready to host your first hackathon?
-            </h2>
-            <p className="mt-3 text-gray-700 max-w-3xl mx-auto">
-              Let’s run a pilot together. Enjoy concierge support and co-design
-              for your first cycle.
-            </p>
-            <div className="mt-6">
-              <Button asChild>
-                <Link
-                  href="https://calendly.com/edumameofficial/30min"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Schedule a Demo
-                </Link>
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
+      <FeaturesHeader />
+      <DefineDeploySection />
+      <ScaleMentorshipSection />
+      <Customer />
+      <IdeaToDemoCta />
     </section>
-  );
-}
-
-/* ========= subcomponents ========= */
-
-function ServiceRow({ data }: { data: ServiceSectionData }) {
-  const imgOnLeft = data.imageSide === "left";
-
-  return (
-    // 2 cols on md+, stacked on mobile
-    <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 items-center gap-10 lg:gap-16">
-      {/* TEXT — mobile first; on desktop it zigzags opposite to image */}
-      <div className={`order-1 ${imgOnLeft ? "md:order-2" : "md:order-1"}`}>
-        {data.eyebrow && (
-          <div className="mb-2 text-sm font-semibold tracking-wide text-gray-700 md:hidden">
-            {data.eyebrow}
-          </div>
-        )}
-        <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900">
-          {data.title}
-        </h2>
-        <p className="mt-3 sm:mt-4 text-gray-700 leading-relaxed">
-          {data.body}
-        </p>
-
-        {/* Bullets (optional) */}
-        {data.bullets && data.bullets.length > 0 && (
-          <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-8">
-            {data.bullets.map((b, i) => (
-              <div key={i} className="flex flex-col items-start gap-3">
-                <div className="flex items-center justify-center">
-                  {renderLucideIcon(
-                    b.icon?.name ?? "",
-                    "w-6 h-6 text-black",
-                    b.title
-                  )}
-                </div>
-                <div>
-                  <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">
-                    {b.title}
-                  </h3>
-                  <p className="text-sm sm:text-base text-gray-600">{b.body}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {data.cta && (
-          <div className="mt-6">
-            <Button asChild variant="defaultGray">
-              <Link href={data.cta.href}>{data.cta.label}</Link>
-            </Button>
-          </div>
-        )}
-      </div>
-
-      {/* IMAGE — mobile second; on desktop it zigzags */}
-      <div className={`order-2 ${imgOnLeft ? "md:order-1" : "md:order-2"}`}>
-        <PhoneCard src={data.image.src} alt={data.image.alt} />
-      </div>
-    </div>
-  );
-}
-
-/** Phone mock without any gradient background (clean card only) */
-function PhoneCard({ src, alt }: { src: string; alt: string }) {
-  return (
-    <div className="relative mx-auto w-full max-w-[500px] aspect-[25/32]">
-      <div className="absolute inset-0 rounded-[22px] overflow-hidden">
-        <Image
-          src={src}
-          alt={alt}
-          fill
-          className="object-contain"
-          sizes="(max-width: 768px) 90vw, 500px"
-          priority={false}
-        />
-      </div>
-    </div>
   );
 }

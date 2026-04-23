@@ -1,7 +1,9 @@
-import { createClient } from "@/app/utils/supabase/client";
-import { redirect } from "next/navigation";
-import { isValidUUID } from "@/app/utils/supabase/queries";
+import { EventRole } from "@/lib/types";
 import { AcceptOrganizerInvite } from "./AcceptOrganizerInvite";
+import {
+  loadInviteAcceptanceEvent,
+  redirectIfInviteAlreadyAccepted,
+} from "../invite-acceptance";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -11,22 +13,9 @@ interface PageProps {
 export default async function AcceptOrganizerInvitePage({ params, searchParams }: PageProps) {
   const { id } = await Promise.resolve(params);
   const { email } = await Promise.resolve(searchParams);
-  const supabase = createClient();
+  const eventData = await loadInviteAcceptanceEvent(id);
 
-  const isUUID = isValidUUID(id);
-
-  let query = supabase.from("events").select("event_id, event_name, event_blurb, slug");
-
-  if (isUUID) {
-    query = query.or(`slug.eq.${id},event_id.eq.${id}`);
-  } else {
-    query = query.eq("slug", id);
-  }
-
-  const { data: eventData, error } = await query.single();
-
-  if (error || !eventData) {
-    // Event not found - pass null to show error state
+  if (!eventData) {
     return (
       <AcceptOrganizerInvite
         eventId=""
@@ -39,23 +28,11 @@ export default async function AcceptOrganizerInvitePage({ params, searchParams }
     );
   }
 
-  // Check if user is authenticated and already an organizer
-  const { data: { session } } = await supabase.auth.getSession();
-
-  if (session) {
-    const { data: existingRole } = await supabase
-      .from("user_event_roles")
-      .select("role")
-      .eq("user_id", session.user.id)
-      .eq("event_id", eventData.event_id)
-      .maybeSingle();
-
-    // If user is already an organizer, redirect to overview page
-    if (existingRole?.role === 'organizer') {
-      const overviewUrl = `/events/${eventData.slug || eventData.event_id}/overview`;
-      redirect(overviewUrl);
-    }
-  }
+  await redirectIfInviteAlreadyAccepted(
+    eventData.event_id,
+    eventData.slug,
+    EventRole.Organizer
+  );
 
   return (
     <AcceptOrganizerInvite

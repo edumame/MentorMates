@@ -12,6 +12,10 @@
 
 # testing
 /coverage
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
 
 # next.js
 /.next/
@@ -37,6 +41,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+#pnpm store
+.pnpm-store
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
@@ -47,3 +54,9 @@ next-env.d.ts
 
 #personal
 # todo.md
+
+#sql scripts (non migrations)
+supabase/migrations/scripts_*
+
+#plan directories
+plans/*

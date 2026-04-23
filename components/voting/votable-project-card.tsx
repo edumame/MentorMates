@@ -5,13 +5,13 @@ import { Trophy, CalendarClock, User } from "lucide-react";
 import { VoteButton } from "./vote-button";
 import { Project } from "@/lib/types";
 import Link from "next/link";
+import { CoverImageWithFallback } from "@/features/projects/components/displays/cover-image-with-fallback";
 
 interface VotableProjectCardProps {
   project: Project;
   hasVoted: boolean;
   toggleVoteAction: () => Promise<boolean>;
   canVote: boolean;
-  eventSlug: string;
 }
 
 export function VotableProjectCard({
@@ -19,16 +19,15 @@ export function VotableProjectCard({
   hasVoted,
   toggleVoteAction,
   canVote,
-  eventSlug,
 }: VotableProjectCardProps) {
   return (
     <div className="block">
       <Card
-        className={`bg-white rounded-xl overflow-hidden relative flex flex-col h-full hover:shadow-lg transition-shadow ${
+        className={`bg-white rounded-2xl overflow-hidden relative flex flex-col h-full border border-[rgba(0,0,0,0.12)] hover:shadow-xl transition-all duration-200 ${
           project.prizes_won && project.prizes_won.length > 0
             ? "ring-2 ring-yellow-400"
             : ""
-        } ${hasVoted ? "ring-2 ring-purple-400" : ""}`}
+        } ${hasVoted ? "ring-2 ring-[#4B89EF]" : ""}`}
       >
         {/* Winner Banner */}
         {project.prizes_won && project.prizes_won.length > 0 && (
@@ -47,7 +46,7 @@ export function VotableProjectCard({
         {/* Voted Badge */}
         {hasVoted && (
           <div className="absolute top-4 right-4 z-20">
-            <div className="bg-purple-600 text-white py-1 px-3 rounded-full text-xs font-semibold shadow-lg">
+            <div className="bg-[#4B89EF] text-white py-1 px-3 rounded-full text-xs font-semibold shadow-lg">
               ✓ Voted
             </div>
           </div>
@@ -56,8 +55,8 @@ export function VotableProjectCard({
         {/* Thumbnail */}
         <Link href={`/projects/public/${project.id}`} className="block">
           <div className="relative w-full aspect-[16/9] md:aspect-[4/3] bg-slate-100">
-            <img
-              src={project.cover_image_url || "/img/placeholder.png"}
+            <CoverImageWithFallback
+              src={project.cover_image_url}
               alt={`${project.project_name || "Project"} thumbnail`}
               className="w-full h-full object-cover"
               loading="lazy"
@@ -78,7 +77,7 @@ export function VotableProjectCard({
         <div className="py-4 px-6 flex-1 flex flex-col">
           {/* Project name */}
           <Link href={`/projects/public/${project.id}`}>
-            <h3 className="font-bold text-black flex-1 min-w-0 text-[1.375rem] leading-[1.4] tracking-[-0.06em] truncate hover:text-purple-600 transition-colors">
+            <h3 className="font-bold text-black flex-1 min-w-0 text-[1.375rem] leading-[1.4] tracking-[-0.06em] truncate hover:text-[#4B89EF] transition-colors">
               {project.project_name || "Project"}
             </h3>
           </Link>

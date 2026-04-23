@@ -33,6 +33,7 @@ import {
   PLATFORM_ROLE_REDIRECTS,
   type PlatformRole,
 } from "@/features/user/onboarding/questions-data";
+import { ONBOARDING_SKIP_STATUS } from "@/features/user/onboarding/metadata";
 import { useStepNavigation } from "@/features/projects/components/forms/hooks/useStepNavigation";
 
 type FormValues = {
@@ -88,6 +89,7 @@ export default function OnboardingPage() {
   async function handleSubmit(values: FormValues) {
     setIsSubmitting(true);
     try {
+      form.clearErrors("root");
       const payload = {
         version: 3,
         completedAt: new Date().toISOString(),
@@ -111,7 +113,35 @@ export default function OnboardingPage() {
       const finalRedirect = returnUrl || roleBasedRedirect;
       router.push(finalRedirect);
     } catch {
-      form.setError("familiarity", {
+      form.setError("root", {
+        message: "Something went wrong. Please try again.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleSkip() {
+    setIsSubmitting(true);
+    try {
+      form.clearErrors("root");
+      const res = await fetch("/api/onboarding", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          version: 4,
+          status: ONBOARDING_SKIP_STATUS,
+          skippedAt: new Date().toISOString(),
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error || "Failed to save");
+      }
+
+      router.push(returnUrl || "/");
+    } catch {
+      form.setError("root", {
         message: "Something went wrong. Please try again.",
       });
     } finally {
@@ -194,9 +224,9 @@ export default function OnboardingPage() {
   return (
     <div className="min-h-screen grid lg:grid-cols-2">
       {/* LEFT: form column */}
-      <main className="flex flex-col h-screen">
-        <div className="flex-1 flex items-start lg:items-center justify-center px-6 pt-8 lg:pt-0 overflow-y-auto">
-          <div className="w-full max-w-sm py-4">
+      <main className="flex flex-col lg:h-screen">
+        <div className="flex-1 flex items-start lg:items-center justify-center px-6 py-8 lg:pt-0 overflow-y-auto">
+          <div className="w-full max-w-sm pb-4">
             <StepHeader />
             <Form {...form}>
               <form className="space-y-6" onSubmit={form.handleSubmit(handleSubmit)}>
@@ -596,11 +626,27 @@ export default function OnboardingPage() {
                       : "Continue"}
                   </Button>
                 </div>
+                {form.formState.errors.root?.message && (
+                  <p className="text-sm font-medium text-destructive">
+                    {form.formState.errors.root.message}
+                  </p>
+                )}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => void handleSkip()}
+                  disabled={isSubmitting}
+                  className="w-full"
+                >
+                  Skip for now
+                </Button>
               </form>
             </Form>
           </div>
         </div>
-        <TestimonialPanelMobile />
+        <div className="lg:hidden">
+          <TestimonialPanelMobile />
+        </div>
         <div className="px-6 pb-6 hidden lg:block">
           <div className="text-xs text-slate-500 text-center lg:text-left">
             © 2025 MentorMates

@@ -1,0 +1,132 @@
+type SubmissionValue = string | string[];
+
+type ExportArtifact = {
+  kind: "project_link" | "video_link" | "additional_material";
+  label?: string;
+  url: string;
+  is_primary?: boolean;
+};
+
+type ExportField = {
+  key: string;
+  label: string;
+};
+
+export type SubmissionExportProject = {
+  project_name: string;
+  lead_name: string;
+  lead_email: string;
+  project_description: string;
+  teammates: string[];
+  project_url?: string | null;
+  additional_materials_url?: string | null;
+  cover_image_url?: string | null;
+  created_at: string;
+  submitted: boolean;
+  project_tracks?: {
+    event_tracks?: {
+      name?: string | null;
+    } | null;
+  }[];
+  artifacts?: ExportArtifact[];
+  submission_fields?: ExportField[];
+  submission_values?: Record<string, SubmissionValue>;
+};
+
+const BUILT_IN_SUBMISSION_KEYS = new Set([
+  "project_name",
+  "project_description",
+  "project_url",
+  "video_url",
+  "cover_image",
+  "additional_materials",
+]);
+
+function formatValue(value: SubmissionValue | undefined): string {
+  if (Array.isArray(value)) {
+    return value.filter(Boolean).join(" | ");
+  }
+
+  return typeof value === "string" ? value : "";
+}
+
+function formatArtifactUrls(
+  artifacts: ExportArtifact[] | undefined,
+  kind: ExportArtifact["kind"]
+): string {
+  return (artifacts || [])
+    .filter((artifact) => artifact.kind === kind && artifact.url)
+    .map((artifact) => artifact.url)
+    .join(" | ");
+}
+
+function formatAllArtifacts(artifacts: ExportArtifact[] | undefined): string {
+  return (artifacts || [])
+    .filter((artifact) => artifact.url)
+    .map((artifact) =>
+      artifact.label?.trim() ? `${artifact.label}: ${artifact.url}` : artifact.url
+    )
+    .join(" | ");
+}
+
+function buildCustomFieldColumns(projects: SubmissionExportProject[]) {
+  const keyToLabel = new Map<string, string>();
+  const labelCounts = new Map<string, number>();
+
+  for (const project of projects) {
+    for (const field of project.submission_fields || []) {
+      if (!field?.key || BUILT_IN_SUBMISSION_KEYS.has(field.key)) {
+        continue;
+      }
+
+      if (!keyToLabel.has(field.key)) {
+        const label = field.label?.trim() || field.key;
+        keyToLabel.set(field.key, label);
+        labelCounts.set(label, (labelCounts.get(label) || 0) + 1);
+      }
+    }
+  }
+
+  return Array.from(keyToLabel.entries())
+    .map(([key, label]) => ({
+      key,
+      columnLabel: (labelCounts.get(label) || 0) > 1 ? `${label} (${key})` : label,
+    }))
+    .sort((a, b) => a.columnLabel.localeCompare(b.columnLabel));
+}
+
+export function buildSubmissionExportRows(projects: SubmissionExportProject[]) {
+  const customFieldColumns = buildCustomFieldColumns(projects);
+
+  return projects.map((project) => {
+    const row: Record<string, string | boolean> = {
+      "Project Name": project.project_name || "",
+      "Lead Name": project.lead_name || "",
+      "Lead Email": project.lead_email || "",
+      Description: project.project_description || "",
+      "Primary Project URL": project.project_url || "",
+      "All Project Links": formatArtifactUrls(project.artifacts, "project_link"),
+      "Video Links": formatArtifactUrls(project.artifacts, "video_link"),
+      "Additional Material Links": formatArtifactUrls(
+        project.artifacts,
+        "additional_material"
+      ),
+      "Cover Image URL": project.cover_image_url || "",
+      "All Submission Artifacts": formatAllArtifacts(project.artifacts),
+      "Team Members": (project.teammates || []).join(", "),
+      Tracks:
+        project.project_tracks
+          ?.map((pt) => pt.event_tracks?.name)
+          .filter(Boolean)
+          .join(", ") || "No tracks",
+      Submitted: project.submitted,
+      "Created At": project.created_at,
+    };
+
+    for (const field of customFieldColumns) {
+      row[field.columnLabel] = formatValue(project.submission_values?.[field.key]);
+    }
+
+    return row;
+  });
+}

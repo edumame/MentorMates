@@ -56,6 +56,66 @@ export type Database = {
           },
         ];
       };
+      agent_api_keys: {
+        Row: {
+          id: string;
+          user_id: string;
+          event_id: string | null;
+          key_hash: string;
+          key_prefix: string;
+          label: string | null;
+          scopes: string[] | null;
+          last_used_at: string | null;
+          expires_at: string | null;
+          revoked_at: string | null;
+          created_at: string | null;
+          updated_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          event_id?: string | null;
+          key_hash: string;
+          key_prefix: string;
+          label?: string | null;
+          scopes?: string[] | null;
+          last_used_at?: string | null;
+          expires_at?: string | null;
+          revoked_at?: string | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          event_id?: string | null;
+          key_hash?: string;
+          key_prefix?: string;
+          label?: string | null;
+          scopes?: string[] | null;
+          last_used_at?: string | null;
+          expires_at?: string | null;
+          revoked_at?: string | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "agent_api_keys_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "user_profiles";
+            referencedColumns: ["uid"];
+          },
+          {
+            foreignKeyName: "agent_api_keys_event_id_fkey";
+            columns: ["event_id"];
+            isOneToOne: false;
+            referencedRelation: "events";
+            referencedColumns: ["event_id"];
+          },
+        ];
+      };
       event_approval_logs: {
         Row: {
           log_id: string;
@@ -196,7 +256,7 @@ export type Database = {
           event_prizes: Json | null;
           event_resources: Json | null;
           event_schedule: Json | null;
-          faq: string | null;
+          faq: Json | null;
           location: string | null;
           owner_id: string | null;
           paid: boolean | null;
@@ -215,6 +275,8 @@ export type Database = {
             | Database["public"]["Enums"]["approval_status"]
             | null;
           rejection_reason: string | null;
+          require_participant_approval: boolean | null;
+          event_type: string[] | null;
         };
         Insert: {
           cover_image_url?: string | null;
@@ -228,7 +290,7 @@ export type Database = {
           event_prizes?: Json | null;
           event_resources?: Json | null;
           event_schedule?: Json | null;
-          faq?: string | null;
+          faq?: Json | null;
           location?: string | null;
           owner_id?: string | null;
           paid?: boolean | null;
@@ -246,6 +308,8 @@ export type Database = {
           approval_status?:
             | Database["public"]["Enums"]["approval_status"]
             | null;
+          require_registration_questionnaire?: boolean | null;
+          event_type?: string[] | null;
         };
         Update: {
           cover_image_url?: string | null;
@@ -259,7 +323,7 @@ export type Database = {
           event_prizes?: Json | null;
           event_resources?: Json | null;
           event_schedule?: Json | null;
-          faq?: string | null;
+          faq?: Json | null;
           location?: string | null;
           owner_id?: string | null;
           paid?: boolean | null;
@@ -277,6 +341,8 @@ export type Database = {
             | Database["public"]["Enums"]["approval_status"]
             | null;
           visibility?: Database["public"]["Enums"]["event_visibility"];
+          require_registration_questionnaire?: boolean | null;
+          event_type?: string[] | null;
         };
         Relationships: [
           {
@@ -589,6 +655,45 @@ export type Database = {
           },
         ];
       };
+      project_round_advancements: {
+        Row: {
+          id: string;
+          event_id: string;
+          project_id: string;
+          round_number: number;
+          advanced_at: string;
+        };
+        Insert: {
+          id?: string;
+          event_id: string;
+          project_id: string;
+          round_number: number;
+          advanced_at?: string;
+        };
+        Update: {
+          id?: string;
+          event_id?: string;
+          project_id?: string;
+          round_number?: number;
+          advanced_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "project_round_advancements_event_id_fkey";
+            columns: ["event_id"];
+            isOneToOne: false;
+            referencedRelation: "events";
+            referencedColumns: ["event_id"];
+          },
+          {
+            foreignKeyName: "project_round_advancements_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "projects";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
       project_scores: {
         Row: {
           comments: string | null;
@@ -601,6 +706,7 @@ export type Database = {
           track_id: string | null;
           updated_at: string | null;
           finalist_recommendation: boolean | null;
+          round_number: number;
         };
         Insert: {
           comments?: string | null;
@@ -613,6 +719,7 @@ export type Database = {
           track_id?: string | null;
           updated_at?: string | null;
           finalist_recommendation?: boolean | null;
+          round_number?: number;
         };
         Update: {
           comments?: string | null;
@@ -625,6 +732,7 @@ export type Database = {
           track_id?: string | null;
           updated_at?: string | null;
           finalist_recommendation?: boolean | null;
+          round_number?: number;
         };
         Relationships: [
           {
@@ -683,6 +791,151 @@ export type Database = {
           },
         ];
       };
+      project_artifacts: {
+        Row: {
+          created_at: string;
+          id: string;
+          is_primary: boolean;
+          kind: Database["public"]["Enums"]["project_artifact_kind"];
+          label: string;
+          metadata: Json | null;
+          project_id: string;
+          sort_order: number;
+          updated_at: string;
+          url: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          is_primary?: boolean;
+          kind: Database["public"]["Enums"]["project_artifact_kind"];
+          label: string;
+          metadata?: Json | null;
+          project_id: string;
+          sort_order?: number;
+          updated_at?: string;
+          url: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          is_primary?: boolean;
+          kind?: Database["public"]["Enums"]["project_artifact_kind"];
+          label?: string;
+          metadata?: Json | null;
+          project_id?: string;
+          sort_order?: number;
+          updated_at?: string;
+          url?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "project_artifacts_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "projects";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      event_submission_fields: {
+        Row: {
+          created_at: string;
+          description: string | null;
+          event_id: string;
+          field_type: Database["public"]["Enums"]["submission_field_type"];
+          id: string;
+          is_active: boolean;
+          key: string;
+          label: string;
+          options: Json;
+          placeholder: string | null;
+          required: boolean;
+          sort_order: number;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          description?: string | null;
+          event_id: string;
+          field_type?: Database["public"]["Enums"]["submission_field_type"];
+          id?: string;
+          is_active?: boolean;
+          key: string;
+          label: string;
+          options?: Json;
+          placeholder?: string | null;
+          required?: boolean;
+          sort_order?: number;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          description?: string | null;
+          event_id?: string;
+          field_type?: Database["public"]["Enums"]["submission_field_type"];
+          id?: string;
+          is_active?: boolean;
+          key?: string;
+          label?: string;
+          options?: Json;
+          placeholder?: string | null;
+          required?: boolean;
+          sort_order?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "event_submission_fields_event_id_fkey";
+            columns: ["event_id"];
+            isOneToOne: false;
+            referencedRelation: "events";
+            referencedColumns: ["event_id"];
+          },
+        ];
+      };
+      project_submission_answers: {
+        Row: {
+          answer: Json;
+          created_at: string;
+          event_submission_field_id: string;
+          id: string;
+          project_id: string;
+          updated_at: string;
+        };
+        Insert: {
+          answer: Json;
+          created_at?: string;
+          event_submission_field_id: string;
+          id?: string;
+          project_id: string;
+          updated_at?: string;
+        };
+        Update: {
+          answer?: Json;
+          created_at?: string;
+          event_submission_field_id?: string;
+          id?: string;
+          project_id?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "project_submission_answers_event_submission_field_id_fkey";
+            columns: ["event_submission_field_id"];
+            isOneToOne: false;
+            referencedRelation: "event_submission_fields";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "project_submission_answers_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "projects";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       projects: {
         Row: {
           additional_materials_url: string | null;
@@ -692,6 +945,7 @@ export type Database = {
           id: string;
           lead_email: string | null;
           lead_name: string;
+          private?: boolean | null;
           project_description: string | null;
           project_name: string | null;
           project_url: string | null;
@@ -709,6 +963,7 @@ export type Database = {
           id?: string;
           lead_email?: string | null;
           lead_name: string;
+          private?: boolean | null;
           project_description?: string | null;
           project_name?: string | null;
           project_url?: string | null;
@@ -726,6 +981,7 @@ export type Database = {
           id?: string;
           lead_email?: string | null;
           lead_name?: string;
+          private?: boolean | null;
           project_description?: string | null;
           project_name?: string | null;
           project_url?: string | null;
@@ -1087,6 +1343,11 @@ export type Database = {
         | "draft"
         | "archived";
       payment_status: "processing" | "paid" | "canceled" | "refunded";
+      project_artifact_kind:
+        | "project_link"
+        | "video_link"
+        | "additional_material";
+      submission_field_type: "short_text" | "long_text" | "url" | "multi_url" | "file" | "select" | "multi_select" | "checkbox";
       ticket_status_enum: "unassigned" | "assigned" | "used" | "transferred";
     };
     CompositeTypes: {

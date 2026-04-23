@@ -20,7 +20,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Tooltip,
   TooltipContent,
@@ -30,10 +29,10 @@ import {
 import {
   EventRole,
   EventItem,
-  EventVisibility,
   PricingTier,
   ParticipantRequestStatus,
   ParticipantApprovalRequest,
+  EventTicket,
 } from "@/lib/types";
 import { toast } from "@/lib/hooks/use-toast";
 import { PricingTierSelector } from "./pricing-tier-selector";
@@ -42,8 +41,9 @@ import {
   getCheapestPricingTier,
   formatPrice,
 } from "@/lib/utils/pricing";
-import { getRoleLabel, isHigherOrEqualRole } from "@/features/user/roles/roles";
+import { getRoleLabel } from "@/features/user/roles/roles";
 import { Ticket, Users, Lock, Loader2 } from "lucide-react";
+import { RegistrationQuestionnaireDialog } from "@/features/events/registration/RegistrationQuestionnaireDialog";
 
 export interface JoinEventButtonProps {
   eventId: string;
@@ -85,6 +85,9 @@ export function JoinEventButton({
   const [password, setPassword] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [showPasswordInput, setShowPasswordInput] = useState(false);
+  const [passwordProtectedRoles, setPasswordProtectedRoles] = useState<
+    Record<string, boolean>
+  >({});
   const [event, setEvent] = useState<EventItem | null>(null);
   const [roleLabels, setRoleLabels] = useState<Record<string, string> | null>(
     null
@@ -97,8 +100,13 @@ export function JoinEventButton({
   const [isFull, setIsFull] = useState(false);
   const [requiresApproval, setRequiresApproval] = useState(false);
   const [hasPendingRequest, setHasPendingRequest] = useState(false);
-  const [pendingRequest, setPendingRequest] = useState<ParticipantApprovalRequest | null>(null);
-  const [pendingRequestStatus, setPendingRequestStatus] = useState<ParticipantRequestStatus | null>(null);
+  const [pendingRequest, setPendingRequest] =
+    useState<ParticipantApprovalRequest | null>(null);
+  const [pendingRequestStatus, setPendingRequestStatus] =
+    useState<ParticipantRequestStatus | null>(null);
+  const [userTicket, setUserTicket] = useState<EventTicket | null>(null);
+  const [showRegistrationQuestionnaireDialog, setShowRegistrationQuestionnaireDialog] =
+    useState(false);
 
   useEffect(() => {
     async function init() {
@@ -175,6 +183,24 @@ export function JoinEventButton({
 
         if (!session) return;
 
+        const { data: rolePasswordRows, error: rolePasswordsError } =
+          await supabase
+            .from("role_passwords")
+            .select("role")
+            .eq("event_id", eventId);
+
+        if (rolePasswordsError) {
+          console.error(
+            "Error fetching role password requirements:",
+            rolePasswordsError
+          );
+        } else {
+          const protectedRoles = Object.fromEntries(
+            (rolePasswordRows ?? []).map(({ role }) => [String(role), true])
+          );
+          setPasswordProtectedRoles(protectedRoles);
+        }
+
         const userId = session.user.id;
 
         const { data: roleData } = await supabase
@@ -187,20 +213,38 @@ export function JoinEventButton({
         if (roleData) {
           setHasJoined(true);
         } else {
-          // Check for pending, rejected, or withdrawn approval request
-          const { data: pendingRequest } = await supabase
+          // Check for approval requests (pending, approved, rejected, or withdrawn)
+          const { data: approvalRequest } = await supabase
             .from("participant_approval_requests")
             .select("id, status, rejection_reason")
             .eq("event_id", eventId)
             .eq("user_id", userId)
-            .in("status", [ParticipantRequestStatus.Pending, ParticipantRequestStatus.Rejected, ParticipantRequestStatus.Withdrawn])
+            .in("status", [
+              ParticipantRequestStatus.Pending,
+              ParticipantRequestStatus.Approved,
+              ParticipantRequestStatus.Rejected,
+              ParticipantRequestStatus.Withdrawn,
+            ])
             .maybeSingle();
 
-          if (pendingRequest) {
+          if (approvalRequest) {
             setHasPendingRequest(true);
-            setPendingRequestStatus(pendingRequest.status as ParticipantRequestStatus);
-            setPendingRequest(pendingRequest as ParticipantApprovalRequest);
+            setPendingRequestStatus(
+              approvalRequest.status as ParticipantRequestStatus
+            );
+            setPendingRequest(approvalRequest as ParticipantApprovalRequest);
           }
+        }
+
+        const { data: userTicket } = await supabase
+          .from("event_tickets")
+          .select("ticket_status")
+          .eq("assigned_to_user_id", userId)
+          .eq("event_id", eventId)
+          .maybeSingle();
+
+        if (userTicket) {
+          setUserTicket(userTicket as EventTicket);
         }
       } catch (error) {
         console.error("Error checking event status:", error);
@@ -229,14 +273,18 @@ export function JoinEventButton({
     }
   }, [showPricingTiers, pricingTiers, selectedPricingTierId]);
 
+  useEffect(() => {
+    const requiresPassword = !!passwordProtectedRoles[selectedRole];
+    setShowPasswordInput(requiresPassword);
+
+    if (!requiresPassword) {
+      setPassword("");
+    }
+  }, [passwordProtectedRoles, selectedRole]);
+
   const handleRoleSelect = (value: EventRole) => {
     setSelectedRole(value);
-    // Show password input for protected roles
-    // if (event?.visibility === EventVisibility.Private) {
-    //   setShowPasswordInput(true);
-    // } else {
-      setShowPasswordInput(isHigherOrEqualRole(value, EventRole.Judge));
-    // }
+    setPassword("");
   };
 
   const handlePricingTierContinue = async () => {
@@ -285,7 +333,9 @@ export function JoinEventButton({
     }
   };
 
-  const handleJoinEvent = async () => {
+  const handleJoinEvent = async (
+    skipRegistrationQuestionnaireCheck: boolean = false
+  ) => {
     try {
       setIsLoading(true);
 
@@ -296,6 +346,113 @@ export function JoinEventButton({
         localStorage.setItem("returnUrl", window.location.pathname);
         router.push("/login");
         return;
+      }
+
+      if (
+        !skipRegistrationQuestionnaireCheck &&
+        selectedRole === EventRole.Participant
+      ) {
+        const questionnaireStatusResponse = await fetch(
+          `/api/events/${eventId}/registration/questionnaire-status`,
+          { cache: "no-store" }
+        );
+
+        if (!questionnaireStatusResponse.ok) {
+          const statusData = await questionnaireStatusResponse
+            .json()
+            .catch(() => ({}));
+          toast({
+            title: "Error",
+            description:
+              statusData.error || "Failed to verify registration questionnaire",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        const statusData = (await questionnaireStatusResponse.json()) as {
+          requiresQuestionnaire: boolean;
+          hasActiveForm: boolean;
+          completed: boolean;
+        };
+
+        if (
+          statusData.requiresQuestionnaire &&
+          !statusData.hasActiveForm &&
+          !statusData.completed
+        ) {
+          toast({
+            title: "Registration unavailable",
+            description:
+              "This event requires a registration questionnaire, but no published registration form is configured.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        if (statusData.requiresQuestionnaire && !statusData.completed) {
+          setIsDialogOpen(false);
+          setShowRegistrationQuestionnaireDialog(true);
+          return;
+        }
+      }
+
+      // For paid events requiring approval, submit approval request FIRST (before payment)
+      if (
+        event?.paid &&
+        requiresApproval &&
+        selectedRole === EventRole.Participant
+      ) {
+        const { data: userTicket } = await supabase
+          .from("event_tickets")
+          .select("ticket_status")
+          .eq("assigned_to_user_id", session.user.id)
+          .eq("event_id", eventId)
+          .maybeSingle();
+
+        // Only require approval if user hasn't paid yet
+        if (!userTicket?.ticket_status) {
+          // Submit approval request via API
+          const response = await fetch("/api/roles/verify", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              eventId,
+              role: selectedRole,
+              password: showPasswordInput ? password : undefined,
+              userId: session.user.id,
+            }),
+          });
+
+          const data = await response.json();
+
+          if (!response.ok || data.error) {
+            toast({
+              title: "Error",
+              description: data.error || "Failed to submit request",
+              variant: "destructive",
+            });
+            if (response.status === 409 && data.requires_approval) {
+              setHasPendingRequest(true);
+              setPendingRequestStatus(ParticipantRequestStatus.Pending);
+            }
+            return;
+          }
+
+          if (data.requires_approval) {
+            setHasPendingRequest(true);
+            setPendingRequestStatus(ParticipantRequestStatus.Pending);
+            setIsDialogOpen(false);
+            toast({
+              title: "Request Submitted",
+              description:
+                "Your request has been submitted. You'll be able to pay after approval.",
+            });
+            return;
+          }
+        }
       }
 
       // Check if event is paid and handle pricing tier selection
@@ -369,7 +526,8 @@ export function JoinEventButton({
         setIsDialogOpen(false);
         toast({
           title: "Request Submitted",
-          description: "Your request to join has been submitted and is pending organizer approval.",
+          description:
+            "Your request to join has been submitted and is pending organizer approval.",
         });
         return;
       }
@@ -430,12 +588,15 @@ export function JoinEventButton({
         return;
       }
 
-      const response = await fetch(`/api/events/${eventId}/approval-requests/${pendingRequest.id}`, {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
+      const response = await fetch(
+        `/api/events/${eventId}/approval-requests/${pendingRequest.id}`,
+        {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
 
       const data = await response.json();
 
@@ -468,8 +629,10 @@ export function JoinEventButton({
 
   // Show rejected request status
   if (pendingRequestStatus === ParticipantRequestStatus.Rejected) {
-    const rejectionReason = (pendingRequest as ParticipantApprovalRequest)?.rejection_reason || "No reason given";
-    
+    const rejectionReason =
+      (pendingRequest as ParticipantApprovalRequest)?.rejection_reason ||
+      "No reason given";
+
     return (
       <TooltipProvider>
         <Tooltip>
@@ -494,8 +657,82 @@ export function JoinEventButton({
     );
   }
 
+  // Show approved request with payment pending for paid events
+  if (
+    pendingRequestStatus === ParticipantRequestStatus.Approved &&
+    event?.paid &&
+    !userTicket
+  ) {
+    return (
+      <Dialog
+        open={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
+        aria-describedby="pay-now-dialog"
+      >
+        <DialogTrigger asChild>
+          <Button
+            variant="default"
+            size="lg"
+            className="rounded-full px-6 py-5 gap-2 w-full min-w-0 overflow-hidden"
+          >
+            <Ticket className="h-6 w-6 flex-shrink-0" />
+            <span className="truncate">Pay Now - Approved!</span>
+          </Button>
+        </DialogTrigger>
+        <DialogContent
+          aria-describedby="pay-now-dialog"
+          className="max-h-[85vh] overflow-y-auto"
+        >
+          <DialogHeader>
+            <DialogTitle>Select Pricing Tier</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+              <p className="text-sm text-green-700">
+                ✅ Your request has been approved! Complete your payment to
+                finalize your registration.
+              </p>
+            </div>
+            <div className="space-y-4 max-h-[65vh] overflow-y-auto px-1">
+              <PricingTierSelector
+                pricingTiers={pricingTiers}
+                selectedTierId={selectedPricingTierId}
+                onTierSelect={setSelectedPricingTierId}
+                onContinue={handlePricingTierContinue}
+                isLoading={isLoading}
+              />
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  // if user has a ticket, allow them to join and show the ticket details
+  if (
+    pendingRequestStatus === ParticipantRequestStatus.Approved &&
+    event?.paid &&
+    userTicket
+  ) {
+    return (
+      <Button
+        variant="default"
+        size="lg"
+        className="rounded-full px-6 py-5 gap-2 w-full min-w-0 overflow-hidden"
+        onClick={() => handleJoinEvent()}
+        disabled={isLoading}
+      >
+        <Ticket className="h-6 w-6 flex-shrink-0" />
+        <span className="truncate">Ticket Already Assigned - Join Event!</span>
+      </Button>
+    );
+  }
+
   // Show pending request status
-  if (hasPendingRequest && pendingRequestStatus === ParticipantRequestStatus.Pending) {
+  if (
+    hasPendingRequest &&
+    pendingRequestStatus === ParticipantRequestStatus.Pending
+  ) {
     return (
       <Button
         variant="destructive"
@@ -505,128 +742,138 @@ export function JoinEventButton({
         disabled={isLoading}
       >
         <Ticket className="h-6 w-6 flex-shrink-0" />
-        <span className="truncate">{isLoading ? "Withdrawing..." : "Withdraw Request"}</span>
+        <span className="truncate">
+          {isLoading ? "Withdrawing..." : "Withdraw Request"}
+        </span>
       </Button>
     );
   }
 
   return (
-    <Dialog
-      open={isDialogOpen}
-      onOpenChange={setIsDialogOpen}
-      aria-describedby="join-event-dialog"
-    >
-      <DialogTrigger asChild>
-        <Button
-          variant="default"
-          size="lg"
-          className="rounded-full px-6 py-5 gap-2 w-full min-w-0 overflow-hidden"
-        >
-          <Ticket className="h-6 w-6 flex-shrink-0" />
-          <span className="truncate">{label ?? getDefaultLabel()}</span>
-        </Button>
-      </DialogTrigger>
-      <DialogContent
+    <>
+      <RegistrationQuestionnaireDialog
+        open={showRegistrationQuestionnaireDialog}
+        eventId={eventId}
+        onClose={() => setShowRegistrationQuestionnaireDialog(false)}
+        onCompleted={() => handleJoinEvent(true)}
+      />
+      <Dialog
+        open={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
         aria-describedby="join-event-dialog"
-        className="max-h-[85vh] overflow-y-auto"
       >
-        <DialogHeader>
-          <DialogTitle>
-            {showPricingTiers ? "Select Pricing Tier" : "Choose Your Role"}
-          </DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          {showPricingTiers ? (
-            <div className="space-y-4 max-h-[65vh] overflow-y-auto px-1">
-              {/* <Button
-                variant="outline"
-                onClick={() => setShowPricingTiers(false)}
-                className="mb-4"
-              >
-                ← Back to Role Selection
-              </Button> */}
-              <PricingTierSelector
-                pricingTiers={pricingTiers}
-                selectedTierId={selectedPricingTierId}
-                onTierSelect={setSelectedPricingTierId}
-                onContinue={handlePricingTierContinue}
-                isLoading={isLoading}
-              />
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Select your role:</label>
-              <Select value={selectedRole} onValueChange={handleRoleSelect}>
-                <SelectTrigger className="relative w-full flex text-left pl-10">
-                  <Users className="h-6 w-6 absolute left-3 top-1/2 -translate-y-1/2" />
-                  <SelectValue placeholder="Select your role" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={EventRole.Participant}>
-                    {getRoleLabel(EventRole.Participant, roleLabels)}
-                  </SelectItem>
-                  <SelectItem value={EventRole.Mentor}>
-                    {getRoleLabel(EventRole.Mentor, roleLabels)}
-                  </SelectItem>
-                  <SelectItem value={EventRole.Judge}>
-                    {getRoleLabel(EventRole.Judge, roleLabels)}
-                  </SelectItem>
-                  <SelectItem value={EventRole.Organizer}>
-                    {getRoleLabel(EventRole.Organizer, roleLabels)}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
+        <DialogTrigger asChild>
+          <Button
+            variant="default"
+            size="lg"
+            className="rounded-full px-6 py-5 gap-2 w-full min-w-0 overflow-hidden"
+          >
+            <Ticket className="h-6 w-6 flex-shrink-0" />
+            <span className="truncate">{label ?? getDefaultLabel()}</span>
+          </Button>
+        </DialogTrigger>
+        <DialogContent
+          aria-describedby="join-event-dialog"
+          className="max-h-[85vh] overflow-y-auto"
+        >
+          <DialogHeader>
+            <DialogTitle>
+              {showPricingTiers ? "Select Pricing Tier" : "Choose Your Role"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {showPricingTiers ? (
+              <div className="space-y-4 max-h-[65vh] overflow-y-auto px-1">
+                {/* <Button
+                  variant="outline"
+                  onClick={() => setShowPricingTiers(false)}
+                  className="mb-4"
+                >
+                  ← Back to Role Selection
+                </Button> */}
+                <PricingTierSelector
+                  pricingTiers={pricingTiers}
+                  selectedTierId={selectedPricingTierId}
+                  onTierSelect={setSelectedPricingTierId}
+                  onContinue={handlePricingTierContinue}
+                  isLoading={isLoading}
+                />
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Select your role:</label>
+                <Select value={selectedRole} onValueChange={handleRoleSelect}>
+                  <SelectTrigger className="relative w-full flex text-left pl-10">
+                    <Users className="h-6 w-6 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <SelectValue placeholder="Select your role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={EventRole.Participant}>
+                      {getRoleLabel(EventRole.Participant, roleLabels)}
+                    </SelectItem>
+                    <SelectItem value={EventRole.Mentor}>
+                      {getRoleLabel(EventRole.Mentor, roleLabels)}
+                    </SelectItem>
+                    <SelectItem value={EventRole.Judge}>
+                      {getRoleLabel(EventRole.Judge, roleLabels)}
+                    </SelectItem>
+                    <SelectItem value={EventRole.Organizer}>
+                      {getRoleLabel(EventRole.Organizer, roleLabels)}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
 
-              {requiresApproval && selectedRole === EventRole.Participant && (
-                <div className="space-y-2">
-                  <p className="text-xs text-muted-foreground">
-                    Your request will be reviewed by the event organizers.
-                  </p>
-                </div>
-              )}
-
-              {showPasswordInput && (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Enter password:</label>
-                  <div className="flex items-center justify-start relative">
-                    <Lock className="h-5 w-5 absolute left-3 top-1/2 -translate-y-1/2" />
-                    <Input
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Enter event password"
-                      className="pl-10"
-                    />
+                {requiresApproval && selectedRole === EventRole.Participant && (
+                  <div className="space-y-2">
+                    <p className="text-xs text-muted-foreground">
+                      Your request will be reviewed by the event organizers.
+                    </p>
                   </div>
-                </div>
-              )}
+                )}
 
-              <Button
-                onClick={handleJoinEvent}
-                disabled={
-                  isLoading ||
-                  (showPasswordInput && !password) ||
-                  (isFull && selectedRole === EventRole.Participant)
-                }
-                variant="default"
-                className="w-full rounded-full !mt-5"
-              >
-                <Ticket className="h-6 w-6 mr-2" />
-                {isLoading
-                  ? "Submitting..."
-                  : requiresApproval && selectedRole === EventRole.Participant
-                  ? "Request to Join"
-                  : "Confirm"}
-              </Button>
-            </div>
-          )}
-          {isFull && selectedRole === EventRole.Participant && (
-            <p className="text-xs text-red-600 mt-2">
-              This event is full for participants.
-            </p>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
+                {showPasswordInput && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Enter password:</label>
+                    <div className="flex items-center justify-start relative">
+                      <Lock className="h-5 w-5 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <Input
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="Enter event password"
+                        className="pl-10"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <Button
+                  onClick={() => handleJoinEvent()}
+                  disabled={
+                    isLoading ||
+                    (showPasswordInput && !password) ||
+                    (isFull && selectedRole === EventRole.Participant)
+                  }
+                  variant="default"
+                  className="w-full rounded-full !mt-5"
+                >
+                  <Ticket className="h-6 w-6 mr-2" />
+                  {isLoading
+                    ? "Submitting..."
+                    : requiresApproval && selectedRole === EventRole.Participant
+                      ? "Request to Join"
+                      : "Confirm"}
+                </Button>
+              </div>
+            )}
+            {isFull && selectedRole === EventRole.Participant && (
+              <p className="text-xs text-red-600 mt-2">
+                This event is full for participants.
+              </p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useTRPC } from "@/trpc/client";
-import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
@@ -41,8 +41,8 @@ export function MentorCards() {
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
 
-  const { data: allData } = useSuspenseQuery(trpc.meetings.getMany.queryOptions({}));
-  const { data, refetch } = useSuspenseQuery(
+  const { data: allData } = useQuery(trpc.meetings.getMany.queryOptions({}));
+  const { data, refetch, isPending, isError } = useQuery(
     trpc.meetings.getMany.queryOptions({
       eventId: selectedEventId ?? undefined,
       projectId: selectedProjectId ?? undefined,
@@ -170,6 +170,8 @@ export function MentorCards() {
       </Badge>
     )
   }
+
+  if (isPending || isError || !data?.items) return null;
 
   return (
     <>

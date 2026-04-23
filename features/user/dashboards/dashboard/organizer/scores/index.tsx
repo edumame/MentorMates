@@ -16,6 +16,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EventScoringConfig, ScoringCriterion, EventTrack } from "@/lib/types";
 import Papa from "papaparse";
 import { supabase } from "@/lib/supabase";
+import { RoundsEditor } from "@/components/events/rounds-editor";
+import {
+  getActiveRound,
+} from "@/lib/judging/rounds";
+import { getTrackScoringConfigForRound } from "@/lib/judging/scoring-config";
+import {
+  buildRawScoreExportFiles,
+  buildScoreExportFiles,
+  buildTrackScores,
+  type DashboardProjectScore,
+  type RawScoreExportData,
+  type TrackScore,
+  type TrackScores,
+} from "./export";
 import { Vote, Gavel, Bot, Download, Link as LinkIcon, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import {
   Table,
@@ -29,36 +43,6 @@ import { VotingResultsPanel } from "@/components/voting/voting-results-panel";
 import Link from "next/link";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-
-interface DashboardProjectScore {
-  project_id: string;
-  track_id: string;
-  event_id: string;
-  scores: Record<string, number | string>;
-  projects: {
-    project_name: string;
-    lead_name: string;
-    event_id: string;
-  };
-  tracks: {
-    name: string;
-  };
-}
-
-interface TrackScore {
-  projectId: string;
-  projectName: string;
-  leadName: string;
-  averageScore: number;
-  totalScore: number;
-  numberOfJudges: number;
-  criterionScores: Record<string, { total: number; average: number }>;
-  choiceCounts?: Record<string, Record<string, number>>;
-}
-
-interface TrackScores {
-  [trackId: string]: TrackScore[];
-}
 
 type MeetingScoreQueryRow = {
   id: string;
@@ -78,8 +62,11 @@ type MeetingScoreQueryRow = {
 type ProjectScoreQueryRow = {
   project_id: string;
   track_id: string;
+  judge_id: string | null;
+  created_at: string | null;
   scores: unknown;
   comments: string | null;
+  round_number?: number | null;
   projects: unknown;
   event_tracks: unknown;
 };
@@ -106,18 +93,7 @@ interface AgentMeetingScoreRow {
 interface ScoresTabProps {
   eventId: string;
   scoringConfig: EventScoringConfig;
-}
-
-interface RawScoreData {
-  scores: Record<string, string | number>;
-  comments: string | null;
-  projects: {
-    project_name: string;
-    lead_email: string;
-  };
-  event_tracks: {
-    name: string;
-  };
+  onScoringConfigSaved?: (next: EventScoringConfig | null) => void;
 }
 
 type SortDirection = "asc" | "desc" | null;
@@ -127,9 +103,23 @@ interface TrackSortState {
   direction: SortDirection;
 }
 
-export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
+interface EventProfileSummary {
+  uid: string;
+  display_name: string | null;
+  email: string | null;
+}
+
+export function ScoresTab({
+  eventId,
+  scoringConfig,
+  onScoringConfigSaved,
+}: ScoresTabProps) {
+  const activeRound = getActiveRound(scoringConfig);
+  const [dashboardScoreData, setDashboardScoreData] = useState<
+    DashboardProjectScore[]
+  >([]);
   const [trackScores, setTrackScores] = useState<TrackScores>({});
-  const [rawScoreData, setRawScoreData] = useState<RawScoreData[]>([]);
+  const [rawScoreData, setRawScoreData] = useState<RawScoreExportData[]>([]);
   const [agentMeetingScores, setAgentMeetingScores] = useState<
     AgentMeetingScoreRow[]
   >([]);
@@ -242,179 +232,56 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
   };
 
   const exportRawData = async () => {
-    if (rawScoreData.length === 0) {
-      alert("No raw score data available to export.");
+    const exportFiles = buildRawScoreExportFiles({
+      rawScoreData,
+      scoringConfig,
+      eventId,
+    });
+
+    if (exportFiles.length === 0) {
+      alert("No raw round score data available to export.");
       return;
     }
 
-    // Group data by track
-    const trackGroups: Record<string, RawScoreData[]> = {};
-
-    rawScoreData.forEach((score) => {
-      const trackName = score.event_tracks.name;
-      if (!trackGroups[trackName]) {
-        trackGroups[trackName] = [];
-      }
-      trackGroups[trackName].push(score);
-    });
-
-    // Export each track separately
-    Object.entries(trackGroups).forEach(([trackName, trackData]) => {
-      // Find the track config for this track
-      const trackConfig = Object.values(scoringConfig.tracks).find(
-        (t) => t.name === trackName
-      );
-
-      // Flatten the raw data for CSV export
-      const csvData = trackData.map((score) => {
-        const baseData: Record<string, string | number | null> = {
-          "Project Name": score.projects.project_name || "",
-          Track: score.event_tracks.name || "",
-          Comments: score.comments || "",
-          "Lead Email": score.projects.lead_email || "",
-        };
-
-        // Add individual criterion scores with proper names
-        if (score.scores && trackConfig) {
-          Object.entries(score.scores).forEach(([criterionId, scoreValue]) => {
-            const criterion = trackConfig.criteria.find(
-              (c) => c.id === criterionId
-            );
-            const criterionName = criterion ? criterion.name : criterionId;
-            baseData[criterionName] = scoreValue as string | number | null;
-          });
-        } else if (score.scores) {
-          // Fallback if no track config found
-          Object.entries(score.scores).forEach(([criterionId, scoreValue]) => {
-            baseData[`Score_${criterionId}`] = scoreValue as
-              | string
-              | number
-              | null;
-          });
-        }
-
-        return baseData;
-      });
-
-      const csv = Papa.unparse(csvData);
+    exportFiles.forEach((file) => {
+      const csv = Papa.unparse(file.rows);
       const blob = new Blob([csv], { type: "text/csv" });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `raw-scores-${trackName.replace(/[^a-zA-Z0-9]/g, "_")}-${eventId}.csv`;
+      a.download = file.fileName;
       a.click();
       window.URL.revokeObjectURL(url);
     });
   };
 
   const exportScores = async () => {
-    // Determine which tracks to export - always include tracks with projects
-    const tracksWithProjects = eventTracks
-      .filter((track) => {
-        const projectTracks = (track as unknown as { project_tracks?: Array<{ project_id: string }> }).project_tracks;
-        return projectTracks && projectTracks.length > 0;
-      })
-      .map((track) => track.track_id);
-    
-      // Merge scored tracks with tracks that have projects
-    const tracksToExport = Array.from(new Set([...Object.keys(trackScores), ...tracksWithProjects]));
-    
-    if (tracksToExport.length === 0) {
-      alert("No tracks with projects available to export.");
+    const exportFiles = buildScoreExportFiles({
+      scoreData: dashboardScoreData,
+      scoringConfig,
+      eventTracks: eventTracks as Array<{
+        track_id: string;
+        name: string;
+        project_tracks?: Array<{ project_id: string }>;
+      }>,
+      eventId,
+      linkTracksEnabled,
+      mainTrackId,
+    });
+
+    if (exportFiles.length === 0) {
+      alert("No round score data available to export.");
       return;
     }
 
-    // Export each track separately
-    tracksToExport.forEach((trackId) => {
-      const scores = trackScores[trackId] || [];
-      // Find the corresponding track name
-      const trackName =
-        eventTracks.find((t) => t.track_id === trackId)?.name ||
-        Object.values(scoringConfig.tracks).find((t) =>
-          trackId.includes(t.name)
-        )?.name ||
-        trackId;
+    exportFiles.forEach((file) => {
+      const csv = Papa.unparse(file.rows);
 
-      // Determine if this is a subtrack (not the main track)
-      const isSubtrack = linkTracksEnabled && mainTrackId && trackId !== mainTrackId;
-
-      // Get the appropriate config - use main track config if linking is enabled
-      const displayTrackId = isSubtrack ? mainTrackId : trackId;
-      const trackConfig =
-        scoringConfig.tracks[displayTrackId] ||
-        Object.values(scoringConfig.tracks).find((t) => t.name === trackName);
-
-      if (!trackConfig) return;
-
-      // For subtracks, map subtrack projects to main track scores
-      let displayScores: TrackScore[];
-      
-      if (isSubtrack && mainTrackId && trackScores[mainTrackId]) {
-        // Get the projects that are in this subtrack
-        const track = eventTracks.find((t) => t.track_id === trackId);
-        const projectTracks = (track as unknown as { project_tracks?: Array<{ project_id: string; projects: { id: string; project_name: string; lead_name: string } }> })?.project_tracks || [];
-        const subtrackProjectIds = new Set(projectTracks.map((pt) => pt.project_id));
-        
-        // Filter main track scores to only include projects in this subtrack
-        displayScores = trackScores[mainTrackId]
-          .filter((mainScore) => subtrackProjectIds.has(mainScore.projectId))
-          .map((mainScore) => mainScore);
-      } else {
-        displayScores = scores;
-      }
-
-      const numericCriteria = trackConfig.criteria.filter(
-        (c) => c.type !== "multiplechoice"
-      );
-
-      const choiceCriteria = trackConfig.criteria.filter(
-        (c) => c.type === "multiplechoice"
-      );
-
-      // Build CSV data matching the table structure
-      const csvData = displayScores.map((score, index) => {
-        const row: Record<string, string | number> = {
-          Rank: index + 1,
-          Project: score.projectName,
-          Lead: score.leadName,
-          "Total Average": score.averageScore.toFixed(2),
-        };
-
-        // Add individual criterion scores
-        numericCriteria.forEach((criterion) => {
-          const criterionScore = score.criterionScores[criterion.id];
-          const columnName =
-            criterion.weight && criterion.weight !== 1
-              ? `${criterion.name} (×${criterion.weight})`
-              : criterion.name;
-          row[columnName] = criterionScore
-            ? criterionScore.average.toFixed(2)
-            : "—";
-        });
-
-        // Add choice criteria counts
-        choiceCriteria.forEach((criterion) => {
-          const counts = score.choiceCounts?.[criterion.id] || {};
-          const choiceData = (criterion.options || [])
-            .map((opt) => `${opt}: ${counts[opt] || 0}`)
-            .join(", ");
-          row[criterion.name] = choiceData || "—";
-        });
-
-        row["Judges"] = score.numberOfJudges;
-
-        return row;
-      });
-
-      // Generate CSV
-      const csv = Papa.unparse(csvData);
-
-      // Create and download file
       const blob = new Blob([csv], { type: "text/csv" });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `scores-${trackName.replace(/[^a-zA-Z0-9]/g, "_")}-${eventId}.csv`;
+      a.download = file.fileName;
       a.click();
       window.URL.revokeObjectURL(url);
     });
@@ -426,102 +293,45 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
         setTrackScores({});
         return;
       }
-
-      const trackScoresMap: TrackScores = {};
-
-      // Group scores by track and project
-      scoreData.forEach((score) => {
-        if (!trackScoresMap[score.track_id]) {
-          trackScoresMap[score.track_id] = [];
-        }
-
-        // Find existing project in track or create new entry
-        let projectScore = trackScoresMap[score.track_id].find(
-          (p) => p.projectId === score.project_id
-        );
-
-        if (!projectScore) {
-          projectScore = {
-            projectId: score.project_id,
-            projectName: score.projects.project_name,
-            leadName: score.projects.lead_name,
-            averageScore: 0,
-            totalScore: 0,
-            numberOfJudges: 0,
-            criterionScores: {},
-          };
-          trackScoresMap[score.track_id].push(projectScore);
-        }
-
-        // Find track config either by track_id or by matching name
-        const trackConfig =
-          scoringConfig.tracks[score.track_id] ||
-          Object.values(scoringConfig.tracks).find(
-            (t) => t.name === score.tracks?.name
-          );
-
-        if (!score.scores || Object.keys(score.scores).length === 0) {
-          return;
-        }
-
-        // Calculate total score and individual criterion scores
-        // If we have scoring config, use weighted calculation
-        let totalScore = 0;
-        Object.entries(score.scores).forEach(([criterionId, scoreValue]) => {
-          const criterion = trackConfig.criteria.find(
-            (c: ScoringCriterion) => c.id === criterionId
-          );
-          if (!criterion) return;
-
-          if (criterion.type === "multiplechoice") {
-            const val = String(scoreValue);
-            if (!projectScore.choiceCounts) projectScore.choiceCounts = {};
-            if (!projectScore.choiceCounts[criterionId]) {
-              projectScore.choiceCounts[criterionId] = {};
-            }
-            const counts = projectScore.choiceCounts[criterionId];
-            counts[val] = (counts[val] || 0) + 1;
-          } else {
-            const numeric =
-              typeof scoreValue === "number"
-                ? scoreValue
-                : parseFloat(String(scoreValue));
-            if (!isNaN(numeric)) {
-              const weightedScore = numeric * (criterion.weight || 1);
-              totalScore += weightedScore;
-
-              // Track individual criterion scores
-              if (!projectScore.criterionScores[criterionId]) {
-                projectScore.criterionScores[criterionId] = {
-                  total: 0,
-                  average: 0,
-                };
-              }
-              projectScore.criterionScores[criterionId].total += numeric;
-            }
-          }
-        });
-        projectScore.totalScore += totalScore;
-        projectScore.numberOfJudges += 1;
-        projectScore.averageScore =
-          projectScore.totalScore / projectScore.numberOfJudges;
-
-        // Calculate individual criterion averages
-        Object.keys(projectScore.criterionScores).forEach((criterionId) => {
-          projectScore.criterionScores[criterionId].average =
-            projectScore.criterionScores[criterionId].total /
-            projectScore.numberOfJudges;
-        });
-      });
-
-      // Sort projects by average score within each track
-      Object.keys(trackScoresMap).forEach((trackId) => {
-        trackScoresMap[trackId].sort((a, b) => b.averageScore - a.averageScore);
-      });
-
-      setTrackScores(trackScoresMap);
+      setTrackScores(buildTrackScores(scoreData, scoringConfig));
     },
     [scoringConfig]
+  );
+
+  const fetchProfilesByUserIds = useCallback(
+    async (userIds: string[]) => {
+      const uniqueUserIds = Array.from(new Set(userIds.filter(Boolean)));
+      const profilesById = new Map<
+        string,
+        { display_name: string | null; email: string | null }
+      >();
+
+      if (uniqueUserIds.length === 0) {
+        return profilesById;
+      }
+
+      const profilesResponse = await fetch(`/api/events/${eventId}/profiles`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userIds: uniqueUserIds }),
+      });
+      const profilesPayload = await profilesResponse.json();
+
+      if (!profilesResponse.ok) {
+        throw new Error(profilesPayload.error || "Failed to fetch profiles");
+      }
+
+      const userRows = (profilesPayload.profiles ?? []) as EventProfileSummary[];
+      userRows.forEach((user) => {
+        profilesById.set(String(user.uid), {
+          display_name: user.display_name ?? null,
+          email: user.email ?? null,
+        });
+      });
+
+      return profilesById;
+    },
+    [eventId]
   );
 
 
@@ -592,7 +402,7 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
 
           const projectsById = new Map<string, { project_name: string | null }>();
           const agentsById = new Map<string, { name: string | null }>();
-          const participantsById = new Map<
+          let profilesById = new Map<
             string,
             { display_name: string | null; email: string | null }
           >();
@@ -639,29 +449,12 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
           }
 
           if (participantIds.length > 0) {
-            const { data: users, error: usersError } = await supabase
-              .from("user_profiles")
-              .select("uid, display_name, email")
-              .in("uid", participantIds);
-            if (usersError) {
-              console.error("Error fetching participants for agent scores:", usersError);
-            } else {
-              const userRows = (users ?? []) as Array<{
-                uid: string;
-                display_name: string | null;
-                email: string | null;
-              }>;
-              userRows.forEach(
-                (u: {
-                  uid: string;
-                  display_name: string | null;
-                  email: string | null;
-                }) => {
-                  participantsById.set(String(u.uid), {
-                    display_name: u.display_name ?? null,
-                    email: u.email ?? null,
-                  });
-                }
+            try {
+              profilesById = await fetchProfilesByUserIds(participantIds);
+            } catch (profileError) {
+              console.error(
+                "Error fetching participants for agent scores:",
+                profileError
               );
             }
           }
@@ -686,7 +479,7 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
               const agentName = agentsById.get(agentId)?.name ?? "";
 
               const participant =
-                participantId ? participantsById.get(participantId) : null;
+                participantId ? profilesById.get(participantId) : null;
               const participantName =
                 participant?.display_name ||
                 participant?.email ||
@@ -732,8 +525,11 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
             `
             project_id,
             track_id,
+            judge_id,
+            created_at,
             scores,
             comments,
+            round_number,
             projects:projects!inner (
               project_name,
               lead_name,
@@ -755,15 +551,35 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
         }
 
         if (!data?.length) {
+          setDashboardScoreData([]);
           setTrackScores({});
           setRawScoreData([]);
           return;
         }
 
         const scoreRows = (data || []) as ProjectScoreQueryRow[];
+        const judgeIds = Array.from(
+          new Set(
+            scoreRows
+              .map((item) => (item.judge_id ? String(item.judge_id) : ""))
+              .filter(Boolean)
+          )
+        );
+        let judgeProfilesById = new Map<
+          string,
+          { display_name: string | null; email: string | null }
+        >();
+
+        if (judgeIds.length > 0) {
+          try {
+            judgeProfilesById = await fetchProfilesByUserIds(judgeIds);
+          } catch (profileError) {
+            console.error("Error fetching judge profiles:", profileError);
+          }
+        }
 
         // Transform data for display (existing logic)
-        const displayData = scoreRows.map((item: ProjectScoreQueryRow) => {
+        const allDisplayData = scoreRows.map((item: ProjectScoreQueryRow) => {
           const projectData = item.projects as unknown as {
             project_name: string;
             lead_name: string;
@@ -774,10 +590,21 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
             name: string;
             track_id: string;
           } | null;
+          const judgeId = item.judge_id ? String(item.judge_id) : null;
+          const judgeProfile = judgeId ? judgeProfilesById.get(judgeId) : null;
+          const judgeName =
+            judgeProfile?.display_name ||
+            judgeProfile?.email ||
+            judgeId;
 
           return {
             ...item,
             event_id: projectData?.event_id || eventId,
+            round_number:
+              typeof item.round_number === "number" ? item.round_number : 1,
+            judge_id: judgeId,
+            judge_name: judgeName,
+            created_at: item.created_at ?? null,
             projects: {
               project_name: projectData?.project_name || "",
               lead_name: projectData?.lead_name || "",
@@ -788,9 +615,12 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
             },
           };
         }) as DashboardProjectScore[];
+        const displayData = allDisplayData.filter(
+          (item) => item.round_number === activeRound
+        );
 
         // Store raw data for exports
-        const rawData: RawScoreData[] = scoreRows.map((item: ProjectScoreQueryRow) => {
+        const rawData: RawScoreExportData[] = scoreRows.map((item: ProjectScoreQueryRow) => {
           const projects = Array.isArray(item.projects)
             ? item.projects[0]
             : item.projects;
@@ -798,19 +628,33 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
             ? item.event_tracks[0]
             : item.event_tracks;
 
+          const judgeId = item.judge_id ? String(item.judge_id) : null;
+          const judgeProfile = judgeId ? judgeProfilesById.get(judgeId) : null;
+          const judgeName =
+            judgeProfile?.display_name ||
+            judgeProfile?.email ||
+            judgeId;
+
           return {
             scores: item.scores as Record<string, string | number>,
             comments: item.comments,
+            round_number:
+              typeof item.round_number === "number" ? item.round_number : 1,
+            judge_id: judgeId,
+            judge_name: judgeName,
+            created_at: item.created_at ?? null,
             projects: {
               project_name: projects?.project_name || "",
               lead_email: projects?.lead_email || "",
             },
             event_tracks: {
               name: eventTracks?.name || "",
+              track_id: eventTracks?.track_id || "",
             },
           };
         });
 
+        setDashboardScoreData(allDisplayData);
         setRawScoreData(rawData);
         calculateTrackScores(displayData);
       } catch (error) {
@@ -862,21 +706,30 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
       judgeScoresSubscription.unsubscribe();
       agentScoresSubscription.unsubscribe();
     };
-  }, [eventId, calculateTrackScores]);
+  }, [eventId, calculateTrackScores, activeRound, fetchProfilesByUserIds]);
 
   return (
     <div className="space-y-6">
       <Tabs defaultValue="judge-scores" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 max-w-lg">
-          <TabsTrigger value="judge-scores" className="flex items-center gap-2">
+        <TabsList className="font-inter grid w-full grid-cols-3 h-auto p-1 gap-0 rounded-xl bg-white border border-[rgba(0,0,0,0.15)] text-muted-foreground">
+          <TabsTrigger
+            value="judge-scores"
+            className="flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-black border border-transparent transition-all data-[state=active]:bg-[var(--Color-Pattens-Blue-Lightest,#FBFCFE)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:font-semibold data-[state=active]:shadow-none hover:text-black/80"
+          >
             <Gavel className="w-4 h-4" />
             Judge Scores
           </TabsTrigger>
-          <TabsTrigger value="agent-scores" className="flex items-center gap-2">
+          <TabsTrigger
+            value="agent-scores"
+            className="flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-black border border-transparent transition-all data-[state=active]:bg-[var(--Color-Pattens-Blue-Lightest,#FBFCFE)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:font-semibold data-[state=active]:shadow-none hover:text-black/80"
+          >
             <Bot className="w-4 h-4" />
             Agent Scores
           </TabsTrigger>
-          <TabsTrigger value="peoples-choice" className="flex items-center gap-2">
+          <TabsTrigger
+            value="peoples-choice"
+            className="flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-black border border-transparent transition-all data-[state=active]:bg-[var(--Color-Pattens-Blue-Lightest,#FBFCFE)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:font-semibold data-[state=active]:shadow-none hover:text-black/80"
+          >
             <Vote className="w-4 h-4" />
             People&apos;s Choice
           </TabsTrigger>
@@ -884,65 +737,90 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
 
         {/* Judge Scores Tab */}
         <TabsContent value="judge-scores" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Judge Scoring Dashboard</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <h3 className="text-lg font-medium">Live Judge Scores</h3>
-                  <div className="flex space-x-2">
-                    <Button onClick={exportRawData} variant="outline" size="sm" disabled={loading}>
-                      <Download className="w-4 h-4 mr-2" />
-                      Export Raw Data
-                    </Button>
-                    <Button onClick={exportScores} variant="outline" size="sm" disabled={loading}>
-                      <Download className="w-4 h-4 mr-2" />
-                      Export Tables
-                    </Button>
+          <div className="space-y-6">
+            <RoundsEditor
+              eventId={eventId}
+              scoringConfig={scoringConfig}
+              onSaved={(next) => onScoringConfigSaved?.(next)}
+            />
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Judge Scoring Dashboard</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-start gap-4">
+                    <div>
+                      <h3 className="text-lg font-medium">Live Judge Scores</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Each project shows the judges who have submitted a score
+                        and the total they gave.
+                      </p>
+                    </div>
+                    <div className="flex space-x-2">
+                      <Button
+                        onClick={exportRawData}
+                        variant="outline"
+                        size="sm"
+                        disabled={loading}
+                        className="flex h-11 items-center rounded-[12px] px-5 py-2"
+                      >
+                        <Download className="w-4 h-4 mr-2" />
+                        Export Raw Data
+                      </Button>
+                      <Button
+                        onClick={exportScores}
+                        variant="outline"
+                        size="sm"
+                        disabled={loading}
+                        className="flex h-11 items-center rounded-[12px] px-5 py-2"
+                      >
+                        <Download className="w-4 h-4 mr-2" />
+                        Export Tables
+                      </Button>
+                    </div>
                   </div>
-                </div>
 
-                {/* Link Tracks to Main Track Controls */}
-                {Object.keys(trackScores).length > 1 && (
-                  <Card className="bg-muted/50">
-                    <CardContent className="pt-6">
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-2">
-                            <Switch
-                              id="link-tracks"
-                              checked={linkTracksEnabled}
-                              onCheckedChange={(checked) => {
-                                setLinkTracksEnabled(checked);
-                                if (!checked) {
-                                  setMainTrackId("");
-                                }
-                              }}
-                            />
-                            <Label htmlFor="link-tracks" className="flex items-center gap-2 cursor-pointer">
-                              <LinkIcon className="w-4 h-4" />
-                              Link all tracks to main track
-                            </Label>
+                  {/* Link Tracks to Main Track Controls */}
+                  {Object.keys(trackScores).length > 1 && (
+                    <Card className="bg-muted/50">
+                      <CardContent className="pt-6">
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-2">
+                              <Switch
+                                id="link-tracks"
+                                checked={linkTracksEnabled}
+                                onCheckedChange={(checked) => {
+                                  setLinkTracksEnabled(checked);
+                                  if (!checked) {
+                                    setMainTrackId("");
+                                  }
+                                }}
+                              />
+                              <Label htmlFor="link-tracks" className="flex items-center gap-2 cursor-pointer">
+                                <LinkIcon className="w-4 h-4" />
+                                Link all tracks to main track
+                              </Label>
+                            </div>
                           </div>
-                        </div>
 
-                        {linkTracksEnabled && (
-                          <div className="space-y-2">
-                            <Label htmlFor="main-track">Select Main Track</Label>
-                            <Select
-                              value={mainTrackId}
-                              onValueChange={setMainTrackId}
-                            >
-                              <SelectTrigger id="main-track">
-                                <SelectValue placeholder="Choose a main track..." />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {Object.keys(trackScores).map((trackId) => {
-                                  const trackName =
-                                    eventTracks.find((t) => t.track_id === trackId)?.name ||
-                                    Object.values(scoringConfig.tracks).find((t) =>
+                          {linkTracksEnabled && (
+                            <div className="space-y-2">
+                              <Label htmlFor="main-track">Select Main Track</Label>
+                              <Select
+                                value={mainTrackId}
+                                onValueChange={setMainTrackId}
+                              >
+                                <SelectTrigger id="main-track">
+                                  <SelectValue placeholder="Choose a main track..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {Object.keys(trackScores).map((trackId) => {
+                                    const trackName =
+                                      eventTracks.find((t) => t.track_id === trackId)?.name ||
+                                      Object.values(scoringConfig.tracks).find((t) =>
                                       trackId.includes(t.name)
                                     )?.name ||
                                     trackId;
@@ -1017,10 +895,12 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
 
                           // Get the appropriate config - use main track config if linking is enabled
                           const displayTrackId = isSubtrack ? mainTrackId : trackId;
-                          const displayConfig = scoringConfig.tracks[displayTrackId] ||
-                            Object.values(scoringConfig.tracks).find((t) =>
-                              displayTrackId.includes(t.name)
-                            );
+                          const displayConfig = getTrackScoringConfigForRound({
+                            scoringConfig,
+                            trackId: displayTrackId,
+                            roundNumber: activeRound,
+                            fallbackTrackName: trackName,
+                          });
 
                           const choiceCriteria =
                             displayConfig?.criteria.filter(
@@ -1140,6 +1020,9 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
                                             {getSortIcon(trackId, "judges")}
                                           </div>
                                         </TableHead>
+                                        <TableHead className="min-w-[240px] max-w-[300px] px-4">
+                                          Judge Breakdown
+                                        </TableHead>
                                       </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -1150,7 +1033,12 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
                                           </TableCell>
                                           <TableCell className="min-w-[150px] max-w-[200px]">
                                             <div className="break-words">
-                                              {score.projectName}
+                                              <Link
+                                                href={`/projects/public/${score.projectId}`}
+                                                className="text-blue-600 hover:text-blue-700 hover:underline"
+                                              >
+                                                {score.projectName}
+                                              </Link>
                                             </div>
                                           </TableCell>
                                           <TableCell className="min-w-[120px] max-w-[150px]">
@@ -1200,6 +1088,61 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
                                           <TableCell className="text-center w-20 px-4 tabular-nums">
                                             {score.numberOfJudges}
                                           </TableCell>
+                                          <TableCell className="min-w-[240px] max-w-[300px] px-4">
+                                            {score.judgeScores.length > 0 ? (
+                                              <div className="space-y-2">
+                                                {score.judgeScores.map((judgeScore) => (
+                                                  <div
+                                                    key={judgeScore.judgeId}
+                                                    className="rounded-md bg-muted/50 px-2 py-2 text-sm"
+                                                  >
+                                                    <div className="flex items-center justify-between gap-3">
+                                                      <span className="truncate">
+                                                        {judgeScore.judgeName}
+                                                      </span>
+                                                      <span className="font-medium tabular-nums">
+                                                        {judgeScore.totalScore.toFixed(2)}
+                                                      </span>
+                                                    </div>
+                                                    {choiceCriteria.length > 0 &&
+                                                    Object.keys(judgeScore.choiceAnswers)
+                                                      .length > 0 ? (
+                                                      <div className="mt-1 space-y-1 text-xs text-muted-foreground">
+                                                        {choiceCriteria
+                                                          .filter(
+                                                            (criterion) =>
+                                                              judgeScore.choiceAnswers[
+                                                                criterion.id
+                                                              ]
+                                                          )
+                                                          .map((criterion) => (
+                                                            <div
+                                                              key={`${judgeScore.judgeId}-${criterion.id}`}
+                                                              className="flex items-start gap-1"
+                                                            >
+                                                              <span className="font-medium text-foreground/80">
+                                                                {criterion.name}:
+                                                              </span>
+                                                              <span>
+                                                                {
+                                                                  judgeScore.choiceAnswers[
+                                                                    criterion.id
+                                                                  ]
+                                                                }
+                                                              </span>
+                                                            </div>
+                                                          ))}
+                                                      </div>
+                                                    ) : null}
+                                                  </div>
+                                                ))}
+                                              </div>
+                                            ) : (
+                                              <span className="text-muted-foreground">
+                                                —
+                                              </span>
+                                            )}
+                                          </TableCell>
                                         </TableRow>
                                       ))}
                                     </TableBody>
@@ -1217,6 +1160,7 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
               </div>
             </CardContent>
           </Card>
+          </div>
         </TabsContent>
 
         {/* Agent Scores Tab */}
@@ -1513,7 +1457,16 @@ export function ScoresTab({ eventId, scoringConfig }: ScoresTabProps) {
                                 </TableCell>
                                 <TableCell className="min-w-[220px]">
                                   <div className="break-words">
-                                    {row.projectName || "—"}
+                                    {row.projectId ? (
+                                      <Link
+                                        href={`/projects/public/${row.projectId}`}
+                                        className="text-blue-600 hover:text-blue-700 hover:underline"
+                                      >
+                                        {row.projectName || row.projectId}
+                                      </Link>
+                                    ) : (
+                                      row.projectName || "—"
+                                    )}
                                   </div>
                                 </TableCell>
                                 <TableCell className="min-w-[200px]">
