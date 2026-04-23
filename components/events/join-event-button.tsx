@@ -41,7 +41,7 @@ import {
   getCheapestPricingTier,
   formatPrice,
 } from "@/lib/utils/pricing";
-import { getRoleLabel, isHigherOrEqualRole } from "@/features/user/roles/roles";
+import { getRoleLabel } from "@/features/user/roles/roles";
 import { Ticket, Users, Lock, Loader2 } from "lucide-react";
 import { RegistrationQuestionnaireDialog } from "@/features/events/registration/RegistrationQuestionnaireDialog";
 
@@ -85,6 +85,9 @@ export function JoinEventButton({
   const [password, setPassword] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [showPasswordInput, setShowPasswordInput] = useState(false);
+  const [passwordProtectedRoles, setPasswordProtectedRoles] = useState<
+    Record<string, boolean>
+  >({});
   const [event, setEvent] = useState<EventItem | null>(null);
   const [roleLabels, setRoleLabels] = useState<Record<string, string> | null>(
     null
@@ -122,8 +125,7 @@ export function JoinEventButton({
             role_labels,
             slug,
             participant_capacity,
-            require_participant_approval,
-            require_registration_questionnaire
+            require_participant_approval
           `
           )
           .eq("event_id", eventId)
@@ -180,6 +182,24 @@ export function JoinEventButton({
         setIsAuthenticated(!!session);
 
         if (!session) return;
+
+        const { data: rolePasswordRows, error: rolePasswordsError } =
+          await supabase
+            .from("role_passwords")
+            .select("role")
+            .eq("event_id", eventId);
+
+        if (rolePasswordsError) {
+          console.error(
+            "Error fetching role password requirements:",
+            rolePasswordsError
+          );
+        } else {
+          const protectedRoles = Object.fromEntries(
+            (rolePasswordRows ?? []).map(({ role }) => [String(role), true])
+          );
+          setPasswordProtectedRoles(protectedRoles);
+        }
 
         const userId = session.user.id;
 
@@ -253,14 +273,18 @@ export function JoinEventButton({
     }
   }, [showPricingTiers, pricingTiers, selectedPricingTierId]);
 
+  useEffect(() => {
+    const requiresPassword = !!passwordProtectedRoles[selectedRole];
+    setShowPasswordInput(requiresPassword);
+
+    if (!requiresPassword) {
+      setPassword("");
+    }
+  }, [passwordProtectedRoles, selectedRole]);
+
   const handleRoleSelect = (value: EventRole) => {
     setSelectedRole(value);
-    // Show password input for protected roles
-    // if (event?.visibility === EventVisibility.Private) {
-    //   setShowPasswordInput(true);
-    // } else {
-    setShowPasswordInput(isHigherOrEqualRole(value, EventRole.Judge));
-    // }
+    setPassword("");
   };
 
   const handlePricingTierContinue = async () => {

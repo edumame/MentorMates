@@ -2,6 +2,20 @@
 
 This file provides guidance to coding agents when working with code in this repository.
 
+## Project Route Sync Requirement
+
+Keep these two project detail routes in sync:
+- `app/projects/[id]/page.tsx` (private/authenticated view)
+- `app/projects/public/[id]/page.tsx` (public view)
+
+UI parity is required: core project-detail layout, section order, copy, and visual hierarchy must stay aligned across both routes.
+- Private-only controls (edit/delete/team management) can differ, but non-sensitive presentation UI should match.
+- When shared project-detail behavior, layout, or data mapping changes in one route, update the counterpart in the same PR unless the difference is intentionally access-controlled.
+- Prefer extracting shared logic into common `features/projects` or `lib` modules instead of duplicating route-specific code.
+- Prefer shared presentational components for project-detail sections to enforce consistent UI.
+- Add or update tests that validate both routes whenever shared behavior changes.
+- If a divergence is intentional, document why in code comments near the divergence and in the PR summary.
+
 ## Interactive Review Prompt
 
 Review this plan thoroughly before making any code changes. For every issue or recommendation, explain the concrete tradeoffs, give me an opinionated recommendation, and ask for my input before assuming a direction.

@@ -12,6 +12,10 @@
 
 # testing
 /coverage
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
 
 # next.js
 /.next/
@@ -50,3 +54,9 @@ next-env.d.ts
 
 #personal
 # todo.md
+
+#sql scripts (non migrations)
+supabase/migrations/scripts_*
+
+#plan directories
+plans/*

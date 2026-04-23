@@ -12,25 +12,22 @@ import { EventSearchInput } from "@/components/ui/event-search-input";
 
 interface VotingContentProps {
   eventId: string;
-  slug: string;
   hasJoined: boolean;
-  userRole?: string | null;
 }
 
 export function VotingContent({
   eventId,
-  slug,
   hasJoined,
-  userRole,
 }: VotingContentProps) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoadingProjects, setIsLoadingProjects] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 
   const {
-    voteCounts,
     remainingVotes,
     maxVotes,
+    canVote: canPopularVote,
+    blockedReason,
     isLoading: isLoadingVotes,
     error: voteError,
     hasVoted,
@@ -78,26 +75,27 @@ export function VotingContent({
   });
 
   const isLoading = isLoadingProjects || isLoadingVotes;
-  const canVote = hasJoined && remainingVotes > 0;
 
   return (
     <div className="flex flex-col flex-1 w-full">
       {/* Header with Vote Counter */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Vote for Projects</h2>
-          <p className="text-gray-600 mt-1">
+          <h2 className="text-[28px] font-semibold leading-[1.4] tracking-[-0.06em] text-black">
+            Popular Project Voting
+          </h2>
+          <p className="text-black/70 mt-1">
             Choose your favorite {maxVotes} projects to vote for
           </p>
-          <p className="text-sm text-gray-500 mt-2">
+          <p className="text-sm text-black/60 mt-2">
             Individual vote totals stay hidden until organizers publish results.
           </p>
         </div>
-        {hasJoined && (
+        {hasJoined && canPopularVote && (
           <VoteCounter
             remainingVotes={remainingVotes}
             maxVotes={maxVotes}
-            className="bg-white border border-gray-200 rounded-lg px-4 py-2 shadow-sm"
+            className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-4 py-2.5 shadow-sm"
           />
         )}
       </div>
@@ -120,9 +118,19 @@ export function VotingContent({
         </Alert>
       )}
 
+      {/* Role Restriction Warning */}
+      {hasJoined && !canPopularVote && blockedReason && (
+        <Alert className="mb-6 border-[#bfdbfe] bg-[#eff6ff]">
+          <AlertCircle className="h-4 w-4 text-[#1d4ed8]" />
+          <AlertDescription className="text-[#1e3a8a]">
+            {blockedReason}
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Search Bar */}
       <EventSearchInput
-        wrapperClassName="mb-6 w-full max-w-[560px]"
+        wrapperClassName="mb-8 w-full max-w-[560px]"
         placeholder="Search projects by name, description, or lead"
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
@@ -132,7 +140,7 @@ export function VotingContent({
       {/* Project Grid */}
       {isLoading ? (
         <div className="flex justify-center items-center h-64">
-          <Loader className="h-12 w-12 animate-spin text-purple-400" />
+          <Loader className="h-12 w-12 animate-spin text-[#4B89EF]" />
         </div>
       ) : (
         <motion.div
@@ -143,16 +151,23 @@ export function VotingContent({
         >
           {sortedProjects.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {sortedProjects.map((project) => (
-                <VotableProjectCard
-                  key={project.id}
-                  project={project}
-                  hasVoted={hasVoted(project.id)}
-                  toggleVoteAction={() => toggleVote(project.id)}
-                  canVote={canVote}
-                  eventSlug={slug}
-                />
-              ))}
+              {sortedProjects.map((project) => {
+                const userHasVotedForProject = hasVoted(project.id);
+                const canToggleVote =
+                  hasJoined &&
+                  canPopularVote &&
+                  (remainingVotes > 0 || userHasVotedForProject);
+
+                return (
+                  <VotableProjectCard
+                    key={project.id}
+                    project={project}
+                    hasVoted={userHasVotedForProject}
+                    toggleVoteAction={() => toggleVote(project.id)}
+                    canVote={canToggleVote}
+                  />
+                );
+              })}
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center py-20 border border-dashed border-[rgba(0,0,0,0.15)] rounded-[20px] p-8">

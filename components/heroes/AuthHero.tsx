@@ -3,7 +3,6 @@ import { createClient } from "@/app/utils/supabase/client";
 import { DashBoardStats } from "./components/DashBoardStats";
 import { NavigateMM } from "./components/NavigateMM";
 import { MyEvents } from "./components/MyEvents";
-import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 
 export function AuthHero() {
   
@@ -64,16 +63,14 @@ export function AuthHero() {
   };
 
   return (
-    <PageContainer className="rounded-tl-2xl sm:rounded-tl-2xl rounded-none sm:border-t sm:border-l">
-      <PageContent className="pt-[24px] pb-8">
-        <div className="flex flex-col items-start gap-[24px] px-[32px]">
+    <div className="pt-[24px] pb-8">
+      <div className="flex flex-col items-start gap-[24px] px-[32px]">
           <h1 className="text-[20px] sm:text-[28px] font-semibold leading-[1.4] tracking-[-0.06em] text-black">Welcome, {userName}!</h1>
 
           <DashBoardStats />
           {showNavigateMM ? <NavigateMM onClose={handleCloseNavigateMM} /> : null}
           <MyEvents />
         </div>
-      </PageContent>
-    </PageContainer>
+    </div>
   );
 }

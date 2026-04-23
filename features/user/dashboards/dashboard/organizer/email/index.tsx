@@ -226,7 +226,7 @@ export function EmailTab({ eventId }: EmailTabProps) {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="font-geist flex items-center gap-2">
             <Mail className="h-5 w-5" />
             Send Email to Event Participants
           </CardTitle>
@@ -260,7 +260,7 @@ export function EmailTab({ eventId }: EmailTabProps) {
             <Button
               variant="outline"
               onClick={() => setShowTemplates(!showTemplates)}
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 rounded-[12px]"
             >
               <LayoutTemplate className="h-4 w-4" />
               {showTemplates ? "Hide Templates" : "Use Template"}
@@ -268,7 +268,7 @@ export function EmailTab({ eventId }: EmailTabProps) {
             <Button
               variant="outline"
               onClick={() => setShowPreview(!showPreview)}
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 rounded-[12px]"
             >
               <Eye className="h-4 w-4" />
               {showPreview ? "Hide Preview" : "Show Preview"}
@@ -307,7 +307,7 @@ export function EmailTab({ eventId }: EmailTabProps) {
       {/* Recipients Selection */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="font-geist flex items-center gap-2">
             <Users className="h-5 w-5" />
             Select Recipients ({selectedRecipients.length} selected)
           </CardTitle>
@@ -321,7 +321,7 @@ export function EmailTab({ eventId }: EmailTabProps) {
                 value={recipientFilter}
                 onValueChange={setRecipientFilter}
               >
-                <SelectTrigger className="w-40">
+                <SelectTrigger className="w-40 rounded-[12px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -338,10 +338,10 @@ export function EmailTab({ eventId }: EmailTabProps) {
               </Select>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={handleSelectAll}>
+              <Button variant="outline" size="sm" className="rounded-[12px]" onClick={handleSelectAll}>
                 Select All ({filteredRecipients.length})
               </Button>
-              <Button variant="outline" size="sm" onClick={handleClearAll}>
+              <Button variant="outline" size="sm" className="rounded-[12px]" onClick={handleClearAll}>
                 Clear All
               </Button>
             </div>

@@ -1,7 +1,8 @@
 "use client";
 
 import { Link as LinkIcon, QrCode } from "lucide-react";
-import { Resource } from "@/lib/types";
+import { EventRole, Resource } from "@/lib/types";
+import { useActiveRole } from "./ActiveRoleContext";
 
 interface EventPageSidebarProps {
   eventResources?: Resource[];
@@ -14,6 +15,13 @@ export function EventPageSidebar({
   eventId,
   eventSlug,
 }: EventPageSidebarProps) {
+  const { activeRole } = useActiveRole();
+
+  // Judges need maximum room for scoring; hide sidebar actions in judge view.
+  if (activeRole === EventRole.Judge) {
+    return null;
+  }
+
   const eventUrl = `${typeof window !== "undefined" ? window.location.origin : ""}/events/${eventSlug || eventId}/overview`;
 
   const handleShare = (platform: string) => {

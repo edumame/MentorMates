@@ -9,6 +9,17 @@ import { supabase } from "@/lib/supabase";
 import { toast } from "@/lib/hooks/use-toast";
 import { PostgrestError } from "@supabase/supabase-js";
 import VoiceInput from "@/components/utils/VoiceInput";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface ProjectScoringFormProps {
   projectId: string;
@@ -32,12 +43,14 @@ export function ProjectScoringForm({
   trackId,
   criteria,
   onScoreSubmitted,
-  defaultMin = 1,
+  defaultMin = 0,
   defaultMax = 10,
   finalistFeatureEnabled = false,
 }: ProjectScoringFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [hasExistingScore, setHasExistingScore] = useState(false);
   const [formData, setFormData] = useState<ScoreFormData>(() => {
     // Initialize scores with default values
     const initialScores: Record<string, number | string> = {};
@@ -65,7 +78,9 @@ export function ProjectScoringForm({
     setFormData({
       scores: initialScores,
       comments: "",
+      finalist_recommendation: false,
     });
+    setHasExistingScore(false);
 
     // Only fetch existing score if trackId is provided
     if (!trackId) {
@@ -84,13 +99,44 @@ export function ProjectScoringForm({
           return;
         }
 
+        // Resolve active round to scope the existing-score lookup to the
+        // round currently being judged. Defaults to round 1.
+        let activeRound = 1;
+        try {
+          const { data: projRow } = await supabase
+            .from("projects")
+            .select("event_id")
+            .eq("id", projectId)
+            .maybeSingle();
+          if (projRow?.event_id) {
+            const { data: eventRow } = await supabase
+              .from("events")
+              .select("scoring_config")
+              .eq("event_id", projRow.event_id)
+              .maybeSingle();
+            const cfg =
+              (eventRow?.scoring_config as { activeRound?: number } | null) ??
+              null;
+            if (
+              cfg &&
+              typeof cfg.activeRound === "number" &&
+              cfg.activeRound > 0
+            ) {
+              activeRound = cfg.activeRound;
+            }
+          }
+        } catch (roundErr) {
+          console.error("Failed to resolve active round", roundErr);
+        }
+
         const { data: scoreData, error: scoreError } = await supabase
           .from("project_scores")
           .select("scores, comments, finalist_recommendation")
           .eq("project_id", projectId)
           .eq("track_id", trackId)
           .eq("judge_id", session.user.id)
-          .single();
+          .eq("round_number", activeRound)
+          .maybeSingle();
 
         if (scoreError) {
           if (scoreError.code !== "PGRST116") {
@@ -106,6 +152,7 @@ export function ProjectScoringForm({
         }
 
         if (scoreData) {
+          setHasExistingScore(true);
           setFormData({
             scores: scoreData.scores,
             comments: scoreData.comments || "",
@@ -177,6 +224,26 @@ export function ProjectScoringForm({
         return;
       }
 
+      // Resolve the active round for this event (multi-round judging, #706).
+      // Defaults to round 1 when scoring_config has no rounds/activeRound.
+      let roundNumber = 1;
+      try {
+        const { data: eventRow } = await supabase
+          .from("events")
+          .select("scoring_config")
+          .eq("event_id", projectData.projects.event_id)
+          .maybeSingle();
+        const cfg =
+          (eventRow?.scoring_config as {
+            activeRound?: number;
+          } | null) ?? null;
+        if (cfg && typeof cfg.activeRound === "number" && cfg.activeRound > 0) {
+          roundNumber = cfg.activeRound;
+        }
+      } catch (roundErr) {
+        console.error("Failed to resolve active round, defaulting to 1", roundErr);
+      }
+
       // Submit the score
       const { error } = await supabase.from("project_scores").upsert(
         {
@@ -187,14 +254,16 @@ export function ProjectScoringForm({
           scores: formData.scores,
           comments: formData.comments,
           finalist_recommendation: !!formData.finalist_recommendation,
-          updated_at: new Date(),
+          round_number: roundNumber,
+          updated_at: new Date().toISOString(),
         },
         {
-          onConflict: "project_id,judge_id,track_id",
+          onConflict: "project_id,judge_id,track_id,round_number",
         }
       );
 
       if (error) throw error;
+      setHasExistingScore(true);
 
       toast({
         title: "Success",
@@ -211,6 +280,92 @@ export function ProjectScoringForm({
       });
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteScore = async () => {
+    setIsDeleting(true);
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session) {
+        toast({
+          title: "Error",
+          description: "You must be logged in to delete scores",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Resolve active round so we only delete the current round's score.
+      let activeRound = 1;
+      try {
+        const { data: projRow } = await supabase
+          .from("projects")
+          .select("event_id")
+          .eq("id", projectId)
+          .maybeSingle();
+        if (projRow?.event_id) {
+          const { data: eventRow } = await supabase
+            .from("events")
+            .select("scoring_config")
+            .eq("event_id", projRow.event_id)
+            .maybeSingle();
+          const cfg =
+            (eventRow?.scoring_config as { activeRound?: number } | null) ??
+            null;
+          if (
+            cfg &&
+            typeof cfg.activeRound === "number" &&
+            cfg.activeRound > 0
+          ) {
+            activeRound = cfg.activeRound;
+          }
+        }
+      } catch (roundErr) {
+        console.error("Failed to resolve active round for delete", roundErr);
+      }
+
+      const { error } = await supabase
+        .from("project_scores")
+        .delete()
+        .eq("project_id", projectId)
+        .eq("track_id", trackId)
+        .eq("judge_id", session.user.id)
+        .eq("round_number", activeRound);
+
+      if (error) throw error;
+
+      const resetScores: Record<string, number | string> = {};
+      criteria.forEach((criterion) => {
+        resetScores[criterion.id] = Math.floor(
+          ((criterion.max ?? defaultMax) + (criterion.min ?? defaultMin)) / 2
+        );
+      });
+
+      setFormData({
+        scores: resetScores,
+        comments: "",
+        finalist_recommendation: false,
+      });
+      setHasExistingScore(false);
+
+      toast({
+        title: "Score deleted",
+        description: "Your score for this project track has been removed.",
+      });
+      onScoreSubmitted();
+    } catch (error) {
+      console.error("Error deleting score:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete score. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -288,9 +443,38 @@ export function ProjectScoringForm({
         </div>
       )}
 
-      <Button type="submit" disabled={isSubmitting || !trackId}>
-        {isSubmitting ? "Submitting..." : "Submit Score"}
-      </Button>
+      <div className="flex flex-wrap gap-2">
+        <Button type="submit" disabled={isSubmitting || isDeleting || !trackId}>
+          {isSubmitting ? "Submitting..." : "Submit Score"}
+        </Button>
+        {hasExistingScore && (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                type="button"
+                variant="delete"
+                disabled={isSubmitting || isDeleting || !trackId}
+              >
+                {isDeleting ? "Deleting..." : "Delete Score"}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete Score</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Delete your score for this track? This cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction type="button" onClick={handleDeleteScore}>
+                  Delete Score
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
+      </div>
     </form>
   );
 }

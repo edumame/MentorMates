@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
+import { EventVisibility } from "@/lib/types";
 
 const updateEventStatusSchema = z.object({
   featured: z.boolean().optional(),
@@ -52,6 +53,10 @@ export async function PATCH(
     if (featured !== undefined) updateData.featured = featured;
     if (approval_status !== undefined) {
       updateData.approval_status = approval_status;
+
+      if (approval_status === "approved") {
+        updateData.visibility = EventVisibility.Public;
+      }
       
       // If status is being set to rejected, require rejection_reason
       if (approval_status === "rejected" && !rejection_reason) {
@@ -127,6 +132,55 @@ export async function PATCH(
     return NextResponse.json({ success: true, event: data });
   } catch (error) {
     console.error("Error in PATCH /api/admin/events/[eventId]:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ eventId: string }> }
+) {
+  try {
+    const supabase = await createSupabaseClient();
+
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { data: isAdminData } = await supabase.rpc("is_admin_user", {
+      user_id: user.id,
+    });
+
+    if (!isAdminData) {
+      return NextResponse.json({ error: "Forbidden - Admin access required" }, { status: 403 });
+    }
+
+    const { eventId } = await params;
+
+    const { error } = await supabase
+      .from("events")
+      .delete()
+      .eq("event_id", eventId);
+
+    if (error) {
+      console.error("Error deleting event:", error);
+      return NextResponse.json(
+        { error: "Failed to delete event" },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Error in DELETE /api/admin/events/[eventId]:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

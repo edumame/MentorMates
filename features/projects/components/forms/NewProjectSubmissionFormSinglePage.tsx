@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import {
   Loader2,
@@ -13,30 +12,33 @@ import {
   ThumbsUp,
   MessageSquarePlus,
   MoreHorizontal,
-  ImageIcon,
-  Paperclip,
-  Github,
-  Youtube,
   ExternalLink,
 } from "lucide-react";
 import { toast } from "@/lib/hooks/use-toast";
 import { Toaster } from "@/components/ui/toaster";
 import UserSearchWithInvite from "@/components/utils/UserSearchWithInvite";
 import { useAdmin } from "@/lib/hooks/use-admin";
-import { EventDetails, EventVisibility } from "@/lib/types";
+import {
+  EventDetails,
+  EventSubmissionField,
+} from "@/lib/types";
 import { useProjectSubmissionData } from "@/features/projects/components/forms/hooks/useProjectSubmissionData";
 import { EventCard } from "@/components/events/event-card";
-import {
-  createUploadedStorageFileName,
-  getDisplayFileNameFromUrl,
-} from "@/lib/utils/file";
-import { Public, TextFields } from "@mui/icons-material";
-import Link from "next/link";
 import { ParticipantIntakeDialog } from "@/features/intake-forms/components/ParticipantIntakeDialog";
+import { ProjectPrivacySelect } from "@/features/projects/components/forms/components/ProjectPrivacySelect";
+import { ProjectSubmissionSchemaSection } from "@/features/projects/components/forms/components/ProjectSubmissionSchemaSection";
+import { useProjectSubmissionAutosave } from "@/features/projects/components/forms/hooks/useProjectSubmissionAutosave";
+import { getProjectVisibilityDescription } from "@/features/projects/components/forms/utils/projectPrivacy";
+import {
+  buildEffectiveSubmissionFields,
+  buildSubmissionAnswersPayload,
+  type SubmissionValue,
+} from "@/features/projects/utils/effectiveSubmission";
 import type {
   IntakeFormAnswers,
   IntakeFormSchema,
 } from "@/features/intake-forms/types";
+import { CoverImageWithFallback } from "@/features/projects/components/displays/cover-image-with-fallback";
 
 interface EventParticipant {
   user_id: string;
@@ -48,6 +50,33 @@ interface ActiveIntakeForm {
   formVersionId: string;
   schema: IntakeFormSchema;
 }
+
+type PublishPayload = {
+  projectId: string | null;
+  projectName: string;
+  leadName: string;
+  leadEmail: string;
+  projectDescription: string;
+  teammates: string[];
+  projectUrl: string;
+  coverImageUrl: string;
+  additionalMaterialsUrl: string;
+  private: boolean;
+  eventId?: string;
+  trackIds: string[];
+  videoUrl: string;
+  artifacts: Array<{
+    kind: "project_link" | "video_link" | "additional_material";
+    label: string;
+    url: string;
+    sort_order: number;
+    is_primary: boolean;
+  }>;
+  submissionAnswers: Array<{
+    eventSubmissionFieldId: string;
+    answer: string | string[];
+  }>;
+};
 
 export function NewProjectSubmissionFormSinglePage({
   userEmail,
@@ -75,36 +104,29 @@ export function NewProjectSubmissionFormSinglePage({
   const [contextusId, setContextusId] = useState<string | null>(
     initialContextusId ?? null
   );
-  const [isSaving, setIsSaving] = useState(false);
-  const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isPrefilling, setIsPrefilling] = useState(false);
   const [eventDetails, setEventDetails] = useState<EventDetails | null>(null);
   const [participants, setParticipants] = useState<EventParticipant[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedTrackIds, setSelectedTrackIds] = useState<string[]>([]);
-  const [visibility, setVisibility] = useState<EventVisibility>(
-    EventVisibility.Public
-  );
-  const [showVisibilityDropdown, setShowVisibilityDropdown] = useState(false);
+  const [isPrivate, setIsPrivate] = useState(false);
+  const [showMobileActions, setShowMobileActions] = useState(false);
   const [isDeletingDraft, setIsDeletingDraft] = useState(false);
+  const [extraProjectUrls, setExtraProjectUrls] = useState<string[]>([]);
+  const [extraVideoUrls, setExtraVideoUrls] = useState<string[]>([]);
+  const [extraMaterialsUrls, setExtraMaterialsUrls] = useState<string[]>([]);
+  const [submissionFields, setSubmissionFields] = useState<EventSubmissionField[]>(
+    []
+  );
+  const [showDescriptionPreview, setShowDescriptionPreview] = useState(false);
+  const [submissionAnswers, setSubmissionAnswers] = useState<
+    Record<string, SubmissionValue>
+  >({});
   const [activeIntakeForm, setActiveIntakeForm] =
     useState<ActiveIntakeForm | null>(null);
   const [showIntakeDialog, setShowIntakeDialog] = useState(false);
-  const [pendingPublishPayload, setPendingPublishPayload] = useState<{
-    projectId: string | null;
-    projectName: string;
-    leadName: string;
-    leadEmail: string;
-    projectDescription: string;
-    teammates: string[];
-    projectUrl: string;
-    coverImageUrl: string;
-    additionalMaterialsUrl: string;
-    eventId?: string;
-    trackIds: string[];
-    videoUrl: string;
-  } | null>(null);
+  const [pendingPublishPayload, setPendingPublishPayload] =
+    useState<PublishPayload | null>(null);
 
   // Load available tracks for the event (if any)
   const { availableTracks } = useProjectSubmissionData(eventId);
@@ -121,8 +143,6 @@ export function NewProjectSubmissionFormSinglePage({
     coverImageUrl: "",
     additionalMaterialsUrl: "",
   });
-  const [isEditingCoverImageUrl, setIsEditingCoverImageUrl] = useState(false);
-  const [isEditingMaterialsUrl, setIsEditingMaterialsUrl] = useState(false);
 
   useEffect(() => {
     const init = async () => {
@@ -218,6 +238,207 @@ export function NewProjectSubmissionFormSinglePage({
     }
   }, [eventId, fetchEventParticipants]);
 
+  useEffect(() => {
+    const fetchSubmissionFields = async () => {
+      if (!eventId) return;
+      try {
+        const response = await fetch(`/api/events/${eventId}/submission-fields`);
+        if (!response.ok) return;
+        const json = (await response.json()) as {
+          fields?: EventSubmissionField[];
+        };
+        setSubmissionFields(
+          (json.fields || [])
+            .filter((field) => field.is_active)
+            .sort((a, b) => a.sort_order - b.sort_order)
+        );
+      } catch {
+        // Non-blocking
+      }
+    };
+
+    fetchSubmissionFields();
+  }, [eventId]);
+
+  const effectiveSubmissionFields = useMemo(
+    () => buildEffectiveSubmissionFields(submissionFields, eventId),
+    [eventId, submissionFields]
+  );
+  const hasConfiguredSubmissionFields = submissionFields.length > 0;
+
+  const getSubmissionFieldValue = useCallback(
+    (field: (typeof effectiveSubmissionFields)[number]): SubmissionValue => {
+      switch (field.key) {
+        case "project_name":
+          return formData.projectName;
+        case "project_description":
+          return formData.projectDescription;
+        case "project_url":
+          return formData.projectUrl;
+        case "video_url":
+          return formData.videoUrl;
+        case "cover_image":
+          return formData.coverImageUrl;
+        case "additional_materials":
+          return [
+            formData.additionalMaterialsUrl,
+            ...extraMaterialsUrls,
+          ].filter((value) => value.trim().length > 0);
+        default:
+          return submissionAnswers[field.id] ?? "";
+      }
+    },
+    [
+      extraMaterialsUrls,
+      formData.additionalMaterialsUrl,
+      formData.coverImageUrl,
+      formData.projectDescription,
+      formData.projectName,
+      formData.projectUrl,
+      formData.videoUrl,
+      submissionAnswers,
+    ]
+  );
+
+  const submissionFieldValues = useMemo(
+    () =>
+      Object.fromEntries(
+        effectiveSubmissionFields.map((field) => [
+          field.key,
+          getSubmissionFieldValue(field),
+        ])
+      ) as Record<string, SubmissionValue>,
+    [effectiveSubmissionFields, getSubmissionFieldValue]
+  );
+
+  const handleSubmissionFieldChange = useCallback(
+    (fieldKey: string, value: SubmissionValue) => {
+      switch (fieldKey) {
+        case "project_name":
+          setFormData((prev) => ({
+            ...prev,
+            projectName: typeof value === "string" ? value : value[0] || "",
+          }));
+          return;
+        case "project_description":
+          setFormData((prev) => ({
+            ...prev,
+            projectDescription: typeof value === "string" ? value : value[0] || "",
+          }));
+          return;
+        case "project_url":
+          setFormData((prev) => ({
+            ...prev,
+            projectUrl: typeof value === "string" ? value : value[0] || "",
+          }));
+          return;
+        case "video_url":
+          setFormData((prev) => ({
+            ...prev,
+            videoUrl: typeof value === "string" ? value : value[0] || "",
+          }));
+          return;
+        case "cover_image":
+          setFormData((prev) => ({
+            ...prev,
+            coverImageUrl: typeof value === "string" ? value : value[0] || "",
+          }));
+          return;
+        case "additional_materials": {
+          const urls = Array.isArray(value)
+            ? value
+            : value.trim().length > 0
+              ? [value]
+              : [];
+          setFormData((prev) => ({
+            ...prev,
+            additionalMaterialsUrl: urls[0] || "",
+          }));
+          setExtraMaterialsUrls(urls.slice(1));
+          return;
+        }
+        default: {
+          const targetField = effectiveSubmissionFields.find(
+            (field) => field.key === fieldKey
+          );
+          if (!targetField) return;
+          setSubmissionAnswers((prev) => ({
+            ...prev,
+            [targetField.id]: value,
+          }));
+        }
+      }
+    },
+    [effectiveSubmissionFields]
+  );
+
+  const buildArtifactsPayload = useCallback(() => {
+    const artifacts: Array<{
+      kind: "project_link" | "video_link" | "additional_material";
+      label: string;
+      url: string;
+      sort_order: number;
+      is_primary: boolean;
+    }> = [];
+
+    const appendArtifacts = (
+      kind: "project_link" | "video_link" | "additional_material",
+      primaryUrl: string,
+      extras: string[],
+      baseLabel: string
+    ) => {
+      const urls = [primaryUrl, ...extras]
+        .map((item) => item.trim())
+        .filter((item) => item.length > 0);
+
+      urls.forEach((url, index) => {
+        artifacts.push({
+          kind,
+          label: index === 0 ? baseLabel : `${baseLabel} ${index + 1}`,
+          url,
+          sort_order: index,
+          is_primary: index === 0,
+        });
+      });
+    };
+
+    appendArtifacts(
+      "project_link",
+      typeof submissionFieldValues.project_url === "string"
+        ? submissionFieldValues.project_url
+        : "",
+      extraProjectUrls,
+      "Project Link"
+    );
+    appendArtifacts(
+      "video_link",
+      typeof submissionFieldValues.video_url === "string"
+        ? submissionFieldValues.video_url
+        : "",
+      extraVideoUrls,
+      "Video Link"
+    );
+    appendArtifacts(
+      "additional_material",
+      typeof submissionFieldValues.additional_materials === "string"
+        ? submissionFieldValues.additional_materials
+        : Array.isArray(submissionFieldValues.additional_materials)
+          ? submissionFieldValues.additional_materials[0] || ""
+          : "",
+      extraMaterialsUrls,
+      "Additional Material"
+    );
+
+    return artifacts;
+  }, [
+    extraProjectUrls,
+    extraVideoUrls,
+    extraMaterialsUrls,
+    submissionFieldValues.additional_materials,
+    submissionFieldValues.project_url,
+    submissionFieldValues.video_url,
+  ]);
+
   // Create a draft as soon as user starts typing (only once)
   useEffect(() => {
     const hasContent =
@@ -273,57 +494,32 @@ export function NewProjectSubmissionFormSinglePage({
     isAdmin,
   ]);
 
-  // Auto-save functionality with debounce
-  useEffect(() => {
-    if (!projectId || isLoading) return;
-
-    const timer = setTimeout(() => {
-      handleAutoSave();
-    }, 2000);
-
-    return () => clearTimeout(timer);
-  }, [formData, projectId, isLoading]);
-
-  const handleAutoSave = async () => {
-    if (!projectId || isLoading || isSaving) return;
-
-    setIsSaving(true);
-    try {
-      // Filter out invited users (those not in the participants list)
-      // Only save teammates who are actual event participants
-      const participantEmails = participants.map((p) => p.email.toLowerCase());
-      const validTeammates = formData.teammates.filter((email) =>
+  const participantEmails = useMemo(
+    () => participants.map((participant) => participant.email.toLowerCase()),
+    [participants]
+  );
+  const validTeammates = useMemo(
+    () =>
+      formData.teammates.filter((email) =>
         participantEmails.includes(email.toLowerCase())
-      );
+      ),
+    [formData.teammates, participantEmails]
+  );
 
-      const payload: Record<string, unknown> = {
-        project_name: formData.projectName.trim() || undefined,
-        project_description: formData.projectDescription.trim() || undefined,
-        project_url: formData.projectUrl.trim() || undefined,
-        video_url: formData.videoUrl.trim() || null,
-        cover_image_url: formData.coverImageUrl.trim() || undefined,
-        additional_materials_url:
-          formData.additionalMaterialsUrl.trim() || undefined,
-        lead_name: formData.leadName,
-        lead_email: formData.leadEmail,
-        teammates: validTeammates,
-      };
-
-      const resp = await fetch(`/api/projects/${projectId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      if (resp.ok) {
-        setLastSaved(new Date());
-      }
-    } catch (e) {
-      // Silent failure
-    } finally {
-      setIsSaving(false);
-    }
-  };
+  const { lastSaved } = useProjectSubmissionAutosave({
+    enabled: !isLoading,
+    projectId,
+    fields: effectiveSubmissionFields,
+    values: submissionFieldValues,
+    hasConfiguredSubmissionFields,
+    artifacts: hasConfiguredSubmissionFields ? undefined : buildArtifactsPayload(),
+    extraPayload: {
+      lead_name: formData.leadName,
+      lead_email: formData.leadEmail,
+      teammates: validTeammates,
+      private: isPrivate,
+    },
+  });
 
   const handleCoverImageUpload = async (
     e: React.ChangeEvent<HTMLInputElement>
@@ -332,7 +528,8 @@ export function NewProjectSubmissionFormSinglePage({
     if (!file) return;
 
     try {
-      const fileName = createUploadedStorageFileName(file.name);
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
       const filePath = `project-covers/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
@@ -353,7 +550,6 @@ export function NewProjectSubmissionFormSinglePage({
       } = supabase.storage.from("project-materials").getPublicUrl(filePath);
 
       setFormData((prev) => ({ ...prev, coverImageUrl: publicUrl }));
-      setIsEditingCoverImageUrl(false);
 
       toast({
         title: "Success",
@@ -368,14 +564,10 @@ export function NewProjectSubmissionFormSinglePage({
     }
   };
 
-  const handleAdditionalMaterialsUpload = async (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const uploadAdditionalMaterialFile = async (file: File) => {
     try {
-      const fileName = createUploadedStorageFileName(file.name);
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
       const filePath = `project-materials/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
@@ -388,26 +580,21 @@ export function NewProjectSubmissionFormSinglePage({
           description: "Failed to upload file",
           variant: "destructive",
         });
-        return;
+        return null;
       }
 
       const {
         data: { publicUrl },
       } = supabase.storage.from("project-materials").getPublicUrl(filePath);
 
-      setFormData((prev) => ({ ...prev, additionalMaterialsUrl: publicUrl }));
-      setIsEditingMaterialsUrl(false);
-
-      toast({
-        title: "Success",
-        description: "Additional materials uploaded successfully",
-      });
+      return publicUrl;
     } catch {
       toast({
         title: "Error",
         description: "Failed to upload additional materials",
         variant: "destructive",
       });
+      return null;
     }
   };
 
@@ -426,62 +613,6 @@ export function NewProjectSubmissionFormSinglePage({
     setFormData((prev) => ({ ...prev, teammates: emails }));
   };
 
-  // Prefill via Contextus
-  const handlePrefill = async () => {
-    if (!isAdmin) {
-      toast({
-        title: "Access Denied",
-        description:
-          "Only administrators can use the Contextus prefill feature.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsPrefilling(true);
-    try {
-      const resp = await fetch("/api/contextus/prefill", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(
-          projectId ? { projectId } : { eventId, leadEmail: formData.leadEmail }
-        ),
-      });
-      if (!resp.ok) {
-        const err = await resp.json().catch(() => ({}));
-        throw new Error(err.error || `Prefill failed: ${resp.status}`);
-      }
-      const json = await resp.json();
-      const data = json?.data || {};
-
-      setFormData((prev) => ({
-        ...prev,
-        projectName: data.projectName || prev.projectName,
-        projectDescription: data.projectDescription || prev.projectDescription,
-        teammates: Array.isArray(data.teammates)
-          ? data.teammates
-          : prev.teammates,
-        projectUrl: data.projectUrl || prev.projectUrl,
-        videoUrl: data.videoUrl || prev.videoUrl,
-      }));
-
-      toast({
-        title: "Form Prefilled",
-        description:
-          "Imported details from Contextus. Review and adjust as needed.",
-      });
-    } catch (error) {
-      toast({
-        title: "Prefill Error",
-        description:
-          error instanceof Error ? error.message : "Unable to prefill.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsPrefilling(false);
-    }
-  };
-
   // Submit
   const handlePublish = async () => {
     setIsSubmitting(true);
@@ -496,11 +627,21 @@ export function NewProjectSubmissionFormSinglePage({
       return;
     }
 
-    if (formData.projectDescription.trim().length < 10) {
+    const missingRequiredField = effectiveSubmissionFields.find((field) => {
+      if (!field.required) return false;
+      const value = submissionFieldValues[field.key];
+      if (
+        field.field_type === "multi_url" ||
+        field.field_type === "multi_select"
+      ) {
+        return !Array.isArray(value) || value.every((url) => !url.trim());
+      }
+      return typeof value !== "string" || value.trim().length === 0;
+    });
+    if (missingRequiredField) {
       toast({
-        title: "Insufficient Project Description",
-        description:
-          "Please provide a more detailed project description (minimum 10 characters).",
+        title: "Missing required answer",
+        description: `Please answer "${missingRequiredField.label}" before publishing.`,
         variant: "destructive",
       });
       setIsSubmitting(false);
@@ -510,11 +651,6 @@ export function NewProjectSubmissionFormSinglePage({
     try {
       // Filter out invited users (those not in the participants list)
       // Only submit teammates who are actual event participants
-      const participantEmails = participants.map((p) => p.email.toLowerCase());
-      const validTeammates = formData.teammates.filter((email) =>
-        participantEmails.includes(email.toLowerCase())
-      );
-
       const payload = {
         projectId,
         projectName: formData.projectName,
@@ -525,9 +661,15 @@ export function NewProjectSubmissionFormSinglePage({
         projectUrl: formData.projectUrl,
         coverImageUrl: formData.coverImageUrl,
         additionalMaterialsUrl: formData.additionalMaterialsUrl,
+        private: isPrivate,
         eventId,
         trackIds: selectedTrackIds,
         videoUrl: formData.videoUrl,
+        artifacts: hasConfiguredSubmissionFields ? [] : buildArtifactsPayload(),
+        submissionAnswers: buildSubmissionAnswersPayload(
+          effectiveSubmissionFields,
+          submissionFieldValues
+        ),
       };
 
       if (eventId) {
@@ -572,8 +714,7 @@ export function NewProjectSubmissionFormSinglePage({
 
       toast({
         title: "Project Successfully Shared!",
-        description:
-          "Your project is now available for others to view and provide feedback.",
+        description: getProjectVisibilityDescription(isPrivate),
       });
       onProjectSubmitted?.();
       router.push(`/projects/${data.data?.id || data.id}`);
@@ -648,8 +789,7 @@ export function NewProjectSubmissionFormSinglePage({
 
       toast({
         title: "Project Successfully Shared!",
-        description:
-          "Your project and intake form have been submitted successfully.",
+        description: `${getProjectVisibilityDescription(isPrivate)} Your intake form was submitted too.`,
       });
       onProjectSubmitted?.();
       setShowIntakeDialog(false);
@@ -744,7 +884,7 @@ export function NewProjectSubmissionFormSinglePage({
   const totalMembers = (formData.teammates?.length || 0) + 1;
 
   return (
-    <div className="bg-white mb-8">
+    <div className="min-h-full bg-gradient-to-br from-blue-100/45 via-transparent to-transparent sm:pb-8 pb-24">
       <Toaster />
       {activeIntakeForm ? (
         <ParticipantIntakeDialog
@@ -804,92 +944,113 @@ export function NewProjectSubmissionFormSinglePage({
         {/* Main Content */}
         <div className="bg-gradient-to-br from-blue-100/45 via-transparent to-transparent">
           <div className="px-8 py-6 min-h-[800px]">
-            <div className="flex items-center justify-between mb-6 flex-wrap gap-2 sm:gap-0">
-              <div className="relative">
-                <button
-                  onClick={() =>
-                    setShowVisibilityDropdown(!showVisibilityDropdown)
-                  }
-                  className="flex items-center gap-2 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] px-3 py-2 h-[44px] w-[142px] hover:bg-gray-50 transition-colors"
-                >
-                  <Public className="w-6 h-6" />
-                  <span className="text-[16px] font-normal">
-                    {visibility.charAt(0).toUpperCase() + visibility.slice(1)}
-                  </span>
-                  <svg
-                    className="w-6 h-6 ml-auto"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                  >
-                    <path
-                      d="M7 10l5 5 5-5"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </button>
-
-                {showVisibilityDropdown && (
-                  <div className="absolute top-full py-1.5 px-1 mt-2 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] shadow-lg z-10 w-[160px] overflow-hidden">
-                    {[EventVisibility.Public, EventVisibility.Private].map(
-                      (vis) => (
-                        <button
-                          key={vis}
-                          onClick={() => {
-                            setVisibility(vis);
-                            setShowVisibilityDropdown(false);
-                          }}
-                          className="w-full text-left px-3 py-2 hover:bg-[#F2F2F2] text-[16px] rounded-[8px]"
-                        >
-                          {vis.charAt(0).toUpperCase() + vis.slice(1)}
-                        </button>
-                      )
-                    )}
-                  </div>
-                )}
+            {/* TODO(lia, #660): Fix mobile layout of this top bar.
+                Currently on mobile (<640px), the visibility dropdown + 3 action
+                buttons wrap awkwardly with text breaking mid-word.
+                Options:
+                  1. Stack vertically full-width on mobile
+                  2. Hide "Delete draft" in an overflow menu
+                  3. Compact icon-only buttons on mobile
+                Keep desktop layout unchanged. Match MM design system (12px radius,
+                #4b89ef primary, Inter). The mobile Publish button is already
+                available in a sticky bottom bar (PR #639), so the top version
+                can be more compact. */}
+            <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="relative w-full sm:w-auto">
+                <ProjectPrivacySelect
+                  value={isPrivate}
+                  onValueChange={setIsPrivate}
+                />
               </div>
-              <div className="flex items-center gap-1 justify-end">
-                <Button
-                  variant="secondary"
-                  onClick={() =>
-                    router.push(
-                      eventDetails?.slug
-                        ? `/events/${eventDetails.slug}/overview`
-                        : eventId
-                          ? `/events/${eventId}/overview`
-                          : `/projects`
-                    )
-                  }
-                  className="bg-[#f2f2f2] hover:bg-[#e8e8e8] text-black rounded-xl px-6 py-2.5 shadow-sm font-medium"
-                >
-                  Save draft and exit
-                </Button>
-                <Button
-                  onClick={handleDeleteDraft}
-                  disabled={isDeletingDraft}
-                  className="bg-red-600 hover:bg-red-700 text-white rounded-xl px-6 py-2.5 shadow-sm font-medium"
-                >
-                  Delete draft
-                </Button>
-                <Button
-                  onClick={handlePublish}
-                  disabled={isSubmitting}
-                  className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-6 py-2.5 shadow-sm font-medium"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Publishing...
-                    </>
-                  ) : (
-                    "Publish project"
+              <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
+                {/* Desktop actions */}
+                <div className="hidden items-center gap-1 sm:flex">
+                  <Button
+                    variant="secondary"
+                    onClick={() =>
+                      router.push(
+                        eventDetails?.slug
+                          ? `/events/${eventDetails.slug}/overview`
+                          : eventId
+                            ? `/events/${eventId}/overview`
+                            : `/projects`
+                      )
+                    }
+                    className="bg-[#f2f2f2] hover:bg-[#e8e8e8] text-black rounded-xl px-6 py-2.5 shadow-sm font-medium"
+                  >
+                    Save draft and exit
+                  </Button>
+                  <Button
+                    onClick={handleDeleteDraft}
+                    disabled={isDeletingDraft}
+                    className="bg-red-600 hover:bg-red-700 text-white rounded-xl px-6 py-2.5 shadow-sm font-medium"
+                  >
+                    Delete draft
+                  </Button>
+                  <Button
+                    onClick={handlePublish}
+                    disabled={isSubmitting}
+                    className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-6 py-2.5 shadow-sm font-medium"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Publishing...
+                      </>
+                    ) : (
+                      "Publish project"
+                    )}
+                  </Button>
+                </div>
+
+                {/* Mobile overflow actions */}
+                <div className="relative sm:hidden">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="rounded-xl border-[rgba(0,0,0,0.15)] bg-white"
+                    onClick={() =>
+                      setShowMobileActions((prev) => !prev)
+                    }
+                  >
+                    <MoreHorizontal className="h-5 w-5" />
+                  </Button>
+                  {showMobileActions && (
+                    <div className="absolute right-0 mt-2 w-56 bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] shadow-lg z-20 py-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowMobileActions(false);
+                          router.push(
+                            eventDetails?.slug
+                              ? `/events/${eventDetails.slug}/overview`
+                              : eventId
+                                ? `/events/${eventId}/overview`
+                                : `/projects`
+                          );
+                        }}
+                        className="w-full text-left px-4 py-2.5 text-[15px] hover:bg-[#F2F2F2]"
+                      >
+                        Save draft and exit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowMobileActions(false);
+                          handleDeleteDraft();
+                        }}
+                        disabled={isDeletingDraft}
+                        className="w-full text-left px-4 py-2.5 text-[15px] text-red-600 hover:bg-[#FCE8E6] disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                        Delete draft
+                      </button>
+                    </div>
                   )}
-                </Button>
+                </div>
               </div>
             </div>
-            <div className="flex justify-between gap-[50px] sm:gap-[85px] flex-wrap-reverse sm:flex-nowrap">
+          <div className="flex items-start justify-between gap-[50px] sm:gap-[85px] flex-wrap-reverse sm:flex-nowrap">
               {/* Left Side - Form */}
               <div className="flex-1 space-y-6">
                 <div className="space-y-1">
@@ -902,70 +1063,42 @@ export function NewProjectSubmissionFormSinglePage({
                   </p>
                 </div>
 
-                {/* {isAdmin && (
-                  <Button
-                    variant="secondary"
-                    className="flex items-center gap-2"
-                    onClick={handlePrefill}
-                    disabled={isPrefilling}
-                  >
-                    {isPrefilling ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Prefilling...
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="h-4 w-4" />
-                        Fill out this form for me
-                      </>
-                    )}
-                  </Button>
-                )} */}
-
                 <div className="space-y-4">
-                  {/* Project Name */}
-                  <div className="space-y-2">
-                    <label className="text-base text-black font-normal">
-                      Project name
-                    </label>
-                    <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-3 py-2 flex items-center gap-3 h-11">
-                      <TextFields className="h-6 w-6 shrink-0" />
-                      <Input
-                        value={formData.projectName}
-                        onChange={(e) =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            projectName: e.target.value,
-                          }))
-                        }
-                        placeholder="Short description shown in the preview card"
-                        className="border-0 p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0 text-base"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Project Description */}
-                  <div className="space-y-2">
-                    <label className="text-base text-black font-normal">
-                      Project Description
-                    </label>
-                    <Textarea
-                      value={formData.projectDescription}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          projectDescription: e.target.value,
-                        }))
+                  <ProjectSubmissionSchemaSection
+                    fields={effectiveSubmissionFields}
+                    values={submissionFieldValues}
+                    onValueChange={handleSubmissionFieldChange}
+                    onFileUpload={async (fieldKey, file) => {
+                      if (fieldKey === "cover_image") {
+                        const event = {
+                          target: { files: [file] },
+                        } as unknown as React.ChangeEvent<HTMLInputElement>;
+                        await handleCoverImageUpload(event);
+                        return;
                       }
-                      placeholder="Long description or markdown"
-                      rows={7}
-                      className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-3 py-2 text-base resize-none"
-                    />
-                  </div>
 
-                  {/* Divider */}
-                  <div className="border-t border-dashed border-gray-200" />
+                      const uploadedUrl = await uploadAdditionalMaterialFile(file);
+                      if (!uploadedUrl) return;
+
+                      if (fieldKey === "additional_materials") {
+                        handleSubmissionFieldChange(fieldKey, [
+                          ...(
+                            Array.isArray(submissionFieldValues.additional_materials)
+                              ? submissionFieldValues.additional_materials
+                              : []
+                          ),
+                          uploadedUrl,
+                        ]);
+                        return;
+                      }
+
+                      handleSubmissionFieldChange(fieldKey, uploadedUrl);
+                    }}
+                    showDescriptionPreview={showDescriptionPreview}
+                    onToggleDescriptionPreview={() =>
+                      setShowDescriptionPreview((prev) => !prev)
+                    }
+                  />
 
                   {/* Tracks Selection (if event has tracks) */}
                   {eventId && availableTracks && availableTracks.length > 0 && (
@@ -999,158 +1132,90 @@ export function NewProjectSubmissionFormSinglePage({
                     </div>
                   )}
 
-                  {/* Cover Image */}
-                  <div className="space-y-2">
-                    <label className="text-base text-black font-normal">
-                      Cover image
-                    </label>
-                    <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-3 py-2 flex items-center gap-3 min-h-11">
-                      <ImageIcon className="h-6 w-6 shrink-0" />
-                      {isEditingCoverImageUrl || !formData.coverImageUrl ? (
-                        <Input
-                          value={formData.coverImageUrl}
-                          onChange={(e) =>
-                            setFormData((prev) => ({
-                              ...prev,
-                              coverImageUrl: e.target.value,
-                            }))
-                          }
-                          placeholder="https://..."
-                          className="border-0 p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0 text-base truncate"
-                        />
-                      ) : (
-                        <span className="flex-1 text-base truncate text-[rgba(0,0,0,0.8)]">
-                          {getDisplayFileNameFromUrl(
-                            formData.coverImageUrl,
-                            "cover-image"
-                          )}
-                        </span>
-                      )}
-                      {formData.coverImageUrl && (
-                        <button
+                  {!hasConfiguredSubmissionFields ? (
+                    <>
+                      <div className="space-y-2">
+                        <label className="text-base text-black font-normal">
+                          Additional project links (Optional)
+                        </label>
+                        {extraProjectUrls.map((url, index) => (
+                          <div key={`project-link-extra-${index}`} className="flex gap-2">
+                            <Input
+                              value={url}
+                              onChange={(e) =>
+                                setExtraProjectUrls((prev) =>
+                                  prev.map((item, itemIndex) =>
+                                    itemIndex === index ? e.target.value : item
+                                  )
+                                )
+                              }
+                              placeholder="https://..."
+                              className="h-11"
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() =>
+                                setExtraProjectUrls((prev) =>
+                                  prev.filter((_, itemIndex) => itemIndex !== index)
+                                )
+                              }
+                            >
+                              Remove
+                            </Button>
+                          </div>
+                        ))}
+                        <Button
                           type="button"
-                          onClick={() =>
-                            setIsEditingCoverImageUrl((prev) => !prev)
-                          }
-                          className="text-xs text-[#4b89ef] hover:text-[#3d75d9] shrink-0"
+                          variant="outline"
+                          onClick={() => setExtraProjectUrls((prev) => [...prev, ""])}
                         >
-                          {isEditingCoverImageUrl ? "Done" : "Edit URL"}
-                        </button>
-                      )}
-                      <label className="bg-[rgba(0,0,0,0.05)] shadow-sm rounded-xl px-3 py-1 cursor-pointer shrink-0">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleCoverImageUpload}
-                          className="hidden"
-                        />
-                        <span className="text-xs text-black font-normal">
-                          {formData.coverImageUrl ? "Replace" : "Upload"}
-                        </span>
-                      </label>
-                    </div>
-                    <p className="text-base text-[#7f7f7f]">
-                      Upload an image to showcase your project (Max 10MB).
-                    </p>
-                  </div>
+                          Add another project link
+                        </Button>
+                      </div>
 
-                  {/* Additional Materials */}
-                  <div className="space-y-2">
-                    <label className="text-base text-black font-normal">
-                      Additional materials
-                    </label>
-                    <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-3 py-2 flex items-center gap-3 min-h-11">
-                      <Paperclip className="h-6 w-6 shrink-0" />
-                      {isEditingMaterialsUrl ||
-                      !formData.additionalMaterialsUrl ? (
-                        <Input
-                          value={formData.additionalMaterialsUrl}
-                          onChange={(e) =>
-                            setFormData((prev) => ({
-                              ...prev,
-                              additionalMaterialsUrl: e.target.value,
-                            }))
-                          }
-                          placeholder="https://..."
-                          className="border-0 p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0 text-base truncate"
-                        />
-                      ) : (
-                        <span className="flex-1 text-base truncate text-[rgba(0,0,0,0.8)]">
-                          {getDisplayFileNameFromUrl(
-                            formData.additionalMaterialsUrl
-                          )}
-                        </span>
-                      )}
-                      {formData.additionalMaterialsUrl && (
-                        <button
+                      <div className="space-y-2">
+                        <label className="text-base text-black font-normal">
+                          Additional video links (Optional)
+                        </label>
+                        {extraVideoUrls.map((url, index) => (
+                          <div key={`video-link-extra-${index}`} className="flex gap-2">
+                            <Input
+                              value={url}
+                              onChange={(e) =>
+                                setExtraVideoUrls((prev) =>
+                                  prev.map((item, itemIndex) =>
+                                    itemIndex === index ? e.target.value : item
+                                  )
+                                )
+                              }
+                              placeholder="https://..."
+                              className="h-11"
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() =>
+                                setExtraVideoUrls((prev) =>
+                                  prev.filter((_, itemIndex) => itemIndex !== index)
+                                )
+                              }
+                            >
+                              Remove
+                            </Button>
+                          </div>
+                        ))}
+                        <Button
                           type="button"
-                          onClick={() => setIsEditingMaterialsUrl((prev) => !prev)}
-                          className="text-xs text-[#4b89ef] hover:text-[#3d75d9] shrink-0"
+                          variant="outline"
+                          onClick={() => setExtraVideoUrls((prev) => [...prev, ""])}
                         >
-                          {isEditingMaterialsUrl ? "Done" : "Edit URL"}
-                        </button>
-                      )}
-                      <label className="bg-[rgba(0,0,0,0.05)] shadow-sm rounded-xl px-3 py-1 cursor-pointer shrink-0">
-                        <input
-                          type="file"
-                          onChange={handleAdditionalMaterialsUpload}
-                          className="hidden"
-                        />
-                        <span className="text-xs text-black font-normal">
-                          {formData.additionalMaterialsUrl
-                            ? "Replace"
-                            : "Upload"}
-                        </span>
-                      </label>
-                    </div>
-                    <p className="text-base text-[#7f7f7f]">
-                      Upload any additional documentation (Max 10MB).
-                    </p>
-                  </div>
+                          Add another video link
+                        </Button>
+                      </div>
+                    </>
+                  ) : null}
 
-                  {/* GitHub or Live Link */}
-                  <div className="space-y-2">
-                    <label className="text-base text-black font-normal">
-                      GitHub or live link (Optional)
-                    </label>
-                    <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-3 py-2 flex items-center gap-3 h-11">
-                      <Github className="h-6 w-6 shrink-0" />
-                      <Input
-                        value={formData.projectUrl}
-                        onChange={(e) =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            projectUrl: e.target.value,
-                          }))
-                        }
-                        placeholder="https://..."
-                        className="border-0 p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0 text-base text-[rgba(0,0,0,0.6)]"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Video Link */}
-                  <div className="space-y-2">
-                    <label className="text-base text-black font-normal">
-                      Video link (Optional)
-                    </label>
-                    <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-3 py-2 flex items-center gap-3 h-11">
-                      <Youtube className="h-6 w-6 shrink-0" />
-                      <Input
-                        value={formData.videoUrl}
-                        onChange={(e) =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            videoUrl: e.target.value,
-                          }))
-                        }
-                        placeholder="https://..."
-                        className="border-0 p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0 text-base text-[rgba(0,0,0,0.6)]"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Divider */}
                   <div className="border-t border-dashed border-gray-200" />
 
                   {/* Add Teammates */}
@@ -1198,7 +1263,7 @@ export function NewProjectSubmissionFormSinglePage({
                     {/* Cover Image */}
                     <div className="aspect-[339/220] relative">
                       {formData.coverImageUrl ? (
-                        <img
+                        <CoverImageWithFallback
                           src={formData.coverImageUrl}
                           alt="Cover"
                           className="w-full h-full object-cover"
@@ -1297,25 +1362,21 @@ export function NewProjectSubmissionFormSinglePage({
                         Submitted to
                       </h3>
                       <div className="w-[339px]">
-                        <Link
-                          href={`/events/${eventDetails.event_id}/overview`}
-                        >
-                          <EventCard
-                            event={{
-                              event_id: eventDetails.event_id,
-                              slug: eventDetails.slug,
-                              event_name: eventDetails.event_name,
-                              event_date: eventDetails.event_date,
-                              location: eventDetails.location || "Online",
-                              cover_image_url: eventDetails.cover_image_url,
-                              paid: eventDetails.paid,
-                              event_blurb:
-                                eventDetails.event_blurb ||
-                                eventDetails.event_description,
-                              event_description: eventDetails.event_description,
-                            }}
-                          />
-                        </Link>
+                        <EventCard
+                          event={{
+                            event_id: eventDetails.event_id,
+                            slug: eventDetails.slug,
+                            event_name: eventDetails.event_name,
+                            event_date: eventDetails.event_date,
+                            location: eventDetails.location || "Online",
+                            cover_image_url: eventDetails.cover_image_url,
+                            paid: eventDetails.paid,
+                            event_blurb:
+                              eventDetails.event_blurb ||
+                              eventDetails.event_description,
+                            event_description: eventDetails.event_description,
+                          }}
+                        />
                       </div>
                     </div>
                   </>
@@ -1324,6 +1385,24 @@ export function NewProjectSubmissionFormSinglePage({
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Mobile sticky bottom submit bar */}
+      <div className="sm:hidden fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-[rgba(0,0,0,0.15)] px-4 py-3 shadow-[0_-4px_12px_rgba(0,0,0,0.08)]">
+        <Button
+          onClick={handlePublish}
+          disabled={isSubmitting}
+          className="w-full bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl py-3 shadow-sm font-medium text-base"
+        >
+          {isSubmitting ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Publishing...
+            </>
+          ) : (
+            "Publish project"
+          )}
+        </Button>
       </div>
     </div>
   );

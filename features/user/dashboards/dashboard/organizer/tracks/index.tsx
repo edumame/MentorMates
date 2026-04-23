@@ -9,6 +9,7 @@ import { useEventArchiveStatus } from "@/lib/hooks/use-event-archive-status";
 import { TracksTab } from "./TracksTab";
 import { PrizesTab } from "./PrizesTab";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Info } from "lucide-react";
 
 interface EventTracksContainerProps {
   eventId: string;
@@ -50,23 +51,47 @@ export function EventTracksContainer({
           </Alert>
         </div>
       )}
+      
+      {/* Help banner explaining tracks, criteria, and weights */}
+      <div className="mb-4">
+        <Alert className="border-blue-200 bg-blue-50">
+          <Info className="h-4 w-4 text-blue-600" />
+          <AlertTitle className="text-blue-900">
+            How tracks and scoring work
+          </AlertTitle>
+          <AlertDescription className="text-blue-800 space-y-1">
+            <p>
+              <strong>Tracks</strong> are categories that participants submit
+              projects to (e.g., &quot;Best AI Project&quot;, &quot;Best
+              Design&quot;). Each track has its own{" "}
+              <strong>scoring criteria</strong>.
+            </p>
+            <p>
+              <strong>Criteria</strong> are what judges score within a track
+              (e.g., Technical Execution, Creativity). Each criterion has a{" "}
+              <strong>weight</strong> — a number that determines how much it
+              contributes to the final score. Weights are automatically
+              normalized, so they don&apos;t need to sum to exactly 100%.
+            </p>
+          </AlertDescription>
+        </Alert>
+      </div>
 
       <Tabs value={activeSubTab} onValueChange={setActiveSubTab}>
-        {/* Sub tabs like Figma (simple pill switch) */}
-        <TabsList className="inline-flex h-9 items-center justify-center rounded-full bg-white p-1 ring-1 ring-black/10">
-            <TabsTrigger
-              value="tracks"
-            className="rounded-full px-3.5 text-xs sm:text-sm data-[state=active]:bg-gray-100 data-[state=active]:shadow-none"
-            >
-              Tracks &amp; scoring
-            </TabsTrigger>
-            <TabsTrigger
-              value="prizes"
-            className="rounded-full px-3.5 text-xs sm:text-sm data-[state=active]:bg-gray-100 data-[state=active]:shadow-none"
-            >
-              Prizes
-            </TabsTrigger>
-          </TabsList>
+        <TabsList className="flex h-auto gap-2 p-0 justify-start bg-transparent border-0 shadow-none rounded-none">
+          <TabsTrigger
+            value="tracks"
+            className="flex items-center justify-center px-4 py-2.5 rounded-[100px] text-base leading-[1.5] text-[var(--Color-Scheme-1-Text,#000)] font-normal border border-transparent bg-transparent data-[state=active]:font-medium data-[state=active]:bg-[var(--Color-Scheme-1-Foreground,#FFF)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none"
+          >
+            Tracks &amp; scoring
+          </TabsTrigger>
+          <TabsTrigger
+            value="prizes"
+            className="flex items-center justify-center px-4 py-2.5 rounded-[100px] text-base leading-[1.5] text-[var(--Color-Scheme-1-Text,#000)] font-normal border border-transparent bg-transparent data-[state=active]:font-medium data-[state=active]:bg-[var(--Color-Scheme-1-Foreground,#FFF)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none"
+          >
+            Prizes
+          </TabsTrigger>
+        </TabsList>
 
         {/* Tracks */}
         <TabsContent value="tracks" className="mt-4">

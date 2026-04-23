@@ -68,7 +68,7 @@ export function ApprovalSettingsTab({
 
   return (
     <div className="space-y-6">
-      <div className="space-y-4 p-4 border rounded-lg bg-card">
+      <div className="space-y-4 p-4 border rounded-[16px] bg-card">
         <h3 className="text-lg font-semibold">Participant Approval</h3>
         <p className="text-sm text-muted-foreground">
           Control whether participants need organizer approval before they can
@@ -119,7 +119,7 @@ export function ApprovalSettingsTab({
         )}
       </div>
 
-      <div className="space-y-4 p-4 border rounded-lg bg-card opacity-60">
+      <div className="space-y-4 p-4 border rounded-[16px] bg-card opacity-60">
         <h3 className="text-lg font-semibold">
           Per-Role Approval{" "}
           <span className="text-sm font-normal text-muted-foreground">
@@ -132,7 +132,7 @@ export function ApprovalSettingsTab({
         </p>
       </div>
 
-      <div className="space-y-4 p-4 border rounded-lg bg-card">
+      <div className="space-y-4 p-4 border rounded-[16px] bg-card">
         <h3 className="text-lg font-semibold">Registration Questionnaire</h3>
         <p className="text-sm text-muted-foreground">
           Questionnaire requirement is now automatic: participants must complete

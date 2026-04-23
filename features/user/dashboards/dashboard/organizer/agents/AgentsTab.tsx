@@ -1412,9 +1412,20 @@ export function AgentsTab({ eventId }: AgentsTabProps) {
                   : "Create an agent to start assigning AI personas to your events."}
             </p>
             {session?.user?.id && search.trim().length === 0 && (
-              <Button size="sm" onClick={() => setDialogOpen(true)} className="mt-4">
-                Add your first agent
-              </Button>
+              <div className="mt-4 flex justify-center">
+                <Button
+                  size="sm"
+                  onClick={() => setDialogOpen(true)}
+                  className="flex justify-center items-center gap-2 rounded-xl py-2 px-5 text-white border-0 shadow-none hover:opacity-90"
+                  style={{
+                    background: "var(--Color-Jacksons-Purple, #4B89EF)",
+                    boxShadow:
+                      "0 32px 24px 0 rgba(255, 255, 255, 0.05) inset, 0 2px 1px 0 rgba(255, 255, 255, 0.25) inset, 0 0 0 1px var(--Opacity-Neutral-Darkest-15, rgba(0, 0, 0, 0.15)) inset, 0 -2px 1px 0 rgba(0, 0, 0, 0.20) inset, 0 1px 2px 0 var(--Opacity-Neutral-Darkest-5, rgba(0, 0, 0, 0.05))",
+                  }}
+                >
+                  Add your first agent
+                </Button>
+              </div>
             )}
           </div>
         )}
