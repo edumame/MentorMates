@@ -8,7 +8,21 @@ import { cn } from "@/lib/utils";
 
 const DropdownMenu = DropdownMenuPrimitive.Root;
 
-const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger;
+// Radix `Trigger` supports `asChild` + children, but some TS setups infer these
+// props as missing. We explicitly include them so app code can safely use:
+// <DropdownMenuTrigger asChild><button ... /></DropdownMenuTrigger>
+type DropdownMenuTriggerProps = React.ComponentPropsWithoutRef<
+  typeof DropdownMenuPrimitive.Trigger
+> & {
+  asChild?: boolean;
+  children?: React.ReactNode;
+};
+
+const DropdownMenuTrigger = React.forwardRef<
+  React.ElementRef<typeof DropdownMenuPrimitive.Trigger>,
+  DropdownMenuTriggerProps
+>((props, ref) => <DropdownMenuPrimitive.Trigger ref={ref} {...props} />);
+DropdownMenuTrigger.displayName = DropdownMenuPrimitive.Trigger.displayName;
 
 const DropdownMenuGroup = DropdownMenuPrimitive.Group;
 
@@ -58,7 +72,10 @@ DropdownMenuSubContent.displayName =
 
 const DropdownMenuContent = React.forwardRef<
   React.ElementRef<typeof DropdownMenuPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Content>
+  React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Content> & {
+    children?: React.ReactNode;
+    className?: string;
+  }
 >(({ className, sideOffset = 4, ...props }, ref) => (
   <DropdownMenuPrimitive.Portal>
     <DropdownMenuPrimitive.Content
@@ -79,8 +96,10 @@ const DropdownMenuItem = React.forwardRef<
   React.ElementRef<typeof DropdownMenuPrimitive.Item>,
   React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Item> & {
     inset?: boolean;
+    children?: React.ReactNode;
+    className?: string;
   }
->(({ className, inset, ...props }, ref) => (
+>(({ className, inset, children, ...props }, ref) => (
   <DropdownMenuPrimitive.Item
     ref={ref}
     className={cn(
@@ -93,7 +112,9 @@ const DropdownMenuItem = React.forwardRef<
       className
     )}
     {...props}
-  />
+  >
+    {children}
+  </DropdownMenuPrimitive.Item>
 ));
 DropdownMenuItem.displayName = DropdownMenuPrimitive.Item.displayName;
 

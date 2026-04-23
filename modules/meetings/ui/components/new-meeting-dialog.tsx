@@ -1,0 +1,29 @@
+import { ResponsiveDialog } from "@/components/responsive-dialog";
+import { useRouter } from "next/navigation";
+import { MeetingForm } from "./meeting-form";
+
+interface NewMeetingDialogProps {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+};
+
+export const NewMeetingDialog = ({ open, onOpenChange } : NewMeetingDialogProps) => {
+    const router = useRouter();
+
+    return (
+        <ResponsiveDialog
+            title="New Conversation"
+            description="Create a new conversation"
+            open={open}
+            onOpenChange={onOpenChange}
+        >
+            <MeetingForm
+                onSuccess={() => {
+                    onOpenChange(false);
+                    router.push(`/learn`);
+                }}
+                onCancel={() => onOpenChange(false)}
+            />
+        </ResponsiveDialog>
+    );
+};

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,8 +9,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { EventSearchInput } from "@/components/ui/event-search-input";
 import { Input } from "@/components/ui/input";
-import { Copy, Download, Plus, QrCode, Search, Share2 } from "lucide-react";
+import { Copy, Download, Plus, QrCode, Share2 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import ProjectBoard from "@/features/projects/components/displays/ProjectBoard/ProjectBoard";
 import { ProjectBoardContext, Project, EventRole } from "@/lib/types";
@@ -39,14 +40,14 @@ export function GalleryContent({
     () => (typeof window !== "undefined" ? window.location.href : "")
   );
   const { toast } = useToast();
-  const qrCodeId = "gallery-share-qr-code";
+  const qrCodeRef = useRef<SVGSVGElement | null>(null);
 
   useEffect(() => {
     const fetchProjects = async () => {
       setIsLoading(true);
       try {
         const response = await fetch(
-          `/api/projects?eventId=${eventId}&public=true`
+          `/api/projects?eventId=${eventId}`
         );
         if (!response.ok) {
           throw new Error("Failed to fetch projects");
@@ -105,7 +106,7 @@ export function GalleryContent({
 
   // Converts the rendered SVG into a canvas so we can copy/download the QR
   const getQrCanvas = async () => {
-    const svg = document.getElementById(qrCodeId) as SVGSVGElement | null;
+    const svg = qrCodeRef.current;
     if (!svg) {
       throw new Error("QR code not ready yet");
     }
@@ -218,16 +219,13 @@ export function GalleryContent({
     <div className="flex flex-col flex-1 w-full">
       {/* Search + Share */}
       <div className="flex flex-col gap-4 mb-6 sm:flex-row sm:items-center sm:justify-between">
-        <div className="bg-transparent border border-[rgba(0,0,0,0.15)] rounded-xl flex gap-3 items-center px-3 py-2 w-full sm:max-w-[560px]">
-          <Search className="w-6 h-6 text-black shrink-0" />
-          <input
-            type="text"
-            placeholder="Search projects by name or team members"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="font-normal text-[16px] leading-[1.5] text-black placeholder:text-[rgba(0,0,0,0.6)] bg-transparent border-none outline-none flex-1"
-          />
-        </div>
+        <EventSearchInput
+          wrapperClassName="w-full sm:max-w-[560px]"
+          placeholder="Search projects by name or team members"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          inputClassName="text-[16px] leading-[1.5] sm:text-[16px]"
+        />
 
         <Button
           variant="outline"
@@ -307,7 +305,7 @@ export function GalleryContent({
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="p-4 border border-zinc-200 rounded-2xl bg-white flex items-center justify-center">
                   <QRCodeSVG
-                    id={qrCodeId}
+                    ref={qrCodeRef}
                     value={
                       galleryUrl ||
                       (typeof window !== "undefined"

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { MapPin } from "lucide-react";
 import { EventItem } from "@/lib/types";
 import { parseEventDateLocal } from "@/lib/utils/date";
@@ -27,7 +28,7 @@ export function EventCard({ event }: EventCardProps) {
   // Determine if event is paid or free
   const isPaid = event.paid || event.stripe_price_id;
 
-  const eventType = event.event_type || "Hackathon";
+  const eventTypes = event.event_type?.length ? event.event_type : ["Hackathon"];
 
   // Choose the best available summary for the event
   const normalizeSummary = (text?: string | null) =>
@@ -45,12 +46,14 @@ export function EventCard({ event }: EventCardProps) {
     >
       <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] overflow-hidden hover:shadow-lg transition-shadow duration-200 flex flex-col h-full">
         {/* Image Section */}
-        <div className="relative w-full h-48 sm:h-56 lg:h-60">
+        <div className="relative w-full aspect-[335/223] overflow-hidden">
           {event.cover_image_url ? (
-            <img
+            <Image
               src={event.cover_image_url}
               alt={event.event_name}
-              className="w-full h-full object-cover"
+              fill
+              className="object-cover"
+              unoptimized={event.cover_image_url.startsWith("http")}
             />
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-orange-400 via-red-500 to-purple-600" />
@@ -73,11 +76,11 @@ export function EventCard({ event }: EventCardProps) {
         <div className="px-6 py-4 flex flex-col flex-1">
           {/* Event Details Tags */}
           <div className="flex flex-wrap gap-1 mb-3">
-            <span className="px-[10px] py-1 border border-[rgba(0,0,0,0.15)] rounded-full text-[14px] font-semibold text-black">
-              {eventType
-                ? eventType.charAt(0).toUpperCase() + eventType.slice(1)
-                : "Hackathon"}
-            </span>
+            {eventTypes.map((type) => (
+              <span key={type} className="px-[10px] py-1 border border-[rgba(0,0,0,0.15)] rounded-full text-[14px] font-semibold text-black">
+                {type.charAt(0).toUpperCase() + type.slice(1)}
+              </span>
+            ))}
             <span className="px-[10px] py-1 border border-[rgba(0,0,0,0.15)] rounded-full text-[14px] font-semibold text-black">
               {isPaid ? "Paid" : "Free"}
             </span>

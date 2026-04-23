@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
-import { createClient } from "@supabase/supabase-js";
+import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import { ApprovalStatus, EventVisibility } from "@/lib/types";
 
 export async function GET(
   request: NextRequest,
@@ -8,6 +9,7 @@ export async function GET(
 ) {
   try {
     const supabase = await createSupabaseClient();
+    const serviceSupabase = createSupabaseServiceClient();
     const { userId } = await params;
 
     if (!userId) {
@@ -27,7 +29,7 @@ export async function GET(
 
     // Fetch user profile including all social media and profile fields
     // Using * to select all columns for resilience if some columns don't exist yet
-    const { data: profile, error: profileError } = await supabase
+    const { data: profile, error: profileError } = await serviceSupabase
       .from("user_profiles")
       .select("*")
       .eq("uid", userId)
@@ -52,29 +54,47 @@ export async function GET(
       );
     }
 
-    // If avatar_url is not in user_profiles, try to get it from auth metadata
-    // This is useful for Google OAuth users who have a profile picture
-    let avatarUrl = profile?.avatar_url || null;
+    const avatarUrl = profile?.avatar_url || null;
 
-    // Try to fetch avatar from auth user metadata using admin client
-    // Only if we don't already have an avatar URL
-    if (!avatarUrl && process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      try {
-        const adminClient = createClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          process.env.SUPABASE_SERVICE_ROLE_KEY
-        );
-        const { data: authUser } =
-          await adminClient.auth.admin.getUserById(userId);
-        if (authUser?.user?.user_metadata?.avatar_url) {
-          avatarUrl = authUser.user.user_metadata.avatar_url;
-        } else if (authUser?.user?.user_metadata?.picture) {
-          // Google OAuth sometimes uses 'picture' instead of 'avatar_url'
-          avatarUrl = authUser.user.user_metadata.picture;
+    // Fetch phone number from user_phone_numbers table
+    // Only fetch phone numbers for the user's own profile (privacy)
+    let primaryPhoneNumber: string | null = null;
+    const isOwnProfile = loggedInUser.user?.id === userId;
+
+    if (isOwnProfile) {
+      // Prefer verified phone number, otherwise get the most recent one
+      // First try to get a verified phone number
+      const { data: verifiedPhones, error: verifiedError } = await supabase
+        .from("user_phone_numbers")
+        .select("phone_number")
+        .eq("user_id", userId)
+        .eq("verification_status", "verified")
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      if (verifiedError) {
+        console.error("Error fetching verified phone number:", verifiedError);
+      }
+
+      if (verifiedPhones && verifiedPhones.length > 0) {
+        primaryPhoneNumber = verifiedPhones[0].phone_number;
+      } else {
+        // If no verified phone, get the most recent one
+        const { data: recentPhones, error: recentError } = await supabase
+          .from("user_phone_numbers")
+          .select("phone_number")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false })
+          .limit(1);
+
+        if (recentError) {
+          console.error("Error fetching phone number:", recentError);
+          // Don't fail the request if phone number fetch fails
         }
-      } catch (authError) {
-        console.error("Error fetching auth user metadata:", authError);
-        // Continue without avatar if this fails
+
+        if (recentPhones && recentPhones.length > 0) {
+          primaryPhoneNumber = recentPhones[0].phone_number;
+        }
       }
     }
 
@@ -184,15 +204,38 @@ export async function GET(
               updated_at: new Date().toISOString(),
             }))
             .filter(Boolean) || [],
+          submitted: project.submitted,
       }));
 
     // Fetch events where user has roles
+    // If the logged-in user is viewing their own profile, show all events where the user has a role
+    // Otherwise, only show public and approved events where the user has a role
+    const visibilityFilter = isOwnProfile
+      ? [
+          EventVisibility.Public,
+          EventVisibility.Private,
+          EventVisibility.Draft,
+          EventVisibility.Archived,
+          EventVisibility.Test,
+          EventVisibility.Demo,
+        ]
+      : [EventVisibility.Public];
+    const approvalFilter = isOwnProfile
+      ? [
+          ApprovalStatus.Approved,
+          ApprovalStatus.NotSubmitted,
+          ApprovalStatus.Submitted,
+          ApprovalStatus.Rejected,
+        ]
+      : [ApprovalStatus.Approved];
+
     const { data: events, error: eventsError } = await supabase
       .from("events")
       .select(
         `
         event_id,
         event_name,
+        event_type,
         slug,
         event_date,
         location,
@@ -204,11 +247,13 @@ export async function GET(
         role_labels,
         user_event_roles!inner (
           role
-        )
+        ),
+        approval_status
       `
       )
       .eq("user_event_roles.user_id", userId)
-      .in("visibility", ["public", "private", "draft"]);
+      .in("visibility", visibilityFilter)
+      .in("approval_status", approvalFilter);
 
     if (eventsError) {
       console.error("Error fetching events:", eventsError);
@@ -258,10 +303,11 @@ export async function GET(
       });
     }
 
-    // Return profile with avatar_url included
+    // Return profile with avatar_url and phone_number included
     const profileWithAvatar = {
       ...profile,
       avatar_url: avatarUrl,
+      phone_number: primaryPhoneNumber,
     };
 
     return NextResponse.json({

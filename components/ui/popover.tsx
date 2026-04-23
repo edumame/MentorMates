@@ -7,13 +7,30 @@ import { cn } from "@/lib/utils"
 
 const Popover = PopoverPrimitive.Root
 
-const PopoverTrigger = PopoverPrimitive.Trigger
+// Radix `Trigger` supports `asChild` + children, but some TS setups infer these
+// props as missing. We explicitly include them so app code can safely use:
+// <PopoverTrigger asChild><button ... /></PopoverTrigger>
+type PopoverTriggerProps = React.ComponentPropsWithoutRef<
+  typeof PopoverPrimitive.Trigger
+> & {
+  asChild?: boolean
+  children?: React.ReactNode
+}
+
+const PopoverTrigger = React.forwardRef<
+  React.ElementRef<typeof PopoverPrimitive.Trigger>,
+  PopoverTriggerProps
+>((props, ref) => <PopoverPrimitive.Trigger ref={ref} {...props} />)
+PopoverTrigger.displayName = PopoverPrimitive.Trigger.displayName
 
 const PopoverAnchor = PopoverPrimitive.Anchor
 
 const PopoverContent = React.forwardRef<
   React.ElementRef<typeof PopoverPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof PopoverPrimitive.Content>
+  React.ComponentPropsWithoutRef<typeof PopoverPrimitive.Content> & {
+    children?: React.ReactNode
+    className?: string
+  }
 >(({ className, align = "center", sideOffset = 4, ...props }, ref) => (
   <PopoverPrimitive.Portal>
     <PopoverPrimitive.Content

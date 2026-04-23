@@ -2,11 +2,22 @@ import { type NextRequest, NextResponse } from "next/server";
 import { updateSession } from "@/app/utils/supabase/middleware";
 
 export async function middleware(request: NextRequest) {
-  if (request.nextUrl.pathname.startsWith("/relay-V6f6")) {
+  const hostname = request.headers.get('host') || '';
+  const pathname = request.nextUrl.pathname;
+
+  // Handle PostHog proxy
+  if (pathname.startsWith("/relay-V6f6")) {
     return handlePosthog(request);
   }
 
-  // update user's auth session
+  // Redirect /admin on main domain to home (admin only accessible via subdomain)
+  // if (pathname.startsWith('/admin') && !hostname.startsWith('admin.')) {
+  //   const url = request.nextUrl.clone();
+  //   url.pathname = '/';
+  //   return NextResponse.redirect(url);
+  // }
+
+  // Update user's auth session
   return await updateSession(request);
 }
 

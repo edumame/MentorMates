@@ -7,11 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
   CardContent,
 } from "@/components/ui/card";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import {
   Select,
   SelectContent,
@@ -358,25 +361,65 @@ export function PrizesTab({
 
   return (
     <div className="space-y-6">
-      <p className="text-sm text-muted-foreground mb-6">
-        Configure prizes for each track. Prizes can be monetary amounts,
-        descriptions of awards, or other incentives.
-      </p>
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <p className="text-sm md:text-base text-muted-foreground max-w-3xl">
+          Configure prizes for each track. When you’re ready, assign winners from
+          submitted projects.
+        </p>
+
+        <Button
+          onClick={handlePrizesUpdate}
+          disabled={saving || isArchived || loadingProjects}
+          className="w-full md:w-auto"
+        >
+          {saving ? "Saving..." : "Save prizes"}
+        </Button>
+      </div>
 
       {event.event_tracks && event.event_tracks.length > 0 ? (
-        event.event_tracks.map((track) => (
-          <Card key={track.track_id} className="p-4 border-2 border-blue-400">
-            <CardHeader>
-              <CardTitle>{track.name}</CardTitle>
-              <CardDescription>{track.description}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {track.prizes &&
-                track.prizes.map((prize, prizeIndex) => (
-                  <div
-                    key={prize.id || prizeIndex}
-                    className="border rounded-lg p-4 space-y-4"
-                  >
+        <Accordion type="multiple" className="w-full">
+          {event.event_tracks.map((track) => {
+            const prizesCount = track.prizes?.length ?? 0;
+            const winnerCount =
+              prizesWithWinners
+                .filter((p) => p.track_id === track.track_id)
+                .reduce((acc, p) => acc + (p.prize_winners?.length ?? 0), 0) ?? 0;
+
+            return (
+              <AccordionItem key={track.track_id} value={track.track_id}>
+                <AccordionTrigger className="hover:no-underline">
+                  <div className="flex w-full items-center justify-between gap-4">
+                    <div className="min-w-0 text-left">
+                      <div className="text-base sm:text-lg font-semibold text-gray-900">
+                        {track.name}
+                      </div>
+                      {track.description ? (
+                        <div className="mt-0.5 text-sm text-gray-600 line-clamp-1">
+                          {track.description}
+                        </div>
+                      ) : null}
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Badge variant="secondary" className="rounded-full">
+                        {prizesCount} prize{prizesCount === 1 ? "" : "s"}
+                      </Badge>
+                      <Badge
+                        variant="secondary"
+                        className="rounded-full bg-yellow-50 text-yellow-800"
+                      >
+                        {winnerCount} winner{winnerCount === 1 ? "" : "s"}
+                      </Badge>
+                    </div>
+                  </div>
+                </AccordionTrigger>
+
+                <AccordionContent className="pt-2">
+                  <div className="space-y-4">
+                    {track.prizes && track.prizes.length > 0 ? (
+                      track.prizes.map((prize, prizeIndex) => (
+                        <Card key={prize.id || prizeIndex} className="rounded-2xl">
+                          <CardContent className="p-5 space-y-4">
                     {/* Prize Header with Delete Button */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
@@ -642,49 +685,54 @@ export function PrizesTab({
                           ))}
                       </div>
                     )}
+                          </CardContent>
+                        </Card>
+                      ))
+                    ) : (
+                      <div className="rounded-2xl border border-dashed border-gray-200 p-6 text-sm text-gray-600">
+                        No prizes yet. Add your first prize for this track.
+                      </div>
+                    )}
+
+                    <div className="pt-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          const newTracks = [...event.event_tracks!];
+                          const trackIndex = newTracks.findIndex(
+                            (t) => t.track_id === track.track_id
+                          );
+                          if (trackIndex > -1) {
+                            if (!newTracks[trackIndex].prizes) {
+                              newTracks[trackIndex].prizes = [];
+                            }
+                            newTracks[trackIndex].prizes!.push({
+                              id: `local-${crypto.randomUUID()}`,
+                              track_id: track.track_id,
+                              prize_amount: "",
+                              prize_description: "",
+                            });
+                            setEvent({ ...event, event_tracks: newTracks });
+                          }
+                        }}
+                        disabled={isArchived}
+                      >
+                        Add prize
+                      </Button>
+                    </div>
                   </div>
-                ))}
-
-              <Button
-                variant="outline"
-                onClick={() => {
-                  const newTracks = [...event.event_tracks!];
-                  const trackIndex = newTracks.findIndex(
-                    (t) => t.track_id === track.track_id
-                  );
-                  if (trackIndex > -1) {
-                    if (!newTracks[trackIndex].prizes) {
-                      newTracks[trackIndex].prizes = [];
-                    }
-                    newTracks[trackIndex].prizes!.push({
-                      id: `local-${crypto.randomUUID()}`,
-                      track_id: track.track_id,
-                      prize_amount: "",
-                      prize_description: "",
-                    });
-                    setEvent({ ...event, event_tracks: newTracks });
-                  }
-                }}
-                disabled={isArchived}
-              >
-                Add Prize to {track.name}
-              </Button>
-            </CardContent>
-          </Card>
-        ))
+                </AccordionContent>
+              </AccordionItem>
+            );
+          })}
+        </Accordion>
       ) : (
-        <Card>
-          <CardContent className="text-center py-8">
-            <p className="text-gray-600">
-              No tracks found. Please add tracks to manage prizes.
-            </p>
-          </CardContent>
-        </Card>
+        <div className="rounded-2xl border border-dashed border-gray-200 p-8 text-center">
+          <p className="text-gray-600">
+            No tracks found. Add tracks first, then you can define prizes.
+          </p>
+        </div>
       )}
-
-      <Button onClick={handlePrizesUpdate} disabled={saving || isArchived} className="w-full">
-        {saving ? "Saving..." : "Save All Prizes"}
-      </Button>
     </div>
   );
 }

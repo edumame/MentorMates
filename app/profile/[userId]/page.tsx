@@ -1,8 +1,8 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { Session } from "@supabase/supabase-js";
 import {
   Project,
@@ -15,7 +15,14 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Loader2, Camera } from "lucide-react";
+import {
+  CheckCircle2,
+  Circle,
+  Loader2,
+  Camera,
+  GraduationCap,
+  Phone,
+} from "lucide-react";
 import {
   FaLinkedin,
   FaGithub,
@@ -31,6 +38,7 @@ import { useToast } from "@/lib/hooks/use-toast";
 import { Toaster } from "@/components/ui/toaster";
 import { getRoleLabel } from "@/features/user/roles/roles";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
+import { PHONE_NUMBER_TEXT_USAGE_COPY } from "@/lib/constants/privacy";
 import { z } from "zod";
 
 // Interface for events with role information
@@ -43,13 +51,29 @@ interface EventWithRole extends EventDetails {
 // Validation schemas (matching server-side validation)
 const SocialLinksSchema = z
   .object({
-    linkedin: z.string().url("Invalid LinkedIn URL").optional().or(z.literal("")),
+    linkedin: z
+      .string()
+      .url("Invalid LinkedIn URL")
+      .optional()
+      .or(z.literal("")),
     github: z.string().url("Invalid GitHub URL").optional().or(z.literal("")),
     twitter: z.string().url("Invalid Twitter URL").optional().or(z.literal("")),
-    facebook: z.string().url("Invalid Facebook URL").optional().or(z.literal("")),
-    instagram: z.string().url("Invalid Instagram URL").optional().or(z.literal("")),
+    facebook: z
+      .string()
+      .url("Invalid Facebook URL")
+      .optional()
+      .or(z.literal("")),
+    instagram: z
+      .string()
+      .url("Invalid Instagram URL")
+      .optional()
+      .or(z.literal("")),
     youtube: z.string().url("Invalid YouTube URL").optional().or(z.literal("")),
-    portfolio: z.string().url("Invalid Portfolio URL").optional().or(z.literal("")),
+    portfolio: z
+      .string()
+      .url("Invalid Portfolio URL")
+      .optional()
+      .or(z.literal("")),
   })
   .partial();
 
@@ -62,6 +86,18 @@ const ProfileUpdateSchema = z.object({
   bio: z
     .string()
     .max(500, "Bio must be less than 500 characters")
+    .optional()
+    .or(z.literal("")),
+  // Stored in DB as `user_profiles.affiliation` (shown in UI as "School / Company")
+  affiliation: z
+    .string()
+    .max(200, "Affiliation must be less than 200 characters")
+    .optional()
+    .or(z.literal("")),
+  // Stored in DB as `user_phone_numbers.phone_number` (should not be shown publicly)
+  phone_number: z
+    .string()
+    .max(50, "Phone number must be less than 50 characters")
     .optional()
     .or(z.literal("")),
   links: SocialLinksSchema.optional(),
@@ -98,6 +134,11 @@ type ProfileTab = (typeof PROFILE_TABS)[keyof typeof PROFILE_TABS];
 
 export default function ProfilePage() {
   const { userId } = useParams();
+  const searchParams = useSearchParams();
+  const editParam = searchParams.get("edit");
+
+  // We only want to auto-open the edit modal ONCE, even if state changes later.
+  const hasAutoOpenedEditModalRef = useRef(false);
   const [session, setSession] = useState<Session | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -108,6 +149,8 @@ export default function ProfilePage() {
     bio?: string | null;
     avatar_url?: string | null;
     cover_image_url?: string | null;
+    affiliation?: string | null;
+    phone_number?: string | null;
   } | null>(null);
   const [events, setEvents] = useState<EventWithRole[]>([]);
   const [isEditing, setIsEditing] = useState(false);
@@ -115,16 +158,67 @@ export default function ProfilePage() {
   const [isEditingLinks, setIsEditingLinks] = useState(false);
   const [newSocialLinks, setNewSocialLinks] = useState<SocialLinks>({});
   const [newBio, setNewBio] = useState("");
+  const [newAffiliation, setNewAffiliation] = useState("");
+  const [newPhoneNumber, setNewPhoneNumber] = useState("");
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<ProfileTab>(PROFILE_TABS.PROJECTS);
   const [isProfileAdmin, setIsProfileAdmin] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
-  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [validationErrors, setValidationErrors] = useState<
+    Record<string, string>
+  >({});
   const [isSaving, setIsSaving] = useState(false);
+
+  // Keep the profile's project list in sync after deletions from the gallery
+  const handleProjectDeleted = (projectId: string) => {
+    setProjects((prevProjects) =>
+      prevProjects.filter((project) => project.id !== projectId)
+    );
+  };
 
   // Check if the current user is viewing their own profile
   const isOwnProfile = session?.user?.id === userId;
+
+  // "Minimum required" fields to consider the profile complete.
+  // These power the checklist UI inside the edit modal.
+  const requiredChecklist = [
+    {
+      key: "affiliation",
+      label: "School / Company",
+      isComplete: newAffiliation.trim().length > 0,
+    },
+    {
+      key: "phone_number",
+      label: "Phone number (private)",
+      isComplete: newPhoneNumber.trim().length > 0,
+    },
+    {
+      key: "linkedin",
+      label: "LinkedIn URL",
+      isComplete: (newSocialLinks.linkedin ?? "").trim().length > 0,
+    },
+  ] as const;
+
+  const missingRequiredCount = requiredChecklist.filter(
+    (item) => !item.isComplete
+  ).length;
+
+  // If we navigate to `/profile/:id?edit=1`, auto-open the edit modal.
+  // This is used by the navbar "Complete your profile" notification.
+  useEffect(() => {
+    const shouldAutoOpen = editParam === "1" || editParam === "true";
+
+    if (
+      !hasAutoOpenedEditModalRef.current &&
+      shouldAutoOpen &&
+      isOwnProfile &&
+      !isLoading
+    ) {
+      setIsEditingLinks(true);
+      hasAutoOpenedEditModalRef.current = true;
+    }
+  }, [editParam, isOwnProfile, isLoading]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -153,6 +247,8 @@ export default function ProfilePage() {
         // Set profile data
         setUserProfile(profileData.profile);
         setNewSocialLinks(profileData.profile.links || {});
+        setNewAffiliation(profileData.profile.affiliation || "");
+        setNewPhoneNumber(profileData.profile.phone_number || "");
 
         const projectsData: { projects: ProjectWithTracks[] } = {
           projects: profileData.projects,
@@ -195,6 +291,7 @@ export default function ProfilePage() {
                   updated_at: new Date().toISOString(),
                 }))
                 .filter(Boolean) || [],
+            submitted: project.submitted,
           }));
 
         // Set events and projects from API response
@@ -256,8 +353,12 @@ export default function ProfilePage() {
     const updateData = {
       display_name: newDisplayName || undefined,
       bio: newBio || undefined,
+      affiliation: newAffiliation || undefined,
+      phone_number: newPhoneNumber || undefined,
       links: Object.fromEntries(
-        Object.entries(newSocialLinks).filter(([, value]) => value && value.trim() !== "")
+        Object.entries(newSocialLinks).filter(
+          ([, value]) => value && value.trim() !== ""
+        )
       ),
     };
 
@@ -290,22 +391,28 @@ export default function ProfilePage() {
           display_name: newDisplayName || undefined,
           links: newSocialLinks,
           bio: newBio || null,
+          // Empty string should clear the DB field, so send null.
+          affiliation: newAffiliation || null,
+          // Empty string should clear the DB field, so send null.
+          phone_number: newPhoneNumber || null,
         }),
       });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        
+
         // Handle server-side validation errors
         if (errorData.details) {
           const errors: Record<string, string> = {};
-          errorData.details.forEach((err: { path: string[]; message: string }) => {
-            const path = err.path.join(".");
-            errors[path] = err.message;
-          });
+          errorData.details.forEach(
+            (err: { path: string[]; message: string }) => {
+              const path = err.path.join(".");
+              errors[path] = err.message;
+            }
+          );
           setValidationErrors(errors);
         }
-        
+
         throw new Error(errorData.error || "Failed to update profile");
       }
 
@@ -320,6 +427,8 @@ export default function ProfilePage() {
               display_name: newDisplayName,
               links: newSocialLinks,
               bio: newBio,
+              affiliation: newAffiliation || null,
+              phone_number: newPhoneNumber || null,
             }
           : null
       );
@@ -329,7 +438,8 @@ export default function ProfilePage() {
     } catch (error) {
       toast({
         title: "Error updating profile",
-        description: error instanceof Error ? error.message : "Please try again later",
+        description:
+          error instanceof Error ? error.message : "Please try again later",
         variant: "destructive",
       });
       console.error("Error updating profile:", error);
@@ -460,18 +570,18 @@ export default function ProfilePage() {
   // Loading state - show skeleton UI while fetching profile
   if (isLoading) {
     return (
-      <PageContainer showBorder={true}>
+      <PageContainer showBorder={false}>
         <PageContent>
           <div className="flex flex-col w-full animate-pulse">
             {/* Cover Image Skeleton */}
-            <div className="relative h-[200px] md:h-[240px] w-full rounded-tl-2xl overflow-hidden bg-gray-200" />
+            <div className="relative h-[200px] md:h-[240px] w-full rounded-tl-2xl overflow-hidden bg-[#DBEAFE]" />
 
             {/* Profile Header Skeleton */}
             <div
               className="relative px-6 md:px-8 pb-6"
               style={{
                 background:
-                  "linear-gradient(182deg, rgb(219, 234, 254) 0%, rgba(255, 255, 255, 0) 60%), linear-gradient(90deg, rgb(255, 255, 255) 0%, rgb(255, 255, 255) 100%)",
+                  "#DBEAFE",
               }}
             >
               <div className="flex flex-col md:flex-row gap-4 md:gap-6 items-start md:items-end">
@@ -495,7 +605,7 @@ export default function ProfilePage() {
             </div>
 
             {/* Tabs Skeleton */}
-            <div className="border-b border-gray-100 px-6">
+            <div className="px-6 pt-8">
               <div className="flex gap-6 py-3">
                 <div className="h-6 w-20 bg-gray-200 rounded" />
                 <div className="h-6 w-16 bg-gray-200 rounded" />
@@ -503,7 +613,7 @@ export default function ProfilePage() {
             </div>
 
             {/* Content Skeleton */}
-            <div className="p-6">
+            <div className="p-6 border-0">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {[1, 2, 3].map((i) => (
                   <div
@@ -527,7 +637,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <PageContainer showBorder={true}>
+    <PageContainer showBorder={false}>
       <PageContent>
         <Toaster />
 
@@ -536,14 +646,21 @@ export default function ProfilePage() {
           {/* Cover Image Section */}
           <div className="relative h-[200px] md:h-[240px] w-full rounded-tl-2xl overflow-hidden">
             {userProfile?.cover_image_url ? (
-              <img
-                src={userProfile.cover_image_url}
-                alt="Cover"
-                className="w-full h-full object-cover"
+              <div
+                className="w-full h-full"
+                style={{
+                  background:
+                    `url(${userProfile.cover_image_url}) center / cover no-repeat, #DBEAFE`,
+                }}
               />
             ) : (
-              // Default gradient cover when no image
-              <div className="w-full h-full bg-gradient-to-br from-gray-800 via-gray-900 to-black" />
+              // Default solid cover when no image
+              <div
+                className="w-full h-full"
+                style={{
+                  background: "#DBEAFE",
+                }}
+              />
             )}
           </div>
 
@@ -552,7 +669,7 @@ export default function ProfilePage() {
             className="relative px-6 md:px-8 pb-6"
             style={{
               background:
-                "linear-gradient(182deg, rgb(219, 234, 254) 0%, rgba(255, 255, 255, 0) 60%), linear-gradient(90deg, rgb(255, 255, 255) 0%, rgb(255, 255, 255) 100%)",
+                "#DBEAFE",
             }}
           >
             {/* Avatar and Info Row */}
@@ -661,6 +778,22 @@ export default function ProfilePage() {
                   <p className="text-base text-gray-600">
                     {userProfile?.bio || userProfile?.email || ""}
                   </p>
+                  {/* School / Company (stored as `user_profiles.affiliation`) */}
+                  {(userProfile?.affiliation || isOwnProfile) && (
+                    <p className="text-sm text-gray-500 flex items-center gap-2">
+                      <GraduationCap className="w-4 h-4" />
+                      {userProfile?.affiliation
+                        ? userProfile.affiliation
+                        : "Add your school or company (click Edit)"}
+                    </p>
+                  )}
+                  {/* Phone number (private: only visible to the profile owner) */}
+                  {isOwnProfile && userProfile?.phone_number && (
+                    <p className="text-sm text-gray-500 flex items-center gap-2">
+                      <Phone className="w-4 h-4" />
+                      {userProfile.phone_number}
+                    </p>
+                  )}
                 </div>
 
                 {/* Social Links and Action Buttons */}
@@ -739,6 +872,8 @@ export default function ProfilePage() {
                           setIsEditingLinks(true);
                           setNewSocialLinks(userProfile?.links || {});
                           setNewBio(userProfile?.bio || "");
+                          setNewAffiliation(userProfile?.affiliation || "");
+                          setNewPhoneNumber(userProfile?.phone_number || "");
                           setNewDisplayName(userProfile?.display_name || "");
                           setValidationErrors({});
                         }}
@@ -817,7 +952,7 @@ export default function ProfilePage() {
           </div>
 
           {/* Tabs Section */}
-          <div className="border-b border-gray-100 px-6">
+          <div className="px-6 pt-8">
             <div className="flex gap-6">
               <button
                 onClick={() => setActiveTab(PROFILE_TABS.PROJECTS)}
@@ -849,7 +984,7 @@ export default function ProfilePage() {
           </div>
 
           {/* Content Section */}
-          <div className="p-6">
+          <div className="p-6 border-0">
             {activeTab === PROFILE_TABS.PROJECTS && (
               <div>
                 {isLoading ? (
@@ -870,6 +1005,7 @@ export default function ProfilePage() {
                         ? ProjectBoardContext.MyProjects
                         : ProjectBoardContext.EventGallery
                     }
+                    onProjectDeleted={handleProjectDeleted}
                   />
                 )}
               </div>
@@ -984,6 +1120,47 @@ export default function ProfilePage() {
 
               {/* Content */}
               <div className="px-6 pb-6 space-y-6 max-h-[calc(90vh-180px)] overflow-y-auto">
+                {/* Minimum required checklist (so users know what to fill out) */}
+                <div className="rounded-xl border border-black/10 bg-amber-50 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-[14px] font-medium text-zinc-900">
+                      Minimum required to complete your profile
+                    </p>
+                    <span className="text-[12px] text-zinc-700 bg-white/70 border border-black/10 rounded-full px-2 py-0.5">
+                      {missingRequiredCount === 0
+                        ? "All set"
+                        : `${missingRequiredCount} missing`}
+                    </span>
+                  </div>
+                  <div className="mt-3 space-y-2">
+                    {requiredChecklist.map((item) => (
+                      <div
+                        key={item.key}
+                        className="flex items-center gap-2 text-[13px]"
+                      >
+                        {item.isComplete ? (
+                          <CheckCircle2 className="h-4 w-4 text-green-600" />
+                        ) : (
+                          <Circle className="h-4 w-4 text-zinc-400" />
+                        )}
+                        <span
+                          className={
+                            item.isComplete
+                              ? "text-zinc-900"
+                              : "text-zinc-700"
+                          }
+                        >
+                          {item.label}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="mt-3 text-[12px] text-zinc-600">
+                    These are the fields we use for the profile completion
+                    notification.
+                  </p>
+                </div>
+
                 {/* Profile Image */}
                 <div className="space-y-2">
                   <label className="text-base text-black">Profile image</label>
@@ -1066,9 +1243,13 @@ export default function ProfilePage() {
                 {/* Name */}
                 <div className="space-y-2">
                   <label className="text-base text-black">Name</label>
-                  <div className={`h-11 bg-white border rounded-xl flex items-center px-3 gap-3 ${
-                    validationErrors.display_name ? "border-red-500" : "border-black/15"
-                  }`}>
+                  <div
+                    className={`h-11 bg-white border rounded-xl flex items-center px-3 gap-3 ${
+                      validationErrors.display_name
+                        ? "border-red-500"
+                        : "border-black/15"
+                    }`}
+                  >
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
                       <path
                         d="M4 7V4H20V7"
@@ -1111,16 +1292,22 @@ export default function ProfilePage() {
                     />
                   </div>
                   {validationErrors.display_name && (
-                    <p className="text-sm text-red-500">{validationErrors.display_name}</p>
+                    <p className="text-sm text-red-500">
+                      {validationErrors.display_name}
+                    </p>
                   )}
                 </div>
 
                 {/* Description */}
                 <div className="space-y-2">
                   <label className="text-base text-black">Description</label>
-                  <div className={`h-11 bg-white border rounded-xl flex items-center px-3 gap-3 ${
-                    validationErrors.bio ? "border-red-500" : "border-black/15"
-                  }`}>
+                  <div
+                    className={`h-11 bg-white border rounded-xl flex items-center px-3 gap-3 ${
+                      validationErrors.bio
+                        ? "border-red-500"
+                        : "border-black/15"
+                    }`}
+                  >
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
                       <path
                         d="M4 7V4H20V7"
@@ -1164,7 +1351,101 @@ export default function ProfilePage() {
                     />
                   </div>
                   {validationErrors.bio && (
-                    <p className="text-sm text-red-500">{validationErrors.bio}</p>
+                    <p className="text-sm text-red-500">
+                      {validationErrors.bio}
+                    </p>
+                  )}
+                </div>
+
+                {/* School / Company */}
+                <div className="space-y-2">
+                  <label className="text-base text-black">
+                    School / Company{" "}
+                    <span className="text-[12px] text-zinc-600">(required)</span>
+                  </label>
+                  <div
+                    className={`h-11 bg-white border rounded-xl flex items-center px-3 gap-3 ${
+                      validationErrors.affiliation
+                        ? "border-red-500"
+                        : "border-black/15"
+                    }`}
+                  >
+                    <GraduationCap className="w-6 h-6 text-black" />
+                    <input
+                      type="text"
+                      placeholder="School, university, or company"
+                      value={newAffiliation}
+                      onChange={(e) => {
+                        setNewAffiliation(e.target.value);
+                        // Clear error on change
+                        if (validationErrors.affiliation) {
+                          setValidationErrors((prev) => {
+                            const newErrors = { ...prev };
+                            delete newErrors.affiliation;
+                            return newErrors;
+                          });
+                        }
+                      }}
+                      maxLength={200}
+                      className="flex-1 text-base bg-transparent outline-none placeholder:text-black/60"
+                    />
+                  </div>
+                  {validationErrors.affiliation && (
+                    <p className="text-sm text-red-500">
+                      {validationErrors.affiliation}
+                    </p>
+                  )}
+                </div>
+
+                {/* Phone (private) */}
+                <div className="space-y-2">
+                  <label className="text-base text-black">
+                    Phone number (private){" "}
+                    <span className="text-[12px] text-zinc-600">(required)</span>
+                  </label>
+                  <div
+                    className={`h-11 bg-white border rounded-xl flex items-center px-3 gap-3 ${
+                      validationErrors.phone_number
+                        ? "border-red-500"
+                        : "border-black/15"
+                    }`}
+                  >
+                    <Phone className="w-6 h-6 text-black" />
+                    <input
+                      type="tel"
+                      placeholder="+1 555 555 5555"
+                      value={newPhoneNumber}
+                      onChange={(e) => {
+                        setNewPhoneNumber(e.target.value);
+                        // Clear error on change
+                        if (validationErrors.phone_number) {
+                          setValidationErrors((prev) => {
+                            const newErrors = { ...prev };
+                            delete newErrors.phone_number;
+                            return newErrors;
+                          });
+                        }
+                      }}
+                      maxLength={50}
+                      className="flex-1 text-base bg-transparent outline-none placeholder:text-black/60"
+                    />
+                  </div>
+                  <p className="text-[12px] leading-relaxed text-zinc-600">
+                    By providing your phone number, you consent to receiving
+                    text updates about events you have joined or are interested
+                    in joining. {PHONE_NUMBER_TEXT_USAGE_COPY} See our{" "}
+                    <Link
+                      href="/privacy"
+                      className="text-[#4b89ef] hover:underline"
+                    >
+                      Privacy Policy
+                    </Link>
+                    .
+                  </p>
+                  {validationErrors.phone_number && (
+                    <p className="text-sm text-red-500">
+                      {validationErrors.phone_number}
+                    </p>
                   )}
                 </div>
 
@@ -1173,9 +1454,19 @@ export default function ProfilePage() {
                   <label className="text-base text-black">Socials</label>
                   <div className="space-y-2">
                     <div>
-                      <div className={`h-11 bg-white border rounded-xl flex items-center px-3 gap-3 ${
-                        validationErrors["links.linkedin"] ? "border-red-500" : "border-black/15"
-                      }`}>
+                      <p className="text-[12px] text-zinc-600 mb-1">
+                        LinkedIn{" "}
+                        <span className="text-[12px] text-zinc-600">
+                          (required)
+                        </span>
+                      </p>
+                      <div
+                        className={`h-11 bg-white border rounded-xl flex items-center px-3 gap-3 ${
+                          validationErrors["links.linkedin"]
+                            ? "border-red-500"
+                            : "border-black/15"
+                        }`}
+                      >
                         <FaLinkedin className="w-6 h-6 text-black" />
                         <input
                           type="url"
@@ -1199,13 +1490,19 @@ export default function ProfilePage() {
                         />
                       </div>
                       {validationErrors["links.linkedin"] && (
-                        <p className="text-sm text-red-500 mt-1">{validationErrors["links.linkedin"]}</p>
+                        <p className="text-sm text-red-500 mt-1">
+                          {validationErrors["links.linkedin"]}
+                        </p>
                       )}
                     </div>
                     <div>
-                      <div className={`h-11 bg-white border rounded-xl flex items-center px-3 gap-3 ${
-                        validationErrors["links.github"] ? "border-red-500" : "border-black/15"
-                      }`}>
+                      <div
+                        className={`h-11 bg-white border rounded-xl flex items-center px-3 gap-3 ${
+                          validationErrors["links.github"]
+                            ? "border-red-500"
+                            : "border-black/15"
+                        }`}
+                      >
                         <FaGithub className="w-6 h-6 text-black" />
                         <input
                           type="url"
@@ -1229,13 +1526,19 @@ export default function ProfilePage() {
                         />
                       </div>
                       {validationErrors["links.github"] && (
-                        <p className="text-sm text-red-500 mt-1">{validationErrors["links.github"]}</p>
+                        <p className="text-sm text-red-500 mt-1">
+                          {validationErrors["links.github"]}
+                        </p>
                       )}
                     </div>
                     <div>
-                      <div className={`h-11 bg-white border rounded-xl flex items-center px-3 gap-3 ${
-                        validationErrors["links.twitter"] ? "border-red-500" : "border-black/15"
-                      }`}>
+                      <div
+                        className={`h-11 bg-white border rounded-xl flex items-center px-3 gap-3 ${
+                          validationErrors["links.twitter"]
+                            ? "border-red-500"
+                            : "border-black/15"
+                        }`}
+                      >
                         <FaXTwitter className="w-6 h-6 text-black" />
                         <input
                           type="url"
@@ -1259,13 +1562,55 @@ export default function ProfilePage() {
                         />
                       </div>
                       {validationErrors["links.twitter"] && (
-                        <p className="text-sm text-red-500 mt-1">{validationErrors["links.twitter"]}</p>
+                        <p className="text-sm text-red-500 mt-1">
+                          {validationErrors["links.twitter"]}
+                        </p>
                       )}
                     </div>
                     <div>
-                      <div className={`h-11 bg-white border rounded-xl flex items-center px-3 gap-3 ${
-                        validationErrors["links.portfolio"] ? "border-red-500" : "border-black/15"
-                      }`}>
+                      <div
+                        className={`h-11 bg-white border rounded-xl flex items-center px-3 gap-3 ${
+                          validationErrors["links.instagram"]
+                            ? "border-red-500"
+                            : "border-black/15"
+                        }`}
+                      >
+                        <FaInstagram className="w-6 h-6 text-black" />
+                        <input
+                          type="url"
+                          placeholder="Instagram Profile URL"
+                          value={newSocialLinks.instagram || ""}
+                          onChange={(e) => {
+                            setNewSocialLinks((prev) => ({
+                              ...prev,
+                              instagram: e.target.value || undefined,
+                            }));
+                            // Clear error on change
+                            if (validationErrors["links.instagram"]) {
+                              setValidationErrors((prev) => {
+                                const newErrors = { ...prev };
+                                delete newErrors["links.instagram"];
+                                return newErrors;
+                              });
+                            }
+                          }}
+                          className="flex-1 text-base bg-transparent outline-none placeholder:text-black/60"
+                        />
+                      </div>
+                      {validationErrors["links.instagram"] && (
+                        <p className="text-sm text-red-500 mt-1">
+                          {validationErrors["links.instagram"]}
+                        </p>
+                      )}
+                    </div>
+                    <div>
+                      <div
+                        className={`h-11 bg-white border rounded-xl flex items-center px-3 gap-3 ${
+                          validationErrors["links.portfolio"]
+                            ? "border-red-500"
+                            : "border-black/15"
+                        }`}
+                      >
                         <svg
                           width="24"
                           height="24"
@@ -1308,7 +1653,9 @@ export default function ProfilePage() {
                         />
                       </div>
                       {validationErrors["links.portfolio"] && (
-                        <p className="text-sm text-red-500 mt-1">{validationErrors["links.portfolio"]}</p>
+                        <p className="text-sm text-red-500 mt-1">
+                          {validationErrors["links.portfolio"]}
+                        </p>
                       )}
                     </div>
                   </div>

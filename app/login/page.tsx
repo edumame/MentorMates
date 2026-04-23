@@ -255,6 +255,9 @@ function LoginContent({
     const cleanReturnUrl =
       returnUrl && returnUrl.startsWith("/") ? returnUrl.slice(1) : returnUrl;
 
+    const networkErrorMessage =
+      "Cannot reach Supabase. Check: 1) Supabase project not paused (Dashboard → Restore). 2) .env.local has NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY. 3) Restart dev server after changing env.";
+
     if (isSignUp) {
       if (password.length < 6) {
         setError("Password must be at least 6 characters long");
@@ -262,60 +265,71 @@ function LoginContent({
         return;
       }
 
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: `${cleanBaseUrl}/${cleanReturnUrl || ""}`,
-        },
-      });
+      try {
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: `${cleanBaseUrl}/${cleanReturnUrl || ""}`,
+          },
+        });
 
-      if (error) {
-        const errorMessage = "Error signing up. Please try again.";
-        setError(errorMessage);
-        setLoading(false);
-        return;
-      }
-
-      const { data: existingProfile } = await supabase
-        .from("user_profiles")
-        .select("*")
-        .eq("email", email)
-        .single();
-
-      if (existingProfile) {
-        setError("Email already in use. Please sign in instead.");
-        setLoading(false);
-        return;
-      }
-
-      setLoading(false);
-      router.push(`${cleanBaseUrl}/confirmation`);
-      return;
-    } else {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      if (error) {
-        const errorMessage = error.message.includes("Invalid")
-          ? "Invalid email or password"
-          : error.message;
-        setError(errorMessage);
-        setLoading(false);
-        return;
-      }
-      if (data?.user) {
-        const profileError = await syncUserProfile(data.user);
-        if (profileError) {
-          const message =
-            "Error signing in. Please sign up instead or try again.";
-          setError(message);
+        if (error) {
+          const errorMessage = "Error signing up. Please try again.";
+          setError(errorMessage);
           setLoading(false);
           return;
         }
+
+        setLoading(false);
+        router.push(`${cleanBaseUrl}/confirmation`);
+        return;
+      } catch (err) {
+        setError(
+          String(err).includes("fetch") || err instanceof TypeError
+            ? networkErrorMessage
+            : err instanceof Error
+              ? err.message
+              : networkErrorMessage
+        );
+        setLoading(false);
+        return;
       }
-      router.push(`${cleanBaseUrl}/${cleanReturnUrl || ""}`);
+    } else {
+      try {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (error) {
+          const errorMessage = error.message.includes("Invalid")
+            ? "Invalid email or password"
+            : error.message;
+          setError(errorMessage);
+          setLoading(false);
+          return;
+        }
+        if (data?.user) {
+          const profileError = await syncUserProfile(data.user);
+          if (profileError) {
+            const message =
+              "Error signing in. Please sign up instead or try again.";
+            setError(message);
+            setLoading(false);
+            return;
+          }
+        }
+        router.push(`${cleanBaseUrl}/${cleanReturnUrl || ""}`);
+      } catch (err) {
+        setError(
+          String(err).includes("fetch") || err instanceof TypeError
+            ? networkErrorMessage
+            : err instanceof Error
+              ? err.message
+              : networkErrorMessage
+        );
+        setLoading(false);
+      }
     }
   };
 
@@ -535,12 +549,6 @@ function LoginContent({
 
 // login page
 export default function LoginPage() {
-  const router = useRouter();
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    params.get("mode") === "signup";
-  }, [router]);
-
   return (
     <div className="min-h-screen bg-white">
       <Suspense fallback={<div className="p-6">Loading…</div>}>

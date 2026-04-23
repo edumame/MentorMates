@@ -16,15 +16,6 @@ export function useStepValidation(form: UseFormReturn<ProjectSubmissionFormData>
           });
           return false;
         }
-        if (values.projectDescription.trim().length < 10) {
-          toast({
-            title: "Insufficient Project Description",
-            description:
-              "Please provide a more detailed project description (minimum 10 characters).",
-            variant: "destructive",
-          });
-          return false;
-        }
         // Only require track selection if tracks are available
         if (availableTracksCount > 0 && values.trackIds.length === 0) {
           toast({
@@ -107,9 +98,6 @@ export function useStepValidation(form: UseFormReturn<ProjectSubmissionFormData>
       case 1:
         if (values.projectName.trim().length < 2) {
           errors.push("Project name must be at least 2 characters long");
-        }
-        if (values.projectDescription.trim().length < 10) {
-          errors.push("Project description must be at least 10 characters long");
         }
         // Only require track selection if tracks are available
         if (availableTracksCount > 0 && values.trackIds.length === 0) {
