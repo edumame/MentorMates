@@ -20,6 +20,7 @@ import { EventDetails, EventVisibility } from "@/lib/types";
 import { useRouter } from "next/navigation";
 import { toast as ToastType } from "@/lib/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
+import { markdownRemarkPlugins } from "@/components/markdown/plugins";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   AlertDialog,
@@ -736,7 +737,9 @@ export function BasicInfoTab({
           ) : (
             <div className="min-h-[300px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] p-3 overflow-auto prose prose-sm max-w-full">
               {event.event_description ? (
-                <ReactMarkdown>{event.event_description}</ReactMarkdown>
+                <ReactMarkdown remarkPlugins={markdownRemarkPlugins}>
+                  {event.event_description}
+                </ReactMarkdown>
               ) : (
                 <em>No description added yet.</em>
               )}

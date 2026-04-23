@@ -3,7 +3,10 @@
 import type { ComponentProps } from "react";
 import ReactMarkdown from "react-markdown";
 import { customMarkdownComponents } from "@/components/markdown/custom-components";
-import { markdownRehypePlugins } from "@/components/markdown/plugins";
+import {
+  markdownRehypePlugins,
+  markdownRemarkPlugins,
+} from "@/components/markdown/plugins";
 import { normalizeBullets } from "@/lib/markdown/normalize-bullets";
 import { Trophy, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -172,6 +175,7 @@ export function EventPageContent({
       <div className="flex flex-col pb-4 pt-0 px-0 w-full min-w-0 max-w-full">
         <div className="prose prose-blue max-w-full break-words w-full">
           <ReactMarkdown
+            remarkPlugins={markdownRemarkPlugins}
             rehypePlugins={markdownRehypePlugins}
             components={customMarkdownComponents}
           >
@@ -187,7 +191,9 @@ export function EventPageContent({
             🔒 Content for Event Participants
           </h3>
           <div className="prose prose-blue max-w-full w-full break-words">
-            <ReactMarkdown>{normalizeBullets(event.paywall_content)}</ReactMarkdown>
+            <ReactMarkdown remarkPlugins={markdownRemarkPlugins}>
+              {normalizeBullets(event.paywall_content)}
+            </ReactMarkdown>
           </div>
         </div>
       )}
@@ -364,6 +370,7 @@ export function EventPageContent({
                       {event.description && (
                         <div className="prose prose-sm prose-blue max-w-full w-full text-gray-600 mt-2 break-words">
                           <ReactMarkdown
+                            remarkPlugins={markdownRemarkPlugins}
                             rehypePlugins={markdownRehypePlugins}
                             components={customMarkdownComponents}
                           >
