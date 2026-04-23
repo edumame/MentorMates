@@ -5,6 +5,7 @@ import { EventPageClientWrapper } from "./event-page-client-wrapper";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { EventRole } from "@/lib/types";
 import { ActiveRoleProvider } from "./ActiveRoleContext";
+import { EVENT_PAGE_SHELL_CLASS } from "./event-page-shell";
 
 interface EventPageLayoutProps {
   children: ReactNode;
@@ -17,7 +18,7 @@ interface EventPageLayoutProps {
   hasJoined: boolean;
   dbEventId: string; // The actual database UUID for the event
   paid?: boolean;
-  eventType?: string;
+  eventType?: string[];
 }
 
 export async function EventPageLayout({
@@ -79,7 +80,8 @@ export async function EventPageLayout({
 
   return (
     <ActiveRoleProvider initialRole={userRole}>
-      <div className="flex flex-col w-full" style={{ maxWidth: "100vw" }}>
+      {/* 仅做 flex 链，视觉上的“右侧区域”由 SidebarLayout 提供（100dvh + 左边框 + 左上圆角） */}
+      <div className="flex flex-col w-full flex-1 min-h-0" style={{ maxWidth: "100vw" }}>
         {userRole ? (
           <EventPageClientWrapper
             userRole={userRole}
@@ -93,7 +95,7 @@ export async function EventPageLayout({
             displayEventId={eventId}
             hasJoined={hasJoined}
             paid={paid || false}
-            eventType={eventType || "Hackathon"}
+            eventType={eventType?.length ? eventType : ["Hackathon"]}
             tabsAndContent={
               <>
                 {/* Tabs Navigation */}
@@ -107,7 +109,9 @@ export async function EventPageLayout({
 
                 {/* Main Content */}
                 <div className="w-full">
-                  <div className="mx-auto flex flex-col md:flex-row items-start gap-6 w-full px-4 md:px-6 py-[24px]">
+                  <div
+                    className={`flex flex-col items-start gap-6 py-6 md:flex-row ${EVENT_PAGE_SHELL_CLASS}`}
+                  >
                     {children}
                   </div>
                 </div>
@@ -128,7 +132,8 @@ export async function EventPageLayout({
               userRole={null}
               activeRole={null}
               paid={paid || false}
-              eventType={eventType || "Hackathon"}
+              eventType={eventType?.length ? eventType : ["Hackathon"]}
+              containerClassName={EVENT_PAGE_SHELL_CLASS}
             />
 
             {/* Tabs Navigation */}
@@ -142,7 +147,9 @@ export async function EventPageLayout({
 
             {/* Main Content */}
             <div className="w-full">
-              <div className="flex flex-wrap sm:flex-nowrap gap-6 w-full px-6 py-[24px]">
+              <div
+                className={`flex flex-wrap items-start gap-6 py-6 sm:flex-nowrap ${EVENT_PAGE_SHELL_CLASS}`}
+              >
                 {children}
               </div>
             </div>

@@ -50,6 +50,9 @@ export function MainHeader() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
+              <DropdownMenuItem asChild>
+                <Link href="/projects">Projects</Link>
+              </DropdownMenuItem>
               <DropdownMenuItem>Documentation</DropdownMenuItem>
               <DropdownMenuItem>Help center</DropdownMenuItem>
             </DropdownMenuContent>

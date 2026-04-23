@@ -48,6 +48,7 @@ docker run -e SUPABASE_URL=... -e SUPABASE_SERVICE_ROLE_KEY=... -e OPENAI_API_KE
 
 Endpoints
 - `GET /health` -> { ok: true }
-- `POST /session/start` body: `{ meetingId, agentUserId, instructions }`
+- `POST /session/start` body: `{ meetingId, callId, agentUserId, instructions, voice? }`
 - `POST /session/stop` body: `{ meetingId }`
-
+- `POST /session/pause` body: `{ meetingId }`
+- `POST /session/resume` body: `{ meetingId }`

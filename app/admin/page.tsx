@@ -3,7 +3,12 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ApprovalLog } from "@/components/events/approval-log";
-import { EventItem, ApprovalStatus } from "@/lib/types";
+import {
+  EventItem,
+  ApprovalStatus,
+  EventRole,
+  EventVisibility,
+} from "@/lib/types";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -21,6 +26,7 @@ import {
   Sparkles,
   Eye,
   Calendar,
+  Trash2,
 } from "lucide-react";
 import {
   Select,
@@ -30,12 +36,23 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+type EventOrganizer = {
+  userId: string;
+  displayName: string;
+  email: string;
+};
+
+type AdminEventItem = EventItem & {
+  organizers: EventOrganizer[];
+  rejection_reason?: string | null;
+};
+
 export default function AdminPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [events, setEvents] = useState<EventItem[]>([]);
+  const [events, setEvents] = useState<AdminEventItem[]>([]);
   const [updatingEventId, setUpdatingEventId] = useState<string | null>(null);
   const [expandedEventIds, setExpandedEventIds] = useState<Set<string>>(
     new Set()
@@ -49,6 +66,8 @@ export default function AdminPage() {
   const [pendingRejections, setPendingRejections] = useState<Set<string>>(
     new Set()
   );
+  const [deletingEventId, setDeletingEventId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
     checkAdminAndLoadEvents();
@@ -123,12 +142,61 @@ export default function AdminPage() {
 
       if (error) throw error;
 
-      const eventsData = data || [];
-      setEvents(eventsData);
+      const eventsData = (data || []) as AdminEventItem[];
+      const eventIds = eventsData.map((event) => event.event_id);
+      let organizersByEventId: Record<string, EventOrganizer[]> = {};
+
+      if (eventIds.length > 0) {
+        const { data: organizerRows, error: organizersError } = await supabase
+          .from("user_event_roles")
+          .select(
+            `
+            event_id,
+            user_id,
+            user_profiles:user_id (
+              uid,
+              display_name,
+              email
+            )
+          `
+          )
+          .in("event_id", eventIds)
+          .eq("role", EventRole.Organizer)
+          .order("created_at", { ascending: true });
+
+        if (organizersError) throw organizersError;
+
+        organizersByEventId = (organizerRows || []).reduce<
+          Record<string, EventOrganizer[]>
+        >((acc, row) => {
+          const profile = Array.isArray(row.user_profiles)
+            ? row.user_profiles[0]
+            : row.user_profiles;
+
+          if (!acc[row.event_id]) {
+            acc[row.event_id] = [];
+          }
+
+          acc[row.event_id].push({
+            userId: row.user_id,
+            displayName: profile?.display_name || "",
+            email: profile?.email || "",
+          });
+
+          return acc;
+        }, {});
+      }
+
+      const eventsWithOrganizers = eventsData.map((event) => ({
+        ...event,
+        organizers: organizersByEventId[event.event_id] || [],
+      }));
+
+      setEvents(eventsWithOrganizers);
       
       // Initialize rejection reasons from database
       const initialRejectionReasons: Record<string, string> = {};
-      eventsData.forEach((event: EventItem & { rejection_reason?: string | null }) => {
+      eventsWithOrganizers.forEach((event) => {
         if (event.rejection_reason) {
           initialRejectionReasons[event.event_id] = event.rejection_reason;
         }
@@ -198,6 +266,9 @@ export default function AdminPage() {
         prevEvents.map((event) => {
           if (event.event_id === eventId) {
             const updated = { ...event, [field]: value };
+            if (field === "approval_status" && value === ApprovalStatus.Approved) {
+              updated.visibility = EventVisibility.Public;
+            }
             if (field === "approval_status" && value === ApprovalStatus.Rejected && rejectionReason) {
               (updated as EventItem & { rejection_reason?: string }).rejection_reason = rejectionReason;
             } else if (field === "approval_status" && value !== ApprovalStatus.Rejected) {
@@ -243,6 +314,70 @@ export default function AdminPage() {
       setUpdatingEventId(null);
     }
   };
+
+  const deleteEvent = async (eventId: string) => {
+    setDeletingEventId(eventId);
+    try {
+      const response = await fetch(`/api/admin/events/${eventId}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to delete event");
+      }
+
+      setEvents((prev) => prev.filter((e) => e.event_id !== eventId));
+      setConfirmDeleteId(null);
+
+      toast({
+        title: "Event Deleted",
+        description: "The event and all associated data have been removed.",
+      });
+    } catch (error) {
+      console.error("Error deleting event:", error);
+      toast({
+        title: "Error",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to delete event.",
+        variant: "destructive",
+      });
+    } finally {
+      setDeletingEventId(null);
+    }
+  };
+
+  const getOrganizerPrimaryLabel = (organizer: EventOrganizer) =>
+    organizer.displayName || organizer.email || "Unknown organizer";
+
+  const getOrganizerSummary = (event: AdminEventItem) =>
+    event.organizers.length > 0
+      ? event.organizers.map(getOrganizerPrimaryLabel).join(", ")
+      : "No organizers assigned";
+
+  const renderOrganizerDetails = (event: AdminEventItem) => (
+    <div>
+      <label className="text-gray-600 font-medium">Organizers</label>
+      {event.organizers.length > 0 ? (
+        <div className="mt-1 space-y-2">
+          {event.organizers.map((organizer) => (
+            <div key={organizer.userId}>
+              <p className="text-gray-900">
+                {getOrganizerPrimaryLabel(organizer)}
+              </p>
+              {organizer.displayName && organizer.email ? (
+                <p className="text-xs text-gray-500">{organizer.email}</p>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-gray-500 mt-0.5">No organizers assigned</p>
+      )}
+    </div>
+  );
 
   if (loading) {
     return (
@@ -313,15 +448,15 @@ export default function AdminPage() {
   };
 
   const renderEventQueue = (
-    queueEvents: EventItem[],
+    queueEvents: AdminEventItem[],
     queueTitle: string,
     queueDescription: string,
     emptyMessage: string
   ) => (
-    <div className="mb-12">
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-1">{queueTitle}</h2>
-        <p className="text-gray-600 text-sm">{queueDescription}</p>
+    <div className="mb-12 min-w-0">
+      <div className="mb-6 min-w-0">
+        <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1 break-words">{queueTitle}</h2>
+        <p className="text-gray-600 text-xs sm:text-sm break-words">{queueDescription}</p>
       </div>
 
       {queueEvents.length === 0 ? (
@@ -338,11 +473,11 @@ export default function AdminPage() {
                 className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-md transition-shadow"
               >
                 {/* Queue Item Header */}
-                <div className="p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-4 flex-1 min-w-0">
+                <div className="p-3 sm:p-4">
+                  <div className="flex items-start gap-2 sm:gap-4">
                     <button
                       onClick={() => toggleEventExpanded(event.event_id)}
-                      className="flex-shrink-0 p-1 hover:bg-gray-100 rounded transition-colors"
+                      className="flex-shrink-0 p-1 hover:bg-gray-100 rounded transition-colors mt-0.5"
                       aria-label={isExpanded ? "Collapse" : "Expand"}
                     >
                       {isExpanded ? (
@@ -352,33 +487,35 @@ export default function AdminPage() {
                       )}
                     </button>
 
-                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-100 hidden sm:flex items-center justify-center">
                       <span className="text-sm font-semibold text-gray-600">
                         {index + 1}
                       </span>
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-gray-900 truncate">
+                      <h3 className="font-semibold text-gray-900 truncate text-sm sm:text-base">
                         {event.event_name}
                       </h3>
-                      <p className="text-sm text-gray-500">
+                      <p className="text-xs sm:text-sm text-gray-500">
                         {new Date(event.event_date).toLocaleDateString()} •{" "}
                         {event.location}
                       </p>
-                    </div>
-
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      {event.featured && (
-                        <span className="px-2 py-1 bg-yellow-100 text-yellow-700 text-xs font-medium rounded flex items-center gap-1">
-                          <Star className="w-3 h-3" />
-                          Featured
+                      <p className="text-xs text-gray-500 truncate mt-1">
+                        Organizers: {getOrganizerSummary(event)}
+                      </p>
+                      <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                        {event.featured && (
+                          <span className="px-2 py-1 bg-yellow-100 text-yellow-700 text-xs font-medium rounded flex items-center gap-1">
+                            <Star className="w-3 h-3" />
+                            Featured
+                          </span>
+                        )}
+                        {getApprovalStatusBadge(event.approval_status)}
+                        <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded">
+                          {event.visibility || "draft"}
                         </span>
-                      )}
-                      {getApprovalStatusBadge(event.approval_status)}
-                      <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded">
-                        {event.visibility || "draft"}
-                      </span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -386,10 +523,10 @@ export default function AdminPage() {
                 {/* Expanded Event Details */}
                 {isExpanded && (
                   <div className="border-t border-gray-200">
-                    <div className="p-4 bg-gray-50">
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div className="p-3 sm:p-4 bg-gray-50">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {/* Event Information - Left Side */}
-                        <div className="bg-white rounded-lg p-4 border border-gray-200">
+                        <div className="bg-white rounded-lg p-3 sm:p-4 border border-gray-200">
                           <h4 className="text-sm font-semibold text-gray-900 mb-3">
                             Event Information
                           </h4>
@@ -429,6 +566,8 @@ export default function AdminPage() {
                               </p>
                             </div>
 
+                            {renderOrganizerDetails(event)}
+
                             {event.event_blurb && (
                               <div>
                                 <label className="text-gray-600 font-medium">
@@ -445,7 +584,7 @@ export default function AdminPage() {
                                 Event Type
                               </label>
                               <p className="text-gray-900 mt-0.5">
-                                {event.event_type || "Not specified"}
+                                {event.event_type?.length ? event.event_type.join(", ") : "Not specified"}
                               </p>
                             </div>
 
@@ -513,7 +652,7 @@ export default function AdminPage() {
                         {/* Admin Controls and Approval Log - Right Side */}
                         <div className="space-y-4">
                           {/* Admin Controls */}
-                          <div className="bg-white rounded-lg p-4 border border-gray-200 relative">
+                          <div className="bg-white rounded-lg p-3 sm:p-4 border border-gray-200 relative">
                             <h4 className="text-sm font-semibold text-gray-900 mb-3">
                               Admin Controls
                             </h4>
@@ -720,6 +859,52 @@ export default function AdminPage() {
                                   </Button>
                                 </div>
                               </div>
+
+                              {/* Delete Event */}
+                              <div className="pt-2 border-t border-gray-200">
+                                {confirmDeleteId === event.event_id ? (
+                                  <div className="space-y-2">
+                                    <p className="text-xs text-red-600 font-medium">
+                                      Are you sure? This will permanently delete this event and all associated data (projects, scores, roles, etc).
+                                    </p>
+                                    <div className="flex gap-2">
+                                      <Button
+                                        variant="destructive"
+                                        size="sm"
+                                        className="flex-1"
+                                        onClick={() => deleteEvent(event.event_id)}
+                                        disabled={deletingEventId === event.event_id}
+                                      >
+                                        {deletingEventId === event.event_id ? (
+                                          <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                                        ) : (
+                                          <Trash2 className="w-3 h-3 mr-1" />
+                                        )}
+                                        Yes, Delete
+                                      </Button>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="flex-1"
+                                        onClick={() => setConfirmDeleteId(null)}
+                                        disabled={deletingEventId === event.event_id}
+                                      >
+                                        Cancel
+                                      </Button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="w-full text-red-500 hover:text-red-700 hover:bg-red-50"
+                                    onClick={() => setConfirmDeleteId(event.event_id)}
+                                  >
+                                    <Trash2 className="w-3 h-3 mr-1" />
+                                    Delete Event
+                                  </Button>
+                                )}
+                              </div>
                             </div>
 
                             {updatingEventId === event.event_id && (
@@ -730,7 +915,7 @@ export default function AdminPage() {
                           </div>
 
                           {/* Approval Log */}
-                          <div className="bg-white rounded-lg p-4 border border-gray-200">
+                          <div className="bg-white rounded-lg p-3 sm:p-4 border border-gray-200">
                             <ApprovalLog eventId={event.event_id} />
                           </div>
                         </div>
@@ -750,21 +935,21 @@ export default function AdminPage() {
   const featuredEvents = events.filter((event) => event.featured);
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-gray-50 py-4 px-3 sm:py-8 sm:px-4">
+      <div className="max-w-7xl mx-auto w-full min-w-0">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">
+        <div className="mb-6 sm:mb-8 min-w-0">
+          <h1 className="text-2xl sm:text-4xl font-bold text-gray-900 mb-2 break-words">
             Event Management Dashboard
           </h1>
-          <p className="text-gray-600">
+          <p className="text-gray-600 text-sm sm:text-base break-words">
             Manage featured events and review approval requests.
           </p>
         </div>
 
         {/* Tab Navigation */}
         <div className="mb-6 border-b border-gray-200">
-          <nav className="flex gap-8">
+          <nav className="flex gap-4 sm:gap-8">
             <button
               onClick={() => setActiveTab("featured")}
               className={`pb-4 px-1 border-b-2 font-medium text-sm transition-colors ${
@@ -873,12 +1058,12 @@ export default function AdminPage() {
 
                 {/* Featured Events List */}
                 <div className="bg-white rounded-lg border border-gray-200">
-                  <div className="p-4 border-b border-gray-200">
-                    <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <div className="p-3 sm:p-4 border-b border-gray-200">
+                    <h2 className="text-base sm:text-lg font-semibold text-gray-900 flex items-center gap-2">
                       <Star className="w-5 h-5 text-yellow-500" />
                       Featured Events Management
                     </h2>
-                    <p className="text-sm text-gray-600 mt-1">
+                    <p className="text-xs sm:text-sm text-gray-600 mt-1">
                       Events marked as featured will appear on the homepage.
                       Manage their visibility and approval status below.
                     </p>
@@ -904,13 +1089,13 @@ export default function AdminPage() {
                             className="hover:bg-gray-50 transition-colors"
                           >
                             {/* Featured Event Row */}
-                            <div className="p-4 flex items-center justify-between">
-                              <div className="flex items-center gap-4 flex-1 min-w-0">
+                            <div className="p-3 sm:p-4">
+                              <div className="flex items-start gap-2 sm:gap-4">
                                 <button
                                   onClick={() =>
                                     toggleEventExpanded(event.event_id)
                                   }
-                                  className="flex-shrink-0 p-1 hover:bg-gray-100 rounded transition-colors"
+                                  className="flex-shrink-0 p-1 hover:bg-gray-100 rounded transition-colors mt-0.5"
                                   aria-label={
                                     isExpanded ? "Collapse" : "Expand"
                                   }
@@ -923,15 +1108,15 @@ export default function AdminPage() {
                                 </button>
 
                                 <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <h3 className="font-semibold text-gray-900 truncate">
+                                  <div className="flex flex-wrap items-center gap-2 mb-1">
+                                    <h3 className="font-semibold text-gray-900 truncate text-sm sm:text-base">
                                       {event.event_name}
                                     </h3>
                                     <span className="flex-shrink-0 px-2 py-0.5 bg-yellow-100 text-yellow-700 text-xs font-medium rounded">
-                                      ⭐ Featured
+                                      Featured
                                     </span>
                                   </div>
-                                  <div className="flex items-center gap-3 text-sm text-gray-500">
+                                  <div className="flex flex-wrap items-center gap-1.5 sm:gap-3 text-xs sm:text-sm text-gray-500">
                                     <span className="flex items-center gap-1">
                                       <Calendar className="w-3.5 h-3.5" />
                                       {new Date(
@@ -941,40 +1126,40 @@ export default function AdminPage() {
                                     <span>•</span>
                                     <span>{event.location}</span>
                                   </div>
+                                  <p className="text-xs text-gray-500 truncate mt-1">
+                                    Organizers: {getOrganizerSummary(event)}
+                                  </p>
+                                  <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                                    {getApprovalStatusBadge(
+                                      event.approval_status
+                                    )}
+                                    <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded">
+                                      {event.visibility || "draft"}
+                                    </span>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="ml-auto text-xs h-7 sm:h-8"
+                                      onClick={() =>
+                                        router.push(
+                                          `/events/${event.slug || event.event_id}/overview`
+                                        )
+                                      }
+                                    >
+                                      View Event
+                                    </Button>
+                                  </div>
                                 </div>
-
-                                <div className="flex items-center gap-2 flex-shrink-0">
-                                  {getApprovalStatusBadge(
-                                    event.approval_status
-                                  )}
-                                  <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded">
-                                    {event.visibility || "draft"}
-                                  </span>
-                                </div>
-                              </div>
-
-                              <div className="flex items-center gap-2 ml-4">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() =>
-                                    router.push(
-                                      `/events/${event.slug || event.event_id}/overview`
-                                    )
-                                  }
-                                >
-                                  View Event
-                                </Button>
                               </div>
                             </div>
 
                             {/* Expanded Details */}
                             {isExpanded && (
                               <div className="border-t border-gray-200 bg-gray-50">
-                                <div className="p-4">
-                                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                <div className="p-3 sm:p-4">
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     {/* Event Information */}
-                                    <div className="bg-white rounded-lg p-4 border border-gray-200">
+                                    <div className="bg-white rounded-lg p-3 sm:p-4 border border-gray-200">
                                       <h4 className="text-sm font-semibold text-gray-900 mb-3">
                                         Event Information
                                       </h4>
@@ -1013,6 +1198,8 @@ export default function AdminPage() {
                                           </p>
                                         </div>
 
+                                        {renderOrganizerDetails(event)}
+
                                         {event.event_blurb && (
                                           <div>
                                             <label className="text-gray-600 font-medium">
@@ -1029,8 +1216,9 @@ export default function AdminPage() {
                                             Event Type
                                           </label>
                                           <p className="text-gray-900 mt-0.5">
-                                            {event.event_type ||
-                                              "Not specified"}
+                                            {event.event_type?.length
+                                              ? event.event_type.join(", ")
+                                              : "Not specified"}
                                           </p>
                                         </div>
 
@@ -1098,7 +1286,7 @@ export default function AdminPage() {
                                     {/* Admin Controls and Approval Log */}
                                     <div className="space-y-4">
                                       {/* Admin Controls */}
-                                      <div className="bg-white rounded-lg p-4 border border-gray-200 relative">
+                                      <div className="bg-white rounded-lg p-3 sm:p-4 border border-gray-200 relative">
                                         <h4 className="text-sm font-semibold text-gray-900 mb-3">
                                           Admin Controls
                                         </h4>
@@ -1330,6 +1518,52 @@ export default function AdminPage() {
                                               </span>
                                             </div>
                                           </div>
+
+                                          {/* Delete Event */}
+                                          <div className="pt-2 border-t border-gray-200">
+                                            {confirmDeleteId === event.event_id ? (
+                                              <div className="space-y-2">
+                                                <p className="text-xs text-red-600 font-medium">
+                                                  Are you sure? This will permanently delete this event and all associated data.
+                                                </p>
+                                                <div className="flex gap-2">
+                                                  <Button
+                                                    variant="destructive"
+                                                    size="sm"
+                                                    className="flex-1"
+                                                    onClick={() => deleteEvent(event.event_id)}
+                                                    disabled={deletingEventId === event.event_id}
+                                                  >
+                                                    {deletingEventId === event.event_id ? (
+                                                      <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                                                    ) : (
+                                                      <Trash2 className="w-3 h-3 mr-1" />
+                                                    )}
+                                                    Yes, Delete
+                                                  </Button>
+                                                  <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="flex-1"
+                                                    onClick={() => setConfirmDeleteId(null)}
+                                                    disabled={deletingEventId === event.event_id}
+                                                  >
+                                                    Cancel
+                                                  </Button>
+                                                </div>
+                                              </div>
+                                            ) : (
+                                              <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="w-full text-red-500 hover:text-red-700 hover:bg-red-50"
+                                                onClick={() => setConfirmDeleteId(event.event_id)}
+                                              >
+                                                <Trash2 className="w-3 h-3 mr-1" />
+                                                Delete Event
+                                              </Button>
+                                            )}
+                                          </div>
                                         </div>
 
                                         {updatingEventId === event.event_id && (
@@ -1340,7 +1574,7 @@ export default function AdminPage() {
                                       </div>
 
                                       {/* Approval Log */}
-                                      <div className="bg-white rounded-lg p-4 border border-gray-200">
+                                      <div className="bg-white rounded-lg p-3 sm:p-4 border border-gray-200">
                                         <ApprovalLog eventId={event.event_id} />
                                       </div>
                                     </div>

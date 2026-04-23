@@ -28,9 +28,11 @@ export function QuestionFactory({ criterion, value, onChange }: QuestionFactoryP
     case "numeric":
     default:
       // Default to a numeric slider
-      const min = criterion.min !== undefined ? criterion.min : 1;
+      const min = criterion.min !== undefined ? criterion.min : 0;
       const max = criterion.max !== undefined ? criterion.max : 10;
-      const currentValue = Number(value) || min;
+      const numericValue = Number(value);
+      const currentValue =
+        value === "" || Number.isNaN(numericValue) ? min : numericValue;
       
       return (
         <FormItem className="space-y-3 pb-6 border-b border-gray-200 last:border-b-0">

@@ -3,7 +3,6 @@ import { randomUUID } from "crypto";
 
 import { createSupabaseClient } from "@/app/utils/supabase/server";
 import { canAccessRole } from "@/features/user/roles/roles";
-import { defaultRules } from "@/lib/config/constants";
 import type { Database, Json } from "@/lib/database.types";
 import { ApprovalStatus, EventRole, EventVisibility } from "@/lib/types";
 
@@ -82,9 +81,7 @@ export async function POST(
     // 4) Create duplicated event (draft + not submitted)
     const newEventId = randomUUID();
 
-    const safeRules =
-      (sourceEvent.rules as unknown as Json) ??
-      (defaultRules as unknown as Json);
+    const safeRules = ((sourceEvent.rules as unknown as Json) ?? ([] as Json));
 
     const insertPayload: Database["public"]["Tables"]["events"]["Insert"] = {
       event_id: newEventId,
@@ -266,7 +263,7 @@ export async function POST(
     const oldToNewAgentId = new Map<string, string>();
     const { data: sourceAgents, error: sourceAgentsError } = await supabase
       .from("agents")
-      .select("id,name,instructions,enabled,type,avatar_url")
+      .select("id,name,instructions,enabled,type,avatar_url,voice")
       .eq("event_id", eventId)
       .eq("user_id", user.id);
 
@@ -289,6 +286,7 @@ export async function POST(
           enabled: a.enabled ?? true,
           type,
           avatar_url: a.avatar_url ?? null,
+          voice: a.voice ?? null,
           event_id: createdEvent.event_id,
           user_id: user.id,
           updated_at: new Date().toISOString(),
@@ -361,4 +359,3 @@ export async function POST(
     );
   }
 }
-

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Trash2, Type, Clock, Search } from "lucide-react";
+import { Trash2, Type, Clock } from "lucide-react";
 import { EventDetails } from "@/lib/types";
 import { toast as ToastType } from "@/lib/hooks/use-toast";
 import { EMAIL_TYPES } from "@/lib/email_templates/constants";

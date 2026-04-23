@@ -1,5 +1,8 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import { useAuth } from "@/features/user/authentication/auth/AuthContext";
 
 const RESEARCH_CARDS = [
     {
@@ -29,9 +32,11 @@ const RESEARCH_CARDS = [
 ];
 
 export function Research() {
+    const { isAuthenticated } = useAuth();
+
     return (
-        <div className="min-h-screen bg-white">
-            <div className="py-32 px-6">
+        <div className={isAuthenticated ? "min-h-full bg-white" : "bg-white"}>
+            <div className={isAuthenticated ? "py-16 px-6" : "py-32 px-6"}>
                 <div className="max-w-7xl mx-auto px-4">
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-8">
                         <div className="flex-1">
@@ -62,7 +67,7 @@ export function Research() {
 
             {/* Research Cards Section */}
             <div 
-                className="py-16 px-6 bg-gray-50"
+                className={`${isAuthenticated ? "py-12" : "py-16"} px-6 bg-gray-50`}
                 style={{
                     borderRadius: '96px 96px 0 0',
                     background: 'linear-gradient(194deg, rgba(229, 240, 254, 0.65) 5.42%, rgba(229, 240, 254, 0.42) 87.43%), linear-gradient(0deg, rgba(255, 255, 255, 0.20) 0%, rgba(255, 255, 255, 0.20) 100%), linear-gradient(94deg, rgba(247, 246, 242, 0.80) -4.25%, rgba(66, 134, 244, 0.80) 52.72%, rgba(247, 246, 242, 0.80) 107.67%)'

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
+import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { Resend } from "resend";
 import {
   NOTIFICATIONS_EMAIL_FROM,
@@ -29,6 +30,7 @@ export async function POST(
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   const supabase = await createSupabaseClient();
+  const serviceSupabase = createSupabaseServiceClient();
 
   const { eventId } = await params;
 
@@ -86,7 +88,7 @@ export async function POST(
 
   const eventName = eventDetails.event_name;
 
-  const { data: participantsData, error: participantsError } = await supabase
+  const { data: participantsData, error: participantsError } = await serviceSupabase
     .from("user_event_roles")
     .select("user_id, user_profiles(email)")
     .eq("event_id", eventId)

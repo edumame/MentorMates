@@ -1,24 +1,40 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { EventsList } from "@/components/events/events-list";
 import { EventItem } from "@/lib/types";
 import { UI_TEXT } from "@/lib/config/constants";
 import { Button } from "@/components/ui/button";
+import { EventSearchInput } from "@/components/ui/event-search-input";
 import { useAuth } from "@/features/user/authentication/auth/AuthContext";
-import { useAdmin } from "@/lib/hooks/use-admin";
-import { Search, ChevronDown } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { CreateEventModal } from "@/components/events/create-event-modal";
 
 type SortOption = "date" | "name" | "type";
 
-export function EventsPageClient({ eventsList }: { eventsList: EventItem[] }) {
+type EventsPageClientProps = {
+  eventsList: EventItem[];
+  initialIsAuthenticated: boolean;
+};
+
+export function EventsPageClient({
+  eventsList,
+  initialIsAuthenticated,
+}: EventsPageClientProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>("date");
   const [showSortMenu, setShowSortMenu] = useState(false);
-  const { isAuthenticated } = useAuth();
-  const isAdmin = useAdmin();
+  const {
+    isAuthenticated: clientIsAuthenticated,
+    isLoading: isAuthLoading,
+  } = useAuth();
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const searchParams = useSearchParams();
+  const onboardingRole = searchParams.get("role");
+  const isAuthenticated = isAuthLoading
+    ? initialIsAuthenticated
+    : clientIsAuthenticated;
 
   const filteredAndSortedEvents = useMemo(() => {
     // First filter by search term
@@ -73,7 +89,7 @@ export function EventsPageClient({ eventsList }: { eventsList: EventItem[] }) {
 
   return (
     <div className="w-full">
-      <div className="flex justify-between sm:gap-[15rem] mb-6 items-center flex-wrap">
+      <div className="flex justify-between sm:gap-x-[15rem] mb-6 items-center flex-wrap">
         <h1 className="w-full sm:w-auto mb-4 sm:mb-0 text-[20px] sm:text-[28px] font-semibold leading-[1.4] tracking-[-0.06em] text-black">
           Events
         </h1>
@@ -81,18 +97,12 @@ export function EventsPageClient({ eventsList }: { eventsList: EventItem[] }) {
         <div className="flex flex-col gap-4 flex-1">
           <div className="flex items-end justify-between gap-4">
             {/* Search Input */}
-            <div className="relative flex-1">
-              <div className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-[rgba(0,0,0,0.6)]">
-                <Search className="w-full h-full" strokeWidth={2} />
-              </div>
-              <input
-                type="text"
-                placeholder="Search by event or host title"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full h-10 bg-white border border-[rgba(0,0,0,0.15)] rounded-xl px-12 py-2 text-xs sm:text-base font-normal text-black placeholder:text-[rgba(0,0,0,0.6)] focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
+            <EventSearchInput
+              wrapperClassName="flex-1"
+              placeholder="Search by event or host title"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
 
             <div className="flex items-center gap-4">
               {/* Sort By Dropdown */}
@@ -129,7 +139,7 @@ export function EventsPageClient({ eventsList }: { eventsList: EventItem[] }) {
               {/* Create Event Button - Desktop only */}
               {isAuthenticated && (
                 <Button
-                  className="h-10 hidden sm:inline-flex"
+                  className={`h-10 hidden sm:inline-flex ${onboardingRole === "organizer" ? "animate-bounce" : ""}`}
                   onClick={() => setShowCreateModal(true)}
                 >
                   Create an event
@@ -141,7 +151,7 @@ export function EventsPageClient({ eventsList }: { eventsList: EventItem[] }) {
           {/* Create Event Button - Mobile only */}
           {isAuthenticated && (
             <Button
-              className="h-10 sm:hidden w-full"
+              className={`h-10 sm:hidden w-full ${onboardingRole === "organizer" ? "animate-bounce" : ""}`}
               onClick={() => setShowCreateModal(true)}
             >
               Create an event

@@ -1,6 +1,5 @@
 import OpenAI from "openai";
 import { NextRequest, NextResponse } from "next/server";
-import { ChatCompletionMessageParam } from "openai/resources/index.mjs";
 import {
   MessageNewEvent,
   CallEndedEvent,
@@ -13,15 +12,299 @@ import {
 import { createSupabaseServiceClient } from "@/app/utils/supabase/server";
 import { streamVideo } from "@/lib/stream-video";
 import { inngest } from "@/lib/inngest/client";
-// import { generateAvatarUri } from "@/lib/avatar";
-// import { streamChat } from "@/lib/stream-chat";
+import { streamChat } from "@/lib/stream-chat";
 
 const openaiClient = new OpenAI();
 
 const processedMessages = new Set<string>();
 
+const CHAT_RESPONSES_MODEL = process.env.OPENAI_RESPONSES_MODEL || "gpt-5.2";
+const CHAT_ENABLE_WEB_SEARCH =
+  process.env.OPENAI_CHAT_ENABLE_WEB_SEARCH !== "false";
+const DEFAULT_FILE_SEARCH_VECTOR_STORE_IDS = parseCsvEnv(
+  process.env.OPENAI_FILE_SEARCH_VECTOR_STORE_IDS
+);
+const CHAT_TOOL_CHOICE = resolveToolChoice(
+  process.env.OPENAI_CHAT_TOOL_CHOICE,
+  "required"
+);
+const CHAT_LOG_TOOL_CALLS = process.env.OPENAI_CHAT_LOG_TOOL_CALLS === "true";
+const MAX_ATTACHMENT_INPUTS = normalizePositiveInt(
+  Number.parseInt(process.env.OPENAI_CHAT_MAX_ATTACHMENT_INPUTS || "3", 10),
+  3
+);
+
+type ChatHistoryMessage = {
+  role: "assistant" | "user";
+  content: string;
+};
+
+type StreamChannelMessage = {
+  text?: string;
+  user?: { id?: string };
+};
+
+type StreamWebhookMessage = {
+  id?: string;
+  text?: string;
+  attachments?: unknown[];
+};
+
+type StreamWebhookAttachment = {
+  type?: string;
+  asset_url?: string;
+  image_url?: string;
+  title_link?: string;
+  name?: string;
+};
+
+type UserAttachmentInput =
+  | { type: "input_image"; image_url: string; detail: "auto" }
+  | { type: "input_file"; file_url: string; filename?: string };
+
+type ResponseCreateParams = Parameters<typeof openaiClient.responses.create>[0];
+type ResponseTool = NonNullable<ResponseCreateParams["tools"]>[number];
+
+function inputText(text: string): { type: "input_text"; text: string } {
+  return { type: "input_text", text };
+}
+
+function buildResponsesInput(
+  systemInstructions: string,
+  previousMessages: ChatHistoryMessage[],
+  userText: string,
+  userAttachments: UserAttachmentInput[]
+): ResponseCreateParams["input"] {
+  const historyItems = previousMessages.map((message) => ({
+    role: message.role as "user" | "assistant",
+    content: message.content,
+  }));
+
+  return [
+    {
+      role: "system" as const,
+      content: systemInstructions,
+    },
+    ...historyItems,
+    {
+      role: "user" as const,
+      content: [inputText(userText), ...userAttachments] as never,
+    },
+  ] as ResponseCreateParams["input"];
+}
+
+function extractResponseText(response: unknown): string {
+  const responseRecord = response as Record<string, unknown>;
+  if (typeof responseRecord.output_text === "string") {
+    return responseRecord.output_text.trim();
+  }
+
+  if (!Array.isArray(responseRecord.output)) {
+    return "";
+  }
+
+  const chunks: string[] = [];
+  for (const outputItem of responseRecord.output) {
+    const outputRecord = outputItem as Record<string, unknown> | null;
+    if (!outputRecord || !Array.isArray(outputRecord.content)) continue;
+
+    for (const contentItem of outputRecord.content) {
+      const contentRecord = contentItem as Record<string, unknown> | null;
+      if (!contentRecord) continue;
+      if (typeof contentRecord.text === "string") {
+        chunks.push(contentRecord.text);
+        continue;
+      }
+      if (typeof contentRecord.value === "string") {
+        chunks.push(contentRecord.value);
+      }
+    }
+  }
+
+  return chunks.join(" ").trim();
+}
+
+async function createTextResponse(params: {
+  systemInstructions: string;
+  previousMessages: ChatHistoryMessage[];
+  userText: string;
+  userAttachments: UserAttachmentInput[];
+}): Promise<string> {
+  const tools = buildResponseTools();
+
+  const requestBody: Parameters<typeof openaiClient.responses.create>[0] = {
+    model: CHAT_RESPONSES_MODEL,
+    input: buildResponsesInput(
+      params.systemInstructions,
+      params.previousMessages,
+      params.userText,
+      params.userAttachments
+    ),
+    ...(tools.length > 0
+      ? {
+          tools,
+          tool_choice: CHAT_TOOL_CHOICE,
+        }
+      : {}),
+  };
+
+  const response = await openaiClient.responses.create(requestBody);
+  if (CHAT_LOG_TOOL_CALLS) {
+    const toolCalls = extractToolCalls(response);
+    console.log("chat tool calls", toolCalls);
+  }
+
+  return extractResponseText(response);
+}
+
+function parseCsvEnv(value: string | undefined): string[] {
+  if (!value) return [];
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0);
+}
+
+function normalizePositiveInt(value: number, fallback: number): number {
+  if (!Number.isFinite(value) || value <= 0) return fallback;
+  return Math.floor(value);
+}
+
+function resolveToolChoice(
+  rawValue: string | undefined,
+  fallback: "auto" | "required" | "none"
+): "auto" | "required" | "none" {
+  const candidate = (rawValue || "").trim().toLowerCase();
+  if (candidate === "auto") return "auto";
+  if (candidate === "required") return "required";
+  if (candidate === "none") return "none";
+  return fallback;
+}
+
+function extractToolCalls(response: unknown): string[] {
+  const record = response as Record<string, unknown>;
+  if (!Array.isArray(record.output)) return [];
+
+  const result: string[] = [];
+  for (const outputItem of record.output) {
+    if (!outputItem || typeof outputItem !== "object") continue;
+    const item = outputItem as Record<string, unknown>;
+    if (typeof item.type !== "string") continue;
+    if (item.type.endsWith("_call")) {
+      result.push(item.type);
+    }
+  }
+  return result;
+}
+
+function normalizeHttpUrl(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+
+  try {
+    const url = new URL(raw);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+function buildAttachmentInputs(
+  rawAttachments: unknown
+): UserAttachmentInput[] {
+  if (!Array.isArray(rawAttachments)) return [];
+
+  const outputs: UserAttachmentInput[] = [];
+  const seenUrls = new Set<string>();
+
+  for (const rawAttachment of rawAttachments) {
+    if (outputs.length >= MAX_ATTACHMENT_INPUTS) break;
+    if (!rawAttachment || typeof rawAttachment !== "object") continue;
+
+    const attachment = rawAttachment as StreamWebhookAttachment;
+    const attachmentType =
+      typeof attachment.type === "string"
+        ? attachment.type.toLowerCase()
+        : undefined;
+
+    const imageUrl =
+      normalizeHttpUrl(attachment.image_url) ||
+      (attachmentType === "image"
+        ? normalizeHttpUrl(attachment.asset_url)
+        : null);
+
+    if (imageUrl && !seenUrls.has(imageUrl)) {
+      outputs.push({
+        type: "input_image",
+        image_url: imageUrl,
+        detail: "auto",
+      });
+      seenUrls.add(imageUrl);
+      continue;
+    }
+
+    if (
+      attachmentType === "video" ||
+      attachmentType === "audio" ||
+      attachmentType === "voice_recording"
+    ) {
+      continue;
+    }
+
+    const fileUrl =
+      normalizeHttpUrl(attachment.asset_url) ||
+      normalizeHttpUrl(attachment.title_link);
+    if (!fileUrl || seenUrls.has(fileUrl)) continue;
+
+    const fileInput: UserAttachmentInput = {
+      type: "input_file",
+      file_url: fileUrl,
+    };
+    if (typeof attachment.name === "string" && attachment.name.trim().length) {
+      fileInput.filename = attachment.name.trim();
+    }
+
+    outputs.push(fileInput);
+    seenUrls.add(fileUrl);
+  }
+
+  return outputs;
+}
+
+function buildResponseTools(): ResponseTool[] {
+  const tools: ResponseTool[] = [];
+
+  if (CHAT_ENABLE_WEB_SEARCH) {
+    tools.push({ type: "web_search_preview" });
+  }
+
+  if (DEFAULT_FILE_SEARCH_VECTOR_STORE_IDS.length > 0) {
+    tools.push({
+      type: "file_search",
+      vector_store_ids: DEFAULT_FILE_SEARCH_VECTOR_STORE_IDS,
+    });
+  }
+
+  return tools;
+}
+
 function verifySignatureWithSDK(body: string, signature: string): boolean {
   return streamVideo.verifyWebhook(body, signature);
+}
+
+type CallReference = {
+  call_cid?: string;
+  call?: { id?: string; custom?: { meetingId?: string } };
+};
+
+function resolveMeetingId(callRef: CallReference): string | null {
+  const fromCustom = callRef.call?.custom?.meetingId;
+  if (fromCustom) return fromCustom;
+
+  const fromCallCid = callRef.call_cid?.split(":")[1];
+  if (fromCallCid) return fromCallCid;
+
+  return callRef.call?.id ?? null;
 }
 
 export async function POST(req: NextRequest) {
@@ -53,7 +336,8 @@ export async function POST(req: NextRequest) {
 
   if (eventType === "call.session_started") {
     const event = payload as CallSessionStartedEvent;
-    const meetingId = event.call.custom?.meetingId;
+    const callRef = event as unknown as CallReference;
+    const meetingId = resolveMeetingId(callRef);
 
     if (!meetingId) {
       return NextResponse.json({ error: "Missing meetingId" }, { status: 400 });
@@ -89,8 +373,6 @@ export async function POST(req: NextRequest) {
     }
 
     // Compute Stream callId (real call identifier) and keep meetingId for DB lookups
-    type CallReference = { call_cid?: string; call?: { id?: string } };
-    const callRef = event as unknown as CallReference;
     const callId = callRef.call_cid?.split(":")[1] || callRef.call?.id;
 
     // If the meeting is linked to a project, fetch project title and description
@@ -136,6 +418,7 @@ export async function POST(req: NextRequest) {
             callId,
             agentUserId: existingAgent.id,
             instructions,
+            voice: existingAgent.voice ?? undefined,
           }),
         }
       );
@@ -178,7 +461,7 @@ export async function POST(req: NextRequest) {
     }
   } else if (eventType === "call.session_ended") {
     const event = payload as CallEndedEvent;
-    const meetingId = event.call.custom?.meetingId;
+    const meetingId = resolveMeetingId(event as unknown as CallReference);
 
     if (!meetingId) {
       return NextResponse.json({ error: "Missing meetingId" }, { status: 400 });
@@ -269,112 +552,172 @@ export async function POST(req: NextRequest) {
       }
     }
   }
-  // else if (eventType === "message.new") {
-  //     const event = payload as MessageNewEvent;
+  else if (eventType === "message.new") {
+      const event = payload as MessageNewEvent;
+      const message = (event.message || {}) as StreamWebhookMessage;
 
-  //     const userId = event.user?.id;
-  //     const channelId = event.channel_id;
-  //     const text = event.message?.text;
-  //     const messageId = event.message?.id;
+      const userId = event.user?.id;
+      const channelId = event.channel_id;
+      const text = (message.text || "").trim();
+      const messageId = message.id;
+      const userAttachments = buildAttachmentInputs(message.attachments);
 
-  //     if (!messageId) {
-  //         return NextResponse.json({ status: "ignored_no_id" });
-  //     }
+      if (!messageId) {
+          return NextResponse.json({ status: "ignored_no_id" });
+      }
 
-  //     if (processedMessages.has(messageId)) {
-  //         return NextResponse.json({ status: "duplicate_ignored" });
-  //     }
-  //     processedMessages.add(messageId);
+      if (processedMessages.has(messageId)) {
+          return NextResponse.json({ status: "duplicate_ignored" });
+      }
+      processedMessages.add(messageId);
 
-  //     if (!userId || !channelId || !text) {
-  //         return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
-  //     }
+      if (!userId || !channelId || (!text && userAttachments.length === 0)) {
+          return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+      }
 
-  //     const { data: existingMeeting, error: meetingError2 } = await supabase
-  //         .from("meetings")
-  //         .select("*")
-  //         .eq("id", channelId)
-  //         .eq("status", "completed")
-  //         .maybeSingle();
+      const userText =
+        text || "Please analyze the attached file(s) and answer the request.";
 
-  //     if (meetingError2 || !existingMeeting) {
-  //         return NextResponse.json({ error: "Meeting not found" }, { status: 404 });
-  //     }
+      const { data: existingUpcomingMeeting } = await supabase
+        .from("meetings")
+        .select("*")
+        .eq("id", channelId)
+        .eq("status", "upcoming")
+        .maybeSingle();
 
-  //     const { data: existingAgent, error: agentError2 } = await supabase
-  //         .from("agents")
-  //         .select("*")
-  //         .eq("id", existingMeeting.agent_id)
-  //         .maybeSingle();
+      // Start a chat at the Chat with agent page
+      if (existingUpcomingMeeting) {
+        const { data: existingAgent, error: agentError } = await supabase
+            .from("agents")
+            .select("*")
+            .eq("id", existingUpcomingMeeting.agent_id)
+            .maybeSingle();
 
-  //     if (agentError2 || !existingAgent) {
-  //         return NextResponse.json({ error: "Agent not found" }, { status: 404 });
-  //     }
+        if (agentError || !existingAgent) {
+            return NextResponse.json({ error: "Agent not found from upcoming meeting" }, { status: 404 });
+        }
 
-  //     if (userId !== existingAgent.id) {
-  //         const instructions = `
-  //             You are an AI assistant helping the user revisit a recently completed meeting.
-  //             Below is a summary of the meeting, generated from the transcript:
+        if (userId !== existingAgent.id) {
+          const channel = streamChat.channel("messaging", channelId);
+          await channel.watch();
 
-  //             ${existingMeeting.summary}
+          const { messages: recentMessages } = await channel.query({ messages: { limit: 5 } });
+          const previousMessages = ((recentMessages || []) as StreamChannelMessage[])
+            .filter((msg) => !!msg?.text && msg.text.trim() !== "")
+            .map<ChatHistoryMessage>((message) => ({
+              role: message.user?.id === existingAgent.id ? "assistant" : "user",
+              content: message.text || "",
+            }));
 
-  //             The following are your original instructions from the live meeting assistant. Please continue to follow these behavioral guidelines as you assist the user:
+          const GPTResponseText = await createTextResponse({
+              systemInstructions: existingAgent.instructions || "",
+              previousMessages,
+              userText,
+              userAttachments,
+          });
 
-  //             ${existingAgent.instructions}
+          if (!GPTResponseText) {
+              return NextResponse.json({ error: "No response from GPT" }, { status: 400 });
+          }
 
-  //             The user may ask questions about the meeting, request clarifications, or ask for follow-up actions.
-  //             Always base your responses on the meeting summary above.
+          streamChat.upsertUser({
+              id: existingAgent.id,
+              name: existingAgent.name,
+              image: existingAgent.avatar_url,
+          });
 
-  //             You also have access to the recent conversation history between you and the user. Use the context of previous messages to provide relevant, coherent, and helpful responses. If the user's question refers to something discussed earlier, make sure to take that into account and maintain continuity in the conversation.
+          channel.sendMessage({
+              text: GPTResponseText,
+              user: {
+                  id: existingAgent.id,
+                  name: existingAgent.name,
+                  image: existingAgent.avatar_url,
+              },
+          });
+        }
+        // Start a chat at the Feedback page
+      } else { 
+        const { data: existingMeeting, error: meetingError2 } = await supabase
+          .from("meetings")
+          .select("*")
+          .eq("id", channelId)
+          .eq("status", "completed")
+          .maybeSingle();
 
-  //             If the summary does not contain enough information to answer a question, politely let the user know.
+        if (meetingError2 || !existingMeeting) {
+            return NextResponse.json({ error: "Meeting not found" }, { status: 404 });
+        }
 
-  //             Be concise, helpful, and focus on providing accurate information from the meeting and the ongoing conversation.
-  //         `;
+        const { data: existingAgent, error: agentError2 } = await supabase
+            .from("agents")
+            .select("*")
+            .eq("id", existingMeeting.agent_id)
+            .maybeSingle();
 
-  //         const channel = streamChat.channel("messaging", channelId);
-  //         await channel.watch();
+        if (agentError2 || !existingAgent) {
+            return NextResponse.json({ error: "Agent not found" }, { status: 404 });
+        }
 
-  //         type StreamMessage = { text?: string; user?: { id?: string } };
-  //         const previousMessages = channel.state.messages.slice(-5).filter((msg: StreamMessage) => msg.text && msg.text.trim() !== "")
-  //             .map<ChatCompletionMessageParam>((message: StreamMessage) => ({
-  //                 role: message.user?.id === existingAgent.id ? "assistant" : "user",
-  //                 content: message.text || "",
-  //             }));
+        if (userId !== existingAgent.id) {
+          const instructions = `
+              You are an AI assistant helping the user revisit a recently completed meeting.
+              Below is a summary of the meeting, generated from the transcript:
 
-  //         const GPTResponse = await openaiClient.chat.completions.create({
-  //             messages: [
-  //                 { role: "system", content: instructions },
-  //                 ...previousMessages,
-  //                 { role: "user", content: text },
-  //             ],
-  //             model: "gpt-4o",
-  //         });
+              ${existingMeeting.summary}
 
-  //         const GPTResponseText = GPTResponse.choices[0].message.content;
+              The following are your original instructions from the live meeting assistant. Please continue to follow these behavioral guidelines as you assist the user:
 
-  //         if (!GPTResponseText) {
-  //             return NextResponse.json({ error: "No response from GPT" }, { status: 400 });
-  //         }
+              ${existingAgent.instructions}
 
-  //         const avatarUrl = generateAvatarUri({ seed: existingAgent.name, variant: "botttsNeutral" });
+              The user may ask questions about the meeting, request clarifications, or ask for follow-up actions.
+              Always base your responses on the meeting summary above.
 
-  //         streamChat.upsertUser({
-  //             id: existingAgent.id,
-  //             name: existingAgent.name,
-  //             image: avatarUrl,
-  //         });
+              You also have access to the recent conversation history between you and the user. Use the context of previous messages to provide relevant, coherent, and helpful responses. If the user's question refers to something discussed earlier, make sure to take that into account and maintain continuity in the conversation.
 
-  //         channel.sendMessage({
-  //             text: GPTResponseText,
-  //             user: {
-  //                 id: existingAgent.id,
-  //                 name: existingAgent.name,
-  //                 image: avatarUrl,
-  //             },
-  //         });
-  //     }
-  // };
+              If the summary does not contain enough information to answer a question, politely let the user know.
+
+              Be concise, helpful, and focus on providing accurate information from the meeting and the ongoing conversation.
+          `;
+
+          const channel = streamChat.channel("messaging", channelId);
+          await channel.watch();
+
+          const { messages: recentMessages } = await channel.query({ messages: { limit: 5 } });
+          const previousMessages = ((recentMessages || []) as StreamChannelMessage[])
+            .filter((msg) => !!msg?.text && msg.text.trim() !== "")
+            .map<ChatHistoryMessage>((message) => ({
+              role: message.user?.id === existingAgent.id ? "assistant" : "user",
+              content: message.text || "",
+            }));
+
+          const GPTResponseText = await createTextResponse({
+              systemInstructions: instructions,
+              previousMessages,
+              userText,
+              userAttachments,
+          });
+
+          if (!GPTResponseText) {
+              return NextResponse.json({ error: "No response from GPT" }, { status: 400 });
+          }
+
+          streamChat.upsertUser({
+              id: existingAgent.id,
+              name: existingAgent.name,
+              image: existingAgent.avatar_url,
+          });
+
+          channel.sendMessage({
+              text: GPTResponseText,
+              user: {
+                  id: existingAgent.id,
+                  name: existingAgent.name,
+                  image: existingAgent.avatar_url,
+              },
+          });
+        }
+      }
+  };
 
   return NextResponse.json({ status: "ok" });
 }

@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Users, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
+import { Users, CheckCircle, AlertCircle, Loader2, ShieldAlert } from "lucide-react";
 import { User } from "@supabase/supabase-js";
 
 interface ProjectInfo {
@@ -23,10 +24,11 @@ interface ProjectInfo {
   } | null;
 }
 
-export default function JoinProjectPage() {
+function JoinProjectContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const projectId = searchParams.get("project");
+  const token = searchParams.get("token");
 
   const [project, setProject] = useState<ProjectInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -34,6 +36,11 @@ export default function JoinProjectPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [user, setUser] = useState<User | null>(null);
+  const [tokenValid, setTokenValid] = useState<boolean | null>(null);
+  const [invitedEmail, setInvitedEmail] = useState<string | null>(null);
+  const [validatingToken, setValidatingToken] = useState(false);
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [eventRegistrationHref, setEventRegistrationHref] = useState<string | null>(null);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -99,6 +106,50 @@ export default function JoinProjectPage() {
     fetchProject();
   }, [projectId]);
 
+  useEffect(() => {
+    if (!token) {
+      setTokenValid(null);
+      setInviteError(null);
+      setInvitedEmail(null);
+      return;
+    }
+
+    if (!projectId) {
+      return;
+    }
+
+    const verifyToken = async () => {
+      setValidatingToken(true);
+      try {
+        const response = await fetch("/api/projects/verify-invite-token", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ token, projectId }),
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.valid) {
+          setTokenValid(true);
+          setInvitedEmail(data.email);
+          setInviteError(null);
+        } else {
+          setTokenValid(false);
+          setInviteError(data.error || "Invalid or expired invitation link");
+        }
+      } catch {
+        setTokenValid(false);
+        setInviteError("Failed to verify invitation link");
+      } finally {
+        setValidatingToken(false);
+      }
+    };
+
+    verifyToken();
+  }, [token, projectId]);
+
   const handleLogin = () => {
     // Store the current URL to redirect back after login
     localStorage.setItem(
@@ -113,21 +164,32 @@ export default function JoinProjectPage() {
 
     setJoining(true);
     setError(null);
+    setEventRegistrationHref(null);
 
     try {
-      // Get user's email
-      const { data: userProfile } = await supabase
-        .from("user_profiles")
-        .select("email")
-        .eq("uid", user.id)
-        .single();
-
-      if (!userProfile) {
+      const userEmailFromAuth = user.email?.toLowerCase();
+      if (!userEmailFromAuth) {
         setError("User profile not found");
         return;
       }
 
-      const userEmail = userProfile.email.toLowerCase();
+      const userEmail = userEmailFromAuth;
+
+      // If token is provided, verify the user's email matches the invited email
+      if (token && tokenValid && invitedEmail) {
+        if (userEmail !== invitedEmail.toLowerCase()) {
+          setError(
+            `This invitation was sent to ${invitedEmail}. You are signed in as ${userEmail}. Please sign in with the correct account.`
+          );
+          return;
+        }
+      }
+
+      // If token is not provided or invalid, show warning
+      if (token && !tokenValid) {
+        setError("Invalid or expired invitation link. Please request a new invitation.");
+        return;
+      }
       
       // Check if user is already the project lead
       if (project.lead_email === userEmail) {
@@ -151,6 +213,7 @@ export default function JoinProjectPage() {
           .maybeSingle();
 
         if (!userRole) {
+          setEventRegistrationHref(`/events/${project.event_id}/overview`);
           setError(
             "You must be registered for the event to join this project. Please register for the event first."
           );
@@ -158,20 +221,13 @@ export default function JoinProjectPage() {
         }
       }
 
-      // Add user to teammates array
-      const currentTeammates = project.teammates || [];
-      const updatedTeammates = [...currentTeammates, userEmail];
+      const response = await fetch("/api/projects/join", {
+        method: "PUT",
+        body: JSON.stringify({ projectId }),
+      });
 
-      const { error: updateError } = await supabase
-        .from("projects")
-        .update({
-          teammates: updatedTeammates,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", projectId);
-
-      if (updateError) {
-        throw updateError;
+      if (!response.ok) {
+        throw new Error("Failed to join project.");
       }
 
       setSuccess(true);
@@ -187,18 +243,7 @@ export default function JoinProjectPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="flex items-center space-x-2">
-          <Loader2 className="h-6 w-6 animate-spin text-blue-900" />
-          <span>Loading project information...</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (error && !project) {
+  if (!loading && error && !project) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
@@ -217,6 +262,10 @@ export default function JoinProjectPage() {
         </Card>
       </div>
     );
+  }
+
+  if (loading) {
+    return null;
   }
 
   if (success) {
@@ -273,6 +322,33 @@ export default function JoinProjectPage() {
                 </p>
               )}
 
+              {token && validatingToken && (
+                <Alert>
+                  <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                  <AlertDescription className="flex items-center gap-2">
+                    <span>Validating invitation link...</span>
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {token && !validatingToken && tokenValid === false && (
+                <Alert variant="destructive">
+                  <ShieldAlert className="h-4 w-4" />
+                  <AlertDescription>
+                    {inviteError || "This invitation link is invalid or has expired. Please request a new invitation link."}
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {token && !validatingToken && tokenValid === true && invitedEmail && (
+                <Alert>
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <AlertDescription className="text-green-700">
+                    Valid invitation for <strong>{invitedEmail}</strong>. Please sign in with this email to join.
+                  </AlertDescription>
+                </Alert>
+              )}
+
               <Alert>
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
@@ -284,7 +360,21 @@ export default function JoinProjectPage() {
               {error && (
                 <Alert variant="destructive">
                   <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>{error}</AlertDescription>
+                  <AlertDescription>
+                    <span>{error}</span>
+                    {eventRegistrationHref && (
+                      <span>
+                        {" "}
+                        <Link
+                          href={eventRegistrationHref}
+                          className="underline font-medium"
+                        >
+                          Register for the event
+                        </Link>
+                        .
+                      </span>
+                    )}
+                  </AlertDescription>
                 </Alert>
               )}
 
@@ -305,13 +395,18 @@ export default function JoinProjectPage() {
                     </p>
                     <Button
                       onClick={joinProject}
-                      disabled={joining}
+                      disabled={joining || validatingToken || (token !== null && tokenValid === false)}
                       className="w-full"
                     >
                       {joining ? (
                         <>
                           <Loader2 className="h-4 w-4 animate-spin mr-2 text-blue-900" />
                           Joining Project...
+                        </>
+                      ) : validatingToken ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin mr-2 text-blue-900" />
+                          Validating...
                         </>
                       ) : (
                         <>
@@ -320,6 +415,11 @@ export default function JoinProjectPage() {
                         </>
                       )}
                     </Button>
+                    {token && !validatingToken && tokenValid === false && (
+                      <p className="text-sm text-red-600 text-center">
+                        This invitation link is invalid. Please request a new one.
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
@@ -328,5 +428,24 @@ export default function JoinProjectPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function LoadingFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="flex items-center space-x-2">
+        <Loader2 className="h-6 w-6 animate-spin text-blue-900" />
+        <span>Loading project information...</span>
+      </div>
+    </div>
+  );
+}
+
+export default function JoinProjectPage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <JoinProjectContent />
+    </Suspense>
   );
 }

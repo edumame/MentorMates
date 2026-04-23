@@ -4,6 +4,7 @@ import { isValidUUID } from "@/app/utils/supabase/queries";
 import { notFound } from "next/navigation";
 import { EventPageLayout } from "@/components/events/event-page-layout";
 import { ParticipantsContent } from "@/components/events/participants-content";
+import { headers } from "next/headers";
 
 interface Participant {
   uid: string;
@@ -64,31 +65,41 @@ export default async function PublicParticipantsPage({ params }: PageProps) {
   let participantsList: Participant[] = [];
 
   if (hasJoined) {
-    const { data: participants, error } = await supabase
-      .from("user_event_roles")
-      .select("user_id, user_profiles!user_id(uid, display_name)")
-      .eq("event_id", eventData.event_id)
-      .eq("role", "participant")
-      .overrideTypes<
-        Array<{
-          user_id: UUID;
-          user_profiles: {
+    const requestHeaders = await headers();
+    const host =
+      requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host");
+    const protocol = requestHeaders.get("x-forwarded-proto") ?? "http";
+    const baseUrl =
+      process.env.NEXT_PUBLIC_APP_URL ||
+      (host ? `${protocol}://${host}` : "");
+
+    if (baseUrl) {
+      const response = await fetch(
+        `${baseUrl}/api/events/${eventData.event_id}/users?roles=participant&limit=500`,
+        {
+          cache: "no-store",
+          headers: {
+            cookie: requestHeaders.get("cookie") || "",
+          },
+        }
+      );
+
+      if (response.ok) {
+        const payload = await response.json();
+        participantsList = (payload.users || []).map(
+          (participant: {
+            user_id: UUID;
             uid: UUID;
-            display_name: string;
-          };
-        }>
-      >();
-
-    if (error) {
-      console.error("Error fetching participants:", error);
+            display_name: string | null;
+          }) => ({
+            uid: participant.uid || participant.user_id,
+            display_name: participant.display_name,
+          })
+        );
+      } else {
+        console.error("Error fetching participants via API route");
+      }
     }
-
-    participantsList = participants
-      ? participants.map((participant) => ({
-          uid: participant.user_profiles.uid,
-          display_name: participant.user_profiles.display_name,
-        }))
-      : [];
   }
 
   return (

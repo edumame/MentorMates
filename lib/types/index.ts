@@ -121,10 +121,11 @@ export type EventItem = {
   stripe_price_id?: string; // Stripe price ID for paid events
   participant_capacity?: number | null; // Max participants; null = unlimited
   finalist_recommendation_enabled?: boolean | null;
-  event_type?: string;
+  event_type?: string[];
   featured?: boolean; // Whether this event is featured on homepage
   approval_status?: ApprovalStatus; // Approval status: not_submitted, submitted, approved, or rejected. Featured is controlled separately via the featured boolean field.
   created_at?: string; // Timestamp when event was created
+  require_participant_approval?: boolean; // Whether participants need approval to join
 };
 
 export interface EventApprovalLog {
@@ -206,6 +207,14 @@ export interface Rule {
   items: string[];
 }
 
+export interface EventTicket {
+  ticket_status: string;
+  assigned_to_user_id: string;
+  event_id: string;
+  payment_id: string;
+  purchased_by_user_id: string;
+}
+
 export interface EventTrack {
   track_id: string;
   event_id: string;
@@ -213,14 +222,14 @@ export interface EventTrack {
   description: string;
   label?: string;
   prizes?: Prize[];
-  scoring_criteria: TrackScoringConfig;
+  scoring_criteria: EventTrackScoringConfig;
   created_at: string;
   updated_at: string;
 }
 
 export interface EventDetails extends EventItem {
   paid: boolean;
-  event_type: string;
+  event_type: string[];
   event_description: string;
   event_blurb?: string;
   paywall_content?: string;
@@ -235,7 +244,7 @@ export interface EventDetails extends EventItem {
   rules: Rule[];
   event_tracks?: EventTrack[];
   role_labels?: Record<string, string>;
-  faq?: string; // Optional markdown FAQ content
+  faq?: { question: string; answer: string }[]; // Structured FAQ items
   submission_time_start?: string; // Submission window start time
   submission_time_cutoff?: string; // Submission window end time
   sponsorship_tiers?: {
@@ -249,6 +258,51 @@ export interface EventDetails extends EventItem {
   } | null;
 }
 
+export type ProjectArtifactKind =
+  | "project_link"
+  | "video_link"
+  | "additional_material";
+
+export interface ProjectArtifact {
+  id?: string;
+  project_id?: string;
+  kind: ProjectArtifactKind;
+  label: string;
+  url: string;
+  sort_order: number;
+  is_primary: boolean;
+  metadata?: Record<string, unknown> | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export type SubmissionFieldType = "short_text" | "long_text" | "url" | "multi_url" | "file" | "select" | "multi_select" | "checkbox";
+
+export interface EventSubmissionField {
+  id: string;
+  event_id: string;
+  key: string;
+  label: string;
+  description?: string | null;
+  placeholder?: string | null;
+  field_type: SubmissionFieldType;
+  required: boolean;
+  sort_order: number;
+  is_active: boolean;
+  options?: unknown;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface ProjectSubmissionAnswer {
+  id: string;
+  project_id: string;
+  event_submission_field_id: string;
+  answer: string | string[];
+  created_at?: string;
+  updated_at?: string;
+}
+
 // Project Types
 export interface Project {
   id: string;
@@ -256,6 +310,7 @@ export interface Project {
   project_description: string;
   lead_name: string;
   lead_email: string;
+  is_private?: boolean;
   teammates?: string[];
   event_id: string;
   track_ids: string[]; //need to make tracks not required. Will need to redo.
@@ -265,6 +320,11 @@ export interface Project {
   video_url?: string | null;
   additional_materials_url?: string;
   cover_image_url?: string;
+  artifacts?: ProjectArtifact[];
+  submission_answers?: ProjectSubmissionAnswer[];
+  submission_fields?: EventSubmissionField[];
+  submission_values?: Record<string, string | string[]>;
+  has_submission_field_config?: boolean;
   event_name?: string;
   prizes_won?: Prize[];
   contextus_project_id?: string;
@@ -304,11 +364,41 @@ export interface TrackScoringConfig {
   criteria: ScoringCriterion[];
 }
 
+export interface EventTrackScoringConfig extends TrackScoringConfig {
+  /** Optional per-round rubric overrides stored on the event_tracks row. */
+  rounds?: Record<string, TrackScoringConfig>;
+}
+
+export interface RoundConfig {
+  round_number: number;
+  name: string;
+  /** Number of projects that advance to the next round. null/undefined on the final round. */
+  advancement_count?: number | null;
+  /** Optional hydrated per-track scoring config overrides for this round. */
+  tracks?: Record<string, TrackScoringConfig>;
+  /** Optional: override criteria for this round. Falls back to track criteria if omitted. */
+  criteria?: ScoringCriterion[];
+  /** Optional: restrict which judges see this round. */
+  judges?: string[];
+}
+
 export interface EventScoringConfig {
   tracks: Record<string, TrackScoringConfig>;
   defaultMin?: number;
   defaultMax?: number;
   defaultWeight?: number;
+  /** Optional multi-round configuration. If omitted, event behaves as a single round (round 1, all projects). */
+  rounds?: RoundConfig[];
+  /** Currently active round number. Defaults to 1 when unset. */
+  activeRound?: number;
+}
+
+export interface ProjectRoundAdvancement {
+  id: string;
+  event_id: string;
+  project_id: string;
+  round_number: number;
+  advanced_at: string;
 }
 
 export interface ProjectScore {
@@ -320,6 +410,7 @@ export interface ProjectScore {
   scores: Record<string, number | string>;
   comments?: string;
   finalist_recommendation?: boolean;
+  round_number?: number;
   created_at: string;
   updated_at: string;
 }
@@ -351,6 +442,7 @@ export interface SupabaseProjectData {
   project_description: string;
   teammates: string[];
   project_url?: string;
+  video_url?: string | null;
   additional_materials_url?: string;
   cover_image_url?: string;
   event_id: string;
@@ -395,9 +487,11 @@ export interface ProjectFromDatabase {
   project_name: string;
   lead_name: string;
   lead_email: string;
+  is_private?: boolean;
   project_description: string;
   teammates: string[];
   project_url?: string;
+  video_url?: string | null;
   additional_materials_url?: string;
   cover_image_url?: string;
   event_id: string;
@@ -425,4 +519,39 @@ export interface DevpostProjectImport {
   event_id: string;
   video_url?: string;
   teammates?: string[];
+}
+
+// Participant Approval Types
+export enum ParticipantRequestStatus {
+  Pending = "pending",
+  Approved = "approved",
+  Rejected = "rejected",
+  Withdrawn = "withdrawn",
+}
+
+export interface ParticipantApprovalRequest {
+  id: string;
+  event_id: string;
+  user_id: string;
+  requested_role: EventRole;
+  status: ParticipantRequestStatus;
+  reason?: string;
+  form_responses?: Record<string, unknown>;
+  reviewed_by?: string;
+  reviewed_at?: string;
+  rejection_reason?: string;
+  created_at: string;
+  updated_at: string;
+  // Joined fields from user_profiles
+  user_profile?: {
+    uid: string;
+    display_name: string;
+    email?: string;
+    avatar_url?: string;
+  };
+  // Joined fields for reviewer
+  reviewer_profile?: {
+    uid: string;
+    display_name: string;
+  };
 }

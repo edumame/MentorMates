@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Plus, Search } from "lucide-react";
+import { EventSearchInput } from "@/components/ui/event-search-input";
+import { Plus } from "lucide-react";
 import ProjectBoard from "@/features/projects/components/displays/ProjectBoard/ProjectBoard";
 import { ProjectBoardContext, Project, EventRole } from "@/lib/types";
 
@@ -31,7 +32,7 @@ export function GalleryContent({
       setIsLoading(true);
       try {
         const response = await fetch(
-          `/api/projects?eventId=${eventId}&public=true`
+          `/api/projects?eventId=${eventId}`
         );
         if (!response.ok) {
           throw new Error("Failed to fetch projects");
@@ -59,16 +60,13 @@ export function GalleryContent({
   return (
     <div className="flex flex-col flex-1 w-full">
       {/* Search Bar */}
-      <div className="bg-transparent border border-[rgba(0,0,0,0.15)] rounded-xl flex gap-3 items-center px-3 py-2 mb-6 w-full max-w-[560px]">
-        <Search className="w-6 h-6 text-black shrink-0" />
-        <input
-          type="text"
-          placeholder="Search projects by name or team members"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="font-normal text-[16px] leading-[1.5] text-black placeholder:text-[rgba(0,0,0,0.6)] bg-transparent border-none outline-none flex-1"
-        />
-      </div>
+      <EventSearchInput
+        wrapperClassName="mb-6 w-full max-w-[560px]"
+        placeholder="Search projects by name or team members"
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        inputClassName="text-[16px] leading-[1.5] sm:text-[16px]"
+      />
 
       {/* Create Project Button - Only show for participants and organizers */}
       {hasJoined &&

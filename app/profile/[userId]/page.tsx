@@ -38,6 +38,7 @@ import { useToast } from "@/lib/hooks/use-toast";
 import { Toaster } from "@/components/ui/toaster";
 import { getRoleLabel } from "@/features/user/roles/roles";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
+import { PHONE_NUMBER_TEXT_USAGE_COPY } from "@/lib/constants/privacy";
 import { z } from "zod";
 import {
   PhoneVerificationInput,
@@ -579,18 +580,18 @@ export default function ProfilePage() {
   // Loading state - show skeleton UI while fetching profile
   if (isLoading) {
     return (
-      <PageContainer showBorder={true}>
+      <PageContainer showBorder={false}>
         <PageContent>
           <div className="flex flex-col w-full animate-pulse">
             {/* Cover Image Skeleton */}
-            <div className="relative h-[200px] md:h-[240px] w-full rounded-tl-2xl overflow-hidden bg-gray-200" />
+            <div className="relative h-[200px] md:h-[240px] w-full rounded-tl-2xl overflow-hidden bg-[#DBEAFE]" />
 
             {/* Profile Header Skeleton */}
             <div
               className="relative px-6 md:px-8 pb-6"
               style={{
                 background:
-                  "linear-gradient(182deg, rgb(219, 234, 254) 0%, rgba(255, 255, 255, 0) 60%), linear-gradient(90deg, rgb(255, 255, 255) 0%, rgb(255, 255, 255) 100%)",
+                  "#DBEAFE",
               }}
             >
               <div className="flex flex-col md:flex-row gap-4 md:gap-6 items-start md:items-end">
@@ -614,7 +615,7 @@ export default function ProfilePage() {
             </div>
 
             {/* Tabs Skeleton */}
-            <div className="border-b border-gray-100 px-6">
+            <div className="px-6 pt-8">
               <div className="flex gap-6 py-3">
                 <div className="h-6 w-20 bg-gray-200 rounded" />
                 <div className="h-6 w-16 bg-gray-200 rounded" />
@@ -622,7 +623,7 @@ export default function ProfilePage() {
             </div>
 
             {/* Content Skeleton */}
-            <div className="p-6">
+            <div className="p-6 border-0">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {[1, 2, 3].map((i) => (
                   <div
@@ -646,7 +647,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <PageContainer showBorder={true}>
+    <PageContainer showBorder={false}>
       <PageContent>
         <Toaster />
 
@@ -655,14 +656,21 @@ export default function ProfilePage() {
           {/* Cover Image Section */}
           <div className="relative h-[200px] md:h-[240px] w-full rounded-tl-2xl overflow-hidden">
             {userProfile?.cover_image_url ? (
-              <img
-                src={userProfile.cover_image_url}
-                alt="Cover"
-                className="w-full h-full object-cover"
+              <div
+                className="w-full h-full"
+                style={{
+                  background:
+                    `url(${userProfile.cover_image_url}) center / cover no-repeat, #DBEAFE`,
+                }}
               />
             ) : (
-              // Default gradient cover when no image
-              <div className="w-full h-full bg-gradient-to-br from-gray-800 via-gray-900 to-black" />
+              // Default solid cover when no image
+              <div
+                className="w-full h-full"
+                style={{
+                  background: "#DBEAFE",
+                }}
+              />
             )}
           </div>
 
@@ -671,7 +679,7 @@ export default function ProfilePage() {
             className="relative px-6 md:px-8 pb-6"
             style={{
               background:
-                "linear-gradient(182deg, rgb(219, 234, 254) 0%, rgba(255, 255, 255, 0) 60%), linear-gradient(90deg, rgb(255, 255, 255) 0%, rgb(255, 255, 255) 100%)",
+                "#DBEAFE",
             }}
           >
             {/* Avatar and Info Row */}
@@ -954,7 +962,7 @@ export default function ProfilePage() {
           </div>
 
           {/* Tabs Section */}
-          <div className="border-b border-gray-100 px-6">
+          <div className="px-6 pt-8">
             <div className="flex gap-6">
               <button
                 onClick={() => setActiveTab(PROFILE_TABS.PROJECTS)}
@@ -986,7 +994,7 @@ export default function ProfilePage() {
           </div>
 
           {/* Content Section */}
-          <div className="p-6">
+          <div className="p-6 border-0">
             {activeTab === PROFILE_TABS.PROJECTS && (
               <div>
                 {isLoading ? (
@@ -1426,6 +1434,18 @@ export default function ProfilePage() {
                     onVerificationStatusChange={setPhoneVerificationStatus}
                     disabled={isSaving}
                   />
+                  <p className="text-[12px] leading-relaxed text-zinc-600">
+                    By providing your phone number, you consent to receiving
+                    text updates about events you have joined or are interested
+                    in joining. {PHONE_NUMBER_TEXT_USAGE_COPY} See our{" "}
+                    <Link
+                      href="/privacy"
+                      className="text-[#4b89ef] hover:underline"
+                    >
+                      Privacy Policy
+                    </Link>
+                    .
+                  </p>
                   {validationErrors.phone_number && (
                     <p className="text-sm text-red-500">
                       {validationErrors.phone_number}
