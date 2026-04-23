@@ -19,6 +19,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { EVENT_PAGE_SHELL_CLASS } from "./event-page-shell";
 
 interface EventPageClientWrapperProps {
   userRole: EventRole;
@@ -197,7 +198,7 @@ export function EventPageClientWrapper({
         onManageEventClick={() => handleRoleChange(EventRole.Organizer)}
         paid={paid}
         eventType={eventType}
-        containerClassName="w-full px-4 md:px-6"
+        containerClassName={EVENT_PAGE_SHELL_CLASS}
       />
       {tabsAndContent}
 

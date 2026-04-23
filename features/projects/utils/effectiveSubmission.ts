@@ -152,6 +152,25 @@ export function buildSubmissionAnswerMapByFieldId(
   return answerMap;
 }
 
+export function hasSubmissionFieldMismatch(
+  answers: ProjectSubmissionAnswer[] | undefined,
+  fields: EventSubmissionField[] | EffectiveSubmissionField[]
+): boolean {
+  const activeFieldIds = new Set(
+    fields
+      .filter((field) => field.is_active)
+      .map((field) => field.id)
+  );
+
+  if (activeFieldIds.size === 0) {
+    return (answers?.length || 0) > 0;
+  }
+
+  return (answers || []).some(
+    (answer) => !activeFieldIds.has(answer.event_submission_field_id)
+  );
+}
+
 export function buildSubmissionValuesFromProject(
   project: Partial<Project>,
   fields: EffectiveSubmissionField[]

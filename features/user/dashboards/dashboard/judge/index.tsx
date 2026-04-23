@@ -3,7 +3,12 @@
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { Project, EventTrack } from "@/lib/types";
+import {
+  EventScoringConfig,
+  EventTrack,
+  Project,
+  TrackScoringConfig,
+} from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { EventSearchInput } from "@/components/ui/event-search-input";
 import { DefaultScoring } from "@/components/project-scoring/default-scoring";
@@ -15,12 +20,16 @@ import {
 } from "@/components/ui/accordion";
 import { ArrowLeft, ArrowRight, ChevronDown, Target } from "lucide-react";
 import Link from "next/link";
+import { CoverImageWithFallback } from "@/features/projects/components/displays/cover-image-with-fallback";
 import { LoadingScreen } from "@/components/ui/loading-screen";
 import {
   getNextProjectId,
   isProjectFullyScored,
   truncateWithEllipsis,
 } from "./utils";
+import { getActiveRound } from "@/lib/judging/rounds";
+import { getTrackScoringConfigForRound } from "@/lib/judging/scoring-config";
+import { buildEventScoringConfig } from "@/lib/events/build-event-scoring-config";
 
 interface JudgeDashboardProps {
   eventId: string;
@@ -48,9 +57,7 @@ interface ScoreRow {
   scores: Record<string, number> | null;
 }
 
-// Sort key: "default" | "unscored_first" | "score_high" | "score_low"
-// or per-track: "track_high:<trackId>" | "track_low:<trackId>"
-type NavigatorSort = string;
+type NavigatorSort = "default" | "score_high" | "score_low" | "unscored_first";
 
 /**
  * Compute the weighted average of a judge's scores for a single track.
@@ -58,12 +65,21 @@ type NavigatorSort = string;
  */
 function computeTrackAverage(
   scores: Record<string, number> | null,
-  track: EventTrack | undefined
+  track: EventTrack | undefined,
+  scoringConfig: EventScoringConfig | null,
+  roundNumber: number
 ): number | null {
   if (!scores || !track) return null;
-  const criteria =
-    (track.scoring_criteria as { criteria?: Array<{ id: string; weight: number }> })
-      ?.criteria || [];
+  const resolvedTrackConfig =
+    getTrackScoringConfigForRound({
+      scoringConfig,
+      trackId: track.track_id,
+      roundNumber,
+      fallbackTrackName: track.name,
+      trackScoringCriteria: track.scoring_criteria,
+    }) ||
+    (track.scoring_criteria as TrackScoringConfig | null);
+  const criteria = resolvedTrackConfig?.criteria || [];
   if (criteria.length === 0) return null;
 
   let weightedSum = 0;
@@ -86,7 +102,9 @@ function computeTrackAverage(
 function computeProjectAverage(
   projectId: string,
   scoresMap: Map<string, Map<string, Record<string, number>>>,
-  tracksById: Map<string, EventTrack>
+  tracksById: Map<string, EventTrack>,
+  scoringConfig: EventScoringConfig | null,
+  roundNumber: number
 ): number | null {
   const projectScores = scoresMap.get(projectId);
   if (!projectScores || projectScores.size === 0) return null;
@@ -94,7 +112,7 @@ function computeProjectAverage(
   const trackAverages: number[] = [];
   projectScores.forEach((scores, trackId) => {
     const track = tracksById.get(trackId);
-    const avg = computeTrackAverage(scores, track);
+    const avg = computeTrackAverage(scores, track, scoringConfig, roundNumber);
     if (avg !== null) trackAverages.push(avg);
   });
 
@@ -126,6 +144,10 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
   const [deckFilter, setDeckFilter] = useState<"pending" | "all">("pending");
   const [searchQuery, setSearchQuery] = useState("");
   const [finalistFeatureEnabled, setFinalistFeatureEnabled] = useState(false);
+  const [scoringConfig, setScoringConfig] = useState<EventScoringConfig | null>(
+    null
+  );
+  const [activeRound, setActiveRound] = useState(1);
   const previousVisibleIdsRef = useRef<string[]>([]);
   const swipeStartXRef = useRef<number | null>(null);
   const swipeEnabledRef = useRef(false);
@@ -136,7 +158,7 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
     () =>
       projects.filter(
         (project) =>
-          project.project_name
+          project.project_name || "Project Name Not Set"
             .toLowerCase()
             .includes(normalizedSearchQuery) ||
           (project.project_description || "")
@@ -169,45 +191,25 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
   const averagesByProject = useMemo(() => {
     const m = new Map<string, number | null>();
     projects.forEach((p) => {
-      m.set(p.id, computeProjectAverage(p.id, scoreValues, tracksById));
+      m.set(
+        p.id,
+        computeProjectAverage(
+          p.id,
+          scoreValues,
+          tracksById,
+          scoringConfig,
+          activeRound
+        )
+      );
     });
     return m;
-  }, [projects, scoreValues, tracksById]);
-
-  // Helper: get a project's score for a specific track
-  const getTrackScore = (projectId: string, trackId: string): number | null => {
-    const projectScores = scoreValues.get(projectId);
-    if (!projectScores) return null;
-    const scores = projectScores.get(trackId);
-    if (!scores) return null;
-    const track = tracksById.get(trackId);
-    return computeTrackAverage(scores, track);
-  };
+  }, [projects, scoreValues, tracksById, scoringConfig, activeRound]);
 
   // Apply sort to the visible projects for the navigator
   const navigatorProjects = useMemo(() => {
     if (navigatorSort === "default") return visibleProjects;
     const sorted = [...visibleProjects];
-
-    // Per-track sort: "track_high:<trackId>" or "track_low:<trackId>"
-    const trackMatch = navigatorSort.match(/^track_(high|low):(.+)$/);
-
     sorted.sort((a, b) => {
-      if (trackMatch) {
-        const [, direction, trackId] = trackMatch;
-        const scoreA = getTrackScore(a.id, trackId);
-        const scoreB = getTrackScore(b.id, trackId);
-        const hasA = scoreA !== null;
-        const hasB = scoreB !== null;
-        if (!hasA && !hasB) return a.project_name.localeCompare(b.project_name);
-        if (!hasA) return 1;
-        if (!hasB) return -1;
-        return direction === "high"
-          ? (scoreB as number) - (scoreA as number)
-          : (scoreA as number) - (scoreB as number);
-      }
-
-      // Overall average sort
       const avgA = averagesByProject.get(a.id);
       const avgB = averagesByProject.get(b.id);
       const hasA = avgA !== null && avgA !== undefined;
@@ -218,6 +220,7 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
         if (!hasA && hasB) return -1;
         return a.project_name.localeCompare(b.project_name);
       }
+      // For score sorts, unscored projects go to the bottom
       if (!hasA && !hasB) return a.project_name.localeCompare(b.project_name);
       if (!hasA) return 1;
       if (!hasB) return -1;
@@ -226,7 +229,7 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
         : (avgA as number) - (avgB as number);
     });
     return sorted;
-  }, [visibleProjects, navigatorSort, averagesByProject, scoreValues, tracksById]);
+  }, [visibleProjects, navigatorSort, averagesByProject]);
   const judgedProjectsCount = useMemo(
     () =>
       projects.filter((project) => isProjectFullyScored(project, scoredProjects))
@@ -451,7 +454,7 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
             .eq("event_id", eventId),
           supabase
             .from("events")
-            .select("finalist_recommendation_enabled")
+            .select("finalist_recommendation_enabled, scoring_config")
             .eq("event_id", eventId)
             .maybeSingle(),
           supabase
@@ -485,9 +488,44 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
           );
         }
 
-        const projectIds = assignedProjectsResponse.data?.map(
+        let projectIds = assignedProjectsResponse.data?.map(
           (project) => project.project_id
         ) || [];
+
+        // Multi-round judging (#706): filter assigned projects down to those
+        // advanced to the active round. If no advancements exist for round 1,
+        // fall back to all assigned projects (backward compat).
+        const scoringCfg = buildEventScoringConfig({
+          event_tracks: trackResponse.data || [],
+          scoring_config:
+            (eventSettingsResponse.data?.scoring_config as EventScoringConfig | null) ??
+            null,
+        });
+        setScoringConfig(scoringCfg);
+        const activeRound = getActiveRound(scoringCfg);
+        setActiveRound(activeRound);
+
+        if (projectIds.length > 0) {
+          const { data: advancements } = await supabase
+            .from("project_round_advancements")
+            .select("project_id")
+            .eq("event_id", eventId)
+            .eq("round_number", activeRound)
+            .in("project_id", projectIds);
+
+          const advancedIds = (advancements ?? []).map(
+            (a: { project_id: string }) => a.project_id
+          );
+
+          if (advancedIds.length > 0) {
+            projectIds = advancedIds;
+          } else if (activeRound > 1) {
+            // Explicitly past round 1 with no advancements for this judge →
+            // show nothing.
+            projectIds = [];
+          }
+          // Round 1 with no advancement rows → fall through (legacy behavior).
+        }
 
         if (projectIds.length === 0) {
           setProjects([]);
@@ -558,6 +596,7 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
           .select("project_id, track_id, scores")
           .eq("judge_id", session.user.id)
           .eq("event_id", eventId)
+          .eq("round_number", activeRound)
           .overrideTypes<ScoreRow[]>();
 
         if (scoresError) {
@@ -784,39 +823,15 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                   <select
                     value={navigatorSort}
                     onChange={(e) =>
-                      setNavigatorSort(e.target.value)
+                      setNavigatorSort(e.target.value as NavigatorSort)
                     }
-                    className="h-8 max-w-[180px] rounded-md border border-[#D4DDEC] bg-white px-2 text-xs font-medium text-[rgba(0,0,0,0.68)] focus:outline-none focus:ring-1 focus:ring-[#4B89EF]"
+                    className="h-8 rounded-md border border-[#D4DDEC] bg-white px-2 text-xs font-medium text-[rgba(0,0,0,0.68)] focus:outline-none focus:ring-1 focus:ring-[#4B89EF]"
                     aria-label="Sort projects"
                   >
                     <option value="default">Alphabetical</option>
+                    <option value="score_high">Score: high → low</option>
+                    <option value="score_low">Score: low → high</option>
                     <option value="unscored_first">Unscored first</option>
-                    {eventTracks.length > 0 && (
-                      <optgroup label="By overall avg">
-                        <option value="score_high">Avg: high → low</option>
-                        <option value="score_low">Avg: low → high</option>
-                      </optgroup>
-                    )}
-                    {eventTracks.length > 0 && (
-                      <optgroup label="By track">
-                        {eventTracks.map((track) => (
-                          <option
-                            key={`high_${track.track_id}`}
-                            value={`track_high:${track.track_id}`}
-                          >
-                            {track.name}: high → low
-                          </option>
-                        ))}
-                        {eventTracks.map((track) => (
-                          <option
-                            key={`low_${track.track_id}`}
-                            value={`track_low:${track.track_id}`}
-                          >
-                            {track.name}: low → high
-                          </option>
-                        ))}
-                      </optgroup>
-                    )}
                   </select>
                   <p className="inline-flex h-7 items-center rounded-full bg-[#E8F8EC] px-2.5 text-xs font-semibold text-[#19703A]">
                     Judged {judgedProjectsCount}/{projects.length}
@@ -1015,8 +1030,7 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                     <section className="order-1 min-w-0 space-y-4 lg:order-2">
                       <div className="overflow-hidden rounded-2xl bg-white">
                         {currentProject.cover_image_url ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
+                          <CoverImageWithFallback
                             src={currentProject.cover_image_url}
                             alt={`${currentProject.project_name} cover`}
                             className="h-[240px] w-full object-cover md:h-[280px]"
@@ -1163,6 +1177,8 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                                       eventId={eventId}
                                       judgeId={judgeId}
                                       trackId={trackId}
+                                      scoringConfig={scoringConfig}
+                                      roundNumber={activeRound}
                                       finalistFeatureEnabled={finalistFeatureEnabled}
                                       hideProjectHeader
                                       onScoreSaved={() =>
@@ -1277,6 +1293,8 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                                 eventId={eventId}
                                 judgeId={judgeId}
                                 trackId={trackId}
+                                scoringConfig={scoringConfig}
+                                roundNumber={activeRound}
                                 finalistFeatureEnabled={finalistFeatureEnabled}
                                 hideProjectHeader
                                 onScoreSaved={() =>
