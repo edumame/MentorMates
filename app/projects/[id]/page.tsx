@@ -28,6 +28,8 @@ import {
   Video,
   Lightbulb,
   Download,
+  Check,
+  AlertTriangle,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -378,6 +380,43 @@ export default function ProjectPage() {
         variant: "destructive",
       });
       return false;
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleSubmitToEvent = async (): Promise<void> => {
+    setIsUpdating(true);
+    try {
+      const response = await fetch("/api/projects/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId, submitted: true }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        toast({
+          title: "Submission failed",
+          description: errorData?.error || "Could not submit project to event.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const { data } = await response.json();
+      setProjectWithArtifacts(data as Project);
+      toast({
+        title: "Submitted to event",
+        description: "Your project is now visible to judges.",
+      });
+    } catch (err) {
+      toast({
+        title: "Submission failed",
+        description:
+          err instanceof Error ? err.message : "Unknown error. Try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsUpdating(false);
     }
@@ -1255,18 +1294,7 @@ export default function ProjectPage() {
                 {project.submitted ? (
                   <div className="flex items-start gap-3">
                     <div className="mt-0.5 h-5 w-5 rounded-full bg-[#DCFCE7] flex items-center justify-center shrink-0">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 20 20"
-                        fill="#16A34A"
-                        className="h-3 w-3"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
+                      <Check className="h-3 w-3 text-[#16A34A]" strokeWidth={3} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-[13px] font-semibold text-[#18181B] tracking-[-0.01em] leading-tight">
@@ -1281,18 +1309,7 @@ export default function ProjectPage() {
                 ) : (
                   <div className="flex items-start gap-3">
                     <div className="mt-0.5 h-5 w-5 rounded-full bg-[#FEF3C7] flex items-center justify-center shrink-0">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 20 20"
-                        fill="#D97706"
-                        className="h-3 w-3"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
+                      <AlertTriangle className="h-3 w-3 text-[#D97706]" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-[13px] font-semibold text-[#18181B] tracking-[-0.01em] leading-tight">
@@ -1305,9 +1322,10 @@ export default function ProjectPage() {
                       </p>
                       <Button
                         className="mt-2.5 bg-[#4B89EF] hover:bg-[#3E7EEA] text-white rounded-[12px] h-8 px-4 text-[13px] font-semibold shadow-[inset_0_2px_1px_0_rgba(255,255,255,0.25),0_1px_2px_0_rgba(0,0,0,0.05)]"
-                        onClick={() => router.push(`/projects/${projectId}/edit`)}
+                        onClick={handleSubmitToEvent}
+                        disabled={isUpdating}
                       >
-                        Submit to event
+                        {isUpdating ? "Submitting…" : "Submit to event"}
                       </Button>
                     </div>
                   </div>
