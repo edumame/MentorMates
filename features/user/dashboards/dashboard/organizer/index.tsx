@@ -16,7 +16,6 @@ import {
   Bell,
   Bot,
   KeyRound,
-  Users,
 } from "lucide-react";
 
 import {
@@ -36,7 +35,6 @@ import EmailDashboard from "./notifications/EmailDashboard";
 import { AgentsTab } from "./agents/AgentsTab";
 import { ApiKeysTab } from "./api-keys/ApiKeysTab";
 import { IntakeResponsesTab } from "./registration";
-import { RolesTab } from "./roles";
 // Overview sub-tab components
 import { BasicInfoTab } from "./details/BasicInfoTab";
 import { ContentTab } from "./details/ContentTab";
@@ -80,7 +78,6 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
     { value: "registration", label: "Registration", icon: Calendar },
     { value: "project", label: "Project", icon: FileText },
     { value: "access", label: "Access", icon: Shield },
-    { value: "roles", label: "Roles", icon: Users },
     { value: "tracks", label: "Tracks", icon: FolderKanban },
     { value: "pricing", label: "Pricing", icon: DollarSign },
     { value: "notify", label: "Notify", icon: Bell },
@@ -404,10 +401,6 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
                   setSaving={setSaving}
                   activeSubTab="password"
                 />
-              </TabsContent>
-
-              <TabsContent value="roles" className="mt-0">
-                <RolesTab eventId={eventId} event={event} />
               </TabsContent>
 
               <TabsContent value="tracks" className="mt-0">

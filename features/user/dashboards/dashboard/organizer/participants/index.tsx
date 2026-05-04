@@ -9,13 +9,17 @@ import Papa from "papaparse";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronLeft, ChevronRight, Download, Copy, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, Copy, Trash2, FileDown } from "lucide-react";
 import { useToast } from "@/lib/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { ApprovalRequestsTab } from "./ApprovalRequestsTab";
 import { ApprovalSettingsTab } from "./ApprovalSettingsTab";
 import { AssignTab } from "../assign";
+import {
+  EvidenceLetterDialog,
+  JudgeEvidenceContext,
+} from "../roles/EvidenceLetterDialog";
 
 interface UserEventRoleWithProfile {
   user_id: string;
@@ -45,11 +49,35 @@ interface ProjectRow {
   teammates: string[] | null;
 }
 
+interface JudgeStat {
+  user_id: string;
+  display_name: string;
+  email: string;
+  affiliation: string;
+  projects_judged: number;
+}
+
+interface JudgeStatsResponse {
+  event: {
+    event_id: string;
+    event_name: string;
+    event_date: string;
+    location: string | null;
+  };
+  attendance: number;
+  judges: JudgeStat[];
+}
+
 export function ParticipantsTab({ eventId, event, setEvent, isArchived }: ParticipantsTabProps) {
   const PAGE_SIZE = 10;
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
+  const [judgeStats, setJudgeStats] = useState<JudgeStatsResponse | null>(null);
+  const [signedInName, setSignedInName] = useState<string>("");
+  const [letterDialogOpen, setLetterDialogOpen] = useState(false);
+  const [activeJudgeContext, setActiveJudgeContext] =
+    useState<JudgeEvidenceContext | null>(null);
   const router = useRouter();
   const { toast } = useToast();
   const notifyOnSave = false;
@@ -149,6 +177,62 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
 
     fetchParticipants();
   }, [eventId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadEvidenceContext() {
+      try {
+        const [statsRes, sessionRes] = await Promise.all([
+          fetch(`/api/events/${eventId}/judge-stats`),
+          supabase.auth.getSession(),
+        ]);
+
+        if (!cancelled && statsRes.ok) {
+          const statsJson = (await statsRes.json()) as JudgeStatsResponse;
+          setJudgeStats(statsJson);
+        }
+
+        const session = sessionRes.data.session;
+        if (!cancelled && session?.user?.id) {
+          const { data: profile } = await supabase
+            .from("user_profiles")
+            .select("display_name, email")
+            .eq("uid", session.user.id)
+            .maybeSingle();
+          setSignedInName(
+            profile?.display_name ||
+              profile?.email ||
+              session.user.email ||
+              ""
+          );
+        }
+      } catch (err) {
+        console.error("Error loading evidence-letter context", err);
+      }
+    }
+    loadEvidenceContext();
+    return () => {
+      cancelled = true;
+    };
+  }, [eventId]);
+
+  const handleExportLetter = (participant: Participant) => {
+    const stat = (judgeStats?.judges || []).find(
+      (j) => j.user_id === participant.user_id
+    );
+    setActiveJudgeContext({
+      judgeName: participant.display_name || participant.email || "",
+      judgeEmail: participant.email,
+      projectsJudged: stat?.projects_judged ?? 0,
+      eventName: judgeStats?.event.event_name || event.event_name || "",
+      eventDate: judgeStats?.event.event_date || event.event_date || "",
+      attendance: judgeStats?.attendance ?? 0,
+      organizerName: signedInName,
+      organizerRole: "Organizer",
+      organizerOrg: event.event_name || "",
+    });
+    setLetterDialogOpen(true);
+  };
 
   const totalPages = Math.max(1, Math.ceil(participants.length / PAGE_SIZE));
   const clampedCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
@@ -418,15 +502,29 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
                             </TableCell>
                             <TableCell className="text-right pr-6" onClick={(e) => e.stopPropagation()}>
                               {!participant.user_id.startsWith("project-") && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="text-red-600 hover:text-red-700"
-                                  onClick={() => handleRemove(participant.user_id)}
-                                  aria-label={`Remove ${participant.display_name}`}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
+                                <div className="flex items-center justify-end gap-1">
+                                  {participant.role === EventRole.Judge && (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleExportLetter(participant)}
+                                      aria-label={`Export evidence letter for ${participant.display_name}`}
+                                      title="Export evidence letter (e.g. for an O1 visa packet)"
+                                    >
+                                      <FileDown className="h-4 w-4 mr-1.5" />
+                                      Export Letter
+                                    </Button>
+                                  )}
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-red-600 hover:text-red-700"
+                                    onClick={() => handleRemove(participant.user_id)}
+                                    aria-label={`Remove ${participant.display_name}`}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
                               )}
                             </TableCell>
                           </TableRow>
@@ -515,6 +613,11 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
         </Tabs>
         )}
       </CardContent>
+      <EvidenceLetterDialog
+        open={letterDialogOpen}
+        onOpenChange={setLetterDialogOpen}
+        context={activeJudgeContext}
+      />
     </Card>
   );
 }
