@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
@@ -12,6 +14,22 @@ import {
 } from "@/features/user/dashboards/dashboard/organizer/roles/generateLetterPdf";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
+
+let cachedLogoDataUrl: string | undefined;
+
+function getLogoDataUrl(): string | undefined {
+  if (cachedLogoDataUrl !== undefined) return cachedLogoDataUrl || undefined;
+  try {
+    const logoPath = path.join(process.cwd(), "public", "mentormate.png");
+    const buffer = fs.readFileSync(logoPath);
+    cachedLogoDataUrl = `data:image/png;base64,${buffer.toString("base64")}`;
+    return cachedLogoDataUrl;
+  } catch (err) {
+    console.error("Failed to read MentorMates logo from disk", err);
+    cachedLogoDataUrl = "";
+    return undefined;
+  }
+}
 
 const ALLOWED_ROLES = new Set<EventRole>([EventRole.Judge, EventRole.Mentor]);
 
@@ -154,7 +172,10 @@ export async function POST(
       );
     }
 
-    const doc = generateEvidenceLetterPdf(body.letterData);
+    const doc = generateEvidenceLetterPdf({
+      ...body.letterData,
+      logoDataUrl: body.letterData.logoDataUrl ?? getLogoDataUrl(),
+    });
     const arrayBuffer = doc.output("arraybuffer") as ArrayBuffer;
     const pdfBuffer = Buffer.from(arrayBuffer);
 

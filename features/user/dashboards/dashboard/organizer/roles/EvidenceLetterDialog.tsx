@@ -90,6 +90,23 @@ function formatServiceCount(count: number): string {
   return `${count.toLocaleString()} projects`;
 }
 
+async function loadLogoDataUrl(): Promise<string | undefined> {
+  try {
+    const res = await fetch("/mentormate.png");
+    if (!res.ok) return undefined;
+    const blob = await res.blob();
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(blob);
+    });
+  } catch (err) {
+    console.error("Failed to load MentorMates logo for letter PDF", err);
+    return undefined;
+  }
+}
+
 export function EvidenceLetterDialog({
   open,
   onOpenChange,
@@ -99,6 +116,17 @@ export function EvidenceLetterDialog({
   const { toast } = useToast();
   const [generating, setGenerating] = useState(false);
   const [emailing, setEmailing] = useState(false);
+  const [logoDataUrl, setLogoDataUrl] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    let cancelled = false;
+    loadLogoDataUrl().then((url) => {
+      if (!cancelled) setLogoDataUrl(url);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const initialFormState = useMemo<EvidenceLetterData>(() => {
     if (!context) {
@@ -158,7 +186,7 @@ export function EvidenceLetterDialog({
     if (!context) return;
     setGenerating(true);
     try {
-      const doc = generateEvidenceLetterPdf(form);
+      const doc = generateEvidenceLetterPdf({ ...form, logoDataUrl });
       const filename = buildFilename();
       doc.save(filename);
       onGenerated?.(form.recipientName);
