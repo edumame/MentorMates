@@ -7,11 +7,12 @@ import { canAccessRole } from "@/features/user/roles/roles";
 /**
  * GET /api/events/[eventId]/judge-stats
  *
- * Returns the data an organizer needs to generate judge evidence letters
- * (e.g. for an O1 visa packet):
+ * Returns the data an organizer needs to generate evidence letters for
+ * judges and mentors (e.g. for an O1 visa packet):
  *   - attendance: total participants registered for the event
  *   - eventName / eventDate: pulled from the events row
- *   - judges: per-judge stats (display name, email, distinct projects scored)
+ *   - judges:  per-judge stats with distinct projects scored
+ *   - mentors: per-mentor stats with distinct projects given feedback
  *
  * Organizer/admin only.
  */
@@ -68,7 +69,7 @@ export async function GET(
       .eq("event_id", eventId)
       .eq("role", EventRole.Participant);
 
-    const { data: judgeRows, error: judgesError } = await serviceSupabase
+    const { data: roleRows, error: rolesError } = await serviceSupabase
       .from("user_event_roles")
       .select(
         `
@@ -83,19 +84,27 @@ export async function GET(
       `
       )
       .eq("event_id", eventId)
-      .eq("role", EventRole.Judge)
+      .in("role", [EventRole.Judge, EventRole.Mentor])
       .order("created_at", { ascending: true });
 
-    if (judgesError) {
+    if (rolesError) {
       return NextResponse.json(
-        { error: "Failed to fetch judges" },
+        { error: "Failed to fetch judges and mentors" },
         { status: 500 }
       );
     }
 
-    const judgeIds = (judgeRows || []).map((row) => row.user_id);
+    const judgeRows = (roleRows || []).filter(
+      (r) => r.role === EventRole.Judge
+    );
+    const mentorRows = (roleRows || []).filter(
+      (r) => r.role === EventRole.Mentor
+    );
 
-    let scoresByJudge = new Map<string, Set<string>>();
+    const judgeIds = judgeRows.map((row) => row.user_id);
+    const mentorIds = mentorRows.map((row) => row.user_id);
+
+    const scoresByJudge = new Map<string, Set<string>>();
     if (judgeIds.length > 0) {
       const { data: scoreRows } = await serviceSupabase
         .from("project_scores")
@@ -103,27 +112,50 @@ export async function GET(
         .eq("event_id", eventId)
         .in("judge_id", judgeIds);
 
-      scoresByJudge = (scoreRows || []).reduce((acc, row) => {
-        if (!row.judge_id || !row.project_id) return acc;
-        const set = acc.get(row.judge_id) ?? new Set<string>();
+      (scoreRows || []).forEach((row) => {
+        if (!row.judge_id || !row.project_id) return;
+        const set = scoresByJudge.get(row.judge_id) ?? new Set<string>();
         set.add(row.project_id);
-        acc.set(row.judge_id, set);
-        return acc;
-      }, new Map<string, Set<string>>());
+        scoresByJudge.set(row.judge_id, set);
+      });
     }
 
-    const judges = (judgeRows || []).map((row) => {
-      const profile = Array.isArray(row.user_profiles)
-        ? row.user_profiles[0]
-        : row.user_profiles;
-      return {
-        user_id: row.user_id,
-        display_name: profile?.display_name ?? "",
-        email: profile?.email ?? "",
-        affiliation: profile?.affiliation ?? "",
-        projects_judged: scoresByJudge.get(row.user_id)?.size ?? 0,
-      };
-    });
+    const feedbackByMentor = new Map<string, Set<string>>();
+    if (mentorIds.length > 0) {
+      const { data: feedbackRows } = await serviceSupabase
+        .from("feedback")
+        .select("mentor_id, project_id")
+        .eq("event_id", eventId)
+        .in("mentor_id", mentorIds);
+
+      (feedbackRows || []).forEach((row) => {
+        if (!row.mentor_id || !row.project_id) return;
+        const set = feedbackByMentor.get(row.mentor_id) ?? new Set<string>();
+        set.add(row.project_id);
+        feedbackByMentor.set(row.mentor_id, set);
+      });
+    }
+
+    const mapRole = (
+      rows: typeof judgeRows,
+      counts: Map<string, Set<string>>,
+      countKey: "projects_judged" | "projects_mentored"
+    ) =>
+      rows.map((row) => {
+        const profile = Array.isArray(row.user_profiles)
+          ? row.user_profiles[0]
+          : row.user_profiles;
+        return {
+          user_id: row.user_id,
+          display_name: profile?.display_name ?? "",
+          email: profile?.email ?? "",
+          affiliation: profile?.affiliation ?? "",
+          [countKey]: counts.get(row.user_id)?.size ?? 0,
+        };
+      });
+
+    const judges = mapRole(judgeRows, scoresByJudge, "projects_judged");
+    const mentors = mapRole(mentorRows, feedbackByMentor, "projects_mentored");
 
     return NextResponse.json({
       event: {
@@ -134,6 +166,7 @@ export async function GET(
       },
       attendance: participantCount ?? 0,
       judges,
+      mentors,
     });
   } catch (error) {
     console.error("Error in GET /api/events/[eventId]/judge-stats:", error);

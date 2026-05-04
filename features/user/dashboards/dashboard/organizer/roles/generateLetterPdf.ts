@@ -1,12 +1,16 @@
 import { jsPDF } from "jspdf";
 
+export type EvidenceLetterRole = "judge" | "mentor";
+
 export interface EvidenceLetterData {
   recipientSalutation: string;
-  judgeName: string;
+  recipientName: string;
+  roleNoun: EvidenceLetterRole;
+  serviceVerb: string;
   eventName: string;
   eventDate: string;
   attendanceText: string;
-  projectsJudgedText: string;
+  serviceCountText: string;
   selectivityLanguage: string;
   praiseParagraph: string;
   organizerName: string;
@@ -20,12 +24,13 @@ export function roundDownToNearest50(n: number): number {
 }
 
 export function buildLetterBody(data: EvidenceLetterData): string[] {
+  const roleNoun = data.roleNoun;
   return [
     `${data.recipientSalutation},`,
     "",
-    `I am writing to validate that ${data.judgeName} served as a judge at ${data.eventName}, held on ${data.eventDate}, an event with ${data.attendanceText}. In this capacity, ${data.judgeName} personally evaluated ${data.projectsJudgedText}.`,
+    `I am writing to validate that ${data.recipientName} served as a ${roleNoun} at ${data.eventName}, held on ${data.eventDate}, an event with ${data.attendanceText}. In this capacity, ${data.recipientName} personally ${data.serviceVerb} ${data.serviceCountText}.`,
     "",
-    `${data.judgeName} ${data.selectivityLanguage}. ${data.praiseParagraph}`,
+    `${data.recipientName} ${data.selectivityLanguage}. ${data.praiseParagraph}`,
     "",
     "Sincerely,",
     "",

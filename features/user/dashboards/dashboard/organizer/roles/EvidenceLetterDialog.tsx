@@ -16,15 +16,19 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/lib/hooks/use-toast";
 import {
   EvidenceLetterData,
+  EvidenceLetterRole,
   generateEvidenceLetterPdf,
   roundDownToNearest50,
   safeFileName,
 } from "./generateLetterPdf";
 
-export interface JudgeEvidenceContext {
-  judgeName: string;
-  judgeEmail: string;
-  projectsJudged: number;
+export interface RecipientEvidenceContext {
+  recipientUserId: string;
+  recipientName: string;
+  recipientEmail: string;
+  roleNoun: EvidenceLetterRole;
+  serviceCount: number;
+  eventId: string;
   eventName: string;
   eventDate: string;
   attendance: number;
@@ -33,18 +37,34 @@ export interface JudgeEvidenceContext {
   organizerOrg: string;
 }
 
+// Backwards-compatible alias for legacy import sites.
+export type JudgeEvidenceContext = RecipientEvidenceContext;
+
 interface EvidenceLetterDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  context: JudgeEvidenceContext | null;
-  onGenerated?: (judgeName: string) => void;
+  context: RecipientEvidenceContext | null;
+  onGenerated?: (recipientName: string) => void;
 }
 
-const DEFAULT_PRAISE =
-  "performed exceptionally — bringing rigorous technical judgment, fairness, and clear, actionable feedback to every project they reviewed.";
+const DEFAULT_PRAISE: Record<EvidenceLetterRole, string> = {
+  judge:
+    "performed exceptionally — bringing rigorous technical judgment, fairness, and clear, actionable feedback to every project they reviewed.",
+  mentor:
+    "performed exceptionally — bringing deep technical expertise, generous coaching, and clear, actionable feedback to every team they supported.",
+};
 
-const DEFAULT_SELECTIVITY =
-  "was selected from a highly selective pool of applicant judges and";
+const DEFAULT_SELECTIVITY: Record<EvidenceLetterRole, string> = {
+  judge:
+    "was selected from a highly selective pool of applicant judges and",
+  mentor:
+    "was selected from a highly selective pool of applicant mentors and",
+};
+
+const SERVICE_VERB: Record<EvidenceLetterRole, string> = {
+  judge: "evaluated",
+  mentor: "mentored",
+};
 
 function formatEventDate(raw: string): string {
   if (!raw) return "";
@@ -65,7 +85,7 @@ function formatAttendance(attendance: number): string {
   return `more than ${rounded.toLocaleString()} attendees`;
 }
 
-function formatProjectsJudged(count: number): string {
+function formatServiceCount(count: number): string {
   if (count === 1) return "1 project";
   return `${count.toLocaleString()} projects`;
 }
@@ -78,32 +98,38 @@ export function EvidenceLetterDialog({
 }: EvidenceLetterDialogProps) {
   const { toast } = useToast();
   const [generating, setGenerating] = useState(false);
+  const [emailing, setEmailing] = useState(false);
 
   const initialFormState = useMemo<EvidenceLetterData>(() => {
     if (!context) {
       return {
         recipientSalutation: "To Whom It May Concern",
-        judgeName: "",
+        recipientName: "",
+        roleNoun: "judge",
+        serviceVerb: SERVICE_VERB.judge,
         eventName: "",
         eventDate: "",
         attendanceText: "",
-        projectsJudgedText: "",
-        selectivityLanguage: DEFAULT_SELECTIVITY,
-        praiseParagraph: DEFAULT_PRAISE,
+        serviceCountText: "",
+        selectivityLanguage: DEFAULT_SELECTIVITY.judge,
+        praiseParagraph: DEFAULT_PRAISE.judge,
         organizerName: "",
         organizerRole: "",
         organizerOrg: "",
       };
     }
+    const role = context.roleNoun;
     return {
       recipientSalutation: "To Whom It May Concern",
-      judgeName: context.judgeName,
+      recipientName: context.recipientName,
+      roleNoun: role,
+      serviceVerb: SERVICE_VERB[role],
       eventName: context.eventName,
       eventDate: formatEventDate(context.eventDate),
       attendanceText: formatAttendance(context.attendance),
-      projectsJudgedText: formatProjectsJudged(context.projectsJudged),
-      selectivityLanguage: DEFAULT_SELECTIVITY,
-      praiseParagraph: DEFAULT_PRAISE,
+      serviceCountText: formatServiceCount(context.serviceCount),
+      selectivityLanguage: DEFAULT_SELECTIVITY[role],
+      praiseParagraph: DEFAULT_PRAISE[role],
       organizerName: context.organizerName,
       organizerRole: context.organizerRole,
       organizerOrg: context.organizerOrg,
@@ -121,14 +147,21 @@ export function EvidenceLetterDialog({
     value: EvidenceLetterData[K]
   ) => setForm((prev) => ({ ...prev, [key]: value }));
 
+  const roleLabel = form.roleNoun === "mentor" ? "mentor" : "judge";
+  const roleLabelTitle = roleLabel === "mentor" ? "Mentor" : "Judge";
+  const dialogTitle = `Generate evidence letter for ${roleLabelTitle.toLowerCase()}`;
+
+  const buildFilename = () =>
+    `evidence-letter-${roleLabel}-${safeFileName(form.recipientName)}-${safeFileName(form.eventName)}.pdf`;
+
   const handleGenerate = () => {
     if (!context) return;
     setGenerating(true);
     try {
       const doc = generateEvidenceLetterPdf(form);
-      const filename = `evidence-letter-${safeFileName(form.judgeName)}-${safeFileName(form.eventName)}.pdf`;
+      const filename = buildFilename();
       doc.save(filename);
-      onGenerated?.(form.judgeName);
+      onGenerated?.(form.recipientName);
       toast({
         title: "Letter downloaded",
         description: `${filename} has been saved.`,
@@ -147,14 +180,55 @@ export function EvidenceLetterDialog({
     }
   };
 
+  const handleEmail = async () => {
+    if (!context) return;
+    setEmailing(true);
+    try {
+      const res = await fetch(
+        `/api/events/${context.eventId}/users/${context.recipientUserId}/email-evidence-letter`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ letterData: form }),
+        }
+      );
+      const json = (await res.json().catch(() => ({}))) as {
+        sentTo?: string;
+        error?: string;
+      };
+      if (!res.ok) {
+        throw new Error(json.error || "Failed to send email");
+      }
+      toast({
+        title: `Letter emailed to ${roleLabel}`,
+        description: json.sentTo
+          ? `Sent to ${json.sentTo}.`
+          : "Email sent successfully.",
+      });
+      onOpenChange(false);
+    } catch (err) {
+      console.error("Failed to email evidence letter", err);
+      toast({
+        title: "Couldn't email letter",
+        description:
+          err instanceof Error ? err.message : "Unknown error sending email",
+        variant: "destructive",
+      });
+    } finally {
+      setEmailing(false);
+    }
+  };
+
+  const busy = generating || emailing;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Generate evidence letter</DialogTitle>
+          <DialogTitle>{dialogTitle}</DialogTitle>
           <DialogDescription>
-            Customize the fields below and download a PDF letter validating this
-            judge&rsquo;s service. Useful for O1 visa packets and other
+            Customize the fields below and either download the PDF or email it
+            directly to the {roleLabel}. Useful for O1 visa packets and other
             third-party verification.
           </DialogDescription>
         </DialogHeader>
@@ -171,11 +245,11 @@ export function EvidenceLetterDialog({
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="grid gap-2">
-              <Label htmlFor="judge-name">Judge name</Label>
+              <Label htmlFor="recipient-name">{roleLabelTitle} name</Label>
               <Input
-                id="judge-name"
-                value={form.judgeName}
-                onChange={(e) => update("judgeName", e.target.value)}
+                id="recipient-name"
+                value={form.recipientName}
+                onChange={(e) => update("recipientName", e.target.value)}
               />
             </div>
             <div className="grid gap-2">
@@ -208,11 +282,13 @@ export function EvidenceLetterDialog({
           </div>
 
           <div className="grid gap-2">
-            <Label htmlFor="projects-judged">Projects judged</Label>
+            <Label htmlFor="service-count">
+              Projects {roleLabel === "mentor" ? "mentored" : "judged"}
+            </Label>
             <Input
-              id="projects-judged"
-              value={form.projectsJudgedText}
-              onChange={(e) => update("projectsJudgedText", e.target.value)}
+              id="service-count"
+              value={form.serviceCountText}
+              onChange={(e) => update("serviceCountText", e.target.value)}
             />
           </div>
 
@@ -264,15 +340,22 @@ export function EvidenceLetterDialog({
           </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="flex-col gap-2 sm:flex-row">
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
-            disabled={generating}
+            disabled={busy}
           >
             Cancel
           </Button>
-          <Button onClick={handleGenerate} disabled={generating || !context}>
+          <Button
+            variant="outline"
+            onClick={handleEmail}
+            disabled={busy || !context}
+          >
+            {emailing ? "Sending…" : `Email to ${roleLabel}`}
+          </Button>
+          <Button onClick={handleGenerate} disabled={busy || !context}>
             {generating ? "Generating…" : "Generate Letter"}
           </Button>
         </DialogFooter>

@@ -18,7 +18,7 @@ import { ApprovalSettingsTab } from "./ApprovalSettingsTab";
 import { AssignTab } from "../assign";
 import {
   EvidenceLetterDialog,
-  JudgeEvidenceContext,
+  RecipientEvidenceContext,
 } from "../roles/EvidenceLetterDialog";
 
 interface UserEventRoleWithProfile {
@@ -57,6 +57,14 @@ interface JudgeStat {
   projects_judged: number;
 }
 
+interface MentorStat {
+  user_id: string;
+  display_name: string;
+  email: string;
+  affiliation: string;
+  projects_mentored: number;
+}
+
 interface JudgeStatsResponse {
   event: {
     event_id: string;
@@ -66,6 +74,7 @@ interface JudgeStatsResponse {
   };
   attendance: number;
   judges: JudgeStat[];
+  mentors: MentorStat[];
 }
 
 export function ParticipantsTab({ eventId, event, setEvent, isArchived }: ParticipantsTabProps) {
@@ -76,8 +85,8 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
   const [judgeStats, setJudgeStats] = useState<JudgeStatsResponse | null>(null);
   const [signedInName, setSignedInName] = useState<string>("");
   const [letterDialogOpen, setLetterDialogOpen] = useState(false);
-  const [activeJudgeContext, setActiveJudgeContext] =
-    useState<JudgeEvidenceContext | null>(null);
+  const [activeRecipientContext, setActiveRecipientContext] =
+    useState<RecipientEvidenceContext | null>(null);
   const router = useRouter();
   const { toast } = useToast();
   const notifyOnSave = false;
@@ -217,13 +226,24 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
   }, [eventId]);
 
   const handleExportLetter = (participant: Participant) => {
-    const stat = (judgeStats?.judges || []).find(
-      (j) => j.user_id === participant.user_id
-    );
-    setActiveJudgeContext({
-      judgeName: participant.display_name || participant.email || "",
-      judgeEmail: participant.email,
-      projectsJudged: stat?.projects_judged ?? 0,
+    const isMentor = participant.role === EventRole.Mentor;
+    const stat = isMentor
+      ? (judgeStats?.mentors || []).find(
+          (m) => m.user_id === participant.user_id
+        )
+      : (judgeStats?.judges || []).find(
+          (j) => j.user_id === participant.user_id
+        );
+    const serviceCount = isMentor
+      ? (stat as MentorStat | undefined)?.projects_mentored ?? 0
+      : (stat as JudgeStat | undefined)?.projects_judged ?? 0;
+    setActiveRecipientContext({
+      recipientUserId: participant.user_id,
+      recipientName: participant.display_name || participant.email || "",
+      recipientEmail: participant.email,
+      roleNoun: isMentor ? "mentor" : "judge",
+      serviceCount,
+      eventId,
       eventName: judgeStats?.event.event_name || event.event_name || "",
       eventDate: judgeStats?.event.event_date || event.event_date || "",
       attendance: judgeStats?.attendance ?? 0,
@@ -503,7 +523,8 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
                             <TableCell className="text-right pr-6" onClick={(e) => e.stopPropagation()}>
                               {!participant.user_id.startsWith("project-") && (
                                 <div className="flex items-center justify-end gap-1">
-                                  {participant.role === EventRole.Judge && (
+                                  {(participant.role === EventRole.Judge ||
+                                    participant.role === EventRole.Mentor) && (
                                     <Button
                                       variant="outline"
                                       size="sm"
@@ -616,7 +637,7 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
       <EvidenceLetterDialog
         open={letterDialogOpen}
         onOpenChange={setLetterDialogOpen}
-        context={activeJudgeContext}
+        context={activeRecipientContext}
       />
     </Card>
   );
