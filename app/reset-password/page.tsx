@@ -81,8 +81,8 @@ function ResetPasswordContent() {
         <Image
           alt="MentorMates"
           src="/mentormate.png"
-          width={48}
-          height={48}
+          width={192}
+          height={192}
           className="object-contain"
         />
         <h1 className="mt-4 text-2xl font-semibold tracking-tight text-slate-900">
