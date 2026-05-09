@@ -39,6 +39,16 @@ import type {
   IntakeFormSchema,
 } from "@/features/intake-forms/types";
 import { CoverImageWithFallback } from "@/features/projects/components/displays/cover-image-with-fallback";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface EventParticipant {
   user_id: string;
@@ -127,6 +137,7 @@ export function NewProjectSubmissionFormSinglePage({
   const [showIntakeDialog, setShowIntakeDialog] = useState(false);
   const [pendingPublishPayload, setPendingPublishPayload] =
     useState<PublishPayload | null>(null);
+  const [showSoloConfirm, setShowSoloConfirm] = useState(false);
 
   // Load available tracks for the event (if any)
   const { availableTracks } = useProjectSubmissionData(eventId);
@@ -614,7 +625,16 @@ export function NewProjectSubmissionFormSinglePage({
   };
 
   // Submit
-  const handlePublish = async () => {
+  const handlePublish = async (options?: { skipSoloConfirm?: boolean }) => {
+    if (
+      !options?.skipSoloConfirm &&
+      validTeammates.length === 0 &&
+      participants.length > 0
+    ) {
+      setShowSoloConfirm(true);
+      return;
+    }
+    setShowSoloConfirm(false);
     setIsSubmitting(true);
 
     if (formData.projectName.trim().length < 2) {
@@ -899,6 +919,30 @@ export function NewProjectSubmissionFormSinglePage({
         />
       ) : null}
 
+      <AlertDialog open={showSoloConfirm} onOpenChange={setShowSoloConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Submitting solo?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You haven&apos;t added any teammates. If you built this with
+              others, add them now so they get credit. Teammates must be
+              registered for this event to appear in the picker.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Add teammates</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setShowSoloConfirm(false);
+                handlePublish({ skipSoloConfirm: true });
+              }}
+            >
+              Submit solo
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Sticky Auto-save Banner */}
       <div className="sticky top-0 z-20 bg-sky-50 border-b border-[#d8d8d8]">
         <div className="px-6 py-3.5 flex items-center justify-between flex-wrap">
@@ -988,7 +1032,7 @@ export function NewProjectSubmissionFormSinglePage({
                     Delete draft
                   </Button>
                   <Button
-                    onClick={handlePublish}
+                    onClick={() => handlePublish()}
                     disabled={isSubmitting}
                     className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-6 py-2.5 shadow-sm font-medium"
                   >
@@ -1390,7 +1434,7 @@ export function NewProjectSubmissionFormSinglePage({
       {/* Mobile sticky bottom submit bar */}
       <div className="sm:hidden fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-[rgba(0,0,0,0.15)] px-4 py-3 shadow-[0_-4px_12px_rgba(0,0,0,0.08)]">
         <Button
-          onClick={handlePublish}
+          onClick={() => handlePublish()}
           disabled={isSubmitting}
           className="w-full bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl py-3 shadow-sm font-medium text-base"
         >
