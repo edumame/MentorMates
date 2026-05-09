@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Papa from "papaparse";
@@ -32,12 +32,24 @@ import {
   ArrowUp,
   ArrowDown,
   Settings2,
+  Columns3,
 } from "lucide-react";
 import { useToast } from "@/lib/hooks/use-toast";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SubmissionFieldsSettings } from "./SubmissionFieldsSettings";
-import { buildSubmissionExportRows } from "./export";
+import {
+  buildCustomFieldColumns,
+  buildSubmissionExportRows,
+  formatSubmissionValue,
+} from "./export";
 import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Dialog,
   DialogContent,
@@ -114,9 +126,23 @@ export function SubmissionsTab({ eventId }: SubmissionsTabProps) {
   const [trackDialogProjectId, setTrackDialogProjectId] = useState<string | null>(null);
   const [selectedTrackIds, setSelectedTrackIds] = useState<string[]>([]);
   const [isSavingTracks, setIsSavingTracks] = useState(false);
+  const [visibleSubmissionFieldKeys, setVisibleSubmissionFieldKeys] = useState<
+    string[]
+  >([]);
   const { toast } = useToast();
 
   const trackDialogProject = projects.find((project) => project.id === trackDialogProjectId);
+  const submissionFieldColumns = useMemo(
+    () => buildCustomFieldColumns(projects),
+    [projects]
+  );
+  const visibleSubmissionFieldKeySet = useMemo(
+    () => new Set(visibleSubmissionFieldKeys),
+    [visibleSubmissionFieldKeys]
+  );
+  const visibleSubmissionFieldColumns = submissionFieldColumns.filter((field) =>
+    visibleSubmissionFieldKeySet.has(field.key)
+  );
 
   const getProjectTrackIds = (project: ProjectData) =>
     project.project_tracks
@@ -262,6 +288,19 @@ export function SubmissionsTab({ eventId }: SubmissionsTabProps) {
     } else {
       setSelectedProjects(new Set());
     }
+  };
+
+  const handleSubmissionFieldColumnToggle = (
+    fieldKey: string,
+    checked: boolean
+  ) => {
+    setVisibleSubmissionFieldKeys((current) => {
+      if (checked) {
+        return current.includes(fieldKey) ? current : [...current, fieldKey];
+      }
+
+      return current.filter((key) => key !== fieldKey);
+    });
   };
 
   const handleDeleteProject = async (projectId: string, projectName: string) => {
@@ -458,6 +497,16 @@ export function SubmissionsTab({ eventId }: SubmissionsTabProps) {
     };
   }, [eventId]);
 
+  useEffect(() => {
+    const availableFieldKeys = new Set(
+      submissionFieldColumns.map((field) => field.key)
+    );
+
+    setVisibleSubmissionFieldKeys((current) =>
+      current.filter((key) => availableFieldKeys.has(key))
+    );
+  }, [submissionFieldColumns]);
+
   return (
     <div className="space-y-6">
       <SubmissionFieldsSettings eventId={eventId} />
@@ -510,12 +559,48 @@ export function SubmissionsTab({ eventId }: SubmissionsTabProps) {
                 <Button disabled={loading} onClick={exportFeedback} variant="outline" className="rounded-[12px]">
                   Export Feedback
                 </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      disabled={loading || submissionFieldColumns.length === 0}
+                      variant="outline"
+                      className="rounded-[12px]"
+                    >
+                      <Columns3 className="mr-2 h-4 w-4" />
+                      Columns
+                      {visibleSubmissionFieldColumns.length > 0
+                        ? ` (${visibleSubmissionFieldColumns.length})`
+                        : ""}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    align="end"
+                    className="max-h-80 w-72 overflow-y-auto"
+                  >
+                    <DropdownMenuLabel>Project submission questions</DropdownMenuLabel>
+                    {submissionFieldColumns.map((field) => (
+                      <DropdownMenuCheckboxItem
+                        key={field.key}
+                        checked={visibleSubmissionFieldKeySet.has(field.key)}
+                        onCheckedChange={(checked) =>
+                          handleSubmissionFieldColumnToggle(
+                            field.key,
+                            checked === true
+                          )
+                        }
+                      >
+                        <span className="truncate">{field.columnLabel}</span>
+                      </DropdownMenuCheckboxItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
 
             {loading ? (
               <Loader2 className="h-4 w-4 animate-spin text-blue-900" />
             ) : (
+              <div className="overflow-x-auto">
               <Table>
               <TableHeader>
                 <TableRow>
@@ -572,6 +657,11 @@ export function SubmissionsTab({ eventId }: SubmissionsTabProps) {
                       {getSortIcon("created_at")}
                     </button>
                   </TableHead>
+                  {visibleSubmissionFieldColumns.map((field) => (
+                    <TableHead key={field.key} className="min-w-48">
+                      {field.columnLabel}
+                    </TableHead>
+                  ))}
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -620,6 +710,19 @@ export function SubmissionsTab({ eventId }: SubmissionsTabProps) {
                     <TableCell>
                       {new Date(project.created_at).toLocaleDateString()}
                     </TableCell>
+                    {visibleSubmissionFieldColumns.map((field) => (
+                      <TableCell key={field.key} className="max-w-64">
+                        <div className="whitespace-pre-wrap break-words">
+                          {formatSubmissionValue(
+                            project.submission_values?.[field.key]
+                          ) || (
+                            <span className="text-sm text-muted-foreground">
+                              -
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
+                    ))}
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Link href={`/projects/public/${project.id}`}>
@@ -677,6 +780,7 @@ export function SubmissionsTab({ eventId }: SubmissionsTabProps) {
                 ))}
               </TableBody>
               </Table>
+              </div>
             )}
           </div>
         </CardContent>

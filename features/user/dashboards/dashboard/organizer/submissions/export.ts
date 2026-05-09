@@ -50,7 +50,7 @@ const BUILT_IN_SUBMISSION_KEYS = new Set([
   "additional_materials",
 ]);
 
-function formatValue(value: SubmissionValue | undefined): string {
+export function formatSubmissionValue(value: SubmissionValue | undefined): string {
   if (Array.isArray(value)) {
     return value.filter(Boolean).join(" | ");
   }
@@ -120,7 +120,7 @@ function buildTeamMemberColumns(
   return max;
 }
 
-function buildCustomFieldColumns(projects: SubmissionExportProject[]) {
+export function buildCustomFieldColumns(projects: SubmissionExportProject[]) {
   const keyToLabel = new Map<string, string>();
   const labelCounts = new Map<string, number>();
 
@@ -206,7 +206,9 @@ export function buildSubmissionExportRows(projects: SubmissionExportProject[]) {
     }
 
     for (const field of customFieldColumns) {
-      row[field.columnLabel] = formatValue(project.submission_values?.[field.key]);
+      row[field.columnLabel] = formatSubmissionValue(
+        project.submission_values?.[field.key]
+      );
     }
 
     return row;
