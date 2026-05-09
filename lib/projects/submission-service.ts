@@ -528,16 +528,24 @@ export async function saveProjectSubmission(
     : [];
 
   let existingProjectEventId: string | null | undefined = input.eventId;
+  let existingProjectName: string | null = null;
+  let existingProjectDescription: string | null = null;
   if (mode === "update" && projectId) {
     const { data: existingProject, error } = await supabase
       .from("projects")
-      .select("id, event_id, contextus_project_id")
+      .select(
+        "id, event_id, contextus_project_id, project_name, project_description",
+      )
       .eq("id", projectId)
       .single()
       .overrideTypes<
         Pick<
           Database["public"]["Tables"]["projects"]["Row"],
-          "id" | "event_id" | "contextus_project_id"
+          | "id"
+          | "event_id"
+          | "contextus_project_id"
+          | "project_name"
+          | "project_description"
         >
       >();
     if (error || !existingProject) {
@@ -545,6 +553,8 @@ export async function saveProjectSubmission(
     }
 
     existingProjectEventId = input.eventId ?? existingProject.event_id;
+    existingProjectName = existingProject.project_name ?? null;
+    existingProjectDescription = existingProject.project_description ?? null;
   }
 
   const validation = await validateProjectEventContext(
@@ -610,6 +620,34 @@ export async function saveProjectSubmission(
   if (submitted !== undefined) {
     updateData.submitted = submitted;
     updateData.submitted_at = submitted ? new Date().toISOString() : null;
+  }
+
+  const isNonEmptyString = (value: unknown): value is string =>
+    typeof value === "string" && value.trim().length > 0;
+
+  const lockedFieldErrors: string[] = [];
+  const finalProjectName =
+    updateData.project_name !== undefined
+      ? updateData.project_name
+      : existingProjectName;
+  const finalProjectDescription =
+    updateData.project_description !== undefined
+      ? updateData.project_description
+      : existingProjectDescription;
+
+  if (!isNonEmptyString(finalProjectName)) {
+    lockedFieldErrors.push("project_name");
+  }
+  if (!isNonEmptyString(finalProjectDescription)) {
+    lockedFieldErrors.push("project_description");
+  }
+
+  if (lockedFieldErrors.length > 0) {
+    return {
+      error: `Project submission requires the locked fields: ${lockedFieldErrors.join(", ")}.`,
+      code: "locked_field_missing" as const,
+      status: 400 as const,
+    };
   }
 
   if (hasConfiguredSubmissionFields) {
