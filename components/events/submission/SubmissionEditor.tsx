@@ -14,6 +14,7 @@ import {
 import type { SubmissionField, ChatMessage } from "./types";
 import {
   createSubmissionTemplateFields,
+  createLockedStarterSubmissionFields,
   createMLHSubmissionTemplateFields,
 } from "./types";
 import {
@@ -90,6 +91,11 @@ export function SubmissionEditor({ fields, onChange }: SubmissionEditorProps) {
       required: false,
       placeholder: "",
     };
+    if (editorFields.length === 0) {
+      onChange([...createLockedStarterSubmissionFields(), newField]);
+      setEditingFieldId(newField.id);
+      return;
+    }
     const updated = [...editorFields];
     if (position !== undefined) {
       updated.splice(position, 0, newField);
@@ -183,7 +189,7 @@ export function SubmissionEditor({ fields, onChange }: SubmissionEditorProps) {
               {editorFields.length === 0 && (
                 <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-6 text-center">
                   <p className="text-sm text-gray-600">
-                    No submission fields yet.
+                    No submission fields yet. Using the starter template by default. Use the buttons below to create custom forms.
                   </p>
                   <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
                     <button

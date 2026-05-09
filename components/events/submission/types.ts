@@ -121,6 +121,14 @@ export function createSubmissionTemplateFields(): SubmissionField[] {
   }));
 }
 
+/** Locked project name + description only — default when the editor opens. */
+export function createLockedStarterSubmissionFields(): SubmissionField[] {
+  return DEFAULT_SUBMISSION_FIELDS.slice(0, 2).map((field) => ({
+    ...field,
+    options: field.options ? [...field.options] : undefined,
+  }));
+}
+
 // ── MLH compliance template ───────────────────────────────────────────
 
 /**
