@@ -69,8 +69,10 @@ function extractOverallScore(summary: string): number {
 }
 
 export const meetingsProcessing = inngest.createFunction(
-  { id: "meetings/processing" },
-  { event: "meetings/processing" },
+  {
+    id: "meetings/processing",
+    triggers: { event: "meetings/processing" },
+  },
   async ({ event, step }) => {
     // agentId should be provided on the event; fall back to "summarizer"
     const agentId = event.data && event.data.agentId || "summarizer";
