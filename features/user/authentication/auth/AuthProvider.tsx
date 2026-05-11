@@ -17,6 +17,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       "/",
       "/project",
       "/projects",
+      // Shared direct links land here after /events/[id]/submit; must stay public
+      // so unauthenticated users keep ?eventId= through sign-in.
+      "/projects/submit",
       "/login",
       "/auth/callback",
       "/auth/auth-code-error",

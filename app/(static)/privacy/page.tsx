@@ -2,6 +2,7 @@
 
 import React from "react";
 import { Footer } from "@/components/layout/Footer";
+import { PHONE_NUMBER_TEXT_USAGE_COPY } from "@/lib/constants/privacy";
 
 export default function PrivacyPolicy() {
   return (
@@ -9,9 +10,9 @@ export default function PrivacyPolicy() {
       <div className="mx-auto w-full max-w-4xl px-4 sm:px-6 lg:px-8 py-16">
         <div className="bg-white rounded-none shadow-none p-0">
           {/* Page Title */}
-          <h1 className="text-3xl font-bold text-center">Terms of Service</h1>
+          <h1 className="text-3xl font-bold text-center">Privacy Policy</h1>
           <p className="text-center text-sm text-gray-500 mt-2">
-            Last updated: 8/22/2025
+            Last updated: April 17, 2026
           </p>
 
           {/* 1. Introduction */}
@@ -41,6 +42,10 @@ export default function PrivacyPolicy() {
                 Profile information (professional background, areas of
                 expertise)
               </li>
+              <li>
+                Phone number, if you choose to provide one for event-related
+                text updates
+              </li>
               <li>Project submissions and feedback</li>
               <li>Communications with other users</li>
             </ul>
@@ -67,6 +72,7 @@ export default function PrivacyPolicy() {
               <li>To facilitate communication between users</li>
               <li>To improve our platform and user experience</li>
               <li>To send important notifications and updates</li>
+              <li>{PHONE_NUMBER_TEXT_USAGE_COPY}</li>
             </ul>
           </section>
 
@@ -157,10 +163,10 @@ export default function PrivacyPolicy() {
             <p className="text-gray-700">
               Email:{" "}
               <a
-                href="mailto:hello@mentor-mates.com"
+                href="mailto:admin@mentormates.ai"
                 className="text-blue-900 hover:underline"
               >
-                hello@mentor-mates.com
+                admin@mentormates.ai
               </a>
               <br />
               Address: 353 Jane Stanford Way, Stanford University, California

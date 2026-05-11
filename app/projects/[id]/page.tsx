@@ -28,6 +28,8 @@ import {
   Video,
   Lightbulb,
   Download,
+  Check,
+  AlertTriangle,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -65,6 +67,10 @@ import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 import UserSearchWithInvite from "@/components/utils/UserSearchWithInvite";
 import { EditNote, Favorite } from "@mui/icons-material";
 import { buildArtifactsFromLegacy } from "@/features/projects/utils/submission";
+import {
+  CoverImageWithFallback,
+  ProjectCoverHero,
+} from "@/features/projects/components/displays/cover-image-with-fallback";
 import { ProjectDescription } from "@/components/projects/ProjectDescription";
 
 interface EventParticipant {
@@ -374,6 +380,43 @@ export default function ProjectPage() {
         variant: "destructive",
       });
       return false;
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleSubmitToEvent = async (): Promise<void> => {
+    setIsUpdating(true);
+    try {
+      const response = await fetch("/api/projects/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId, submitted: true }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        toast({
+          title: "Submission failed",
+          description: errorData?.error || "Could not submit project to event.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const { data } = await response.json();
+      setProjectWithArtifacts(data as Project);
+      toast({
+        title: "Submitted to event",
+        description: "Your project is now visible to judges.",
+      });
+    } catch (err) {
+      toast({
+        title: "Submission failed",
+        description:
+          err instanceof Error ? err.message : "Unknown error. Try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsUpdating(false);
     }
@@ -1189,17 +1232,6 @@ export default function ProjectPage() {
 
               {/* Action Buttons - Desktop Only */}
               <div className="hidden sm:flex items-center gap-2 sm:gap-3 flex-wrap">
-                {canEdit && (
-                  <Button
-                    variant="ghost"
-                    className="rounded-xl px-4 sm:px-5 py-2 text-sm sm:text-base"
-                    onClick={() => router.push(`/projects/${projectId}/edit`)}
-                  >
-                    {/* <Edit className="h-6 w-6 mr-1.5" /> */}
-                    <EditNote className="h-5 w-5 sm:h-6 sm:w-6 mr-1.5" />
-                    Edit
-                  </Button>
-                )}
                 <div
                   onClick={() => {
                     if (!session) {
@@ -1231,14 +1263,75 @@ export default function ProjectPage() {
                   <span className="whitespace-nowrap">{liked ? "Liked" : "Like"}</span>
                   {/* <span className="ml-2 text-sm">{likesCount}</span> */}
                 </div>
-                <Button
-                  onClick={() => setShowFeedbackDialog(true)}
-                  className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-4 sm:px-5 py-2 shadow-sm text-sm sm:text-base whitespace-nowrap"
-                >
-                  Give feedback
-                </Button>
+                {canEdit ? (
+                  <Button
+                    onClick={() => router.push(`/projects/${projectId}/edit`)}
+                    className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-4 sm:px-5 py-2 shadow-sm text-sm sm:text-base whitespace-nowrap"
+                  >
+                    <EditNote className="h-5 w-5 sm:h-6 sm:w-6 mr-1.5" />
+                    Edit
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={() => setShowFeedbackDialog(true)}
+                    className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-4 sm:px-5 py-2 shadow-sm text-sm sm:text-base whitespace-nowrap"
+                  >
+                    Give feedback
+                  </Button>
+                )}
               </div>
             </div>
+
+            {/* Submission Status Banner — clarifies published vs submitted */}
+            {canEdit && (
+              <div
+                className={`mb-6 rounded-[16px] border p-4 shadow-sm ${
+                  project.submitted
+                    ? "border-[rgba(0,0,0,0.08)] bg-white"
+                    : "border-[#FDE68A] bg-[#FFFBEB]"
+                }`}
+              >
+                {project.submitted ? (
+                  <div className="flex items-start gap-3">
+                    <div className="mt-0.5 h-5 w-5 rounded-full bg-[#DCFCE7] flex items-center justify-center shrink-0">
+                      <Check className="h-3 w-3 text-[#16A34A]" strokeWidth={3} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[13px] font-semibold text-[#18181B] tracking-[-0.01em] leading-tight">
+                        Submitted to event
+                      </p>
+                      <p className="text-[12px] text-[#7F7F7F] mt-0.5 leading-relaxed">
+                        This project is submitted and visible to judges. You can
+                        still edit it until the submission deadline.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-start gap-3">
+                    <div className="mt-0.5 h-5 w-5 rounded-full bg-[#FEF3C7] flex items-center justify-center shrink-0">
+                      <AlertTriangle className="h-3 w-3 text-[#D97706]" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[13px] font-semibold text-[#18181B] tracking-[-0.01em] leading-tight">
+                        Draft — not yet submitted to the event
+                      </p>
+                      <p className="text-[12px] text-[#7F7F7F] mt-0.5 leading-relaxed">
+                        Your project is saved but hasn&apos;t been submitted. Publishing
+                        a project is not the same as submitting it to an event —
+                        click &quot;Submit to event&quot; for judges to see it.
+                      </p>
+                      <Button
+                        className="mt-2.5 bg-[#4B89EF] hover:bg-[#3E7EEA] text-white rounded-[12px] h-8 px-4 text-[13px] font-semibold shadow-[inset_0_2px_1px_0_rgba(255,255,255,0.25),0_1px_2px_0_rgba(0,0,0,0.05)]"
+                        onClick={handleSubmitToEvent}
+                        disabled={isUpdating}
+                      >
+                        {isUpdating ? "Submitting…" : "Submit to event"}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Project Title and Hero Section */}
             <div className="flex flex-col lg:flex-row gap-6 lg:gap-20 mb-6 sm:mb-12">
@@ -1360,46 +1453,29 @@ export default function ProjectPage() {
               {/* Right: Cover Image */}
               <div className="w-full lg:w-[520px] h-[200px] sm:h-[250px] lg:h-[300px] rounded-2xl overflow-hidden shadow-lg order-2">
                 {canEdit ? (
-                  <div className="relative w-full h-full group">
-                    <div
-                      className="w-full h-full bg-cover bg-center bg-no-repeat"
-                      style={{
-                        backgroundImage: `url(${
-                          project.cover_image_url || "/img/placeholder.png"
-                        })`,
-                      }}
-                    ></div>
-                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <span className="text-white text-sm">
-                        Click to edit in settings below
-                      </span>
-                    </div>
+                  <div className="relative h-full w-full group">
+                    <ProjectCoverHero
+                      src={project.cover_image_url}
+                      alt={`${project.project_name || "Project"} cover`}
+                    >
+                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <span className="text-white text-sm">
+                          Click to edit in settings below
+                        </span>
+                      </div>
+                    </ProjectCoverHero>
                   </div>
                 ) : (
-                  <div
-                    className="w-full h-full bg-cover bg-center bg-no-repeat"
-                    style={{
-                      backgroundImage: `url(${
-                        project.cover_image_url || "/img/placeholder.png"
-                      })`,
-                    }}
-                  ></div>
+                  <ProjectCoverHero
+                    src={project.cover_image_url}
+                    alt={`${project.project_name || "Project"} cover`}
+                  />
                 )}
               </div>
             </div>
 
             {/* Action Buttons - Mobile Only */}
             <div className="flex sm:hidden items-center gap-2 mb-6 overflow-x-auto pb-2 -mx-4 px-4">
-              {canEdit && (
-                <Button
-                  variant="ghost"
-                  className="rounded-xl px-4 py-2 text-sm flex-shrink-0"
-                  onClick={() => router.push(`/projects/${projectId}/edit`)}
-                >
-                  <Edit className="h-5 w-5 mr-1.5" />
-                  Edit
-                </Button>
-              )}
               <div
                 onClick={() => {
                   if (!session) {
@@ -1430,12 +1506,22 @@ export default function ProjectPage() {
                 )}
                 <span className="whitespace-nowrap">{liked ? "Liked" : "Like"}</span>
               </div>
-              <Button
-                onClick={() => setShowFeedbackDialog(true)}
-                className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-4 py-2 shadow-sm text-sm whitespace-nowrap flex-shrink-0"
-              >
-                Give feedback
-              </Button>
+              {canEdit ? (
+                <Button
+                  onClick={() => router.push(`/projects/${projectId}/edit`)}
+                  className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-4 py-2 shadow-sm text-sm whitespace-nowrap flex-shrink-0"
+                >
+                  <Edit className="h-5 w-5 mr-1.5" />
+                  Edit
+                </Button>
+              ) : (
+                <Button
+                  onClick={() => setShowFeedbackDialog(true)}
+                  className="bg-[#4b89ef] hover:bg-[#3d75d9] text-white rounded-xl px-4 py-2 shadow-sm text-sm whitespace-nowrap flex-shrink-0"
+                >
+                  Give feedback
+                </Button>
+              )}
             </div>
 
             {/* Tabs Navigation */}
@@ -1533,7 +1619,7 @@ export default function ProjectPage() {
                         {project.cover_image_url && (
                           <div className="space-y-2 rounded-xl border border-black/10 p-3">
                             <div className="rounded-xl overflow-hidden">
-                              <img
+                              <CoverImageWithFallback
                                 src={project.cover_image_url}
                                 alt="Project cover"
                                 className="w-full h-auto object-cover"

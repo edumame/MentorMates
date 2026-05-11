@@ -11,8 +11,20 @@ import {
   X,
   FileText,
   ListChecks,
+  ShieldCheck,
 } from "lucide-react";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -26,6 +38,7 @@ import type {
   IntakeFormField,
   IntakeFormSchema,
 } from "@/features/intake-forms/types";
+import { createMLHComplianceTemplate } from "@/features/intake-forms/templates/mlhCompliance";
 
 type IntakeFormBuilderProps = {
   eventId: string;
@@ -604,6 +617,12 @@ export function IntakeFormBuilder({
     }
   }
 
+  function applyMLHTemplate() {
+    const template = createMLHComplianceTemplate();
+    setSchema(template);
+    setSelectedFieldId(template.fields[0]?.id ?? null);
+  }
+
   async function deleteQuestionnaire() {
     const confirmed = window.confirm(
       "Delete this questionnaire for this context? This will unpublish/archive it and participants will no longer see it."
@@ -673,6 +692,33 @@ export function IntakeFormBuilder({
                     ).toLocaleString()}`
                   : "Last published: never"}
               </span>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-9 px-3"
+                    disabled={isSaving || isPublishing || isDeleting || isLoading}
+                  >
+                    <ShieldCheck className="mr-1.5 h-4 w-4" />
+                    Apply MLH Template
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Apply MLH Compliance Template?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will replace the current form title, description, and all questions with the MLH-required registration fields. This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={applyMLHTemplate}>
+                      Apply template
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
               <Button
                 type="button"
                 variant="destructive"
