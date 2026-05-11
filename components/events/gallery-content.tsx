@@ -40,7 +40,7 @@ export function GalleryContent({
     () => (typeof window !== "undefined" ? window.location.href : "")
   );
   const { toast } = useToast();
-  const qrCodeRef = useRef<SVGSVGElement | null>(null);
+  const qrWrapperRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const fetchProjects = async () => {
@@ -106,7 +106,9 @@ export function GalleryContent({
 
   // Converts the rendered SVG into a canvas so we can copy/download the QR
   const getQrCanvas = async () => {
-    const svg = qrCodeRef.current;
+    const svg = qrWrapperRef.current?.querySelector(
+      "svg"
+    ) as SVGSVGElement | null;
     if (!svg) {
       throw new Error("QR code not ready yet");
     }
@@ -167,6 +169,8 @@ export function GalleryContent({
       });
     } catch (error) {
       console.error("Error copying QR code:", error);
+      const failureDetail =
+        error instanceof Error ? error.message : "Unable to copy QR code";
       if (
         galleryUrl &&
         typeof navigator !== "undefined" &&
@@ -187,7 +191,7 @@ export function GalleryContent({
 
       toast({
         title: "Copy failed",
-        description: "Unable to copy QR code",
+        description: failureDetail,
         variant: "destructive",
       });
     }
@@ -209,7 +213,8 @@ export function GalleryContent({
       console.error("Error downloading QR code:", error);
       toast({
         title: "Download failed",
-        description: "Unable to download QR code",
+        description:
+          error instanceof Error ? error.message : "Unable to download QR code",
         variant: "destructive",
       });
     }
@@ -303,9 +308,11 @@ export function GalleryContent({
               </div>
 
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="p-4 border border-zinc-200 rounded-2xl bg-white flex items-center justify-center">
+                <div
+                  ref={qrWrapperRef}
+                  className="p-4 border border-zinc-200 rounded-2xl bg-white flex items-center justify-center"
+                >
                   <QRCodeSVG
-                    ref={qrCodeRef}
                     value={
                       galleryUrl ||
                       (typeof window !== "undefined"
