@@ -9,6 +9,8 @@ interface VideoEmbedProps {
    * can't embed. Set to false to preserve legacy `null` behavior.
    */
   fallback?: boolean;
+  /** Fired when the iframe or direct `<video>` fails to load (expired embed, network error, etc.). */
+  onLoadError?: () => void;
 }
 
 type EmbedKind = "iframe" | "video";
@@ -93,6 +95,7 @@ export const VideoEmbed: React.FC<VideoEmbedProps> = ({
   title = "Video",
   className = "",
   fallback = true,
+  onLoadError,
 }) => {
   const descriptor = getEmbedDescriptor(url);
 
@@ -124,6 +127,9 @@ export const VideoEmbed: React.FC<VideoEmbedProps> = ({
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
             title={title}
+            onError={() => {
+              onLoadError?.();
+            }}
           />
         ) : (
           <video
@@ -133,6 +139,9 @@ export const VideoEmbed: React.FC<VideoEmbedProps> = ({
             playsInline
             className="absolute top-0 left-0 w-full h-full"
             title={title}
+            onError={() => {
+              onLoadError?.();
+            }}
           />
         )}
       </div>

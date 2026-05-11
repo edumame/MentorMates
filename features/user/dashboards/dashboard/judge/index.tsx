@@ -126,6 +126,7 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
   const [deckFilter, setDeckFilter] = useState<"pending" | "all">("pending");
   const [searchQuery, setSearchQuery] = useState("");
   const [finalistFeatureEnabled, setFinalistFeatureEnabled] = useState(false);
+  const [judgeVideoEmbedFailed, setJudgeVideoEmbedFailed] = useState(false);
   const previousVisibleIdsRef = useRef<string[]>([]);
   const swipeStartXRef = useRef<number | null>(null);
   const swipeEnabledRef = useRef(false);
@@ -215,6 +216,10 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
       visibleProjects[0]
     );
   }, [visibleProjects, activeProjectId]);
+
+  useEffect(() => {
+    setJudgeVideoEmbedFailed(false);
+  }, [currentProject?.id, currentProject?.video_url]);
 
   const currentProjectIndex = useMemo(() => {
     if (!currentProject) {
@@ -962,21 +967,48 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
                     {/* Snapshot — shown in both mobile & desktop inside the card */}
                     <section className="order-1 min-w-0 space-y-4 lg:order-2">
                       {currentProject.video_url && canEmbed(currentProject.video_url) ? (
-                        <div
-                          className="overflow-hidden rounded-2xl bg-black bg-cover bg-center"
-                          style={
-                            currentProject.cover_image_url
-                              ? {
-                                  backgroundImage: `url(${currentProject.cover_image_url})`,
+                        <div className="overflow-hidden rounded-2xl bg-white">
+                          {!judgeVideoEmbedFailed && (
+                            <div className="bg-black" data-no-swipe="true">
+                              <VideoEmbed
+                                url={currentProject.video_url}
+                                title={`${currentProject.project_name} demo video`}
+                                onLoadError={() => setJudgeVideoEmbedFailed(true)}
+                              />
+                            </div>
+                          )}
+                          <div
+                            className={
+                              judgeVideoEmbedFailed
+                                ? "bg-white"
+                                : "border-t border-[#E7EDF8] bg-white"
+                            }
+                          >
+                            {currentProject.cover_image_url ? (
+                              <CoverImageWithFallback
+                                src={currentProject.cover_image_url}
+                                alt={`${currentProject.project_name} cover`}
+                                className={
+                                  judgeVideoEmbedFailed
+                                    ? "h-[240px] w-full object-cover md:h-[280px]"
+                                    : "h-28 w-full object-cover md:h-32"
                                 }
-                              : undefined
-                          }
-                          data-no-swipe="true"
-                        >
-                          <VideoEmbed
-                            url={currentProject.video_url}
-                            title={`${currentProject.project_name} demo video`}
-                          />
+                              />
+                            ) : (
+                              <div
+                                className={`flex w-full flex-col items-center justify-center gap-3 bg-gradient-to-br from-[#EEF4FF] via-[#F5F9FF] to-[#EDF9F3] text-[rgba(0,0,0,0.6)] ${
+                                  judgeVideoEmbedFailed
+                                    ? "h-[240px] md:h-[280px]"
+                                    : "h-24 md:h-28"
+                                }`}
+                              >
+                                <Target className="h-8 w-8 text-[#4B89EF]" />
+                                <p className="text-sm font-medium">
+                                  No project image uploaded
+                                </p>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       ) : (
                         <div className="overflow-hidden rounded-2xl bg-white">
