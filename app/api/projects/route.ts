@@ -13,6 +13,8 @@ import { canAccessRole } from "@/features/user/roles/roles";
 import { createContextusProject } from "@/lib/integrations/contextus";
 import { buildArtifactsFromLegacy } from "@/features/projects/utils/submission";
 import { applyEffectiveSubmissionToProject } from "@/features/projects/utils/effectiveSubmission";
+import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import type { ExportMemberProfile } from "@/features/user/dashboards/dashboard/organizer/submissions/export";
 
 type ArtifactRow = {
   project_id: string;
@@ -119,6 +121,24 @@ async function fetchArtifactsByProjectIds(
     map.set(row.project_id, existing);
   }
   return map;
+}
+
+async function fetchTeammateProfiles(
+  emails: string[]
+): Promise<Map<string, ExportMemberProfile>> {
+  if (emails.length === 0) return new Map();
+
+  const serviceClient = createSupabaseServiceClient();
+  const { data, error } = await serviceClient
+    .from("user_profiles")
+    .select("email, display_name, affiliation")
+    .in("email", emails);
+
+  if (error || !data) return new Map();
+
+  return new Map(
+    (data as ExportMemberProfile[]).map((profile) => [profile.email, profile])
+  );
 }
 
 export async function GET(request: NextRequest) {
@@ -673,16 +693,37 @@ export async function GET(request: NextRequest) {
         transformedProjects.map((project) => project.id)
       );
 
-      const [fieldMap, answerMap] = await Promise.all([
+      // Collect all unique teammate + lead emails for batch profile enrichment
+      const allEmails = new Set<string>();
+      for (const project of transformedProjects) {
+        const p = project as { lead_email?: string; teammates?: string[] };
+        if (p.lead_email) allEmails.add(p.lead_email);
+        for (const email of p.teammates ?? []) allEmails.add(email);
+      }
+
+      const [fieldMap, answerMap, profileMap] = await Promise.all([
         fetchSubmissionFieldsByEventIds(supabase, [eventId]),
         fetchSubmissionAnswersByProjectIds(
           supabase,
           transformedProjects.map((project) => project.id)
         ),
+        fetchTeammateProfiles([...allEmails]),
       ]);
 
-      const transformedProjectsWithArtifacts = transformedProjects.map((project) =>
-        applyEffectiveSubmissionToProject(
+      const transformedProjectsWithArtifacts = transformedProjects.map((project) => {
+        const p = project as {
+          lead_email?: string;
+          teammates?: string[];
+        };
+        const leadProfile = p.lead_email ? profileMap.get(p.lead_email) : undefined;
+        const nonLeadTeammates = (p.teammates ?? []).filter(
+          (e) => e !== p.lead_email
+        );
+        const teammateProfiles = nonLeadTeammates
+          .map((email) => profileMap.get(email))
+          .filter((profile): profile is ExportMemberProfile => profile !== undefined);
+
+        return applyEffectiveSubmissionToProject(
           {
             ...project,
             is_private: Boolean((project as { private?: boolean | null }).private),
@@ -690,6 +731,8 @@ export async function GET(request: NextRequest) {
             additional_materials_url:
               project.additional_materials_url ?? undefined,
             video_url: project.video_url ?? undefined,
+            lead_school: leadProfile?.affiliation ?? null,
+            teammate_profiles: teammateProfiles,
           },
           fieldMap.get(eventId) || [],
           answerMap.get(project.id),
@@ -702,8 +745,8 @@ export async function GET(request: NextRequest) {
               ).additional_materials_url,
               video_url: (project as { video_url?: string | null }).video_url,
             })
-        )
-      );
+        );
+      });
 
       return NextResponse.json({ projects: transformedProjectsWithArtifacts });
     }

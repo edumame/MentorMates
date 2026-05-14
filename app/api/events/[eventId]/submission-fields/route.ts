@@ -5,6 +5,8 @@ import { canAccessRole } from "@/features/user/roles/roles";
 import { EventRole } from "@/lib/types";
 import { submissionFieldTypeSchema } from "@/features/projects/utils/submission";
 
+const LOCKED_FIELD_KEYS = ["project_name", "project_description"] as const;
+
 const fieldInputSchema = z.object({
   id: z.string().uuid().optional(),
   key: z
@@ -176,6 +178,21 @@ export async function PUT(
         options: field.options ?? [],
       };
     });
+
+    const missingLockedKeys = LOCKED_FIELD_KEYS.filter(
+      (lockedKey) => !seenKeys.has(lockedKey),
+    );
+    if (missingLockedKeys.length > 0) {
+      return NextResponse.json(
+        {
+          error:
+            "Locked submission fields cannot be removed. The submission form must always include project_name and project_description.",
+          code: "locked_field_missing",
+          missing: missingLockedKeys,
+        },
+        { status: 400 },
+      );
+    }
 
     // Step 1: deactivate existing fields for this event.
     const { error: deactivateError } = await supabase

@@ -139,11 +139,6 @@ export default function ProjectsPage() {
                 </div>
               )}
             </div>
-            {isAuthenticated && (
-              <Button asChild className="h-10">
-                <Link href="/projects/submit">Create a project</Link>
-              </Button>
-            )}
           </div>
 
           {/* Search Section - mirrors events page styling */}
@@ -158,21 +153,7 @@ export default function ProjectsPage() {
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
-
-                {/* Create Project Button - Desktop only */}
-                {isAuthenticated && (
-                  <Button asChild className="h-10 hidden sm:inline-flex">
-                    <Link href="/projects/submit">Create a project</Link>
-                  </Button>
-                )}
               </div>
-
-              {/* Create Project Button - Mobile only */}
-              {isAuthenticated && (
-                <Button asChild className="h-10 sm:hidden w-full">
-                  <Link href="/projects/submit">Create a project</Link>
-                </Button>
-              )}
             </div>
           )}
 
@@ -264,9 +245,6 @@ export default function ProjectsPage() {
                       ? `No projects match your search "${searchTerm}". Try adjusting your search terms.`
                       : "Join the event to submit a project or create a project directly."}
                   </p>
-                  <Button className="mt-4">
-                    <Link href="/projects/submit">Create a project</Link>
-                  </Button>
                 </div>
               )}
 
