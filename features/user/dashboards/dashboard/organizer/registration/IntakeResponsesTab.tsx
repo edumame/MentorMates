@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
+import Papa from "papaparse";
+import { Download } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -27,6 +29,7 @@ import type {
 } from "@/features/intake-forms/types";
 import { useToast } from "@/lib/hooks/use-toast";
 import {
+  buildIntakeExportRows,
   formatAnswerValue,
   getFieldLabel,
   isFieldVisible,
@@ -206,6 +209,81 @@ export function IntakeResponsesTab({ eventId }: { eventId: string }) {
     return [...knownRows, ...unknownRows];
   }, [selectedSubmission, activeForm]);
 
+  const [exporting, setExporting] = useState(false);
+
+  const handleExportCsv = async () => {
+    try {
+      setExporting(true);
+
+      // Fetch all submissions across pages (API caps limit at 100).
+      const EXPORT_PAGE_SIZE = 100;
+      const allSubmissions: Submission[] = [];
+      let exportOffset = 0;
+      let exportTotal = Infinity;
+
+      while (exportOffset < exportTotal) {
+        const response = await fetch(
+          `/api/events/${eventId}/intake-form/submissions?context=${context}&limit=${EXPORT_PAGE_SIZE}&offset=${exportOffset}`,
+          { cache: "no-store" }
+        );
+        if (!response.ok) {
+          const payload = (await response.json().catch(() => ({}))) as {
+            error?: string;
+          };
+          throw new Error(payload.error || "Failed to fetch responses for export");
+        }
+        const payload = (await response.json()) as {
+          submissions: Submission[];
+          pagination: { total: number };
+        };
+        allSubmissions.push(...(payload.submissions ?? []));
+        exportTotal = payload.pagination?.total ?? allSubmissions.length;
+        if ((payload.submissions ?? []).length === 0) break;
+        exportOffset += EXPORT_PAGE_SIZE;
+      }
+
+      if (allSubmissions.length === 0) {
+        toast({
+          title: "Nothing to export",
+          description: "There are no submitted responses yet.",
+        });
+        return;
+      }
+
+      const rows = buildIntakeExportRows(
+        allSubmissions,
+        activeForm?.schema ?? null
+      );
+
+      const csv = Papa.unparse(rows);
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `intake-${context}-${eventId}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: "Export ready",
+        description: `Downloaded ${rows.length} ${
+          rows.length === 1 ? "response" : "responses"
+        }.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Export failed",
+        description:
+          error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const pageNumber = Math.floor(offset / PAGE_SIZE) + 1;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const canGoPrev = offset > 0;
@@ -213,13 +291,23 @@ export function IntakeResponsesTab({ eventId }: { eventId: string }) {
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between gap-4">
         <CardTitle
-        className="font-geist font-semibold leading-[140%] tracking-[-1.32px] text-[var(--Color-Scheme-1-Text,#000)]"
-        style={{ fontSize: "var(--Text-Sizes-Heading-6, 22px)" }}
-      >
-        Intake Responses
-      </CardTitle>
+          className="font-geist font-semibold leading-[140%] tracking-[-1.32px] text-[var(--Color-Scheme-1-Text,#000)]"
+          style={{ fontSize: "var(--Text-Sizes-Heading-6, 22px)" }}
+        >
+          Intake Responses
+        </CardTitle>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={handleExportCsv}
+          disabled={exporting || loadingResponses || total === 0}
+        >
+          <Download className="mr-2 h-4 w-4" />
+          {exporting ? "Exporting..." : "Export CSV"}
+        </Button>
       </CardHeader>
       <CardContent className="space-y-4">
         <Tabs

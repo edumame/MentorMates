@@ -121,6 +121,155 @@ export function createSubmissionTemplateFields(): SubmissionField[] {
   }));
 }
 
+/** Locked project name + description only — default when the editor opens. */
+export function createLockedStarterSubmissionFields(): SubmissionField[] {
+  return DEFAULT_SUBMISSION_FIELDS.slice(0, 2).map((field) => ({
+    ...field,
+    options: field.options ? [...field.options] : undefined,
+  }));
+}
+
+// ── MLH compliance template ───────────────────────────────────────────
+
+/**
+ * Complete MLH Hackathon Submission Portal field set.
+ * See: https://guide.mlh.io/general-information/judging-and-submissions/hackathon-submission-portal
+ *
+ * This is a self-contained list — it overrides the default fields rather than
+ * appending to them so that labels and order exactly match the MLH spec.
+ * Built-in keys (project_name, project_description, project_url, video_url,
+ * cover_image, additional_materials) are reused here so existing DB plumbing
+ * still resolves them correctly.
+ *
+ * Fields handled automatically and NOT included as form inputs:
+ *   - Opt-In Prizes / Tracks   → managed via the event tracks UI
+ *   - Schools of team members  → pulled from user profiles on export
+ *   - Team Member First/Last/Email → pulled from user profiles on export
+ */
+const MLH_SUBMISSION_FIELDS: SubmissionField[] = [
+  {
+    id: "project_name",
+    label: "Project Name",
+    type: "text",
+    required: true,
+    placeholder: "Your project name",
+  },
+  {
+    id: "project_url",
+    label: "Submission URL",
+    type: "url",
+    required: false,
+    placeholder: "https://devpost.com/software/your-project",
+    helperText: "Link to where your project can be viewed post-event.",
+  },
+  {
+    id: "project_description",
+    label: "About the Project",
+    type: "textarea",
+    required: true,
+    placeholder: "Tell us what your project does and how you built it…",
+    helperText: "Markdown supported: use headings, lists, links, and emphasis.",
+  },
+  {
+    id: "video_url",
+    label: "Demo Video",
+    type: "url",
+    required: false,
+    placeholder: "https://youtube.com/watch?v=...",
+    helperText: "Link to a short demo video of your project.",
+  },
+  {
+    id: "github_url",
+    label: "Try it out / GitHub Link",
+    type: "url",
+    required: false,
+    placeholder: "https://github.com/your-org/your-project",
+    helperText: "Link to your live app or GitHub repository.",
+  },
+  {
+    id: "domain_name",
+    label: "Did you register a domain name this weekend? If so what was the domain?",
+    type: "text",
+    required: false,
+    placeholder: "e.g. myproject.com",
+  },
+  {
+    id: "built_with",
+    label: "Built With",
+    type: "text",
+    required: true,
+    placeholder: "e.g. Next.js, Supabase, Python",
+    helperText: "List the main technologies, frameworks, and tools you used.",
+  },
+  {
+    id: "tech_feedback",
+    label: "Share feedback about any technology you interacted with at this hackathon. Remember to mention what tech you're reviewing",
+    type: "textarea",
+    required: false,
+    placeholder: "e.g. \"Using Supabase for auth was smooth because…\"",
+  },
+  {
+    id: "genai_tools_used",
+    label: "Which of the following GenAI tools did you use this weekend?",
+    type: "multi_select",
+    required: true,
+    placeholder: "",
+    options: [
+      "OpenAI",
+      "Anthropic",
+      "Hugging Face",
+      "Llama",
+      "IBM Watson",
+      "Gemini",
+      "Gemma",
+      "DeepSeek",
+      "I did not use GenAI",
+      "Other",
+    ],
+  },
+  {
+    id: "genai_description",
+    label: "Did you implement a generative AI model or API in your hack this weekend?",
+    type: "textarea",
+    required: true,
+    placeholder: "If not, mark your response as 'N/A'",
+    helperText: "If so, how and why did you use it? If not, mark your response as 'N/A'",
+  },
+  {
+    id: "gemini_api_key",
+    label: "If you are submitting to the Best Use of Gemini API prize category, please provide your Gemini API Key Project Number.",
+    type: "text",
+    required: false,
+    placeholder: "Enter your Project Number",
+    helperText:
+      "Head over to Gemini AI Studio > Click the 'Get API Key' button > Click the 'Project Number' for your API Key > Copy the 'Project Number' and submit below",
+  },
+  {
+    id: "cover_image",
+    label: "Cover Image",
+    type: "file",
+    required: false,
+    placeholder: "Upload a cover image for your project",
+  },
+  {
+    id: "additional_materials",
+    label: "Additional Materials",
+    type: "url",
+    required: false,
+    placeholder: "https://...",
+    helperText: "Slide deck, design files, or other supporting materials.",
+    multiple: true,
+  },
+];
+
+/** Returns the complete MLH-compliant submission field set. */
+export function createMLHSubmissionTemplateFields(): SubmissionField[] {
+  return MLH_SUBMISSION_FIELDS.map((field) => ({
+    ...field,
+    options: field.options ? [...field.options] : undefined,
+  }));
+}
+
 /** Convert a SubmissionField array → API payload for PUT /api/events/[eventId]/submission-fields */
 export function fieldsToApiPayload(fields: SubmissionField[]) {
   return fields.map((field, index) => ({

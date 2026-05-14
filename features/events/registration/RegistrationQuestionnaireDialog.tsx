@@ -27,7 +27,6 @@ export function RegistrationQuestionnaireDialog({
   onClose,
   onCompleted,
 }: RegistrationQuestionnaireDialogProps) {
-  const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeForm, setActiveForm] = useState<ActiveIntakeForm | null>(null);
 
@@ -35,7 +34,6 @@ export function RegistrationQuestionnaireDialog({
     if (!open) return;
 
     const load = async () => {
-      setIsLoading(true);
       try {
         const response = await fetch(
           `/api/events/${eventId}/intake-form?context=registration`,
@@ -64,9 +62,7 @@ export function RegistrationQuestionnaireDialog({
           variant: "destructive",
         });
         onClose();
-      } finally {
-        setIsLoading(false);
-      }
+      } finally {}
     };
 
     load();
@@ -113,7 +109,10 @@ export function RegistrationQuestionnaireDialog({
     }
   };
 
-  if (!open || isLoading || !activeForm) {
+  // Don't include isLoading here — removing it from the condition keeps
+  // ParticipantIntakeDialog mounted during background refetches (e.g. on
+  // window focus), preventing its form state from being reset.
+  if (!open || !activeForm) {
     return null;
   }
 

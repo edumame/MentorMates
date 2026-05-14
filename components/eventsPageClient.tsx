@@ -89,7 +89,7 @@ export function EventsPageClient({
 
   return (
     <div className="w-full">
-      <div className="flex justify-between sm:gap-[15rem] mb-6 items-center flex-wrap">
+      <div className="flex justify-between sm:gap-x-[15rem] mb-6 items-center flex-wrap">
         <h1 className="w-full sm:w-auto mb-4 sm:mb-0 text-[20px] sm:text-[28px] font-semibold leading-[1.4] tracking-[-0.06em] text-black">
           Events
         </h1>
