@@ -59,6 +59,22 @@ export function BasicInfoEditor({ event, update }: BasicInfoEditorProps) {
             A short tagline that appears in the event card and header.
           </p>
         </div>
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium text-gray-700">
+            External link <span className="text-gray-400">(optional)</span>
+          </label>
+          <input
+            type="url"
+            value={event.external_url}
+            onChange={(e) => update({ external_url: e.target.value })}
+            placeholder="https://example.com/your-event"
+            className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-[#4B89EF] focus:ring-1 focus:ring-[#4B89EF]"
+          />
+          <p className="text-xs text-gray-400">
+            Leave blank for a normal event. If set, the event card opens this
+            link in a new tab and the MentorMates event page is skipped.
+          </p>
+        </div>
       </div>
 
       {/* Core Details Card */}

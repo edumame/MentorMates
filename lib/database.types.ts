@@ -277,6 +277,7 @@ export type Database = {
           rejection_reason: string | null;
           require_participant_approval: boolean | null;
           event_type: string[] | null;
+          external_url: string | null;
         };
         Insert: {
           cover_image_url?: string | null;
@@ -310,6 +311,7 @@ export type Database = {
             | null;
           require_registration_questionnaire?: boolean | null;
           event_type?: string[] | null;
+          external_url?: string | null;
         };
         Update: {
           cover_image_url?: string | null;
@@ -343,6 +345,7 @@ export type Database = {
           visibility?: Database["public"]["Enums"]["event_visibility"];
           require_registration_questionnaire?: boolean | null;
           event_type?: string[] | null;
+          external_url?: string | null;
         };
         Relationships: [
           {
