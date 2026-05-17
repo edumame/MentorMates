@@ -1,10 +1,20 @@
 "use client";
 
 import { useMemo } from "react";
+import Image from "next/image";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { Rocket, GraduationCap, Scale, Calendar } from "lucide-react";
+import {
+  Award,
+  Calendar,
+  GraduationCap,
+  Rocket,
+  Scale,
+  Sprout,
+  TrendingUp,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -27,14 +37,13 @@ import {
   GOAL_OPTIONS,
   ROLE_OPTIONS,
   INDUSTRY_OPTIONS,
-  AI_TECH_CATEGORIES,
-  NON_AI_TECH_CATEGORIES,
   PLATFORM_ROLE_OPTIONS,
   PLATFORM_ROLE_REDIRECTS,
   type PlatformRole,
 } from "@/features/user/onboarding/questions-data";
 import { ONBOARDING_SKIP_STATUS } from "@/features/user/onboarding/metadata";
 import { useStepNavigation } from "@/features/projects/components/forms/hooks/useStepNavigation";
+import { cn } from "@/lib/utils";
 
 type FormValues = {
   familiarity: string;
@@ -53,6 +62,32 @@ const PLATFORM_ROLE_ICONS = {
   organizer: Calendar,
 } as const;
 
+const FAMILIARITY_ICONS = {
+  beginner: Sprout,
+  intermediate: TrendingUp,
+  advanced: Award,
+} as const;
+
+/** Heading/H5 — step questions (Geist 28px / 600; tighter leading when title wraps to two lines). */
+const ONBOARDING_STEP_HEADING_CLASSNAME =
+  "font-geist text-[28px] font-semibold leading-[1.2] tracking-[-1.68px] text-[color:var(--Color-Scheme-1-Text)]";
+
+/** 32px — question title bottom → first option area (margin on heading; reliable vs Slot on FormControl). */
+const ONBOARDING_TITLE_TO_OPTIONS_BOTTOM = "mb-[32px]";
+/** Wrapper: space under title + 48px below helper copy before options (`padding` avoids margin collapse). */
+const ONBOARDING_HELPER_BLOCK_CLASSNAME = "mt-2 pb-12";
+const ONBOARDING_HELPER_TEXT_CLASSNAME = "text-sm text-muted-foreground";
+
+/** Selected / default surfaces for onboarding choice rows (aligns with product blue #4B89EF). */
+function onboardingOptionCardClassName(selected: boolean) {
+  return cn(
+    "rounded-xl border-2 px-4 py-3 transition-colors",
+    selected
+      ? "border-[#4B89EF] bg-[#EFF6FF]"
+      : "border-black/[0.08] bg-white hover:border-black/[0.16] hover:bg-muted/15"
+  );
+}
+
 export default function OnboardingPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -62,7 +97,8 @@ export default function OnboardingPage() {
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const totalSteps = 6;
+  /** Tools step temporarily removed (was Q5); `aiTools` / `nonAiTools` stay [] in payload. */
+  const totalSteps = 5;
   const { currentStep, goToNext, goToPrevious } = useStepNavigation(totalSteps);
 
   const form = useForm<FormValues>({
@@ -174,9 +210,6 @@ export default function OnboardingPage() {
       case 4:
         return Array.isArray(watchedValues.industries) && watchedValues.industries.length > 0;
       case 5:
-        // Tools step is optional
-        return true;
-      case 6:
         return !!watchedValues.platformRole;
       default:
         return false;
@@ -194,8 +227,6 @@ export default function OnboardingPage() {
       case 4:
         return "Which industries or problem areas excite you most?";
       case 5:
-        return "What tools or technologies do you want to explore?";
-      case 6:
         return "How do you want to participate?";
       default:
         return "";
@@ -204,16 +235,21 @@ export default function OnboardingPage() {
 
   function StepHeader() {
     return (
-      <div className="mb-6">
+      <div className="mb-4 shrink-0">
         <div className="flex items-center justify-between mb-2">
           <div className="text-sm text-muted-foreground">
             Step {currentStep} of {totalSteps}
           </div>
           <div className="text-sm font-medium">{progressPercent}%</div>
         </div>
-        <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+        <div
+          className="h-2 w-full overflow-hidden rounded-full"
+          style={{
+            backgroundColor: "var(--Color-Neutral-Lightest, #F2F2F2)",
+          }}
+        >
           <div
-            className="h-full bg-primary transition-all duration-300"
+            className="h-full rounded-full bg-primary transition-all duration-300"
             style={{ width: `${progressPercent}%` }}
           />
         </div>
@@ -224,49 +260,85 @@ export default function OnboardingPage() {
   return (
     <div className="min-h-screen grid lg:grid-cols-2">
       {/* LEFT: form column */}
-      <main className="flex flex-col lg:h-screen">
-        <div className="flex-1 flex items-start lg:items-center justify-center px-6 py-8 lg:pt-0 overflow-y-auto">
-          <div className="w-full max-w-sm pb-4">
+      <main className="flex min-h-screen flex-1 flex-col bg-white lg:h-screen lg:max-h-screen">
+        <header className="shrink-0 px-6 pt-5 pb-0 lg:px-10 lg:pt-6">
+          <Link href="/" className="inline-flex items-center gap-2">
+            <Image
+              src="/mentormate.png"
+              alt="MentorMates"
+              width={221}
+              height={35}
+              priority
+              className="h-[35px] w-auto max-w-[221.14px] object-contain object-left"
+            />
+          </Link>
+        </header>
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-6 pb-0 pt-10 lg:px-10 lg:pt-12">
+          <div className="mx-auto flex min-h-0 w-full max-w-md flex-1 flex-col">
             <StepHeader />
             <Form {...form}>
-              <form className="space-y-6" onSubmit={form.handleSubmit(handleSubmit)}>
+              <form
+                className="flex min-h-0 flex-1 flex-col gap-0"
+                onSubmit={form.handleSubmit(handleSubmit)}
+              >
                 {/* Step 1: Familiarity */}
                 {currentStep === 1 && (
                   <FormField
                     control={form.control}
                     name="familiarity"
                     render={({ field }) => (
-                      <FormItem className="space-y-3">
-                        <FormLabel className="text-lg font-semibold">
+                      <FormItem className="flex min-h-0 flex-1 flex-col gap-0 space-y-0">
+                        <FormLabel
+                          className={cn(
+                            ONBOARDING_STEP_HEADING_CLASSNAME,
+                            ONBOARDING_TITLE_TO_OPTIONS_BOTTOM,
+                            "shrink-0"
+                          )}
+                        >
                           {getStepTitle()}
                         </FormLabel>
-                        <FormControl>
-                          <RadioGroup
-                            onValueChange={field.onChange}
-                            value={field.value}
-                            className="space-y-3"
-                          >
-                            {familiarityOptions.map((opt) => (
-                              <div
-                                key={opt.value}
-                                className="flex items-start space-x-3"
-                              >
-                                <RadioGroupItem
-                                  value={opt.value}
-                                  id={`fam-${opt.value}`}
-                                  className="mt-1"
-                                />
-                                <label
-                                  htmlFor={`fam-${opt.value}`}
-                                  className="text-sm leading-relaxed cursor-pointer"
-                                >
-                                  {opt.label}
-                                </label>
-                              </div>
-                            ))}
-                          </RadioGroup>
-                        </FormControl>
-                        <FormMessage />
+                        <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain pb-2 [-webkit-overflow-scrolling:touch]">
+                          <FormControl>
+                            <RadioGroup
+                              onValueChange={field.onChange}
+                              value={field.value}
+                              className="gap-3"
+                            >
+                              {familiarityOptions.map((opt) => {
+                                const FamiliarityIcon =
+                                  FAMILIARITY_ICONS[
+                                    opt.value as keyof typeof FAMILIARITY_ICONS
+                                  ];
+                                const isSelected = field.value === opt.value;
+                                return (
+                                  <label
+                                    key={opt.value}
+                                    className={cn(
+                                      "flex cursor-pointer items-start gap-3",
+                                      onboardingOptionCardClassName(isSelected)
+                                    )}
+                                  >
+                                    <RadioGroupItem
+                                      value={opt.value}
+                                      id={`fam-${opt.value}`}
+                                      className="mt-1 shrink-0"
+                                    />
+                                    {FamiliarityIcon && (
+                                      <FamiliarityIcon
+                                        aria-hidden
+                                        className="mt-0.5 h-4 w-4 shrink-0 text-primary"
+                                      />
+                                    )}
+                                    <span className="flex-1 text-sm leading-relaxed">
+                                      {opt.label}
+                                    </span>
+                                  </label>
+                                );
+                              })}
+                            </RadioGroup>
+                          </FormControl>
+                        </div>
+                        <FormMessage className="mt-2 shrink-0" />
                       </FormItem>
                     )}
                   />
@@ -278,50 +350,59 @@ export default function OnboardingPage() {
                     control={form.control}
                     name="mainGoals"
                     render={() => (
-                      <FormItem className="space-y-3">
-                        <FormLabel className="text-lg font-semibold">
-                          {getStepTitle()}
-                        </FormLabel>
-                        <p className="text-sm text-muted-foreground">
-                          Select all that apply
-                        </p>
-                        <div className="space-y-3">
-                          {goalOptions.map((goal) => (
-                            <FormField
-                              key={goal.value}
-                              control={form.control}
-                              name="mainGoals"
-                              render={({ field }) => {
-                                const isChecked = Array.isArray(field.value)
-                                  ? field.value.includes(goal.value)
-                                  : false;
-                                return (
-                                  <FormItem
-                                    key={goal.value}
-                                    className="flex flex-row items-start space-x-3 space-y-0"
-                                  >
-                                    <FormControl>
-                                      <Checkbox
-                                        checked={isChecked}
-                                        onCheckedChange={(checked: CheckedState) => {
-                                          const current = new Set(field.value || []);
-                                          if (checked === true) current.add(goal.value);
-                                          else current.delete(goal.value);
-                                          field.onChange(Array.from(current));
-                                        }}
-                                        className="mt-1"
-                                      />
-                                    </FormControl>
-                                    <FormLabel className="text-sm font-normal leading-relaxed cursor-pointer">
-                                      {goal.label}
-                                    </FormLabel>
-                                  </FormItem>
-                                );
-                              }}
-                            />
-                          ))}
+                      <FormItem className="flex min-h-0 flex-1 flex-col gap-0 space-y-0">
+                        <div className="shrink-0">
+                          <FormLabel className={ONBOARDING_STEP_HEADING_CLASSNAME}>
+                            {getStepTitle()}
+                          </FormLabel>
+                          <div className={ONBOARDING_HELPER_BLOCK_CLASSNAME}>
+                            <p className={ONBOARDING_HELPER_TEXT_CLASSNAME}>
+                              Select all that apply
+                            </p>
+                          </div>
                         </div>
-                        <FormMessage />
+                        <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain pb-2 [-webkit-overflow-scrolling:touch]">
+                          <div className="flex flex-col gap-3">
+                            {goalOptions.map((goal) => (
+                              <FormField
+                                key={goal.value}
+                                control={form.control}
+                                name="mainGoals"
+                                render={({ field }) => {
+                                  const isChecked = Array.isArray(field.value)
+                                    ? field.value.includes(goal.value)
+                                    : false;
+                                  return (
+                                    <FormItem
+                                      key={goal.value}
+                                      className={cn(
+                                        "flex flex-row items-start gap-3 space-y-0",
+                                        onboardingOptionCardClassName(isChecked)
+                                      )}
+                                    >
+                                      <FormControl>
+                                        <Checkbox
+                                          checked={isChecked}
+                                          onCheckedChange={(checked: CheckedState) => {
+                                            const current = new Set(field.value || []);
+                                            if (checked === true) current.add(goal.value);
+                                            else current.delete(goal.value);
+                                            field.onChange(Array.from(current));
+                                          }}
+                                          className="mt-1 shrink-0"
+                                        />
+                                      </FormControl>
+                                      <FormLabel className="flex-1 cursor-pointer text-sm font-normal leading-relaxed">
+                                        {goal.label}
+                                      </FormLabel>
+                                    </FormItem>
+                                  );
+                                }}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                        <FormMessage className="mt-2 shrink-0" />
                       </FormItem>
                     )}
                   />
@@ -333,37 +414,47 @@ export default function OnboardingPage() {
                     control={form.control}
                     name="role"
                     render={({ field }) => (
-                      <FormItem className="space-y-3">
-                        <FormLabel className="text-lg font-semibold">
+                      <FormItem className="flex min-h-0 flex-1 flex-col gap-0 space-y-0">
+                        <FormLabel
+                          className={cn(
+                            ONBOARDING_STEP_HEADING_CLASSNAME,
+                            ONBOARDING_TITLE_TO_OPTIONS_BOTTOM,
+                            "shrink-0"
+                          )}
+                        >
                           {getStepTitle()}
                         </FormLabel>
-                        <FormControl>
-                          <RadioGroup
-                            onValueChange={field.onChange}
-                            value={field.value}
-                            className="space-y-3"
-                          >
-                            {roleOptions.map((opt) => (
-                              <div
-                                key={opt.value}
-                                className="flex items-start space-x-3"
-                              >
-                                <RadioGroupItem
-                                  value={opt.value}
-                                  id={`role-${opt.value}`}
-                                  className="mt-1"
-                                />
+                        <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain pb-2 [-webkit-overflow-scrolling:touch]">
+                          <FormControl>
+                            <RadioGroup
+                              onValueChange={field.onChange}
+                              value={field.value}
+                              className="gap-3"
+                            >
+                              {roleOptions.map((opt) => (
                                 <label
-                                  htmlFor={`role-${opt.value}`}
-                                  className="text-sm leading-relaxed cursor-pointer"
+                                  key={opt.value}
+                                  className={cn(
+                                    "flex cursor-pointer items-start gap-3",
+                                    onboardingOptionCardClassName(
+                                      field.value === opt.value
+                                    )
+                                  )}
                                 >
-                                  {opt.label}
+                                  <RadioGroupItem
+                                    value={opt.value}
+                                    id={`role-${opt.value}`}
+                                    className="mt-1 shrink-0"
+                                  />
+                                  <span className="flex-1 text-sm leading-relaxed">
+                                    {opt.label}
+                                  </span>
                                 </label>
-                              </div>
-                            ))}
-                          </RadioGroup>
-                        </FormControl>
-                        <FormMessage />
+                              ))}
+                            </RadioGroup>
+                          </FormControl>
+                        </div>
+                        <FormMessage className="mt-2 shrink-0" />
                       </FormItem>
                     )}
                   />
@@ -375,271 +466,181 @@ export default function OnboardingPage() {
                     control={form.control}
                     name="industries"
                     render={() => (
-                      <FormItem className="space-y-3">
-                        <FormLabel className="text-lg font-semibold">
-                          {getStepTitle()}
-                        </FormLabel>
-                        <p className="text-sm text-muted-foreground">
-                          Select all that apply
-                        </p>
-                        <div className="space-y-3">
-                          {industryOptions.map((i) => (
-                            <FormField
-                              key={i.value}
-                              control={form.control}
-                              name="industries"
-                              render={({ field }) => {
-                                const isChecked = Array.isArray(field.value)
-                                  ? field.value.includes(i.value)
-                                  : false;
-                                return (
-                                  <FormItem
-                                    key={i.value}
-                                    className="flex flex-row items-start space-x-3 space-y-0"
-                                  >
-                                    <FormControl>
-                                      <Checkbox
-                                        checked={isChecked}
-                                        onCheckedChange={(checked: CheckedState) => {
-                                          const current = new Set(field.value || []);
-                                          if (checked === true) current.add(i.value);
-                                          else current.delete(i.value);
-                                          field.onChange(Array.from(current));
-                                        }}
-                                        className="mt-1"
-                                      />
-                                    </FormControl>
-                                    <FormLabel className="text-sm font-normal leading-relaxed cursor-pointer">
-                                      {i.label}
-                                    </FormLabel>
-                                  </FormItem>
-                                );
-                              }}
-                            />
-                          ))}
+                      <FormItem className="flex min-h-0 flex-1 flex-col gap-0 space-y-0">
+                        <div className="shrink-0">
+                          <FormLabel className={ONBOARDING_STEP_HEADING_CLASSNAME}>
+                            {getStepTitle()}
+                          </FormLabel>
+                          <div className={ONBOARDING_HELPER_BLOCK_CLASSNAME}>
+                            <p className={ONBOARDING_HELPER_TEXT_CLASSNAME}>
+                              Select all that apply
+                            </p>
+                          </div>
                         </div>
-                        <FormMessage />
+                        <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain pb-2 [-webkit-overflow-scrolling:touch]">
+                          <div className="flex flex-col gap-3">
+                            {industryOptions.map((i) => (
+                              <FormField
+                                key={i.value}
+                                control={form.control}
+                                name="industries"
+                                render={({ field }) => {
+                                  const isChecked = Array.isArray(field.value)
+                                    ? field.value.includes(i.value)
+                                    : false;
+                                  return (
+                                    <FormItem
+                                      key={i.value}
+                                      className={cn(
+                                        "flex flex-row items-start gap-3 space-y-0",
+                                        onboardingOptionCardClassName(isChecked)
+                                      )}
+                                    >
+                                      <FormControl>
+                                        <Checkbox
+                                          checked={isChecked}
+                                          onCheckedChange={(checked: CheckedState) => {
+                                            const current = new Set(field.value || []);
+                                            if (checked === true) current.add(i.value);
+                                            else current.delete(i.value);
+                                            field.onChange(Array.from(current));
+                                          }}
+                                          className="mt-1 shrink-0"
+                                        />
+                                      </FormControl>
+                                      <FormLabel className="flex-1 cursor-pointer text-sm font-normal leading-relaxed">
+                                        {i.label}
+                                      </FormLabel>
+                                    </FormItem>
+                                  );
+                                }}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                        <FormMessage className="mt-2 shrink-0" />
                       </FormItem>
                     )}
                   />
                 )}
 
-                {/* Step 5: Tools */}
+                {/* Step 5: Platform role (tools question temporarily removed) */}
                 {currentStep === 5 && (
-                  <FormItem className="space-y-3">
-                    <FormLabel className="text-lg font-semibold">
-                      {getStepTitle()}
-                    </FormLabel>
-                    <p className="text-sm text-muted-foreground">
-                      Optional - select any that interest you
-                    </p>
-                    <div className="space-y-6 overflow-y-auto max-h-96">
-                      <div>
-                        <div className="mb-3 font-medium">
-                          AI-based technologies
-                        </div>
-                        {AI_TECH_CATEGORIES.map((cat) => (
-                          <div key={cat.id} className="mb-4">
-                            <div className="text-sm text-muted-foreground mb-2">
-                              {cat.label}
-                            </div>
-                            <div className="space-y-2">
-                              {cat.items.map((t) => (
-                                <FormField
-                                  key={t.value}
-                                  control={form.control}
-                                  name="aiTools"
-                                  render={({ field }) => {
-                                    const selected = Array.isArray(field.value) ? field.value : [];
-                                    const isChecked = selected.includes(t.value);
-                                    return (
-                                      <FormItem
-                                        key={t.value}
-                                        className="flex flex-row items-start space-x-3 space-y-0"
-                                      >
-                                        <FormControl>
-                                          <Checkbox
-                                            checked={isChecked}
-                                            onCheckedChange={(checked: CheckedState) => {
-                                              const current = new Set(field.value || []);
-                                              if (checked === true) current.add(t.value);
-                                              else current.delete(t.value);
-                                              field.onChange(Array.from(current));
-                                            }}
-                                            className="mt-1"
-                                          />
-                                        </FormControl>
-                                        <FormLabel className="text-sm font-normal cursor-pointer">
-                                          {t.label}
-                                        </FormLabel>
-                                      </FormItem>
-                                    );
-                                  }}
-                                />
-                              ))}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                      <div>
-                        <div className="mb-3 font-medium">
-                          Non-AI technologies
-                        </div>
-                        {NON_AI_TECH_CATEGORIES.map((cat) => (
-                          <div key={cat.id} className="mb-4">
-                            <div className="text-sm text-muted-foreground mb-2">
-                              {cat.label}
-                            </div>
-                            <div className="space-y-2">
-                              {cat.items.map((t) => (
-                                <FormField
-                                  key={t.value}
-                                  control={form.control}
-                                  name="nonAiTools"
-                                  render={({ field }) => {
-                                    const selected = Array.isArray(field.value) ? field.value : [];
-                                    const isChecked = selected.includes(t.value);
-                                    return (
-                                      <FormItem
-                                        key={t.value}
-                                        className="flex flex-row items-start space-x-3 space-y-0"
-                                      >
-                                        <FormControl>
-                                          <Checkbox
-                                            checked={isChecked}
-                                            onCheckedChange={(checked: CheckedState) => {
-                                              const current = new Set(field.value || []);
-                                              if (checked === true) current.add(t.value);
-                                              else current.delete(t.value);
-                                              field.onChange(Array.from(current));
-                                            }}
-                                            className="mt-1"
-                                          />
-                                        </FormControl>
-                                        <FormLabel className="text-sm font-normal cursor-pointer">
-                                          {t.label}
-                                        </FormLabel>
-                                      </FormItem>
-                                    );
-                                  }}
-                                />
-                              ))}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </FormItem>
-                )}
-
-                {/* Step 6: Platform Role - How they want to participate */}
-                {currentStep === 6 && (
                   <FormField
                     control={form.control}
                     name="platformRole"
                     render={({ field }) => (
-                      <FormItem className="space-y-3">
-                        <FormLabel className="text-lg font-semibold">
-                          {getStepTitle()}
-                        </FormLabel>
-                        <p className="text-sm text-muted-foreground">
-                          This helps us personalize your experience
-                        </p>
-                        <FormControl>
-                          <RadioGroup
-                            onValueChange={field.onChange}
-                            value={field.value}
-                            className="space-y-3"
-                          >
-                            {platformRoleOptions.map((opt) => {
-                              const IconComponent = PLATFORM_ROLE_ICONS[opt.value as keyof typeof PLATFORM_ROLE_ICONS];
-                              return (
-                                <div
-                                  key={opt.value}
-                                  className={`flex items-start space-x-3 p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                                    field.value === opt.value
-                                      ? "border-primary bg-primary/5"
-                                      : "border-muted hover:border-muted-foreground/30"
-                                  }`}
-                                  onClick={() => field.onChange(opt.value)}
-                                >
-                                  <RadioGroupItem
-                                    value={opt.value}
-                                    id={`platform-${opt.value}`}
-                                    className="mt-1"
-                                  />
-                                  <div className="flex-1">
-                                    <div className="flex items-center gap-2">
-                                      {IconComponent && (
-                                        <IconComponent className="h-4 w-4 text-primary" />
-                                      )}
-                                      <label
-                                        htmlFor={`platform-${opt.value}`}
-                                        className="text-sm font-medium leading-relaxed cursor-pointer"
-                                      >
-                                        {opt.label}
-                                      </label>
+                      <FormItem className="flex min-h-0 flex-1 flex-col gap-0 space-y-0">
+                        <div className="shrink-0">
+                          <FormLabel className={ONBOARDING_STEP_HEADING_CLASSNAME}>
+                            {getStepTitle()}
+                          </FormLabel>
+                          <div className={ONBOARDING_HELPER_BLOCK_CLASSNAME}>
+                            <p className={ONBOARDING_HELPER_TEXT_CLASSNAME}>
+                              This helps us personalize your experience
+                            </p>
+                          </div>
+                        </div>
+                        <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain pb-2 [-webkit-overflow-scrolling:touch]">
+                          <FormControl>
+                            <RadioGroup
+                              onValueChange={field.onChange}
+                              value={field.value}
+                              className="gap-3"
+                            >
+                              {platformRoleOptions.map((opt) => {
+                                const IconComponent = PLATFORM_ROLE_ICONS[opt.value as keyof typeof PLATFORM_ROLE_ICONS];
+                                return (
+                                  <div
+                                    key={opt.value}
+                                    className={cn(
+                                      "flex cursor-pointer items-start gap-3",
+                                      onboardingOptionCardClassName(
+                                        field.value === opt.value
+                                      )
+                                    )}
+                                    onClick={() => field.onChange(opt.value)}
+                                  >
+                                    <RadioGroupItem
+                                      value={opt.value}
+                                      id={`platform-${opt.value}`}
+                                      className="mt-1 shrink-0"
+                                    />
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2">
+                                        {IconComponent && (
+                                          <IconComponent className="h-4 w-4 text-primary" />
+                                        )}
+                                        <label
+                                          htmlFor={`platform-${opt.value}`}
+                                          className="cursor-pointer text-sm font-medium leading-relaxed"
+                                        >
+                                          {opt.label}
+                                        </label>
+                                      </div>
+                                      <p className="mt-1 text-xs text-muted-foreground">
+                                        {opt.description}
+                                      </p>
                                     </div>
-                                    <p className="text-xs text-muted-foreground mt-1">
-                                      {opt.description}
-                                    </p>
                                   </div>
-                                </div>
-                              );
-                            })}
-                          </RadioGroup>
-                        </FormControl>
-                        <FormMessage />
+                                );
+                              })}
+                            </RadioGroup>
+                          </FormControl>
+                        </div>
+                        <FormMessage className="mt-2 shrink-0" />
                       </FormItem>
                     )}
                   />
                 )}
 
-                {/* Navigation */}
-                <div className="flex gap-3 pt-4">
-                  {currentStep > 1 && (
+                {/* Navigation — fixed at bottom of column; options scroll above */}
+                <div className="shrink-0 space-y-3 bg-white pt-4 pb-6">
+                  <div className="flex gap-3">
+                    {currentStep > 1 && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleBack}
+                        className="flex-1"
+                      >
+                        Back
+                      </Button>
+                    )}
                     <Button
                       type="button"
-                      variant="outline"
-                      onClick={handleBack}
-                      className="flex-1"
+                      onClick={
+                        currentStep === totalSteps ? handleComplete : handleNext
+                      }
+                      disabled={isSubmitting || !isCurrentStepValid()}
+                      className={`flex-1 ${
+                        isCurrentStepValid()
+                          ? "bg-[#4B89EF] hover:bg-[#3F77D3] text-white"
+                          : ""
+                      }`}
                     >
-                      Back
+                      {isSubmitting
+                        ? "Saving..."
+                        : currentStep === totalSteps
+                        ? "Get Started"
+                        : "Continue"}
                     </Button>
+                  </div>
+                  {form.formState.errors.root?.message && (
+                    <p className="text-sm font-medium text-destructive">
+                      {form.formState.errors.root.message}
+                    </p>
                   )}
                   <Button
                     type="button"
-                    onClick={
-                      currentStep === totalSteps ? handleComplete : handleNext
-                    }
-                    disabled={isSubmitting || !isCurrentStepValid()}
-                    className={`flex-1 ${
-                      isCurrentStepValid()
-                        ? "bg-[#4B89EF] hover:bg-[#3F77D3] text-white"
-                        : ""
-                    }`}
+                    variant="ghost"
+                    onClick={() => void handleSkip()}
+                    disabled={isSubmitting}
+                    className="w-full"
                   >
-                    {isSubmitting
-                      ? "Saving..."
-                      : currentStep === totalSteps
-                      ? "Get Started"
-                      : "Continue"}
+                    Skip for now
                   </Button>
                 </div>
-                {form.formState.errors.root?.message && (
-                  <p className="text-sm font-medium text-destructive">
-                    {form.formState.errors.root.message}
-                  </p>
-                )}
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => void handleSkip()}
-                  disabled={isSubmitting}
-                  className="w-full"
-                >
-                  Skip for now
-                </Button>
               </form>
             </Form>
           </div>

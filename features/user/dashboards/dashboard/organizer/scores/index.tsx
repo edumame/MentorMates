@@ -62,6 +62,8 @@ type MeetingScoreQueryRow = {
 type ProjectScoreQueryRow = {
   project_id: string;
   track_id: string;
+  judge_id: string | null;
+  created_at: string | null;
   scores: unknown;
   comments: string | null;
   round_number?: number | null;
@@ -99,6 +101,12 @@ type SortDirection = "asc" | "desc" | null;
 interface TrackSortState {
   column: string;
   direction: SortDirection;
+}
+
+interface EventProfileSummary {
+  uid: string;
+  display_name: string | null;
+  email: string | null;
 }
 
 export function ScoresTab({
@@ -290,6 +298,42 @@ export function ScoresTab({
     [scoringConfig]
   );
 
+  const fetchProfilesByUserIds = useCallback(
+    async (userIds: string[]) => {
+      const uniqueUserIds = Array.from(new Set(userIds.filter(Boolean)));
+      const profilesById = new Map<
+        string,
+        { display_name: string | null; email: string | null }
+      >();
+
+      if (uniqueUserIds.length === 0) {
+        return profilesById;
+      }
+
+      const profilesResponse = await fetch(`/api/events/${eventId}/profiles`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userIds: uniqueUserIds }),
+      });
+      const profilesPayload = await profilesResponse.json();
+
+      if (!profilesResponse.ok) {
+        throw new Error(profilesPayload.error || "Failed to fetch profiles");
+      }
+
+      const userRows = (profilesPayload.profiles ?? []) as EventProfileSummary[];
+      userRows.forEach((user) => {
+        profilesById.set(String(user.uid), {
+          display_name: user.display_name ?? null,
+          email: user.email ?? null,
+        });
+      });
+
+      return profilesById;
+    },
+    [eventId]
+  );
+
 
   useEffect(() => {
     async function fetchData() {
@@ -358,7 +402,7 @@ export function ScoresTab({
 
           const projectsById = new Map<string, { project_name: string | null }>();
           const agentsById = new Map<string, { name: string | null }>();
-          const participantsById = new Map<
+          let profilesById = new Map<
             string,
             { display_name: string | null; email: string | null }
           >();
@@ -405,37 +449,12 @@ export function ScoresTab({
           }
 
           if (participantIds.length > 0) {
-            const profilesResponse = await fetch(
-              `/api/events/${eventId}/profiles`,
-              {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ userIds: participantIds }),
-              }
-            );
-            const profilesPayload = await profilesResponse.json();
-            if (!profilesResponse.ok) {
+            try {
+              profilesById = await fetchProfilesByUserIds(participantIds);
+            } catch (profileError) {
               console.error(
                 "Error fetching participants for agent scores:",
-                profilesPayload.error
-              );
-            } else {
-              const userRows = (profilesPayload.profiles ?? []) as Array<{
-                uid: string;
-                display_name: string | null;
-                email: string | null;
-              }>;
-              userRows.forEach(
-                (u: {
-                  uid: string;
-                  display_name: string | null;
-                  email: string | null;
-                }) => {
-                  participantsById.set(String(u.uid), {
-                    display_name: u.display_name ?? null,
-                    email: u.email ?? null,
-                  });
-                }
+                profileError
               );
             }
           }
@@ -460,7 +479,7 @@ export function ScoresTab({
               const agentName = agentsById.get(agentId)?.name ?? "";
 
               const participant =
-                participantId ? participantsById.get(participantId) : null;
+                participantId ? profilesById.get(participantId) : null;
               const participantName =
                 participant?.display_name ||
                 participant?.email ||
@@ -506,6 +525,8 @@ export function ScoresTab({
             `
             project_id,
             track_id,
+            judge_id,
+            created_at,
             scores,
             comments,
             round_number,
@@ -537,6 +558,25 @@ export function ScoresTab({
         }
 
         const scoreRows = (data || []) as ProjectScoreQueryRow[];
+        const judgeIds = Array.from(
+          new Set(
+            scoreRows
+              .map((item) => (item.judge_id ? String(item.judge_id) : ""))
+              .filter(Boolean)
+          )
+        );
+        let judgeProfilesById = new Map<
+          string,
+          { display_name: string | null; email: string | null }
+        >();
+
+        if (judgeIds.length > 0) {
+          try {
+            judgeProfilesById = await fetchProfilesByUserIds(judgeIds);
+          } catch (profileError) {
+            console.error("Error fetching judge profiles:", profileError);
+          }
+        }
 
         // Transform data for display (existing logic)
         const allDisplayData = scoreRows.map((item: ProjectScoreQueryRow) => {
@@ -550,12 +590,21 @@ export function ScoresTab({
             name: string;
             track_id: string;
           } | null;
+          const judgeId = item.judge_id ? String(item.judge_id) : null;
+          const judgeProfile = judgeId ? judgeProfilesById.get(judgeId) : null;
+          const judgeName =
+            judgeProfile?.display_name ||
+            judgeProfile?.email ||
+            judgeId;
 
           return {
             ...item,
             event_id: projectData?.event_id || eventId,
             round_number:
               typeof item.round_number === "number" ? item.round_number : 1,
+            judge_id: judgeId,
+            judge_name: judgeName,
+            created_at: item.created_at ?? null,
             projects: {
               project_name: projectData?.project_name || "",
               lead_name: projectData?.lead_name || "",
@@ -579,11 +628,21 @@ export function ScoresTab({
             ? item.event_tracks[0]
             : item.event_tracks;
 
+          const judgeId = item.judge_id ? String(item.judge_id) : null;
+          const judgeProfile = judgeId ? judgeProfilesById.get(judgeId) : null;
+          const judgeName =
+            judgeProfile?.display_name ||
+            judgeProfile?.email ||
+            judgeId;
+
           return {
             scores: item.scores as Record<string, string | number>,
             comments: item.comments,
             round_number:
               typeof item.round_number === "number" ? item.round_number : 1,
+            judge_id: judgeId,
+            judge_name: judgeName,
+            created_at: item.created_at ?? null,
             projects: {
               project_name: projects?.project_name || "",
               lead_email: projects?.lead_email || "",
@@ -647,7 +706,7 @@ export function ScoresTab({
       judgeScoresSubscription.unsubscribe();
       agentScoresSubscription.unsubscribe();
     };
-  }, [eventId, calculateTrackScores, activeRound]);
+  }, [eventId, calculateTrackScores, activeRound, fetchProfilesByUserIds]);
 
   return (
     <div className="space-y-6">
@@ -691,8 +750,14 @@ export function ScoresTab({
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <h3 className="text-lg font-medium">Live Judge Scores</h3>
+                  <div className="flex justify-between items-start gap-4">
+                    <div>
+                      <h3 className="text-lg font-medium">Live Judge Scores</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Each project shows the judges who have submitted a score
+                        and the total they gave.
+                      </p>
+                    </div>
                     <div className="flex space-x-2">
                       <Button
                         onClick={exportRawData}
@@ -955,6 +1020,9 @@ export function ScoresTab({
                                             {getSortIcon(trackId, "judges")}
                                           </div>
                                         </TableHead>
+                                        <TableHead className="min-w-[240px] max-w-[300px] px-4">
+                                          Judge Breakdown
+                                        </TableHead>
                                       </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -1019,6 +1087,61 @@ export function ScoresTab({
                                           })}
                                           <TableCell className="text-center w-20 px-4 tabular-nums">
                                             {score.numberOfJudges}
+                                          </TableCell>
+                                          <TableCell className="min-w-[240px] max-w-[300px] px-4">
+                                            {score.judgeScores.length > 0 ? (
+                                              <div className="space-y-2">
+                                                {score.judgeScores.map((judgeScore) => (
+                                                  <div
+                                                    key={judgeScore.judgeId}
+                                                    className="rounded-md bg-muted/50 px-2 py-2 text-sm"
+                                                  >
+                                                    <div className="flex items-center justify-between gap-3">
+                                                      <span className="truncate">
+                                                        {judgeScore.judgeName}
+                                                      </span>
+                                                      <span className="font-medium tabular-nums">
+                                                        {judgeScore.totalScore.toFixed(2)}
+                                                      </span>
+                                                    </div>
+                                                    {choiceCriteria.length > 0 &&
+                                                    Object.keys(judgeScore.choiceAnswers)
+                                                      .length > 0 ? (
+                                                      <div className="mt-1 space-y-1 text-xs text-muted-foreground">
+                                                        {choiceCriteria
+                                                          .filter(
+                                                            (criterion) =>
+                                                              judgeScore.choiceAnswers[
+                                                                criterion.id
+                                                              ]
+                                                          )
+                                                          .map((criterion) => (
+                                                            <div
+                                                              key={`${judgeScore.judgeId}-${criterion.id}`}
+                                                              className="flex items-start gap-1"
+                                                            >
+                                                              <span className="font-medium text-foreground/80">
+                                                                {criterion.name}:
+                                                              </span>
+                                                              <span>
+                                                                {
+                                                                  judgeScore.choiceAnswers[
+                                                                    criterion.id
+                                                                  ]
+                                                                }
+                                                              </span>
+                                                            </div>
+                                                          ))}
+                                                      </div>
+                                                    ) : null}
+                                                  </div>
+                                                ))}
+                                              </div>
+                                            ) : (
+                                              <span className="text-muted-foreground">
+                                                —
+                                              </span>
+                                            )}
                                           </TableCell>
                                         </TableRow>
                                       ))}

@@ -5,6 +5,7 @@ import {
   resolveAgentPathEvent,
 } from "@/lib/agent/auth";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import { logAgentEvent } from "@/lib/agent/logging";
 import { joinParticipantEvent } from "@/lib/events/participant-access";
 
 export async function POST(
@@ -42,7 +43,11 @@ export async function POST(
       message: result.message,
     });
   } catch (error) {
-    console.error("Participant agent join POST error:", error);
+    logAgentEvent(
+      "participant_join_crashed",
+      { route: "POST /api/agent/me/events/[eventId]/join" },
+      error
+    );
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

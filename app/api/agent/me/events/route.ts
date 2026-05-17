@@ -9,6 +9,7 @@ import {
   listParticipantAgentEvents,
   toParticipantAgentEvent,
 } from "@/lib/agent/event-access";
+import { logAgentEvent } from "@/lib/agent/logging";
 import { EventRole } from "@/lib/types";
 
 export async function GET(request: NextRequest) {
@@ -41,7 +42,11 @@ export async function GET(request: NextRequest) {
       joinable_events: filteredJoinable.map(toParticipantAgentEvent),
     });
   } catch (error) {
-    console.error("Participant agent events GET error:", error);
+    logAgentEvent(
+      "participant_events_list_crashed",
+      { route: "GET /api/agent/me/events" },
+      error
+    );
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

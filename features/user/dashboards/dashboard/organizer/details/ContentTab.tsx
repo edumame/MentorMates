@@ -4,7 +4,10 @@ import { EventDetails, Lesson } from "@/lib/types";
 import { useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import { customMarkdownComponents } from "@/components/markdown/custom-components";
-import { markdownRehypePlugins } from "@/components/markdown/plugins";
+import {
+  markdownRehypePlugins,
+  markdownRemarkPlugins,
+} from "@/components/markdown/plugins";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -281,6 +284,7 @@ export function ContentTab({
             <div className="min-h-[300px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] p-3 overflow-auto prose prose-sm max-w-full">
               {event.paywall_content ? (
                 <ReactMarkdown
+                  remarkPlugins={markdownRemarkPlugins}
                   rehypePlugins={markdownRehypePlugins}
                   components={customMarkdownComponents}
                 >

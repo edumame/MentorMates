@@ -39,9 +39,11 @@ interface ProjectAssignmentRow {
   project_id: string;
 }
 
+const DEFAULT_PROJECT_NAME = "Project Name Not Set";
+
 interface ProjectRow {
   id: string;
-  project_name: string;
+  project_name: string | null;
   project_description: string | null;
   created_at: string;
   event_id: string;
@@ -156,15 +158,17 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
 
   const filteredProjects = useMemo(
     () =>
-      projects.filter(
-        (project) =>
-          project.project_name
+      projects.filter((project) => {
+        const projectName = project.project_name || DEFAULT_PROJECT_NAME;
+        const projectDescription = project.project_description || "";
+
+        return (
+          projectName
             .toLowerCase()
             .includes(normalizedSearchQuery) ||
-          (project.project_description || "")
-            .toLowerCase()
-            .includes(normalizedSearchQuery)
-      ),
+          projectDescription.toLowerCase().includes(normalizedSearchQuery)
+        );
+      }),
     [projects, normalizedSearchQuery]
   );
 
@@ -571,7 +575,7 @@ export function JudgeDashboard({ eventId }: JudgeDashboardProps) {
 
           projectMap.set(project.id, {
             id: project.id,
-            project_name: project.project_name,
+            project_name: project.project_name?.trim() || DEFAULT_PROJECT_NAME,
             project_description: project.project_description || "",
             created_at: project.created_at,
             event_id: project.event_id,

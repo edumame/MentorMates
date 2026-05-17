@@ -28,6 +28,8 @@ import {
   Video,
   Lightbulb,
   Download,
+  Check,
+  AlertTriangle,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -378,6 +380,43 @@ export default function ProjectPage() {
         variant: "destructive",
       });
       return false;
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleSubmitToEvent = async (): Promise<void> => {
+    setIsUpdating(true);
+    try {
+      const response = await fetch("/api/projects/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId, submitted: true }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        toast({
+          title: "Submission failed",
+          description: errorData?.error || "Could not submit project to event.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const { data } = await response.json();
+      setProjectWithArtifacts(data as Project);
+      toast({
+        title: "Submitted to event",
+        description: "Your project is now visible to judges.",
+      });
+    } catch (err) {
+      toast({
+        title: "Submission failed",
+        description:
+          err instanceof Error ? err.message : "Unknown error. Try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsUpdating(false);
     }
@@ -1242,6 +1281,57 @@ export default function ProjectPage() {
                 )}
               </div>
             </div>
+
+            {/* Submission Status Banner — clarifies published vs submitted */}
+            {canEdit && (
+              <div
+                className={`mb-6 rounded-[16px] border p-4 shadow-sm ${
+                  project.submitted
+                    ? "border-[rgba(0,0,0,0.08)] bg-white"
+                    : "border-[#FDE68A] bg-[#FFFBEB]"
+                }`}
+              >
+                {project.submitted ? (
+                  <div className="flex items-start gap-3">
+                    <div className="mt-0.5 h-5 w-5 rounded-full bg-[#DCFCE7] flex items-center justify-center shrink-0">
+                      <Check className="h-3 w-3 text-[#16A34A]" strokeWidth={3} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[13px] font-semibold text-[#18181B] tracking-[-0.01em] leading-tight">
+                        Submitted to event
+                      </p>
+                      <p className="text-[12px] text-[#7F7F7F] mt-0.5 leading-relaxed">
+                        This project is submitted and visible to judges. You can
+                        still edit it until the submission deadline.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-start gap-3">
+                    <div className="mt-0.5 h-5 w-5 rounded-full bg-[#FEF3C7] flex items-center justify-center shrink-0">
+                      <AlertTriangle className="h-3 w-3 text-[#D97706]" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[13px] font-semibold text-[#18181B] tracking-[-0.01em] leading-tight">
+                        Draft — not yet submitted to the event
+                      </p>
+                      <p className="text-[12px] text-[#7F7F7F] mt-0.5 leading-relaxed">
+                        Your project is saved but hasn&apos;t been submitted. Publishing
+                        a project is not the same as submitting it to an event —
+                        click &quot;Submit to event&quot; for judges to see it.
+                      </p>
+                      <Button
+                        className="mt-2.5 bg-[#4B89EF] hover:bg-[#3E7EEA] text-white rounded-[12px] h-8 px-4 text-[13px] font-semibold shadow-[inset_0_2px_1px_0_rgba(255,255,255,0.25),0_1px_2px_0_rgba(0,0,0,0.05)]"
+                        onClick={handleSubmitToEvent}
+                        disabled={isUpdating}
+                      >
+                        {isUpdating ? "Submitting…" : "Submit to event"}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Project Title and Hero Section */}
             <div className="flex flex-col lg:flex-row gap-6 lg:gap-20 mb-6 sm:mb-12">
