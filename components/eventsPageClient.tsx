@@ -89,22 +89,22 @@ export function EventsPageClient({
 
   return (
     <div className="w-full">
-      <div className="flex justify-between sm:gap-x-[15rem] mb-6 items-center flex-wrap">
-        <h1 className="w-full sm:w-auto mb-4 sm:mb-0 text-[20px] sm:text-[28px] font-semibold leading-[1.4] tracking-[-0.06em] text-black">
-          Events
+      <div className="mt-6 mb-14 flex flex-col items-center gap-8">
+        <h1 className="text-center font-geist text-[48px] font-semibold leading-[1.05] tracking-[-0.06em] text-black sm:text-[64px]">
+          Discover events
         </h1>
         {/* Search and Filter Section */}
-        <div className="flex flex-col gap-4 flex-1">
-          <div className="flex items-end justify-between gap-4">
+        <div className="flex w-full max-w-4xl flex-col gap-4">
+          <div className="flex flex-wrap items-end justify-center gap-4">
             {/* Search Input */}
             <EventSearchInput
-              wrapperClassName="flex-1"
+              wrapperClassName="w-full max-w-[640px] flex-1"
               placeholder="Search by event or host title"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center justify-center gap-4">
               {/* Sort By Dropdown */}
               <div className="relative">
                 <button

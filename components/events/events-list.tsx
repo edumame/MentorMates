@@ -90,14 +90,14 @@ export function EventsList({ events }: EventsListProps) {
   };
 
   return (
-    <div className="flex flex-col sm:grid sm:grid-cols-2 lg:grid-cols-3 min-[1064px]:grid-cols-[repeat(auto-fit,minmax(320px,1fr))] gap-5 sm:auto-rows-fr">
+    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 sm:auto-rows-fr">
       {events.map((event) => {
         const userRole = getUserRoleForEvent(event.event_id);
 
         return (
           <div
             key={event.event_id}
-            className="relative w-full max-w-[420px] mx-auto"
+            className="relative w-full"
           >
             <EventCard event={event} />
             {/* User Role Badge Overlay */}
