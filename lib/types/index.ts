@@ -38,6 +38,7 @@ export interface PricingTier {
   tier_id: string; // Unique identifier within the event (e.g., "early-bird", "regular")
   name: string;
   price: number; // Price in cents
+  currency?: string; // Currency used for display and should match the Stripe price
   stripe_price_id?: string;
   description?: string;
   available_until?: string; // ISO date string for limited-time offers

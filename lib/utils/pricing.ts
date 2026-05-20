@@ -1,5 +1,34 @@
 import { PricingTier } from "@/lib/types";
 
+export const DEFAULT_PAYMENT_CURRENCY = "usd";
+
+export const PAYMENT_CURRENCY_OPTIONS = [
+  { value: "usd", label: "USD" },
+  { value: "hkd", label: "HKD" },
+  { value: "cny", label: "RMB / CNY" },
+  { value: "eur", label: "EUR" },
+  { value: "gbp", label: "GBP" },
+  { value: "cad", label: "CAD" },
+  { value: "aud", label: "AUD" },
+  { value: "nzd", label: "NZD" },
+  { value: "jpy", label: "JPY" },
+  { value: "krw", label: "KRW" },
+  { value: "sgd", label: "SGD" },
+  { value: "inr", label: "INR" },
+  { value: "myr", label: "MYR" },
+  { value: "thb", label: "THB" },
+  { value: "php", label: "PHP" },
+  { value: "idr", label: "IDR" },
+  { value: "vnd", label: "VND" },
+  { value: "chf", label: "CHF" },
+  { value: "sek", label: "SEK" },
+  { value: "nok", label: "NOK" },
+  { value: "dkk", label: "DKK" },
+  { value: "mxn", label: "MXN" },
+  { value: "brl", label: "BRL" },
+  { value: "aed", label: "AED" },
+] as const;
+
 /**
  * Get available pricing tiers for an event
  * Filters out expired or sold-out tiers
@@ -43,10 +72,23 @@ export function getCheapestPricingTier(pricingTiers: PricingTier[]): PricingTier
 }
 
 /**
- * Format price from cents to display string
+ * Format price from cents to display string.
  */
-export function formatPrice(priceInCents: number): string {
-  return `$${(priceInCents / 100).toFixed(2)}`;
+export function formatPrice(
+  priceInCents: number,
+  currency = DEFAULT_PAYMENT_CURRENCY
+): string {
+  const normalizedCurrency =
+    currency?.trim().toUpperCase() || DEFAULT_PAYMENT_CURRENCY.toUpperCase();
+
+  try {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: normalizedCurrency,
+    }).format(priceInCents / 100);
+  } catch {
+    return `${normalizedCurrency} ${(priceInCents / 100).toFixed(2)}`;
+  }
 }
 
 /**
