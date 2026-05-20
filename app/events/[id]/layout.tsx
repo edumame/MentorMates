@@ -1,6 +1,6 @@
 import type React from "react";
 import { createSupabaseClient } from "@/app/utils/supabase/server";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { isValidUUID } from "@/app/utils/supabase/queries";
 import { ConditionalEventLayout } from "./conditional-event-layout";
@@ -32,7 +32,8 @@ export default async function Layout({
     cover_image_url,
     submission_time_start,
     submission_time_cutoff,
-    visibility
+    visibility,
+    external_url
   `);
 
   if (isUUID) {
@@ -47,6 +48,12 @@ export default async function Layout({
 
   if (!event) {
     notFound();
+  }
+
+  // External-link events: the MentorMates event page is never shown.
+  // Any direct visit redirects to the configured outside site.
+  if (event.external_url && event.external_url.trim()) {
+    redirect(event.external_url.trim());
   }
 
   return (

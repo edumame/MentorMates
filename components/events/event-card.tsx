@@ -38,13 +38,11 @@ export function EventCard({ event }: EventCardProps) {
     normalizeSummary(event.event_description) ||
     "";
 
-  return (
-    <Link
-      href={`/events/${event.slug || event.event_id}/overview`}
-      className="block h-full"
-      prefetch={false}
-    >
-      <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] overflow-hidden hover:shadow-lg transition-shadow duration-200 flex flex-col h-full">
+  // External-link events: the card opens an outside site in a new tab
+  // instead of routing to the MentorMates event page.
+  const externalUrl = event.external_url?.trim();
+  const cardInner = (
+    <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] overflow-hidden hover:shadow-lg transition-shadow duration-200 flex flex-col h-full">
         {/* Image Section */}
         <div className="relative w-full aspect-[335/223] overflow-hidden">
           {event.cover_image_url ? (
@@ -109,6 +107,28 @@ export function EventCard({ event }: EventCardProps) {
           </p>
         </div>
       </div>
+  );
+
+  if (externalUrl) {
+    return (
+      <a
+        href={externalUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="block h-full"
+      >
+        {cardInner}
+      </a>
+    );
+  }
+
+  return (
+    <Link
+      href={`/events/${event.slug || event.event_id}/overview`}
+      className="block h-full"
+      prefetch={false}
+    >
+      {cardInner}
     </Link>
   );
 }
