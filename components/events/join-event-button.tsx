@@ -559,7 +559,7 @@ export function JoinEventButton({
     if (pricingTiers.length > 0) {
       const cheapestTier = getCheapestPricingTier(pricingTiers);
       return cheapestTier
-        ? `Join Event - From ${formatPrice(cheapestTier.price)}`
+        ? `Join Event - From ${formatPrice(cheapestTier.price, cheapestTier.currency)}`
         : "Join Event - Multiple Tiers Available";
     }
 
