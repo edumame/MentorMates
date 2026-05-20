@@ -4,13 +4,29 @@ export const DEFAULT_PAYMENT_CURRENCY = "usd";
 
 export const PAYMENT_CURRENCY_OPTIONS = [
   { value: "usd", label: "USD" },
+  { value: "hkd", label: "HKD" },
+  { value: "cny", label: "RMB / CNY" },
   { value: "eur", label: "EUR" },
   { value: "gbp", label: "GBP" },
   { value: "cad", label: "CAD" },
   { value: "aud", label: "AUD" },
+  { value: "nzd", label: "NZD" },
   { value: "jpy", label: "JPY" },
+  { value: "krw", label: "KRW" },
   { value: "sgd", label: "SGD" },
   { value: "inr", label: "INR" },
+  { value: "myr", label: "MYR" },
+  { value: "thb", label: "THB" },
+  { value: "php", label: "PHP" },
+  { value: "idr", label: "IDR" },
+  { value: "vnd", label: "VND" },
+  { value: "chf", label: "CHF" },
+  { value: "sek", label: "SEK" },
+  { value: "nok", label: "NOK" },
+  { value: "dkk", label: "DKK" },
+  { value: "mxn", label: "MXN" },
+  { value: "brl", label: "BRL" },
+  { value: "aed", label: "AED" },
 ] as const;
 
 /**

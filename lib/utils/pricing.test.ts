@@ -1,5 +1,6 @@
 import {
   DEFAULT_PAYMENT_CURRENCY,
+  PAYMENT_CURRENCY_OPTIONS,
   formatPrice,
   getCheapestPricingTier,
 } from "./pricing";
@@ -31,6 +32,20 @@ describe("formatPrice", () => {
 
   it("falls back to a readable amount when Intl rejects the currency", () => {
     expect(formatPrice(2500, "not-a-currency")).toBe("NOT-A-CURRENCY 25.00");
+  });
+});
+
+describe("PAYMENT_CURRENCY_OPTIONS", () => {
+  it("includes common international currencies for payment display", () => {
+    expect(PAYMENT_CURRENCY_OPTIONS).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ value: "hkd", label: "HKD" }),
+        expect.objectContaining({ value: "cny", label: "RMB / CNY" }),
+        expect.objectContaining({ value: "jpy", label: "JPY" }),
+        expect.objectContaining({ value: "krw", label: "KRW" }),
+        expect.objectContaining({ value: "sgd", label: "SGD" }),
+      ])
+    );
   });
 });
 
