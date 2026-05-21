@@ -43,6 +43,7 @@ import {
 } from "@/features/user/onboarding/questions-data";
 import { ONBOARDING_SKIP_STATUS } from "@/features/user/onboarding/metadata";
 import { useStepNavigation } from "@/features/projects/components/forms/hooks/useStepNavigation";
+import { getSafeRedirectPath } from "@/features/user/authentication/redirect/redirect-url";
 import { cn } from "@/lib/utils";
 
 type FormValues = {
@@ -92,7 +93,7 @@ export default function OnboardingPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const returnUrl = useMemo(
-    () => searchParams.get("returnUrl") || "",
+    () => getSafeRedirectPath(searchParams.get("returnUrl")) || "",
     [searchParams]
   );
   const [isSubmitting, setIsSubmitting] = useState(false);

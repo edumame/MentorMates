@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 // import { createClient } from "@/app/utils/supabase/client";
 import { useRouter } from "next/navigation";
+import { useRedirect } from "@/features/user/authentication/redirect/RedirectProvider";
 import {
   Dialog,
   DialogContent,
@@ -93,6 +94,7 @@ export function JoinEventButton({
     null
   );
   const router = useRouter();
+  const { setReturnUrlFromCurrentLocation } = useRedirect();
   const [pricingTiers, setPricingTiers] = useState<PricingTier[]>([]);
   const [selectedPricingTierId, setSelectedPricingTierId] =
     useState<string>("");
@@ -295,7 +297,7 @@ export function JoinEventButton({
         data: { session },
       } = await supabase.auth.getSession();
       if (!session) {
-        localStorage.setItem("returnUrl", window.location.pathname);
+        setReturnUrlFromCurrentLocation();
         router.push("/login");
         return;
       }
@@ -343,7 +345,7 @@ export function JoinEventButton({
         data: { session },
       } = await supabase.auth.getSession();
       if (!session) {
-        localStorage.setItem("returnUrl", window.location.pathname);
+        setReturnUrlFromCurrentLocation();
         router.push("/login");
         return;
       }

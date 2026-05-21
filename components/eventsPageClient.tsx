@@ -90,7 +90,7 @@ export function EventsPageClient({
   return (
     <div className="w-full">
       <div className="mt-6 mb-14 flex flex-col items-center gap-8">
-        <h1 className="text-center font-geist text-[48px] font-semibold leading-[1.05] tracking-[-0.06em] text-black sm:text-[64px]">
+        <h1 className="pt-10 text-center font-geist text-[48px] font-semibold leading-[1.05] tracking-[-0.06em] text-black sm:text-[64px]">
           Discover events
         </h1>
         {/* Search and Filter Section */}

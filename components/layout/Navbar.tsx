@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useRouter, usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import type { Session } from "@supabase/supabase-js";
+import { useRedirect } from "@/features/user/authentication/redirect/RedirectProvider";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -45,6 +46,7 @@ function DiscordIcon({
 export function Navbar() {
   const router = useRouter();
   const pathname = usePathname();
+  const { clearReturnUrl, setReturnUrl } = useRedirect();
   const [isOpen, setIsOpen] = useState(false);
   const [resourcesOpen, setResourcesOpen] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
@@ -78,12 +80,7 @@ export function Navbar() {
   }, []);
 
   const handleLoginClick = () => {
-    if (typeof window !== "undefined") {
-      const currentPath = window.location.pathname;
-      if (currentPath !== "/mentor") {
-        localStorage.setItem("returnUrl", currentPath);
-      }
-    }
+    setReturnUrl(pathname);
     router.push("/login");
   };
 
@@ -93,7 +90,7 @@ export function Navbar() {
       console.error("Error signing out:", error);
     } else {
       setSession(null);
-      localStorage.removeItem("returnUrl");
+      clearReturnUrl();
       router.push("/");
     }
   };
