@@ -39,8 +39,7 @@ import { toast } from "@/lib/hooks/use-toast";
 import { PricingTierSelector } from "./pricing-tier-selector";
 import {
   getAvailablePricingTiers,
-  getCheapestPricingTier,
-  formatPrice,
+  getPaidEventJoinLabel,
 } from "@/lib/utils/pricing";
 import { getRoleLabel } from "@/features/user/roles/roles";
 import { Ticket, Users, Lock, Loader2 } from "lucide-react";
@@ -554,18 +553,11 @@ export function JoinEventButton({
   };
 
   const getDefaultLabel = () => {
-    if (!event?.paid || !isAuthenticated) {
+    if (!event?.paid) {
       return "Join Event";
     }
 
-    if (pricingTiers.length > 0) {
-      const cheapestTier = getCheapestPricingTier(pricingTiers);
-      return cheapestTier
-        ? `Join Event - From ${formatPrice(cheapestTier.price, cheapestTier.currency)}`
-        : "Join Event - Multiple Tiers Available";
-    }
-
-    return "Join Event - Paid Event";
+    return getPaidEventJoinLabel(pricingTiers);
   };
 
   // Show loading skeleton while initializing
