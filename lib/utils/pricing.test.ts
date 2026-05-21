@@ -3,6 +3,7 @@ import {
   PAYMENT_CURRENCY_OPTIONS,
   formatPrice,
   getCheapestPricingTier,
+  getPaidEventJoinLabel,
 } from "./pricing";
 import type { PricingTier } from "@/lib/types";
 
@@ -61,5 +62,20 @@ describe("getCheapestPricingTier", () => {
       price: 2500,
       currency: "eur",
     });
+  });
+});
+
+describe("getPaidEventJoinLabel", () => {
+  it("shows the cheapest tier price without requiring auth state", () => {
+    expect(
+      getPaidEventJoinLabel([
+        makeTier({ price: 3000, currency: "usd" }),
+        makeTier({ id: "tier-2", price: 2500, currency: "hkd" }),
+      ])
+    ).toBe("Join Event - From HK$25.00");
+  });
+
+  it("falls back when a paid event has no pricing tiers", () => {
+    expect(getPaidEventJoinLabel([])).toBe("Join Event - Paid Event");
   });
 });

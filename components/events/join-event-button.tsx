@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 // import { createClient } from "@/app/utils/supabase/client";
 import { useRouter } from "next/navigation";
+import { useRedirect } from "@/features/user/authentication/redirect/RedirectProvider";
 import {
   Dialog,
   DialogContent,
@@ -38,8 +39,7 @@ import { toast } from "@/lib/hooks/use-toast";
 import { PricingTierSelector } from "./pricing-tier-selector";
 import {
   getAvailablePricingTiers,
-  getCheapestPricingTier,
-  formatPrice,
+  getPaidEventJoinLabel,
 } from "@/lib/utils/pricing";
 import { getRoleLabel } from "@/features/user/roles/roles";
 import { Ticket, Users, Lock, Loader2 } from "lucide-react";
@@ -93,6 +93,7 @@ export function JoinEventButton({
     null
   );
   const router = useRouter();
+  const { setReturnUrlFromCurrentLocation } = useRedirect();
   const [pricingTiers, setPricingTiers] = useState<PricingTier[]>([]);
   const [selectedPricingTierId, setSelectedPricingTierId] =
     useState<string>("");
@@ -295,7 +296,7 @@ export function JoinEventButton({
         data: { session },
       } = await supabase.auth.getSession();
       if (!session) {
-        localStorage.setItem("returnUrl", window.location.pathname);
+        setReturnUrlFromCurrentLocation();
         router.push("/login");
         return;
       }
@@ -343,7 +344,7 @@ export function JoinEventButton({
         data: { session },
       } = await supabase.auth.getSession();
       if (!session) {
-        localStorage.setItem("returnUrl", window.location.pathname);
+        setReturnUrlFromCurrentLocation();
         router.push("/login");
         return;
       }
@@ -552,18 +553,11 @@ export function JoinEventButton({
   };
 
   const getDefaultLabel = () => {
-    if (!event?.paid || !isAuthenticated) {
+    if (!event?.paid) {
       return "Join Event";
     }
 
-    if (pricingTiers.length > 0) {
-      const cheapestTier = getCheapestPricingTier(pricingTiers);
-      return cheapestTier
-        ? `Join Event - From ${formatPrice(cheapestTier.price, cheapestTier.currency)}`
-        : "Join Event - Multiple Tiers Available";
-    }
-
-    return "Join Event - Paid Event";
+    return getPaidEventJoinLabel(pricingTiers);
   };
 
   // Show loading skeleton while initializing

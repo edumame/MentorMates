@@ -71,6 +71,18 @@ export function getCheapestPricingTier(pricingTiers: PricingTier[]): PricingTier
   );
 }
 
+export function getPaidEventJoinLabel(pricingTiers: PricingTier[]): string {
+  if (pricingTiers.length === 0) {
+    return "Join Event - Paid Event";
+  }
+
+  const cheapestTier = getCheapestPricingTier(pricingTiers);
+
+  return cheapestTier
+    ? `Join Event - From ${formatPrice(cheapestTier.price, cheapestTier.currency)}`
+    : "Join Event - Multiple Tiers Available";
+}
+
 /**
  * Format price from cents to display string.
  */
