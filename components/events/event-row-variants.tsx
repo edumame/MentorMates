@@ -176,15 +176,9 @@ function VariantA({ event, featured }: { event: EventWithRole; featured?: boolea
 
 function VariantB({ event }: { event: EventWithRole; featured?: boolean }) {
   const { dayOfWeek, day, monthYear, datetime } = useEventDateParts(event.event_date);
-  const { href, isExternal } = buildHref(event);
   return (
-    <Link
-      href={href}
-      target={isExternal ? "_blank" : undefined}
-      rel={isExternal ? "noopener noreferrer" : undefined}
-      className="group block py-3 border-b border-[rgba(0,0,0,0.06)] -mx-2 px-2 rounded-lg hover:bg-[rgba(0,0,0,0.02)] transition-colors"
-    >
-      <div className="relative w-full aspect-[16/7] rounded-xl overflow-hidden">
+    <RowLink event={event}>
+      <div className="relative shrink-0 h-[120px] w-[160px] rounded-lg overflow-hidden">
         {event.cover_image_url ? (
           <Image
             src={event.cover_image_url}
@@ -196,20 +190,18 @@ function VariantB({ event }: { event: EventWithRole; featured?: boolean }) {
         ) : (
           <div className="absolute inset-0 bg-gradient-to-br from-orange-400 via-red-500 to-purple-600" />
         )}
-        <div className="absolute top-4 right-4">
+        <div className="absolute top-2 right-2">
           <MmDateBadge
             dayOfWeek={dayOfWeek}
             day={day}
             monthYear={monthYear}
-            size="md"
+            size="sm"
             floating
           />
         </div>
       </div>
-      <div className="pt-3 px-1">
-        <ContentBlock event={event} datetime={datetime} />
-      </div>
-    </Link>
+      <ContentBlock event={event} datetime={datetime} />
+    </RowLink>
   );
 }
 
