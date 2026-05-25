@@ -17,8 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 const DISCORD_INVITE = "https://discord.gg/6pbUzK44eW";
-const MENTOR_FORM_URL =
-  "https://docs.google.com/forms/d/e/1FAIpQLSeKK8E8B63Sl4J0fjJZKDz3QdWImSqkrwPym-_EN6K2kcizsw/viewform";
+const MENTOR_FORM_URL = "https://judges.mentormates.ai";
 
 // Discord icon component
 function DiscordIcon({
