@@ -257,7 +257,7 @@ export function EventsPageClient({
           <div
             role="tablist"
             aria-label="Events tabs"
-            className="flex items-center gap-6 border-b border-[rgba(0,0,0,0.08)] mb-6"
+            className="sticky top-0 z-10 flex items-center gap-6 border-b border-[rgba(0,0,0,0.08)] mb-6 bg-white/85 backdrop-blur-md -mx-2 px-2"
           >
             {tabs.map((key) => {
               const isActive = activeTab === key;
