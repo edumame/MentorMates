@@ -90,7 +90,7 @@ export function EventsPageClient({
   const [activeTab, setActiveTab] = useState<TabKey>("discover");
   const [selectedLocations, setSelectedLocations] = useState<Set<string>>(new Set());
   const [selectedTypes, setSelectedTypes] = useState<Set<string>>(new Set());
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedDateKeys, setSelectedDateKeys] = useState<Set<string>>(new Set());
   const {
     isAuthenticated: clientIsAuthenticated,
     isLoading: isAuthLoading,
@@ -136,13 +136,15 @@ export function EventsPageClient({
         const types = event.event_type ?? [];
         if (!types.some((t) => selectedTypes.has(t))) return false;
       }
-      if (selectedDate) {
+      if (selectedDateKeys.size > 0) {
         const parsed = parseEventDateLocal(event.event_date);
-        if (!parsed || !sameDay(parsed, selectedDate)) return false;
+        if (!parsed) return false;
+        const key = `${parsed.getFullYear()}-${parsed.getMonth()}-${parsed.getDate()}`;
+        if (!selectedDateKeys.has(key)) return false;
       }
       return true;
     });
-  }, [tabFilteredEvents, searchTerm, selectedLocations, selectedTypes, selectedDate]);
+  }, [tabFilteredEvents, searchTerm, selectedLocations, selectedTypes, selectedDateKeys]);
 
   const featuredEvents = useMemo(
     () => filteredEvents.filter((e) => e.featured).slice(0, 6),
@@ -202,11 +204,20 @@ export function EventsPageClient({
   const clearFilters = () => {
     setSelectedLocations(new Set());
     setSelectedTypes(new Set());
-    setSelectedDate(null);
+    setSelectedDateKeys(new Set());
+  };
+
+  const toggleDate = (date: Date) => {
+    const key = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+    setSelectedDateKeys((prev) => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
   };
 
   const hasActiveFilters =
-    selectedLocations.size > 0 || selectedTypes.size > 0 || selectedDate !== null;
+    selectedLocations.size > 0 || selectedTypes.size > 0 || selectedDateKeys.size > 0;
 
   const tabs: TabKey[] = isAuthenticated
     ? ["discover", "attended", "hosting"]
@@ -328,8 +339,9 @@ export function EventsPageClient({
         <aside className="hidden lg:block">
           <div className="sticky top-6 flex flex-col gap-5">
             <MiniCalendar
-              selected={selectedDate}
-              onSelect={setSelectedDate}
+              selectedKeys={selectedDateKeys}
+              onToggle={toggleDate}
+              onClear={() => setSelectedDateKeys(new Set())}
               eventDates={datesWithEvents}
             />
             <FilterCard
@@ -460,19 +472,22 @@ function EventRow({ event, featured = false }: { event: EventWithRole; featured?
 }
 
 function MiniCalendar({
-  selected,
-  onSelect,
+  selectedKeys,
+  onToggle,
+  onClear,
   eventDates,
 }: {
-  selected: Date | null;
-  onSelect: (d: Date | null) => void;
+  selectedKeys: Set<string>;
+  onToggle: (d: Date) => void;
+  onClear: () => void;
   eventDates: Set<string>;
 }) {
   const [cursor, setCursor] = useState(() => {
-    const base = selected ?? new Date();
-    return new Date(base.getFullYear(), base.getMonth(), 1);
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
   });
   const today = new Date();
+  const hasSelection = selectedKeys.size > 0;
 
   const year = cursor.getFullYear();
   const month = cursor.getMonth();
@@ -536,15 +551,12 @@ function MiniCalendar({
           const key = `${c.date.getFullYear()}-${c.date.getMonth()}-${c.date.getDate()}`;
           const hasEvent = eventDates.has(key);
           const isToday = sameDay(c.date, today);
-          const isSelected = selected ? sameDay(c.date, selected) : false;
+          const isSelected = selectedKeys.has(key);
           return (
             <button
               key={i}
               type="button"
-              onClick={() => {
-                if (isSelected) onSelect(null);
-                else onSelect(c.date);
-              }}
+              onClick={() => onToggle(c.date)}
               disabled={!c.inMonth}
               className={cn(
                 "relative aspect-square w-full flex items-center justify-center text-[12px] rounded-md transition-colors",
@@ -563,14 +575,19 @@ function MiniCalendar({
           );
         })}
       </div>
-      {selected && (
-        <button
-          type="button"
-          onClick={() => onSelect(null)}
-          className="mt-3 text-[12px] text-[rgba(0,0,0,0.6)] hover:text-black hover:underline underline-offset-2"
-        >
-          Clear date
-        </button>
+      {hasSelection && (
+        <div className="mt-3 flex items-center justify-between text-[12px]">
+          <span className="text-[rgba(0,0,0,0.6)]">
+            {selectedKeys.size} day{selectedKeys.size === 1 ? "" : "s"} selected
+          </span>
+          <button
+            type="button"
+            onClick={onClear}
+            className="text-[rgba(0,0,0,0.6)] hover:text-black hover:underline underline-offset-2"
+          >
+            Clear
+          </button>
+        </div>
       )}
     </div>
   );
