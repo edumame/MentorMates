@@ -30,6 +30,8 @@ const TAB_LABELS: Record<TabKey, string> = {
   hosting: "Hosting",
 };
 
+const HIDDEN_EVENT_TYPES = new Set<string>(["dd-build-night", "dd-hackathon"]);
+
 const LOCATION_BUCKETS: { key: string; label: string; match: (loc: string) => boolean }[] = [
   { key: "sf", label: "SF & Bay Area", match: (l) => /san\s*francisco|bay\s*area|sf|palo\s*alto|stanford|berkeley|oakland/i.test(l) },
   { key: "nyc", label: "NYC", match: (l) => /new\s*york|nyc|manhattan|brooklyn/i.test(l) },
@@ -91,7 +93,10 @@ export function EventsPageClient({
   const [activeTab, setActiveTab] = useState<TabKey>("discover");
   const [selectedLocations, setSelectedLocations] = useState<Set<string>>(new Set());
   const [selectedTypes, setSelectedTypes] = useState<Set<string>>(new Set());
-  const [selectedDateKeys, setSelectedDateKeys] = useState<Set<string>>(new Set());
+  const [dateRange, setDateRange] = useState<{ start: Date | null; end: Date | null }>({
+    start: null,
+    end: null,
+  });
   const {
     isAuthenticated: clientIsAuthenticated,
     isLoading: isAuthLoading,
@@ -108,7 +113,12 @@ export function EventsPageClient({
 
   const availableTypes = useMemo(() => {
     const set = new Set<string>();
-    for (const e of eventsList) (e.event_type ?? []).forEach((t) => set.add(t));
+    for (const e of eventsList)
+      (e.event_type ?? []).forEach((t) => {
+        const lower = t.toLowerCase();
+        if (HIDDEN_EVENT_TYPES.has(lower)) return;
+        set.add(t);
+      });
     return Array.from(set).sort();
   }, [eventsList]);
 
@@ -140,15 +150,17 @@ export function EventsPageClient({
         const types = event.event_type ?? [];
         if (!types.some((t) => selectedTypes.has(t))) return false;
       }
-      if (selectedDateKeys.size > 0) {
+      if (dateRange.start) {
         const parsed = parseEventDateLocal(event.event_date);
         if (!parsed) return false;
-        const key = `${parsed.getFullYear()}-${parsed.getMonth()}-${parsed.getDate()}`;
-        if (!selectedDateKeys.has(key)) return false;
+        const eventStart = startOfDay(parsed);
+        const rangeStart = startOfDay(dateRange.start);
+        const rangeEnd = startOfDay(dateRange.end ?? dateRange.start);
+        if (eventStart < rangeStart || eventStart > rangeEnd) return false;
       }
       return true;
     });
-  }, [tabFilteredEvents, searchTerm, selectedLocations, selectedTypes, selectedDateKeys]);
+  }, [tabFilteredEvents, searchTerm, selectedLocations, selectedTypes, dateRange]);
 
   const featuredEvents = useMemo(
     () => filteredEvents.filter((e) => e.featured).slice(0, 6),
@@ -208,20 +220,23 @@ export function EventsPageClient({
   const clearFilters = () => {
     setSelectedLocations(new Set());
     setSelectedTypes(new Set());
-    setSelectedDateKeys(new Set());
+    setDateRange({ start: null, end: null });
   };
 
-  const toggleDate = (date: Date) => {
-    const key = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
-    setSelectedDateKeys((prev) => {
-      const next = new Set(prev);
-      next.has(key) ? next.delete(key) : next.add(key);
-      return next;
+  const handleDayClick = (date: Date) => {
+    setDateRange((prev) => {
+      if (!prev.start) return { start: date, end: null };
+      if (prev.start && !prev.end) {
+        if (sameDay(date, prev.start)) return { start: null, end: null };
+        if (date < prev.start) return { start: date, end: prev.start };
+        return { start: prev.start, end: date };
+      }
+      return { start: date, end: null };
     });
   };
 
   const hasActiveFilters =
-    selectedLocations.size > 0 || selectedTypes.size > 0 || selectedDateKeys.size > 0;
+    selectedLocations.size > 0 || selectedTypes.size > 0 || dateRange.start !== null;
 
   const tabs: TabKey[] = isAuthenticated
     ? ["discover", "attended", "hosting"]
@@ -249,7 +264,7 @@ export function EventsPageClient({
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-8">
         <div className="min-w-0">
           <div
-            className="sticky top-0 z-10 bg-white/85 backdrop-blur-md -mx-2 px-2 pt-2 pb-0 mb-6 border-b border-[rgba(0,0,0,0.08)]"
+            className="sticky top-[72px] z-30 bg-white/90 backdrop-blur-md -mx-2 px-2 pt-3 pb-0 mb-6 border-b border-[rgba(0,0,0,0.08)]"
           >
             <div className="pb-3">
               <EventSearchInput
@@ -350,11 +365,11 @@ export function EventsPageClient({
         </div>
 
         <aside className="hidden lg:block">
-          <div className="sticky top-6 flex flex-col gap-5">
+          <div className="sticky top-[88px] flex flex-col gap-5">
             <MiniCalendar
-              selectedKeys={selectedDateKeys}
-              onToggle={toggleDate}
-              onClear={() => setSelectedDateKeys(new Set())}
+              dateRange={dateRange}
+              onDayClick={handleDayClick}
+              onClear={() => setDateRange({ start: null, end: null })}
               eventDates={datesWithEvents}
             />
             <FilterCard
@@ -398,13 +413,13 @@ export function EventsPageClient({
 }
 
 function MiniCalendar({
-  selectedKeys,
-  onToggle,
+  dateRange,
+  onDayClick,
   onClear,
   eventDates,
 }: {
-  selectedKeys: Set<string>;
-  onToggle: (d: Date) => void;
+  dateRange: { start: Date | null; end: Date | null };
+  onDayClick: (d: Date) => void;
   onClear: () => void;
   eventDates: Set<string>;
 }) {
@@ -413,7 +428,9 @@ function MiniCalendar({
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
   const today = new Date();
-  const hasSelection = selectedKeys.size > 0;
+  const hasSelection = dateRange.start !== null;
+  const rangeStart = dateRange.start;
+  const rangeEnd = dateRange.end ?? dateRange.start;
 
   const year = cursor.getFullYear();
   const month = cursor.getMonth();
@@ -462,7 +479,7 @@ function MiniCalendar({
           </button>
         </div>
       </div>
-      <div className="grid grid-cols-7 gap-1 mb-1">
+      <div className="grid grid-cols-7 mb-1">
         {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
           <div
             key={i}
@@ -472,44 +489,75 @@ function MiniCalendar({
           </div>
         ))}
       </div>
-      <div className="grid grid-cols-7 gap-1">
+      <div className="grid grid-cols-7">
         {cells.map((c, i) => {
           const key = `${c.date.getFullYear()}-${c.date.getMonth()}-${c.date.getDate()}`;
           const hasEvent = eventDates.has(key);
           const isToday = sameDay(c.date, today);
-          const isSelected = selectedKeys.has(key);
+          const cellTime = startOfDay(c.date);
+          const startTime = rangeStart ? startOfDay(rangeStart) : null;
+          const endTime = rangeEnd ? startOfDay(rangeEnd) : null;
+          const inRange =
+            startTime !== null &&
+            endTime !== null &&
+            cellTime >= startTime &&
+            cellTime <= endTime;
+          const isStart = startTime !== null && cellTime === startTime;
+          const isEnd = endTime !== null && cellTime === endTime;
+          const isSingle = isStart && isEnd;
+          const isMiddle = inRange && !isStart && !isEnd;
+          const dayOfWeek = i % 7;
+          const isWeekStart = dayOfWeek === 0;
+          const isWeekEnd = dayOfWeek === 6;
           return (
-            <button
+            <div
               key={i}
-              type="button"
-              onClick={() => onToggle(c.date)}
-              disabled={!c.inMonth}
               className={cn(
-                "relative aspect-square w-full flex items-center justify-center text-[12px] rounded-md transition-colors",
-                c.inMonth
-                  ? "text-black hover:bg-gray-100"
-                  : "text-[rgba(0,0,0,0.25)] cursor-default",
-                isSelected && "bg-black text-white hover:bg-black",
-                !isSelected && isToday && "ring-1 ring-black/40"
+                "relative",
+                inRange && !isSingle && "bg-black/5",
+                inRange && isStart && !isSingle && "rounded-l-full",
+                inRange && isEnd && !isSingle && "rounded-r-full",
+                isMiddle && isWeekStart && "rounded-l-full",
+                isMiddle && isWeekEnd && "rounded-r-full"
               )}
             >
-              {c.day}
-              {c.inMonth && hasEvent && !isSelected && (
-                <span className="absolute bottom-1 h-1 w-1 rounded-full bg-blue-500" />
-              )}
-            </button>
+              <button
+                type="button"
+                onClick={() => onDayClick(c.date)}
+                disabled={!c.inMonth}
+                className={cn(
+                  "relative aspect-square w-full flex items-center justify-center text-[12px] rounded-full transition-colors",
+                  c.inMonth
+                    ? "text-black hover:bg-gray-100"
+                    : "text-[rgba(0,0,0,0.25)] cursor-default",
+                  (isStart || isEnd) && "bg-black text-white hover:bg-black",
+                  !isStart && !isEnd && isMiddle && "text-black",
+                  !isStart && !isEnd && isToday && "ring-1 ring-black/40"
+                )}
+              >
+                {c.day}
+                {c.inMonth && hasEvent && !isStart && !isEnd && (
+                  <span
+                    className={cn(
+                      "absolute bottom-1 h-1 w-1 rounded-full",
+                      isMiddle ? "bg-black/50" : "bg-blue-500"
+                    )}
+                  />
+                )}
+              </button>
+            </div>
           );
         })}
       </div>
-      {hasSelection && (
+      {hasSelection && rangeStart && (
         <div className="mt-3 flex items-center justify-between text-[12px]">
-          <span className="text-[rgba(0,0,0,0.6)]">
-            {selectedKeys.size} day{selectedKeys.size === 1 ? "" : "s"} selected
+          <span className="text-[rgba(0,0,0,0.7)] font-medium">
+            {formatRange(rangeStart, dateRange.end)}
           </span>
           <button
             type="button"
             onClick={onClear}
-            className="text-[rgba(0,0,0,0.6)] hover:text-black hover:underline underline-offset-2"
+            className="text-[rgba(0,0,0,0.5)] hover:text-black hover:underline underline-offset-2"
           >
             Clear
           </button>
@@ -517,6 +565,13 @@ function MiniCalendar({
       )}
     </div>
   );
+}
+
+function formatRange(start: Date, end: Date | null): string {
+  const fmt = (d: Date) =>
+    d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  if (!end || sameDay(start, end)) return fmt(start);
+  return `${fmt(start)} – ${fmt(end)}`;
 }
 
 function FilterCard({
