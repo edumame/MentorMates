@@ -214,51 +214,41 @@ export function EventsPageClient({
 
   return (
     <div className="w-full">
-      <div className="mt-6 mb-10 flex flex-col items-center gap-6">
-        <h1 className="pt-10 text-center font-geist text-[48px] font-semibold leading-[1.05] tracking-[-0.06em] text-black sm:text-[64px]">
-          Discover events
+      <div className="flex items-center justify-between gap-4 pt-2 pb-4">
+        <h1 className="font-geist text-[24px] font-semibold tracking-[-0.5%] text-black">
+          Events
         </h1>
-        <div className="flex w-full max-w-4xl flex-col gap-4">
-          <div className="flex flex-wrap items-end justify-center gap-4">
-            <EventSearchInput
-              wrapperClassName="w-full max-w-[640px] flex-1"
-              placeholder="Search by event or host title"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-            {isAuthenticated && (
-              <Button
-                className={cn(
-                  "h-10 hidden sm:inline-flex",
-                  onboardingRole === "organizer" && "animate-bounce"
-                )}
-                onClick={() => setShowCreateModal(true)}
-              >
-                Create an event
-              </Button>
+        {isAuthenticated && (
+          <Button
+            className={cn(
+              "h-9",
+              onboardingRole === "organizer" && "animate-bounce"
             )}
-          </div>
-          {isAuthenticated && (
-            <Button
-              className={cn(
-                "h-10 sm:hidden w-full",
-                onboardingRole === "organizer" && "animate-bounce"
-              )}
-              onClick={() => setShowCreateModal(true)}
-            >
-              Create an event
-            </Button>
-          )}
-        </div>
+            onClick={() => setShowCreateModal(true)}
+          >
+            Create an event
+          </Button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-8">
         <div className="min-w-0">
           <div
-            role="tablist"
-            aria-label="Events tabs"
-            className="sticky top-0 z-10 flex items-center gap-6 border-b border-[rgba(0,0,0,0.08)] mb-6 bg-white/85 backdrop-blur-md -mx-2 px-2"
+            className="sticky top-0 z-10 bg-white/85 backdrop-blur-md -mx-2 px-2 pt-2 pb-0 mb-6 border-b border-[rgba(0,0,0,0.08)]"
           >
+            <div className="pb-3">
+              <EventSearchInput
+                wrapperClassName="w-full"
+                placeholder="Search by event or host title"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <div
+              role="tablist"
+              aria-label="Events tabs"
+              className="flex items-center gap-6"
+            >
             {tabs.map((key) => {
               const isActive = activeTab === key;
               return (
@@ -282,6 +272,7 @@ export function EventsPageClient({
                 </button>
               );
             })}
+            </div>
           </div>
 
           {totalVisible === 0 ? (
