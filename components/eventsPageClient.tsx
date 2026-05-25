@@ -1,11 +1,9 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
-import Link from "next/link";
-import Image from "next/image";
-import { ChevronLeft, ChevronRight, MapPin, ExternalLink } from "lucide-react";
+import { useState, useMemo } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import { EventItem, EventRole } from "@/lib/types";
+import { EventRole } from "@/lib/types";
 import { UI_TEXT } from "@/lib/config/constants";
 import { Button } from "@/components/ui/button";
 import { EventSearchInput } from "@/components/ui/event-search-input";
@@ -13,8 +11,11 @@ import { useAuth } from "@/features/user/authentication/auth/AuthContext";
 import { CreateEventModal } from "@/components/events/create-event-modal";
 import { parseEventDateLocal } from "@/lib/utils/date";
 import { cn } from "@/lib/utils";
-
-type EventWithRole = EventItem & { userRole?: EventRole | null };
+import {
+  EventRow,
+  type EventRowVariant,
+  type EventWithRole,
+} from "@/components/events/event-row-variants";
 
 type EventsPageClientProps = {
   eventsList: EventWithRole[];
@@ -98,6 +99,9 @@ export function EventsPageClient({
   const [showCreateModal, setShowCreateModal] = useState(false);
   const searchParams = useSearchParams();
   const onboardingRole = searchParams.get("role");
+  const variantParam = (searchParams.get("variant") ?? "A").toUpperCase();
+  const cardVariant: EventRowVariant =
+    variantParam === "B" || variantParam === "C" ? (variantParam as EventRowVariant) : "A";
   const isAuthenticated = isAuthLoading
     ? initialIsAuthenticated
     : clientIsAuthenticated;
@@ -307,7 +311,12 @@ export function EventsPageClient({
                   </h2>
                   <div className="flex flex-col">
                     {featuredEvents.map((event) => (
-                      <EventRow key={event.event_id} event={event} featured />
+                      <EventRow
+                        key={event.event_id}
+                        event={event}
+                        variant={cardVariant}
+                        featured
+                      />
                     ))}
                   </div>
                 </section>
@@ -326,7 +335,11 @@ export function EventsPageClient({
                     </h2>
                     <div className="flex flex-col">
                       {items.map((event) => (
-                        <EventRow key={event.event_id} event={event} />
+                        <EventRow
+                          key={event.event_id}
+                          event={event}
+                          variant={cardVariant}
+                        />
                       ))}
                     </div>
                   </section>
@@ -381,93 +394,6 @@ export function EventsPageClient({
         />
       )}
     </div>
-  );
-}
-
-function EventRow({ event, featured = false }: { event: EventWithRole; featured?: boolean }) {
-  const parsed = parseEventDateLocal(event.event_date);
-  const month = parsed
-    ? parsed.toLocaleDateString("en-US", { month: "short" })
-    : "—";
-  const day = parsed ? parsed.getDate() : "—";
-  const datetime = parsed
-    ? parsed.toLocaleDateString("en-US", {
-        weekday: "short",
-        month: "short",
-        day: "numeric",
-      })
-    : "Date TBD";
-
-  const summary = (event.event_blurb || event.event_description || "").replace(/\s+/g, " ").trim();
-  const external = event.external_url?.trim();
-  const isExternal = !!external;
-  const href = isExternal
-    ? external
-    : event.slug
-      ? `/events/${event.slug}`
-      : `/events/${event.event_id}`;
-
-  return (
-    <Link
-      href={href}
-      target={isExternal ? "_blank" : undefined}
-      rel={isExternal ? "noopener noreferrer" : undefined}
-      className="group flex items-start gap-4 py-5 border-b border-[rgba(0,0,0,0.06)] hover:bg-[rgba(0,0,0,0.02)] transition-colors -mx-2 px-2 rounded-lg"
-    >
-      <div
-        className={cn(
-          "relative shrink-0 h-[62px] w-[62px] rounded-lg overflow-hidden text-white flex flex-col items-center justify-center",
-          featured ? "bg-gradient-to-br from-orange-500 via-red-500 to-purple-600" : "bg-zinc-900"
-        )}
-      >
-        {event.cover_image_url && (
-          <Image
-            src={event.cover_image_url}
-            alt=""
-            fill
-            className="object-cover opacity-60"
-            unoptimized={event.cover_image_url.startsWith("http")}
-          />
-        )}
-        <div className="relative z-10 flex flex-col items-center -space-y-0.5 leading-none">
-          <span className="text-[11px] font-semibold uppercase tracking-wide">{month}</span>
-          <span className="text-[22px] font-bold">{day}</span>
-        </div>
-      </div>
-
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-1.5">
-          <h3 className="font-semibold text-black text-[16px] tracking-[-0.5%] truncate group-hover:underline underline-offset-2">
-            {event.event_name}
-          </h3>
-          {isExternal && (
-            <ExternalLink className="h-3.5 w-3.5 text-[rgba(0,0,0,0.4)] shrink-0" />
-          )}
-        </div>
-        <p className="mt-[2px] text-[14px] text-[rgba(0,0,0,0.55)]">{datetime}</p>
-        {event.location && (
-          <div className="mt-1.5 flex items-center gap-1 text-[14px] text-[rgba(0,0,0,0.55)]">
-            <MapPin className="h-3.5 w-3.5 shrink-0" />
-            <span className="truncate">{event.location}</span>
-          </div>
-        )}
-        {summary && (
-          <p className="mt-1.5 text-[14px] leading-[1.5] text-[rgba(0,0,0,0.7)] line-clamp-2">
-            {summary}
-          </p>
-        )}
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          {(event.event_type ?? []).slice(0, 3).map((t) => (
-            <span
-              key={t}
-              className="px-2 py-0.5 border border-[rgba(0,0,0,0.12)] rounded-full text-[12px] font-medium text-[rgba(0,0,0,0.7)]"
-            >
-              {t.charAt(0).toUpperCase() + t.slice(1)}
-            </span>
-          ))}
-        </div>
-      </div>
-    </Link>
   );
 }
 
