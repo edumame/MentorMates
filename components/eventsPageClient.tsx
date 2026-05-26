@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { EventSearchInput } from "@/components/ui/event-search-input";
 import { useAuth } from "@/features/user/authentication/auth/AuthContext";
 import { CreateEventModal } from "@/components/events/create-event-modal";
+import { EventsList } from "@/components/events/events-list";
 import { parseEventDateLocal } from "@/lib/utils/date";
 import { cn } from "@/lib/utils";
 import {
@@ -323,7 +324,10 @@ export function EventsPageClient({
                   >
                     Featured
                   </h2>
-                  <div className="flex flex-col">
+                  <div className="lg:hidden">
+                    <EventsList events={featuredEvents} />
+                  </div>
+                  <div className="hidden lg:flex lg:flex-col">
                     {featuredEvents.map((event) => (
                       <EventRow
                         key={event.event_id}
@@ -347,7 +351,10 @@ export function EventsPageClient({
                     >
                       {DATE_BUCKET_LABEL[bucket]}
                     </h2>
-                    <div className="flex flex-col">
+                    <div className="lg:hidden">
+                      <EventsList events={items} />
+                    </div>
+                    <div className="hidden lg:flex lg:flex-col">
                       {items.map((event) => (
                         <EventRow
                           key={event.event_id}
