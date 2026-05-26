@@ -23,7 +23,20 @@ const nextConfig = {
     "@stream-io/node-sdk",
     "ws",
   ],
-  
+
+  async rewrites() {
+    return [
+      {
+        source: "/judge-certificate",
+        destination: "https://judges.mentormates.ai/",
+      },
+      {
+        source: "/judge-certificate/:path*",
+        destination: "https://judges.mentormates.ai/:path*",
+      },
+    ];
+  },
+
   // Subdomain routing for admin panel
   // async rewrites() {
   //   return {
