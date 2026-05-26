@@ -244,28 +244,27 @@ export function EventsPageClient({
 
   return (
     <div className="w-full">
-      <div className="flex items-center justify-between gap-4 pt-2 pb-4">
-        <h1 className="font-geist text-[24px] font-semibold tracking-[-0.5%] text-black">
-          Events
-        </h1>
-        {isAuthenticated && (
-          <Button
-            className={cn(
-              "h-9",
-              onboardingRole === "organizer" && "animate-bounce"
-            )}
-            onClick={() => setShowCreateModal(true)}
-          >
-            Create an event
-          </Button>
-        )}
-      </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-8">
         <div className="min-w-0">
           <div
             className="sticky top-[72px] z-30 bg-white/90 backdrop-blur-md -mx-2 px-2 pt-3 pb-0 mb-6 border-b border-[rgba(0,0,0,0.08)]"
           >
+            <div className="flex items-center justify-between gap-4 pb-3">
+              <h1 className="font-geist text-[24px] font-semibold tracking-[-0.5%] text-black">
+                Events
+              </h1>
+              {isAuthenticated && (
+                <Button
+                  className={cn(
+                    "h-9",
+                    onboardingRole === "organizer" && "animate-bounce"
+                  )}
+                  onClick={() => setShowCreateModal(true)}
+                >
+                  Create an event
+                </Button>
+              )}
+            </div>
             <div className="pb-3">
               <EventSearchInput
                 wrapperClassName="w-full"
@@ -457,15 +456,17 @@ function MiniCalendar({
   const monthLabel = cursor.toLocaleDateString("en-US", { month: "long", year: "numeric" });
 
   return (
-    <div className="rounded-2xl border border-[rgba(0,0,0,0.08)] bg-white p-4">
+    <div className="rounded-[12px] border border-[rgba(0,0,0,0.15)] bg-white p-3 sm:p-4 shadow-lg">
       <div className="flex items-center justify-between mb-3">
-        <p className="text-[14px] font-semibold text-black">{monthLabel}</p>
+        <p className="text-[14px] sm:text-[16px] font-semibold text-black">
+          {monthLabel}
+        </p>
         <div className="flex items-center gap-1">
           <button
             type="button"
             aria-label="Previous month"
             onClick={() => setCursor(new Date(year, month - 1, 1))}
-            className="p-1 rounded-md hover:bg-gray-100 text-[rgba(0,0,0,0.6)]"
+            className="p-1.5 rounded-lg hover:bg-gray-100 text-black transition-colors"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
@@ -473,17 +474,17 @@ function MiniCalendar({
             type="button"
             aria-label="Next month"
             onClick={() => setCursor(new Date(year, month + 1, 1))}
-            className="p-1 rounded-md hover:bg-gray-100 text-[rgba(0,0,0,0.6)]"
+            className="p-1.5 rounded-lg hover:bg-gray-100 text-black transition-colors"
           >
             <ChevronRight className="h-4 w-4" />
           </button>
         </div>
       </div>
       <div className="grid grid-cols-7 mb-1">
-        {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
+        {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d, i) => (
           <div
             key={i}
-            className="text-center text-[11px] font-medium text-[rgba(0,0,0,0.4)]"
+            className="text-center text-[12px] font-normal text-gray-600 py-1"
           >
             {d}
           </div>
@@ -514,11 +515,11 @@ function MiniCalendar({
               key={i}
               className={cn(
                 "relative",
-                inRange && !isSingle && "bg-black/5",
-                inRange && isStart && !isSingle && "rounded-l-full",
-                inRange && isEnd && !isSingle && "rounded-r-full",
-                isMiddle && isWeekStart && "rounded-l-full",
-                isMiddle && isWeekEnd && "rounded-r-full"
+                inRange && !isSingle && "bg-blue-50",
+                inRange && isStart && !isSingle && "rounded-l-lg",
+                inRange && isEnd && !isSingle && "rounded-r-lg",
+                isMiddle && isWeekStart && "rounded-l-lg",
+                isMiddle && isWeekEnd && "rounded-r-lg"
               )}
             >
               <button
@@ -526,13 +527,12 @@ function MiniCalendar({
                 onClick={() => onDayClick(c.date)}
                 disabled={!c.inMonth}
                 className={cn(
-                  "relative aspect-square w-full flex items-center justify-center text-[12px] rounded-full transition-colors",
+                  "relative aspect-square w-full flex items-center justify-center text-[14px] font-normal rounded-lg transition-colors",
                   c.inMonth
                     ? "text-black hover:bg-gray-100"
-                    : "text-[rgba(0,0,0,0.25)] cursor-default",
-                  (isStart || isEnd) && "bg-black text-white hover:bg-black",
-                  !isStart && !isEnd && isMiddle && "text-black",
-                  !isStart && !isEnd && isToday && "ring-1 ring-black/40"
+                    : "text-gray-400 cursor-default",
+                  (isStart || isEnd) && "bg-blue-500 text-white hover:bg-blue-600",
+                  !isStart && !isEnd && isToday && "border-2 border-blue-500"
                 )}
               >
                 {c.day}
@@ -540,7 +540,7 @@ function MiniCalendar({
                   <span
                     className={cn(
                       "absolute bottom-1 h-1 w-1 rounded-full",
-                      isMiddle ? "bg-black/50" : "bg-blue-500"
+                      isMiddle ? "bg-blue-500/60" : "bg-blue-500"
                     )}
                   />
                 )}
@@ -586,7 +586,7 @@ function FilterCard({
   onToggle: (key: string) => void;
 }) {
   return (
-    <div className="rounded-2xl border border-[rgba(0,0,0,0.08)] bg-white p-4">
+    <div className="rounded-[12px] border border-[rgba(0,0,0,0.15)] bg-white p-4 shadow-sm">
       <p className="font-semibold text-black text-[14px] mb-3">{title}</p>
       <div className="flex flex-col gap-2.5">
         {options.map((opt) => {
@@ -594,13 +594,13 @@ function FilterCard({
           return (
             <label
               key={opt.key}
-              className="flex items-center gap-3 cursor-pointer text-[13px] text-[rgba(0,0,0,0.7)] hover:text-black"
+              className="flex items-center gap-3 cursor-pointer text-[14px] text-[rgba(0,0,0,0.7)] hover:text-black"
             >
               <input
                 type="checkbox"
                 checked={isOn}
                 onChange={() => onToggle(opt.key)}
-                className="h-4 w-4 rounded border-[rgba(0,0,0,0.2)] accent-black"
+                className="h-4 w-4 rounded border-[rgba(0,0,0,0.2)] accent-blue-500"
               />
               <span className={isOn ? "text-black font-medium" : ""}>{opt.label}</span>
             </label>
