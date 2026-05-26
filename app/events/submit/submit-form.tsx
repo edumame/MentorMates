@@ -154,23 +154,22 @@ export function SubmitEventForm() {
       </div>
 
       <Field id="location" label="Location" required>
-        <select
+        <Input
           id="location"
+          type="text"
+          list="location-suggestions"
+          placeholder="e.g. San Francisco, Hong Kong, Remote"
           required
           value={location}
           onChange={(e) => setLocation(e.target.value)}
           disabled={isSubmitting}
-          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-[14px] shadow-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-        >
-          <option value="" disabled>
-            Select a location
-          </option>
+          autoComplete="off"
+        />
+        <datalist id="location-suggestions">
           {LOCATION_OPTIONS.map((opt) => (
-            <option key={opt} value={opt}>
-              {opt}
-            </option>
+            <option key={opt} value={opt} />
           ))}
-        </select>
+        </datalist>
       </Field>
 
       <Field id="link" label="Link" required>
