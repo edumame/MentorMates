@@ -12,7 +12,7 @@ export const metadata = {
 export default function SubmitEventPage() {
   return (
     <>
-      <div className="mx-auto w-full max-w-xl px-5 py-12 lg:py-16">
+      <div className="mx-auto w-full max-w-xl px-5 pt-28 pb-12 lg:pt-32 lg:pb-16">
         <h1 className="font-geist text-[32px] sm:text-[36px] font-semibold tracking-[-0.04em] text-black">
           Submit Event
         </h1>
