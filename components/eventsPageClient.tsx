@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { EventRole } from "@/lib/types";
@@ -104,6 +104,19 @@ export function EventsPageClient({
   const isAuthenticated = isAuthLoading
     ? initialIsAuthenticated
     : clientIsAuthenticated;
+
+  // Body has `overflow-x: hidden` globally, which turns body into an intermediate
+  // scroll container and breaks `position: sticky` for the calendar sidebar on the
+  // unauthed view. html already clips horizontal overflow, so dropping body's
+  // overflow on this route is safe and lets sticky anchor to the document scroll.
+  useEffect(() => {
+    if (isAuthenticated) return;
+    const prev = document.body.style.overflowX;
+    document.body.style.overflowX = "visible";
+    return () => {
+      document.body.style.overflowX = prev;
+    };
+  }, [isAuthenticated]);
 
   const availableTypes = useMemo(() => {
     const set = new Set<string>();
