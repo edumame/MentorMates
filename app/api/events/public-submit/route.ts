@@ -3,6 +3,7 @@ import { z } from "zod";
 import { randomUUID } from "crypto";
 import { ApprovalStatus, EventVisibility } from "@/lib/types";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import { sendEventApprovalNotification } from "@/lib/email/send-event-approval-notification";
 
 const submitSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -78,6 +79,20 @@ export async function POST(req: Request) {
       { status: 500 }
     );
   }
+
+  // Notify admins via Resend (fire-and-forget) so they know to review the new submission
+  sendEventApprovalNotification({
+    eventName: event_name,
+    organizerName: want_featured
+      ? "Anonymous submission (FEATURED request)"
+      : "Anonymous submission",
+    organizerEmail: email,
+    eventDate: start_datetime,
+    location,
+    eventId: slug,
+  }).catch((err) =>
+    console.error("Failed to send admin approval notification email:", err)
+  );
 
   return NextResponse.json({ ok: true, event_id: data.event_id }, { status: 201 });
 }
