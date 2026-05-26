@@ -362,8 +362,10 @@ export function EventsPageClient({
         <aside className="hidden lg:block">
           <div
             className={cn(
-              "sticky flex flex-col gap-5",
-              isAuthenticated ? "top-[24px]" : "top-[88px]"
+              "sticky flex flex-col gap-5 overflow-y-auto",
+              isAuthenticated
+                ? "top-[24px] max-h-[calc(100vh-48px)]"
+                : "top-[88px] max-h-[calc(100vh-112px)]"
             )}
           >
             <MiniCalendar

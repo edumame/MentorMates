@@ -8,7 +8,7 @@ interface ConditionalLayoutProps {
 
 export function ConditionalLayout({ children }: ConditionalLayoutProps) {
   return (
-    <div className="min-h-screen flex flex-col w-full max-w-full overflow-x-clip">
+    <div className="min-h-screen flex flex-col w-full max-w-full">
       <div className="flex flex-1 min-w-0 w-full">
         <main className="flex-1 flex flex-col min-w-0 w-full">
           <div className="flex-1 min-w-0 w-full">{children}</div>

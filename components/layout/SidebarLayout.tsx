@@ -59,7 +59,7 @@ export function SidebarLayout({ children, showLogoInSidebar }: SidebarLayoutProp
           </div>
         </div>
       ) : (
-        <div className="h-full w-full overflow-auto">{children}</div>
+        <div className="w-full">{children}</div>
       )}
     </>
   );
