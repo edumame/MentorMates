@@ -12,11 +12,7 @@ import { CreateEventModal } from "@/components/events/create-event-modal";
 import { EventsList } from "@/components/events/events-list";
 import { parseEventDateLocal } from "@/lib/utils/date";
 import { cn } from "@/lib/utils";
-import {
-  EventRow,
-  type EventRowVariant,
-  type EventWithRole,
-} from "@/components/events/event-row-variants";
+import { EventRow, type EventWithRole } from "@/components/events/event-row";
 
 type EventsPageClientProps = {
   eventsList: EventWithRole[];
@@ -105,9 +101,6 @@ export function EventsPageClient({
   const [showCreateModal, setShowCreateModal] = useState(false);
   const searchParams = useSearchParams();
   const onboardingRole = searchParams.get("role");
-  const variantParam = (searchParams.get("variant") ?? "A").toUpperCase();
-  const cardVariant: EventRowVariant =
-    variantParam === "B" || variantParam === "C" ? (variantParam as EventRowVariant) : "A";
   const isAuthenticated = isAuthLoading
     ? initialIsAuthenticated
     : clientIsAuthenticated;
@@ -329,12 +322,7 @@ export function EventsPageClient({
                   </div>
                   <div className="hidden lg:flex lg:flex-col">
                     {featuredEvents.map((event) => (
-                      <EventRow
-                        key={event.event_id}
-                        event={event}
-                        variant={cardVariant}
-                        featured
-                      />
+                      <EventRow key={event.event_id} event={event} />
                     ))}
                   </div>
                 </section>
@@ -356,11 +344,7 @@ export function EventsPageClient({
                     </div>
                     <div className="hidden lg:flex lg:flex-col">
                       {items.map((event) => (
-                        <EventRow
-                          key={event.event_id}
-                          event={event}
-                          variant={cardVariant}
-                        />
+                        <EventRow key={event.event_id} event={event} />
                       ))}
                     </div>
                   </section>
