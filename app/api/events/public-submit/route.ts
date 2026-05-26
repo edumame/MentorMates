@@ -68,6 +68,7 @@ export async function POST(req: Request) {
       event_blurb: want_featured
         ? "[Submitter requested featured placement]"
         : null,
+      rules: [], // events.rules is NOT NULL with no default — required for any insert
     })
     .select("event_id")
     .single();
