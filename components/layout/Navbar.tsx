@@ -225,9 +225,9 @@ export function Navbar() {
                 >
                   Log in
                 </Button>
-                <Link href="/login">
+                <Link href="/events/submit">
                   <Button className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-lg text-sm xl:px-4 xl:py-3 xl:rounded-xl xl:text-base whitespace-nowrap">
-                    Get started
+                    Submit event
                   </Button>
                 </Link>
               </>
@@ -403,9 +403,9 @@ export function Navbar() {
                   >
                     Log in
                   </Button>
-                  <Link href="/login" className="block">
+                  <Link href="/events/submit" className="block">
                     <Button className="w-full bg-blue-500 hover:bg-blue-600 text-white py-4 rounded-lg text-base font-medium">
-                      Get started
+                      Submit event
                     </Button>
                   </Link>
                 </div>
