@@ -241,7 +241,12 @@ export function EventsPageClient({
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-8">
         <div className="min-w-0">
           <div
-            className="sticky top-[72px] z-30 bg-white/90 backdrop-blur-md -mx-2 px-2 pt-3 pb-0 mb-6 border-b border-[rgba(0,0,0,0.08)]"
+            className={cn(
+              "sticky z-30 bg-white -mx-2 px-2 pb-0 mb-6 border-b border-[rgba(0,0,0,0.08)]",
+              isAuthenticated
+                ? "top-0 -mt-[24px] pt-[27px]"
+                : "top-[72px] pt-3"
+            )}
           >
             <div className="flex items-center justify-between gap-4 pb-3">
               <h1 className="font-geist text-[24px] font-semibold tracking-[-0.5%] text-black">
@@ -355,7 +360,12 @@ export function EventsPageClient({
         </div>
 
         <aside className="hidden lg:block">
-          <div className="sticky top-[88px] flex flex-col gap-5">
+          <div
+            className={cn(
+              "sticky flex flex-col gap-5",
+              isAuthenticated ? "top-[24px]" : "top-[88px]"
+            )}
+          >
             <MiniCalendar
               dateRange={dateRange}
               onDayClick={handleDayClick}
