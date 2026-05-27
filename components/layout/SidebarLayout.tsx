@@ -44,11 +44,7 @@ export function SidebarLayout({ children, showLogoInSidebar }: SidebarLayoutProp
 
             {/* 右侧区域：桌面距屏幕顶部 16px 外边距；移动端在顶栏下方铺满 */}
             <div
-              className="relative z-20 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-white lg:ml-[var(--sidebar-width,280px)] lg:mt-4 lg:rounded-tl-[32px]"
-              style={{
-                borderTop: "1px solid var(--Color-Neutral-Lighter, #D8D8D8)",
-                borderLeft: "1px solid var(--Color-Neutral-Lighter, #D8D8D8)",
-              }}
+              className="relative z-20 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-white lg:ml-[var(--sidebar-width,280px)] lg:mt-4 lg:rounded-tl-[32px] lg:border-t lg:border-l lg:border-[var(--Color-Neutral-Lighter,#D8D8D8)]"
             >
               <div className="flex min-h-0 flex-1 flex-col lg:h-[calc(100dvh-16px)] lg:min-h-[calc(100dvh-16px)]">
                 <main className="flex min-h-0 flex-1 flex-col overflow-auto pt-0">
