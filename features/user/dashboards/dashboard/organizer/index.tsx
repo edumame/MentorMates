@@ -32,6 +32,7 @@ import { EventTracksContainer } from "./tracks";
 import { AccessTab } from "./access";
 import { PricingTab } from "./pricing/PricingTab";
 import EmailDashboard from "./notifications/EmailDashboard";
+import { SmsBlastCard } from "./notifications/SmsBlastCard";
 import { AgentsTab } from "./agents/AgentsTab";
 import { ApiKeysTab } from "./api-keys/ApiKeysTab";
 import { IntakeResponsesTab } from "./registration";
@@ -417,10 +418,13 @@ export function OrganizerDashboard({ eventId }: { eventId: string }) {
               </TabsContent>
 
               <TabsContent value="notify" className="mt-0">
-                <EmailDashboard
-                  eventId={eventId}
-                  eventName={event.event_name}
-                />
+                <div className="space-y-6">
+                  <SmsBlastCard eventId={eventId} />
+                  <EmailDashboard
+                    eventId={eventId}
+                    eventName={event.event_name}
+                  />
+                </div>
               </TabsContent>
 
               <TabsContent value="agents" className="mt-0">

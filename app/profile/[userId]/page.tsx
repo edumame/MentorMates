@@ -40,6 +40,7 @@ import { getRoleLabel } from "@/features/user/roles/roles";
 import { PageContainer, PageContent } from "@/components/layout/PageContainer";
 import { PHONE_NUMBER_TEXT_USAGE_COPY } from "@/lib/constants/privacy";
 import { z } from "zod";
+import { VerifyPhoneModal } from "@/features/user/profile/VerifyPhoneModal";
 
 // Interface for events with role information
 interface EventWithRole extends EventDetails {
@@ -151,7 +152,13 @@ export default function ProfilePage() {
     cover_image_url?: string | null;
     affiliation?: string | null;
     phone_number?: string | null;
+    phone_verification_status?: string | null;
   } | null>(null);
+  const [verifyModal, setVerifyModal] = useState<{
+    open: boolean;
+    phone: string;
+    autoStart: boolean;
+  }>({ open: false, phone: "", autoStart: false });
   const [events, setEvents] = useState<EventWithRole[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [newDisplayName, setNewDisplayName] = useState("");
@@ -420,6 +427,9 @@ export default function ProfilePage() {
         title: "Profile updated",
         description: "Your profile has been updated successfully",
       });
+      const phoneChanged =
+        !!newPhoneNumber &&
+        newPhoneNumber.trim() !== (userProfile?.phone_number || "").trim();
       setUserProfile((prev) =>
         prev
           ? {
@@ -429,12 +439,25 @@ export default function ProfilePage() {
               bio: newBio,
               affiliation: newAffiliation || null,
               phone_number: newPhoneNumber || null,
+              // New/changed numbers come in unverified — flip status until we verify.
+              phone_verification_status: phoneChanged
+                ? "unverified"
+                : prev.phone_verification_status,
             }
           : null
       );
       setIsEditingLinks(false);
       setValidationErrors({});
       setIsSaving(false);
+
+      // If the user added or changed their phone number, kick off SMS verification.
+      if (phoneChanged) {
+        setVerifyModal({
+          open: true,
+          phone: newPhoneNumber.trim(),
+          autoStart: true,
+        });
+      }
     } catch (error) {
       toast({
         title: "Error updating profile",
@@ -791,7 +814,29 @@ export default function ProfilePage() {
                   {isOwnProfile && userProfile?.phone_number && (
                     <p className="text-sm text-gray-500 flex items-center gap-2">
                       <Phone className="w-4 h-4" />
-                      {userProfile.phone_number}
+                      <span>{userProfile.phone_number}</span>
+                      {userProfile.phone_verification_status === "verified" ? (
+                        <Badge
+                          variant="outline"
+                          className="ml-1 border-green-600 text-green-700 bg-green-50"
+                        >
+                          Verified
+                        </Badge>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setVerifyModal({
+                              open: true,
+                              phone: userProfile.phone_number || "",
+                              autoStart: false,
+                            })
+                          }
+                          className="ml-1 text-xs font-medium text-[#4b89ef] hover:underline"
+                        >
+                          Verify
+                        </button>
+                      )}
                     </p>
                   )}
                 </div>
@@ -1088,6 +1133,24 @@ export default function ProfilePage() {
             )}
           </div>
         </div>
+
+        {/* Phone verification modal */}
+        <VerifyPhoneModal
+          open={verifyModal.open}
+          phoneNumber={verifyModal.phone}
+          autoStart={verifyModal.autoStart}
+          onClose={() =>
+            setVerifyModal({ open: false, phone: "", autoStart: false })
+          }
+          onVerified={() => {
+            setUserProfile((prev) =>
+              prev
+                ? { ...prev, phone_verification_status: "verified" }
+                : prev
+            );
+            setVerifyModal({ open: false, phone: "", autoStart: false });
+          }}
+        />
 
         {/* Edit Profile Modal - Figma Design */}
         {isEditingLinks && (

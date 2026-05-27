@@ -59,14 +59,14 @@ export async function GET(
     // Fetch phone number from user_phone_numbers table
     // Only fetch phone numbers for the user's own profile (privacy)
     let primaryPhoneNumber: string | null = null;
+    let phoneVerificationStatus: string | null = null;
     const isOwnProfile = loggedInUser.user?.id === userId;
 
     if (isOwnProfile) {
       // Prefer verified phone number, otherwise get the most recent one
-      // First try to get a verified phone number
       const { data: verifiedPhones, error: verifiedError } = await supabase
         .from("user_phone_numbers")
-        .select("phone_number")
+        .select("phone_number, verification_status")
         .eq("user_id", userId)
         .eq("verification_status", "verified")
         .order("created_at", { ascending: false })
@@ -78,11 +78,12 @@ export async function GET(
 
       if (verifiedPhones && verifiedPhones.length > 0) {
         primaryPhoneNumber = verifiedPhones[0].phone_number;
+        phoneVerificationStatus = verifiedPhones[0].verification_status;
       } else {
         // If no verified phone, get the most recent one
         const { data: recentPhones, error: recentError } = await supabase
           .from("user_phone_numbers")
-          .select("phone_number")
+          .select("phone_number, verification_status")
           .eq("user_id", userId)
           .order("created_at", { ascending: false })
           .limit(1);
@@ -94,6 +95,7 @@ export async function GET(
 
         if (recentPhones && recentPhones.length > 0) {
           primaryPhoneNumber = recentPhones[0].phone_number;
+          phoneVerificationStatus = recentPhones[0].verification_status;
         }
       }
     }
@@ -308,6 +310,7 @@ export async function GET(
       ...profile,
       avatar_url: avatarUrl,
       phone_number: primaryPhoneNumber,
+      phone_verification_status: phoneVerificationStatus,
     };
 
     return NextResponse.json({
