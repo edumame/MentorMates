@@ -445,6 +445,7 @@ export function EventsPageClient({
 
               {orderedEvents.length > DEFAULT_PAGE_SIZE && (
                 <EventsListPagination
+                  shownCount={visibleEvents.length}
                   totalCount={orderedEvents.length}
                   hasMore={hasMoreEvents}
                   onLoadMore={loadMore}
@@ -710,10 +711,12 @@ function FilterCard({
 }
 
 function EventsListPagination({
+  shownCount,
   totalCount,
   hasMore,
   onLoadMore,
 }: {
+  shownCount: number;
   totalCount: number;
   hasMore: boolean;
   onLoadMore: () => void;
@@ -721,8 +724,11 @@ function EventsListPagination({
   return (
     <nav
       aria-label="Events list pagination"
-      className="flex flex-col items-center gap-4 border-t border-[rgba(0,0,0,0.08)] pt-8"
+      className="flex flex-col items-center gap-3 border-t border-[rgba(0,0,0,0.08)] pt-8"
     >
+      <p className="text-[13px] text-[rgba(0,0,0,0.5)]">
+        Showing {shownCount} of {totalCount} events
+      </p>
       {hasMore ? (
         <Button type="button" variant="outline" onClick={onLoadMore}>
           Load more
