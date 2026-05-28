@@ -5,9 +5,10 @@ import Image from "next/image";
 import { MapPin } from "lucide-react";
 import { EventItem } from "@/lib/types";
 import { parseEventDateLocal } from "@/lib/utils/date";
+import { getEventNavigationTarget, type EventNavigationRole } from "@/lib/events/navigation";
 
 interface EventCardProps {
-  event: EventItem;
+  event: EventItem & { userRole?: EventNavigationRole };
 }
 
 export function EventCard({ event }: EventCardProps) {
@@ -38,9 +39,7 @@ export function EventCard({ event }: EventCardProps) {
     normalizeSummary(event.event_description) ||
     "";
 
-  // External-link events: the card opens an outside site in a new tab
-  // instead of routing to the MentorMates event page.
-  const externalUrl = event.external_url?.trim();
+  const { href, isExternal } = getEventNavigationTarget(event);
   const cardInner = (
     <div className="bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] overflow-hidden hover:shadow-lg transition-shadow duration-200 flex flex-col h-full">
         {/* Image Section */}
@@ -109,10 +108,10 @@ export function EventCard({ event }: EventCardProps) {
       </div>
   );
 
-  if (externalUrl) {
+  if (isExternal) {
     return (
       <a
-        href={externalUrl}
+        href={href}
         target="_blank"
         rel="noopener noreferrer"
         className="block h-full"
@@ -124,7 +123,7 @@ export function EventCard({ event }: EventCardProps) {
 
   return (
     <Link
-      href={`/events/${event.slug || event.event_id}/overview`}
+      href={href}
       className="block h-full"
       prefetch={false}
     >

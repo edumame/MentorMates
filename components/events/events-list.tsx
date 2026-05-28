@@ -19,9 +19,13 @@ interface Event {
   visibility?: EventVisibility;
   event_blurb?: string;
   event_description?: string;
+  external_url?: string | null;
+  external_redirect_enabled?: boolean | null;
   paid?: boolean;
   stripe_price_id?: string;
   event_type?: string[];
+  userRole?: EventRole | null;
+  canManageEvent?: boolean | null;
 }
 
 interface UserEventRole {
@@ -99,7 +103,7 @@ export function EventsList({ events }: EventsListProps) {
             key={event.event_id}
             className="relative w-full"
           >
-            <EventCard event={event} />
+            <EventCard event={{ ...event, userRole }} />
             {/* User Role Badge Overlay */}
             {userRole && (
               <div className="absolute top-3 left-3 z-10">

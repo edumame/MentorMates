@@ -3,6 +3,7 @@ import { EventsPageClient } from "@/components/eventsPageClient";
 import { createSupabaseClient } from "../utils/supabase/server";
 import { EventVisibility, ApprovalStatus } from "@/lib/types";
 import { DiscordCTA } from "@/components/ui/discord-cta";
+import { isEventManagerRole } from "@/lib/events/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -57,7 +58,11 @@ export default async function EventsPage() {
           const userRole =
             userRoles.find((role) => role.event_id === event.event_id)?.role ||
             null;
-          return { ...event, userRole };
+          return {
+            ...event,
+            userRole,
+            canManageEvent: isAdmin || isEventManagerRole(userRole),
+          };
         })
         .sort(
           (a, b) =>
