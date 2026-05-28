@@ -6,8 +6,12 @@ import { MapPin, ExternalLink } from "lucide-react";
 import { EventItem, EventRole } from "@/lib/types";
 import { parseEventDateLocal } from "@/lib/utils/date";
 import { cn } from "@/lib/utils";
+import { getEventNavigationTarget } from "@/lib/events/navigation";
 
-export type EventWithRole = EventItem & { userRole?: EventRole | null };
+export type EventWithRole = EventItem & {
+  userRole?: EventRole | null;
+  canManageEvent?: boolean | null;
+};
 
 function useEventDateParts(eventDate: string) {
   const parsed = parseEventDateLocal(eventDate);
@@ -29,13 +33,6 @@ function useEventDateParts(eventDate: string) {
       day: "numeric",
     }),
   };
-}
-
-function buildHref(event: EventWithRole) {
-  const external = event.external_url?.trim();
-  if (external) return { href: external, isExternal: true };
-  const path = event.slug ? `/events/${event.slug}` : `/events/${event.event_id}`;
-  return { href: path, isExternal: false };
 }
 
 function MmDateBadge({
@@ -63,7 +60,7 @@ function MmDateBadge({
 
 export function EventRow({ event }: { event: EventWithRole }) {
   const { dayOfWeek, day, monthYear, datetime } = useEventDateParts(event.event_date);
-  const { href, isExternal } = buildHref(event);
+  const { href, isExternal } = getEventNavigationTarget(event);
   const summary = (event.event_blurb || event.event_description || "").replace(/\s+/g, " ").trim();
 
   return (

@@ -127,7 +127,8 @@ export type EventItem = {
   approval_status?: ApprovalStatus; // Approval status: not_submitted, submitted, approved, or rejected. Featured is controlled separately via the featured boolean field.
   created_at?: string; // Timestamp when event was created
   require_participant_approval?: boolean; // Whether participants need approval to join
-  external_url?: string | null; // When set, the event is a link-out: card opens this URL and /events/<slug> redirects here
+  external_url?: string | null; // Optional outside event URL
+  external_redirect_enabled?: boolean | null; // When true, external_url links/redirects non-manager visitors away from MentorMates
 };
 
 export interface EventApprovalLog {

@@ -114,8 +114,9 @@ export interface WizardEventData {
   event_description: string;
   event_type: string[];
 
-  // External link — when set, the event is a link-out to another site
+  // External link — can optionally redirect visitors to another site
   external_url: string;
+  external_redirect_enabled: boolean;
 
   // Submission Window
   submission_time_start: string; // ISO 8601
@@ -175,6 +176,7 @@ export const INITIAL_WIZARD_EVENT: WizardEventData = {
   event_description: "",
   event_type: ["hackathon"],
   external_url: "",
+  external_redirect_enabled: false,
   submission_time_start: "",
   submission_time_cutoff: "",
   timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -222,6 +224,7 @@ export interface EventApiPayload {
     event_blurb?: string;
     event_description?: string;
     external_url?: string;
+    external_redirect_enabled?: boolean;
     submission_time_start?: string;
     submission_time_cutoff?: string;
     participant_capacity?: number;
@@ -284,6 +287,7 @@ export function buildApiPayload(event: WizardEventData): EventApiPayload {
   if (event.event_blurb) e.event_blurb = event.event_blurb;
   if (event.event_description) e.event_description = event.event_description;
   if (event.external_url) e.external_url = event.external_url.trim();
+  e.external_redirect_enabled = event.external_redirect_enabled;
   if (event.submission_time_start)
     e.submission_time_start = event.submission_time_start;
   if (event.submission_time_cutoff)

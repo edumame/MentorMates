@@ -278,6 +278,7 @@ export type Database = {
           require_participant_approval: boolean | null;
           event_type: string[] | null;
           external_url: string | null;
+          external_redirect_enabled: boolean;
         };
         Insert: {
           cover_image_url?: string | null;
@@ -312,6 +313,7 @@ export type Database = {
           require_registration_questionnaire?: boolean | null;
           event_type?: string[] | null;
           external_url?: string | null;
+          external_redirect_enabled?: boolean;
         };
         Update: {
           cover_image_url?: string | null;
@@ -346,6 +348,7 @@ export type Database = {
           require_registration_questionnaire?: boolean | null;
           event_type?: string[] | null;
           external_url?: string | null;
+          external_redirect_enabled?: boolean;
         };
         Relationships: [
           {
