@@ -196,6 +196,10 @@ export function EventPageClientWrapper({
         userRole={userRole}
         activeRole={currentRole}
         onManageEventClick={() => handleRoleChange(EventRole.Organizer)}
+        onEditEventClick={() => {
+          handleRoleChange(EventRole.Organizer);
+          router.push(`?tab=overview`);
+        }}
         paid={paid}
         eventType={eventType}
         containerClassName={EVENT_PAGE_SHELL_CLASS}
