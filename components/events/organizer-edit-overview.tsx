@@ -136,16 +136,20 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
     { value: "notify", label: "Notify" },
   ];
   const isAdvancedTab = (tab: string) => advancedTabValues.includes(tab as (typeof advancedTabValues)[number]);
-  const projectSubTabValues = ["submission", "live-scores"] as const;
-  const projectSubTabs = [
-    { value: "submission", label: "Submission" },
-    { value: "live-scores", label: "Live Score" },
-  ];
-  const projectSubTab = activeTab === "project"
-    ? (projectSubTabValues.includes(searchParams.get("subtab") as (typeof projectSubTabValues)[number])
-        ? searchParams.get("subtab")
-        : "submission")
-    : "submission";
+  // Issue #778: split former "Submission" sub-tab into "Browse" (default,
+  // list-only) and "Submission Settings" (form fields + import). "submission"
+  // remains valid in URLs for backwards compatibility and aliases to "browse".
+  const projectSubTabValues = ["browse", "submission-settings", "live-scores"] as const;
+  const rawProjectSubTab = activeTab === "project"
+    ? searchParams.get("subtab")
+    : null;
+  const projectSubTab: (typeof projectSubTabValues)[number] = activeTab === "project"
+    ? (rawProjectSubTab === "submission"
+        ? "browse"
+        : (projectSubTabValues.includes(rawProjectSubTab as (typeof projectSubTabValues)[number])
+            ? (rawProjectSubTab as (typeof projectSubTabValues)[number])
+            : "browse"))
+    : "browse";
   const isProjectTab = (tab: string) => tab === "project-submission" || tab === "live-scores" || tab === "project";
   const tabsValue = isAdvancedTab(activeTab) ? "advanced-settings" : isProjectTab(activeTab) ? "project" : activeTab;
 
@@ -246,23 +250,33 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
     }
   }, [pathname, router, searchParams]);
 
-  // Redirect legacy project-submission / live-scores to Project tab with subtab
+  // Redirect legacy project-submission / live-scores to Project tab with subtab.
+  // Old `?subtab=submission` maps to the new "browse" sub-tab (#778).
   useEffect(() => {
     const tab = searchParams.get("tab");
+    const subtab = searchParams.get("subtab");
     if (tab === "project-submission" || tab === "live-scores") {
       startTransition(() => {
         const params = new URLSearchParams(searchParams);
         params.set("tab", "project");
-        params.set("subtab", tab === "live-scores" ? "live-scores" : "submission");
+        params.set("subtab", tab === "live-scores" ? "live-scores" : "browse");
         router.replace(`${pathname}?${params.toString()}`, { scroll: false });
       });
       return;
     }
-    if (tab === "project" && !projectSubTabValues.includes(searchParams.get("subtab") as (typeof projectSubTabValues)[number])) {
+    if (tab === "project" && subtab === "submission") {
+      startTransition(() => {
+        const params = new URLSearchParams(searchParams);
+        params.set("subtab", "browse");
+        router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+      });
+      return;
+    }
+    if (tab === "project" && !projectSubTabValues.includes(subtab as (typeof projectSubTabValues)[number])) {
       startTransition(() => {
         const params = new URLSearchParams(searchParams);
         params.set("tab", "project");
-        params.set("subtab", "submission");
+        params.set("subtab", "browse");
         router.replace(`${pathname}?${params.toString()}`, { scroll: false });
       });
     }
@@ -1112,16 +1126,22 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
 
                 <TabsContent value="project" className="mt-0 w-full">
                   <Tabs
-                    value={projectSubTab ?? "submission"}
+                    value={projectSubTab}
                     onValueChange={(v) => setActiveSubTab(v)}
                     className="w-full"
                   >
                     <TabsList className="flex h-auto gap-2 p-0 justify-start bg-transparent border-0 shadow-none rounded-none mb-6">
                       <TabsTrigger
-                        value="submission"
+                        value="browse"
                         className="flex items-center justify-center px-4 py-2.5 rounded-[100px] text-base leading-[1.5] text-[var(--Color-Scheme-1-Text,#000)] font-normal border border-transparent bg-transparent data-[state=active]:font-medium data-[state=active]:bg-[var(--Color-Scheme-1-Foreground,#FFF)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none"
                       >
-                        Submission
+                        Browse
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="submission-settings"
+                        className="flex items-center justify-center px-4 py-2.5 rounded-[100px] text-base leading-[1.5] text-[var(--Color-Scheme-1-Text,#000)] font-normal border border-transparent bg-transparent data-[state=active]:font-medium data-[state=active]:bg-[var(--Color-Scheme-1-Foreground,#FFF)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none"
+                      >
+                        Submission Settings
                       </TabsTrigger>
                       <TabsTrigger
                         value="live-scores"
@@ -1130,9 +1150,12 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                         Live Score
                       </TabsTrigger>
                     </TabsList>
-                    <TabsContent value="submission" className="mt-0">
+                    <TabsContent value="browse" className="mt-0">
+                      <SubmissionsTab eventId={eventId} showFieldsSettings={false} />
+                    </TabsContent>
+                    <TabsContent value="submission-settings" className="mt-0">
                       <div className="space-y-6">
-                        <SubmissionsTab eventId={eventId} />
+                        <SubmissionFieldsSettings eventId={eventId} />
                         <div className="border-t border-[rgba(0,0,0,0.15)] pt-6">
                           <h2 className="text-xl font-semibold mb-4 text-black">
                             Import Projects
