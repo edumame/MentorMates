@@ -269,6 +269,7 @@ export type Database = {
           stripe_price_id: string | null;
           submission_time_cutoff: string | null;
           submission_time_start: string | null;
+          submission_late_buffer_minutes: number;
           visibility: Database["public"]["Enums"]["event_visibility"];
           featured: boolean | null;
           approval_status:
@@ -279,6 +280,7 @@ export type Database = {
           event_type: string[] | null;
           external_url: string | null;
           external_redirect_enabled: boolean;
+          submissions_anonymized: boolean;
         };
         Insert: {
           cover_image_url?: string | null;
@@ -305,6 +307,7 @@ export type Database = {
           stripe_price_id?: string | null;
           submission_time_cutoff?: string | null;
           submission_time_start?: string | null;
+          submission_late_buffer_minutes?: number;
           visibility?: Database["public"]["Enums"]["event_visibility"];
           featured?: boolean | null;
           approval_status?:
@@ -314,6 +317,7 @@ export type Database = {
           event_type?: string[] | null;
           external_url?: string | null;
           external_redirect_enabled?: boolean;
+          submissions_anonymized?: boolean;
         };
         Update: {
           cover_image_url?: string | null;
@@ -340,6 +344,7 @@ export type Database = {
           stripe_price_id?: string | null;
           submission_time_cutoff?: string | null;
           submission_time_start?: string | null;
+          submission_late_buffer_minutes?: number;
           featured?: boolean | null;
           approval_status?:
             | Database["public"]["Enums"]["approval_status"]
@@ -349,6 +354,7 @@ export type Database = {
           event_type?: string[] | null;
           external_url?: string | null;
           external_redirect_enabled?: boolean;
+          submissions_anonymized?: boolean;
         };
         Relationships: [
           {

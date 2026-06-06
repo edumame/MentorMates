@@ -129,6 +129,7 @@ export type EventItem = {
   require_participant_approval?: boolean; // Whether participants need approval to join
   external_url?: string | null; // Optional outside event URL
   external_redirect_enabled?: boolean | null; // When true, external_url links/redirects non-manager visitors away from MentorMates
+  submissions_anonymized?: boolean | null; // When true, hide participant identities on /api/projects for non-organizer viewers
 };
 
 export interface EventApprovalLog {
@@ -250,6 +251,12 @@ export interface EventDetails extends EventItem {
   faq?: { question: string; answer: string }[]; // Structured FAQ items
   submission_time_start?: string; // Submission window start time
   submission_time_cutoff?: string; // Submission window end time
+  /**
+   * Grace period (minutes) after submission_time_cutoff during which
+   * submissions still go through but are flagged late. 0 = legacy hard cutoff.
+   * Validated to 0–60 in the organizer UI.
+   */
+  submission_late_buffer_minutes?: number;
   sponsorship_tiers?: {
     tiers?: Array<{
       id: string; // e.g., "bronze" | "silver" | "gold" or custom
