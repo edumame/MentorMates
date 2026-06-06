@@ -17,6 +17,7 @@ import {
   hydrateProjectsWithSubmissionData,
   type ProjectBaseRow,
 } from "@/lib/projects/query";
+import { computeEffectiveCutoff } from "@/lib/events/submission-deadline";
 
 const projectWriteSchema = z.object({
   projectId: z.string().uuid().optional(),
@@ -326,14 +327,18 @@ async function validateProjectEventContext(
   const { data: event, error: eventError } = await supabase
     .from("events")
     .select(
-      "event_id, event_name, submission_time_start, submission_time_cutoff",
+      "event_id, event_name, submission_time_start, submission_time_cutoff, submission_late_buffer_minutes",
     )
     .eq("event_id", eventId)
     .single()
     .overrideTypes<
       Pick<
         Database["public"]["Tables"]["events"]["Row"],
-        "event_id" | "event_name" | "submission_time_start" | "submission_time_cutoff"
+        | "event_id"
+        | "event_name"
+        | "submission_time_start"
+        | "submission_time_cutoff"
+        | "submission_late_buffer_minutes"
       >
     >();
 
@@ -361,8 +366,11 @@ async function validateProjectEventContext(
   }
 
   if (event.submission_time_cutoff) {
-    const submissionCutoff = new Date(event.submission_time_cutoff);
-    if (now > submissionCutoff) {
+    const effectiveCutoff = computeEffectiveCutoff(
+      event.submission_time_cutoff,
+      event.submission_late_buffer_minutes ?? 0,
+    );
+    if (effectiveCutoff && now > effectiveCutoff) {
       return {
         error: "Project submission deadline has passed",
         status: 400 as const,

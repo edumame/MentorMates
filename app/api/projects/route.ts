@@ -298,15 +298,21 @@ export async function GET(request: NextRequest) {
       }
 
       // Ensure the event itself is public before returning any projects.
+      // Also fetch submission_time_cutoff so we can plumb it through to
+      // the gallery for the late-submission badge.
       const { data: eventMeta, error: eventMetaError } = await supabase
         .from("events")
-        .select("visibility")
+        .select("visibility, submission_time_cutoff")
         .eq("event_id", resolvedEventId)
         .maybeSingle();
 
       if (eventMetaError || eventMeta?.visibility !== "public") {
         return NextResponse.json({ error: "Event not found" }, { status: 404 });
       }
+
+      const eventSubmissionCutoff = (
+        eventMeta as { submission_time_cutoff?: string | null }
+      )?.submission_time_cutoff ?? null;
 
       // Public view - fetch all projects for the event
       const { data: allProjects, error } = await supabase
@@ -328,6 +334,7 @@ export async function GET(request: NextRequest) {
           private,
           created_at,
           submitted,
+          submitted_at,
           project_tracks (
             event_tracks (
               track_id,
@@ -377,6 +384,9 @@ export async function GET(request: NextRequest) {
         ).contextus_project_id,
         submitted:
           (item as unknown as { submitted?: boolean }).submitted ?? true,
+        submitted_at:
+          (item as unknown as { submitted_at?: string | null }).submitted_at ?? null,
+        event_submission_cutoff: eventSubmissionCutoff,
         tracks:
           item.project_tracks
             ?.map((pt) => pt.event_tracks)
@@ -639,6 +649,18 @@ export async function GET(request: NextRequest) {
         userRole &&
         canAccessRole(userRole.role as EventRole, EventRole.Organizer);
 
+      // Fetch the event's submission cutoff once; we plumb it through to each
+      // returned project so the gallery can derive `is_late` at read time
+      // without an N+1.
+      const { data: eventForCutoff } = await supabase
+        .from("events")
+        .select("submission_time_cutoff")
+        .eq("event_id", eventId)
+        .maybeSingle();
+      const eventSubmissionCutoff = (
+        eventForCutoff as { submission_time_cutoff?: string | null } | null
+      )?.submission_time_cutoff ?? null;
+
       // Build query with track relationships
       const query = supabase
         .from("projects")
@@ -733,6 +755,7 @@ export async function GET(request: NextRequest) {
             video_url: project.video_url ?? undefined,
             lead_school: leadProfile?.affiliation ?? null,
             teammate_profiles: teammateProfiles,
+            event_submission_cutoff: eventSubmissionCutoff,
           },
           fieldMap.get(eventId) || [],
           answerMap.get(project.id),

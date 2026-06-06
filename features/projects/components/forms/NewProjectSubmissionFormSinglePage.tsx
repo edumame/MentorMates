@@ -39,6 +39,10 @@ import type {
   IntakeFormSchema,
 } from "@/features/intake-forms/types";
 import { CoverImageWithFallback } from "@/features/projects/components/displays/cover-image-with-fallback";
+import {
+  computeEffectiveCutoff,
+  isWithinLateBuffer,
+} from "@/lib/events/submission-deadline";
 
 interface EventParticipant {
   user_id: string;
@@ -108,6 +112,10 @@ export function NewProjectSubmissionFormSinglePage({
   const [eventDetails, setEventDetails] = useState<EventDetails | null>(null);
   const [participants, setParticipants] = useState<EventParticipant[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  // Ticker used to drive the grace-period countdown banner. Updated every
+  // second only when the event has a buffer configured so we don't pay the
+  // cost on plain events.
+  const [now, setNow] = useState<Date>(() => new Date());
   const [selectedTrackIds, setSelectedTrackIds] = useState<string[]>([]);
   const [isPrivate, setIsPrivate] = useState(false);
   const [showMobileActions, setShowMobileActions] = useState(false);
@@ -184,7 +192,7 @@ export function NewProjectSubmissionFormSinglePage({
           const { data, error } = await supabase
             .from("events")
             .select(
-              "event_id, event_name, slug, event_date, location, cover_image_url, paid, event_description"
+              "event_id, event_name, slug, event_date, location, cover_image_url, paid, event_description, submission_time_cutoff, submission_late_buffer_minutes"
             )
             .eq("event_id", eventId)
             .single();
@@ -259,6 +267,30 @@ export function NewProjectSubmissionFormSinglePage({
 
     fetchSubmissionFields();
   }, [eventId]);
+
+  // Tick `now` every second while a late buffer is configured and unexpired,
+  // so the grace-period countdown banner refreshes. No-op otherwise.
+  const lateBufferMinutes =
+    (eventDetails as { submission_late_buffer_minutes?: number | null } | null)
+      ?.submission_late_buffer_minutes ?? 0;
+  const cutoffISO = eventDetails?.submission_time_cutoff ?? null;
+  const effectiveCutoff = useMemo(
+    () => computeEffectiveCutoff(cutoffISO, lateBufferMinutes),
+    [cutoffISO, lateBufferMinutes],
+  );
+  useEffect(() => {
+    if (!cutoffISO || lateBufferMinutes <= 0 || !effectiveCutoff) return;
+    if (now.getTime() > effectiveCutoff.getTime()) return;
+    const interval = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(interval);
+  }, [cutoffISO, lateBufferMinutes, effectiveCutoff, now]);
+
+  const inLateBufferWindow = isWithinLateBuffer(now, cutoffISO, lateBufferMinutes);
+  const remainingMs = inLateBufferWindow && effectiveCutoff
+    ? Math.max(0, effectiveCutoff.getTime() - now.getTime())
+    : 0;
+  const remainingMin = Math.floor(remainingMs / 60000);
+  const remainingSec = Math.floor((remainingMs % 60000) / 1000);
 
   const effectiveSubmissionFields = useMemo(
     () => buildEffectiveSubmissionFields(submissionFields, eventId),
@@ -938,6 +970,21 @@ export function NewProjectSubmissionFormSinglePage({
           )}
         </div>
       </div>
+
+      {/* Grace-period warning banner (only while in the late buffer window) */}
+      {inLateBufferWindow && (
+        <div className="bg-amber-50 border-b border-amber-300">
+          <div className="px-6 py-3 flex items-center gap-2 text-amber-900">
+            <span aria-hidden className="text-lg">⚠</span>
+            <p className="text-sm font-medium">
+              Grace period: {remainingMin} min {remainingSec
+                .toString()
+                .padStart(2, "0")}{" "}
+              sec remaining. Your submission will be marked as late.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Wrapper without top border */}
       <div className="overflow-visible">

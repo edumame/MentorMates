@@ -187,6 +187,10 @@ export function BasicInfoTab({
           cover_image_url: coverImageUrl ?? null,
           submission_time_start: event.submission_time_start,
           submission_time_cutoff: event.submission_time_cutoff,
+          submission_late_buffer_minutes: Math.max(
+            0,
+            Math.min(60, Math.floor(event.submission_late_buffer_minutes ?? 0)),
+          ),
           participant_capacity: event.participant_capacity ?? null,
           finalist_recommendation_enabled:
             event.finalist_recommendation_enabled ?? false,
@@ -432,6 +436,50 @@ export function BasicInfoTab({
                 onTimezoneChange={setSubmissionTimezone}
               />
             </div>
+          </div>
+
+          {/* Late submission buffer */}
+          <div className="space-y-2">
+            <label
+              htmlFor="submission_late_buffer_minutes"
+              className="text-sm text-gray-600"
+            >
+              Late submission buffer (minutes)
+            </label>
+            <Input
+              id="submission_late_buffer_minutes"
+              type="number"
+              min={0}
+              max={60}
+              step={1}
+              disabled={isArchived}
+              value={
+                typeof event.submission_late_buffer_minutes === "number"
+                  ? String(event.submission_late_buffer_minutes)
+                  : "0"
+              }
+              onChange={(e) => {
+                const raw = e.target.value;
+                if (raw === "") {
+                  setEvent({ ...event, submission_late_buffer_minutes: 0 });
+                  return;
+                }
+                const parsed = parseInt(raw, 10);
+                const clamped = Number.isNaN(parsed)
+                  ? 0
+                  : Math.max(0, Math.min(60, parsed));
+                setEvent({
+                  ...event,
+                  submission_late_buffer_minutes: clamped,
+                });
+              }}
+              placeholder="0"
+              className="w-full h-[44px] bg-white border border-[rgba(0,0,0,0.15)] rounded-[12px] text-[16px] focus:ring-0 focus:ring-offset-0 focus:border-[rgba(0,0,0,0.15)] outline-none"
+            />
+            <p className="text-xs text-gray-500">
+              Allow submissions for up to N minutes after the cutoff. Marked
+              as late. 0 = hard cutoff. Range: 0–60.
+            </p>
           </div>
         </div>
 

@@ -34,6 +34,7 @@ import QRCode from "react-qr-code";
 
 import { Project, ProjectBoardContext } from "@/lib/types";
 import { CoverImageWithFallback } from "@/features/projects/components/displays/cover-image-with-fallback";
+import { isLateSubmission } from "@/lib/events/submission-deadline";
 
 export interface ProjectBoardProps {
   isLoading: boolean;
@@ -128,6 +129,17 @@ const ProjectBoard = ({
                             {project.submitted ? <Sparkles className="w-3 h-3" /> : <Loader className="w-3 h-3 animate-spin" />}
                             {project.submitted ? "Submitted" : "Draft"}
                           </div>
+                          {isLateSubmission(
+                            project.submitted_at ?? null,
+                            project.event_submission_cutoff ?? null,
+                          ) && (
+                            <div
+                              className="bg-red-600/95 backdrop-blur-sm border border-red-700 text-white px-2.5 py-1 text-xs font-medium rounded-full flex items-center gap-1.5 shadow-sm"
+                              title="Submitted after the event's cutoff time"
+                            >
+                              Late
+                            </div>
+                          )}
                           {isOwner && (
                             <div className="bg-white/95 backdrop-blur-sm border border-gray-200 text-gray-700 px-2.5 py-1 text-xs font-medium rounded-full flex items-center gap-1.5 shadow-sm">
                               <User className="w-3 h-3" />
