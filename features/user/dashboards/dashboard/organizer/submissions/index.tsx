@@ -109,12 +109,21 @@ interface ProjectData {
 
 interface SubmissionsTabProps {
   eventId: string;
+  /**
+   * When false, hide the SubmissionFieldsSettings configuration block so
+   * the page leads with the project submissions list. Defaults to true
+   * for back-compat. See issue #778.
+   */
+  showFieldsSettings?: boolean;
 }
 
 type SortField = "project_name" | "lead_name" | "team_size" | "submitted" | "created_at";
 type SortDirection = "asc" | "desc";
 
-export function SubmissionsTab({ eventId }: SubmissionsTabProps) {
+export function SubmissionsTab({
+  eventId,
+  showFieldsSettings = true,
+}: SubmissionsTabProps) {
   const [projects, setProjects] = useState<ProjectData[]>([]);
   const [eventTracks, setEventTracks] = useState<EventTrack[]>([]);
   const [loading, setLoading] = useState(true);
@@ -509,7 +518,7 @@ export function SubmissionsTab({ eventId }: SubmissionsTabProps) {
 
   return (
     <div className="space-y-6">
-      <SubmissionFieldsSettings eventId={eventId} />
+      {showFieldsSettings && <SubmissionFieldsSettings eventId={eventId} />}
       <Card>
         <CardHeader>
           <CardTitle>Project Submissions</CardTitle>
