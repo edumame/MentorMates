@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/lib/supabase";
@@ -20,6 +20,11 @@ import {
   EvidenceLetterDialog,
   RecipientEvidenceContext,
 } from "../roles/EvidenceLetterDialog";
+import {
+  RoleFilterChips,
+  computeRoleCounts,
+  type RoleFilter,
+} from "@/components/events/role-filter";
 
 interface UserEventRoleWithProfile {
   user_id: string;
@@ -254,11 +259,43 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
     setLetterDialogOpen(true);
   };
 
-  const totalPages = Math.max(1, Math.ceil(participants.length / PAGE_SIZE));
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
+
+  const roleCounts = useMemo(
+    () => computeRoleCounts(participants),
+    [participants]
+  );
+
+  const filteredParticipants = useMemo(
+    () =>
+      roleFilter === "all"
+        ? participants
+        : participants.filter((p) => p.role === roleFilter),
+    [participants, roleFilter]
+  );
+
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredParticipants.length / PAGE_SIZE)
+  );
   const clampedCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
   const startIndex = (clampedCurrentPage - 1) * PAGE_SIZE;
   const endIndex = startIndex + PAGE_SIZE;
-  const pagedParticipants = participants.slice(startIndex, endIndex);
+  const pagedParticipants = filteredParticipants.slice(startIndex, endIndex);
+
+  const handleRoleFilterChange = (role: RoleFilter) => {
+    setRoleFilter(role);
+    setCurrentPage(1);
+  };
+
+  // If the active role's count drops to zero (e.g. the last mentor was
+  // re-assigned or removed), its chip disappears — fall back to "All" so the
+  // table never gets stuck showing an empty filtered view.
+  useEffect(() => {
+    if (roleFilter !== "all" && (roleCounts[roleFilter] ?? 0) === 0) {
+      setRoleFilter("all");
+    }
+  }, [roleFilter, roleCounts]);
 
   useEffect(() => {
     if (currentPage !== clampedCurrentPage) setCurrentPage(clampedCurrentPage);
@@ -468,6 +505,13 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
                 <div>Loading participants...</div>
               ) : (
                 <>
+                  <RoleFilterChips
+                    counts={roleCounts}
+                    activeFilter={roleFilter}
+                    onFilterChange={handleRoleFilterChange}
+                    eventRoleLabels={event.role_labels ?? null}
+                  />
+
                   <div
                     className="flex items-start self-stretch rounded-[16px] border border-[var(--Color-Scheme-1-Border,rgba(0,0,0,0.15))] bg-[var(--Color-White,#FFF)]"
                     style={{ borderWidth: "var(--Stroke-Border-Width, 1px)" }}
