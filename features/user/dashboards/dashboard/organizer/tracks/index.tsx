@@ -39,7 +39,7 @@ export function EventTracksContainer({
   const [activeSubTab, setActiveSubTab] = useState("tracks");
   const { isArchived } = useEventArchiveStatus(event);
   return (
-    <div className="w-full">
+    <div className="w-full min-w-0">
       {isArchived && (
         <div className="mb-4">
           <Alert className="border-orange-200 bg-orange-50">
@@ -77,21 +77,23 @@ export function EventTracksContainer({
         </Alert>
       </div>
 
-      <Tabs value={activeSubTab} onValueChange={setActiveSubTab}>
-        <TabsList className="flex h-auto gap-2 p-0 justify-start bg-transparent border-0 shadow-none rounded-none">
+      <Tabs value={activeSubTab} onValueChange={setActiveSubTab} className="w-full min-w-0">
+        <div className="scroll-x-tabs no-scrollbar w-full min-w-0 mb-6">
+          <TabsList className="flex h-auto w-max flex-nowrap gap-2 p-0 justify-start bg-transparent border-0 shadow-none rounded-none">
           <TabsTrigger
             value="tracks"
-            className="flex items-center justify-center px-4 py-2.5 rounded-[100px] text-base leading-[1.5] text-[var(--Color-Scheme-1-Text,#000)] font-normal border border-transparent bg-transparent data-[state=active]:font-medium data-[state=active]:bg-[var(--Color-Scheme-1-Foreground,#FFF)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none"
+            className="flex flex-shrink-0 items-center justify-center whitespace-nowrap px-4 py-2.5 rounded-[100px] text-base leading-[1.5] text-[var(--Color-Scheme-1-Text,#000)] font-normal border border-transparent bg-transparent data-[state=active]:font-medium data-[state=active]:bg-[var(--Color-Scheme-1-Foreground,#FFF)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none"
           >
             Tracks &amp; scoring
           </TabsTrigger>
           <TabsTrigger
             value="prizes"
-            className="flex items-center justify-center px-4 py-2.5 rounded-[100px] text-base leading-[1.5] text-[var(--Color-Scheme-1-Text,#000)] font-normal border border-transparent bg-transparent data-[state=active]:font-medium data-[state=active]:bg-[var(--Color-Scheme-1-Foreground,#FFF)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none"
+            className="flex flex-shrink-0 items-center justify-center whitespace-nowrap px-4 py-2.5 rounded-[100px] text-base leading-[1.5] text-[var(--Color-Scheme-1-Text,#000)] font-normal border border-transparent bg-transparent data-[state=active]:font-medium data-[state=active]:bg-[var(--Color-Scheme-1-Foreground,#FFF)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none"
           >
             Prizes
           </TabsTrigger>
         </TabsList>
+        </div>
 
         {/* Tracks */}
         <TabsContent value="tracks" className="mt-4">

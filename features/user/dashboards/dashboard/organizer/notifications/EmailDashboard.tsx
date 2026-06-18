@@ -117,7 +117,7 @@ export default function EmailDashboard({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="w-full min-w-0 space-y-6">
       <div className="flex flex-col space-y-4">
         <h2
         className="font-geist text-2xl font-semibold"
@@ -133,8 +133,8 @@ export default function EmailDashboard({
         </p>
       </div>
 
-      <div className="rounded-[16px] border overflow-hidden">
-        <Table>
+      <div className="scroll-x-tabs w-full min-w-0 rounded-[16px] border overflow-hidden">
+        <Table className="min-w-[600px]">
           <TableHeader>
             <TableRow>
               <TableHead className="px-6">Name</TableHead>

@@ -188,6 +188,18 @@ body {
   scrollbar-width: none;
 }
 
+/* Horizontal tab strips — scroll on mobile without chaining to page scroll */
+.scroll-x-tabs {
+  display: block;
+  width: 100%;
+  overflow-x: scroll;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x;
+  min-width: 0;
+  max-width: 100%;
+}
+
 /* Stream Chat overrides for ChatGPT-like composer styling */
 .chatgpt-stream-shell .str-chat,
 .chatgpt-stream-shell .str-chat__channel,
