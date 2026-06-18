@@ -424,13 +424,14 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
   const [activeTab, setActiveTab] = useState("list");
 
   return (
-    <Card className="border-0 bg-transparent shadow-none px-0">
-      <CardHeader className="flex flex-row items-center justify-between gap-3 px-0 pt-0 pb-6">
-        <Tabs value={topSection} onValueChange={(v) => setTopSection(v as "registration" | "assign-roles")} className="w-auto">
-          <TabsList className="flex h-auto gap-2 p-0 bg-transparent border-0 shadow-none rounded-none">
+    <Card className="border-0 bg-transparent shadow-none px-0 w-full min-w-0">
+      <CardHeader className="flex flex-col items-stretch gap-4 px-0 pt-0 pb-6 sm:flex-row sm:items-center sm:justify-between">
+        <div className="scroll-x-tabs no-scrollbar min-w-0 w-full sm:w-auto">
+          <Tabs value={topSection} onValueChange={(v) => setTopSection(v as "registration" | "assign-roles")} className="w-max">
+            <TabsList className="flex h-auto flex-nowrap gap-2 p-0 bg-transparent border-0 shadow-none rounded-none w-max">
             <TabsTrigger
               value="registration"
-              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-[100px] text-base leading-[1.5] text-[var(--Color-Scheme-1-Text,#000)] font-normal border border-transparent bg-transparent data-[state=active]:font-medium data-[state=active]:bg-[var(--Color-Scheme-1-Foreground,#FFF)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none"
+              className="flex flex-shrink-0 items-center justify-center gap-2 whitespace-nowrap px-4 py-2.5 rounded-[100px] text-base leading-[1.5] text-[var(--Color-Scheme-1-Text,#000)] font-normal border border-transparent bg-transparent data-[state=active]:font-medium data-[state=active]:bg-[var(--Color-Scheme-1-Foreground,#FFF)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none"
             >
               Registration
               <Badge variant="secondary" className="rounded-full font-normal text-sm text-[var(--Color-Neutral,#737373)] bg-transparent border-0 px-0 hover:bg-transparent">
@@ -439,65 +440,70 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
             </TabsTrigger>
             <TabsTrigger
               value="assign-roles"
-              className="flex items-center justify-center px-4 py-2.5 rounded-[100px] text-base leading-[1.5] text-[var(--Color-Scheme-1-Text,#000)] font-normal border border-transparent bg-transparent data-[state=active]:font-medium data-[state=active]:bg-[var(--Color-Scheme-1-Foreground,#FFF)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none"
+              className="flex flex-shrink-0 items-center justify-center whitespace-nowrap px-4 py-2.5 rounded-[100px] text-base leading-[1.5] text-[var(--Color-Scheme-1-Text,#000)] font-normal border border-transparent bg-transparent data-[state=active]:font-medium data-[state=active]:bg-[var(--Color-Scheme-1-Foreground,#FFF)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:shadow-none"
             >
               Assign Roles
             </TabsTrigger>
           </TabsList>
         </Tabs>
+        </div>
 
         {topSection === "registration" && (
-          <div className="flex items-center gap-2">
+          <div className="flex w-full shrink-0 items-center gap-2 sm:w-auto">
             <Button
               onClick={handleCopyEmails}
               variant="outline"
               size="sm"
-              className="flex h-11 items-center px-5 py-2 rounded-[var(--Radius-Medium,12px)] border border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] bg-[var(--Color-Scheme-1-Foreground,#FFF)] text-[var(--Color-Scheme-1-Text,#000)] font-normal text-base leading-[1.5]"
+              className="flex h-11 flex-1 items-center justify-center px-3 py-2 sm:flex-none sm:px-5 rounded-[var(--Radius-Medium,12px)] border border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] bg-[var(--Color-Scheme-1-Foreground,#FFF)] text-[var(--Color-Scheme-1-Text,#000)] font-normal text-base leading-[1.5]"
               type="button"
             >
-              <Copy className="h-4 w-4 mr-2" />
-              Copy emails
+              <Copy className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Copy emails</span>
+              <span className="sm:hidden">Copy</span>
             </Button>
 
             <Button
               onClick={handleExportCSV}
               variant="outline"
               size="sm"
-              className="flex h-11 items-center px-5 py-2 rounded-[var(--Radius-Medium,12px)] border border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] bg-[var(--Color-Scheme-1-Foreground,#FFF)] text-[var(--Color-Scheme-1-Text,#000)] font-normal text-base leading-[1.5]"
+              className="flex h-11 flex-1 items-center justify-center px-3 py-2 sm:flex-none sm:px-5 rounded-[var(--Radius-Medium,12px)] border border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] bg-[var(--Color-Scheme-1-Foreground,#FFF)] text-[var(--Color-Scheme-1-Text,#000)] font-normal text-base leading-[1.5]"
               type="button"
             >
-              <Download className="h-4 w-4 mr-2" />
-              Export CSV
+              <Download className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Export CSV</span>
+              <span className="sm:hidden">Export</span>
             </Button>
           </div>
         )}
       </CardHeader>
 
-      <CardContent className="px-0">
+      <CardContent className="px-0 min-w-0">
         {topSection === "assign-roles" ? (
           <AssignTab eventId={eventId} />
         ) : (
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="font-inter grid w-full grid-cols-3 h-auto p-1 gap-0 rounded-xl bg-white border border-[rgba(0,0,0,0.15)] text-muted-foreground">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full min-w-0">
+          <div className="scroll-x-tabs no-scrollbar w-full min-w-0 sm:overflow-visible">
+            <TabsList className="font-inter flex h-auto w-max flex-nowrap gap-1 p-1 rounded-xl bg-white border border-[rgba(0,0,0,0.15)] text-muted-foreground sm:grid sm:w-full sm:grid-cols-3">
             <TabsTrigger
               value="list"
-              className="rounded-lg px-4 py-2 text-sm font-medium text-black border border-transparent transition-all data-[state=active]:bg-[var(--Color-Pattens-Blue-Lightest,#FBFCFE)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:font-semibold data-[state=active]:shadow-none hover:text-black/80"
+              className="flex-shrink-0 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium text-black border border-transparent transition-all data-[state=active]:bg-[var(--Color-Pattens-Blue-Lightest,#FBFCFE)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:font-semibold data-[state=active]:shadow-none hover:text-black/80 sm:px-4"
             >
               Participant List
             </TabsTrigger>
             <TabsTrigger
               value="approval-requests"
-              className="rounded-lg px-4 py-2 text-sm font-medium text-black border border-transparent transition-all data-[state=active]:bg-[var(--Color-Pattens-Blue-Lightest,#FBFCFE)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:font-semibold data-[state=active]:shadow-none hover:text-black/80"
+              className="flex-shrink-0 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium text-black border border-transparent transition-all data-[state=active]:bg-[var(--Color-Pattens-Blue-Lightest,#FBFCFE)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:font-semibold data-[state=active]:shadow-none hover:text-black/80 sm:px-4"
             >
               Approval Requests
             </TabsTrigger>
             <TabsTrigger
               value="approval-settings"
-              className="rounded-lg px-4 py-2 text-sm font-medium text-black border border-transparent transition-all data-[state=active]:bg-[var(--Color-Pattens-Blue-Lightest,#FBFCFE)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:font-semibold data-[state=active]:shadow-none hover:text-black/80"
+              className="flex-shrink-0 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium text-black border border-transparent transition-all data-[state=active]:bg-[var(--Color-Pattens-Blue-Lightest,#FBFCFE)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:font-semibold data-[state=active]:shadow-none hover:text-black/80 sm:px-4"
             >
               Approval Settings
             </TabsTrigger>
           </TabsList>
+          </div>
 
           <TabsContent value="list" className="mt-6">
             <div className="space-y-4">
@@ -513,10 +519,10 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
                   />
 
                   <div
-                    className="flex items-start self-stretch rounded-[16px] border border-[var(--Color-Scheme-1-Border,rgba(0,0,0,0.15))] bg-[var(--Color-White,#FFF)]"
+                    className="scroll-x-tabs w-full min-w-0 self-stretch rounded-[16px] border border-[var(--Color-Scheme-1-Border,rgba(0,0,0,0.15))] bg-[var(--Color-White,#FFF)]"
                     style={{ borderWidth: "var(--Stroke-Border-Width, 1px)" }}
                   >
-                    <Table>
+                    <Table className="min-w-[640px]">
                       <TableHeader>
                         <TableRow>
                           <TableHead className="pl-6">Name</TableHead>
@@ -550,7 +556,7 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
                                     handleChangeRole(participant.user_id, val as EventRole)
                                   }
                                 >
-                                  <SelectTrigger className="w-[180px]">
+                                  <SelectTrigger className="w-[130px] sm:w-[180px]">
                                     <SelectValue placeholder="Select role" />
                                   </SelectTrigger>
                                   <SelectContent>
@@ -598,7 +604,7 @@ export function ParticipantsTab({ eventId, event, setEvent, isArchived }: Partic
                     </Table>
                   </div>
 
-                  <div className="flex items-center justify-between gap-3 pt-4">
+                  <div className="flex flex-wrap items-center justify-center gap-3 pt-4 sm:justify-between">
                     <Button
                       variant="secondary"
                       size="default"

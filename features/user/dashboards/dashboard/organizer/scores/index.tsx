@@ -709,31 +709,33 @@ export function ScoresTab({
   }, [eventId, calculateTrackScores, activeRound, fetchProfilesByUserIds]);
 
   return (
-    <div className="space-y-6">
-      <Tabs defaultValue="judge-scores" className="w-full">
-        <TabsList className="font-inter grid w-full grid-cols-3 h-auto p-1 gap-0 rounded-xl bg-white border border-[rgba(0,0,0,0.15)] text-muted-foreground">
+    <div className="w-full min-w-0 space-y-6">
+      <Tabs defaultValue="judge-scores" className="w-full min-w-0">
+        <div className="scroll-x-tabs no-scrollbar w-full min-w-0 mb-6 sm:overflow-visible">
+          <TabsList className="font-inter flex h-auto w-max min-w-full flex-nowrap gap-1 p-1 rounded-xl bg-white border border-[rgba(0,0,0,0.15)] text-muted-foreground sm:grid sm:w-full sm:grid-cols-3 sm:overflow-visible">
           <TabsTrigger
             value="judge-scores"
-            className="flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-black border border-transparent transition-all data-[state=active]:bg-[var(--Color-Pattens-Blue-Lightest,#FBFCFE)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:font-semibold data-[state=active]:shadow-none hover:text-black/80"
+            className="flex flex-shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium text-black border border-transparent transition-all data-[state=active]:bg-[var(--Color-Pattens-Blue-Lightest,#FBFCFE)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:font-semibold data-[state=active]:shadow-none hover:text-black/80 sm:px-4"
           >
             <Gavel className="w-4 h-4" />
             Judge Scores
           </TabsTrigger>
           <TabsTrigger
             value="agent-scores"
-            className="flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-black border border-transparent transition-all data-[state=active]:bg-[var(--Color-Pattens-Blue-Lightest,#FBFCFE)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:font-semibold data-[state=active]:shadow-none hover:text-black/80"
+            className="flex flex-shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium text-black border border-transparent transition-all data-[state=active]:bg-[var(--Color-Pattens-Blue-Lightest,#FBFCFE)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:font-semibold data-[state=active]:shadow-none hover:text-black/80 sm:px-4"
           >
             <Bot className="w-4 h-4" />
             Agent Scores
           </TabsTrigger>
           <TabsTrigger
             value="peoples-choice"
-            className="flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-black border border-transparent transition-all data-[state=active]:bg-[var(--Color-Pattens-Blue-Lightest,#FBFCFE)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:font-semibold data-[state=active]:shadow-none hover:text-black/80"
+            className="flex flex-shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium text-black border border-transparent transition-all data-[state=active]:bg-[var(--Color-Pattens-Blue-Lightest,#FBFCFE)] data-[state=active]:border-[var(--Opacity-Neutral-Darkest-15,rgba(0,0,0,0.15))] data-[state=active]:font-semibold data-[state=active]:shadow-none hover:text-black/80 sm:px-4"
           >
             <Vote className="w-4 h-4" />
             People&apos;s Choice
           </TabsTrigger>
         </TabsList>
+        </div>
 
         {/* Judge Scores Tab */}
         <TabsContent value="judge-scores" className="mt-6">
@@ -750,21 +752,21 @@ export function ScoresTab({
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <div className="flex justify-between items-start gap-4">
-                    <div>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
                       <h3 className="text-lg font-medium">Live Judge Scores</h3>
                       <p className="text-sm text-muted-foreground">
                         Each project shows the judges who have submitted a score
                         and the total they gave.
                       </p>
                     </div>
-                    <div className="flex space-x-2">
+                    <div className="flex flex-wrap gap-2 shrink-0">
                       <Button
                         onClick={exportRawData}
                         variant="outline"
                         size="sm"
                         disabled={loading}
-                        className="flex h-11 items-center rounded-[12px] px-5 py-2"
+                        className="flex h-11 items-center rounded-[12px] px-5 py-2 whitespace-nowrap"
                       >
                         <Download className="w-4 h-4 mr-2" />
                         Export Raw Data
@@ -774,7 +776,7 @@ export function ScoresTab({
                         variant="outline"
                         size="sm"
                         disabled={loading}
-                        className="flex h-11 items-center rounded-[12px] px-5 py-2"
+                        className="flex h-11 items-center rounded-[12px] px-5 py-2 whitespace-nowrap"
                       >
                         <Download className="w-4 h-4 mr-2" />
                         Export Tables
