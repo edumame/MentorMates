@@ -308,29 +308,35 @@ export function RoundsEditor({
       : null;
 
   return (
-    <Card className="p-6 space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
+    <Card className="w-full min-w-0 border p-4 sm:p-6 space-y-4 shadow-none">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
           <h3 className="text-lg font-semibold">Judging Rounds</h3>
           <p className="text-sm text-muted-foreground">
             Configure multi-round judging and choose exactly which projects advance.
           </p>
         </div>
-        <Button type="button" variant="outline" onClick={addRound} size="sm">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={addRound}
+          size="sm"
+          className="shrink-0 self-start sm:self-auto"
+        >
           <Plus className="w-4 h-4 mr-1" /> Add round
         </Button>
       </div>
 
-      <div className="space-y-3">
+      <div className="divide-y divide-border/60 rounded-lg bg-muted/30">
         {rounds.map((round) => {
           const isActive = activeRound === round.round_number;
           return (
             <div
               key={round.round_number}
-              className="border rounded-lg p-4 space-y-3"
+              className="space-y-4 p-4 first:pt-4 last:pb-4"
             >
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-medium w-20">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <span className="text-sm font-medium shrink-0">
                   Round {round.round_number}
                 </span>
                 <Input
@@ -339,66 +345,79 @@ export function RoundsEditor({
                     updateRound(round.round_number, { name: e.target.value })
                   }
                   placeholder="Round name"
-                  className="flex-1"
+                  className="min-w-0 flex-1"
                 />
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={isActive ? "default" : "outline"}
-                  onClick={() => setActiveRound(round.round_number)}
-                >
-                  {isActive ? "Active" : "Set active"}
-                </Button>
-                {rounds.length > 1 && (
+                <div className="flex flex-wrap items-center gap-2">
                   <Button
                     type="button"
                     size="sm"
-                    variant="ghost"
-                    onClick={() => removeRound(round.round_number)}
-                    aria-label="Remove round"
+                    variant={isActive ? "default" : "outline"}
+                    onClick={() => setActiveRound(round.round_number)}
+                    className="whitespace-nowrap"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    {isActive ? "Active" : "Set active"}
                   </Button>
-                )}
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="w-44 text-sm text-muted-foreground">
-                  Choose projects to advance
+                  {rounds.length > 1 && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => removeRound(round.round_number)}
+                      aria-label="Remove round"
+                      className="shrink-0"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  )}
                 </div>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setEditingRoundNumber(round.round_number)}
-                >
-                  Edit rubric
-                </Button>
-                {round.tracks ? (
-                  <span className="text-xs font-medium text-[#2E68CA]">
-                    Custom round rubric
-                  </span>
-                ) : (
-                  <span className="text-xs text-muted-foreground">
-                    Using event default rubric
-                  </span>
-                )}
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => openAdvanceDialog(round.round_number)}
-                >
-                  <ArrowRightCircle className="w-4 h-4 mr-1" />
-                  Pick round {round.round_number + 1} projects
-                </Button>
+              </div>
+              <div className="flex flex-col gap-3">
+                <p className="text-sm text-muted-foreground">
+                  Choose projects to advance
+                </p>
+                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setEditingRoundNumber(round.round_number)}
+                    className="w-full sm:w-auto"
+                  >
+                    Edit rubric
+                  </Button>
+                  {round.tracks ? (
+                    <span className="text-xs font-medium text-[#2E68CA]">
+                      Custom round rubric
+                    </span>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">
+                      Using event default rubric
+                    </span>
+                  )}
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => openAdvanceDialog(round.round_number)}
+                    className="w-full sm:w-auto whitespace-normal sm:whitespace-nowrap"
+                  >
+                    <ArrowRightCircle className="w-4 h-4 mr-1 shrink-0" />
+                    Pick round {round.round_number + 1} projects
+                  </Button>
+                </div>
               </div>
             </div>
           );
         })}
       </div>
 
-      <div className="flex justify-end">
-        <Button type="button" onClick={handleSave} disabled={saving}>
+      <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+        <Button
+          type="button"
+          onClick={handleSave}
+          disabled={saving}
+          className="w-full sm:w-auto"
+        >
           {saving ? "Saving..." : "Save rounds"}
         </Button>
       </div>
