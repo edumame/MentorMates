@@ -54,15 +54,18 @@ export async function EventPageLayout({
     userRole = (userEventRole?.role as EventRole) || null;
   }
 
-  // Fetch event role labels if available
+  // Fetch event role labels and feature flags if available
   const { data: eventData } = await supabase
     .from("events")
-    .select("role_labels")
+    .select("role_labels, team_formation_enabled")
     .eq("event_id", dbEventId)
     .maybeSingle();
 
   const eventRoleLabels =
     (eventData?.role_labels as Record<string, string> | null) || null;
+
+  // Team tab is opt-in per event and only relevant to joined members.
+  const showTeamTab = Boolean(eventData?.team_formation_enabled) && hasJoined;
 
   // Fetch participant count
   const { count: participantCount } = await supabase
@@ -105,6 +108,7 @@ export async function EventPageLayout({
                   projectCount={projectCount || 0}
                   showTicketsTab={(paid && hasJoined) || false}
                   showParticipantsTab={hasJoined}
+                  showTeamTab={showTeamTab}
                 />
 
                 {/* Main Content */}
@@ -143,6 +147,7 @@ export async function EventPageLayout({
               projectCount={projectCount || 0}
               showTicketsTab={(paid && hasJoined) || false}
               showParticipantsTab={hasJoined}
+              showTeamTab={showTeamTab}
             />
 
             {/* Main Content */}

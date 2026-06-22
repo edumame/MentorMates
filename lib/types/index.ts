@@ -129,6 +129,7 @@ export type EventItem = {
   require_participant_approval?: boolean; // Whether participants need approval to join
   external_url?: string | null; // Optional outside event URL
   external_redirect_enabled?: boolean | null; // When true, external_url links/redirects non-manager visitors away from MentorMates
+  team_formation_enabled?: boolean | null; // When true, participants see the Team tab to form/join teams
 };
 
 export interface EventApprovalLog {
