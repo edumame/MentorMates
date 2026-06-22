@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 
 // Import existing tab components
 import { ParticipantsTab } from "@/features/user/dashboards/dashboard/organizer/participants";
+import { OrganizerTeamsTab } from "@/features/user/dashboards/dashboard/organizer/teams";
 import { AccessTab } from "@/features/user/dashboards/dashboard/organizer/access";
 import { EventTracksContainer } from "@/features/user/dashboards/dashboard/organizer/tracks";
 import { SubmissionsTab } from "@/features/user/dashboards/dashboard/organizer/submissions";
@@ -114,6 +115,7 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
   // Primary tabs in the bar (Advanced Settings is a dropdown)
   const mainTabs = [
     { value: "participants", label: "People", badge: participantCount },
+    { value: "teams", label: "Teams" },
     { value: "project", label: "Projects", badge: projectCount },
     { value: "access", label: "Access" },
     { value: "tracks", label: "Tracks & Prizes" },
@@ -1077,6 +1079,16 @@ export function OrganizerEditOverview({ eventId }: OrganizerEditOverviewProps) {
                       event={event}
                       setEvent={setEvent}
                       isArchived={event.visibility === "archived"}
+                    />
+                  )}
+                </TabsContent>
+
+                <TabsContent value="teams" className="mt-0 w-full min-w-0">
+                  {event && (
+                    <OrganizerTeamsTab
+                      eventId={eventId}
+                      event={event}
+                      setEvent={setEvent}
                     />
                   )}
                 </TabsContent>

@@ -279,6 +279,7 @@ export type Database = {
           event_type: string[] | null;
           external_url: string | null;
           external_redirect_enabled: boolean;
+          team_formation_enabled: boolean;
         };
         Insert: {
           cover_image_url?: string | null;
@@ -314,6 +315,7 @@ export type Database = {
           event_type?: string[] | null;
           external_url?: string | null;
           external_redirect_enabled?: boolean;
+          team_formation_enabled?: boolean;
         };
         Update: {
           cover_image_url?: string | null;
@@ -349,6 +351,7 @@ export type Database = {
           event_type?: string[] | null;
           external_url?: string | null;
           external_redirect_enabled?: boolean;
+          team_formation_enabled?: boolean;
         };
         Relationships: [
           {
@@ -1027,6 +1030,107 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "role_passwords_event_id_fkey";
+            columns: ["event_id"];
+            isOneToOne: false;
+            referencedRelation: "events";
+            referencedColumns: ["event_id"];
+          },
+        ];
+      };
+      teams: {
+        Row: {
+          id: string;
+          event_id: string;
+          name: string;
+          created_by: string | null;
+          project_id: string | null;
+          created_at: string | null;
+          updated_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          event_id: string;
+          name: string;
+          created_by?: string | null;
+          project_id?: string | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          event_id?: string;
+          name?: string;
+          created_by?: string | null;
+          project_id?: string | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "teams_event_id_fkey";
+            columns: ["event_id"];
+            isOneToOne: false;
+            referencedRelation: "events";
+            referencedColumns: ["event_id"];
+          },
+          {
+            foreignKeyName: "teams_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "user_profiles";
+            referencedColumns: ["uid"];
+          },
+          {
+            foreignKeyName: "teams_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "projects";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      team_members: {
+        Row: {
+          id: string;
+          team_id: string;
+          user_id: string;
+          event_id: string;
+          role: string;
+          joined_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          team_id: string;
+          user_id: string;
+          event_id: string;
+          role?: string;
+          joined_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          team_id?: string;
+          user_id?: string;
+          event_id?: string;
+          role?: string;
+          joined_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "team_members_team_id_fkey";
+            columns: ["team_id"];
+            isOneToOne: false;
+            referencedRelation: "teams";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "team_members_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "user_profiles";
+            referencedColumns: ["uid"];
+          },
+          {
+            foreignKeyName: "team_members_event_id_fkey";
             columns: ["event_id"];
             isOneToOne: false;
             referencedRelation: "events";
